@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Models.Content;
@@ -153,28 +154,38 @@ public class ContentSearchQuery
     private static readonly Dictionary<string, string> LanguageMap =
     new(StringComparer.OrdinalIgnoreCase)
     {
-        ["EN"] = "EN",
-        ["DE"] = "DE",
-        ["FR"] = "FR",
-        ["PL"] = "PL",
-        ["ES"] = "ES",
-        ["IT"] = "IT",
-        ["KO"] = "KO",
-        ["BR"] = "BR",
-        ["CN"] = "CN",
-        ["ZH"] = "CN",
-        ["ZH-CN"] = "CN",
+        [CsvConstants.AllLanguagesFilter] = CsvConstants.AllLanguagesFilter,
+        [CsvConstants.LanguageEn] = CsvConstants.LanguageEn,
+        [CsvConstants.LanguageDe] = CsvConstants.LanguageDe,
+        [CsvConstants.LanguageFr] = CsvConstants.LanguageFr,
+        [CsvConstants.LanguagePl] = CsvConstants.LanguagePl,
+        [CsvConstants.LanguageEs] = CsvConstants.LanguageEs,
+        [CsvConstants.LanguageIt] = CsvConstants.LanguageIt,
+        [CsvConstants.LanguageKo] = CsvConstants.LanguageKo,
+        [CsvConstants.LanguagePtBr] = CsvConstants.LanguagePtBr,
+        ["BR"] = CsvConstants.LanguagePtBr,
+        ["PT"] = CsvConstants.LanguagePtBr,
+        [CsvConstants.LanguageZhCn] = CsvConstants.LanguageZhCn,
+        ["CN"] = CsvConstants.LanguageZhCn,
+        ["ZH"] = CsvConstants.LanguageZhCn,
+        [CsvConstants.LanguageZhTw] = CsvConstants.LanguageZhTw,
+        ["TW"] = CsvConstants.LanguageZhTw,
     };
 
-    private static string? NormalizeLanguage(string? language)
+    /// <summary>
+    /// Normalizes a language code to the canonical casing and alias mapping.
+    /// </summary>
+    /// <param name="language">The raw language string.</param>
+    /// <returns>The normalized language string, defaulting to <see cref="CsvConstants.AllLanguagesFilter"/> when null or empty.</returns>
+    public static string NormalizeLanguage(string? language)
     {
-        // set default to "ALL" if not specified
-        // supported languages Brazilian Chinese English French German Italian Korean Polish Spanish
         if (string.IsNullOrWhiteSpace(language))
-            return "ALL";
+        {
+            return CsvConstants.AllLanguagesFilter;
+        }
 
-        var key = language.Trim().ToUpperInvariant();
+        var key = language.Trim();
 
-        return LanguageMap.TryGetValue(key, out var normalized) ? normalized : "ALL";
+        return LanguageMap.TryGetValue(key, out var normalized) ? normalized : key.ToUpperInvariant();
     }
 }

@@ -7,6 +7,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging;
@@ -252,6 +253,9 @@ public class ConfigurationProviderService(
     /// <inheritdoc />
     public UserSettings GetEffectiveSettings()
     {
+        var csvCatalogConfiguration = GetCsvCatalogConfiguration();
+        var csvValidationCatalogs = csvCatalogConfiguration.CsvValidationCatalogs ?? [];
+
         return new UserSettings
         {
             Theme = GetTheme(),
@@ -278,6 +282,8 @@ public class ConfigurationProviderService(
             ApplicationDataPath = GetApplicationDataPath(),
             CachePath = GetCachePath(),
             CasConfiguration = GetCasConfiguration(),
+            IndexFilePath = csvCatalogConfiguration.IndexFilePath,
+            CsvValidationCatalogs = [.. csvValidationCatalogs.Select(c => c.Clone())],
         };
     }
 
@@ -369,6 +375,26 @@ public class ConfigurationProviderService(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             AppConstants.AppName,
             DirectoryNames.Logs.ToLowerInvariant());
+    }
+
+    /// <inheritdoc />
+    public CsvCatalogConfiguration GetCsvCatalogConfiguration()
+    {
+        var appCatalogConfig = _appConfig.GetCsvCatalogConfiguration() ?? new CsvCatalogConfiguration();
+        var settings = _userSettings.Get();
+        var appCatalogs = appCatalogConfig.CsvValidationCatalogs ?? [];
+
+        return new CsvCatalogConfiguration
+        {
+            IndexFilePath = settings.IsExplicitlySet(nameof(UserSettings.IndexFilePath)) &&
+                !string.IsNullOrWhiteSpace(settings.IndexFilePath)
+                    ? settings.IndexFilePath
+                    : appCatalogConfig.IndexFilePath,
+            CsvValidationCatalogs = settings.IsExplicitlySet(nameof(UserSettings.CsvValidationCatalogs)) &&
+                settings.CsvValidationCatalogs != null
+                    ? [.. settings.CsvValidationCatalogs.Select(c => c.Clone())]
+                    : [.. appCatalogs.Select(c => c.Clone())],
+        };
     }
 
     /// <summary>

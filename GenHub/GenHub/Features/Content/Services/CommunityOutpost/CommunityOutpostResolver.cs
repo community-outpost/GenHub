@@ -97,11 +97,13 @@ public class CommunityOutpostResolver(
                     "SourceUrl cannot be null or empty for Community Outpost content"));
             }
 
-            var downloadUrl = discoveredItem.SourceUrl;
+            if (!Uri.TryCreate(discoveredItem.SourceUrl, UriKind.Absolute, out var downloadUri))
+            {
+                return Task.FromResult(OperationResult<ContentManifest>.CreateFailure(
+                    "SourceUrl must be a valid absolute URI for Community Outpost content"));
+            }
 
-            var filename = Uri.TryCreate(downloadUrl, UriKind.Absolute, out var parsedUri)
-                ? ExtractFileName(parsedUri, contentCode)
-                : $"{contentCode}{CommunityOutpostConstants.DatFileExtension}";
+            var filename = DetermineFilename(downloadUri, contentCode);
 
             // Get all mirror URLs for fallback support
             var mirrorUrls = GetMirrorUrls(discoveredItem);
@@ -119,7 +121,7 @@ public class CommunityOutpostResolver(
             var versionSource = !string.IsNullOrEmpty(contentMetadata.Version)
                 ? contentMetadata.Version
                 : discoveredItem.Version;
-            var manifestVersion = ExtractManifestVersion(versionSource);
+            var manifestVersion = ExtractVersionNumberForManifestId(versionSource);
 
             logger.LogDebug(
                 "Generating manifest ID: Publisher={Publisher}, ContentType={ContentType}, ContentName={ContentName}, Version={Version}",
@@ -156,7 +158,7 @@ public class CommunityOutpostResolver(
             // Add the file as a remote download
             manifest.AddRemoteFileAsync(
                 filename,
-                downloadUrl,
+                downloadUri.AbsoluteUri,
                 ContentSourceType.RemoteDownload,
                 isExecutable: false).Wait(cancellationToken);
 
@@ -285,7 +287,7 @@ public class CommunityOutpostResolver(
     /// <summary>
     /// Extracts a numeric version suitable for manifest ID.
     /// </summary>
-    private static string ExtractManifestVersion(string version)
+    private static string ExtractVersionNumberForManifestId(string version)
     {
         if (string.IsNullOrEmpty(version))
         {
@@ -368,26 +370,16 @@ public class CommunityOutpostResolver(
     }
 
     /// <summary>
-    /// Gets the filename from the download URI or generates one from the content code.
+    /// Determines the filename from the download URI or generates one from the content code.
     /// </summary>
-    /// <param name="uri">The download URI.</param>
-    /// <param name="contentCode">The content code.</param>
-    /// <returns>The extracted or generated filename.</returns>
-    private static string ExtractFileName(Uri uri, string contentCode)
+    private static string DetermineFilename(Uri downloadUri, string contentCode)
     {
-        try
-        {
-            var path = uri.AbsolutePath;
-            var lastSegment = path.Split('/')[^1];
+        var path = downloadUri.AbsolutePath;
+        var lastSegment = path.Split('/')[^1];
 
-            if (!string.IsNullOrEmpty(lastSegment) && lastSegment.Contains('.'))
-            {
-                return lastSegment;
-            }
-        }
-        catch
+        if (!string.IsNullOrEmpty(lastSegment) && lastSegment.Contains('.'))
         {
-            // Fall through to default filename
+            return lastSegment;
         }
 
         return $"{contentCode}{CommunityOutpostConstants.DatFileExtension}";
@@ -423,7 +415,7 @@ public class CommunityOutpostResolver(
     /// <summary>
     /// Gets the list of mirror URLs from the search result metadata.
     /// </summary>
-    private List<string> GetMirrorUrls(ContentSearchResult item)
+    private IReadOnlyList<string> GetMirrorUrls(ContentSearchResult item)
     {
         var mirrorUrlsJson = GetMetadataValue(item, "mirrorUrls", "[]");
 

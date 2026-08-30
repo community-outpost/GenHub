@@ -6,6 +6,7 @@ using GenHub.Features.Tools.ReplayManager;
 using GenHub.Features.Tools.ReplayManager.Services;
 using GenHub.Features.Tools.ReplayManager.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -40,7 +41,6 @@ public static class ReplayManagerModule
         services.AddSingleton<IReplayDirectoryService, ReplayDirectoryService>();
         services.AddSingleton<IReplayImportService, ReplayImportService>();
         services.AddSingleton<IReplayExportService, ReplayExportService>();
-        services.AddSingleton<GenHub.Core.Interfaces.Common.IUploadHistoryService, GenHub.Features.Tools.Services.UploadHistoryService>();
         services.AddSingleton<IZipValidationService, ZipValidationService>();
 
         // ViewModel (Singleton to persist state across tool activations)

@@ -1,10 +1,29 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
 /// Constants for tool plugin metadata and configuration.
 /// </summary>
+[SuppressMessage("Major Code Smell", "S1075:URIs should not be hardcoded", Justification = "Mock URLs for demo tool services.")]
 public static class ToolConstants
 {
+    /// <summary>
+    /// Mock sharing URLs for demo tool services.
+    /// </summary>
+    public static class MockUrls
+    {
+        /// <summary>
+        /// Mock upload URL for replays.
+        /// </summary>
+        public const string MockReplayUploadUrl = "https://example.com/share/1234";
+
+        /// <summary>
+        /// Mock upload URL for maps.
+        /// </summary>
+        public const string MockMapUploadUrl = "https://example.com/maps/123";
+    }
+
     /// <summary>
     /// Constants for the Replay Manager tool plugin.
     /// </summary>
@@ -50,4 +69,39 @@ public static class ToolConstants
         /// </summary>
         public static readonly string[] Tags = ["replays", "file-management", "sharing"];
     }
+
+    /// <summary>
+    /// Mock path separator indicator for demo environments on Windows.
+    /// </summary>
+    public const string WindowsMockPathSegment = "\\Mock\\";
+
+    /// <summary>
+    /// Mock path separator indicator for demo environments on Unix.
+    /// </summary>
+    public const string UnixMockPathSegment = "/Mock/";
+
+    /// <summary>
+    /// Notification title for delete failure.
+    /// </summary>
+    public const string DeleteFailedTitle = "Delete Failed";
+
+    /// <summary>
+    /// Default upload buffer size in bytes (8 KB).
+    /// </summary>
+    public const int DefaultUploadBufferSize = 8 * 1024;
+
+    /// <summary>
+    /// Upload progress stage percentage threshold for compression stage.
+    /// </summary>
+    public const int UploadStageCompressionThresholdPercent = 25;
+
+    /// <summary>
+    /// Upload progress stage percentage threshold for cloud upload stage.
+    /// </summary>
+    public const int UploadStageCloudThresholdPercent = 88;
+
+    /// <summary>
+    /// Upload progress stage percentage threshold for completion stage.
+    /// </summary>
+    public const int UploadStageCompletePercent = 100;
 }

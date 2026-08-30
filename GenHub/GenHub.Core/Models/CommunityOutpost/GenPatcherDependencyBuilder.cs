@@ -26,7 +26,7 @@ public static class GenPatcherDependencyBuilder
     private static readonly List<string> ControlBarCodes = ["cbpr", "cbpx"];
     private static readonly List<string> ZeroHourCameraCodes = ["crzh", "dczh"];
     private static readonly List<string> GeneralsCameraCodes = ["crgn"];
-    private static readonly List<string> HotkeyCodes = ["ewba", "ewbi", "hlde", "hleg", "hlei"];
+    private static readonly List<string> HotkeyCodes = ["hlde", "hleg", "hlei"];
 
     /// <summary>
     /// Gets the dependencies for a given content code and metadata.

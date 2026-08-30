@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Storage;
 
@@ -53,57 +55,33 @@ public interface IConfigurationProviderService
     int GetDownloadBufferSize();
 
     /// <summary>
-    /// Gets the effective default workspace strategy.
+    /// Gets the effective workspace strategy.
     /// </summary>
-    /// <returns>The default workspace strategy.</returns>
+    /// <returns>The effective workspace strategy.</returns>
     WorkspaceStrategy GetDefaultWorkspaceStrategy();
-
-    /// <summary>
-    /// Gets whether to automatically check for updates on startup.
-    /// </summary>
-    /// <returns>True if auto-check is enabled; otherwise, false.</returns>
-    bool GetAutoCheckForUpdatesOnStartup();
-
-    /// <summary>
-    /// Gets whether to automatically check for updates periodically.
-    /// </summary>
-    /// <returns>True if periodic auto-check is enabled; otherwise, false.</returns>
-    bool GetAutoCheckForUpdatesPeriodically();
-
-    /// <summary>
-    /// Gets the interval in minutes for periodic update checks.
-    /// </summary>
-    /// <returns>The update check interval in minutes.</returns>
-    int GetPeriodicUpdateCheckIntervalMinutes();
-
-    /// <summary>
-    /// Gets whether detailed logging is enabled.
-    /// </summary>
-    /// <returns>True if detailed logging is enabled; otherwise, false.</returns>
-    bool GetEnableDetailedLogging();
 
     /// <summary>
     /// Gets the effective UI theme.
     /// </summary>
-    /// <returns>The theme string.</returns>
+    /// <returns>The effective UI theme.</returns>
     string GetTheme();
 
     /// <summary>
     /// Gets the effective window width.
     /// </summary>
-    /// <returns>The window width in pixels.</returns>
+    /// <returns>The effective window width.</returns>
     double GetWindowWidth();
 
     /// <summary>
     /// Gets the effective window height.
     /// </summary>
-    /// <returns>The window height in pixels.</returns>
+    /// <returns>The effective window height.</returns>
     double GetWindowHeight();
 
     /// <summary>
-    /// Gets whether the window should be maximized.
+    /// Gets whether the window is maximized.
     /// </summary>
-    /// <returns>True if window should be maximized; otherwise, false.</returns>
+    /// <returns>True if the window is maximized, otherwise false.</returns>
     bool GetIsWindowMaximized();
 
     /// <summary>
@@ -113,39 +91,61 @@ public interface IConfigurationProviderService
     NavigationTab GetLastSelectedTab();
 
     /// <summary>
-    /// Gets the effective settings with all defaults applied.
-    /// This provides a complete UserSettings object with all values resolved.
+    /// Gets whether automatic update checks on startup are enabled.
     /// </summary>
-    /// <returns>A UserSettings object with all effective values.</returns>
-    UserSettings GetEffectiveSettings();
+    /// <returns>True if automatic update checks on startup are enabled, otherwise false.</returns>
+    bool GetAutoCheckForUpdatesOnStartup();
 
     /// <summary>
-    /// Gets the effective content directories for local discovery.
+    /// Gets whether periodic update checks are enabled.
     /// </summary>
-    /// <returns>List of content directories.</returns>
+    /// <returns>True if periodic update checks are enabled, otherwise false.</returns>
+    bool GetAutoCheckForUpdatesPeriodically();
+
+    /// <summary>
+    /// Gets the interval for periodic update checks in minutes.
+    /// </summary>
+    /// <returns>The interval in minutes.</returns>
+    int GetPeriodicUpdateCheckIntervalMinutes();
+
+    /// <summary>
+    /// Gets whether detailed logging is enabled.
+    /// </summary>
+    /// <returns>True if detailed logging is enabled, otherwise false.</returns>
+    bool GetEnableDetailedLogging();
+
+    /// <summary>
+    /// Gets the list of content directories.
+    /// </summary>
+    /// <returns>The list of content directories.</returns>
     List<string> GetContentDirectories();
 
     /// <summary>
-    /// Gets the effective GitHub repositories for discovery.
+    /// Gets the list of GitHub discovery repositories.
     /// </summary>
-    /// <returns>List of GitHub repositories in "owner/repo" format.</returns>
+    /// <returns>The list of repository names.</returns>
     List<string> GetGitHubDiscoveryRepositories();
 
     /// <summary>
-    /// Gets the application data directory path where metadata (workspaces, manifests) is stored.
-    /// Note: Actual game content files are stored in CAS, not here.
+    /// Gets all effective user settings in a single object.
     /// </summary>
-    /// <returns>The application data path as a string.</returns>
+    /// <returns>The effective user settings.</returns>
+    UserSettings GetEffectiveSettings();
+
+    /// <summary>
+    /// Gets the effective application data path.
+    /// </summary>
+    /// <returns>The effective application data path.</returns>
     string GetApplicationDataPath();
 
     /// <summary>
-    /// Gets the root application data directory path.
+    /// Gets the root application data path across all components.
     /// </summary>
     /// <returns>The root application data path.</returns>
     string GetRootAppDataPath();
 
     /// <summary>
-    /// Gets the directory path where game profiles are stored.
+    /// Gets the directory path where profiles are stored.
     /// </summary>
     /// <returns>The profiles directory path.</returns>
     string GetProfilesPath();
@@ -167,4 +167,10 @@ public interface IConfigurationProviderService
     /// </summary>
     /// <returns>The logs directory path.</returns>
     string GetLogsPath();
+
+    /// <summary>
+    /// Gets the CSV catalog configuration.
+    /// </summary>
+    /// <returns>The CSV catalog configuration.</returns>
+    CsvCatalogConfiguration GetCsvCatalogConfiguration();
 }

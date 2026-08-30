@@ -174,6 +174,17 @@ public class CasPoolManager : ICasPoolManager
             : Path.TrimEndingDirectorySeparator(Path.GetFullPath(rootPath));
     }
 
+    private static bool IsInsideApplicationDirectory(string rootPath)
+    {
+        var appBaseDirectory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(AppContext.BaseDirectory));
+        var normalizedRootPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(rootPath));
+
+        return normalizedRootPath.Equals(appBaseDirectory, PathHelper.PathComparison) ||
+            normalizedRootPath.StartsWith(
+                appBaseDirectory + Path.DirectorySeparatorChar,
+                PathHelper.PathComparison);
+    }
+
     private void InitializePool(CasPoolType poolType)
     {
         // Double-check locking to ensure thread safety
@@ -305,16 +316,5 @@ public class CasPoolManager : ICasPoolManager
                 retainedRoots.Count,
                 string.Join(", ", retainedRoots));
         }
-    }
-
-    private bool IsInsideApplicationDirectory(string rootPath)
-    {
-        var appBaseDirectory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(AppContext.BaseDirectory));
-        var normalizedRootPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(rootPath));
-
-        return normalizedRootPath.Equals(appBaseDirectory, PathHelper.PathComparison) ||
-            normalizedRootPath.StartsWith(
-                appBaseDirectory + Path.DirectorySeparatorChar,
-                PathHelper.PathComparison);
     }
 }
