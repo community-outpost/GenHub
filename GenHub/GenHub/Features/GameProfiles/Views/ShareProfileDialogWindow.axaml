@@ -133,25 +133,58 @@
                                 BorderBrush="{DynamicResource AccentLightBrush}"
                                 BorderThickness="1"
                                 CornerRadius="8"
-                                Padding="12,8"
+                                Padding="12,10"
                                 IsVisible="{Binding HasCloudUploads}">
-                            <Grid ColumnDefinitions="Auto,*">
-                                <PathIcon Grid.Column="0"
+                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto">
+                                <PathIcon Grid.Row="0" Grid.Column="0"
                                           Data="M19.35,10.04C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.04C2.34,8.36 0,10.91 0,14A6,6 0 0,0 6,20H19A5,5 0 0,0 24,15C24,12.36 21.95,10.22 19.35,10.04Z"
                                           Width="16" Height="16"
                                           Foreground="{DynamicResource AccentLightBrush}"
                                           VerticalAlignment="Center"
                                           Margin="0,0,10,0" />
-                                <StackPanel Grid.Column="1" Spacing="2">
-                                    <TextBlock Text="Cloud Storage Sync"
-                                               FontSize="11"
-                                               FontWeight="Bold"
-                                               Foreground="{DynamicResource AccentLightBrush}" />
+                                <StackPanel Grid.Row="0" Grid.Column="1" Spacing="2">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0" Text="Cloud Storage Sync &amp; Quota"
+                                                   FontSize="11"
+                                                   FontWeight="Bold"
+                                                   Foreground="{DynamicResource AccentLightBrush}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding UploadQuotaText}"
+                                                   FontSize="10"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextSecondary}"
+                                                   IsVisible="{Binding UploadQuotaText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                    </Grid>
                                     <TextBlock Text="{Binding CloudUploadDetails}"
                                                FontSize="10"
                                                Foreground="{DynamicResource TextSecondary}"
                                                TextWrapping="Wrap" />
                                 </StackPanel>
+
+                                <!-- Quota Progress Bar (Row 1) -->
+                                <ProgressBar Grid.Row="1" Grid.Column="1"
+                                             Value="{Binding UploadQuotaPercentage}"
+                                             Minimum="0" Maximum="100"
+                                             Height="4"
+                                             CornerRadius="2"
+                                             Margin="0,6,0,2"
+                                             Foreground="{DynamicResource AccentBrush}"
+                                             IsVisible="{Binding UploadQuotaText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                                <!-- Warning message if quota limit reached (Row 2) -->
+                                <Border Grid.Row="2" Grid.Column="1"
+                                        Background="#25FFA500"
+                                        BorderBrush="{DynamicResource WarningBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="8,4"
+                                        Margin="0,6,0,0"
+                                        IsVisible="{Binding HasUploadWarnings}">
+                                    <TextBlock Text="{Binding UploadWarningMessage}"
+                                               Foreground="{DynamicResource WarningBrush}"
+                                               FontSize="10"
+                                               FontWeight="SemiBold"
+                                               TextWrapping="Wrap" />
+                                </Border>
                             </Grid>
                         </Border>
 

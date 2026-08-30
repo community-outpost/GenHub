@@ -103,4 +103,42 @@ public class ShareProfileDialogViewModelTests
         Assert.True(vm.HasCloudUploads);
         Assert.NotEmpty(vm.CloudUploadDetails);
     }
+
+    /// <summary>
+    /// Verifies that constructor loads quota usage and sets warning when quota is exceeded.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task Constructor_Should_LoadQuotaAndSetWarning_WhenQuotaExceededAsync()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "prof-local",
+            Name = "Local Setup",
+            EnabledContentIds = ["1.0.local.map.custommap"],
+        };
+
+        var uploadHistoryMock = new Mock<GenHub.Core.Interfaces.Common.IUploadHistoryService>();
+        uploadHistoryMock.Setup(u => u.GetUsageInfoAsync(It.IsAny<string?>()))
+            .ReturnsAsync(new GenHub.Core.Models.Common.UsageInfo(10 * 1024 * 1024, 10 * 1024 * 1024, DateTime.UtcNow.AddDays(7)));
+
+        // Act
+        var vm = new ShareProfileDialogViewModel(
+            "prof-local",
+            profile,
+            "genhub://profile/import?data=local",
+            _sharingServiceMock.Object,
+            NullLogger<ShareProfileDialogViewModel>.Instance,
+            uploadHistoryMock.Object);
+
+        // Allow async load to finish
+        await Task.Delay(100);
+
+        // Assert
+        Assert.True(vm.HasCloudUploads);
+        Assert.True(vm.IsQuotaExceeded);
+        Assert.True(vm.HasUploadWarnings);
+        Assert.Contains("Cloud storage limit reached", vm.UploadWarningMessage);
+    }
 }

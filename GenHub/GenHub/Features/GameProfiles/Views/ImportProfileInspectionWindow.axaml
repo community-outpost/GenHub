@@ -82,7 +82,7 @@
                         IsHitTestVisible="False" />
 
                 <!-- Layout -->
-                <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+                <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="24">
 
                     <!-- Header -->
                     <Grid Grid.Row="0"
@@ -124,29 +124,31 @@
                         </Button>
                     </Grid>
 
-                    <!-- Body Content -->
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,16">
-                        <StackPanel Spacing="16">
+                    <!-- Persistent Error Alert (Row 1) -->
+                    <Border Grid.Row="1"
+                            Background="{StaticResource DangerRedFill}"
+                            BorderBrush="{DynamicResource ErrorBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="14,10"
+                            Margin="0,0,0,12"
+                            IsVisible="{Binding HasError}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
+                                      Width="16" Height="16"
+                                      Foreground="{DynamicResource ErrorBrush}"
+                                      VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding ErrorMessage}"
+                                       Foreground="{DynamicResource ErrorBrush}"
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
 
-                            <!-- Error Alert -->
-                            <Border Background="{StaticResource DangerRedFill}"
-                                    BorderBrush="{DynamicResource ErrorBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="8"
-                                    Padding="14,10"
-                                    IsVisible="{Binding HasError}">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <PathIcon Data="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
-                                              Width="16" Height="16"
-                                              Foreground="{DynamicResource ErrorBrush}"
-                                              VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding ErrorMessage}"
-                                               Foreground="{DynamicResource ErrorBrush}"
-                                               FontSize="12"
-                                               FontWeight="SemiBold"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-                            </Border>
+                    <!-- Body Content -->
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="0,0,0,16">
+                        <StackPanel Spacing="16">
 
                             <!-- Hero Card: Profile Summary -->
                             <Border Background="{StaticResource FillWhite07}"
@@ -603,7 +605,7 @@
                     </ScrollViewer>
 
                     <!-- Footer -->
-                    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0">
+                    <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0">
                         <!-- Summary info -->
                         <StackPanel Grid.Column="0" VerticalAlignment="Center">
                             <TextBlock Text="{Binding MissingManifestCount, StringFormat='{}Acquisition: {0} downloads required'}"
@@ -691,30 +693,74 @@
                         </Button>
                     </Grid>
 
-                    <!-- Acquisition Progress Overlay -->
-                    <Border Grid.RowSpan="3"
-                            Background="{StaticResource ScrimBlack86}"
+                    <!-- Acquisition Progress Overlay (Frosted Glass Card) -->
+                    <Border Grid.RowSpan="4"
+                            Background="#99000000"
                             CornerRadius="16"
                             IsVisible="{Binding IsImporting}"
                             ZIndex="1000">
-                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16" Width="360">
-                            <ProgressBar Value="{Binding ImportProgressPercentage}"
-                                         Minimum="0" Maximum="100"
-                                         Height="8"
-                                         CornerRadius="4"
-                                         Foreground="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}" />
-                            <StackPanel Spacing="4" HorizontalAlignment="Center">
-                                <TextBlock Text="{Binding CurrentOperationName}"
-                                           Foreground="White"
-                                           FontSize="13"
-                                           FontWeight="SemiBold"
-                                           HorizontalAlignment="Center" />
-                                <TextBlock Text="{Binding ImportProgressPercentage, StringFormat='{}{0}% complete'}"
-                                           Foreground="{DynamicResource TextMuted}"
-                                           FontSize="11"
-                                           HorizontalAlignment="Center" />
+                        <Border Background="{DynamicResource DetailsBackground}"
+                                BorderBrush="{DynamicResource BorderHighlightBrush}"
+                                BorderThickness="1"
+                                CornerRadius="14"
+                                Padding="28,24"
+                                Width="400"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                BoxShadow="0 16 48 0 #B0000000">
+                            <StackPanel Spacing="16">
+                                <!-- Header -->
+                                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                                    <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
+                                              Width="20" Height="20"
+                                              Foreground="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}"
+                                              VerticalAlignment="Center" />
+                                    <TextBlock Text="Importing Profile &amp; Content..."
+                                               FontSize="15"
+                                               FontWeight="Bold"
+                                               Foreground="{DynamicResource TextPrimary}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+
+                                <!-- Progress Bar -->
+                                <ProgressBar Value="{Binding ImportProgressPercentage}"
+                                             Minimum="0" Maximum="100"
+                                             Height="8"
+                                             CornerRadius="4"
+                                             Foreground="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}" />
+
+                                <!-- Progress Text -->
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0"
+                                               Text="{Binding CurrentOperationName}"
+                                               Foreground="{DynamicResource TextSecondary}"
+                                               FontSize="12"
+                                               TextTrimming="CharacterEllipsis"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding ImportProgressPercentage, StringFormat='{}{0}%'}"
+                                               Foreground="{DynamicResource TextPrimary}"
+                                               FontWeight="Bold"
+                                               FontSize="12"
+                                               Margin="8,0,0,0"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+
+                                <!-- Cancel -->
+                                <Button Command="{Binding CancelCommand}"
+                                        Content="Cancel Import"
+                                        Height="32"
+                                        Padding="16,0"
+                                        HorizontalAlignment="Center"
+                                        Background="{StaticResource FillWhite08}"
+                                        BorderBrush="{StaticResource BorderWhite19}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Foreground="{DynamicResource TextSecondary}"
+                                        FontSize="11"
+                                        Cursor="Hand" />
                             </StackPanel>
-                        </StackPanel>
+                        </Border>
                     </Border>
 
                 </Grid>

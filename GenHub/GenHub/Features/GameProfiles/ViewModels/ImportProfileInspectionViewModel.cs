@@ -317,5 +317,6 @@ public partial class ImportProfileInspectionViewModel : ObservableObject
     {
         ErrorMessage = message;
         HasError = true;
+        _notificationService?.ShowError("Profile Import Failed", message);
     }
 }

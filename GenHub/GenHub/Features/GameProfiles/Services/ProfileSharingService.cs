@@ -1306,8 +1306,11 @@ public class ProfileSharingService(
                 : dependency.Files.FirstOrDefault(f => !string.IsNullOrWhiteSpace(f.DownloadUrl))?.DownloadUrl;
 
             bool isZipArchive = !string.IsNullOrWhiteSpace(packageUrl) &&
-                (packageUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
-                 packageUrl.Contains(ApiConstants.UploadThingUrlFragment, StringComparison.OrdinalIgnoreCase));
+                (!string.IsNullOrWhiteSpace(dependency.PackageUrl) ||
+                 packageUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
+                 packageUrl.Contains(ApiConstants.UploadThingUrlFragment, StringComparison.OrdinalIgnoreCase) ||
+                 packageUrl.Contains(ApiConstants.UploadThingUfsUrlFragment, StringComparison.OrdinalIgnoreCase) ||
+                 packageUrl.Contains(ApiConstants.UploadThingUfsShortUrlFragment, StringComparison.OrdinalIgnoreCase));
 
             if (isZipArchive && !string.IsNullOrWhiteSpace(packageUrl))
             {

@@ -210,6 +210,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly IGenLauncherNormalizationService? _genLauncherNormalizationService;
     private readonly IDialogService? _dialogService;
     private readonly IProfileSharingService? _profileSharingService;
+    private readonly IUploadHistoryService? _uploadHistoryService;
     private readonly ILogger<GameProfileSettingsViewModel>? _logger;
     private readonly ILogger<GameSettingsViewModel>? _gameSettingsLogger;
     private readonly ILoggerFactory? _loggerFactory;
@@ -257,6 +258,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// <param name="gameSettingsLogger">The logger for the game settings view model.</param>
     /// <param name="profileSharingService">The profile sharing service.</param>
     /// <param name="loggerFactory">Optional logger factory for creating child view model loggers.</param>
+    /// <param name="uploadHistoryService">Optional upload history service for quota monitoring.</param>
     public GameProfileSettingsViewModel(
         IGameProfileManager? gameProfileManager,
         IGameSettingsService? gameSettingsService,
@@ -272,7 +274,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         ILogger<GameProfileSettingsViewModel>? logger,
         ILogger<GameSettingsViewModel>? gameSettingsLogger,
         IProfileSharingService? profileSharingService = null,
-        ILoggerFactory? loggerFactory = null)
+        ILoggerFactory? loggerFactory = null,
+        IUploadHistoryService? uploadHistoryService = null)
     {
         _gameProfileManager = gameProfileManager;
         _gameSettingsService = gameSettingsService;
@@ -289,6 +292,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         _gameSettingsLogger = gameSettingsLogger;
         _profileSharingService = profileSharingService;
         _loggerFactory = loggerFactory;
+        _uploadHistoryService = uploadHistoryService;
 
         NotificationManager = new NotificationManagerViewModel(
             _localNotificationService,

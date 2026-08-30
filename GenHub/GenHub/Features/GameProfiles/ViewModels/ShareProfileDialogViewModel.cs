@@ -24,6 +24,7 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 public partial class ShareProfileDialogViewModel : ViewModelBase
 {
     private readonly IProfileSharingService _profileSharingService;
+    private readonly IUploadHistoryService? _uploadHistoryService;
     private readonly ILogger _logger;
     private readonly string _profileId;
 
@@ -51,6 +52,24 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
     [ObservableProperty]
     private string _cloudUploadDetails = string.Empty;
 
+    [ObservableProperty]
+    private string _uploadQuotaText = string.Empty;
+
+    [ObservableProperty]
+    private double _uploadQuotaPercentage;
+
+    [ObservableProperty]
+    private bool _isQuotaNearLimit;
+
+    [ObservableProperty]
+    private bool _isQuotaExceeded;
+
+    [ObservableProperty]
+    private bool _hasUploadWarnings;
+
+    [ObservableProperty]
+    private string _uploadWarningMessage = string.Empty;
+
     /// <summary>
     /// Event raised when the dialog should be closed.
     /// </summary>
@@ -64,16 +83,19 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
     /// <param name="shareUri">The generated genhub:// share URI.</param>
     /// <param name="profileSharingService">The sharing service instance.</param>
     /// <param name="logger">The logger instance.</param>
+    /// <param name="uploadHistoryService">Optional upload history service instance for quota monitoring.</param>
     public ShareProfileDialogViewModel(
         string profileId,
         GameProfile profile,
         string shareUri,
         IProfileSharingService profileSharingService,
-        ILogger logger)
+        ILogger logger,
+        IUploadHistoryService? uploadHistoryService = null)
     {
         _profileId = profileId ?? throw new ArgumentNullException(nameof(profileId));
         _profileSharingService = profileSharingService ?? throw new ArgumentNullException(nameof(profileSharingService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _uploadHistoryService = uploadHistoryService;
 
         ProfileName = profile.Name;
         GameVersion = !string.IsNullOrEmpty(profile.GameClient?.Version)
@@ -87,6 +109,42 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
         CloudUploadDetails = containsLocal
             ? "Custom local content was packaged and uploaded to cloud storage (14-day retention). You can manage or delete uploads in Settings > Uploads & Storage."
             : string.Empty;
+
+        if (containsLocal && _uploadHistoryService != null)
+        {
+            _ = LoadUploadQuotaAsync();
+        }
+    }
+
+    private async Task LoadUploadQuotaAsync()
+    {
+        if (_uploadHistoryService == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var usage = await _uploadHistoryService.GetUsageInfoAsync(ProfileSharingConstants.UploadCategoryProfiles);
+            double usedMb = usage.UsedBytes / (1024.0 * 1024.0);
+            double limitMb = usage.LimitBytes / (1024.0 * 1024.0);
+            double pct = usage.LimitBytes > 0 ? (usedMb / limitMb) * 100.0 : 0.0;
+
+            UploadQuotaText = $"Storage Quota: {usedMb:F1} MB / {limitMb:F1} MB ({pct:F0}% used)";
+            UploadQuotaPercentage = Math.Min(100.0, pct);
+            IsQuotaNearLimit = pct >= 80.0;
+            IsQuotaExceeded = pct >= 100.0;
+
+            if (IsQuotaExceeded)
+            {
+                HasUploadWarnings = true;
+                UploadWarningMessage = "Cloud storage limit reached (10 MB). Old uploads can be cleared in Settings > Uploads & Storage, or you can export a .ghprofile file instead.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load upload quota information.");
+        }
     }
 
     private static TopLevel? GetMainWindowTopLevel()

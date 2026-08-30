@@ -120,7 +120,10 @@ public partial class SharedManifestItemViewModel(SharedManifestDependency depend
     /// <summary>
     /// Gets a value indicating whether this package originates from a temporary cloud upload.
     /// </summary>
-    public bool IsCloudPackage => !string.IsNullOrWhiteSpace(DownloadUrl) && DownloadUrl.Contains(ApiConstants.UploadThingUrlFragment, StringComparison.OrdinalIgnoreCase);
+    public bool IsCloudPackage => !string.IsNullOrWhiteSpace(DownloadUrl) &&
+        (DownloadUrl.Contains(ApiConstants.UploadThingUrlFragment, StringComparison.OrdinalIgnoreCase) ||
+         DownloadUrl.Contains(ApiConstants.UploadThingUfsUrlFragment, StringComparison.OrdinalIgnoreCase) ||
+         DownloadUrl.Contains(ApiConstants.UploadThingUfsShortUrlFragment, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// Gets the provenance description of the content source.

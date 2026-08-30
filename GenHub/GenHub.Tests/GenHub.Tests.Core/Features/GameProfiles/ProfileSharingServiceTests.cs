@@ -922,6 +922,55 @@ public class ProfileSharingServiceTests
         }
     }
 
+    /// <summary>
+    /// Verifies that inspecting a URI with modern UploadThing UFS URL correctly identifies cloud package dependencies.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task InspectSharedProfileUriAsync_Should_RecognizeModernUfsCloudPackages()
+    {
+        // Arrange
+        var payload = new SharedProfilePayload
+        {
+            Version = ProfileSharingConstants.CurrentSchemaVersion,
+            CreatedUtc = DateTime.UtcNow,
+            Profile = new SharedProfileMetadata
+            {
+                Name = "UFS Profile",
+                Version = "1.0",
+                GameType = GameType.ZeroHour,
+                GameVersion = "1.04",
+                WorkspaceStrategy = WorkspaceStrategy.SymlinkOnly,
+                RequiredManifests =
+                [
+                    new SharedManifestDependency
+                    {
+                        ManifestId = "1.0.local.map.custommap",
+                        DisplayName = "Custom Map",
+                        Version = "1.0",
+                        ContentType = ContentType.Map,
+                        PackageUrl = "https://50ea2z8yuk.ufs.sh/f/testkey12345",
+                        DownloadSize = 500000,
+                    },
+                ],
+            },
+        };
+
+        var json = JsonSerializer.Serialize(payload, TestJsonOptions);
+        var compressed = CompressionHelper.CompressString(json);
+        var base64 = Base64UrlHelper.Encode(compressed);
+        var shareUri = $"{ProfileSharingConstants.UriProtocol}://{ProfileSharingConstants.UriActionProfile}/{ProfileSharingConstants.UriActionImport}?{ProfileSharingConstants.UriParamData}={base64}";
+
+        // Act
+        var result = await _service.InspectSharedProfileUriAsync(shareUri);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Single(result.Data.Manifests);
+        Assert.Equal("https://50ea2z8yuk.ufs.sh/f/testkey12345", result.Data.Manifests[0].DownloadUrl);
+    }
+
     private static GameProfile CreateTestProfile(string id, string name)
     {
         return new GameProfile

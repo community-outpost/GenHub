@@ -57,7 +57,8 @@ public partial class GameProfileLauncherViewModel(
     IDialogService dialogService,
     ILogger<GameProfileLauncherViewModel> logger,
     ILoggerFactory? loggerFactory = null,
-    IProfileSharingService? profileSharingService = null) : ViewModelBase,
+    IProfileSharingService? profileSharingService = null,
+    IUploadHistoryService? uploadHistoryService = null) : ViewModelBase,
     IRecipient<ProfileCreatedMessage>,
     IRecipient<ProfileUpdatedMessage>,
     IRecipient<ProfileListUpdatedMessage>
@@ -1843,6 +1844,7 @@ public partial class GameProfileLauncherViewModel(
 
         try
         {
+            notificationService.ShowInfo("Sharing Profile", "Packaging profile and preparing cloud share link...");
             var uriResult = await profileSharingService.ExportProfileToUriAsync(item.ProfileId);
             if (!uriResult.Success || string.IsNullOrEmpty(uriResult.Data))
             {
@@ -1862,7 +1864,8 @@ public partial class GameProfileLauncherViewModel(
                 profileResult.Data,
                 uriResult.Data,
                 profileSharingService,
-                loggerFactory?.CreateLogger<ShareProfileDialogViewModel>() ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ShareProfileDialogViewModel>.Instance);
+                loggerFactory?.CreateLogger<ShareProfileDialogViewModel>() ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ShareProfileDialogViewModel>.Instance,
+                uploadHistoryService);
 
             var dialog = new Views.ShareProfileDialogWindow
             {
