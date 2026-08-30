@@ -87,13 +87,32 @@ public class CsvContentProvider(
     }
 
     /// <inheritdoc />
-    protected override Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
+    protected override async Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
         ContentManifest manifest,
         string workingDirectory,
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
         Logger.LogDebug("Preparing CSV catalog content for manifest {ManifestId}", manifest.Id);
-        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
+
+        if (!Deliverer.CanDeliver(manifest))
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Cannot deliver content for manifest {manifest.Id}");
+        }
+
+        var deliveryResult = await Deliverer.DeliverContentAsync(
+            manifest,
+            workingDirectory,
+            progress,
+            cancellationToken);
+
+        if (!deliveryResult.Success)
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Content delivery failed: {deliveryResult.FirstError}");
+        }
+
+        return OperationResult<ContentManifest>.CreateSuccess(deliveryResult.Data ?? manifest);
     }
 }
