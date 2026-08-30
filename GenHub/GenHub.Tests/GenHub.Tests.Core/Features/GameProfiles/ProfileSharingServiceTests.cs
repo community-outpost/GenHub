@@ -577,7 +577,7 @@ public class ProfileSharingServiceTests
         {
             Package = package,
             ProfileName = "My Imported Profile",
-            GameInstallationId = null,
+            GameInstallationId = null!,
         };
 
         // Act
@@ -1107,9 +1107,9 @@ public class ProfileSharingServiceTests
             // Act
             var request = new SharedProfileImportRequest
             {
-                ShareUriOrJsonOrPath = json,
-                ConfirmedProfileName = "Shared CAS Profile",
-                TargetInstallationId = "inst-1",
+                Package = package,
+                ProfileName = "Shared CAS Profile",
+                GameInstallationId = "inst-1",
             };
             var result = await service.ImportSharedProfileAsync(request);
 

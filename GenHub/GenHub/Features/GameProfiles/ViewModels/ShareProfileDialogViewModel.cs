@@ -140,6 +140,12 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
     /// <summary>
     /// Initializes a new instance of the <see cref="ShareProfileDialogViewModel"/> class with a precomputed share URI.
     /// </summary>
+    /// <param name="profileId">The ID of the profile being shared.</param>
+    /// <param name="profile">The profile instance.</param>
+    /// <param name="shareUri">The generated genhub:// share URI.</param>
+    /// <param name="profileSharingService">The sharing service instance.</param>
+    /// <param name="logger">The logger instance.</param>
+    /// <param name="uploadHistoryService">Optional upload history service instance for quota monitoring.</param>
     public ShareProfileDialogViewModel(
         string profileId,
         GameProfile profile,
