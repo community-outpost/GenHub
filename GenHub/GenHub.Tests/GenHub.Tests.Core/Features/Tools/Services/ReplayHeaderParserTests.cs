@@ -122,4 +122,53 @@ public sealed class ReplayHeaderParserTests
         Assert.False(result.Success);
         Assert.Contains("not found", result.FirstError);
     }
+
+    /// <summary>
+    /// Verifies that player slot markers are correctly stripped and empty single-character markers are ignored.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ParseHeaderAsync_SlotPrefixAndEmptySlotMarkers_ExtractsCleanPlayerNamesAsync()
+    {
+        using var stream = new MemoryStream();
+        using var writer = new BinaryWriter(stream, Encoding.ASCII, leaveOpen: true);
+
+        // 1. Magic "GENREP"
+        writer.Write(Encoding.ASCII.GetBytes("GENREP"));
+
+        // 2. Fixed fields (22 bytes)
+        writer.Write(new byte[22]);
+
+        // 3. Version string UTF-16LE null terminated
+        writer.Write(Encoding.Unicode.GetBytes("1.04" + char.MinValue));
+
+        // 4. Skip 16 bytes
+        writer.Write(new byte[16]);
+
+        // 5. VersionTimeString UTF-16LE null terminated
+        writer.Write(Encoding.Unicode.GetBytes("Aug 21 2026" + char.MinValue));
+
+        // 6. Title UTF-16LE null terminated
+        writer.Write(Encoding.Unicode.GetBytes("Slot Test" + char.MinValue));
+
+        // 7. VersionNumber, exeCRC, iniCRC
+        writer.Write(20260821u);
+        writer.Write(0x27533BB0u);
+        writer.Write(0x76B251A3u);
+
+        // 8. InitString with single-char empty marker S=H, and prefix player S=HOcelot
+        writer.Write(Encoding.ASCII.GetBytes("M=maps/test/test.map;S=H,0,0,1;S=HOcelot,0,0,2;S=CCommander,0,0,3;" + char.MinValue));
+
+        writer.Flush();
+        stream.Position = 0;
+
+        var result = await _parser.ParseHeaderAsync(stream);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        Assert.NotNull(result.Data);
+        Assert.NotNull(result.Data.Players);
+        Assert.Equal(2, result.Data.Players.Count);
+        Assert.Contains("Ocelot", result.Data.Players);
+        Assert.Contains("Commander", result.Data.Players);
+    }
 }
