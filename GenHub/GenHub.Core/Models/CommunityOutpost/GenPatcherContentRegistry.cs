@@ -12,6 +12,13 @@ namespace GenHub.Core.Models.CommunityOutpost;
 public static class GenPatcherContentRegistry
 {
     private const string CommunityPatchCode = "community-patch";
+    private const string ResolutionVariantType = "resolution";
+    private const string LanguageVariantType = "language";
+    private const string Pattern720 = "*720*";
+    private const string Pattern900 = "*900*";
+    private const string Pattern1080 = "*1080*";
+    private const string Pattern1440 = "*1440*";
+    private const string Pattern2160 = "*2160*";
 
     /// <summary>
     /// Language code mappings for patch suffixes.
@@ -35,11 +42,11 @@ public static class GenPatcherContentRegistry
     /// </summary>
     private static readonly List<ContentVariant> ResolutionVariants =
     [
-        new ContentVariant { Id = "720p", Name = "720p", VariantType = "resolution", Value = "720", IncludePatterns = ["*720*"], ExcludePatterns = ["*900*", "*1080*", "*1440*", "*2160*"], IsDefault = false },
-        new ContentVariant { Id = "900p", Name = "900p", VariantType = "resolution", Value = "900", IncludePatterns = ["*900*"], ExcludePatterns = ["*720*", "*1080*", "*1440*", "*2160*"], IsDefault = false },
-        new ContentVariant { Id = "1080p", Name = "1080p (Recommended)", VariantType = "resolution", Value = "1080", IncludePatterns = ["*1080*"], ExcludePatterns = ["*720*", "*900*", "*1440*", "*2160*"], IsDefault = true },
-        new ContentVariant { Id = "1440p", Name = "1440p (2K)", VariantType = "resolution", Value = "1440", IncludePatterns = ["*1440*"], ExcludePatterns = ["*720*", "*900*", "*1080*", "*2160*"], IsDefault = false },
-        new ContentVariant { Id = "2160p", Name = "2160p (4K)", VariantType = "resolution", Value = "2160", IncludePatterns = ["*2160*"], ExcludePatterns = ["*720*", "*900*", "*1080*", "*1440*"], IsDefault = false },
+        new ContentVariant { Id = "720p", Name = "720p", VariantType = ResolutionVariantType, Value = "720", IncludePatterns = [Pattern720], ExcludePatterns = [Pattern900, Pattern1080, Pattern1440, Pattern2160], IsDefault = false },
+        new ContentVariant { Id = "900p", Name = "900p", VariantType = ResolutionVariantType, Value = "900", IncludePatterns = [Pattern900], ExcludePatterns = [Pattern720, Pattern1080, Pattern1440, Pattern2160], IsDefault = false },
+        new ContentVariant { Id = "1080p", Name = "1080p (Recommended)", VariantType = ResolutionVariantType, Value = "1080", IncludePatterns = [Pattern1080], ExcludePatterns = [Pattern720, Pattern900, Pattern1440, Pattern2160], IsDefault = true },
+        new ContentVariant { Id = "1440p", Name = "1440p (2K)", VariantType = ResolutionVariantType, Value = "1440", IncludePatterns = [Pattern1440], ExcludePatterns = [Pattern720, Pattern900, Pattern1080, Pattern2160], IsDefault = false },
+        new ContentVariant { Id = "2160p", Name = "2160p (4K)", VariantType = ResolutionVariantType, Value = "2160", IncludePatterns = [Pattern2160], ExcludePatterns = [Pattern720, Pattern900, Pattern1080, Pattern1440], IsDefault = false },
     ];
 
     /// <summary>
@@ -47,9 +54,10 @@ public static class GenPatcherContentRegistry
     /// </summary>
     private static readonly List<ContentVariant> HleiVariants =
     [
-        new ContentVariant { Id = "zerohour-en", Name = "Leikeze's Hotkeys (EN)", VariantType = "language", Value = "en", TargetGame = GameType.ZeroHour, IncludePatterns = ["*ENZH.big"], IsDefault = true },
-        new ContentVariant { Id = "zerohour-de", Name = "Leikeze's Hotkeys (DE)", VariantType = "language", Value = "de", TargetGame = GameType.ZeroHour, IncludePatterns = ["*DEZH.big"], IsDefault = false },
-        new ContentVariant { Id = "generals-en", Name = "Leikeze's Hotkeys [Generals] (EN)", VariantType = "language", Value = "en", TargetGame = GameType.Generals, IncludePatterns = ["!HotkeysLeikezeEN.big"], IsDefault = false },
+        new ContentVariant { Id = "zerohour-en", Name = "Leikeze's Hotkeys (EN)", VariantType = LanguageVariantType, Value = "en", TargetGame = GameType.ZeroHour, IncludePatterns = ["*ENZH.big"], OutputFilename = "!HotkeysLeikezeENZH.big", IsDefault = true },
+        new ContentVariant { Id = "zerohour-de", Name = "Leikeze's Hotkeys (DE)", VariantType = LanguageVariantType, Value = "de", TargetGame = GameType.ZeroHour, IncludePatterns = ["*DEZH.big"], OutputFilename = "!HotkeysLeikezeDEZH.big", IsDefault = false },
+        new ContentVariant { Id = "zerohour-ru", Name = "Leikeze's Hotkeys (RU)", VariantType = LanguageVariantType, Value = "ru", TargetGame = GameType.ZeroHour, IncludePatterns = ["*RUZH.big"], OutputFilename = "!HotkeysLeikezeRUZH.big", IsDefault = false },
+        new ContentVariant { Id = "generals-en", Name = "Leikeze's Hotkeys [Generals] (EN)", VariantType = LanguageVariantType, Value = "en", TargetGame = GameType.Generals, IncludePatterns = ["!HotkeysLeikezeEN.big"], OutputFilename = "!HotkeysLeikezeEN.big", IsDefault = false },
     ];
 
     /// <summary>
@@ -195,31 +203,29 @@ public static class GenPatcherContentRegistry
             InstallTarget = ContentInstallTarget.Workspace,
         },
 
-        // Hotkeys
+        // World Builder Tools
         ["ewba"] = new GenPatcherContentMetadata
         {
             ContentCode = "ewba",
-            DisplayName = "Easy Win Hotkeys (Advanced)",
-            Description = "Advanced hotkey configuration for competitive play.",
+            DisplayName = "Enhanced World Builder (Advanced)",
+            Description = "Advanced World Builder editor with additional tools, molds, and scripts.",
             ContentType = ContentType.Addon,
             TargetGame = GameType.ZeroHour,
-            Category = GenPatcherContentCategory.Hotkeys,
+            Category = GenPatcherContentCategory.Tools,
             InstallTarget = ContentInstallTarget.Workspace,
-            RequiresRepacking = true,
-            OutputFilename = "!HotkeysEasyWinAdvancedZH.big",
         },
         ["ewbi"] = new GenPatcherContentMetadata
         {
             ContentCode = "ewbi",
-            DisplayName = "Easy Win Hotkeys (International)",
-            Description = "Standard hotkey layout optimized for non-English keyboards.",
+            DisplayName = "Enhanced World Builder (International)",
+            Description = "World Builder editor version 2.2 for international installations.",
             ContentType = ContentType.Addon,
             TargetGame = GameType.ZeroHour,
-            Category = GenPatcherContentCategory.Hotkeys,
+            Category = GenPatcherContentCategory.Tools,
             InstallTarget = ContentInstallTarget.Workspace,
-            RequiresRepacking = true,
-            OutputFilename = "!HotkeysEasyWinInternationalZH.big",
         },
+
+        // Hotkeys
         ["hlde"] = new GenPatcherContentMetadata
         {
             ContentCode = "hlde",
@@ -256,7 +262,7 @@ public static class GenPatcherContentRegistry
             Category = GenPatcherContentCategory.Hotkeys,
             InstallTarget = ContentInstallTarget.Workspace,
             RequiresRepacking = true,
-            OutputFilename = "!HotkeysLeikezeZH.big",
+            OutputFilename = "!HotkeysLeikeze{variant}.big",
             SupportsVariants = true,
             Variants = HleiVariants,
         },

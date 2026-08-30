@@ -2,8 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -13,6 +16,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Notifications;
@@ -21,6 +25,7 @@ using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.MapManager;
+using GenHub.Core.Models.Tools.UploadThing;
 using GenHub.Features.Tools.ViewModels;
 using GenHub.Infrastructure.Imaging;
 using Microsoft.Extensions.Logging;
@@ -93,7 +98,17 @@ public partial class MapManagerViewModel : ObservableObject
     private bool isBusy;
 
     [ObservableProperty]
+    private bool isIndeterminate;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProgressPercentage))]
     private double progress;
+
+    /// <summary>
+    /// Gets the current progress as a whole integer percentage between 0 and 100.
+    /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding")]
+    public int ProgressPercentage => (int)Math.Round(Progress * 100);
 
     [ObservableProperty]
     private string statusMessage = "Ready";
@@ -245,6 +260,7 @@ public partial class MapManagerViewModel : ObservableObject
     public async Task LoadMapsAsync()
     {
         IsBusy = true;
+        IsIndeterminate = true;
         StatusMessage = "Loading maps...";
         try
         {
@@ -321,8 +337,7 @@ public partial class MapManagerViewModel : ObservableObject
     {
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
             _notificationService.ShowInfo(
@@ -332,6 +347,7 @@ public partial class MapManagerViewModel : ObservableObject
         }
 
         IsBusy = true;
+        IsIndeterminate = true;
         StatusMessage = "Importing files...";
         try
         {
@@ -362,6 +378,27 @@ public partial class MapManagerViewModel : ObservableObject
         }
     }
 
+    private static bool IsDemoPath(string path) =>
+        path.Contains(MapManagerConstants.WindowsMockPathSegment, StringComparison.OrdinalIgnoreCase) ||
+        path.Contains(MapManagerConstants.UnixMockPathSegment, StringComparison.OrdinalIgnoreCase);
+
+    private static string GetUniqueZipDestinationPath(string directory, string rawZipName)
+    {
+        var safeZipName = PathHelper.SanitizeFileName(rawZipName);
+        if (string.IsNullOrWhiteSpace(safeZipName))
+        {
+            safeZipName = MapManagerConstants.DefaultZipName;
+        }
+
+        var zipExtension = Path.GetExtension(MapManagerConstants.ZipFilePattern);
+        if (!safeZipName.EndsWith(zipExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            safeZipName += zipExtension;
+        }
+
+        return PathHelper.GetUniqueNumberedPath(Path.Combine(directory, safeZipName));
+    }
+
     [RelayCommand]
     private async Task ImportFromUrlAsync()
     {
@@ -372,8 +409,7 @@ public partial class MapManagerViewModel : ObservableObject
 
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
             _notificationService.ShowInfo(
@@ -383,12 +419,19 @@ public partial class MapManagerViewModel : ObservableObject
         }
 
         IsBusy = true;
-        StatusMessage = "Importing from URL...";
+        IsIndeterminate = false;
         Progress = 0;
+        StatusMessage = "Downloading from URL...";
 
         try
         {
-            var result = await _importService.ImportFromUrlAsync(ImportUrl, SelectedTab, new Progress<double>(p => Progress = p));
+            var progressHandler = new Progress<double>(p =>
+            {
+                Progress = p;
+                StatusMessage = "Downloading from URL...";
+            });
+
+            var result = await _importService.ImportFromUrlAsync(ImportUrl, SelectedTab, progressHandler);
             if (result.Success)
             {
                 _notificationService.ShowSuccess("Import Complete", $"Imported {result.FilesImported} file(s) from URL.");
@@ -421,8 +464,7 @@ public partial class MapManagerViewModel : ObservableObject
     {
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
             _notificationService.ShowInfo(
@@ -463,8 +505,7 @@ public partial class MapManagerViewModel : ObservableObject
         }
 
         // Check if any selected maps are demo items (have mock paths)
-        var demoMaps = SelectedMaps.Where(m => m.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-                                                   m.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
+        var demoMaps = SelectedMaps.Where(m => IsDemoPath(m.FullPath)).ToList();
         if (demoMaps.Count > 0)
         {
             // Show notification toast explaining what the button does
@@ -475,6 +516,7 @@ public partial class MapManagerViewModel : ObservableObject
         }
 
         IsBusy = true;
+        IsIndeterminate = true;
         StatusMessage = "Deleting maps...";
 
         // Capture selected maps before clearing
@@ -499,7 +541,7 @@ public partial class MapManagerViewModel : ObservableObject
         }
         else
         {
-            _notificationService.ShowError("Delete Failed", "Could not delete selected maps.");
+            _notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, "Could not delete selected maps.");
             StatusMessage = "Deletion error.";
         }
 
@@ -515,8 +557,7 @@ public partial class MapManagerViewModel : ObservableObject
         }
 
         // Check if any selected maps are demo items (have mock paths)
-        var demoMaps = SelectedMaps.Where(m => m.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-                                                   m.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
+        var demoMaps = SelectedMaps.Where(m => IsDemoPath(m.FullPath)).ToList();
         if (demoMaps.Count > 0)
         {
             // Show notification toast explaining what the button does
@@ -527,32 +568,22 @@ public partial class MapManagerViewModel : ObservableObject
         }
 
         IsBusy = true;
-        StatusMessage = "Creating ZIP...";
+        IsIndeterminate = false;
         Progress = 0;
+        StatusMessage = "Creating ZIP...";
 
         try
         {
             var directory = _directoryService.GetMapDirectory(SelectedTab);
-            var safeZipName = ZipName.EndsWith(Path.GetExtension(MapManagerConstants.ZipFilePattern), StringComparison.OrdinalIgnoreCase)
-                ? ZipName
-                : ZipName + Path.GetExtension(MapManagerConstants.ZipFilePattern);
+            var destinationPath = GetUniqueZipDestinationPath(directory, ZipName);
 
-            var destinationPath = Path.Combine(directory, safeZipName);
-
-            if (File.Exists(destinationPath))
+            var progressHandler = new Progress<double>(p =>
             {
-                var dir = Path.GetDirectoryName(destinationPath) ?? string.Empty;
-                var nameOnly = Path.GetFileNameWithoutExtension(destinationPath);
-                var ext = Path.GetExtension(destinationPath);
-                int count = 1;
-                while (File.Exists(destinationPath))
-                {
-                    destinationPath = Path.Combine(dir, $"{nameOnly} ({count}){ext}");
-                    count++;
-                }
-            }
+                Progress = p;
+                StatusMessage = "Creating ZIP...";
+            });
 
-            var result = await _exportService.ExportToZipAsync([.. SelectedMaps], destinationPath, new Progress<double>(p => Progress = p));
+            var result = await _exportService.ExportToZipAsync([.. SelectedMaps], destinationPath, progressHandler);
             if (result != null)
             {
                 _notificationService.ShowSuccess("Zip Created", $"Created {Path.GetFileName(result)} in map folder.");
@@ -560,21 +591,7 @@ public partial class MapManagerViewModel : ObservableObject
 
                 // Reload maps to show the new ZIP
                 await LoadMapsAsync();
-
-                // Reveal in Explorer
-                try
-                {
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = PlatformConstants.WindowsExplorerPath,
-                        Arguments = string.Format(PlatformConstants.WindowsExplorerSelectArgument, result),
-                        UseShellExecute = true,
-                    });
-                }
-                catch
-                {
-                    /* Ignore explorer errors */
-                }
+                PathHelper.RevealInExplorer(result);
             }
             else
             {
@@ -603,87 +620,61 @@ public partial class MapManagerViewModel : ObservableObject
             return;
         }
 
-        // Check if any selected maps are demo items (have mock paths)
-        var demoMaps = SelectedMaps.Where(m => m.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-                                                   m.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
-        if (demoMaps.Count > 0)
+        if (ValidateDemoMapsSelected())
         {
-            // Show notification toast explaining what the button does
-            _notificationService.ShowInfo(
-                "Upload and Share",
-                "Uploads selected maps to UploadThing cloud service (max 10MB) and copies the share link to your clipboard. You can then share the link with others to download maps.");
             return;
         }
 
-        // Calculate total size of selected maps
-        long totalSizeBytes = SelectedMaps.Sum(r => new FileInfo(r.FullPath).Length);
-
-        // Check file size limit (10MB max per file/batch typically, but user said "File too large. Maximum upload size is 10MB")
-        // Note: The UI says "max 10MB per file". But usually there is a total limit too if zipped.
-        // Let's enforce the 10MB limit based on total size if it's a ZIP, or per file?
-        // If multiple files are selected, they are zipped. The ZIP must be < 10MB?
-        // Start simple: If total > 10MB, warn.
-        if (totalSizeBytes > MapManagerConstants.MaxMapSizeBytes)
+        long totalSizeBytes = ToolUploadHelper.CalculateMapsSize(SelectedMaps);
+        if (!await ValidateUploadLimitsAsync(totalSizeBytes))
         {
-            _notificationService.ShowError(
-               "File Too Large",
-               "File too large. Maximum upload size is 10MB.");
-            StatusMessage = "Upload too large (Max 10MB).";
             return;
         }
 
-        // Check rate limit
-        var isAllowed = await _uploadHistoryService.CanUploadAsync(totalSizeBytes);
-        if (!isAllowed)
+        string? fileHash = null;
+        if (SelectedMaps.Count == 1 && File.Exists(SelectedMaps[0].FullPath))
         {
-            var usage = await _uploadHistoryService.GetUsageInfoAsync();
-            var resetDateLocal = usage.ResetDate.ToLocalTime();
-            _notificationService.ShowError(
-                "Rate Limit Exceeded",
-                "Upload limit exceeded for the current 3-day period. Please remove items from your Upload History to free up quota immediately.");
-            StatusMessage = $"Limited reached. Resets {resetDateLocal:g}.";
-            return;
+            var (reused, computedHash) = await TryReuseExistingUploadAsync(SelectedMaps[0].FullPath);
+            if (reused)
+            {
+                return;
+            }
+
+            fileHash = computedHash;
         }
 
+        IsHistoryOpen = false;
         IsBusy = true;
-        StatusMessage = "Uploading to cloud (UploadThing)...";
+        IsIndeterminate = false;
         Progress = 0;
+        StatusMessage = "Preparing upload...";
 
         try
         {
-            var url = await _exportService.UploadToUploadThingAsync([.. SelectedMaps], new Progress<double>(p => Progress = p));
-            if (url != null)
+            var isZip = SelectedMaps.Count == 1 && SelectedMaps[0].FileName.EndsWith(Path.GetExtension(MapManagerConstants.ZipFilePattern), StringComparison.OrdinalIgnoreCase);
+            var progressHandler = new Progress<double>(p =>
             {
-                var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-                var clipboard = lifetime?.MainWindow?.Clipboard;
-                if (clipboard != null)
-                {
-                    await clipboard.SetTextAsync(url);
-                }
+                Progress = p;
+                int percent = (int)Math.Round(p * 100);
+                StatusMessage = ToolUploadHelper.FormatUploadStageMessage(MapManagerConstants.UploadCategory, isZip, percent);
+            });
 
-                // Record successful upload
-                var fileName = SelectedMaps.Count == 1 ? SelectedMaps[0].FileName : "maps.zip";
-                _uploadHistoryService.RecordUpload(totalSizeBytes, url, fileName);
-
-                // Refresh history if open
-                if (IsHistoryOpen)
-                {
-                    await LoadHistoryAsync();
-                }
-
-                StatusMessage = "Uploaded! Link copied to clipboard.";
-                _notificationService.ShowSuccess("Upload Complete", "Link copied to clipboard!");
+            var uploadResult = await _exportService.UploadToUploadThingAsync([.. SelectedMaps], progressHandler);
+            if (uploadResult.Success)
+            {
+                await HandleSuccessfulUploadAsync(uploadResult.Data, totalSizeBytes, fileHash);
             }
             else
             {
-                StatusMessage = "Upload failed. Check API key.";
-                _notificationService.ShowError("Upload Failed", "Upload failed. Please check your API key and internet connection.");
+                StatusMessage = "Upload failed.";
+                var error = uploadResult.FirstError ?? "Upload failed. Please check your internet connection.";
+                _notificationService.ShowError("Upload Failed", error);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException or InvalidOperationException) && ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "Upload failed");
-            _notificationService.ShowError("Upload Error", ex.Message);
+            _notificationService.ShowError("Upload Error", "Failed to complete upload.");
             StatusMessage = "Upload error.";
         }
         finally
@@ -693,13 +684,99 @@ public partial class MapManagerViewModel : ObservableObject
         }
     }
 
+    private bool ValidateDemoMapsSelected()
+    {
+        var demoMaps = SelectedMaps.Where(m => IsDemoPath(m.FullPath)).ToList();
+        if (demoMaps.Count > 0)
+        {
+            _notificationService.ShowInfo(
+                "Upload and Share",
+                "Uploads selected maps to UploadThing cloud service (max 10MB) and copies the share link to your clipboard. You can then share the link with others to download maps.");
+            return true;
+        }
+
+        return false;
+    }
+
+    private async Task<bool> ValidateUploadLimitsAsync(long totalSizeBytes)
+    {
+        if (totalSizeBytes > MapManagerConstants.MaxMapSizeBytes)
+        {
+            _notificationService.ShowError(
+               "File Too Large",
+               "File too large. Maximum upload size is 10MB.");
+            StatusMessage = "Upload too large (Max 10MB).";
+            return false;
+        }
+
+        var isAllowed = await _uploadHistoryService.CanUploadAsync(totalSizeBytes, MapManagerConstants.UploadCategory);
+        if (!isAllowed)
+        {
+            var usage = await _uploadHistoryService.GetUsageInfoAsync(MapManagerConstants.UploadCategory);
+            var resetDateLocal = usage.ResetDate.ToLocalTime();
+            _notificationService.ShowError(
+                "Rate Limit Exceeded",
+                "Upload limit exceeded for the current 3-day period. Please remove items from your Upload History to free up quota immediately.");
+            StatusMessage = $"Limit reached. Resets {resetDateLocal:g}.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task<(bool Reused, string? FileHash)> TryReuseExistingUploadAsync(string filePath)
+    {
+        var fileHash = await ToolUploadHelper.ComputeFileSha256Async(filePath);
+        if (string.IsNullOrEmpty(fileHash))
+        {
+            return (false, null);
+        }
+
+        var existingUpload = await _uploadHistoryService.FindExistingUploadAsync(fileHash);
+        if (existingUpload?.Url != null && await ToolUploadHelper.VerifyShareUrlAliveAsync(existingUpload.Url))
+        {
+            var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+            var clipboard = lifetime?.MainWindow?.Clipboard;
+            if (clipboard != null)
+            {
+                await clipboard.SetTextAsync(existingUpload.Url);
+            }
+
+            StatusMessage = "Reused existing upload! Link copied to clipboard.";
+            _notificationService.ShowSuccess("Upload Complete", "Existing link copied to clipboard!");
+            return (true, fileHash);
+        }
+
+        return (false, fileHash);
+    }
+
+    private async Task HandleSuccessfulUploadAsync(UploadResult uploadResult, long totalSizeBytes, string? fileHash)
+    {
+        var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+        var clipboard = lifetime?.MainWindow?.Clipboard;
+        if (clipboard != null)
+        {
+            await clipboard.SetTextAsync(uploadResult.PublicUrl);
+        }
+
+        var fileName = SelectedMaps.Count == 1 ? SelectedMaps[0].FileName : $"{MapManagerConstants.DefaultZipName}{Path.GetExtension(MapManagerConstants.ZipFilePattern)}";
+        _uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash, MapManagerConstants.UploadCategory);
+
+        if (IsHistoryOpen)
+        {
+            await LoadHistoryAsync();
+        }
+
+        StatusMessage = "Uploaded! Link copied to clipboard.";
+        _notificationService.ShowSuccess("Upload Complete", "Link copied to clipboard!");
+    }
+
     [RelayCommand]
     private void OpenFolder()
     {
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
             _notificationService.ShowInfo(
@@ -715,8 +792,7 @@ public partial class MapManagerViewModel : ObservableObject
     private void RevealFile(MapFile map)
     {
         // Check if map is a demo item (has mock path)
-        if (map.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            map.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(map.FullPath))
         {
             // Show notification toast explaining what the button does
             _notificationService.ShowInfo(
@@ -738,8 +814,7 @@ public partial class MapManagerViewModel : ObservableObject
         if (zipFiles.Count == 0) return;
 
         // Check if any selected maps are demo items (have mock paths)
-        var demoMaps = SelectedMaps.Where(m => m.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-                                                   m.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
+        var demoMaps = SelectedMaps.Where(m => IsDemoPath(m.FullPath)).ToList();
         if (demoMaps.Count > 0)
         {
             // Show notification toast explaining what the button does
@@ -801,8 +876,7 @@ public partial class MapManagerViewModel : ObservableObject
     {
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             _notificationService.ShowInfo(
                 "MapPacks",
@@ -841,8 +915,7 @@ public partial class MapManagerViewModel : ObservableObject
         }
 
         // Check if any selected maps are demo items (have mock paths)
-        var demoMaps = SelectedMaps.Where(m => m.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-                                                   m.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
+        var demoMaps = SelectedMaps.Where(m => IsDemoPath(m.FullPath)).ToList();
         if (demoMaps.Count > 0)
         {
             // Show notification toast explaining what the button does
@@ -898,8 +971,7 @@ public partial class MapManagerViewModel : ObservableObject
     {
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
             _notificationService.ShowInfo(
@@ -929,8 +1001,7 @@ public partial class MapManagerViewModel : ObservableObject
     {
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
             _notificationService.ShowInfo(
@@ -960,8 +1031,7 @@ public partial class MapManagerViewModel : ObservableObject
     {
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
             _notificationService.ShowInfo(
@@ -982,30 +1052,30 @@ public partial class MapManagerViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to delete MapPack");
-            _notificationService.ShowError("Delete Failed", "Failed to delete MapPack.");
+            _notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, "Failed to delete MapPack.");
         }
     }
 
     // History Commands
-    [RelayCommand]
-    private void ToggleHistory()
+    partial void OnIsHistoryOpenChanged(bool value)
     {
+        if (!value)
+        {
+            return;
+        }
+
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
+            IsHistoryOpen = false;
             _notificationService.ShowInfo(
                 "Upload History",
                 "Shows a list of your previously uploaded maps, allowing you to manage them and copy download links.");
             return;
         }
 
-        IsHistoryOpen = !IsHistoryOpen;
-        if (IsHistoryOpen)
-        {
-            _ = LoadHistoryAsync();
-        }
+        _ = LoadHistoryAsync();
     }
 
     [RelayCommand]
@@ -1013,15 +1083,16 @@ public partial class MapManagerViewModel : ObservableObject
     {
         try
         {
-            var history = await _uploadHistoryService.GetUploadHistoryAsync();
-            UploadHistory.Clear();
+            var history = await _uploadHistoryService.GetUploadHistoryAsync(MapManagerConstants.UploadCategory);
+            var viewModels = history.Select(item => new UploadHistoryItemViewModel(item)).ToList();
 
-            foreach (var item in history)
+            UploadHistory.Clear();
+            foreach (var vm in viewModels)
             {
-                UploadHistory.Add(new UploadHistoryItemViewModel(item));
+                UploadHistory.Add(vm);
             }
 
-            // Verify file existence
+            // Verify file existence asynchronously
             _ = Task.Run(async () =>
             {
                 using var httpClient = new System.Net.Http.HttpClient
@@ -1029,31 +1100,29 @@ public partial class MapManagerViewModel : ObservableObject
                     Timeout = TimeSpan.FromSeconds(5),
                 };
 
-                foreach (var viewModel in UploadHistory)
+                foreach (var vm in viewModels)
                 {
+                    bool exists = false;
                     try
                     {
-                        var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, viewModel.Url);
-                        var response = await httpClient.SendAsync(request);
-
-                        await Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            viewModel.FileExists = response.IsSuccessStatusCode;
-                            viewModel.IsVerified = true;
-                        });
+                        using var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, vm.Url);
+                        using var response = await httpClient.SendAsync(request);
+                        exists = response.IsSuccessStatusCode;
                     }
                     catch
                     {
-                        await Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            viewModel.FileExists = false;
-                            viewModel.IsVerified = true;
-                        });
+                        exists = false;
                     }
+
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        vm.FileExists = exists;
+                        vm.IsVerified = true;
+                    });
                 }
             });
         }
-        catch (Exception ex)
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or JsonException) && ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "Failed to load upload history");
         }
@@ -1064,8 +1133,7 @@ public partial class MapManagerViewModel : ObservableObject
     {
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             _notificationService.ShowInfo(
                 "Copy Link",
@@ -1078,12 +1146,12 @@ public partial class MapManagerViewModel : ObservableObject
             var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
             var clipboard = lifetime?.MainWindow?.Clipboard;
             if (clipboard != null)
-                {
-                    await clipboard.SetTextAsync(url);
-                    _notificationService.ShowSuccess("Copied", "Link copied to clipboard.");
-                }
+            {
+                await clipboard.SetTextAsync(url);
+                _notificationService.ShowSuccess("Copied", "Link copied to clipboard.");
+            }
         }
-        catch (Exception ex)
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "Failed to copy URL");
         }
@@ -1094,54 +1162,73 @@ public partial class MapManagerViewModel : ObservableObject
     {
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             _notificationService.ShowInfo(
-                "Remove From History",
-                "Removes the item from local history without deleting the hosted file.");
+                "Delete Upload",
+                "Permanently deletes the uploaded file from cloud storage and removes it from history.");
             return;
         }
 
         try
         {
-            await _uploadHistoryService.RemoveHistoryItemAsync(item.Url);
+            var success = await _uploadHistoryService.RemoveHistoryItemAsync(item.Url, deleteFromCloud: true);
             await LoadHistoryAsync();
-            _notificationService.ShowSuccess(
-                "Removed",
-                "Removed from local history. The hosted file was not deleted.");
+            if (success)
+            {
+                _notificationService.ShowSuccess(
+                    "Deleted",
+                    "File deleted from cloud storage and upload history.");
+            }
+            else
+            {
+                _notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, "Failed to delete file from cloud storage.");
+            }
         }
-        catch (Exception ex)
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException or JsonException) && ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "Failed to remove history item");
+            _notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, "Failed to delete history item.");
         }
     }
 
+    /// <summary>
+    /// Clears all upload history and deletes hosted files from cloud storage.
+    /// </summary>
     [RelayCommand]
     private async Task ClearHistoryAsync()
     {
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             _notificationService.ShowInfo(
                 "Clear History",
-                "Clears local upload history without deleting hosted files.");
+                "Permanently deletes all uploaded files from cloud storage and clears upload history.");
             return;
         }
 
         try
         {
-            await _uploadHistoryService.ClearHistoryAsync();
+            var (deleted, failed) = await _uploadHistoryService.ClearHistoryAsync(deleteFromCloud: true, category: MapManagerConstants.UploadCategory);
             await LoadHistoryAsync();
-            _notificationService.ShowSuccess(
-                "Cleared",
-                "Local history cleared. Hosted files were not deleted.");
+            if (failed == 0)
+            {
+                _notificationService.ShowSuccess(
+                    "Cleared",
+                    $"All {deleted} uploaded files deleted from cloud storage and history cleared.");
+            }
+            else
+            {
+                _notificationService.ShowWarning(
+                    "Partially Cleared",
+                    $"Cleared {deleted} history items. {failed} item(s) could not be deleted from cloud storage.");
+            }
         }
-        catch (Exception ex)
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException or JsonException) && ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "Failed to clear history");
+            _notificationService.ShowError("Clear Failed", "Failed to clear history.");
         }
     }
 

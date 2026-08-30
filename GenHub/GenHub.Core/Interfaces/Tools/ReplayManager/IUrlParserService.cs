@@ -1,6 +1,7 @@
-using GenHub.Core.Models.Tools.ReplayManager;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Models.Tools.ReplayManager;
 
 namespace GenHub.Core.Interfaces.Tools.ReplayManager;
 
@@ -30,4 +31,12 @@ public interface IUrlParserService
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The direct download URL if successful, otherwise null.</returns>
     Task<string?> GetDirectDownloadUrlAsync(string url, CancellationToken ct = default);
+
+    /// <summary>
+    /// Extracts all direct download URLs from a source-specific URL (e.g., all player replays from a match page).
+    /// </summary>
+    /// <param name="url">The source URL.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A list of direct download URLs extracted from the source.</returns>
+    Task<IReadOnlyList<string>> GetDirectDownloadUrlsAsync(string url, CancellationToken ct = default);
 }

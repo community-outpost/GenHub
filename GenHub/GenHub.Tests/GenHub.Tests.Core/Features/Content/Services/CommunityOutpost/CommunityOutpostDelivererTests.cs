@@ -202,6 +202,125 @@ public sealed class CommunityOutpostDelivererTests : IDisposable
             Times.Never);
     }
 
+    /// <summary>
+    /// Verifies that multi-variant hotkeys packages like hlei repack all language/game subdirectories.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task RepackContentIfNeededAsync_WithHleiPackage_RepacksAllVariantBigFilesAsync()
+    {
+        var hleiManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.hlei"),
+            Name = "Leikeze's Hotkeys",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:hlei"],
+            },
+        };
+
+        var zhEnDir = Path.Combine(_extractDirectory, "ZH", "BIG EN", "Data", "English");
+        var zhDeDir = Path.Combine(_extractDirectory, "ZH", "BIG DE", "Data", "English");
+        var zhRuDir = Path.Combine(_extractDirectory, "ZH", "BIG RU", "Data", "English");
+        var ccgEnDir = Path.Combine(_extractDirectory, "CCG", "BIG EN", "Data", "English");
+
+        Directory.CreateDirectory(zhEnDir);
+        Directory.CreateDirectory(zhDeDir);
+        Directory.CreateDirectory(zhRuDir);
+        Directory.CreateDirectory(ccgEnDir);
+
+        File.WriteAllText(Path.Combine(zhEnDir, "generals.csf"), "EN CSF");
+        File.WriteAllText(Path.Combine(zhDeDir, "generals.csf"), "DE CSF");
+        File.WriteAllText(Path.Combine(zhRuDir, "generals.csf"), "RU CSF");
+        File.WriteAllText(Path.Combine(ccgEnDir, "generals.csf"), "CCG CSF");
+
+        var deliverer = CreateDeliverer(new Mock<IDownloadService>().Object, new Mock<IContentManifestPool>().Object);
+        var repackMethod = typeof(CommunityOutpostDeliverer).GetMethod(
+            "RepackContentIfNeededAsync",
+            BindingFlags.NonPublic | BindingFlags.Instance)
+            ?? throw new InvalidOperationException("RepackContentIfNeededAsync method not found.");
+
+        await (Task)repackMethod.Invoke(deliverer, [hleiManifest, _extractDirectory, CancellationToken.None])!;
+
+        Assert.True(File.Exists(Path.Combine(_extractDirectory, "!HotkeysLeikezeENZH.big")));
+        Assert.True(File.Exists(Path.Combine(_extractDirectory, "!HotkeysLeikezeDEZH.big")));
+        Assert.True(File.Exists(Path.Combine(_extractDirectory, "!HotkeysLeikezeRUZH.big")));
+        Assert.True(File.Exists(Path.Combine(_extractDirectory, "!HotkeysLeikezeEN.big")));
+        Assert.False(Directory.Exists(Path.Combine(_extractDirectory, "ZH")));
+        Assert.False(Directory.Exists(Path.Combine(_extractDirectory, "CCG")));
+    }
+
+    /// <summary>
+    /// Verifies that pre-existing BIG files inside a variant directory are copied to the resolved variant destination filename.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task RepackContentIfNeededAsync_WithPreExistingBigInVariant_CopiesToResolvedVariantFileNameAsync()
+    {
+        var hleiManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.hlei"),
+            Name = "Leikeze's Hotkeys",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:hlei"],
+            },
+        };
+
+        var zhEnDir = Path.Combine(_extractDirectory, "ZH", "BIG EN");
+        Directory.CreateDirectory(zhEnDir);
+        File.WriteAllText(Path.Combine(zhEnDir, "arbitrary_name.big"), "PRE-PACKED BIG CONTENT");
+
+        var deliverer = CreateDeliverer(new Mock<IDownloadService>().Object, new Mock<IContentManifestPool>().Object);
+        var repackMethod = typeof(CommunityOutpostDeliverer).GetMethod(
+            "RepackContentIfNeededAsync",
+            BindingFlags.NonPublic | BindingFlags.Instance)
+            ?? throw new InvalidOperationException("RepackContentIfNeededAsync method not found.");
+
+        await (Task)repackMethod.Invoke(deliverer, [hleiManifest, _extractDirectory, CancellationToken.None])!;
+
+        var destFile = Path.Combine(_extractDirectory, "!HotkeysLeikezeENZH.big");
+        Assert.True(File.Exists(destFile));
+        Assert.Equal("PRE-PACKED BIG CONTENT", File.ReadAllText(destFile));
+    }
+
+    /// <summary>
+    /// Verifies that repacking is skipped for content metadata that does not require repacking.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task RepackContentIfNeededAsync_WithNonRepackingContent_SkipsRepackAsync()
+    {
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.gent"),
+            Name = "GenTool",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata
+            {
+                Tags = ["contentCode:gent"],
+            },
+        };
+
+        var dummyFile = Path.Combine(_extractDirectory, "d3d8.dll");
+        File.WriteAllText(dummyFile, "DLL CONTENT");
+
+        var deliverer = CreateDeliverer(new Mock<IDownloadService>().Object, new Mock<IContentManifestPool>().Object);
+        var repackMethod = typeof(CommunityOutpostDeliverer).GetMethod(
+            "RepackContentIfNeededAsync",
+            BindingFlags.NonPublic | BindingFlags.Instance)
+            ?? throw new InvalidOperationException("RepackContentIfNeededAsync method not found.");
+
+        await (Task)repackMethod.Invoke(deliverer, [manifest, _extractDirectory, CancellationToken.None])!;
+
+        Assert.True(File.Exists(dummyFile));
+    }
+
     private static CommunityOutpostDeliverer CreateDeliverer(
         IDownloadService downloadService,
         IContentManifestPool manifestPool)

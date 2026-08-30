@@ -82,10 +82,13 @@ public class CommunityOutpostResolver(
             var contentMetadata = GenPatcherContentRegistry.GetMetadata(contentCode);
 
             // Determine filename from URL or content code
-            var downloadUrl = discoveredItem.SourceUrl ?? throw new InvalidOperationException(
-                "SourceUrl cannot be null for Community Outpost content");
+            if (!Uri.TryCreate(discoveredItem.SourceUrl, UriKind.Absolute, out var downloadUri))
+            {
+                throw new InvalidOperationException(
+                    "SourceUrl must be a valid absolute URI for Community Outpost content");
+            }
 
-            var filename = ExtractFileName(new Uri(downloadUrl), contentCode);
+            var filename = ExtractFileName(downloadUri, contentCode);
 
             // Get all mirror URLs for fallback support
             var mirrorUrls = GetMirrorUrls(discoveredItem);
@@ -128,7 +131,7 @@ public class CommunityOutpostResolver(
 
             manifest.AddRemoteFileAsync(
                 filename,
-                downloadUrl,
+                downloadUri.AbsoluteUri,
                 ContentSourceType.RemoteDownload,
                 isExecutable: false).Wait(cancellationToken);
 
@@ -345,7 +348,7 @@ public class CommunityOutpostResolver(
         string ContentCode,
         string Filename,
         string? RequestedVariantSuffix,
-        List<string> MirrorUrls,
+        IReadOnlyList<string> MirrorUrls,
         long FileSize);
 
     private static void ApplyPostResolutionMetadata(ContentManifest builtManifest, in PostResolutionContext context)
@@ -544,7 +547,7 @@ public class CommunityOutpostResolver(
     /// <summary>
     /// Gets the list of mirror URLs from the search result metadata.
     /// </summary>
-    private List<string> GetMirrorUrls(ContentSearchResult item)
+    private IReadOnlyList<string> GetMirrorUrls(ContentSearchResult item)
     {
         var mirrorUrlsJson = GetMetadataValue(item, "mirrorUrls", "[]");
 

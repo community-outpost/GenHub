@@ -1,8 +1,12 @@
+using System;
+using System.Diagnostics.CodeAnalysis;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
 /// API and network related constants.
 /// </summary>
+[SuppressMessage("Major Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized fallback API constants and endpoint definitions.")]
 public static class ApiConstants
 {
     // GitHub
@@ -59,12 +63,75 @@ public static class ApiConstants
     /// </summary>
     public const string GitHubApiRunArtifactsFormat = "https://api.github.com/repos/{0}/{1}/actions/runs/{2}/artifacts";
 
-    // UploadThing links
+    // Upload Gateway & Cloud Storage
+
+    /// <summary>
+    /// Environment variable name for overriding the upload gateway base URL during local development/staging.
+    /// </summary>
+    public const string UploadGatewayBaseUrlEnvVar = "GENHUB_UPLOAD_GATEWAY_URL";
+
+    /// <summary>
+    /// Base URL for the GenHub community upload gateway.
+    /// </summary>
+    public const string DefaultUploadGatewayBaseUrl = "https://genhub-upload-gateway.mustafa2146.workers.dev";
+
+    /// <summary>
+    /// Gets the active base URL for the upload gateway, checking environment variable overrides first.
+    /// </summary>
+    public static string UploadGatewayBaseUrl =>
+        Environment.GetEnvironmentVariable(UploadGatewayBaseUrlEnvVar) is { Length: > 0 } customUrl
+            ? customUrl.TrimEnd('/')
+            : DefaultUploadGatewayBaseUrl;
+
+    /// <summary>
+    /// Endpoint path for cloud uploads.
+    /// </summary>
+    public const string UploadEndpoint = "/api/v1/uploads";
+
+    /// <summary>
+    /// Endpoint path for deleting cloud uploads.
+    /// </summary>
+    public const string UploadDeleteEndpoint = "/api/v1/uploads/delete";
+
+    /// <summary>
+    /// Gets the full default URL for cloud uploads.
+    /// </summary>
+    public static string DefaultUploadUrl => UploadGatewayBaseUrl + UploadEndpoint;
+
+    /// <summary>
+    /// Gets the full default URL for deleting cloud uploads.
+    /// </summary>
+    public static string DefaultUploadDeleteUrl => UploadGatewayBaseUrl + UploadDeleteEndpoint;
+
+    /// <summary>
+    /// Format string for constructing UploadThing public file URLs.
+    /// </summary>
+    public const string UploadThingPublicUrlFormat = "https://utfs.io/f/{0}";
 
     /// <summary>
     /// UploadThing URL fragment for identification.
     /// </summary>
     public const string UploadThingUrlFragment = "utfs.io/f/";
+
+    /// <summary>
+    /// Modern UploadThing (v7) UFS URL fragment for identification.
+    /// </summary>
+    public const string UploadThingUfsUrlFragment = ".ufs.sh/f/";
+
+    /// <summary>
+    /// Modern UploadThing (v7) UFS short URL fragment for identification.
+    /// </summary>
+    public const string UploadThingUfsShortUrlFragment = "ufs.sh/f/";
+
+    /// <summary>
+    /// Media type for ZIP archives.
+    /// </summary>
+    public const string MediaTypeZip = "application/zip";
+
+    /// <summary>
+    /// Default filename fallback for generic uploads when a source filename cannot be determined.
+    /// </summary>
+    public const string DefaultUploadFileName = "upload.zip";
 
     // GenTool
 
@@ -79,6 +146,18 @@ public static class ApiConstants
     /// Generals Online view match URL fragment.
     /// </summary>
     public const string GeneralsOnlineViewMatchFragment = "playgenerals.online/viewmatch";
+
+    // GameReplays / Strata
+
+    /// <summary>
+    /// GameReplays Strata domain URL fragment for identification.
+    /// </summary>
+    public const string StrataUrlFragment = "strata.gamereplays.org";
+
+    /// <summary>
+    /// GameReplays domain URL fragment for identification.
+    /// </summary>
+    public const string GameReplaysDomainFragment = "gamereplays.org";
 
     /// <summary>
     /// Format string for GitHub API Workflow Runs endpoint (owner, repo).

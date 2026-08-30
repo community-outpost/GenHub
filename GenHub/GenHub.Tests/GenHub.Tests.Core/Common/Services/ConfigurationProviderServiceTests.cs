@@ -2,6 +2,7 @@ using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging;
@@ -1203,6 +1204,142 @@ public class ConfigurationProviderServiceTests
         {
             DeleteDirectories(legacyRoot, newRoot);
         }
+    }
+
+    /// <summary>
+    /// Verifies that GetCsvCatalogConfiguration returns app config values when user settings are not set.
+    /// </summary>
+    [Fact]
+    public void GetCsvCatalogConfiguration_WithDefaultSettings_ReturnsAppConfig()
+    {
+        // Arrange
+        var appConfig = new CsvCatalogConfiguration
+        {
+            IndexFilePath = "https://example.com/index.json",
+            CsvValidationCatalogs =
+            [
+                new CsvCatalogRegistryEntry { Url = "https://example.com/catalog.csv", GameType = CsvConstants.GeneralsGameType },
+            ],
+        };
+        _mockAppConfig.Setup(x => x.GetCsvCatalogConfiguration()).Returns(appConfig);
+        _mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetCsvCatalogConfiguration();
+
+        // Assert
+        Assert.Equal("https://example.com/index.json", result.IndexFilePath);
+        Assert.Single(result.CsvValidationCatalogs);
+        Assert.Equal("https://example.com/catalog.csv", result.CsvValidationCatalogs[0].Url);
+    }
+
+    /// <summary>
+    /// Verifies that GetCsvCatalogConfiguration overrides app config when user settings are explicitly set.
+    /// </summary>
+    [Fact]
+    public void GetCsvCatalogConfiguration_WithExplicitUserSettings_OverridesAppConfig()
+    {
+        // Arrange
+        var appConfig = new CsvCatalogConfiguration
+        {
+            IndexFilePath = "https://example.com/app-index.json",
+            CsvValidationCatalogs =
+            [
+                new CsvCatalogRegistryEntry { Url = "https://example.com/app.csv", GameType = CsvConstants.GeneralsGameType },
+            ],
+        };
+        var userSettings = new UserSettings
+        {
+            IndexFilePath = "https://example.com/user-index.json",
+            CsvValidationCatalogs =
+            [
+                new CsvCatalogRegistryEntry { Url = "https://example.com/user.csv", GameType = CsvConstants.ZeroHourGameType },
+            ],
+        };
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.IndexFilePath));
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.CsvValidationCatalogs));
+
+        _mockAppConfig.Setup(x => x.GetCsvCatalogConfiguration()).Returns(appConfig);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetCsvCatalogConfiguration();
+
+        // Assert
+        Assert.Equal("https://example.com/user-index.json", result.IndexFilePath);
+        Assert.Single(result.CsvValidationCatalogs);
+        Assert.Equal("https://example.com/user.csv", result.CsvValidationCatalogs[0].Url);
+        Assert.Equal(CsvConstants.ZeroHourGameType, result.CsvValidationCatalogs[0].GameType);
+    }
+
+    /// <summary>
+    /// Verifies that GetEffectiveSettings includes CSV catalog configuration.
+    /// </summary>
+    [Fact]
+    public void GetEffectiveSettings_IncludesCsvCatalogConfiguration()
+    {
+        // Arrange
+        var appConfig = new CsvCatalogConfiguration
+        {
+            IndexFilePath = "https://example.com/index.json",
+            CsvValidationCatalogs =
+            [
+                new CsvCatalogRegistryEntry { Url = "https://example.com/catalog.csv", GameType = CsvConstants.GeneralsGameType },
+            ],
+        };
+        var testDataPath = Path.Combine(Path.GetTempPath(), $"genhub-test-{Guid.NewGuid():N}");
+        _mockAppConfig.Setup(x => x.GetCsvCatalogConfiguration()).Returns(appConfig);
+        _mockAppConfig.Setup(x => x.GetConfiguredDataPath()).Returns(testDataPath);
+        _mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
+
+        var provider = CreateProvider();
+
+        // Act
+        var settings = provider.GetEffectiveSettings();
+
+        // Assert
+        Assert.Equal("https://example.com/index.json", settings.IndexFilePath);
+        Assert.NotNull(settings.CsvValidationCatalogs);
+        Assert.Single(settings.CsvValidationCatalogs);
+        Assert.Equal("https://example.com/catalog.csv", settings.CsvValidationCatalogs[0].Url);
+    }
+
+    /// <summary>
+    /// Verifies that an explicitly set empty catalog list overrides app config.
+    /// </summary>
+    [Fact]
+    public void GetCsvCatalogConfiguration_WithExplicitEmptyList_OverridesAppConfig()
+    {
+        // Arrange
+        var appConfig = new CsvCatalogConfiguration
+        {
+            IndexFilePath = "https://example.com/index.json",
+            CsvValidationCatalogs =
+            [
+                new CsvCatalogRegistryEntry { Url = "https://example.com/catalog.csv", GameType = CsvConstants.GeneralsGameType },
+            ],
+        };
+        var userSettings = new UserSettings
+        {
+            CsvValidationCatalogs = [],
+        };
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.CsvValidationCatalogs));
+
+        _mockAppConfig.Setup(x => x.GetCsvCatalogConfiguration()).Returns(appConfig);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetCsvCatalogConfiguration();
+
+        // Assert
+        Assert.NotNull(result.CsvValidationCatalogs);
+        Assert.Empty(result.CsvValidationCatalogs);
     }
 
     /// <summary>

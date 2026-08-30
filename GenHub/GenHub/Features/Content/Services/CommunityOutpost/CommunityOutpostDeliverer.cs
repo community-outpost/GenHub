@@ -405,6 +405,78 @@ public partial class CommunityOutpostDeliverer(
         }
     }
 
+    /// <summary>
+    /// Resolves the destination BIG filename for a given variant directory based on metadata variant definitions.
+    /// </summary>
+    private static string? ResolveVariantOutputFileName(string directoryPath, GenPatcherContentMetadata metadata)
+    {
+        if (metadata.Variants == null || metadata.Variants.Count == 0)
+        {
+            return null;
+        }
+
+        var segments = directoryPath.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries);
+        var isZH = segments.Any(segment => segment.Equals("ZH", StringComparison.OrdinalIgnoreCase));
+        var isCCG = segments.Any(segment => segment.Equals("CCG", StringComparison.OrdinalIgnoreCase));
+        var dirName = Path.GetFileName(directoryPath);
+
+        GameType? targetGame = null;
+        if (isZH)
+        {
+            targetGame = GameType.ZeroHour;
+        }
+        else if (isCCG)
+        {
+            targetGame = GameType.Generals;
+        }
+
+        var matchedVariant = metadata.Variants.FirstOrDefault(variant =>
+        {
+            if (variant.TargetGame.HasValue && variant.TargetGame != targetGame)
+            {
+                return false;
+            }
+
+            if (!string.IsNullOrEmpty(variant.Value) &&
+                (dirName.EndsWith(variant.Value, StringComparison.OrdinalIgnoreCase) ||
+                 dirName.Equals(variant.Value, StringComparison.OrdinalIgnoreCase) ||
+                 dirName.Contains($" {variant.Value}", StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+
+            return false;
+        });
+
+        return matchedVariant?.OutputFilename;
+    }
+
+    /// <summary>
+    /// Resolves the preferred packing source directory within an extracted directory.
+    /// </summary>
+    private static string ResolvePackSourceDirectory(string extractPath)
+    {
+        var bigDirectories = Directory.GetDirectories(extractPath, "BIG*", SearchOption.AllDirectories);
+        if (bigDirectories.Length == 0)
+        {
+            return extractPath;
+        }
+
+        static bool IsUnder(string path, string folder) =>
+            path.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries)
+                .Any(segment => segment.Equals(folder, StringComparison.OrdinalIgnoreCase));
+
+        static bool EndsWithSegment(string path, string segment) =>
+            path.EndsWith(segment, StringComparison.OrdinalIgnoreCase);
+
+        return bigDirectories
+            .FirstOrDefault(d => IsUnder(d, "ZH") && EndsWithSegment(d, "BIG EN"))
+            ?? bigDirectories.FirstOrDefault(d => IsUnder(d, "ZH") && EndsWithSegment(d, "BIG"))
+            ?? bigDirectories.FirstOrDefault(d => IsUnder(d, "CCG") && EndsWithSegment(d, "BIG EN"))
+            ?? bigDirectories.FirstOrDefault(d => IsUnder(d, "CCG") && EndsWithSegment(d, "BIG"))
+            ?? bigDirectories[0];
+    }
+
     /// <inheritdoc />
     public string SourceName => CommunityOutpostConstants.PublisherId;
 
@@ -444,6 +516,9 @@ public partial class CommunityOutpostDeliverer(
         IProgress<ContentAcquisitionProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        var archivePath = string.Empty;
+        var extractPath = string.Empty;
+
         try
         {
             logger.LogInformation(
@@ -462,7 +537,7 @@ public partial class CommunityOutpostDeliverer(
                             archiveFile.DownloadUrl!.EndsWith(".7z", StringComparison.OrdinalIgnoreCase);
 
             var archiveExtension = isSevenZip ? ".7z" : ".zip";
-            var archivePath = Path.Combine(targetDirectory, $"content{archiveExtension}");
+            archivePath = Path.Combine(targetDirectory, $"content{archiveExtension}");
             var candidateUrls = await CollectCandidateUrlsAsync(archiveFile, packageManifest, cancellationToken);
 
             progress?.Report(new ContentAcquisitionProgress
@@ -473,7 +548,7 @@ public partial class CommunityOutpostDeliverer(
                 CurrentFile = archiveFile.RelativePath,
             });
 
-            var extractPath = Path.Combine(targetDirectory, "extracted");
+            extractPath = Path.Combine(targetDirectory, "extracted");
             Directory.CreateDirectory(extractPath);
 
             progress?.Report(new ContentAcquisitionProgress
@@ -507,11 +582,13 @@ public partial class CommunityOutpostDeliverer(
         }
         catch (OperationCanceledException)
         {
+            // Downloaded archive is intentionally preserved on cancellation to allow resume.
             throw;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to deliver Community Outpost content");
+            await CleanupTemporaryFilesAsync(archivePath, extractPath);
             return OperationResult<ContentManifest>.CreateFailure($"Content delivery failed: {ex.Message}");
         }
     }
@@ -794,7 +871,7 @@ public partial class CommunityOutpostDeliverer(
             // Delete archive file
             try
             {
-                if (File.Exists(archivePath))
+                if (!string.IsNullOrEmpty(archivePath) && File.Exists(archivePath))
                 {
                     File.Delete(archivePath);
                     logger.LogDebug("Deleted archive file: {Path}", archivePath);
@@ -808,7 +885,7 @@ public partial class CommunityOutpostDeliverer(
             // Delete extracted directory
             try
             {
-                if (Directory.Exists(extractPath))
+                if (!string.IsNullOrEmpty(extractPath) && Directory.Exists(extractPath))
                 {
                     Directory.Delete(extractPath, recursive: true);
                     logger.LogDebug("Deleted extracted directory: {Path}", extractPath);
@@ -822,6 +899,142 @@ public partial class CommunityOutpostDeliverer(
     }
 
     /// <summary>
+    /// Replaces the extract directory contents with all packed BIG files from packDir.
+    /// </summary>
+    private void ReplaceExtractedWithPacked(string extractPath, string packDir)
+    {
+        try
+        {
+            if (Directory.Exists(extractPath))
+            {
+                Directory.Delete(extractPath, true);
+            }
+
+            Directory.CreateDirectory(extractPath);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to reset extract path {ExtractPath} during repacking", extractPath);
+            throw new IOException($"Failed to prepare extraction directory: {ex.Message}", ex);
+        }
+
+        foreach (var packedFile in Directory.GetFiles(packDir, "*.big"))
+        {
+            File.Move(packedFile, Path.Combine(extractPath, Path.GetFileName(packedFile)));
+        }
+    }
+
+    /// <summary>
+    /// Converts compressed images to TGA and packs source directory to destination BIG file.
+    /// </summary>
+    private async Task ConvertImagesAndPackAsync(
+        string sourceDir,
+        string destinationPath,
+        CancellationToken cancellationToken)
+    {
+        var compressedImageCount = Directory.GetFiles(sourceDir, "*.avif", SearchOption.AllDirectories).Length
+            + Directory.GetFiles(sourceDir, "*.webp", SearchOption.AllDirectories).Length;
+        if (compressedImageCount > 0)
+        {
+            logger.LogInformation(
+                "Converting {Count} compressed image files to TGA format for game compatibility in {Source}",
+                compressedImageCount,
+                sourceDir);
+
+            var convertedCount = await avifConverter.ConvertDirectoryAsync(sourceDir, cancellationToken);
+            logger.LogInformation("Converted {Converted} compressed image files to TGA", convertedCount);
+        }
+
+        await BigFilePacker.PackAsync(sourceDir, destinationPath);
+    }
+
+    /// <summary>
+    /// Repacks all variant subdirectories into packDir.
+    /// </summary>
+    private async Task<int> RepackAllVariantDirectoriesAsync(
+        string[] bigDirectories,
+        string packDir,
+        GenPatcherContentMetadata metadata,
+        CancellationToken cancellationToken)
+    {
+        var repackedCount = 0;
+
+        foreach (var bigDir in bigDirectories)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var outputFileName = ResolveVariantOutputFileName(bigDir, metadata);
+            if (string.IsNullOrEmpty(outputFileName))
+            {
+                logger.LogDebug("Skipping variant directory {Dir}: no matching output filename", bigDir);
+                continue;
+            }
+
+            var destinationPath = Path.Combine(packDir, outputFileName);
+            var existingBigs = Directory.GetFiles(bigDir, "*.big", SearchOption.TopDirectoryOnly);
+            if (existingBigs.Length > 0)
+            {
+                var sourceFile = existingBigs[0];
+                File.Copy(sourceFile, destinationPath, overwrite: true);
+                repackedCount++;
+                continue;
+            }
+
+            logger.LogInformation("Packing hotkey variant from {Source} into {OutputFilename}", bigDir, outputFileName);
+            await ConvertImagesAndPackAsync(bigDir, destinationPath, cancellationToken);
+            repackedCount++;
+        }
+
+        return repackedCount;
+    }
+
+    /// <summary>
+    /// Repacks multi-variant hotkeys by packing each language/game subdirectory into its target BIG file.
+    /// </summary>
+    private async Task RepackMultiVariantHotkeysAsync(
+        string extractPath,
+        GenPatcherContentMetadata metadata,
+        CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Repacking multi-variant hotkeys for {ContentCode}", metadata.ContentCode);
+
+        var bigDirectories = Directory.GetDirectories(extractPath, "BIG*", SearchOption.AllDirectories);
+        if (bigDirectories.Length == 0)
+        {
+            logger.LogDebug("No BIG directories found for multi-variant hotkeys {ContentCode}", metadata.ContentCode);
+            return;
+        }
+
+        var parentDir = Directory.GetParent(extractPath)?.FullName ?? extractPath;
+        var packDir = Path.Combine(parentDir, "packed_variants");
+        Directory.CreateDirectory(packDir);
+
+        try
+        {
+            var repackedCount = await RepackAllVariantDirectoriesAsync(bigDirectories, packDir, metadata, cancellationToken);
+            if (repackedCount > 0)
+            {
+                ReplaceExtractedWithPacked(extractPath, packDir);
+                logger.LogInformation("Successfully repacked {Count} hotkey variant BIG files", repackedCount);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(packDir))
+            {
+                try
+                {
+                    Directory.Delete(packDir, true);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to cleanup temporary variant pack directory {PackDir}", packDir);
+                }
+            }
+        }
+    }
+
+    /// <summary>
     /// Repacks extracted content into a single .big file if required by metadata.
     /// </summary>
     private async Task RepackContentIfNeededAsync(
@@ -832,16 +1045,29 @@ public partial class CommunityOutpostDeliverer(
         var contentCode = GetContentCodeFromManifest(manifest);
         var (_, metadata) = NormalizeContentCode(contentCode);
 
-        if (metadata.RequiresRepacking && !string.IsNullOrEmpty(metadata.OutputFilename))
+        if (metadata.RequiresRepacking)
         {
+            // Multi-variant hotkeys repack each variant language/game subdirectory
+            if (metadata.Category == GenPatcherContentCategory.Hotkeys && metadata.SupportsVariants)
+            {
+                await RepackMultiVariantHotkeysAsync(extractPath, metadata, cancellationToken);
+                return;
+            }
+
             // Variant-based output filenames (e.g., 340_ControlBarPro{variant}ZH.big)
             // must be handled later when a specific variant is selected.
-            if (metadata.OutputFilename.Contains("{variant}", StringComparison.OrdinalIgnoreCase))
+            if (metadata.OutputFilename?.Contains("{variant}", StringComparison.OrdinalIgnoreCase) == true)
             {
                 logger.LogDebug(
                     "Skipping repack at delivery stage for {ContentCode} because output filename is variant-based: {OutputFilename}",
                     contentCode,
                     metadata.OutputFilename);
+                return;
+            }
+
+            if (string.IsNullOrEmpty(metadata.OutputFilename))
+            {
+                logger.LogWarning("Skipping repack for {ContentCode}: OutputFilename is not set", contentCode);
                 return;
             }
 
@@ -862,74 +1088,14 @@ public partial class CommunityOutpostDeliverer(
                 contentCode,
                 metadata.OutputFilename);
 
-            // Create a temporary directory for the packed file
-            var packDir = Path.Combine(Directory.GetParent(extractPath)!.FullName, "packed");
+            var parentDir = Directory.GetParent(extractPath)?.FullName ?? extractPath;
+            var packDir = Path.Combine(parentDir, "packed");
             Directory.CreateDirectory(packDir);
             var destinationPath = Path.Combine(packDir, metadata.OutputFilename);
+            var packSource = ResolvePackSourceDirectory(extractPath);
 
-            // Pack the files
-            // GenPatcher archives often extract to nested ZH\BIG or CCG\BIG folders. We must pack the BIG folder contents,
-            // not the parent folder, to avoid embedding extra path prefixes inside the .big.
-            var bigDirectories = Directory.GetDirectories(extractPath, "BIG*", SearchOption.AllDirectories);
-            var packSource = extractPath;
-
-            if (bigDirectories.Length > 0)
-            {
-                bool IsUnder(string path, string folder)
-                {
-                    return path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                        .Any(segment => segment.Equals(folder, StringComparison.OrdinalIgnoreCase));
-                }
-
-                bool EndsWithSegment(string path, string segment)
-                {
-                    return path.EndsWith(segment, StringComparison.OrdinalIgnoreCase);
-                }
-
-                var preferred = bigDirectories
-                    .FirstOrDefault(d => IsUnder(d, "ZH") && EndsWithSegment(d, "BIG EN"))
-                    ?? bigDirectories.FirstOrDefault(d => IsUnder(d, "ZH") && EndsWithSegment(d, "BIG"))
-                    ?? bigDirectories.FirstOrDefault(d => IsUnder(d, "CCG") && EndsWithSegment(d, "BIG EN"))
-                    ?? bigDirectories.FirstOrDefault(d => IsUnder(d, "CCG") && EndsWithSegment(d, "BIG"))
-                    ?? bigDirectories.First();
-
-                packSource = preferred;
-            }
-
-            // Convert compressed image files (AVIF, WebP) to TGA format before packing
-            // GenPatcher dat archives contain AVIF/WebP for compression, but the game requires TGA textures
-            var compressedImageCount = Directory.GetFiles(packSource, "*.avif", SearchOption.AllDirectories).Length
-                + Directory.GetFiles(packSource, "*.webp", SearchOption.AllDirectories).Length;
-            if (compressedImageCount > 0)
-            {
-                logger.LogInformation(
-                    "Converting {Count} compressed image files to TGA format for game compatibility",
-                    compressedImageCount);
-
-                var convertedCount = await avifConverter.ConvertDirectoryAsync(packSource, cancellationToken);
-                logger.LogInformation("Converted {Converted} compressed image files to TGA", convertedCount);
-            }
-
-            await BigFilePacker.PackAsync(packSource, destinationPath);
-
-            // Clear the ExtractPath and move the packed file there
-            // This ensures the manifest factory only sees the packed file
-            try
-            {
-                if (Directory.Exists(extractPath))
-                {
-                    Directory.Delete(extractPath, true);
-                }
-
-                Directory.CreateDirectory(extractPath);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to reset extract path {ExtractPath} during repacking", extractPath);
-                throw new IOException($"Failed to prepare extraction directory: {ex.Message}", ex);
-            }
-
-            File.Move(destinationPath, Path.Combine(extractPath, metadata.OutputFilename));
+            await ConvertImagesAndPackAsync(packSource, destinationPath, cancellationToken);
+            ReplaceExtractedWithPacked(extractPath, packDir);
 
             // Cleanup packDir
             try

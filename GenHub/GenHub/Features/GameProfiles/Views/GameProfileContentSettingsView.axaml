@@ -7,6 +7,7 @@
              xmlns:models="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
              xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
              xmlns:converters="clr-namespace:Avalonia.Data.Converters;assembly=Avalonia.Base"
+             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="1200"
              x:Class="GenHub.Features.GameProfiles.Views.GameProfileContentSettingsView"
              x:DataType="vm:GameProfileSettingsViewModel">
@@ -42,79 +43,48 @@
     </UserControl.Styles>
 
     <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="190" MinWidth="68" MaxWidth="300" />
-            <ColumnDefinition Width="4" />
-            <ColumnDefinition Width="*" MinWidth="0" />
-        </Grid.ColumnDefinitions>
-
-        <!-- Sidebar Navigation -->
-        <Border Grid.Column="0"
-                Background="#10000000"
-                BorderBrush="#20FFFFFF"
-                BorderThickness="0,0,1,0"
-                Padding="12,24"
-                ClipToBounds="True">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Spacing="2">
-                    <Button Classes="sidebar-btn"
-                            Classes.selected="{Binding SelectedContentCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ContentSettingsCategory.Selection}}"
-                            Command="{Binding SelectContentCategoryCommand}"
-                            CommandParameter="{x:Static vm:ContentSettingsCategory.Selection}"
-                            ToolTip.Tip="Enabled Content">
-                        <StackPanel Orientation="Horizontal">
-                            <PathIcon Data="M9,10A3.04,3.04 0 0,1 12,7A3.04,3.04 0 0,1 15,10A3.04,3.04 0 0,1 12,13A3.04,3.04 0 0,1 9,10M12,19L16,20V16.92A7.54,7.54 0 0,1 12,18A7.54,7.54 0 0,1 8,16.92V20M12,4A5.78,5.78 0 0,0 7.76,5.74A5.78,5.78 0 0,0 6,10A5.78,5.78 0 0,0 7.76,14.23A5.78,5.78 0 0,0 12,16A5.78,5.78 0 0,0 16.24,14.23A5.78,5.78 0 0,0 18,10A5.78,5.78 0 0,0 16.24,5.74A5.78,5.78 0 0,0 12,4M20,10A8.04,8.04 0 0,1 19.43,12.8A7.84,7.84 0 0,1 18,15.28V23L12,21L6,23V15.28A7.9,7.9 0 0,1 4,10A7.68,7.68 0 0,1 6,4.47A7.73,7.73 0 0,1 12,2A7.73,7.73 0 0,1 18,4.47A7.68,7.68 0 0,1 20,10Z" />
-                            <TextBlock Text="Enabled" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-
-                    <Button Classes="sidebar-btn"
-                            Classes.selected="{Binding SelectedContentCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ContentSettingsCategory.Discovery}}"
-                            Command="{Binding SelectContentCategoryCommand}"
-                            CommandParameter="{x:Static vm:ContentSettingsCategory.Discovery}"
-                            ToolTip.Tip="Available Content">
-                        <StackPanel Orientation="Horizontal">
-                            <PathIcon Data="M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21L4,8V18L6.14,10H23.21L20.93,18.5C20.7,19.37 19.92,20 19,20Z" />
-                            <TextBlock Text="Available" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
-            </ScrollViewer>
-        </Border>
-
-        <!-- Resizer -->
-        <GridSplitter Grid.Column="1" Background="Transparent" ResizeDirection="Columns" />
-
         <!-- Content Area -->
-        <ScrollViewer x:Name="ContentSettingsScrollViewer" Grid.Column="2" Padding="0,24,0,80" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" BringIntoViewOnFocusChange="False">
+        <ScrollViewer x:Name="ContentSettingsScrollViewer" Padding="0,24,0,80" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" BringIntoViewOnFocusChange="False">
             <StackPanel Spacing="0">
 
                 <!-- Enabled Content Section -->
                 <Control x:Name="SelectionSection" Height="1" Margin="0,-1,0,0" />
                 <Border Classes="settings-card"
-                        Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
-                        BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}">
+                        Background="{DynamicResource SurfaceCardBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="12"
+                        Padding="18"
+                        Margin="0,0,0,16">
                     <StackPanel Spacing="16">
                         <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Grid.Column="0" Classes="section-header" Text="Enabled Content" VerticalAlignment="Center" />
-                            <Button Grid.Column="1" Content="⟳ Refresh"
+                            <TextBlock Grid.Column="0" Classes="section-header" Text="Enabled Content" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}"/>
+                            <Button Grid.Column="1"
                                     Command="{Binding LoadAvailableContentCommand}"
                                     Background="Transparent"
-                                    Padding="12,6"
+                                    Padding="10,6"
                                     FontSize="12"
                                     FontWeight="SemiBold"
-                                    VerticalAlignment="Center" />
+                                    VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <material:MaterialIcon Kind="Refresh" Width="16" Height="16"/>
+                                    <TextBlock Text="Refresh" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                         </Grid>
 
-                        <Separator Background="#20FFFFFF" Height="1" />
+                        <Separator Background="{DynamicResource BorderBrush}" Height="1" />
 
                         <!-- Warning if no content -->
-                        <Border Background="#30FF9800" CornerRadius="10" Padding="16" Margin="0,4,0,8"
+                        <Border Background="{DynamicResource DetailsBackground}"
+                                BorderBrush="{DynamicResource WarningBrush}"
+                                BorderThickness="1"
+                                CornerRadius="10" Padding="16" Margin="0,4,0,8"
                                 IsVisible="{Binding EnabledContent.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=0}">
                             <StackPanel Orientation="Horizontal" Spacing="12">
-                                <TextBlock Text="⚠️" FontSize="18" />
+                                <material:MaterialIcon Kind="AlertCircleOutline" Width="20" Height="20" Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center"/>
                                 <TextBlock Text="No content currently enabled. Add at least one Game Client or Executable to launch this profile."
-                                           FontSize="13" Opacity="0.9" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                           FontSize="13" Foreground="{DynamicResource TextPrimary}" Opacity="0.9" TextWrapping="Wrap" VerticalAlignment="Center" />
                             </StackPanel>
                         </Border>
 
@@ -136,11 +106,11 @@
                                                     CommandParameter="{Binding}"
                                                     ToolTip.Tip="Remove from profile">
                                                 <StackPanel Spacing="6" HorizontalAlignment="Left" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimary}"/>
                                                     <WrapPanel Orientation="Horizontal">
-                                                        <Border Background="#20FF5252" BorderBrush="#FF5252" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4"
+                                                        <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4"
                                                                 IsVisible="{Binding Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                            <TextBlock Text="{Binding Publisher}" FontSize="10" Foreground="#FF8A80" FontWeight="SemiBold" />
+                                                            <TextBlock Text="{Binding Publisher}" FontSize="10" Foreground="{DynamicResource AccentLightBrush}" FontWeight="SemiBold" />
                                                         </Border>
                                                     </WrapPanel>
                                                 </StackPanel>
@@ -154,8 +124,7 @@
                                                     Padding="8" Margin="8,0,12,0"
                                                     AutomationProperties.Name="Edit"
                                                     ToolTip.Tip="Edit">
-                                                <PathIcon Data="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
-                                                          Foreground="#E0E0E0" Width="14" Height="14" />
+                                                <material:MaterialIcon Kind="PencilOutline" Width="16" Height="16" Foreground="{DynamicResource AccentLightBrush}"/>
                                             </Button>
                                         </Grid>
                                     </Border>
@@ -168,10 +137,14 @@
                 <!-- Discovery Section -->
                 <Control x:Name="DiscoverySection" Height="1" Margin="0,-1,0,0" />
                 <Border Classes="settings-card"
-                        Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
-                        BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}">
+                        Background="{DynamicResource SurfaceCardBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="12"
+                        Padding="18"
+                        Margin="0,0,0,16">
                     <StackPanel Spacing="20">
-                        <TextBlock Classes="section-header" Text="Available Content" />
+                        <TextBlock Classes="section-header" Text="Available Content" Foreground="{DynamicResource TextPrimary}"/>
 
                         <!-- Filter Pills -->
                         <ItemsControl ItemsSource="{Binding VisibleFilters}">
@@ -197,16 +170,22 @@
 
                         <!-- Filter Row -->
                         <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0">
-                            <Button Grid.Column="0" Classes="filter-pill" Content="📁 Add Local Folder"
+                            <Button Grid.Column="0" Classes="filter-pill"
                                     Command="{Binding AddLocalContentCommand}"
-                                    Padding="16,8" />
+                                    Padding="16,8"
+                                    ToolTip.Tip="Import content from disk">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <material:MaterialIcon Kind="FolderPlusOutline" Width="16" Height="16"/>
+                                    <TextBlock Text="Add Local Folder" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
 
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                                <Button Classes="filter-pill left" Content="Generals"
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="4">
+                                <Button Classes="filter-pill" Content="Generals"
                                         Classes.selected="{Binding GameTypeFilter, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static models:GameType.Generals}}"
                                         Command="{Binding SelectGameTypeFilterCommand}"
                                         CommandParameter="{x:Static models:GameType.Generals}" />
-                                <Button Classes="filter-pill right" Content="Zero Hour"
+                                <Button Classes="filter-pill" Content="Zero Hour"
                                         Classes.selected="{Binding GameTypeFilter, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static models:GameType.ZeroHour}}"
                                         Command="{Binding SelectGameTypeFilterCommand}"
                                         CommandParameter="{x:Static models:GameType.ZeroHour}" />
@@ -214,7 +193,7 @@
                         </Grid>
 
                         <!-- List Background -->
-                        <Border Background="#10000000" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="12" Padding="12">
+                        <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="12">
                              <ItemsControl ItemsSource="{Binding AvailableContent}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
@@ -233,11 +212,11 @@
                                                          IsVisible="{Binding IsEnabled, Converter={x:Static conv:InvertedBoolToVisibilityConverter.Instance}}"
                                                          ToolTip.Tip="Click to add to profile">
                                                      <StackPanel Spacing="6" HorizontalAlignment="Left" VerticalAlignment="Center">
-                                                         <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                                         <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimary}"/>
                                                          <WrapPanel Orientation="Horizontal">
-                                                             <Border Background="#20FF6B6B" BorderBrush="#FF6B6B" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4"
+                                                             <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4"
                                                                     IsVisible="{Binding Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                                <TextBlock Text="{Binding Publisher}" FontSize="10" Foreground="#FF8A80" FontWeight="SemiBold" />
+                                                                <TextBlock Text="{Binding Publisher}" FontSize="10" Foreground="{DynamicResource AccentLightBrush}" FontWeight="SemiBold" />
                                                              </Border>
                                                          </WrapPanel>
                                                      </StackPanel>
@@ -250,8 +229,7 @@
                                                          Background="Transparent"
                                                          Padding="8" Margin="8,0,0,0"
                                                          ToolTip.Tip="Edit">
-                                                     <PathIcon Data="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
-                                                               Foreground="#E0E0E0" Width="14" Height="14" />
+                                                     <material:MaterialIcon Kind="PencilOutline" Width="16" Height="16" Foreground="{DynamicResource AccentLightBrush}"/>
                                                  </Button>
 
                                                  <Button Grid.Column="2" Classes="delete-reveal-btn edit-content-btn"
@@ -260,8 +238,7 @@
                                                          Background="Transparent"
                                                          Padding="8" Margin="4,0,0,0"
                                                          ToolTip.Tip="Delete">
-                                                     <PathIcon Data="M9,3V4H4V6H5V19A2,2 0 0,0 7,21H17A2,2 0 0,0 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z"
-                                                               Foreground="#FF4444" Width="16" Height="16" />
+                                                     <material:MaterialIcon Kind="DeleteOutline" Width="16" Height="16" Foreground="{DynamicResource ErrorBrush}"/>
                                                  </Button>
                                             </Grid>
                                         </Border>

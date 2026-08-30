@@ -66,6 +66,7 @@ public static class ContentPipelineModule
         AddModDBPipeline(services);
         AddAODMapsPipeline(services);
         AddLocalFileSystemPipeline(services);
+        AddCsvPipeline(services);
         AddSharedComponents(services);
 
         return services;
@@ -446,6 +447,23 @@ public static class ContentPipelineModule
         // Register AODMaps manifest factory
         services.AddSingleton<AODMapsManifestFactory>();
         services.AddSingleton<IPublisherManifestFactory>(sp => sp.GetRequiredService<AODMapsManifestFactory>());
+    }
+
+    /// <summary>
+    /// Registers CSV content pipeline services.
+    /// </summary>
+    private static void AddCsvPipeline(IServiceCollection services)
+    {
+        // Register CSV content provider
+        services.AddTransient<IContentProvider, CsvContentProvider>();
+
+        // Register CSV discoverer (concrete and interface)
+        services.AddTransient<CsvDiscoverer>();
+        services.AddTransient<IContentDiscoverer, CsvDiscoverer>();
+
+        // Register CSV resolver (concrete and interface)
+        services.AddTransient<CsvResolver>();
+        services.AddTransient<IContentResolver, CsvResolver>();
     }
 
     /// <summary>
