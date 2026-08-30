@@ -16,6 +16,8 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 public sealed class ProjectStructureGenerator(
     ILogger<ProjectStructureGenerator> logger) : IProjectStructureGenerator
 {
+    private const string ReadmeFileName = "README.txt";
+
     /// <inheritdoc/>
     public async Task GenerateProjectStructureAsync(string projectPath, CancellationToken cancellationToken)
     {
@@ -120,31 +122,31 @@ public sealed class ProjectStructureGenerator(
         var readmeFiles = new[]
         {
             (
-                Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, "Data", "INI", "README.txt"),
+                Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, "Data", "INI", ReadmeFileName),
                 "Place your INI files here.\n\nThese files will be processed and included in your mod.\nSupported formats: .ini"
             ),
             (
-                Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, "Data", "Audio", "README.txt"),
+                Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, "Data", "Audio", ReadmeFileName),
                 "Place your audio files here.\n\nSupported formats: .mp3, .wav"
             ),
             (
-                Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, "Data", "Scripts", "README.txt"),
+                Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, "Data", "Scripts", ReadmeFileName),
                 "Place your script files here.\n\nSupported formats: .scb, .txt"
             ),
             (
-                Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, "Art", "Textures", "README.txt"),
+                Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, "Art", "Textures", ReadmeFileName),
                 "Place your texture files here.\n\nSupported formats:\n- .tga (Targa)\n- .psd (Photoshop)\n- .dds (DirectDraw Surface)\n\nTextures will be automatically converted to DDS format during build."
             ),
             (
-                Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, "Art", "W3D", "README.txt"),
+                Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, "Art", "W3D", ReadmeFileName),
                 "Place your W3D model files here.\n\nSupported formats: .w3d"
             ),
             (
-                Path.Combine(projectDir, ModBuilderConstants.ReleaseFilesDir, "README.txt"),
-                "Files placed here are copied as-is to the release folder.\n\nUse this for:\n- Documentation files\n- Installation instructions\n- License files\n- Any other static files that don't need processing"
+                Path.Combine(projectDir, ModBuilderConstants.ReleaseFilesDir, ReadmeFileName),
+                "Place additional release files here (e.g., custom READMEs, installers, documentation).\n\nThese files will be copied directly to the release directory."
             ),
             (
-                Path.Combine(projectDir, ModBuilderConstants.ConfigDir, "README.txt"),
+                Path.Combine(projectDir, ModBuilderConstants.ConfigDir, ReadmeFileName),
                 "Configuration Files\n\n" +
                 $"{ModBuilderConstants.BundleItemsConfigFileName} - Defines individual bundle items (textures, INI files, etc.)\n" +
                 $"{ModBuilderConstants.BundlePacksConfigFileName} - Defines bundle packs that combine multiple items\n\n" +

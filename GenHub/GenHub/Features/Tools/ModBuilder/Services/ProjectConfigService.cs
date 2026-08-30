@@ -23,6 +23,9 @@ public sealed class ProjectConfigService : IProjectConfigService
 {
     private const string ProjectFileExtension = ".mbproj";
     private const string RecentProjectsFileName = "recent_projects.json";
+    private const string ModBuilderDirName = "ModBuilder";
+    private const string ProjectPathEmptyError = "Project path cannot be empty";
+
     private readonly ILogger<ProjectConfigService> _logger;
     private readonly string _recentProjectsPath;
     private readonly JsonSerializerOptions _jsonOptions;
@@ -45,7 +48,7 @@ public sealed class ProjectConfigService : IProjectConfigService
 
         _recentProjectsPath = Path.Combine(
             appDataPath,
-            "ModBuilder",
+            ModBuilderDirName,
             RecentProjectsFileName);
 
         _jsonOptions = new JsonSerializerOptions
@@ -71,7 +74,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             if (string.IsNullOrWhiteSpace(projectPath))
             {
                 return ProjectOperationResult<ModBuilderProject>.CreateFailure(
-                    "Project path cannot be empty",
+                    ProjectPathEmptyError,
                     sw.Elapsed);
             }
 
@@ -185,7 +188,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             if (string.IsNullOrWhiteSpace(projectPath))
             {
                 return ProjectOperationResult<ModBuilderProject>.CreateFailure(
-                    "Project path cannot be empty",
+                    ProjectPathEmptyError,
                     sw.Elapsed);
             }
 
@@ -348,41 +351,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             }
             else
             {
-                // Ensure and normalize Configs directory
-                var configsDir = Path.Combine(projectDir, project.Directories.Configs);
-                if (!Directory.Exists(configsDir))
-                {
-                    var fallbackConfigDir = Path.Combine(projectDir, "config");
-                    if (Directory.Exists(fallbackConfigDir))
-                    {
-                        project.Directories.Configs = "config";
-                        configsDir = fallbackConfigDir;
-                    }
-                    else
-                    {
-                        Directory.CreateDirectory(configsDir);
-                    }
-                }
-
-                // Ensure GameFilesEdited directory
-                var gameFilesDir = Path.Combine(projectDir, project.Directories.GameFilesEdited);
-                if (!Directory.Exists(gameFilesDir))
-                {
-                    Directory.CreateDirectory(gameFilesDir);
-                }
-
-                // Ensure Build and Release directories exist (or create them)
-                var buildDir = Path.Combine(projectDir, project.Directories.Build);
-                if (!Directory.Exists(buildDir))
-                {
-                    Directory.CreateDirectory(buildDir);
-                }
-
-                var releaseDir = Path.Combine(projectDir, project.Directories.Release);
-                if (!Directory.Exists(releaseDir))
-                {
-                    Directory.CreateDirectory(releaseDir);
-                }
+                EnsureProjectDirectories(projectDir, project.Directories);
             }
 
             sw.Stop();
@@ -407,6 +376,41 @@ public sealed class ProjectConfigService : IProjectConfigService
         }
     }
 
+    private static void EnsureProjectDirectories(string projectDir, ProjectDirectories directories)
+    {
+        var configsDir = Path.Combine(projectDir, directories.Configs);
+        if (!Directory.Exists(configsDir))
+        {
+            var fallbackConfigDir = Path.Combine(projectDir, "config");
+            if (Directory.Exists(fallbackConfigDir))
+            {
+                directories.Configs = "config";
+            }
+            else
+            {
+                Directory.CreateDirectory(configsDir);
+            }
+        }
+
+        var gameFilesDir = Path.Combine(projectDir, directories.GameFilesEdited);
+        if (!Directory.Exists(gameFilesDir))
+        {
+            Directory.CreateDirectory(gameFilesDir);
+        }
+
+        var buildDir = Path.Combine(projectDir, directories.Build);
+        if (!Directory.Exists(buildDir))
+        {
+            Directory.CreateDirectory(buildDir);
+        }
+
+        var releaseDir = Path.Combine(projectDir, directories.Release);
+        if (!Directory.Exists(releaseDir))
+        {
+            Directory.CreateDirectory(releaseDir);
+        }
+    }
+
     /// <inheritdoc />
     public async Task<ProjectOperationResult<List<string>>> GetRecentProjectsAsync(
         int maxCount = 10,
@@ -427,12 +431,9 @@ public sealed class ProjectConfigService : IProjectConfigService
                     var recentProjects = JsonSerializer.Deserialize<List<string>>(jsonContent, _jsonOptions);
                     if (recentProjects != null)
                     {
-                        foreach (var path in recentProjects)
+                        foreach (var path in recentProjects.Where(File.Exists))
                         {
-                            if (File.Exists(path))
-                            {
-                                discoveredProjects.Add(path);
-                            }
+                            discoveredProjects.Add(path);
                         }
                     }
                 }
@@ -442,48 +443,11 @@ public sealed class ProjectConfigService : IProjectConfigService
                 }
             }
 
-            // 2. Discover in common folders (Documents, ModBuilder directories, Desktop)
+            // 2. Discover in common folders
             await Task.Run(() =>
             {
-                var searchLocations = new List<string>();
-
-                var myDocs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-                if (!string.IsNullOrEmpty(myDocs) && Directory.Exists(myDocs))
-                {
-                    searchLocations.Add(myDocs);
-                    searchLocations.Add(Path.Combine(myDocs, "ModBuilder"));
-                    searchLocations.Add(Path.Combine(myDocs, "GenHub"));
-                    searchLocations.Add(Path.Combine(myDocs, "GenHub", "ModBuilder"));
-                    searchLocations.Add(Path.Combine(myDocs, "GenHub", "Projects"));
-                }
-
-                var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                if (!string.IsNullOrEmpty(desktop) && Directory.Exists(desktop))
-                {
-                    searchLocations.Add(Path.Combine(desktop, "ModBuilder"));
-                }
-
-                var sampleDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SampleProjects");
-                if (Directory.Exists(sampleDir))
-                {
-                    searchLocations.Add(sampleDir);
-                }
-
-                foreach (var loc in searchLocations.Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase))
-                {
-                    try
-                    {
-                        var files = Directory.GetFiles(loc, "*.mbproj", SearchOption.AllDirectories);
-                        foreach (var f in files)
-                        {
-                            discoveredProjects.Add(f);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogTrace(ex, "Error scanning directory {Location} for projects", loc);
-                    }
-                }
+                var searchLocations = BuildSearchLocations();
+                DiscoverProjectsInSearchLocations(searchLocations, discoveredProjects);
             }, cancellationToken).ConfigureAwait(false);
 
             var validProjects = discoveredProjects
@@ -505,6 +469,54 @@ public sealed class ProjectConfigService : IProjectConfigService
         }
     }
 
+    private static List<string> BuildSearchLocations()
+    {
+        var searchLocations = new List<string>();
+
+        var myDocs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        if (!string.IsNullOrEmpty(myDocs) && Directory.Exists(myDocs))
+        {
+            searchLocations.Add(myDocs);
+            searchLocations.Add(Path.Combine(myDocs, ModBuilderDirName));
+            searchLocations.Add(Path.Combine(myDocs, "GenHub"));
+            searchLocations.Add(Path.Combine(myDocs, "GenHub", ModBuilderDirName));
+            searchLocations.Add(Path.Combine(myDocs, "GenHub", "Projects"));
+        }
+
+        var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+        if (!string.IsNullOrEmpty(desktop) && Directory.Exists(desktop))
+        {
+            searchLocations.Add(Path.Combine(desktop, ModBuilderDirName));
+        }
+
+        var sampleDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SampleProjects");
+        if (Directory.Exists(sampleDir))
+        {
+            searchLocations.Add(sampleDir);
+        }
+
+        return searchLocations;
+    }
+
+    private void DiscoverProjectsInSearchLocations(IEnumerable<string> searchLocations, HashSet<string> discoveredProjects)
+    {
+        foreach (var loc in searchLocations.Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var files = Directory.GetFiles(loc, "*.mbproj", SearchOption.AllDirectories);
+                foreach (var f in files)
+                {
+                    discoveredProjects.Add(f);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogTrace(ex, "Error scanning directory {Location} for projects", loc);
+            }
+        }
+    }
+
     /// <inheritdoc />
     public async Task<ProjectOperationResult<bool>> AddToRecentProjectsAsync(
         string projectPath,
@@ -517,13 +529,13 @@ public sealed class ProjectConfigService : IProjectConfigService
             if (string.IsNullOrWhiteSpace(projectPath))
             {
                 return ProjectOperationResult<bool>.CreateFailure(
-                    "Project path cannot be empty",
+                    ProjectPathEmptyError,
                     sw.Elapsed);
             }
 
             var recentProjectsResult = await GetRecentProjectsAsync(100, cancellationToken).ConfigureAwait(false);
-            var recentProjects = recentProjectsResult.Success
-                ? recentProjectsResult.Data!
+            var recentProjects = recentProjectsResult.Success && recentProjectsResult.Data != null
+                ? recentProjectsResult.Data
                 : new List<string>();
 
             // Remove if already exists (to move it to the top)
@@ -560,18 +572,18 @@ public sealed class ProjectConfigService : IProjectConfigService
             if (string.IsNullOrWhiteSpace(projectPath))
             {
                 return ProjectOperationResult<bool>.CreateFailure(
-                    "Project path cannot be empty",
+                    ProjectPathEmptyError,
                     sw.Elapsed);
             }
 
             var recentProjectsResult = await GetRecentProjectsAsync(100, cancellationToken).ConfigureAwait(false);
-            if (!recentProjectsResult.Success)
+            if (!recentProjectsResult.Success || recentProjectsResult.Data == null)
             {
                 sw.Stop();
                 return ProjectOperationResult<bool>.CreateSuccess(true, sw.Elapsed);
             }
 
-            var recentProjects = recentProjectsResult.Data!;
+            var recentProjects = recentProjectsResult.Data;
             recentProjects.Remove(projectPath);
 
             await SaveRecentProjectsAsync(recentProjects, cancellationToken).ConfigureAwait(false);
@@ -645,7 +657,7 @@ public sealed class ProjectConfigService : IProjectConfigService
         try
         {
             var loadResult = await LoadProjectAsync(projectPath, false, cancellationToken).ConfigureAwait(false);
-            if (!loadResult.Success)
+            if (!loadResult.Success || loadResult.Data == null)
             {
                 sw.Stop();
                 return ProjectOperationResult<bool>.CreateFailure(
@@ -653,15 +665,12 @@ public sealed class ProjectConfigService : IProjectConfigService
                     sw.Elapsed);
             }
 
-            var project = loadResult.Data!;
+            var project = loadResult.Data;
             project.LastBuild = DateTime.UtcNow;
 
             var saveResult = await SaveProjectAsync(projectPath, project, cancellationToken).ConfigureAwait(false);
             sw.Stop();
-
-            return saveResult.Success
-                ? ProjectOperationResult<bool>.CreateSuccess(true, sw.Elapsed)
-                : ProjectOperationResult<bool>.CreateFailure(saveResult.Errors, sw.Elapsed);
+            return ProjectOperationResult<bool>.CreateSuccess(saveResult.Success, sw.Elapsed);
         }
         catch (Exception ex)
         {

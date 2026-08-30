@@ -55,9 +55,9 @@ public class CrunchImageConversionService(
 
             return await ConvertToStandardImageAsync(sourcePath, targetPath, sourceExt, targetExt, parameters, cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("Image conversion cancelled: {SourcePath}", sourcePath);
+            logger.LogInformation(ex, "Image conversion cancelled: {SourcePath}", sourcePath);
             return false;
         }
         catch (Exception ex)
@@ -445,7 +445,7 @@ public class CrunchImageConversionService(
     /// <summary>
     /// Converts an image to non-dds formats like tga or bmp.
     /// </summary>
-    private async Task<bool> ConvertToStandardImageAsync(
+    private static async Task<bool> ConvertToStandardImageAsync(
         string sourcePath,
         string targetPath,
         string sourceExt,
@@ -458,7 +458,7 @@ public class CrunchImageConversionService(
         if (sourceExt == ".dds")
         {
             using var magickDds = new MagickImage(sourcePath);
-            magickDds.Write(targetPath);
+            await magickDds.WriteAsync(targetPath, cancellationToken).ConfigureAwait(false);
             return true;
         }
 
@@ -536,40 +536,49 @@ public class CrunchImageConversionService(
     /// <returns>The resolved executable path or default tool name.</returns>
     public static string ResolveCrunchExecutable()
     {
-        foreach (var candidate in ModBuilderConstants.CrunchExecutableCandidates)
+        var existingCandidate = ModBuilderConstants.CrunchExecutableCandidates.FirstOrDefault(File.Exists);
+        if (existingCandidate != null)
         {
-            if (File.Exists(candidate))
-            {
-                return Path.GetFullPath(candidate);
-            }
+            return Path.GetFullPath(existingCandidate);
         }
 
         var pathEnv = Environment.GetEnvironmentVariable("PATH");
         if (!string.IsNullOrEmpty(pathEnv))
         {
-            var extensions = OperatingSystem.IsWindows()
-                ? new[] { string.Empty, ".exe", ".cmd", ".bat" }
-                : new[] { string.Empty };
-
-            var names = new[] { ModBuilderConstants.CrunchExecutable, ModBuilderConstants.CrunchFallbackExecutable, "crunch" };
-
-            foreach (var path in pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+            var foundInPath = FindCrunchInPath(pathEnv);
+            if (foundInPath != null)
             {
-                foreach (var name in names)
+                return foundInPath;
+            }
+        }
+
+        return ModBuilderConstants.CrunchExecutable;
+    }
+
+    private static string? FindCrunchInPath(string pathEnv)
+    {
+        var extensions = OperatingSystem.IsWindows()
+            ? new[] { string.Empty, ".exe", ".cmd", ".bat" }
+            : new[] { string.Empty };
+
+        var names = new[] { ModBuilderConstants.CrunchExecutable, ModBuilderConstants.CrunchFallbackExecutable, "crunch" };
+
+        foreach (var path in pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        {
+            foreach (var name in names)
+            {
+                foreach (var ext in extensions)
                 {
-                    foreach (var ext in extensions)
+                    var fullPath = Path.Combine(path, name + ext);
+                    if (File.Exists(fullPath))
                     {
-                        var fullPath = Path.Combine(path, name + ext);
-                        if (File.Exists(fullPath))
-                        {
-                            return Path.GetFullPath(fullPath);
-                        }
+                        return Path.GetFullPath(fullPath);
                     }
                 }
             }
         }
 
-        return ModBuilderConstants.CrunchExecutable;
+        return null;
     }
 
     /// <summary>

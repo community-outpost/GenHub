@@ -22,6 +22,8 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 public sealed class ArchiveService(
     ILogger<ArchiveService> logger) : IArchiveService
 {
+    private const string SourceDirectoryNotFoundMessage = "Source directory not found: {Path}";
+
     /// <inheritdoc/>
     public async Task<OperationResult<bool>> CreateBigArchiveAsync(
         string sourceDirectory,
@@ -33,7 +35,7 @@ public sealed class ArchiveService(
         {
             if (!Directory.Exists(sourceDirectory))
             {
-                logger.LogError("Source directory not found: {Path}", sourceDirectory);
+                logger.LogError(SourceDirectoryNotFoundMessage, sourceDirectory);
                 return OperationResult<bool>.CreateFailure($"Source directory not found: {sourceDirectory}");
             }
 
@@ -80,9 +82,9 @@ public sealed class ArchiveService(
             progress?.Report(1.0);
             return OperationResult<bool>.CreateSuccess(true);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("BIG archive creation cancelled: {Target}", targetBigPath);
+            logger.LogInformation(ex, "BIG archive creation cancelled: {Target}", targetBigPath);
             throw;
         }
         catch (Exception ex)
@@ -104,7 +106,7 @@ public sealed class ArchiveService(
         {
             if (!Directory.Exists(sourceDirectory))
             {
-                logger.LogError("Source directory not found: {Path}", sourceDirectory);
+                logger.LogError(SourceDirectoryNotFoundMessage, sourceDirectory);
                 return OperationResult<bool>.CreateFailure($"Source directory not found: {sourceDirectory}");
             }
 
@@ -193,9 +195,9 @@ public sealed class ArchiveService(
             logger.LogInformation("Successfully created ZIP archive: {Target}", targetZipPath);
             return OperationResult<bool>.CreateSuccess(true);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("ZIP archive creation cancelled: {Target}", targetZipPath);
+            logger.LogInformation(ex, "ZIP archive creation cancelled: {Target}", targetZipPath);
             throw;
         }
         catch (Exception ex)
@@ -216,7 +218,7 @@ public sealed class ArchiveService(
         {
             if (!Directory.Exists(sourceDirectory))
             {
-                logger.LogError("Source directory not found: {Path}", sourceDirectory);
+                logger.LogError(SourceDirectoryNotFoundMessage, sourceDirectory);
                 return OperationResult<bool>.CreateFailure($"Source directory not found: {sourceDirectory}");
             }
 
@@ -301,9 +303,9 @@ public sealed class ArchiveService(
             logger.LogInformation("Successfully created TAR archive: {Target}", targetTarPath);
             return OperationResult<bool>.CreateSuccess(true);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("TAR archive creation cancelled: {Target}", targetTarPath);
+            logger.LogInformation(ex, "TAR archive creation cancelled: {Target}", targetTarPath);
             throw;
         }
         catch (Exception ex)
@@ -324,7 +326,7 @@ public sealed class ArchiveService(
         {
             if (!Directory.Exists(sourceDirectory))
             {
-                logger.LogError("Source directory not found: {Path}", sourceDirectory);
+                logger.LogError(SourceDirectoryNotFoundMessage, sourceDirectory);
                 return OperationResult<bool>.CreateFailure($"Source directory not found: {sourceDirectory}");
             }
 
@@ -409,9 +411,9 @@ public sealed class ArchiveService(
             logger.LogInformation("Successfully created TAR.GZ archive: {Target}", targetTarGzPath);
             return OperationResult<bool>.CreateSuccess(true);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("TAR.GZ archive creation cancelled: {Target}", targetTarGzPath);
+            logger.LogInformation(ex, "TAR.GZ archive creation cancelled: {Target}", targetTarGzPath);
             throw;
         }
         catch (Exception ex)

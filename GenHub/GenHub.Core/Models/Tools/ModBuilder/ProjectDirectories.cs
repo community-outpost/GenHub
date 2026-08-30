@@ -7,18 +7,11 @@ namespace GenHub.Core.Models.Tools.ModBuilder;
 /// </summary>
 public class ProjectDirectories
 {
-    private string _configs = "Configs";
-    private string _release = ".Release";
-
     /// <summary>
     /// Gets or sets the relative path to the configs directory.
     /// </summary>
     [JsonPropertyName("configs")]
-    public string Configs
-    {
-        get => _configs;
-        set => _configs = value;
-    }
+    public string Configs { get; set; } = "Configs";
 
     /// <summary>
     /// Gets or sets the relative path to the configs directory (alias for compatibility).
@@ -26,8 +19,8 @@ public class ProjectDirectories
     [JsonPropertyName("config")]
     public string Config
     {
-        get => _configs;
-        set => _configs = value;
+        get => Configs;
+        set => Configs = value;
     }
 
     /// <summary>
@@ -46,11 +39,7 @@ public class ProjectDirectories
     /// Gets or sets the relative path to the release directory.
     /// </summary>
     [JsonPropertyName("release")]
-    public string Release
-    {
-        get => _release;
-        set => _release = value;
-    }
+    public string Release { get; set; } = ".Release";
 
     /// <summary>
     /// Gets or sets the relative path to the release directory (alias for compatibility).
@@ -58,7 +47,7 @@ public class ProjectDirectories
     [JsonPropertyName("output")]
     public string Output
     {
-        get => _release;
-        set => _release = value;
+        get => Release;
+        set => Release = value;
     }
 }

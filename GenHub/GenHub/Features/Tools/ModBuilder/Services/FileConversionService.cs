@@ -236,7 +236,7 @@ public sealed class FileConversionService(
     /// <summary>
     /// Copies a file directly without conversion.
     /// </summary>
-    private async Task<ConversionOperationResult> CopyFileAsync(
+    private static async Task<ConversionOperationResult> CopyFileAsync(
         string sourcePath,
         string destinationPath,
         IProgress<double>? progress,

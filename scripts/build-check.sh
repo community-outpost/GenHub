@@ -72,12 +72,16 @@ case "$MODE" in
     dotnet restore "$TARGET" --verbosity "$VERBOSITY"
     EXIT_CODE=$?
     ;;
+  *)
+    echo "Unknown mode: $MODE" >&2
+    EXIT_CODE=1
+    ;;
 esac
 
 if [[ $EXIT_CODE -eq 0 ]]; then
   echo "[build-check] Completed successfully with no errors."
 else
-  echo "[build-check] ERROR: Build/check failed with exit code: $EXIT_CODE"
+  echo "[build-check] ERROR: Build/check failed with exit code: $EXIT_CODE" >&2
 fi
 
 exit $EXIT_CODE

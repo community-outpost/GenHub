@@ -154,7 +154,7 @@ public sealed class BuildCacheService(
             }
 
             // Snapshot cache under lock
-            Dictionary<string, BuildFilePathInfo> cacheSnapshot = [];
+            Dictionary<string, BuildFilePathInfo> cacheSnapshot;
             lock (_cacheLock)
             {
                 cacheSnapshot = new Dictionary<string, BuildFilePathInfo>(_newCache, StringComparer.OrdinalIgnoreCase);

@@ -1860,15 +1860,28 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// </summary>
     public void Dispose()
     {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Disposes managed resources.
+    /// </summary>
+    /// <param name="disposing">Whether called from Dispose().</param>
+    protected virtual void Dispose(bool disposing)
+    {
         if (_disposed)
         {
             return;
         }
 
-        _buildCancellationTokenSource?.Cancel();
-        _buildCancellationTokenSource?.Dispose();
-        _disposed = true;
+        if (disposing)
+        {
+            _buildCancellationTokenSource?.Cancel();
+            _buildCancellationTokenSource?.Dispose();
+            _buildCancellationTokenSource = null;
+        }
 
-        GC.SuppressFinalize(this);
+        _disposed = true;
     }
 }

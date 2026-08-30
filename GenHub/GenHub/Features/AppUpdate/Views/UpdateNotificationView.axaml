@@ -1,9 +1,9 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:GenHub.Features.AppUpdate.ViewModels"
-             xmlns:views="using:GenHub.Features.AppUpdate.Views"
-             xmlns:models="using:GenHub.Core.Models.AppUpdate"
-             xmlns:cv="using:GenHub.Infrastructure.Converters"
+             xmlns:vm="clr-namespace:GenHub.Features.AppUpdate.ViewModels;assembly=GenHub"
+             xmlns:views="clr-namespace:GenHub.Features.AppUpdate.Views;assembly=GenHub"
+             xmlns:models="clr-namespace:GenHub.Core.Models.AppUpdate;assembly=GenHub.Core"
+             xmlns:cv="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
              x:Class="GenHub.Features.AppUpdate.Views.UpdateNotificationView"
              x:DataType="vm:UpdateNotificationViewModel"
              x:Name="Root">

@@ -26,6 +26,8 @@ public partial class FileTreeNode : ObservableObject
     /// Gets or sets a value indicating whether this node represents a directory.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FormattedSize))]
+    [NotifyPropertyChangedFor(nameof(HasStatus))]
     private bool _isDirectory;
 
     /// <summary>
@@ -44,18 +46,24 @@ public partial class FileTreeNode : ObservableObject
     /// Gets or sets the file status (New, Modified, Unchanged, etc.).
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasStatus))]
+    [NotifyPropertyChangedFor(nameof(StatusColor))]
+    [NotifyPropertyChangedFor(nameof(StatusText))]
     private FileStatus _status = FileStatus.Unknown;
 
     /// <summary>
     /// Gets or sets the file size in bytes.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FormattedSize))]
+    [NotifyPropertyChangedFor(nameof(StatusText))]
     private long _size;
 
     /// <summary>
     /// Gets or sets the game file size in bytes (for comparison).
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusText))]
     private long _gameSizeBytes;
 
     /// <summary>
