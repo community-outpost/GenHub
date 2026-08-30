@@ -683,7 +683,11 @@ public class ManifestGenerationService(
 
             return extraCount;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            return 0;
+        }
+        catch (UnauthorizedAccessException)
         {
             return 0;
         }
@@ -1112,7 +1116,15 @@ public class ManifestGenerationService(
                     }).ToList();
                 }
             }
-            catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidOperationException)
+            catch (HttpRequestException ex)
+            {
+                logger.LogWarning(ex, "Failed to resolve CSV catalog via HTTP for {GameType} ({Language}), falling back to local/embedded registry", gameType, language);
+            }
+            catch (IOException ex)
+            {
+                logger.LogWarning(ex, "Failed to resolve CSV catalog via I/O for {GameType} ({Language}), falling back to local/embedded registry", gameType, language);
+            }
+            catch (InvalidOperationException ex)
             {
                 logger.LogWarning(ex, "Failed to resolve CSV catalog via resolver for {GameType} ({Language}), falling back to local/embedded registry", gameType, language);
             }
@@ -1152,9 +1164,17 @@ public class ManifestGenerationService(
                 }
             }
         }
-        catch (Exception ex) when (ex is IOException or FormatException or CsvHelperException)
+        catch (IOException ex)
         {
-            logger.LogWarning(ex, "Failed to load authoritative CSV from embedded resource for {GameType}", gameType);
+            logger.LogWarning(ex, "I/O failure loading authoritative CSV from embedded resource for {GameType}", gameType);
+        }
+        catch (FormatException ex)
+        {
+            logger.LogWarning(ex, "Format error loading authoritative CSV from embedded resource for {GameType}", gameType);
+        }
+        catch (CsvHelperException ex)
+        {
+            logger.LogWarning(ex, "CSV parse error loading authoritative CSV from embedded resource for {GameType}", gameType);
         }
 
         // Try local disk path if running from repo or development tree
@@ -1183,9 +1203,17 @@ public class ManifestGenerationService(
                 }
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CsvHelperException)
+        catch (IOException ex)
         {
-            logger.LogWarning(ex, "Failed to load authoritative CSV from local disk for {GameType}", gameType);
+            logger.LogWarning(ex, "I/O failure loading authoritative CSV from local disk for {GameType}", gameType);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Access denied loading authoritative CSV from local disk for {GameType}", gameType);
+        }
+        catch (CsvHelperException ex)
+        {
+            logger.LogWarning(ex, "CSV parse error loading authoritative CSV from local disk for {GameType}", gameType);
         }
 
         return [];
