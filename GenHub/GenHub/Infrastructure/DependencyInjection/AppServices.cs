@@ -29,6 +29,7 @@ public static class AppServices
         services.AddGameDetectionService();
         services.AddGameInstallation();
         services.AddCasServices();
+        services.AddStorageMigrationServices();
         services.AddContentPipelineServices();
         services.AddManifestServices();
         services.AddWorkspaceServices();

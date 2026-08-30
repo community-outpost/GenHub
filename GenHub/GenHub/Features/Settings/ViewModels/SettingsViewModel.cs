@@ -26,6 +26,7 @@ using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Theming;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Settings.Models;
@@ -64,6 +65,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         new(SettingsConstants.SectionDownloads, "Downloads", "M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"),
         new(SettingsConstants.SectionAppearance, "Appearance", "M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"),
         new(SettingsConstants.SectionDataDirectories, "Data Directories", "M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z"),
+        new(SettingsConstants.SectionMigrateInstallation, "Migrate Installation", "M20,6H12L10,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8A2,2 0 0,0 20,6M12,17L8,13H11V9H13V13H16L12,17Z"),
         new(SettingsConstants.SectionLogs, "Logs", "M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"),
         new(SettingsConstants.SectionPerformance, "Performance", "M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z"),
         new(SettingsConstants.SectionCas, "CAS Storage", "M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4,14Z"),
@@ -89,6 +91,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IStorageLocationService _storageLocationService;
     private readonly IUserDataTracker _userDataTracker;
     private readonly IDialogService _dialogService;
+    private readonly IStorageMigrationService _storageMigrationService;
     private readonly IThemeService? _themeService;
 
     private bool _isViewVisible;
@@ -229,6 +232,21 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _patStatusMessage = string.Empty;
 
+    [ObservableProperty]
+    private string _migrationTargetPath = string.Empty;
+
+    [ObservableProperty]
+    private bool _relocateCasAndWorkspacesWithMigration;
+
+    [ObservableProperty]
+    private bool _isMigrating;
+
+    [ObservableProperty]
+    private string _migrationStatusText = string.Empty;
+
+    [ObservableProperty]
+    private double _migrationProgressPercentage;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsViewModel"/> class.
     /// </summary>
@@ -245,6 +263,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="storageLocationService">Storage location service.</param>
     /// <param name="userDataTracker">User data tracker service.</param>
     /// <param name="dialogService">Dialog service used to confirm destructive actions.</param>
+    /// <param name="storageMigrationService">Storage and installation migration service.</param>
     /// <param name="themeService">Theme service for dynamic accent theming.</param>
     /// <param name="gitHubTokenStorage">GitHub token storage.</param>
     public SettingsViewModel(
@@ -261,6 +280,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IStorageLocationService storageLocationService,
         IUserDataTracker userDataTracker,
         IDialogService dialogService,
+        IStorageMigrationService storageMigrationService,
         IThemeService? themeService = null,
         IGitHubTokenStorage? gitHubTokenStorage = null)
     {
@@ -277,6 +297,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _storageLocationService = storageLocationService ?? throw new ArgumentNullException(nameof(storageLocationService));
         _userDataTracker = userDataTracker ?? throw new ArgumentNullException(nameof(userDataTracker));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        _storageMigrationService = storageMigrationService ?? throw new ArgumentNullException(nameof(storageMigrationService));
         _themeService = themeService;
         _gitHubTokenStorage = gitHubTokenStorage;
 
@@ -775,6 +796,126 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while browsing for CAS root path");
+        }
+    }
+
+    [RelayCommand]
+    private async Task BrowseMigrationTargetPath()
+    {
+        try
+        {
+            _logger.LogDebug("Browse migration target path requested");
+
+            var lifetime = Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var mainWindow = lifetime?.MainWindow;
+            var topLevel = mainWindow != null ? TopLevel.GetTopLevel(mainWindow) : null;
+            if (topLevel != null)
+            {
+                var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+                {
+                    Title = "Select Destination Folder for GenHub Migration",
+                    AllowMultiple = false,
+                });
+
+                if (folders.Count > 0)
+                {
+                    MigrationTargetPath = folders[0].Path.LocalPath;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while browsing for migration target path");
+        }
+    }
+
+    [RelayCommand]
+    private async Task MigrateInstallationLocation()
+    {
+        if (IsMigrating)
+        {
+            return;
+        }
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(MigrationTargetPath))
+            {
+                _notificationService.ShowWarning("Migration Target Required", "Please select a target directory for migration.", 4000);
+                return;
+            }
+
+            _logger.LogInformation("Starting migration to {TargetPath} (RelocateStorage: {Relocate})", MigrationTargetPath, RelocateCasAndWorkspacesWithMigration);
+
+            IsMigrating = true;
+            MigrationStatusText = "Validating target directory...";
+            MigrationProgressPercentage = 5;
+
+            var preflight = await _storageMigrationService.ValidatePreflightAsync(
+                MigrationTargetPath,
+                RelocateCasAndWorkspacesWithMigration);
+
+            if (!preflight.Success || preflight.Data?.IsValid != true)
+            {
+                var errorMessage = preflight.Data?.ErrorMessage ?? preflight.FirstError ?? "Pre-flight validation failed.";
+                _logger.LogWarning("Migration pre-flight checks failed: {ErrorMessage}", errorMessage);
+                _notificationService.ShowError("Migration Pre-flight Failed", errorMessage, 6000);
+                IsMigrating = false;
+                MigrationStatusText = string.Empty;
+                MigrationProgressPercentage = 0;
+                return;
+            }
+
+            var confirmMessage = $"Are you sure you want to migrate GenHub to:\n{MigrationTargetPath}\n\n"
+                + (RelocateCasAndWorkspacesWithMigration ? "Your CAS storage pool and workspaces will also be relocated.\n\n" : string.Empty)
+                + "GenHub will close and restart automatically from the new location.";
+
+            var confirmed = await _dialogService.ShowConfirmationAsync(
+                "Confirm Installation Migration",
+                confirmMessage,
+                "Migrate & Restart",
+                "Cancel");
+
+            if (!confirmed)
+            {
+                _logger.LogInformation("User cancelled installation migration.");
+                IsMigrating = false;
+                MigrationStatusText = string.Empty;
+                MigrationProgressPercentage = 0;
+                return;
+            }
+
+            var progressReporter = new Progress<StorageMigrationProgress>(p =>
+            {
+                MigrationStatusText = $"{p.Stage}: {p.Message}";
+                MigrationProgressPercentage = p.Percentage;
+            });
+
+            var request = new StorageMigrationRequest
+            {
+                TargetPath = MigrationTargetPath,
+                RelocateCasAndWorkspace = RelocateCasAndWorkspacesWithMigration,
+                ExitApplicationOnSuccess = true,
+                LaunchHelperProcess = true,
+            };
+
+            var migrationResult = await _storageMigrationService.MigrateAsync(request, progressReporter);
+            if (!migrationResult.Success)
+            {
+                var error = migrationResult.FirstError ?? "Migration operation failed.";
+                _logger.LogError("Installation migration failed: {Error}", error);
+                _notificationService.ShowError("Migration Failed", error, 6000);
+                IsMigrating = false;
+                MigrationStatusText = $"Migration failed: {error}";
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error during installation migration");
+            _notificationService.ShowError("Migration Error", ex.Message, 6000);
+            IsMigrating = false;
+            MigrationStatusText = string.Empty;
+            MigrationProgressPercentage = 0;
         }
     }
 

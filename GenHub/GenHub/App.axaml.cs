@@ -12,6 +12,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -73,6 +74,9 @@ public partial class App : Application
 
             // Handle startup arguments sequentially (launch profile, then subscription if present)
             SafeFireAndForget(HandleStartupArgsAsync(desktop.Args, mainWindow), nameof(HandleStartupArgsAsync));
+
+            // Repair desktop shortcuts if application executable has moved/relocated
+            SafeFireAndForget(RepairShortcutsAsync(), nameof(RepairShortcutsAsync));
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -352,6 +356,41 @@ public partial class App : Application
         catch (Exception ex)
         {
             logger?.LogError(ex, "Exception while handling subscription URL {Url}", subscriptionUrl);
+        }
+    }
+
+    private async Task RepairShortcutsAsync()
+    {
+        if (OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        try
+        {
+            var shortcutService = _serviceProvider.GetService<IShortcutService>();
+            var profileManager = _serviceProvider.GetService<IGameProfileManager>();
+            if (shortcutService == null || profileManager == null)
+            {
+                return;
+            }
+
+            var profilesResult = await profileManager.GetAllProfilesAsync();
+            if (profilesResult.Success && profilesResult.Data != null)
+            {
+                foreach (var profile in profilesResult.Data)
+                {
+                    if (await shortcutService.ShortcutExistsAsync(profile))
+                    {
+                        await shortcutService.CreateDesktopShortcutAsync(profile);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            var logger = _serviceProvider.GetService<ILogger<App>>();
+            logger?.LogWarning(ex, "Failed to repair desktop shortcuts during startup");
         }
     }
 }
