@@ -15,8 +15,14 @@ public interface IManifestGenerationService
     /// <param name="gameType">The game type (Generals, ZeroHour).</param>
     /// <param name="installationType">The installation type (Steam, EaApp).</param>
     /// <param name="manifestVersion">The manifest version (e.g., "1.08", "1.04", or integer like 0, 1, 2). If null, defaults to 0.</param>
+    /// <param name="language">Optional explicit language code (e.g., "EN", "DE"). If null, language is detected automatically.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
-    Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(string gameInstallationPath, GameType gameType, GameInstallationType installationType, string? manifestVersion = null);
+    Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
+        string gameInstallationPath,
+        GameType gameType,
+        GameInstallationType installationType,
+        string? manifestVersion = null,
+        string? language = null);
 
     /// <summary>
     /// Creates a manifest builder for a game installation with integer version.
@@ -25,8 +31,14 @@ public interface IManifestGenerationService
     /// <param name="gameType">The game type (Generals, ZeroHour).</param>
     /// <param name="installationType">The installation type (Steam, EaApp).</param>
     /// <param name="manifestVersion">The manifest version (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
+    /// <param name="language">Optional explicit language code (e.g., "EN", "DE"). If null, language is detected automatically.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
-    Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(string gameInstallationPath, GameType gameType, GameInstallationType installationType, int manifestVersion = 0);
+    Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
+        string gameInstallationPath,
+        GameType gameType,
+        GameInstallationType installationType,
+        int manifestVersion = 0,
+        string? language = null);
 
     /// <summary>
     /// Creates a manifest builder for any content type (mod, patch, addon, etc).

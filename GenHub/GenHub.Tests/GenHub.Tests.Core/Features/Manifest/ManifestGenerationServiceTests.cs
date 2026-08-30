@@ -260,7 +260,7 @@ public class ManifestGenerationServiceTests : IDisposable
         var installationPath = Path.Combine(_tempDirectory, "GeneralsInstall");
         Directory.CreateDirectory(installationPath);
 
-        // Create some files that are in the generals.csv
+        // Create some files that are in the Generals registry
         await File.WriteAllTextAsync(Path.Combine(installationPath, "generals.exe"), "dummy");
         await File.WriteAllTextAsync(Path.Combine(installationPath, "AudioEnglish.big"), "dummy");
 
@@ -273,6 +273,167 @@ public class ManifestGenerationServiceTests : IDisposable
         Assert.NotNull(manifest);
         Assert.Contains(manifest.Files, f => f.RelativePath == "generals.exe");
         Assert.Contains(manifest.Files, f => f.RelativePath == "AudioEnglish.big");
+    }
+
+    /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync generates authoritative manifest for Generals with SHA256 hashes and proper source type.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_Generals_PopulatesAuthoritativeMetadataAsync()
+    {
+        // Arrange
+        var installationPath = Path.Combine(_tempDirectory, "GeneralsAuthoritative");
+        Directory.CreateDirectory(installationPath);
+
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "generals.exe"), "executable binary");
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "binkw32.dll"), "bink dll");
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "Audio.big"), "audio archive");
+
+        // Act
+        var builder = await _service.CreateGameInstallationManifestAsync(
+            installationPath, GameType.Generals, GameInstallationType.Steam, "1.08", "EN");
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        var exeFile = manifest.Files.FirstOrDefault(f => f.RelativePath == "generals.exe");
+        Assert.NotNull(exeFile);
+        Assert.True(exeFile.IsExecutable);
+        Assert.Equal(GenHub.Core.Models.Enums.ContentSourceType.GameInstallation, exeFile.SourceType);
+        Assert.Equal("e253361f457f2ec3290ccf4088aa5c4022fc4772a769fff5fb2fa8b9e5df842d", exeFile.Hash);
+
+        var dllFile = manifest.Files.FirstOrDefault(f => f.RelativePath.Equals("binkw32.dll", StringComparison.OrdinalIgnoreCase));
+        Assert.NotNull(dllFile);
+        Assert.False(dllFile.IsExecutable);
+        Assert.Equal("892a51c4056efcb22297a3b44a3491e3f5888f28b08ed1b17030f24acffedb44", dllFile.Hash);
+    }
+
+    /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync generates authoritative manifest for Zero Hour.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_ZeroHour_ResolvesAuthoritativeFilesAsync()
+    {
+        // Arrange
+        var installationPath = Path.Combine(_tempDirectory, "ZeroHourInstall");
+        Directory.CreateDirectory(installationPath);
+
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "generals.exe"), "zh exe");
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "AudioZH.big"), "zh audio");
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "SpeechZH.big"), "zh speech");
+
+        // Act
+        var builder = await _service.CreateGameInstallationManifestAsync(
+            installationPath, GameType.ZeroHour, GameInstallationType.EaApp, "1.04", "EN");
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        Assert.Contains(manifest.Files, f => f.RelativePath == "generals.exe");
+        Assert.Contains(manifest.Files, f => f.RelativePath == "AudioZH.big");
+        Assert.Contains(manifest.Files, f => f.RelativePath == "SpeechZH.big");
+    }
+
+    /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync filters language files according to requested language.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_LanguageFiltering_IncludesMatchingLanguageOnlyAsync()
+    {
+        // Arrange
+        var installationPath = Path.Combine(_tempDirectory, "LanguageGenerals");
+        Directory.CreateDirectory(installationPath);
+
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "generals.exe"), "exe");
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "AudioEnglish.big"), "english audio");
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "English.big"), "english text");
+
+        // Act 1: Request English (EN)
+        var enBuilder = await _service.CreateGameInstallationManifestAsync(
+            installationPath, GameType.Generals, GameInstallationType.Steam, "1.08", "EN");
+        var enManifest = enBuilder.Build();
+
+        // Assert 1: English files are included
+        Assert.NotNull(enManifest);
+        Assert.Contains(enManifest.Files, f => f.RelativePath == "AudioEnglish.big");
+        Assert.Contains(enManifest.Files, f => f.RelativePath == "English.big");
+
+        // Act 2: Request German (DE) for the same folder
+        var deBuilder = await _service.CreateGameInstallationManifestAsync(
+            installationPath, GameType.Generals, GameInstallationType.Steam, "1.08", "DE");
+        var deManifest = deBuilder.Build();
+
+        // Assert 2: English-specific files are excluded when German is requested
+        Assert.NotNull(deManifest);
+        Assert.DoesNotContain(deManifest.Files, f => f.RelativePath == "AudioEnglish.big");
+        Assert.DoesNotContain(deManifest.Files, f => f.RelativePath == "English.big");
+    }
+
+    /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync excludes extra non-vanilla files from the core manifest.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_ExcludesExtraNonVanillaFilesAsync()
+    {
+        // Arrange
+        var installationPath = Path.Combine(_tempDirectory, "ModdedGenerals");
+        Directory.CreateDirectory(installationPath);
+
+        // Vanilla files
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "generals.exe"), "exe");
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "AudioEnglish.big"), "english audio");
+
+        // Extra non-vanilla mod files
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "!Gentool.dll"), "gentool mod dll");
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "CustomShockwave.big"), "mod archive");
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "test_custom_config.ini"), "custom ini");
+
+        // Act
+        var builder = await _service.CreateGameInstallationManifestAsync(
+            installationPath, GameType.Generals, GameInstallationType.Steam, "1.08", "EN");
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        Assert.Contains(manifest.Files, f => f.RelativePath == "generals.exe");
+        Assert.Contains(manifest.Files, f => f.RelativePath == "AudioEnglish.big");
+
+        // Untracked/mod files should NOT be in the pristine vanilla manifest
+        Assert.DoesNotContain(manifest.Files, f => f.RelativePath == "!Gentool.dll");
+        Assert.DoesNotContain(manifest.Files, f => f.RelativePath == "CustomShockwave.big");
+        Assert.DoesNotContain(manifest.Files, f => f.RelativePath == "test_custom_config.ini");
+    }
+
+    /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync uses backup (.bak) file if available.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_UsesBackupFileWhenPresentAsync()
+    {
+        // Arrange
+        var installationPath = Path.Combine(_tempDirectory, "BackupTest");
+        Directory.CreateDirectory(installationPath);
+
+        var originalExe = Path.Combine(installationPath, "generals.exe");
+        var backupExe = Path.Combine(installationPath, "generals.exe.bak");
+        await File.WriteAllTextAsync(originalExe, "modified exe");
+        await File.WriteAllTextAsync(backupExe, "pristine original backup exe");
+
+        // Act
+        var builder = await _service.CreateGameInstallationManifestAsync(
+            installationPath, GameType.Generals, GameInstallationType.Steam, "1.08", "EN");
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        var exeFile = manifest.Files.FirstOrDefault(f => f.RelativePath == "generals.exe");
+        Assert.NotNull(exeFile);
+        Assert.Equal(backupExe, exeFile.SourcePath);
     }
 
     /// <summary>
