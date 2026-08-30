@@ -55,4 +55,9 @@ public static class ProfileSharingConstants
     /// Maximum allowed file size for .ghprofile packages (5 MB).
     /// </summary>
     public const long MaxProfileFileBytes = 5 * 1024 * 1024;
+
+    /// <summary>
+    /// Maximum allowed size for a single downloaded manifest dependency file (500 MB).
+    /// </summary>
+    public const long MaxDownloadedFileBytes = 500 * 1024 * 1024;
 }

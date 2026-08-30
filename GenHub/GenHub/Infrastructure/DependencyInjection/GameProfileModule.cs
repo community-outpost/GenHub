@@ -64,7 +64,7 @@ public static class GameProfileModule
         services.AddScoped<ISetupWizardService, SetupWizardService>();
 
         // Register ProfileSharingService
-        services.AddScoped<IProfileSharingService, ProfileSharingService>();
+        services.AddSingleton<IProfileSharingService, ProfileSharingService>();
 
         return services;
     }

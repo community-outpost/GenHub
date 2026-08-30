@@ -61,6 +61,7 @@ public partial class GameProfileLauncherView : UserControl
                     (path.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase) ||
                      path.EndsWith(".json", StringComparison.OrdinalIgnoreCase)))
                 {
+                    e.Handled = true;
                     await vm.ImportProfileFromFileOrUriAsync(path);
                     break;
                 }

@@ -11,7 +11,7 @@
         Width="560" Height="440"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
-        SystemDecorations="None"
+        SystemDecorations="Full"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="-1"
@@ -35,13 +35,7 @@
         <SolidColorBrush x:Key="SuccessGreen" Color="#00E676" />
         <SolidColorBrush x:Key="DiscordBlurple" Color="#5865F2" />
         <SolidColorBrush x:Key="DiscordBlurpleLight" Color="#7289DA" />
-        <SolidColorBrush x:Key="TextPrimary" Color="#E0E0E0" />
-        <SolidColorBrush x:Key="TextBody" Color="#DDDDDD" />
-        <SolidColorBrush x:Key="TextSecondary" Color="#B0B0B0" />
-        <SolidColorBrush x:Key="TextTertiary" Color="#AAAAAA" />
-        <SolidColorBrush x:Key="TextDisabled" Color="#777777" />
         <Color x:Key="DialogSurfaceColor">#0D0D0D</Color>
-    
     </Window.Resources>
 
     <!-- Root Container with Margin for Window Shadow -->
@@ -91,7 +85,7 @@
                                 <TextBlock Text="SHARE GAME PROFILE"
                                            FontSize="16"
                                            FontWeight="Bold"
-                                           Foreground="White"
+                                           Foreground="{DynamicResource TextPrimary}"
                                            LetterSpacing="0.8"
                                            VerticalAlignment="Center" />
                             </StackPanel>
@@ -100,9 +94,9 @@
                                 <TextBlock Text="{Binding ProfileName}"
                                            FontSize="14"
                                            FontWeight="SemiBold"
-                                           Foreground="{StaticResource TextPrimary}" />
+                                           Foreground="{DynamicResource TextPrimary}" />
                                 <Border Background="{StaticResource FillWhite14}" CornerRadius="4" Padding="6,2">
-                                    <TextBlock Text="{Binding GameVersion}" FontSize="11" Foreground="{StaticResource TextSecondary}" />
+                                    <TextBlock Text="{Binding GameVersion}" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
                                 </Border>
                             </StackPanel>
                         </StackPanel>
@@ -113,7 +107,7 @@
                                 Width="30" Height="30"
                                 CornerRadius="15"
                                 Background="{StaticResource FillWhite08}"
-                                Foreground="{StaticResource TextTertiary}"
+                                Foreground="{DynamicResource TextMuted}"
                                 Padding="0"
                                 HorizontalContentAlignment="Center"
                                 VerticalContentAlignment="Center"
@@ -143,7 +137,7 @@
                         <StackPanel Spacing="6">
                             <TextBlock Text="Protocol Share Link (genhub://):"
                                        FontSize="12"
-                                       Foreground="{StaticResource TextTertiary}"
+                                       Foreground="{DynamicResource TextSecondary}"
                                        FontWeight="Medium" />
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBox Grid.Column="0"
@@ -153,21 +147,21 @@
                                          Background="{StaticResource FillWhite08}"
                                          BorderBrush="{StaticResource BorderWhite19}"
                                          CornerRadius="8,0,0,8"
-                                         Foreground="White"
+                                         Foreground="{DynamicResource TextPrimary}"
                                          FontSize="11"
                                          Padding="10,0"
                                          VerticalContentAlignment="Center" />
                                 <Button Grid.Column="1"
-                                        Command="{Binding CopyUriCommand}"
-                                        Height="38"
-                                        Padding="16,0"
-                                        Background="{StaticResource PrimaryGradientBrush}"
-                                        Foreground="White"
-                                        FontWeight="SemiBold"
-                                        CornerRadius="0,8,8,0"
-                                        HorizontalContentAlignment="Center"
-                                        VerticalContentAlignment="Center"
-                                        Cursor="Hand">
+                                         Command="{Binding CopyUriCommand}"
+                                         Height="38"
+                                         Padding="16,0"
+                                         Background="{StaticResource PrimaryGradientBrush}"
+                                         Foreground="White"
+                                         FontWeight="SemiBold"
+                                         CornerRadius="0,8,8,0"
+                                         HorizontalContentAlignment="Center"
+                                         VerticalContentAlignment="Center"
+                                         Cursor="Hand">
                                     <Button.Styles>
                                         <Style Selector="Button">
                                             <Setter Property="Transitions">
@@ -198,7 +192,7 @@
                             </Grid>
                             <TextBlock Text="Recipients clicking this link in Discord or browsers will open GenHub's import inspector."
                                        FontSize="11"
-                                       Foreground="{StaticResource TextDisabled}" />
+                                       Foreground="{DynamicResource TextMuted}" />
                         </StackPanel>
 
                         <!-- Actions Grid -->
@@ -279,10 +273,10 @@
                                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <PathIcon Data="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M12,19L8,15H10.5V12H13.5V15H16L12,19Z"
                                               Width="16" Height="16"
-                                              Foreground="{StaticResource TextBody}"
+                                              Foreground="{DynamicResource TextPrimary}"
                                               VerticalAlignment="Center" />
                                     <TextBlock Text="Export .ghprofile"
-                                               Foreground="White"
+                                               Foreground="{DynamicResource TextPrimary}"
                                                FontWeight="SemiBold"
                                                FontSize="12"
                                                VerticalAlignment="Center" />
@@ -301,7 +295,7 @@
                                 Background="{StaticResource FillWhite08}"
                                 BorderBrush="{StaticResource BorderWhite19}"
                                 BorderThickness="1"
-                                Foreground="White"
+                                Foreground="{DynamicResource TextPrimary}"
                                 CornerRadius="8"
                                 FontWeight="Medium"
                                 HorizontalContentAlignment="Center"

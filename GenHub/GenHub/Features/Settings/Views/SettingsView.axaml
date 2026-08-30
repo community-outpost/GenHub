@@ -802,7 +802,7 @@
                              Background="{DynamicResource BorderSubtleBrush}"
                              Foreground="{DynamicResource AccentColor}" />
 
-                <TextBlock Text="Files automatically expire after 72 hours. You can remove local upload history records anytime."
+                <TextBlock Text="Files automatically expire after 72 hours. Removing records clears local tracking without deleting hosted files."
                            FontSize="11"
                            Foreground="{DynamicResource TextSecondary}" />
               </StackPanel>

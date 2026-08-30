@@ -43,13 +43,10 @@ public static class ProfileSharingCompressionHelper
     /// </summary>
     /// <param name="base64Url">The URL-safe Base64 payload string.</param>
     /// <returns>The decompressed JSON string.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="base64Url"/> is null or empty.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="base64Url"/> is null or whitespace.</exception>
     public static string DecodeAndDecompress(string base64Url)
     {
-        if (string.IsNullOrWhiteSpace(base64Url))
-        {
-            throw new ArgumentNullException(nameof(base64Url));
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(base64Url);
 
         byte[] compressedBytes = ConvertFromBase64Url(base64Url.Trim());
         using var inputStream = new MemoryStream(compressedBytes);
@@ -79,14 +76,11 @@ public static class ProfileSharingCompressionHelper
     /// <param name="base64Url">The URL-safe Base64 payload string.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>The decompressed JSON string.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="base64Url"/> is null or empty.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="base64Url"/> is null or whitespace.</exception>
     /// <exception cref="InvalidDataException">Thrown when decompressed data exceeds the maximum allowed size limit.</exception>
     public static async Task<string> DecodeAndDecompressAsync(string base64Url, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(base64Url))
-        {
-            throw new ArgumentNullException(nameof(base64Url));
-        }
+        ArgumentException.ThrowIfNullOrWhiteSpace(base64Url);
 
         byte[] compressedBytes = ConvertFromBase64Url(base64Url.Trim());
         using var inputStream = new MemoryStream(compressedBytes);

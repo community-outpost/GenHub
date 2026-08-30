@@ -801,6 +801,61 @@ public class ProfileSharingServiceTests
         Assert.Null(package.Profile.CoverPath);
     }
 
+    /// <summary>
+    /// Verifies that inspecting a remote URI targeting loopback or private addresses is rejected by SSRF protection.
+    /// </summary>
+    /// <param name="blockedUrl">The blocked URL to test.</param>
+    /// <returns>A task representing the test.</returns>
+    [Theory]
+    [InlineData("http://127.0.0.1/profile.json")]
+    [InlineData("http://localhost/profile.json")]
+    [InlineData("http://169.254.169.254/latest/meta-data")]
+    [InlineData("http://10.0.0.1/profile.json")]
+    [InlineData("http://192.168.1.1/profile.json")]
+    [InlineData("http://172.16.0.1/profile.json")]
+    public async Task InspectSharedProfileAsync_Should_ReturnFailure_WhenUriTargetsBlockedIpAddressAsync(string blockedUrl)
+    {
+        // Arrange
+        var shareUri = $"{CommandLineConstants.ProfileImportUriPrefix}?url={Uri.EscapeDataString(blockedUrl)}";
+
+        // Act
+        var result = await _service.InspectSharedProfileAsync(shareUri);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("blocked", result.FirstError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies that importing a package with a null required manifests list returns failure.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ImportSharedProfileAsync_Should_ReturnFailure_WhenManifestsListIsNullAsync()
+    {
+        // Arrange
+        var profile = CreateTestProfile("profile-null-manifests", "Null Manifests Profile");
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = 1,
+            Profile = SharedGameProfileMetadata.FromGameProfile(profile),
+            RequiredManifests = null!,
+        };
+
+        var request = new SharedProfileImportRequest
+        {
+            Package = package,
+            ProfileName = "Imported Null Manifests",
+        };
+
+        // Act
+        var result = await _service.ImportSharedProfileAsync(request);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("manifest", result.FirstError, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static GameProfile CreateTestProfile(string id, string name)
     {
         return new GameProfile

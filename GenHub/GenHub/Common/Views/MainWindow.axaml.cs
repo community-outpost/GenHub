@@ -29,7 +29,7 @@ public partial class MainWindow : Window
 
     private async void OnDrop(object? sender, DragEventArgs e)
     {
-        if (DataContext is not MainViewModel mainVm || mainVm.GameProfilesViewModel == null) return;
+        if (e.Handled || DataContext is not MainViewModel mainVm || mainVm.GameProfilesViewModel == null) return;
 
         var files = e.Data.GetFiles();
         if (files != null)
@@ -37,8 +37,10 @@ public partial class MainWindow : Window
             foreach (var file in files)
             {
                 if (file?.Path?.LocalPath is { } path &&
-                    path.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase))
+                    (path.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase) ||
+                     path.EndsWith(".json", StringComparison.OrdinalIgnoreCase)))
                 {
+                    e.Handled = true;
                     await mainVm.GameProfilesViewModel.ImportProfileFromFileOrUriAsync(path);
                     break;
                 }

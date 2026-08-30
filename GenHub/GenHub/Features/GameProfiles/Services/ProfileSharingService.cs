@@ -41,7 +41,7 @@ public class ProfileSharingService(
     IGameInstallationService installationService,
     IContentOrchestrator contentOrchestrator,
     PublisherManifestFactoryResolver publisherManifestFactoryResolver,
-    ILogger<ProfileSharingService> logger) : IProfileSharingService
+    ILogger<ProfileSharingService> logger) : IProfileSharingService, IDisposable
 {
     private sealed record ManifestInspectionSummary(
         List<SharedManifestDependency> Manifests,
@@ -63,11 +63,42 @@ public class ProfileSharingService(
     private static readonly ConcurrentDictionary<string, HashSet<IPAddress>> ValidatedHostAddresses = new(StringComparer.OrdinalIgnoreCase);
 
     // HTTP client whose connections are pinned to previously validated addresses, defeating DNS rebinding.
-    private readonly HttpClient safeHttpClient = new(new SocketsHttpHandler
+    private readonly HttpClient safeHttpClient = CreateSafeHttpClient();
+
+    private static HttpClient CreateSafeHttpClient()
     {
-        ConnectCallback = (context, token) =>
-            ConnectToValidatedAddressAsync(ValidatedHostAddresses, context, token),
-    });
+        var client = new HttpClient(new SocketsHttpHandler
+        {
+            ConnectCallback = (context, token) =>
+                ConnectToValidatedAddressAsync(ValidatedHostAddresses, context, token),
+            AllowAutoRedirect = false,
+        })
+        {
+            Timeout = TimeSpan.FromSeconds(30),
+        };
+
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(ApiConstants.DefaultUserAgent);
+        return client;
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases managed and unmanaged resources.
+    /// </summary>
+    /// <param name="disposing">True if called from Dispose; false if from finalizer.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            safeHttpClient.Dispose();
+        }
+    }
 
     /// <inheritdoc/>
     public async Task<OperationResult<string>> ExportProfileToUriAsync(string profileId, CancellationToken cancellationToken = default)
@@ -91,6 +122,8 @@ public class ProfileSharingService(
             if (encodedPayload.Length > ProfileSharingConstants.MaxInlinePayloadLength)
             {
                 logger.LogWarning("Exported profile {ProfileId} payload ({Length} chars) exceeds inline limit.", profileId, encodedPayload.Length);
+                return OperationResult<string>.CreateFailure(
+                    $"Profile payload ({encodedPayload.Length} characters) exceeds the maximum inline sharing limit of {ProfileSharingConstants.MaxInlinePayloadLength} characters. Please export as a .ghprofile file instead.");
             }
 
             string shareUri = $"{CommandLineConstants.ProfileImportUriPrefix}?{CommandLineConstants.DataQueryParam}{encodedPayload}";
@@ -305,14 +338,27 @@ public class ProfileSharingService(
 
     private static bool IsPublicIpAddress(IPAddress ip)
     {
-        if (IPAddress.IsLoopback(ip) || ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || ip.IsIPv6Multicast)
+        if (ip.IsIPv4MappedToIPv6)
+        {
+            ip = ip.MapToIPv4();
+        }
+
+        if (IPAddress.IsLoopback(ip))
         {
             return false;
         }
 
+        if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            return !ip.IsIPv6LinkLocal &&
+                   !ip.IsIPv6SiteLocal &&
+                   !ip.IsIPv6Multicast &&
+                   !ip.IsIPv6UniqueLocal;
+        }
+
         if (ip.AddressFamily != AddressFamily.InterNetwork)
         {
-            return true;
+            return false;
         }
 
         byte[] bytes = ip.GetAddressBytes();
@@ -321,12 +367,19 @@ public class ProfileSharingService(
 
     private static bool IsPrivateOrReservedIpv4(byte[] bytes)
     {
-        return bytes[0] == 10 ||
+        return bytes[0] == 0 ||
+               bytes[0] == 10 ||
+               (bytes[0] == 100 && bytes[1] >= 64 && bytes[1] <= 127) ||
+               bytes[0] == 127 ||
+               (bytes[0] == 169 && bytes[1] == 254) ||
                (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) ||
                (bytes[0] == 192 && bytes[1] == 168) ||
-               (bytes[0] == 169 && bytes[1] == 254) ||
-               bytes[0] == 127 ||
-               bytes[0] == 0;
+               (bytes[0] == 192 && bytes[1] == 0 && bytes[2] == 0) ||
+               (bytes[0] == 192 && bytes[1] == 0 && bytes[2] == 2) ||
+               (bytes[0] == 198 && (bytes[1] == 18 || bytes[1] == 19)) ||
+               (bytes[0] == 198 && bytes[1] == 51 && bytes[2] == 100) ||
+               (bytes[0] == 203 && bytes[1] == 0 && bytes[2] == 113) ||
+               bytes[0] >= 224;
     }
 
     private static async ValueTask<Stream> ConnectToValidatedAddressAsync(
@@ -355,8 +408,60 @@ public class ProfileSharingService(
             NoDelay = true,
         };
 
-        await socket.ConnectAsync(candidate, context.DnsEndPoint.Port, cancellationToken);
-        return new NetworkStream(socket, ownsSocket: true);
+        try
+        {
+            await socket.ConnectAsync(candidate, context.DnsEndPoint.Port, cancellationToken);
+            return new NetworkStream(socket, ownsSocket: true);
+        }
+        catch
+        {
+            socket.Dispose();
+            throw;
+        }
+    }
+
+    private static async Task<HttpResponseMessage> SendWithManualRedirectsAsync(
+        HttpClient client,
+        Uri initialUri,
+        HttpCompletionOption completionOption,
+        CancellationToken cancellationToken)
+    {
+        const int maxRedirects = 5;
+        var currentUri = initialUri;
+
+        for (int i = 0; i <= maxRedirects; i++)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Get, currentUri);
+            var response = await client.SendAsync(request, completionOption, cancellationToken);
+
+            if (response.StatusCode is HttpStatusCode.MovedPermanently or
+                HttpStatusCode.Found or
+                HttpStatusCode.SeeOther or
+                HttpStatusCode.TemporaryRedirect or
+                (HttpStatusCode)308)
+            {
+                var location = response.Headers.Location;
+                response.Dispose();
+
+                if (location == null)
+                {
+                    throw new HttpRequestException("Redirect response missing Location header.");
+                }
+
+                var nextUri = location.IsAbsoluteUri ? location : new Uri(currentUri, location);
+                if (!await IsSafeRemoteUriAsync(nextUri, cancellationToken))
+                {
+                    throw new HttpRequestException($"Redirect target URL '{nextUri}' is blocked by security policies.");
+                }
+
+                currentUri = nextUri;
+                continue;
+            }
+
+            return response;
+        }
+
+        throw new HttpRequestException($"Too many redirects (exceeded limit of {maxRedirects}).");
     }
 
     private static Dictionary<string, object?> ExtractSettingsOverridesFromProfile(GameProfile profile)
@@ -405,7 +510,7 @@ public class ProfileSharingService(
             return OperationResult<bool>.CreateFailure($"Profile name must be between 1 and {ProfileSharingConstants.MaxProfileNameLength} characters.");
         }
 
-        if (request.Package?.Profile == null)
+        if (request.Package?.Profile == null || request.Package.RequiredManifests == null)
         {
             return OperationResult<bool>.CreateFailure("Invalid package in import request.");
         }
@@ -439,8 +544,7 @@ public class ProfileSharingService(
         if (installation != null)
         {
             var matched = installation.AvailableGameClients.FirstOrDefault(c => c.Id == package.Profile.GameClientManifestId)
-                ?? installation.AvailableGameClients.FirstOrDefault(c => c.GameType == package.Profile.GameType)
-                ?? installation.AvailableGameClients.FirstOrDefault();
+                ?? installation.AvailableGameClients.FirstOrDefault(c => c.GameType == package.Profile.GameType);
 
             if (matched != null)
             {
@@ -580,34 +684,26 @@ public class ProfileSharingService(
 
     private static void ApplyVideoSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
     {
-        if (overrides.TryGetValue(nameof(profile.VideoResolutionWidth), out var widthObj) && widthObj is JsonElement widthElem && widthElem.TryGetInt32(out var width)) profile.VideoResolutionWidth = width;
-        if (overrides.TryGetValue(nameof(profile.VideoResolutionHeight), out var heightObj) && heightObj is JsonElement heightElem && heightElem.TryGetInt32(out var height)) profile.VideoResolutionHeight = height;
+        if (TryReadInt32(overrides, nameof(profile.VideoResolutionWidth), out var width)) profile.VideoResolutionWidth = width;
+        if (TryReadInt32(overrides, nameof(profile.VideoResolutionHeight), out var height)) profile.VideoResolutionHeight = height;
         if (TryReadBoolean(overrides, nameof(profile.VideoWindowed), out var windowed)) profile.VideoWindowed = windowed;
         if (TryReadBoolean(overrides, nameof(profile.EnableVideoShadows), out var shadows)) profile.EnableVideoShadows = shadows;
-
-        // Texture quality round-trips as a string enum name written during export.
-        if (overrides.TryGetValue(nameof(profile.VideoTextureQuality), out var textureObj)
-            && textureObj is JsonElement textureElem
-            && textureElem.ValueKind == JsonValueKind.String
-            && Enum.TryParse(textureElem.GetString(), ignoreCase: true, out TextureQuality textureQuality))
-        {
-            profile.VideoTextureQuality = textureQuality;
-        }
+        if (TryReadTextureQuality(overrides, nameof(profile.VideoTextureQuality), out var textureQuality)) profile.VideoTextureQuality = textureQuality;
     }
 
     private static void ApplyAudioSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
     {
-        if (overrides.TryGetValue(nameof(profile.AudioSoundVolume), out var soundObj) && soundObj is JsonElement soundElem && soundElem.TryGetInt32(out var sound)) profile.AudioSoundVolume = sound;
-        if (overrides.TryGetValue(nameof(profile.AudioMusicVolume), out var musicObj) && musicObj is JsonElement musicElem && musicElem.TryGetInt32(out var music)) profile.AudioMusicVolume = music;
-        if (overrides.TryGetValue(nameof(profile.AudioSpeechVolume), out var speechObj) && speechObj is JsonElement speechElem && speechElem.TryGetInt32(out var speech)) profile.AudioSpeechVolume = speech;
+        if (TryReadInt32(overrides, nameof(profile.AudioSoundVolume), out var sound)) profile.AudioSoundVolume = sound;
+        if (TryReadInt32(overrides, nameof(profile.AudioMusicVolume), out var music)) profile.AudioMusicVolume = music;
+        if (TryReadInt32(overrides, nameof(profile.AudioSpeechVolume), out var speech)) profile.AudioSpeechVolume = speech;
     }
 
     private static void ApplyTshSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
     {
         if (TryReadBoolean(overrides, nameof(profile.TshArchiveReplays), out var tshArchiveReplays)) profile.TshArchiveReplays = tshArchiveReplays;
-        if (overrides.TryGetValue(nameof(profile.TshRenderFpsFontSize), out var tshFpsObj) && tshFpsObj is JsonElement tshFpsElem && tshFpsElem.TryGetInt32(out var fpsSize)) profile.TshRenderFpsFontSize = fpsSize;
-        if (overrides.TryGetValue(nameof(profile.TshNetworkLatencyFontSize), out var tshLatObj) && tshLatObj is JsonElement tshLatElem && tshLatElem.TryGetInt32(out var latSize)) profile.TshNetworkLatencyFontSize = latSize;
-        if (overrides.TryGetValue(nameof(profile.TshSystemTimeFontSize), out var tshTimeObj) && tshTimeObj is JsonElement tshTimeElem && tshTimeElem.TryGetInt32(out var timeSize)) profile.TshSystemTimeFontSize = timeSize;
+        if (TryReadInt32(overrides, nameof(profile.TshRenderFpsFontSize), out var fpsSize)) profile.TshRenderFpsFontSize = fpsSize;
+        if (TryReadInt32(overrides, nameof(profile.TshNetworkLatencyFontSize), out var latSize)) profile.TshNetworkLatencyFontSize = latSize;
+        if (TryReadInt32(overrides, nameof(profile.TshSystemTimeFontSize), out var timeSize)) profile.TshSystemTimeFontSize = timeSize;
     }
 
     private static void ApplyGoSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
@@ -615,7 +711,64 @@ public class ProfileSharingService(
         if (TryReadBoolean(overrides, nameof(profile.GoShowFps), out var showFps)) profile.GoShowFps = showFps;
         if (TryReadBoolean(overrides, nameof(profile.GoShowPing), out var showPing)) profile.GoShowPing = showPing;
         if (TryReadBoolean(overrides, nameof(profile.GoShowPlayerRanks), out var showPlayerRanks)) profile.GoShowPlayerRanks = showPlayerRanks;
-        if (overrides.TryGetValue(nameof(profile.GoRenderFpsLimit), out var goFpsLimitObj) && goFpsLimitObj is JsonElement goFpsLimitElem && goFpsLimitElem.TryGetInt32(out var fpsLimit)) profile.GoRenderFpsLimit = fpsLimit;
+        if (TryReadInt32(overrides, nameof(profile.GoRenderFpsLimit), out var fpsLimit)) profile.GoRenderFpsLimit = fpsLimit;
+    }
+
+    private static bool TryReadInt32(Dictionary<string, object?> overrides, string key, out int value)
+    {
+        value = 0;
+        if (!overrides.TryGetValue(key, out var raw) || raw is null)
+        {
+            return false;
+        }
+
+        switch (raw)
+        {
+            case int i:
+                value = i;
+                return true;
+            case long l when l is >= int.MinValue and <= int.MaxValue:
+                value = (int)l;
+                return true;
+            case short s:
+                value = s;
+                return true;
+            case byte b:
+                value = b;
+                return true;
+            case JsonElement elem when elem.ValueKind == JsonValueKind.Number && elem.TryGetInt32(out var parsed):
+                value = parsed;
+                return true;
+            case string str when int.TryParse(str, out var parsed):
+                value = parsed;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryReadTextureQuality(Dictionary<string, object?> overrides, string key, out TextureQuality quality)
+    {
+        quality = TextureQuality.High;
+        if (!overrides.TryGetValue(key, out var raw) || raw is null)
+        {
+            return false;
+        }
+
+        switch (raw)
+        {
+            case TextureQuality tq:
+                quality = tq;
+                return true;
+            case string str when Enum.TryParse<TextureQuality>(str, ignoreCase: true, out var parsed):
+                quality = parsed;
+                return true;
+            case JsonElement elem when elem.ValueKind == JsonValueKind.String && Enum.TryParse<TextureQuality>(elem.GetString(), ignoreCase: true, out var parsed):
+                quality = parsed;
+                return true;
+            default:
+                return false;
+        }
     }
 
     private static bool TryReadBoolean(Dictionary<string, object?> overrides, string key, out bool value)
@@ -746,9 +899,11 @@ public class ProfileSharingService(
             CoverPath = SanitizeShareableArtworkPath(package.Profile.CoverPath),
             GameInstallationId = request.GameInstallationId,
             GameClient = gameClient,
-            WorkspaceStrategy = package.Profile.WorkspaceStrategy,
+            WorkspaceStrategy = request.WorkspaceStrategy ?? package.Profile.WorkspaceStrategy,
             CommandLineArguments = sanitizedArgs,
-            UseSteamLaunch = selectedInstallation?.InstallationType == GameInstallationType.Steam || (package.Profile.UseSteamLaunch ?? false),
+            UseSteamLaunch = selectedInstallation != null
+                ? selectedInstallation.InstallationType == GameInstallationType.Steam
+                : package.Profile.UseSteamLaunch ?? false,
             EnabledContentIds = enabledIds,
         };
 
@@ -871,31 +1026,56 @@ public class ProfileSharingService(
         if (input.StartsWith(CommandLineConstants.ProfileImportUriPrefix, StringComparison.OrdinalIgnoreCase) ||
             input.StartsWith(CommandLineConstants.ProfileViewUriPrefix, StringComparison.OrdinalIgnoreCase))
         {
-            int dataParamIdx = input.IndexOf(CommandLineConstants.DataQueryParam, StringComparison.OrdinalIgnoreCase);
-            if (dataParamIdx != -1)
+            int queryIndex = input.IndexOf('?');
+            if (queryIndex != -1 && queryIndex < input.Length - 1)
             {
-                return await ResolveInlinePayloadAsync(input, dataParamIdx, cancellationToken);
-            }
+                var queryString = input[(queryIndex + 1)..];
+                var queryParams = ParseQueryParameters(queryString);
 
-            int urlParamIdx = input.IndexOf(CommandLineConstants.UrlQueryParam, StringComparison.OrdinalIgnoreCase);
-            if (urlParamIdx != -1)
-            {
-                return await ResolveRemotePayloadAsync(input, urlParamIdx, cancellationToken);
+                if (queryParams.TryGetValue("url", out var remoteUrl) && !string.IsNullOrWhiteSpace(remoteUrl))
+                {
+                    return await ResolveRemotePayloadAsync(remoteUrl, cancellationToken);
+                }
+
+                if (queryParams.TryGetValue("data", out var inlineData) && !string.IsNullOrWhiteSpace(inlineData))
+                {
+                    return await ResolveInlinePayloadAsync(inlineData, cancellationToken);
+                }
             }
         }
 
         return OperationResult<string>.CreateFailure($"Unsupported or malformed genhub:// sharing URI: {input}");
     }
 
-    private async Task<OperationResult<string>> ResolveInlinePayloadAsync(string input, int dataParamIdx, CancellationToken cancellationToken)
+    private static Dictionary<string, string> ParseQueryParameters(string queryString)
     {
-        string encoded = input[(dataParamIdx + CommandLineConstants.DataQueryParam.Length)..];
-        int nextParamIdx = encoded.IndexOf('&');
-        if (nextParamIdx != -1)
+        var parameters = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(queryString))
         {
-            encoded = encoded[..nextParamIdx];
+            return parameters;
         }
 
+        var pairs = queryString.Split('&', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var pair in pairs)
+        {
+            int eqIdx = pair.IndexOf('=');
+            if (eqIdx >= 0)
+            {
+                string key = Uri.UnescapeDataString(pair[..eqIdx]);
+                string val = Uri.UnescapeDataString(pair[(eqIdx + 1)..]);
+                parameters[key] = val;
+            }
+            else
+            {
+                parameters[Uri.UnescapeDataString(pair)] = string.Empty;
+            }
+        }
+
+        return parameters;
+    }
+
+    private async Task<OperationResult<string>> ResolveInlinePayloadAsync(string encoded, CancellationToken cancellationToken)
+    {
         if (encoded.Length > ProfileSharingConstants.MaxInlinePayloadLength)
         {
             return OperationResult<string>.CreateFailure($"Inline payload length ({encoded.Length}) exceeds maximum permitted size.");
@@ -912,15 +1092,8 @@ public class ProfileSharingService(
         }
     }
 
-    private async Task<OperationResult<string>> ResolveRemotePayloadAsync(string input, int urlParamIdx, CancellationToken cancellationToken)
+    private async Task<OperationResult<string>> ResolveRemotePayloadAsync(string url, CancellationToken cancellationToken)
     {
-        string url = Uri.UnescapeDataString(input[(urlParamIdx + CommandLineConstants.UrlQueryParam.Length)..]);
-        int nextParamIdx = url.IndexOf('&');
-        if (nextParamIdx != -1)
-        {
-            url = url[..nextParamIdx];
-        }
-
         if (!Uri.TryCreate(url, UriKind.Absolute, out var profileUri) || !await IsSafeRemoteUriAsync(profileUri, cancellationToken))
         {
             return OperationResult<string>.CreateFailure($"Remote URL '{url}' is blocked by security policies.");
@@ -931,29 +1104,37 @@ public class ProfileSharingService(
 
     private async Task<OperationResult<string>> FetchRemotePayloadWithLimitAsync(Uri profileUri, CancellationToken cancellationToken)
     {
-        using var response = await safeHttpClient.GetAsync(profileUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var buffered = new MemoryStream();
-
-        byte[] buffer = new byte[8192];
-        int bytesRead = 0;
-        long totalBytes = 0;
-
-        while ((bytesRead = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
+        try
         {
-            totalBytes += bytesRead;
-            if (totalBytes > ProfileSharingConstants.MaxDecompressedPayloadBytes)
+            using var response = await SendWithManualRedirectsAsync(safeHttpClient, profileUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            using var buffered = new MemoryStream();
+
+            byte[] buffer = new byte[8192];
+            int bytesRead = 0;
+            long totalBytes = 0;
+
+            while ((bytesRead = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
             {
-                return OperationResult<string>.CreateFailure(
-                    $"Remote profile payload exceeds maximum allowed size ({ProfileSharingConstants.MaxDecompressedPayloadBytes} bytes).");
+                totalBytes += bytesRead;
+                if (totalBytes > ProfileSharingConstants.MaxDecompressedPayloadBytes)
+                {
+                    return OperationResult<string>.CreateFailure(
+                        $"Remote profile payload exceeds maximum allowed size ({ProfileSharingConstants.MaxDecompressedPayloadBytes} bytes).");
+                }
+
+                await buffered.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
             }
 
-            await buffered.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+            return OperationResult<string>.CreateSuccess(Encoding.UTF8.GetString(buffered.ToArray()));
         }
-
-        return OperationResult<string>.CreateSuccess(Encoding.UTF8.GetString(buffered.ToArray()));
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Failed to fetch remote profile payload from {Uri}", profileUri);
+            return OperationResult<string>.CreateFailure($"Failed to fetch remote profile payload: {ex.Message}");
+        }
     }
 
     private async Task<OperationResult<bool>> AcquireMissingManifestAsync(
@@ -968,10 +1149,10 @@ public class ProfileSharingService(
                 return OperationResult<bool>.CreateFailure($"Invalid manifest ID '{dependency.ManifestId}'.");
             }
 
-            // Direct per-file download is only possible when files exist and each file has a direct download URL.
+            // Direct per-file download is only possible when files exist, and each file has a direct download URL and hash.
             // Extracted CAS packages (e.g. ModDB, CnCLabs, AoDMaps) don't carry individual file download URLs
             // and must be acquired via the content orchestrator provider/resolver pipeline.
-            if (dependency.Files?.Count > 0 && dependency.Files.All(f => !string.IsNullOrWhiteSpace(f.DownloadUrl)))
+            if (dependency.Files?.Count > 0 && dependency.Files.All(f => !string.IsNullOrWhiteSpace(f.DownloadUrl) && !string.IsNullOrWhiteSpace(f.Hash)))
             {
                 return await DownloadAndRegisterManifestFilesAsync(dependency, validatedManifestId, cancellationToken);
             }
@@ -1059,9 +1240,14 @@ public class ProfileSharingService(
         string canonicalStagingPrefix,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(file.DownloadUrl))
+        if (string.IsNullOrWhiteSpace(file.DownloadUrl))
         {
-            return OperationResult<bool>.CreateSuccess(true);
+            return OperationResult<bool>.CreateFailure($"Missing download URL for manifest file: {file.RelativePath}");
+        }
+
+        if (string.IsNullOrWhiteSpace(file.Hash))
+        {
+            return OperationResult<bool>.CreateFailure($"Manifest file {file.RelativePath} is missing required cryptographic hash.");
         }
 
         if (string.IsNullOrWhiteSpace(file.RelativePath) || Path.IsPathRooted(file.RelativePath) || file.RelativePath.Contains(".."))
@@ -1086,38 +1272,49 @@ public class ProfileSharingService(
             return OperationResult<bool>.CreateFailure($"Unsafe download URL blocked: {file.DownloadUrl}");
         }
 
-        using var response = await safeHttpClient.GetAsync(fileDownloadUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        using var sha256 = SHA256.Create();
-        using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var fileStream = File.Create(destination);
-
-        byte[] buffer = new byte[16384];
-        int bytesRead = 0;
-        long totalDownloaded = 0;
-
-        while ((bytesRead = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
+        try
         {
-            sha256.TransformBlock(buffer, 0, bytesRead, null, 0);
-            await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
-            totalDownloaded += bytesRead;
+            using var response = await SendWithManualRedirectsAsync(safeHttpClient, fileDownloadUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            response.EnsureSuccessStatusCode();
 
-            if (file.Size > 0 && totalDownloaded > (file.Size + (1024 * 1024)))
+            using var sha256 = SHA256.Create();
+            using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            using var fileStream = File.Create(destination);
+
+            byte[] buffer = new byte[16384];
+            int bytesRead = 0;
+            long totalDownloaded = 0;
+            long maxAllowedBytes = file.Size > 0
+                ? Math.Min(file.Size + (1024 * 1024), ProfileSharingConstants.MaxDownloadedFileBytes)
+                : ProfileSharingConstants.MaxDownloadedFileBytes;
+
+            while ((bytesRead = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
             {
-                return OperationResult<bool>.CreateFailure($"Download size for {file.RelativePath} exceeded expected size limit.");
+                sha256.TransformBlock(buffer, 0, bytesRead, null, 0);
+                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+                totalDownloaded += bytesRead;
+
+                if (totalDownloaded > maxAllowedBytes)
+                {
+                    return OperationResult<bool>.CreateFailure($"Download size for {file.RelativePath} exceeded expected size limit ({maxAllowedBytes} bytes).");
+                }
             }
+
+            sha256.TransformFinalBlock([], 0, 0);
+            var computedHash = Convert.ToHexString(sha256.Hash ?? []).ToLowerInvariant();
+
+            if (!string.Equals(computedHash, file.Hash.Replace("-", string.Empty).ToLowerInvariant(), StringComparison.OrdinalIgnoreCase))
+            {
+                return OperationResult<bool>.CreateFailure($"SHA-256 hash mismatch for {file.RelativePath}.");
+            }
+
+            return OperationResult<bool>.CreateSuccess(true);
         }
-
-        sha256.TransformFinalBlock([], 0, 0);
-        var computedHash = Convert.ToHexString(sha256.Hash ?? []).ToLowerInvariant();
-
-        if (!string.IsNullOrWhiteSpace(file.Hash) && !string.Equals(computedHash, file.Hash.Replace("-", string.Empty).ToLowerInvariant(), StringComparison.OrdinalIgnoreCase))
+        catch (HttpRequestException ex)
         {
-            return OperationResult<bool>.CreateFailure($"SHA-256 hash mismatch for {file.RelativePath}.");
+            logger.LogWarning(ex, "Failed to download file {RelativePath} from {Url}", file.RelativePath, file.DownloadUrl);
+            return OperationResult<bool>.CreateFailure($"Failed to download {file.RelativePath}: {ex.Message}");
         }
-
-        return OperationResult<bool>.CreateSuccess(true);
     }
 
     private async Task<OperationResult<bool>> SearchAndAcquireFallbackManifestAsync(
@@ -1137,8 +1334,22 @@ public class ProfileSharingService(
         if (searchResult.Success && searchResult.Data != null)
         {
             var match = searchResult.Data.FirstOrDefault(r =>
-                r.Id.Equals(dependency.ManifestId, StringComparison.OrdinalIgnoreCase) ||
-                r.Name.Equals(dependency.DisplayName, StringComparison.OrdinalIgnoreCase));
+                r.Id.Equals(dependency.ManifestId, StringComparison.OrdinalIgnoreCase));
+
+            if (match == null)
+            {
+                match = searchResult.Data.FirstOrDefault(r =>
+                    r.Name.Equals(dependency.DisplayName, StringComparison.OrdinalIgnoreCase));
+
+                if (match != null)
+                {
+                    logger.LogWarning(
+                        "Fallback acquisition matched dependency '{DisplayName}' by display name rather than Manifest ID '{ManifestId}'.",
+                        dependency.DisplayName,
+                        dependency.ManifestId);
+                }
+            }
+
             if (match != null)
             {
                 var acquireRes = await contentOrchestrator.AcquireContentAsync(match, progress, cancellationToken);
@@ -1170,9 +1381,9 @@ public class ProfileSharingService(
             return OperationResult<SharedGameProfilePackage>.CreateFailure($"Invalid shared profile package format: {ex.Message}");
         }
 
-        if (package?.Profile == null)
+        if (package?.Profile == null || package.RequiredManifests == null)
         {
-            return OperationResult<SharedGameProfilePackage>.CreateFailure("Package does not contain valid profile metadata.");
+            return OperationResult<SharedGameProfilePackage>.CreateFailure("Package does not contain valid profile metadata or manifests list.");
         }
 
         if (package.SchemaVersion != ProfileSharingConstants.DefaultSchemaVersion)

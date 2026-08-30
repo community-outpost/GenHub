@@ -357,4 +357,41 @@ public class GameProfileModuleTests
         var instance2 = serviceProvider.GetService<IProfileEditorFacade>();
         Assert.Same(instance1, instance2);
     }
+
+    /// <summary>
+    /// Tests that ProfileSharingService is registered as singleton.
+    /// </summary>
+    [Fact]
+    public void AddGameProfileServices_ProfileSharingService_ShouldBeSingleton()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        var configProviderMock = new Mock<IConfigurationProviderService>();
+        var tempDir = Path.GetTempPath();
+
+        configProviderMock.Setup(x => x.GetWorkspacePath()).Returns(tempDir);
+        configProviderMock.Setup(x => x.GetApplicationDataPath()).Returns(Path.Combine(tempDir, "Content"));
+        configProviderMock.Setup(x => x.GetProfilesPath()).Returns(Path.Combine(tempDir, "Profiles"));
+
+        services.AddLogging();
+        services.AddSingleton<IConfigurationProviderService>(configProviderMock.Object);
+        services.AddSingleton<IStorageLocationService>(new Mock<IStorageLocationService>().Object);
+        services.AddSingleton<IGamePathProvider>(new Mock<IGamePathProvider>().Object);
+        services.AddSingleton<ISymlinkCapabilityProvider>(new Mock<ISymlinkCapabilityProvider>().Object);
+
+        services.AddSingleton<IGameInstallationService>(new Mock<IGameInstallationService>().Object);
+        services.AddSingleton<IContentManifestPool>(new Mock<IContentManifestPool>().Object);
+        services.AddSingleton<IContentOrchestrator>(new Mock<IContentOrchestrator>().Object);
+        services.AddSingleton<PublisherManifestFactoryResolver>(new PublisherManifestFactoryResolver([], Microsoft.Extensions.Logging.Abstractions.NullLogger<PublisherManifestFactoryResolver>.Instance));
+
+        // Act
+        services.AddGameProfileServices();
+        var serviceProvider = services.BuildServiceProvider();
+
+        // Assert
+        var instance1 = serviceProvider.GetService<IProfileSharingService>();
+        var instance2 = serviceProvider.GetService<IProfileSharingService>();
+        Assert.NotNull(instance1);
+        Assert.Same(instance1, instance2);
+    }
 }

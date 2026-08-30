@@ -75,8 +75,11 @@ public partial class App : Application
             // Subscribe to IPC commands from secondary instances (Windows only)
             SubscribeToSingleInstanceCommands(mainWindow);
 
-            // Handle startup arguments sequentially (launch profile, then subscription if present)
-            SafeFireAndForget(HandleStartupArgsAsync(desktop.Args, mainWindow), nameof(HandleStartupArgsAsync));
+            // Handle startup arguments sequentially once the window is opened and active
+            mainWindow.Opened += (_, _) =>
+            {
+                SafeFireAndForget(HandleStartupArgsAsync(desktop.Args, mainWindow), nameof(HandleStartupArgsAsync));
+            };
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -297,71 +300,23 @@ public partial class App : Application
         }
     }
 
-    private static readonly SemaphoreSlim ImportDialogSemaphore = new(1, 1);
-
     private async Task HandleImportProfileUriAsync(string shareUriOrPath, MainWindow mainWindow)
     {
-        var logger = _serviceProvider.GetService<ILogger<App>>();
-        var profileSharingService = _serviceProvider.GetService<IProfileSharingService>();
-        var notificationService = _serviceProvider.GetService<INotificationService>();
-
-        if (profileSharingService == null)
+        var launcherViewModel = _serviceProvider.GetService<GameProfileLauncherViewModel>();
+        if (launcherViewModel != null)
         {
-            logger?.LogError("Profile sharing service is not available for import.");
-            notificationService?.ShowError("Import Failed", "Profile sharing service is not registered.");
-            return;
-        }
-
-        if (!await ImportDialogSemaphore.WaitAsync(0))
-        {
-            logger?.LogWarning("Profile import dialog is already active. Ignoring concurrent request.");
-            return;
-        }
-
-        try
-        {
-            logger?.LogInformation("Inspecting shared profile for import");
-            var inspectResult = await profileSharingService.InspectSharedProfileAsync(shareUriOrPath);
-
-            if (!inspectResult.Success || inspectResult.Data == null)
-            {
-                logger?.LogWarning("Failed to inspect shared profile: {Error}", inspectResult.FirstError);
-                notificationService?.ShowError("Profile Import Error", inspectResult.FirstError ?? "Failed to inspect profile package.");
-                return;
-            }
-
-            // Bring main window to front
             if (mainWindow.WindowState == WindowState.Minimized)
             {
                 mainWindow.WindowState = WindowState.Normal;
             }
 
             mainWindow.Activate();
-
-            var vmLogger = _serviceProvider.GetService<ILogger<ImportProfileInspectionViewModel>>()
-                ?? NullLogger<ImportProfileInspectionViewModel>.Instance;
-
-            var inspectionViewModel = new ImportProfileInspectionViewModel(
-                inspectResult.Data,
-                profileSharingService,
-                notificationService,
-                vmLogger);
-
-            var dialog = new Features.GameProfiles.Views.ImportProfileInspectionWindow
-            {
-                DataContext = inspectionViewModel,
-            };
-
-            await dialog.ShowDialog(mainWindow);
+            await launcherViewModel.ImportProfileFromFileOrUriAsync(shareUriOrPath);
         }
-        catch (Exception ex)
+        else
         {
-            logger?.LogError(ex, "Exception while inspecting shared profile.");
-            notificationService?.ShowError("Import Error", $"An error occurred while inspecting profile: {ex.Message}");
-        }
-        finally
-        {
-            ImportDialogSemaphore.Release();
+            var logger = _serviceProvider.GetService<ILogger<App>>();
+            logger?.LogError("GameProfileLauncherViewModel is not available for import.");
         }
     }
 
