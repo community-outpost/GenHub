@@ -8,9 +8,9 @@ namespace GenHub.Core.Constants;
 public static class ReplayManagerConstants
 {
     /// <summary>
-    /// Maximum size for a single replay file in bytes (1 MB).
+    /// Maximum size for a single replay file in bytes (10 MB).
     /// </summary>
-    public const long MaxReplaySizeBytes = 1024 * 1024;
+    public const long MaxReplaySizeBytes = 10 * 1024 * 1024;
 
     /// <summary>
     /// Maximum allowed entries in a replay ZIP archive.
