@@ -452,24 +452,25 @@ public class CommunityOutpostDeliverer(
 
                 if (!addResult.Success)
                 {
-                    logger.LogWarning(
+                    logger.LogError(
                         "Failed to register manifest {ManifestId}: {Error}",
                         manifest.Id,
                         addResult.FirstError);
+                    await CleanupTemporaryFilesAsync(archivePath, extractPath);
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        $"Failed to register manifest {manifest.Id}: {addResult.FirstError}");
                 }
-                else
-                {
-                    // After successful storage, update SourceType to ContentAddressable
-                    // since the files are now in CAS
-                    foreach (var file in manifest.Files)
-                    {
-                        file.SourceType = ContentSourceType.ContentAddressable;
-                    }
 
-                    logger.LogInformation(
-                        "Successfully registered manifest: {ManifestId}",
-                        manifest.Id);
+                // After successful storage, update SourceType to ContentAddressable
+                // since the files are now in CAS
+                foreach (var file in manifest.Files)
+                {
+                    file.SourceType = ContentSourceType.ContentAddressable;
                 }
+
+                logger.LogInformation(
+                    "Successfully registered manifest: {ManifestId}",
+                    manifest.Id);
             }
 
             // Step 5: Cleanup temporary files

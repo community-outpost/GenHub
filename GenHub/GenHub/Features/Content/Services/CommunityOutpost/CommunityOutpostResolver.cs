@@ -104,7 +104,7 @@ public class CommunityOutpostResolver(
             var versionSource = !string.IsNullOrEmpty(contentMetadata.Version)
                 ? contentMetadata.Version
                 : discoveredItem.Version;
-            var manifestVersion = ExtractManifestVersion(versionSource);
+            var manifestVersion = ExtractVersionNumberForManifestId(versionSource);
 
             logger.LogDebug(
                 "Generating manifest ID: Publisher={Publisher}, ContentType={ContentType}, ContentName={ContentName}, Version={Version}",
@@ -166,7 +166,6 @@ public class CommunityOutpostResolver(
 
             // Store additional metadata in the manifest for the deliverer
             var builtManifest = manifest.Build();
-            builtManifest.ManifestVersion = manifestVersion;
 
             // Store the install target from content metadata
             builtManifest.InstallationInstructions ??= new InstallationInstructions();
@@ -284,7 +283,7 @@ public class CommunityOutpostResolver(
     /// <summary>
     /// Extracts a numeric version suitable for manifest ID.
     /// </summary>
-    private static string ExtractManifestVersion(string version)
+    private static string ExtractVersionNumberForManifestId(string version)
     {
         if (string.IsNullOrEmpty(version))
         {
