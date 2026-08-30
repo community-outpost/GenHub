@@ -176,12 +176,12 @@ public class ContentSearchQuery
     /// Normalizes a language code to the canonical casing and alias mapping.
     /// </summary>
     /// <param name="language">The raw language string.</param>
-    /// <returns>The normalized language string, defaulting to "All" when null or empty.</returns>
+    /// <returns>The normalized language string, defaulting to <see cref="CsvConstants.AllLanguagesFilter"/> when null or empty.</returns>
     public static string NormalizeLanguage(string? language)
     {
         if (string.IsNullOrWhiteSpace(language))
         {
-            return "All";
+            return CsvConstants.AllLanguagesFilter;
         }
 
         var key = language.Trim();

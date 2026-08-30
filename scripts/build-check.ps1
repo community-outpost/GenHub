@@ -108,7 +108,8 @@ function Test-DebuggerActive {
                 return $true
             }
             catch {
-                # Ignore non-lock errors
+                # Ignore non-lock errors (e.g. access permissions or file moved)
+                Write-Verbose "Non-lock error checking file $($dll.FullName): $_"
             }
         }
     }

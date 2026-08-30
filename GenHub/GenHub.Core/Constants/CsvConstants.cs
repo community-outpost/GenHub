@@ -1,8 +1,11 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
 /// Constants specific to CSV catalog discovery and content pipeline.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized URI constants for remote catalog discovery")]
 public static class CsvConstants
 {
     /// <summary>
