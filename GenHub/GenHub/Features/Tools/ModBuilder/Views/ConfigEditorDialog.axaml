@@ -1,0 +1,371 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+        x:Class="GenHub.Features.Tools.ModBuilder.Views.ConfigEditorDialog"
+        x:DataType="vm:ConfigEditorViewModel"
+        Title="Configuration Editor"
+        Icon="/Assets/Icons/generalshub-icon.png"
+        Width="1200" Height="800"
+        MinWidth="1000" MinHeight="600"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        SystemDecorations="Full"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        Background="{DynamicResource WindowBackground}">
+
+  <Window.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="../Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="../Styles/ModBuilderIcons.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Window.Resources>
+
+  <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+    <!-- Header -->
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16"
+          Background="Transparent" PointerPressed="OnTitleBarPointerPressed">
+      <StackPanel Grid.Column="0" Spacing="4">
+        <TextBlock Text="Configuration Editor"
+                   FontSize="20"
+                   FontWeight="Bold"
+                   Foreground="{DynamicResource TextPrimary}"/>
+
+        <TextBlock Text="Manage bundle items and packs for your mod"
+                   FontSize="13"
+                   Foreground="{DynamicResource TextSecondary}"/>
+      </StackPanel>
+
+      <StackPanel Grid.Column="1" Spacing="4">
+        <TextBlock Text="Total Items"
+                   FontSize="11"
+                   Foreground="{DynamicResource TextSecondary}"
+                   HorizontalAlignment="Right"/>
+        <TextBlock Text="{Binding BundleItems.Count}"
+                   FontSize="20"
+                   FontWeight="Bold"
+                   Foreground="{DynamicResource TextPrimary}"
+                   HorizontalAlignment="Right"/>
+        <TextBlock FontSize="11"
+                   Foreground="{DynamicResource TextSecondary}"
+                   HorizontalAlignment="Right">
+          <Run Text="{Binding BundlePacks.Count}"/>
+          <Run Text="packs"/>
+        </TextBlock>
+      </StackPanel>
+    </Grid>
+
+    <!-- Main content with tabs -->
+    <TabControl Grid.Row="1" SelectedIndex="{Binding ActiveTabIndex}">
+      <!-- Bundle Items Tab -->
+      <TabItem Header="Bundle Items">
+        <Grid ColumnDefinitions="380,12,*" Margin="0,12,0,0">
+          <!-- Left: List & Actions -->
+          <Grid Grid.Column="0" RowDefinitions="Auto,*">
+            <!-- Toolbar -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,10">
+              <Button Command="{Binding AddBundleItemCommand}"
+                      Background="{DynamicResource AccentBrush}"
+                      Foreground="White" BorderThickness="0"
+                      Padding="14,8" CornerRadius="8" Cursor="Hand"
+                      ToolTip.Tip="Add a new bundle item">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Path Data="{StaticResource IconAdd}" Fill="White" Width="13" Height="13" Stretch="Uniform"/>
+                  <TextBlock Text="Add Item" FontWeight="SemiBold"/>
+                </StackPanel>
+              </Button>
+
+              <Button Command="{Binding RemoveBundleItemCommand}"
+                      IsEnabled="{Binding SelectedBundleItem, Converter={x:Static ObjectConverters.IsNotNull}}"
+                      Background="{DynamicResource SurfaceElevatedBrush}"
+                      Foreground="{DynamicResource TextPrimary}"
+                      BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                      Padding="14,8" CornerRadius="8" Cursor="Hand"
+                      ToolTip.Tip="Remove selected bundle item">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Path Data="{StaticResource IconRemove}" Fill="{DynamicResource TextSecondary}" Width="13" Height="13" Stretch="Uniform"/>
+                  <TextBlock Text="Remove"/>
+                </StackPanel>
+              </Button>
+            </StackPanel>
+
+            <!-- Items ListBox -->
+            <Border Grid.Row="1" Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="10" Padding="8">
+              <ListBox ItemsSource="{Binding BundleItems}"
+                       SelectedItem="{Binding SelectedBundleItem}"
+                       Background="Transparent" BorderThickness="0">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:BundleItemEditorViewModel">
+                    <Grid ColumnDefinitions="*,Auto" Margin="4,6">
+                      <StackPanel Grid.Column="0" Spacing="2">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
+                        <TextBlock Text="{Binding SourcePattern}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis"/>
+                      </StackPanel>
+                      <Border Grid.Column="1" Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                              BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                              CornerRadius="4" Padding="6,2" VerticalAlignment="Center"
+                              IsVisible="{Binding IsBig}">
+                        <TextBlock Text=".BIG" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                      </Border>
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </Border>
+          </Grid>
+
+          <!-- Right: Detail Editor Inspector -->
+          <Border Grid.Column="2" Background="{DynamicResource CardBackground}"
+                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                  CornerRadius="10" Padding="18">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+              <Panel>
+                <!-- Selected State -->
+                <StackPanel Spacing="16" IsVisible="{Binding SelectedBundleItem, Converter={x:Static ObjectConverters.IsNotNull}}">
+                  <TextBlock Text="Bundle Item Settings" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                  <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
+
+                  <!-- Item Name -->
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="Bundle Name" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
+                    <TextBox Text="{Binding SelectedBundleItem.Name, Mode=TwoWay}" Watermark="e.g. MyINI, MyTextures..." />
+                  </StackPanel>
+
+                  <!-- Source Pattern -->
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="Source Files / Glob Pattern" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
+                    <TextBlock Text="Specifies which files inside GameFilesEdited are packed into this bundle" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                    <TextBox Text="{Binding SelectedBundleItem.SourcePattern, Mode=TwoWay}" Watermark="e.g. GameFilesEdited/**/*.* or GameFilesEdited/Data/INI/**/*.ini" />
+
+                    <!-- Quick Presets -->
+                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
+                      <TextBlock Text="Quick Presets:" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                      <Button Command="{Binding SetSourcePatternCommand}" CommandParameter="GameFilesEdited/**/*.*"
+                              Padding="8,4" FontSize="11" CornerRadius="6"
+                              Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                              Content="All Files (**/*.*)" Cursor="Hand"/>
+                      <Button Command="{Binding SetSourcePatternCommand}" CommandParameter="GameFilesEdited/Data/INI/**/*.ini"
+                              Padding="8,4" FontSize="11" CornerRadius="6"
+                              Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                              Content="INI Files" Cursor="Hand"/>
+                      <Button Command="{Binding SetSourcePatternCommand}" CommandParameter="GameFilesEdited/Art/Textures/**/*.tga"
+                              Padding="8,4" FontSize="11" CornerRadius="6"
+                              Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                              Content="Textures (.tga)" Cursor="Hand"/>
+                      <Button Command="{Binding SetSourcePatternCommand}" CommandParameter="GameFilesEdited/Data/Audio/**/*.*"
+                              Padding="8,4" FontSize="11" CornerRadius="6"
+                              Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                              Content="Audio" Cursor="Hand"/>
+                    </StackPanel>
+                  </StackPanel>
+
+                  <!-- BIG Archive Settings -->
+                  <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                          CornerRadius="8" Padding="14">
+                    <StackPanel Spacing="10">
+                      <CheckBox Content="Pack as .BIG Archive" IsChecked="{Binding SelectedBundleItem.IsBig, Mode=TwoWay}"
+                                FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"
+                                ToolTip.Tip="Generates a Command &amp; Conquer .big archive file from these assets"/>
+                      <StackPanel Spacing="6" IsVisible="{Binding SelectedBundleItem.IsBig}">
+                        <TextBlock Text="Archive Name Suffix (optional)" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                        <TextBox Text="{Binding SelectedBundleItem.BigSuffix, Mode=TwoWay}" Watermark="e.g. _01 (generates Name_01.big)" />
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+
+                <!-- Empty State -->
+                <TextBlock Text="Select a bundle item on the left or click 'Add Item' to configure files and settings."
+                           FontSize="13" Foreground="{DynamicResource TextSecondary}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           IsVisible="{Binding SelectedBundleItem, Converter={x:Static ObjectConverters.IsNull}}"/>
+              </Panel>
+            </ScrollViewer>
+          </Border>
+        </Grid>
+      </TabItem>
+
+      <!-- Bundle Packs Tab -->
+      <TabItem Header="Bundle Packs">
+        <Grid ColumnDefinitions="380,12,*" Margin="0,12,0,0">
+          <!-- Left: Packs List & Actions -->
+          <Grid Grid.Column="0" RowDefinitions="Auto,*">
+            <!-- Toolbar -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,10">
+              <Button Command="{Binding AddBundlePackCommand}"
+                      Background="{DynamicResource AccentBrush}"
+                      Foreground="White" BorderThickness="0"
+                      Padding="14,8" CornerRadius="8" Cursor="Hand"
+                      ToolTip.Tip="Add a new bundle pack">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Path Data="{StaticResource IconAdd}" Fill="White" Width="13" Height="13" Stretch="Uniform"/>
+                  <TextBlock Text="Add Pack" FontWeight="SemiBold"/>
+                </StackPanel>
+              </Button>
+
+              <Button Command="{Binding RemoveBundlePackCommand}"
+                      IsEnabled="{Binding SelectedBundlePack, Converter={x:Static ObjectConverters.IsNotNull}}"
+                      Background="{DynamicResource SurfaceElevatedBrush}"
+                      Foreground="{DynamicResource TextPrimary}"
+                      BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                      Padding="14,8" CornerRadius="8" Cursor="Hand"
+                      ToolTip.Tip="Remove selected bundle pack">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Path Data="{StaticResource IconRemove}" Fill="{DynamicResource TextSecondary}" Width="13" Height="13" Stretch="Uniform"/>
+                  <TextBlock Text="Remove"/>
+                </StackPanel>
+              </Button>
+            </StackPanel>
+
+            <!-- Packs ListBox -->
+            <Border Grid.Row="1" Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="10" Padding="8">
+              <ListBox ItemsSource="{Binding BundlePacks}"
+                       SelectedItem="{Binding SelectedBundlePack}"
+                       Background="Transparent" BorderThickness="0">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:BundlePackConfigViewModel">
+                    <Grid ColumnDefinitions="*,Auto" Margin="4,6">
+                      <StackPanel Grid.Column="0" Spacing="2">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
+                        <TextBlock Text="{Binding ItemNames.Count, StringFormat='{}{0} item(s) included'}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                      </StackPanel>
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                        <Border Background="{DynamicResource SuccessBadgeBackgroundBrush}"
+                                BorderBrush="{DynamicResource SuccessBrush}" BorderThickness="1"
+                                CornerRadius="4" Padding="5,2" IsVisible="{Binding AllowBuild}">
+                          <TextBlock Text="Build" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"/>
+                        </Border>
+                        <Border Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                                CornerRadius="4" Padding="5,2" IsVisible="{Binding AllowInstall}">
+                          <TextBlock Text="Install" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                        </Border>
+                      </StackPanel>
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </Border>
+          </Grid>
+
+          <!-- Right: Pack Detail Inspector -->
+          <Border Grid.Column="2" Background="{DynamicResource CardBackground}"
+                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                  CornerRadius="10" Padding="18">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+              <Panel>
+                <!-- Selected State -->
+                <StackPanel Spacing="16" IsVisible="{Binding SelectedBundlePack, Converter={x:Static ObjectConverters.IsNotNull}}">
+                  <TextBlock Text="Bundle Pack Settings" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                  <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
+
+                  <!-- Pack Name -->
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="Pack Name" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
+                    <TextBox Text="{Binding SelectedBundlePack.Name, Mode=TwoWay}" Watermark="e.g. MyMod, EnhancedEdition..." />
+                  </StackPanel>
+
+                  <!-- Included Bundle Items (Checklist) -->
+                  <StackPanel Spacing="8">
+                    <TextBlock Text="Included Bundle Items in this Pack" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
+                    <TextBlock Text="Check which bundle items should be combined when this pack is built" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+
+                    <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="12" MinHeight="100">
+                      <ItemsControl ItemsSource="{Binding PackItemSelections}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:BundleItemSelectionItemViewModel">
+                            <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="0,4">
+                              <TextBlock Text="{Binding Name}" FontWeight="Medium" Foreground="{DynamicResource TextPrimary}"/>
+                            </CheckBox>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </Border>
+                  </StackPanel>
+
+                  <!-- Build & Deployment Options -->
+                  <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                          CornerRadius="8" Padding="14">
+                    <StackPanel Spacing="8">
+                      <TextBlock Text="Actions &amp; Targets" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
+                      <CheckBox Content="Allow Build (Generates final .BIG and Release archives)" IsChecked="{Binding SelectedBundlePack.AllowBuild, Mode=TwoWay}" Foreground="{DynamicResource TextPrimary}"/>
+                      <CheckBox Content="Allow Install (Copies mod file directly to game folder on Install)" IsChecked="{Binding SelectedBundlePack.AllowInstall, Mode=TwoWay}" Foreground="{DynamicResource TextPrimary}"/>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+
+                <!-- Empty State -->
+                <TextBlock Text="Select a bundle pack on the left or click 'Add Pack' to configure items and deployment."
+                           FontSize="13" Foreground="{DynamicResource TextSecondary}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           IsVisible="{Binding SelectedBundlePack, Converter={x:Static ObjectConverters.IsNull}}"/>
+              </Panel>
+            </ScrollViewer>
+          </Border>
+        </Grid>
+      </TabItem>
+    </TabControl>
+
+    <!-- Footer actions -->
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="0,16,0,0">
+      <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <Border Background="{DynamicResource WarningBadgeBackgroundBrush}"
+                BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1"
+                CornerRadius="4"
+                Padding="8,3"
+                IsVisible="{Binding HasChanges}">
+          <TextBlock Text="Unsaved Changes"
+                     FontSize="11"
+                     FontWeight="SemiBold"
+                     Foreground="{DynamicResource WarningBrush}"/>
+        </Border>
+
+        <TextBlock Text="Changes will be saved to configuration files"
+                   FontSize="11.5"
+                   Foreground="{DynamicResource TextSecondary}"
+                   VerticalAlignment="Center"
+                   IsVisible="{Binding HasChanges}"/>
+      </StackPanel>
+
+      <Button Grid.Column="1"
+              Command="{Binding SaveCommand}"
+              Background="{DynamicResource AccentBrush}"
+              Foreground="White" BorderThickness="0"
+              Padding="18,8" CornerRadius="8"
+              Margin="0,0,8,0"
+              MinWidth="100" Cursor="Hand">
+        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+          <Path Data="{StaticResource IconSave}"
+                Fill="White"
+                Width="13" Height="13"
+                Stretch="Uniform"/>
+          <TextBlock Text="Save" FontWeight="SemiBold"/>
+        </StackPanel>
+      </Button>
+
+      <Button Grid.Column="2"
+              Command="{Binding CancelCommand}"
+              Background="{DynamicResource SurfaceElevatedBrush}"
+              Foreground="{DynamicResource TextPrimary}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              Padding="18,8" CornerRadius="8"
+              MinWidth="100" Cursor="Hand">
+        <TextBlock Text="Close" HorizontalAlignment="Center"/>
+      </Button>
+    </Grid>
+  </Grid>
+</Window>

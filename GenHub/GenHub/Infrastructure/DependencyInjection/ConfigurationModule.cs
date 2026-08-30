@@ -20,13 +20,6 @@ public static class ConfigurationModule
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddConfigurationModule(this IServiceCollection services)
     {
-        // Create bootstrap logger factory for configuration services
-        var bootstrapLoggerFactory = LoggerFactory.Create(builder =>
-        {
-            builder.AddConsole();
-            builder.SetMinimumLevel(LogLevel.Warning);
-        });
-
         // Register IConfiguration first - this is required by AppConfiguration
         services.AddSingleton<IConfiguration>(provider =>
         {
@@ -39,17 +32,17 @@ public static class ConfigurationModule
             return builder.Build();
         });
 
-        // Register bootstrap loggers for configuration services
+        // Register loggers for configuration services
         services.AddSingleton<ILogger<AppConfiguration>>(provider =>
-            bootstrapLoggerFactory.CreateLogger<AppConfiguration>());
+            (provider.GetService<ILoggerFactory>() ?? Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance).CreateLogger<AppConfiguration>());
         services.AddSingleton<ILogger<UserSettingsService>>(provider =>
-            bootstrapLoggerFactory.CreateLogger<UserSettingsService>());
+            (provider.GetService<ILoggerFactory>() ?? Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance).CreateLogger<UserSettingsService>());
         services.AddSingleton<ILogger<ConfigurationProviderService>>(provider =>
-            bootstrapLoggerFactory.CreateLogger<ConfigurationProviderService>());
+            (provider.GetService<ILoggerFactory>() ?? Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance).CreateLogger<ConfigurationProviderService>());
         services.AddSingleton<ILogger<StorageLocationService>>(provider =>
-            bootstrapLoggerFactory.CreateLogger<StorageLocationService>());
+            (provider.GetService<ILoggerFactory>() ?? Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance).CreateLogger<StorageLocationService>());
         services.AddSingleton<ILogger<ThemeService>>(provider =>
-            bootstrapLoggerFactory.CreateLogger<ThemeService>());
+            (provider.GetService<ILoggerFactory>() ?? Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance).CreateLogger<ThemeService>());
         services.AddSingleton<ISessionPreferenceService, SessionPreferenceService>();
         services.AddSingleton<IDialogService, DialogService>();
         services.AddSingleton<IAppConfiguration, AppConfiguration>();

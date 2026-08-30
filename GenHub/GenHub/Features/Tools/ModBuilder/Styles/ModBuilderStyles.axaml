@@ -1,0 +1,146 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters">
+
+  <!-- Converters -->
+  <conv:ActiveBorderConverter x:Key="ActiveBorderConverter"/>
+  <conv:IndentConverter x:Key="IndentConverter"/>
+  <conv:BoolToColorConverter x:Key="BoolToColorConverter"/>
+  <conv:BoolToTextConverter x:Key="BoolToStringConverter"/>
+  <conv:BoolToTextConverter x:Key="BoolToTextConverter"/>
+
+  <!-- ============================================ -->
+  <!-- MODBUILDER DYNAMIC DESIGN SYSTEM             -->
+  <!-- Bound to GenHub Theme Resources              -->
+  <!-- ============================================ -->
+
+  <!-- Semantic Brush Aliases (Dynamic from ThemeResources) -->
+  <SolidColorBrush x:Key="BackgroundPrimaryBrush" Color="{DynamicResource SurfaceBackgroundDark}"/>
+  <SolidColorBrush x:Key="BackgroundSecondaryBrush" Color="{DynamicResource SurfaceCardDark}"/>
+  <SolidColorBrush x:Key="BackgroundTertiaryBrush" Color="{DynamicResource SurfaceElevatedDark}"/>
+  <SolidColorBrush x:Key="BackgroundElevatedBrush" Color="{DynamicResource SurfaceElevatedDark}"/>
+
+  <SolidColorBrush x:Key="SurfaceBrush" Color="{DynamicResource SurfaceElevatedDark}"/>
+  <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{DynamicResource SurfaceHoverDark}"/>
+  <SolidColorBrush x:Key="SurfaceActiveBrush" Color="{DynamicResource AccentBadgeBackgroundColor}"/>
+
+  <SolidColorBrush x:Key="AccentPrimaryBrush" Color="{DynamicResource AccentColor}"/>
+  <SolidColorBrush x:Key="AccentSecondaryBrush" Color="{DynamicResource AccentLightColor}"/>
+  <SolidColorBrush x:Key="AccentTertiaryBrush" Color="{DynamicResource AccentDarkColor}"/>
+
+  <SolidColorBrush x:Key="SuccessBrush" Color="{DynamicResource SuccessColor}"/>
+  <SolidColorBrush x:Key="WarningBrush" Color="{DynamicResource WarningColor}"/>
+  <SolidColorBrush x:Key="ErrorBrush" Color="{DynamicResource ErrorColor}"/>
+  <SolidColorBrush x:Key="InfoBrush" Color="{DynamicResource AccentColor}"/>
+
+  <SolidColorBrush x:Key="SuccessBadgeBackgroundBrush" Color="#2010B981"/>
+  <SolidColorBrush x:Key="WarningBadgeBackgroundBrush" Color="#20F59E0B"/>
+  <SolidColorBrush x:Key="ErrorBadgeBackgroundBrush" Color="#20EF4444"/>
+
+  <SolidColorBrush x:Key="TextPrimaryBrush" Color="{DynamicResource TextPrimaryColor}"/>
+  <SolidColorBrush x:Key="TextSecondaryBrush" Color="{DynamicResource TextSecondaryColor}"/>
+  <SolidColorBrush x:Key="TextTertiaryBrush" Color="{DynamicResource TextMutedColor}"/>
+  <SolidColorBrush x:Key="TextDisabledBrush" Color="{DynamicResource TextMutedColor}"/>
+
+  <SolidColorBrush x:Key="BorderBrush" Color="{DynamicResource BorderSubtleDark}"/>
+  <SolidColorBrush x:Key="BorderHoverBrush" Color="{DynamicResource BorderHighlightDark}"/>
+  <SolidColorBrush x:Key="BorderActiveBrush" Color="{DynamicResource AccentColor}"/>
+
+  <SolidColorBrush x:Key="OverlayBrush" Color="#CC08080C"/>
+  <SolidColorBrush x:Key="OverlayLightBrush" Color="#8008080C"/>
+
+  <!-- Gradient Brushes -->
+  <LinearGradientBrush x:Key="AccentGradientBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+    <GradientStop Color="{DynamicResource AccentColor}" Offset="0"/>
+    <GradientStop Color="{DynamicResource AccentLightColor}" Offset="1"/>
+  </LinearGradientBrush>
+
+  <LinearGradientBrush x:Key="SurfaceGradientBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+    <GradientStop Color="{DynamicResource SurfaceCardDark}" Offset="0"/>
+    <GradientStop Color="{DynamicResource SurfaceElevatedDark}" Offset="1"/>
+  </LinearGradientBrush>
+
+  <!-- ============================================ -->
+  <!-- TYPOGRAPHY                                   -->
+  <!-- ============================================ -->
+
+  <FontFamily x:Key="FontFamilyPrimary">Segoe UI, -apple-system, BlinkMacSystemFont, Arial, sans-serif</FontFamily>
+  <FontFamily x:Key="FontFamilyMonospace">JetBrains Mono, Consolas, Courier New, monospace</FontFamily>
+  <FontFamily x:Key="FontFamilyHeading">Segoe UI Semibold, -apple-system, BlinkMacSystemFont, Arial, sans-serif</FontFamily>
+
+  <!-- Font Sizes -->
+  <x:Double x:Key="FontSizeXSmall">10</x:Double>
+  <x:Double x:Key="FontSizeSmall">11.5</x:Double>
+  <x:Double x:Key="FontSizeNormal">12.5</x:Double>
+  <x:Double x:Key="FontSizeMedium">13.5</x:Double>
+  <x:Double x:Key="FontSizeLarge">15</x:Double>
+  <x:Double x:Key="FontSizeXLarge">17</x:Double>
+  <x:Double x:Key="FontSizeXXLarge">20</x:Double>
+  <x:Double x:Key="FontSizeHeading1">24</x:Double>
+  <x:Double x:Key="FontSizeHeading2">20</x:Double>
+  <x:Double x:Key="FontSizeHeading3">16</x:Double>
+
+  <!-- Font Weights -->
+  <FontWeight x:Key="FontWeightLight">Light</FontWeight>
+  <FontWeight x:Key="FontWeightNormal">Normal</FontWeight>
+  <FontWeight x:Key="FontWeightMedium">Medium</FontWeight>
+  <FontWeight x:Key="FontWeightSemiBold">SemiBold</FontWeight>
+  <FontWeight x:Key="FontWeightBold">Bold</FontWeight>
+
+  <!-- ============================================ -->
+  <!-- SPACING & SIZING                             -->
+  <!-- ============================================ -->
+
+  <x:Double x:Key="SpacingXSmall">4</x:Double>
+  <x:Double x:Key="SpacingSmall">8</x:Double>
+  <x:Double x:Key="SpacingNormal">12</x:Double>
+  <x:Double x:Key="SpacingMedium">16</x:Double>
+  <x:Double x:Key="SpacingLarge">20</x:Double>
+  <x:Double x:Key="SpacingXLarge">24</x:Double>
+  <x:Double x:Key="SpacingXXLarge">32</x:Double>
+
+  <!-- Corner Radius -->
+  <CornerRadius x:Key="CornerRadiusSmall">6</CornerRadius>
+  <CornerRadius x:Key="CornerRadiusNormal">8</CornerRadius>
+  <CornerRadius x:Key="CornerRadiusMedium">10</CornerRadius>
+  <CornerRadius x:Key="CornerRadiusLarge">12</CornerRadius>
+  <CornerRadius x:Key="CornerRadiusXLarge">16</CornerRadius>
+
+  <!-- Border Thickness -->
+  <Thickness x:Key="BorderThicknessThin">1</Thickness>
+  <Thickness x:Key="BorderThicknessNormal">1</Thickness>
+  <Thickness x:Key="BorderThicknessThick">2</Thickness>
+
+  <!-- Padding -->
+  <Thickness x:Key="PaddingXSmall">4</Thickness>
+  <Thickness x:Key="PaddingSmall">8</Thickness>
+  <Thickness x:Key="PaddingNormal">12</Thickness>
+  <Thickness x:Key="PaddingMedium">16</Thickness>
+  <Thickness x:Key="PaddingLarge">20</Thickness>
+  <Thickness x:Key="PaddingXLarge">24</Thickness>
+  <Thickness x:Key="PaddingXXLarge">32</Thickness>
+
+  <!-- ============================================ -->
+  <!-- SHADOWS & EFFECTS                            -->
+  <!-- ============================================ -->
+
+  <BoxShadows x:Key="ShadowSmall">0 2 6 0 #30000000</BoxShadows>
+  <BoxShadows x:Key="ShadowNormal">0 4 12 0 #40000000</BoxShadows>
+  <BoxShadows x:Key="ShadowMedium">0 6 18 0 #50000000</BoxShadows>
+  <BoxShadows x:Key="ShadowLarge">0 10 28 0 #60000000</BoxShadows>
+  <BoxShadows x:Key="ShadowXLarge">0 16 40 0 #80000000</BoxShadows>
+
+  <!-- Glow Effects -->
+  <BoxShadows x:Key="GlowAccent">0 0 16 0 #60A855F7</BoxShadows>
+  <BoxShadows x:Key="GlowSuccess">0 0 16 0 #6010B981</BoxShadows>
+  <BoxShadows x:Key="GlowError">0 0 16 0 #60EF4444</BoxShadows>
+
+  <!-- ============================================ -->
+  <!-- ANIMATIONS                                   -->
+  <!-- ============================================ -->
+
+  <x:Double x:Key="AnimationDurationFast">0.15</x:Double>
+  <x:Double x:Key="AnimationDurationNormal">0.25</x:Double>
+  <x:Double x:Key="AnimationDurationSlow">0.35</x:Double>
+
+</ResourceDictionary>

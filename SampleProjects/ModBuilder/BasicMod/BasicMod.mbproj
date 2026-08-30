@@ -1,0 +1,16 @@
+{
+  "name": "BasicMod",
+  "version": "1.0.0",
+  "author": "Sample Project",
+  "description": "A basic sample project demonstrating ModBuilder functionality",
+  "directories": {
+    "configs": "config",
+    "gameFilesEdited": "GameFilesEdited",
+    "build": ".Build",
+    "release": ".Release"
+  },
+  "bundleConfigs": [
+    "ModBundleItems.json",
+    "ModBundlePacks.json"
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "BundleItems": [
+    {
+      "Name": "CoreINIPatch",
+      "Type": "INI",
+      "SourceFiles": [
+        "GameFilesEdited/Data/INI/**/*.ini"
+      ],
+      "OutputFormat": "INI",
+      "Description": "Game balance and unit attribute INI files"
+    },
+    {
+      "Name": "CoreTextures",
+      "Type": "Texture",
+      "SourceFiles": [
+        "GameFilesEdited/Art/Textures/**/*.tga"
+      ],
+      "OutputFormat": "DDS",
+      "Compression": "DXT5",
+      "GenerateMipmaps": true,
+      "Description": "Faction and vehicle textures converted to DDS"
+    },
+    {
+      "Name": "CoreAudio",
+      "Type": "Audio",
+      "SourceFiles": [
+        "GameFilesEdited/Data/Audio/**/*.wav"
+      ],
+      "OutputFormat": "WAV",
+      "Description": "Unit sound effects and combat audio"
+    },
+    {
+      "Name": "GameScripts",
+      "Type": "Script",
+      "SourceFiles": [
+        "GameFilesEdited/Data/Scripts/**/*.txt"
+      ],
+      "OutputFormat": "TXT",
+      "Description": "AI and gameplay script overrides"
+    }
+  ]
+}

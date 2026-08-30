@@ -106,6 +106,11 @@ public class UserSettings
     /// </summary>
     public HashSet<string> ExecutedInstallationSteps { get; set; } = [];
 
+    /// <summary>
+    /// Gets or sets the CSV catalog configuration.
+    /// </summary>
+    public CsvCatalogConfiguration? CsvCatalogConfiguration { get; set; }
+
     /// <summary>Marks a property as explicitly set by the user.</summary>
     /// <param name="propertyName">The name of the property to mark as explicitly set.</param>
     public void MarkAsExplicitlySet(string propertyName)
@@ -218,6 +223,7 @@ public class UserSettings
             ExplicitlySetProperties = [.. ExplicitlySetProperties],
             CasConfiguration = (CasConfiguration?)CasConfiguration?.Clone() ?? new CasConfiguration(),
             ExecutedInstallationSteps = ExecutedInstallationSteps != null ? [.. ExecutedInstallationSteps] : [],
+            CsvCatalogConfiguration = CsvCatalogConfiguration,
             SkippedUpdateVersions = SkippedUpdateVersions != null ? new Dictionary<string, string>(SkippedUpdateVersions) : [],
             PreferredUpdateStrategy = PreferredUpdateStrategy,
             PublisherSubscriptions = PublisherSubscriptions != null

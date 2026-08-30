@@ -1,4 +1,3 @@
-using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Features.Content.Services.ContentDiscoverers;
@@ -30,16 +29,11 @@ public class DownloadsViewModelTests
             new Mock<IGitHubApiClient>().Object,
             new Mock<ILogger<GitHubTopicsDiscoverer>>().Object);
 
-        var mockConfigProvider = new Mock<IConfigurationProviderService>();
-        mockConfigProvider.Setup(x => x.GetApplicationDataPath()).Returns(Path.GetTempPath());
-        mockConfigProvider.Setup(x => x.GetWorkspacePath()).Returns(Path.Combine(Path.GetTempPath(), "GenHubWorkspaces"));
-
         var vm = new DownloadsViewModel(
             mockServiceProvider.Object,
             mockLogger.Object,
             mockNotificationService.Object,
-            discoverer,
-            mockConfigProvider.Object);
+            discoverer);
 
         // Act
         await vm.InitializeAsync();

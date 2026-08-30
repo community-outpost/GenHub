@@ -1,0 +1,9 @@
+// =========================================================================
+// Command & Conquer: Generals / Zero Hour - Community Script Fixes
+// =========================================================================
+
+IF
+  PathfindingBlocked == TRUE
+THEN
+  RecalculateWaypointRoute
+END

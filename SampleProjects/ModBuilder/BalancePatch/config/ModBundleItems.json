@@ -1,0 +1,12 @@
+{
+  "BundleItems": [
+    {
+      "Name": "GameplayINIs",
+      "SourceFiles": [
+        "GameFilesEdited/Data/INI/**/*.ini"
+      ],
+      "OutputFormat": "INI",
+      "Description": "Competitive unit balance, weapon range tweaks, and armor tuning"
+    }
+  ]
+}

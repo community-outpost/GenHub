@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.CommunityOutpost;
@@ -32,12 +33,68 @@ public static class BigFilePacker
     /// </summary>
     /// <param name="sourceDirectory">The directory containing files to pack.</param>
     /// <param name="destinationPath">The output .big file path.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public static async Task PackAsync(string sourceDirectory, string destinationPath)
+    public static Task PackAsync(string sourceDirectory, string destinationPath, CancellationToken cancellationToken = default)
+        => PackAsync(sourceDirectory, destinationPath, null, cancellationToken);
+
+    /// <summary>
+    /// Packs the contents of a directory into a .big file, excluding temporary and target archive files.
+    /// </summary>
+    /// <param name="sourceDirectory">The directory containing files to pack.</param>
+    /// <param name="destinationPath">The output .big file path.</param>
+    /// <param name="targetArchivePath">Optional target archive path to exclude if packing in-place.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public static async Task PackAsync(string sourceDirectory, string destinationPath, string? targetArchivePath, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var destinationFullPath = Path.GetFullPath(destinationPath);
+        var targetArchiveFullPath = !string.IsNullOrEmpty(targetArchivePath) ? Path.GetFullPath(targetArchivePath) : null;
+        var (entries, headerSize, totalSize) = CollectBigEntries(sourceDirectory, destinationFullPath, targetArchiveFullPath, cancellationToken);
+
+        var destinationDir = Path.GetDirectoryName(destinationPath);
+        if (!string.IsNullOrEmpty(destinationDir) && !Directory.Exists(destinationDir))
+        {
+            Directory.CreateDirectory(destinationDir);
+        }
+
+        var tempPath = destinationPath + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp";
+
+        try
+        {
+            await using (var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                await WriteBigArchiveAsync(fs, entries, headerSize, totalSize, cancellationToken).ConfigureAwait(false);
+            }
+
+            File.Move(tempPath, destinationPath, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                try
+                {
+                    File.Delete(tempPath);
+                }
+                catch
+                {
+                    // Ignore temporary file deletion failure
+                }
+            }
+        }
+    }
+
+    private static (List<BigFileEntry> Entries, long HeaderSize, long TotalSize) CollectBigEntries(
+        string sourceDirectory,
+        string destinationFullPath,
+        string? targetArchiveFullPath,
+        CancellationToken cancellationToken)
+    {
         var files = Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories)
-            .Where(f => !Path.GetFullPath(f).Equals(destinationFullPath, StringComparison.OrdinalIgnoreCase))
+            .Where(f => IsEligibleBigSourceFile(f, destinationFullPath, targetArchiveFullPath))
             .Select(f => new
             {
                 FullPath = f,
@@ -45,26 +102,21 @@ public static class BigFilePacker
             })
             .OrderBy(f => f.RelativePath, StringComparer.OrdinalIgnoreCase)
             .ToList();
-        var entries = new List<BigFileEntry>();
 
-        // Calculate header size
-        // Header: Signature (4) + TotalSize (4) + NumFiles (4) + HeaderSize (4) = 16 bytes
+        var entries = new List<BigFileEntry>();
         long headerSize = 16;
 
         foreach (var file in files)
         {
-            var relativePath = file.RelativePath;
+            cancellationToken.ThrowIfCancellationRequested();
 
-            // Validate components are ASCII-only
+            var relativePath = file.RelativePath;
             if (relativePath.Any(c => c > 127))
             {
-                 throw new NotSupportedException($"File path contains non-ASCII characters, which are not supported by the .big format: {relativePath}");
+                throw new NotSupportedException($"File path contains non-ASCII characters, which are not supported by the .big format: {relativePath}");
             }
 
-            var encoding = Encoding.ASCII;
-            var nameBytes = encoding.GetBytes(relativePath);
-
-            // Entry: Offset (4) + Size (4) + Name (n) + Null Terminator (1)
+            var nameBytes = Encoding.ASCII.GetBytes(relativePath);
             headerSize += 4 + 4 + nameBytes.Length + 1;
 
             entries.Add(new BigFileEntry
@@ -75,15 +127,39 @@ public static class BigFilePacker
             });
         }
 
-        // Calculate total size and check for BIG format overflow (4GB limit)
         long totalSize = headerSize + entries.Sum(e => e.Size);
         if (totalSize > uint.MaxValue)
         {
             throw new NotSupportedException($"Generated BIG archive size ({totalSize} bytes) exceeds the 4GB limit supported by the .big format.");
         }
 
-        using var fs = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None);
-        using var writer = new BinaryWriter(fs);
+        return (entries, headerSize, totalSize);
+    }
+
+    private static bool IsEligibleBigSourceFile(string filePath, string destinationFullPath, string? targetArchiveFullPath)
+    {
+        var full = Path.GetFullPath(filePath);
+        if (full.Equals(destinationFullPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (targetArchiveFullPath != null && full.Equals(targetArchiveFullPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return !full.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task WriteBigArchiveAsync(
+        Stream outputStream,
+        List<BigFileEntry> entries,
+        long headerSize,
+        long totalSize,
+        CancellationToken cancellationToken)
+    {
+        using var writer = new BinaryWriter(outputStream, Encoding.ASCII, leaveOpen: true);
 
         // Write Header
         writer.Write(Encoding.ASCII.GetBytes(Signature));
@@ -91,31 +167,31 @@ public static class BigFilePacker
         WriteUInt32BigEndian(writer, (uint)entries.Count);
         WriteUInt32BigEndian(writer, (uint)headerSize);
 
-        // Calculate initial offset
-        long currentOffset = headerSize;
-
         // Write Index
+        long currentOffset = headerSize;
         foreach (var entry in entries)
         {
             WriteUInt32BigEndian(writer, (uint)currentOffset);
             WriteUInt32BigEndian(writer, (uint)entry.Size);
             writer.Write(Encoding.ASCII.GetBytes(entry.RelativePath));
-            writer.Write((byte)0); // Null terminator
+            writer.Write((byte)0);
 
             currentOffset += entry.Size;
         }
 
-        // Write Data
         writer.Flush();
+
+        // Write Data
         foreach (var entry in entries)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             using var fileStream = File.OpenRead(entry.FullPath);
             if (fileStream.Length != entry.Size)
             {
                 throw new IOException($"File size changed during packing for {entry.RelativePath}. Expected {entry.Size} bytes, found {fileStream.Length} bytes.");
             }
 
-            await fileStream.CopyToAsync(fs);
+            await fileStream.CopyToAsync(outputStream, cancellationToken).ConfigureAwait(false);
         }
     }
 
