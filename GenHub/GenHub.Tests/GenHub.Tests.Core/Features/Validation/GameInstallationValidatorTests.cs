@@ -792,6 +792,123 @@ public class GameInstallationValidatorTests
     }
 
     /// <summary>
+    /// Tests that when CSV provider fails to find a manifest, fallback to IManifestProvider succeeds without retaining CSV failure issues.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateAsync_CsvFails_FallbackManifestProviderSucceeds_DoesNotPreserveCsvFailureAsync()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var fallbackManifest = new ContentManifest
+            {
+                Id = new ManifestId("fallback-manifest"),
+                Name = "Fallback Manifest",
+                Version = "1.0",
+                Files = [new ManifestFile { RelativePath = "test.big", Size = 50, Hash = "abc" }],
+            };
+
+            var mockManifestProvider = new Mock<IManifestProvider>();
+            mockManifestProvider
+                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(fallbackManifest);
+
+            var mockContentProvider = new Mock<IContentProvider>();
+            mockContentProvider.Setup(p => p.SourceName).Returns(PublisherTypeConstants.CsvRegistry);
+            mockContentProvider
+                .Setup(p => p.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure("Catalog not found"));
+
+            _contentValidatorMock
+                .Setup(c => c.ValidateAllAsync(It.IsAny<string>(), fallbackManifest, It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ValidationResult(tempDir.FullName, [], TimeSpan.FromSeconds(1), 1));
+
+            var validator = new GameInstallationValidator(
+                _loggerMock.Object,
+                mockManifestProvider.Object,
+                _contentValidatorMock.Object,
+                _hashProviderMock.Object,
+                null,
+                null,
+                [mockContentProvider.Object]);
+
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Steam,
+                new Mock<ILogger<GameInstallation>>().Object);
+            installation.SetPaths(tempDir.FullName, null);
+
+            var result = await validator.ValidateAsync(installation);
+
+            Assert.True(result.IsValid);
+            Assert.Empty(result.Issues);
+            Assert.Equal(1, result.TotalFilesValidated);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Tests that when content validator throws an exception, TotalFilesValidated reports 0 rather than full manifest count.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateAsync_ContentValidatorThrows_ReportsZeroTotalFilesValidatedAsync()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var manifest = new ContentManifest
+            {
+                Id = new ManifestId("test-manifest"),
+                Name = "Test Manifest",
+                Files =
+                [
+                    new ManifestFile { RelativePath = "file1.big", Size = 10, Hash = "h1" },
+                    new ManifestFile { RelativePath = "file2.big", Size = 20, Hash = "h2" },
+                ],
+            };
+
+            var mockManifestProvider = new Mock<IManifestProvider>();
+            mockManifestProvider
+                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(manifest);
+
+            _contentValidatorMock
+                .Setup(c => c.ValidateAllAsync(It.IsAny<string>(), manifest, It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new IOException("Disk read error"));
+
+            var validator = new GameInstallationValidator(
+                _loggerMock.Object,
+                mockManifestProvider.Object,
+                _contentValidatorMock.Object,
+                _hashProviderMock.Object,
+                null,
+                null,
+                null);
+
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Steam,
+                new Mock<ILogger<GameInstallation>>().Object);
+            installation.SetPaths(tempDir.FullName, null);
+
+            var result = await validator.ValidateAsync(installation);
+
+            Assert.False(result.IsValid);
+            Assert.Equal(0, result.TotalFilesValidated);
+            Assert.Contains(result.Issues, i => i.Message.Contains("Disk read error"));
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
     /// Custom progress implementation that captures reports synchronously.
     /// </summary>
     private sealed class SynchronousProgress<T> : IProgress<T>

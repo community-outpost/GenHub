@@ -43,14 +43,14 @@ public class GameInstallationValidator(
         contentProviders?.FirstOrDefault(p => string.Equals(p.SourceName, PublisherTypeConstants.CsvRegistry, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
-    /// Validates the specified game installation.
+    /// Validates the specified game installation against expected files and checksums.
     /// </summary>
     /// <param name="installation">The game installation to validate.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A <see cref="ValidationResult"/> representing the validation outcome.</returns>
     public Task<ValidationResult> ValidateAsync(GameInstallation installation, CancellationToken cancellationToken = default)
     {
-        return ValidateAsync(installation, (string?)null, null, cancellationToken);
+        return ValidateInternalAsync(installation, null, null, cancellationToken);
     }
 
     /// <summary>
@@ -62,22 +62,61 @@ public class GameInstallationValidator(
     /// <returns>A <see cref="ValidationResult"/> representing the validation outcome.</returns>
     public Task<ValidationResult> ValidateAsync(GameInstallation installation, IProgress<ValidationProgress>? progress, CancellationToken cancellationToken = default)
     {
-        return ValidateAsync(installation, (string?)null, progress, cancellationToken);
+        return ValidateInternalAsync(installation, null, progress, cancellationToken);
     }
 
     /// <summary>
-    /// Validates the specified game installation with explicit language and progress reporting.
+    /// Validates the specified game installation with explicit language and optional progress reporting.
     /// </summary>
     /// <param name="installation">The game installation to validate.</param>
-    /// <param name="language">Optional explicit language code. If null, language is auto-detected.</param>
+    /// <param name="language">The explicit language code (e.g. "EN", "DE").</param>
     /// <param name="progress">Progress reporter for MVVM integration.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A <see cref="ValidationResult"/> representing the validation outcome.</returns>
-    public async Task<ValidationResult> ValidateAsync(
+    public Task<ValidationResult> ValidateAsync(
         GameInstallation installation,
-        string? language,
+        string language,
         IProgress<ValidationProgress>? progress = null,
         CancellationToken cancellationToken = default)
+    {
+        return ValidateInternalAsync(installation, language, progress, cancellationToken);
+    }
+
+    /// <summary>
+    /// Validates a specific game installation directory by path, game type, and optional language.
+    /// </summary>
+    /// <param name="installationPath">The path to the game directory.</param>
+    /// <param name="gameType">The target game type (Generals or ZeroHour).</param>
+    /// <param name="language">Optional explicit language code. If null, language is auto-detected.</param>
+    /// <param name="progress">Progress reporter for MVVM integration.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A <see cref="ValidationResult"/> representing the outcome of the validation.</returns>
+    public Task<ValidationResult> ValidateInstallationAsync(
+        string installationPath,
+        GameType gameType,
+        string? language = null,
+        IProgress<ValidationProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(installationPath))
+        {
+            throw new ArgumentException("Installation path cannot be null or empty.", nameof(installationPath));
+        }
+
+        return ValidateInstallationCoreAsync(
+            installationPath,
+            gameType,
+            language,
+            installation: null,
+            progress: progress,
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task<ValidationResult> ValidateInternalAsync(
+        GameInstallation installation,
+        string? language,
+        IProgress<ValidationProgress>? progress,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(installation);
         cancellationToken.ThrowIfCancellationRequested();
@@ -136,36 +175,6 @@ public class GameInstallationValidator(
         return new ValidationResult(installation.InstallationPath, issues, stopwatch.Elapsed, totalFiles);
     }
 
-    /// <summary>
-    /// Validates a specific game installation directory by path, game type, and optional language.
-    /// </summary>
-    /// <param name="installationPath">The path to the game directory.</param>
-    /// <param name="gameType">The target game type (Generals or ZeroHour).</param>
-    /// <param name="language">Optional explicit language code. If null, language is auto-detected.</param>
-    /// <param name="progress">Progress reporter for MVVM integration.</param>
-    /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns>A <see cref="ValidationResult"/> representing the outcome of the validation.</returns>
-    public Task<ValidationResult> ValidateInstallationAsync(
-        string installationPath,
-        GameType gameType,
-        string? language = null,
-        IProgress<ValidationProgress>? progress = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(installationPath))
-        {
-            throw new ArgumentException("Installation path cannot be null or empty.", nameof(installationPath));
-        }
-
-        return ValidateInstallationCoreAsync(
-            installationPath,
-            gameType,
-            language,
-            installation: null,
-            progress: progress,
-            cancellationToken: cancellationToken);
-    }
-
     private async Task<ValidationResult> ValidateInstallationCoreAsync(
         string installationPath,
         GameType gameType,
@@ -194,26 +203,40 @@ public class GameInstallationValidator(
         progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Resolving manifest"));
 
         ContentManifest? manifest = null;
+        var csvIssues = new List<ValidationIssue>();
         if (_resolvedCsvProvider != null)
         {
             manifest = await ResolveManifestFromCsvProviderAsync(
                 installationPath,
                 gameType,
                 normalizedLanguage,
-                issues,
+                csvIssues,
                 cancellationToken);
         }
 
         if (manifest == null && manifestProvider != null)
         {
-            logger.LogDebug("Attempting fallback manifest lookup via IManifestProvider for '{Path}'", installationPath);
-            var targetInstall = installation ?? new GameInstallation(installationPath, GameInstallationType.Unknown, null);
+            logger.LogDebug("Attempting fallback manifest lookup via IManifestProvider for '{Path}' ({GameType})", installationPath, gameType);
+            var targetInstall = new GameInstallation(installationPath, installation?.InstallationType ?? GameInstallationType.Unknown, null);
+            if (gameType == GameType.ZeroHour)
+            {
+                targetInstall.SetPaths(generalsPath: null, zeroHourPath: installationPath);
+            }
+            else
+            {
+                targetInstall.SetPaths(generalsPath: installationPath, zeroHourPath: null);
+            }
+
             manifest = await manifestProvider.GetManifestAsync(targetInstall, cancellationToken);
         }
 
         if (manifest == null)
         {
-            if (issues.Count == 0)
+            if (csvIssues.Count > 0)
+            {
+                issues.AddRange(csvIssues);
+            }
+            else
             {
                 issues.Add(new ValidationIssue
                 {
@@ -234,6 +257,7 @@ public class GameInstallationValidator(
         issues.AddRange(manifestValidationResult.Issues);
 
         progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Validating content files"));
+        int totalFiles = 0;
         try
         {
             var fullValidation = await contentValidator.ValidateAllAsync(
@@ -242,6 +266,7 @@ public class GameInstallationValidator(
                 progress,
                 cancellationToken);
             issues.AddRange(fullValidation.Issues);
+            totalFiles = manifest.Files?.Count ?? 0;
         }
         catch (OperationCanceledException)
         {
@@ -257,6 +282,7 @@ public class GameInstallationValidator(
                 Message = $"Content validation failed for {gameType} ({normalizedLanguage}): {ex.Message}",
                 Severity = ValidationSeverity.Error,
             });
+            totalFiles = 0;
         }
 
         var requiredDirs = manifest.RequiredDirectories ?? Enumerable.Empty<string>();
@@ -269,7 +295,6 @@ public class GameInstallationValidator(
         progress?.Report(new ValidationProgress(totalSteps, totalSteps, "Validation complete"));
 
         stopwatch.Stop();
-        var totalFiles = manifest.Files?.Count ?? 0;
         return new ValidationResult(installationPath, issues, stopwatch.Elapsed, totalFiles);
     }
 

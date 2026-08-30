@@ -31,14 +31,14 @@ public interface IGameInstallationValidator
     Task<ValidationResult> ValidateAsync(GameInstallation installation, IProgress<ValidationProgress>? progress, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Validates a game installation with an explicit language and progress reporting.
+    /// Validates a game installation with an explicit language and optional progress reporting.
     /// </summary>
     /// <param name="installation">The game installation to validate.</param>
-    /// <param name="language">Optional explicit language code (e.g., "EN", "DE"). If null, language is auto-detected.</param>
+    /// <param name="language">The explicit language code (e.g., "EN", "DE").</param>
     /// <param name="progress">Progress reporter for MVVM integration.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A <see cref="ValidationResult"/> representing the outcome of the validation.</returns>
-    Task<ValidationResult> ValidateAsync(GameInstallation installation, string? language, IProgress<ValidationProgress>? progress = null, CancellationToken cancellationToken = default);
+    Task<ValidationResult> ValidateAsync(GameInstallation installation, string language, IProgress<ValidationProgress>? progress = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Validates a specific game installation directory by path, game type, and optional language.
