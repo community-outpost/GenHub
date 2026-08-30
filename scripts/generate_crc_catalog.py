@@ -20,6 +20,7 @@ import zlib
 SUPERHACKERS_REPO = "TheSuperHackers/GeneralsGameCode"
 GENERALSONLINE_CDN = "https://cdn.playgenerals.online"
 GENERALSONLINE_KNOWN_DATES = ("021326", "032926", "042826", "060526", "062026", "081326")
+RETAIL_ZERO_HOUR_MANIFEST_ID = "1.104.retail.gameclient.zerohour"
 DEFAULT_OUTPUT_PATH = os.path.join(
     os.path.dirname(__file__), "..", "GenHub", "GenHub", "Resources", "crc-mapping.json"
 )
@@ -29,7 +30,7 @@ BASELINE_ENTRIES = [
         "exeCrc": "0xDA2B4B18",
         "iniCrc": "0xFEAAE3F3",
         "sha256": None,
-        "manifestId": "1.104.retail.gameclient.zerohour",
+        "manifestId": RETAIL_ZERO_HOUR_MANIFEST_ID,
         "dataPatchManifestId": None,
         "dataPatchName": "Vanilla 1.04 INI",
         "publisher": "ea",
@@ -44,7 +45,7 @@ BASELINE_ENTRIES = [
         "exeCrc": "0xDA2B4B18",
         "iniCrc": "0x76B251A3",
         "sha256": None,
-        "manifestId": "1.104.retail.gameclient.zerohour",
+        "manifestId": RETAIL_ZERO_HOUR_MANIFEST_ID,
         "dataPatchManifestId": None,
         "dataPatchName": "Vanilla 1.04 INI",
         "publisher": "ea",
@@ -74,7 +75,7 @@ BASELINE_ENTRIES = [
         "exeCrc": "0xDA2B4B18",
         "iniCrc": "0x8FB8AE76",
         "sha256": None,
-        "manifestId": "1.104.retail.gameclient.zerohour",
+        "manifestId": RETAIL_ZERO_HOUR_MANIFEST_ID,
         "dataPatchManifestId": "1.8fb8ae76.community.gamedata.zerohour",
         "dataPatchName": "Community Balance Patch (0x8FB8AE76)",
         "publisher": "community",
@@ -89,7 +90,7 @@ BASELINE_ENTRIES = [
         "exeCrc": "0xDA2B4B18",
         "iniCrc": "0xCA7292AD",
         "sha256": None,
-        "manifestId": "1.104.retail.gameclient.zerohour",
+        "manifestId": RETAIL_ZERO_HOUR_MANIFEST_ID,
         "dataPatchManifestId": "1.ca7292ad.community.gamedata.zerohour",
         "dataPatchName": "Defcon Balanced Patch (0xCA7292AD)",
         "publisher": "community",
@@ -104,7 +105,7 @@ BASELINE_ENTRIES = [
         "exeCrc": "0xDA2B4B18",
         "iniCrc": "0x81FB5632",
         "sha256": None,
-        "manifestId": "1.104.retail.gameclient.zerohour",
+        "manifestId": RETAIL_ZERO_HOUR_MANIFEST_ID,
         "dataPatchManifestId": "1.81fb5632.community.gamedata.zerohour",
         "dataPatchName": "Community Patch Core INI (0x81FB5632)",
         "publisher": "community",

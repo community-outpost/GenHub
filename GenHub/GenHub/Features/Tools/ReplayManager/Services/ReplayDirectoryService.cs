@@ -350,6 +350,84 @@ public sealed class ReplayDirectoryService(
         return GameClientConstants.ZeroHourExecutable;
     }
 
+    private static bool IsClientManifestInstalled(CrcMappingEntry match, GameType gameVersion, HashSet<string> acquiredIds)
+    {
+        if (!string.IsNullOrEmpty(match.ManifestId) && acquiredIds.Contains(match.ManifestId))
+        {
+            return true;
+        }
+
+        var isRetail = string.IsNullOrWhiteSpace(match.Publisher) ||
+                       string.Equals(match.Publisher, "ea", StringComparison.OrdinalIgnoreCase) ||
+                       match.ManifestId.Contains(".retail.");
+
+        if (!isRetail)
+        {
+            return false;
+        }
+
+        var gameTypeSuffix = gameVersion == GameType.ZeroHour ? "zerohour" : "generals";
+        return acquiredIds.Any(id => id.Contains(".gameinstallation.") && id.EndsWith(gameTypeSuffix, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static ReplayCompatibilityStatus DetermineUnconfiguredStatus(CrcMappingEntry match, bool isInstalled)
+    {
+        if (isInstalled)
+        {
+            return ReplayCompatibilityStatus.RequiresProfile;
+        }
+
+        var isRetail = string.IsNullOrWhiteSpace(match.Publisher) ||
+                       string.Equals(match.Publisher, "ea", StringComparison.OrdinalIgnoreCase) ||
+                       match.ManifestId.Contains(".retail.");
+
+        if (!string.IsNullOrWhiteSpace(match.CdnUrl) || !isRetail)
+        {
+            return ReplayCompatibilityStatus.Downloadable;
+        }
+
+        return ReplayCompatibilityStatus.Orphaned;
+    }
+
+    private static void ResolveMatchedClientCompatibility(
+        ReplayFile replay,
+        CrcMappingEntry match,
+        HashSet<string> acquiredIds,
+        IReadOnlyList<GameProfile> profiles)
+    {
+        replay.MatchedClient = match;
+
+        var matchingProfile = FindMatchingProfile(profiles, replay.GameVersion, match.ManifestId, match.DataPatchManifestId);
+        if (matchingProfile != null)
+        {
+            replay.MatchingProfileId = matchingProfile.Id;
+            replay.MatchingProfileName = matchingProfile.Name;
+            replay.CompatibilityStatus = ReplayCompatibilityStatus.Compatible;
+            return;
+        }
+
+        var isInstalled = IsClientManifestInstalled(match, replay.GameVersion, acquiredIds);
+        replay.CompatibilityStatus = DetermineUnconfiguredStatus(match, isInstalled);
+    }
+
+    private static async Task AcquireGeneralsOnlineMapPacksAsync(IContentOrchestrator contentOrchestrator, CancellationToken ct)
+    {
+        var mapPackQuery = new ContentSearchQuery
+        {
+            ProviderName = GeneralsOnlineConstants.PublisherType,
+            ContentType = ContentType.MapPack,
+            TargetGame = GameType.ZeroHour,
+        };
+        var mapPackResult = await contentOrchestrator.SearchAsync(mapPackQuery, ct);
+        if (mapPackResult.Success && mapPackResult.Data != null)
+        {
+            foreach (var item in mapPackResult.Data)
+            {
+                await contentOrchestrator.AcquireContentAsync(item, null, ct);
+            }
+        }
+    }
+
     private async Task<(string ClientManifestId, GameClient? GameClient)> ResolveReplayGameClientAsync(
         GameInstallation installation,
         ReplayFile replay,
@@ -468,20 +546,7 @@ public sealed class ReplayDirectoryService(
         // If GeneralsOnline, also ensure MapPack is acquired
         if (string.Equals(matchedClient.Publisher, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
         {
-            var mapPackQuery = new ContentSearchQuery
-            {
-                ProviderName = GeneralsOnlineConstants.PublisherType,
-                ContentType = ContentType.MapPack,
-                TargetGame = GameType.ZeroHour,
-            };
-            var mapPackResult = await contentOrchestrator.SearchAsync(mapPackQuery, ct);
-            if (mapPackResult.Success && mapPackResult.Data != null)
-            {
-                foreach (var item in mapPackResult.Data)
-                {
-                    await contentOrchestrator.AcquireContentAsync(item, null, ct);
-                }
-            }
+            await AcquireGeneralsOnlineMapPacksAsync(contentOrchestrator, ct);
         }
     }
 
@@ -595,60 +660,21 @@ public sealed class ReplayDirectoryService(
 
     private void ResolveCompatibility(ReplayFile replay, HashSet<string> acquiredIds, IReadOnlyList<GameProfile> profiles)
     {
-        if (replay.Metadata == null)
+        if (replay.Metadata == null || string.IsNullOrEmpty(replay.Metadata.FormattedExeCrc))
         {
             replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
             return;
         }
 
         var exeCrcStr = replay.Metadata.FormattedExeCrc;
-        var iniCrcStr = replay.Metadata.FormattedIniCrc;
+        var iniCrcStr = replay.Metadata.FormattedIniCrc ?? string.Empty;
 
-        if (string.IsNullOrEmpty(exeCrcStr))
+        if (crcMappingRegistry.TryGetEntry(exeCrcStr, iniCrcStr, out var match) && match != null)
         {
-            replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
-            return;
-        }
-
-        if (crcMappingRegistry.TryGetEntry(exeCrcStr, iniCrcStr ?? string.Empty, out var match) && match != null)
-        {
-            replay.MatchedClient = match;
-
-            // Check if an existing profile matches this game client and data patch
-            var matchingProfile = FindMatchingProfile(profiles, replay.GameVersion, match.ManifestId, match.DataPatchManifestId);
-            if (matchingProfile != null)
-            {
-                replay.MatchingProfileId = matchingProfile.Id;
-                replay.MatchingProfileName = matchingProfile.Name;
-                replay.CompatibilityStatus = ReplayCompatibilityStatus.Compatible;
-                return;
-            }
-
-            // No profile configured yet. Check if the manifest is installed / acquired
-            var isRetail = string.IsNullOrWhiteSpace(match.Publisher) ||
-                           string.Equals(match.Publisher, "ea", StringComparison.OrdinalIgnoreCase) ||
-                           match.ManifestId.Contains(".retail.");
-
-            var gameTypeSuffix = replay.GameVersion == GameType.ZeroHour ? "zerohour" : "generals";
-            var isInstalled = (!string.IsNullOrEmpty(match.ManifestId) && acquiredIds.Contains(match.ManifestId)) ||
-                              (isRetail && acquiredIds.Any(id => id.Contains(".gameinstallation.") && id.EndsWith(gameTypeSuffix, StringComparison.OrdinalIgnoreCase)));
-
-            if (isInstalled)
-            {
-                replay.CompatibilityStatus = ReplayCompatibilityStatus.RequiresProfile;
-            }
-            else if (!string.IsNullOrWhiteSpace(match.CdnUrl) || !isRetail)
-            {
-                replay.CompatibilityStatus = ReplayCompatibilityStatus.Downloadable;
-            }
-            else
-            {
-                replay.CompatibilityStatus = ReplayCompatibilityStatus.Orphaned;
-            }
+            ResolveMatchedClientCompatibility(replay, match, acquiredIds, profiles);
         }
         else
         {
-            // Neither exact pair nor known match exists -> replay will mismatch as no compatible CRC was found
             replay.MatchedClient = null;
             replay.CompatibilityStatus = ReplayCompatibilityStatus.Orphaned;
         }
