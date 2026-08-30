@@ -14,6 +14,8 @@
     <ItemGroup>
         <PackageReference Include="AngleSharp" />
         <PackageReference Include="Avalonia" />
+        <!-- Security pin: overrides Avalonia's vulnerable transitive Tmds.DBus.Protocol 0.20.0 (GHSA-xrw6-gwf8-vvr9) -->
+        <PackageReference Include="Tmds.DBus.Protocol" />
         <PackageReference Include="Avalonia.Desktop" />
         <PackageReference Include="Avalonia.Themes.Fluent" />
         <PackageReference Include="Avalonia.Fonts.Inter" />

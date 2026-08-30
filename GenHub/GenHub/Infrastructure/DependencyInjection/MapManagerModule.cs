@@ -7,6 +7,7 @@ using GenHub.Features.Tools.MapManager.ViewModels;
 using GenHub.Features.Tools.Services;
 using GenHub.Infrastructure.Imaging;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -27,7 +28,6 @@ public static class MapManagerModule
         services.AddSingleton<IMapImportService, MapImportService>();
         services.AddSingleton<IMapExportService, MapExportService>();
         services.AddScoped<IMapPackService, MapPackService>();
-        services.AddSingleton<IUploadHistoryService, UploadHistoryService>();
         services.AddSingleton<MapNameParser>();
         services.AddSingleton<TgaImageParser>();
         services.AddSingleton<TgaParser>();

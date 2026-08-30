@@ -56,6 +56,7 @@ public static class ContentPipelineModule
         AddCNCLabsPipeline(services);
         AddModDBPipeline(services);
         AddLocalFileSystemPipeline(services);
+        AddCsvPipeline(services);
         AddSharedComponents(services);
 
         return services;
@@ -342,6 +343,23 @@ public static class ContentPipelineModule
 
         // Register File System deliverer
         services.AddTransient<IContentDeliverer, FileSystemDeliverer>();
+    }
+
+    /// <summary>
+    /// Registers CSV content pipeline services.
+    /// </summary>
+    private static void AddCsvPipeline(IServiceCollection services)
+    {
+        // Register CSV content provider
+        services.AddTransient<IContentProvider, CsvContentProvider>();
+
+        // Register CSV discoverer (concrete and interface)
+        services.AddTransient<CsvDiscoverer>();
+        services.AddTransient<IContentDiscoverer, CsvDiscoverer>();
+
+        // Register CSV resolver (concrete and interface)
+        services.AddTransient<CsvResolver>();
+        services.AddTransient<IContentResolver, CsvResolver>();
     }
 
     /// <summary>

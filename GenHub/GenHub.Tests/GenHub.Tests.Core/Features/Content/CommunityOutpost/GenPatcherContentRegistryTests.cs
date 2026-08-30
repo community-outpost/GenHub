@@ -21,6 +21,8 @@ public class GenPatcherContentRegistryTests
     [Theory]
     [InlineData("gent", "GenTool", ContentType.Addon, GameType.ZeroHour)]
     [InlineData("gena", "GenAssist", ContentType.Addon, GameType.ZeroHour)]
+    [InlineData("ewba", "Enhanced World Builder (Advanced)", ContentType.Addon, GameType.ZeroHour)]
+    [InlineData("ewbi", "Enhanced World Builder (International)", ContentType.Addon, GameType.ZeroHour)]
     [InlineData("10gn", "Generals 1.08", ContentType.GameClient, GameType.Generals)]
     [InlineData("10zh", "Zero Hour 1.04", ContentType.GameClient, GameType.ZeroHour)]
     [InlineData("cbbs", "Control Bar HD (Base)", ContentType.Addon, GameType.ZeroHour)]
@@ -185,6 +187,7 @@ public class GenPatcherContentRegistryTests
     [InlineData("crzh", GenPatcherContentCategory.Camera)]
     [InlineData("hlen", GenPatcherContentCategory.Hotkeys)]
     [InlineData("gent", GenPatcherContentCategory.Tools)]
+    [InlineData("ewba", GenPatcherContentCategory.Tools)]
     [InlineData("maod", GenPatcherContentCategory.Maps)]
     [InlineData("icon", GenPatcherContentCategory.Visuals)]
     [InlineData("vc05", GenPatcherContentCategory.Prerequisites)]
@@ -225,5 +228,40 @@ public class GenPatcherContentRegistryTests
         // Assert
         Assert.Equal(expectedLanguageCode, metadata.LanguageCode);
         Assert.Equal(ContentType.Patch, metadata.ContentType);
+    }
+
+    /// <summary>
+    /// Verifies that Leikeze's Hotkeys metadata defines valid variants with output filenames.
+    /// </summary>
+    [Fact]
+    public void GetMetadata_HleiVariants_DefineOutputFilenames()
+    {
+        // Act
+        var metadata = GenPatcherContentRegistry.GetMetadata("hlei");
+
+        // Assert
+        Assert.True(metadata.SupportsVariants);
+        Assert.NotNull(metadata.Variants);
+        Assert.Equal(4, metadata.Variants.Count);
+
+        var zhEn = metadata.Variants.FirstOrDefault(v => v.Id == "zerohour-en");
+        Assert.NotNull(zhEn);
+        Assert.Equal("!HotkeysLeikezeENZH.big", zhEn.OutputFilename);
+        Assert.Equal(GameType.ZeroHour, zhEn.TargetGame);
+
+        var zhDe = metadata.Variants.FirstOrDefault(v => v.Id == "zerohour-de");
+        Assert.NotNull(zhDe);
+        Assert.Equal("!HotkeysLeikezeDEZH.big", zhDe.OutputFilename);
+        Assert.Equal(GameType.ZeroHour, zhDe.TargetGame);
+
+        var zhRu = metadata.Variants.FirstOrDefault(v => v.Id == "zerohour-ru");
+        Assert.NotNull(zhRu);
+        Assert.Equal("!HotkeysLeikezeRUZH.big", zhRu.OutputFilename);
+        Assert.Equal(GameType.ZeroHour, zhRu.TargetGame);
+
+        var ccgEn = metadata.Variants.FirstOrDefault(v => v.Id == "generals-en");
+        Assert.NotNull(ccgEn);
+        Assert.Equal("!HotkeysLeikezeEN.big", ccgEn.OutputFilename);
+        Assert.Equal(GameType.Generals, ccgEn.TargetGame);
     }
 }

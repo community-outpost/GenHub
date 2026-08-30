@@ -2,8 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -14,12 +17,14 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.ReplayManager;
+using GenHub.Core.Models.Tools.UploadThing;
 using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.Logging;
 
@@ -42,16 +47,6 @@ public partial class ReplayManagerViewModel(
     INotificationService notificationService,
     ILogger<ReplayManagerViewModel> logger) : ObservableObject
 {
-    private static string SanitizeFileName(string fileName)
-    {
-        var invalidChars = Path.GetInvalidFileNameChars();
-        return string.Concat(fileName.Where(c => !invalidChars.Contains(c)));
-    }
-
-    private static bool IsDemoPath(string path) =>
-        path.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-        path.Contains("/Mock/", StringComparison.OrdinalIgnoreCase);
-
     [ObservableProperty]
     private GameType selectedTab = GameType.ZeroHour;
 
@@ -62,16 +57,34 @@ public partial class ReplayManagerViewModel(
     private bool isBusy;
 
     [ObservableProperty]
+    private bool isIndeterminate;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProgressPercentage))]
     private double progress;
+
+    /// <summary>
+    /// Gets the current progress as a whole integer percentage between 0 and 100.
+    /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding")]
+    public int ProgressPercentage => (int)Math.Round(Progress * 100);
 
     [ObservableProperty]
     private string statusMessage = "Ready";
+
+    [ObservableProperty]
+    private string searchText = string.Empty;
+
+    partial void OnSearchTextChanged(string value)
+    {
+        ApplyFilter();
+    }
 
     /// <summary>
     /// The name of the ZIP file to export or upload.
     /// </summary>
     [ObservableProperty]
-    private string zipName = "replays.zip";
+    private string zipName = ReplayManagerConstants.DefaultZipName;
 
     /// <summary>
     /// Whether the upload history flyout is open.
@@ -83,176 +96,6 @@ public partial class ReplayManagerViewModel(
     /// Gets the list of upload history items.
     /// </summary>
     public ObservableCollection<UploadHistoryItemViewModel> UploadHistory { get; } = [];
-
-    /// <summary>
-    /// Toggles the upload history flyout.
-    /// </summary>
-    [RelayCommand]
-    private async Task ToggleHistoryAsync()
-    {
-        // Check if current tab is using demo paths
-        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
-        if (IsDemoPath(demoPath))
-        {
-            notificationService.ShowInfo(
-                "Upload History",
-                "Shows a list of your previously uploaded replays, allowing you to manage them and copy download links.");
-            return;
-        }
-
-        IsHistoryOpen = !IsHistoryOpen;
-        if (IsHistoryOpen)
-        {
-            await LoadHistoryAsync();
-        }
-    }
-
-    /// <summary>
-    /// Loads the upload history.
-    /// </summary>
-    private async Task LoadHistoryAsync()
-    {
-        try
-        {
-            var history = await uploadHistoryService.GetUploadHistoryAsync();
-            UploadHistory.Clear();
-
-            // Add items to collection
-            foreach (var item in history)
-            {
-                UploadHistory.Add(new UploadHistoryItemViewModel(item));
-            }
-
-            // Verify file existence for each item asynchronously
-            _ = Task.Run(async () =>
-            {
-                using var httpClient = new System.Net.Http.HttpClient
-                {
-                    Timeout = TimeSpan.FromSeconds(5),
-                };
-
-                foreach (var viewModel in UploadHistory)
-                {
-                    try
-                    {
-                        // Use head request to check if file exists without downloading it
-                        var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, viewModel.Url);
-                        var response = await httpClient.SendAsync(request);
-
-                        await Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            viewModel.FileExists = response.IsSuccessStatusCode;
-                            viewModel.IsVerified = true;
-                        });
-                    }
-                    catch
-                    {
-                        // If request fails, assume file doesn't exist
-                        await Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            viewModel.FileExists = false;
-                            viewModel.IsVerified = true;
-                        });
-                    }
-                }
-            });
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to load upload history");
-        }
-    }
-
-    /// <summary>
-    /// Copies a URL to the clipboard.
-    /// </summary>
-    /// <param name="url">The URL to copy.</param>
-    [RelayCommand]
-    private async Task CopyUrlAsync(string url)
-    {
-        if (string.IsNullOrEmpty(url)) return;
-
-        // Check if current tab is using demo paths
-        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
-        if (IsDemoPath(demoPath))
-        {
-            notificationService.ShowInfo(
-                "Copy Link",
-                "Copies the download link of the uploaded file to your clipboard.");
-            return;
-        }
-
-        var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-        var clipboard = lifetime?.MainWindow?.Clipboard;
-        if (clipboard != null)
-        {
-            await clipboard.SetTextAsync(url);
-            notificationService.ShowSuccess("Copied", "Link copied to clipboard!");
-        }
-    }
-
-    /// <summary>
-    /// Removes a specific upload history item.
-    /// </summary>
-    /// <param name="item">The history item to remove.</param>
-    [RelayCommand]
-    private async Task RemoveHistoryItemAsync(UploadHistoryItemViewModel item)
-    {
-        // Check if current tab is using demo paths
-        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
-        if (IsDemoPath(demoPath))
-        {
-            notificationService.ShowInfo(
-                "Remove From History",
-                "Removes the item from local history without deleting the hosted file.");
-            return;
-        }
-
-        try
-        {
-            await uploadHistoryService.RemoveHistoryItemAsync(item.Url);
-            await LoadHistoryAsync();
-            notificationService.ShowSuccess(
-                "Removed",
-                "Removed from local history. The hosted file was not deleted.");
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to remove history item");
-            notificationService.ShowError("Remove Failed", "Failed to remove history item.");
-        }
-    }
-
-    /// <summary>
-    /// Clears all upload history.
-    /// </summary>
-    [RelayCommand]
-    private async Task ClearHistoryAsync()
-    {
-        // Check if current tab is using demo paths
-        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
-        if (IsDemoPath(demoPath))
-        {
-            notificationService.ShowInfo(
-                "Clear History",
-                "Clears local upload history without deleting hosted files.");
-            return;
-        }
-
-        try
-        {
-            await uploadHistoryService.ClearHistoryAsync();
-            await LoadHistoryAsync();
-            notificationService.ShowSuccess(
-                "Cleared",
-                "Local history cleared. Hosted files were not deleted.");
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to clear history");
-            notificationService.ShowError("Clear Failed", "Failed to clear history.");
-        }
-    }
 
     /// <summary>
     /// Gets the list of replays for Generals.
@@ -275,6 +118,11 @@ public partial class ReplayManagerViewModel(
     public bool HasSelectedZips => SelectedReplays.Any(r => r.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
+    /// Gets the collection of all replays for the current tab.
+    /// </summary>
+    public ObservableCollection<ReplayFile> CurrentReplays { get; } = [];
+
+    /// <summary>
     /// Updates the collection of selected replays.
     /// </summary>
     /// <param name="selected">The list of selected replays.</param>
@@ -294,11 +142,6 @@ public partial class ReplayManagerViewModel(
     }
 
     /// <summary>
-    /// Gets the collection of all replays for the current tab.
-    /// </summary>
-    public ObservableCollection<ReplayFile> CurrentReplays { get; } = [];
-
-    /// <summary>
     /// Initializes the ViewModel by loading replays for the current tab.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -315,6 +158,7 @@ public partial class ReplayManagerViewModel(
     public async Task LoadReplaysAsync()
     {
         IsBusy = true;
+        IsIndeterminate = true;
         StatusMessage = "Loading replays...";
         try
         {
@@ -341,12 +185,7 @@ public partial class ReplayManagerViewModel(
                     }
                 }
 
-                // Update CurrentReplays by clearing and adding items (don't replace the reference!)
-                CurrentReplays.Clear();
-                foreach (var r in replays)
-                {
-                    CurrentReplays.Add(r);
-                }
+                ApplyFilter();
             });
 
             StatusMessage = $"Loaded {replays.Count} replays.";
@@ -382,6 +221,7 @@ public partial class ReplayManagerViewModel(
         }
 
         IsBusy = true;
+        IsIndeterminate = true;
         StatusMessage = "Importing files...";
         try
         {
@@ -412,6 +252,217 @@ public partial class ReplayManagerViewModel(
         }
     }
 
+    private static bool IsDemoPath(string path) =>
+        path.Contains(ReplayManagerConstants.WindowsMockPathSegment, StringComparison.OrdinalIgnoreCase) ||
+        path.Contains(ReplayManagerConstants.UnixMockPathSegment, StringComparison.OrdinalIgnoreCase);
+
+    private static string GetUniqueZipDestinationPath(string directory, string rawZipName)
+    {
+        var safeZipName = PathHelper.SanitizeFileName(rawZipName);
+        if (string.IsNullOrWhiteSpace(safeZipName))
+        {
+            safeZipName = ReplayManagerConstants.DefaultZipName;
+        }
+
+        var zipExtension = Path.GetExtension(ReplayManagerConstants.ZipFilePattern);
+        if (!safeZipName.EndsWith(zipExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            safeZipName += zipExtension;
+        }
+
+        return PathHelper.GetUniqueNumberedPath(Path.Combine(directory, safeZipName));
+    }
+
+    /// <summary>
+    /// Toggles the upload history flyout.
+    /// </summary>
+    partial void OnIsHistoryOpenChanged(bool value)
+    {
+        if (!value)
+        {
+            return;
+        }
+
+        // Check if current tab is using demo paths
+        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
+        if (IsDemoPath(demoPath))
+        {
+            IsHistoryOpen = false;
+            notificationService.ShowInfo(
+                "Upload History",
+                "Shows a list of your previously uploaded replays, allowing you to manage them and copy download links.");
+            return;
+        }
+
+        _ = LoadHistoryAsync();
+    }
+
+    /// <summary>
+    /// Loads the upload history.
+    /// </summary>
+    private async Task LoadHistoryAsync()
+    {
+        try
+        {
+            var history = await uploadHistoryService.GetUploadHistoryAsync(ReplayManagerConstants.UploadCategory);
+            var viewModels = history.Select(item => new UploadHistoryItemViewModel(item)).ToList();
+
+            UploadHistory.Clear();
+            foreach (var vm in viewModels)
+            {
+                UploadHistory.Add(vm);
+            }
+
+            // Verify file existence for each item asynchronously
+            _ = Task.Run(async () =>
+            {
+                using var httpClient = new System.Net.Http.HttpClient
+                {
+                    Timeout = TimeSpan.FromSeconds(5),
+                };
+
+                foreach (var vm in viewModels)
+                {
+                    bool exists = false;
+                    try
+                    {
+                        using var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, vm.Url);
+                        using var response = await httpClient.SendAsync(request);
+                        exists = response.IsSuccessStatusCode;
+                    }
+                    catch
+                    {
+                        exists = false;
+                    }
+
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        vm.FileExists = exists;
+                        vm.IsVerified = true;
+                    });
+                }
+            });
+        }
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or JsonException) && ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Failed to load upload history");
+        }
+    }
+
+    /// <summary>
+    /// Copies a URL to the clipboard.
+    /// </summary>
+    /// <param name="url">The URL to copy.</param>
+    [RelayCommand]
+    private async Task CopyUrlAsync(string url)
+    {
+        if (string.IsNullOrEmpty(url)) return;
+
+        // Check if current tab is using demo paths
+        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
+        if (IsDemoPath(demoPath))
+        {
+            notificationService.ShowInfo(
+                "Copy Link",
+                "Copies the download link of the uploaded file to your clipboard.");
+            return;
+        }
+
+        try
+        {
+            var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+            var clipboard = lifetime?.MainWindow?.Clipboard;
+            if (clipboard != null)
+            {
+                await clipboard.SetTextAsync(url);
+                notificationService.ShowSuccess("Copied", "Link copied to clipboard!");
+            }
+        }
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Failed to copy URL");
+        }
+    }
+
+    /// <summary>
+    /// Removes a specific upload history item.
+    /// </summary>
+    /// <param name="item">The history item to remove.</param>
+    [RelayCommand]
+    private async Task RemoveHistoryItemAsync(UploadHistoryItemViewModel item)
+    {
+        // Check if current tab is using demo paths
+        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
+        if (IsDemoPath(demoPath))
+        {
+            notificationService.ShowInfo(
+                "Delete Upload",
+                "Permanently deletes the uploaded file from cloud storage and removes it from history.");
+            return;
+        }
+
+        try
+        {
+            var success = await uploadHistoryService.RemoveHistoryItemAsync(item.Url, deleteFromCloud: true);
+            await LoadHistoryAsync();
+            if (success)
+            {
+                notificationService.ShowSuccess(
+                    "Deleted",
+                    "File deleted from cloud storage and upload history.");
+            }
+            else
+            {
+                notificationService.ShowError(ReplayManagerConstants.DeleteFailedTitle, "Failed to delete file from cloud storage.");
+            }
+        }
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException or JsonException) && ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Failed to remove history item");
+            notificationService.ShowError(ReplayManagerConstants.DeleteFailedTitle, "Failed to delete history item.");
+        }
+    }
+
+    /// <summary>
+    /// Clears all upload history and deletes hosted files from cloud storage.
+    /// </summary>
+    [RelayCommand]
+    private async Task ClearHistoryAsync()
+    {
+        // Check if current tab is using demo paths
+        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
+        if (IsDemoPath(demoPath))
+        {
+            notificationService.ShowInfo(
+                "Clear History",
+                "Permanently deletes all uploaded files from cloud storage and clears upload history.");
+            return;
+        }
+
+        try
+        {
+            var (deleted, failed) = await uploadHistoryService.ClearHistoryAsync(deleteFromCloud: true, category: ReplayManagerConstants.UploadCategory);
+            await LoadHistoryAsync();
+            if (failed == 0)
+            {
+                notificationService.ShowSuccess(
+                    "Cleared",
+                    $"All {deleted} uploaded files deleted from cloud storage and history cleared.");
+            }
+            else
+            {
+                notificationService.ShowWarning(
+                    "Partially Cleared",
+                    $"Cleared {deleted} history items. {failed} item(s) could not be deleted from cloud storage.");
+            }
+        }
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException or JsonException) && ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Failed to clear history");
+            notificationService.ShowError("Clear Failed", "Failed to clear history.");
+        }
+    }
+
     [RelayCommand]
     private async Task ImportFromUrlAsync()
     {
@@ -432,12 +483,19 @@ public partial class ReplayManagerViewModel(
         }
 
         IsBusy = true;
-        StatusMessage = "Importing from URL...";
+        IsIndeterminate = false;
         Progress = 0;
+        StatusMessage = "Downloading from URL...";
 
         try
         {
-            var result = await importService.ImportFromUrlAsync(ImportUrl, SelectedTab, new Progress<double>(p => Progress = p));
+            var progressHandler = new Progress<double>(p =>
+            {
+                Progress = p;
+                StatusMessage = "Downloading from URL...";
+            });
+
+            var result = await importService.ImportFromUrlAsync(ImportUrl, SelectedTab, progressHandler);
             if (result.Success)
             {
                 notificationService.ShowSuccess("Import Complete", $"Imported {result.FilesImported} file(s) from URL.");
@@ -522,6 +580,7 @@ public partial class ReplayManagerViewModel(
         }
 
         IsBusy = true;
+        IsIndeterminate = true;
         StatusMessage = "Deleting replays...";
         int count = SelectedReplays.Count;
         var result = await directoryService.DeleteReplaysAsync([.. SelectedReplays], CancellationToken.None);
@@ -532,7 +591,7 @@ public partial class ReplayManagerViewModel(
         }
         else
         {
-            notificationService.ShowError("Delete Failed", "Could not delete selected replays.");
+            notificationService.ShowError(ReplayManagerConstants.DeleteFailedTitle, "Could not delete selected replays.");
             StatusMessage = "Deletion error.";
         }
 
@@ -561,33 +620,22 @@ public partial class ReplayManagerViewModel(
         }
 
         IsBusy = true;
-        StatusMessage = "Creating ZIP...";
+        IsIndeterminate = false;
         Progress = 0;
+        StatusMessage = "Creating ZIP...";
 
         try
         {
             var directory = directoryService.GetReplayDirectory(SelectedTab);
-            var safeZipName = SanitizeFileName(ZipName);
-            if (!safeZipName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-                safeZipName += ".zip";
+            var destinationPath = GetUniqueZipDestinationPath(directory, ZipName);
 
-            var destinationPath = Path.Combine(directory, safeZipName);
-
-            // Handle filename conflict by appending (1), (2), etc.
-            if (File.Exists(destinationPath))
+            var progressHandler = new Progress<double>(p =>
             {
-                var dir = Path.GetDirectoryName(destinationPath) ?? string.Empty;
-                var nameOnly = Path.GetFileNameWithoutExtension(destinationPath);
-                var ext = Path.GetExtension(destinationPath);
-                int count = 1;
-                while (File.Exists(destinationPath))
-                {
-                    destinationPath = Path.Combine(dir, $"{nameOnly} ({count}){ext}");
-                    count++;
-                }
-            }
+                Progress = p;
+                StatusMessage = "Creating ZIP...";
+            });
 
-            var result = await exportService.ExportToZipAsync([.. SelectedReplays], destinationPath, new Progress<double>(p => Progress = p));
+            var result = await exportService.ExportToZipAsync([.. SelectedReplays], destinationPath, progressHandler);
             if (result != null)
             {
                 notificationService.ShowSuccess("Zip Created", $"Created {Path.GetFileName(result)} in replay folder.");
@@ -597,19 +645,7 @@ public partial class ReplayManagerViewModel(
                 await LoadReplaysAsync();
 
                 // Reveal in Explorer
-                try
-                {
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = PlatformConstants.WindowsExplorerPath,
-                        Arguments = string.Format(PlatformConstants.WindowsExplorerSelectArgument, result),
-                        UseShellExecute = true,
-                    });
-                }
-                catch
-                {
-                    /* Ignore explorer errors */
-                }
+                PathHelper.RevealInExplorer(result);
             }
             else
             {
@@ -638,83 +674,61 @@ public partial class ReplayManagerViewModel(
             return;
         }
 
-        // Check if any selected replays are demo items (have mock paths)
-        var demoReplays = SelectedReplays.Where(r => IsDemoPath(r.FullPath)).ToList();
-        if (demoReplays.Count > 0)
+        if (ValidateDemoReplaysSelected())
         {
-            // Show notification toast explaining what the button does
-            notificationService.ShowInfo(
-                "Upload and Share",
-                "Uploads selected replays to UploadThing cloud service (max 10MB) and copies the share link to your clipboard. You can then share the link with others to download replays.");
             return;
         }
 
-        // Calculate total size of selected replays
-        long totalSizeBytes = SelectedReplays.Sum(r => new FileInfo(r.FullPath).Length);
-
-        // Check file size limit
-        const long MaxReplayUploadSize = 10 * 1024 * 1024; // 10MB
-        if (totalSizeBytes > MaxReplayUploadSize)
+        long totalSizeBytes = ToolUploadHelper.CalculateReplaysSize(SelectedReplays);
+        if (!await ValidateUploadLimitsAsync(totalSizeBytes))
         {
-            notificationService.ShowError(
-               "File Too Large",
-               "File too large. Maximum upload size is 10MB.");
-            StatusMessage = "Upload too large (Max 10MB).";
             return;
         }
 
-        // Check rate limit
-        var isAllowed = await uploadHistoryService.CanUploadAsync(totalSizeBytes);
-        if (!isAllowed)
+        string? fileHash = null;
+        if (SelectedReplays.Count == 1 && File.Exists(SelectedReplays[0].FullPath))
         {
-            var usage = await uploadHistoryService.GetUsageInfoAsync();
-            var resetDateLocal = usage.ResetDate.ToLocalTime();
-            notificationService.ShowError(
-                "Rate Limit Exceeded",
-                "Upload limit exceeded for the current 3-day period. Please remove items from your Upload History to free up quota immediately.");
-            StatusMessage = $"Limited reached. Resets {resetDateLocal:g}.";
-            return;
+            var (reused, computedHash) = await TryReuseExistingUploadAsync(SelectedReplays[0].FullPath);
+            if (reused)
+            {
+                return;
+            }
+
+            fileHash = computedHash;
         }
 
+        IsHistoryOpen = false;
         IsBusy = true;
-        StatusMessage = "Uploading to cloud (UploadThing)...";
+        IsIndeterminate = false;
         Progress = 0;
+        StatusMessage = "Preparing upload...";
 
         try
         {
-            var url = await exportService.UploadToUploadThingAsync([.. SelectedReplays], new Progress<double>(p => Progress = p));
-            if (url != null)
+            var isZip = SelectedReplays.Count == 1 && SelectedReplays[0].FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
+            var progressHandler = new Progress<double>(p =>
             {
-                var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-                var clipboard = lifetime?.MainWindow?.Clipboard;
-                if (clipboard != null)
-                {
-                    await clipboard.SetTextAsync(url);
-                }
+                Progress = p;
+                int percent = (int)Math.Round(p * 100);
+                StatusMessage = ToolUploadHelper.FormatUploadStageMessage(ReplayManagerConstants.UploadCategory, isZip, percent);
+            });
 
-                // Record successful upload
-                var fileName = SelectedReplays.Count == 1 ? SelectedReplays[0].FileName : "replays.zip";
-                uploadHistoryService.RecordUpload(totalSizeBytes, url, fileName);
-
-                // Refresh history if open
-                if (IsHistoryOpen)
-                {
-                    await LoadHistoryAsync();
-                }
-
-                StatusMessage = "Uploaded! Link copied to clipboard.";
-                notificationService.ShowSuccess("Upload Complete", "Link copied to clipboard!");
+            var uploadResult = await exportService.UploadToUploadThingAsync([.. SelectedReplays], progressHandler);
+            if (uploadResult.Success)
+            {
+                await HandleSuccessfulUploadAsync(uploadResult.Data, totalSizeBytes, fileHash);
             }
             else
             {
-                StatusMessage = "Upload failed. Check API key.";
-                notificationService.ShowError("Upload Failed", "Upload failed. Please check your API key and internet connection.");
+                StatusMessage = "Upload failed.";
+                var error = uploadResult.FirstError ?? "Upload failed. Please check your internet connection.";
+                notificationService.ShowError("Upload Failed", error);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException or InvalidOperationException) && ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Upload failed");
-            notificationService.ShowError("Upload Error", ex.Message);
+            notificationService.ShowError("Upload Error", "Failed to complete upload.");
             StatusMessage = "Upload error.";
         }
         finally
@@ -722,6 +736,93 @@ public partial class ReplayManagerViewModel(
             IsBusy = false;
             Progress = 0;
         }
+    }
+
+    private bool ValidateDemoReplaysSelected()
+    {
+        var demoReplays = SelectedReplays.Where(r => IsDemoPath(r.FullPath)).ToList();
+        if (demoReplays.Count > 0)
+        {
+            notificationService.ShowInfo(
+                "Upload and Share",
+                "Uploads selected replays to UploadThing cloud service (max 10MB) and copies the share link to your clipboard. You can then share the link with others to download replays.");
+            return true;
+        }
+
+        return false;
+    }
+
+    private async Task<bool> ValidateUploadLimitsAsync(long totalSizeBytes)
+    {
+        if (totalSizeBytes > ReplayManagerConstants.MaxUploadBytesPerPeriod)
+        {
+            notificationService.ShowError(
+               "File Too Large",
+               "File too large. Maximum upload size is 10MB.");
+            StatusMessage = "Upload too large (Max 10MB).";
+            return false;
+        }
+
+        var isAllowed = await uploadHistoryService.CanUploadAsync(totalSizeBytes, ReplayManagerConstants.UploadCategory);
+        if (!isAllowed)
+        {
+            var usage = await uploadHistoryService.GetUsageInfoAsync(ReplayManagerConstants.UploadCategory);
+            var resetDateLocal = usage.ResetDate.ToLocalTime();
+            notificationService.ShowError(
+                "Rate Limit Exceeded",
+                "Upload limit exceeded for the current 3-day period. Please remove items from your Upload History to free up quota immediately.");
+            StatusMessage = $"Limit reached. Resets {resetDateLocal:g}.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task<(bool Reused, string? FileHash)> TryReuseExistingUploadAsync(string filePath)
+    {
+        var fileHash = await ToolUploadHelper.ComputeFileSha256Async(filePath);
+        if (string.IsNullOrEmpty(fileHash))
+        {
+            return (false, null);
+        }
+
+        var existingUpload = await uploadHistoryService.FindExistingUploadAsync(fileHash);
+        if (existingUpload?.Url != null && await ToolUploadHelper.VerifyShareUrlAliveAsync(existingUpload.Url))
+        {
+            var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+            var clipboard = lifetime?.MainWindow?.Clipboard;
+            if (clipboard != null)
+            {
+                await clipboard.SetTextAsync(existingUpload.Url);
+            }
+
+            StatusMessage = "Reused existing upload! Link copied to clipboard.";
+            notificationService.ShowSuccess("Upload Complete", "Existing link copied to clipboard!");
+            return (true, fileHash);
+        }
+
+        return (false, fileHash);
+    }
+
+    private async Task HandleSuccessfulUploadAsync(UploadResult uploadResult, long totalSizeBytes, string? fileHash)
+    {
+        var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+        var clipboard = lifetime?.MainWindow?.Clipboard;
+        if (clipboard != null)
+        {
+            await clipboard.SetTextAsync(uploadResult.PublicUrl);
+        }
+
+        var fileName = SelectedReplays.Count == 1 ? SelectedReplays[0].FileName : $"{ReplayManagerConstants.DefaultZipName}{Path.GetExtension(ReplayManagerConstants.ZipFilePattern)}";
+        uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash, ReplayManagerConstants.UploadCategory);
+
+        if (IsHistoryOpen)
+        {
+            await LoadHistoryAsync();
+        }
+
+        StatusMessage = "Uploaded! Link copied to clipboard.";
+        notificationService.ShowSuccess("Upload Complete", "Link copied to clipboard!");
     }
 
     [RelayCommand]
@@ -823,17 +924,23 @@ public partial class ReplayManagerViewModel(
         }
     }
 
-    partial void OnSelectedTabChanged(GameType value)
+    private void ApplyFilter()
     {
-        // Update CurrentReplays to show the correct collection's items
+        var source = SelectedTab == GameType.Generals ? GeneralsReplays : ZeroHourReplays;
+        var filtered = string.IsNullOrWhiteSpace(SearchText)
+            ? (IEnumerable<ReplayFile>)source
+            : source.Where(r => r.FileName.Contains(SearchText, StringComparison.OrdinalIgnoreCase));
+
         CurrentReplays.Clear();
-        var sourceCollection = value == GameType.Generals ? GeneralsReplays : ZeroHourReplays;
-        foreach (var replay in sourceCollection)
+        foreach (var replay in filtered)
         {
             CurrentReplays.Add(replay);
         }
+    }
 
-        // Load replays for the new tab
+    partial void OnSelectedTabChanged(GameType value)
+    {
+        ApplyFilter();
         _ = LoadReplaysAsync();
     }
 }

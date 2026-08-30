@@ -32,6 +32,14 @@ URI scheme constants for handling different types of URIs and paths.
 - Upload and credential constants were removed while cloud uploads are disabled.
   `UploadThingUrlFragment` remains only for importing existing public links.
 
+### Upload Gateway & Cloud Storage
+
+- `MediaTypeZip`: Media type for ZIP archives (`"application/zip"`)
+- `DefaultUploadFileName`: Default filename fallback for generic uploads when a source filename cannot be determined (`"upload.zip"`)
+- `DefaultUploadGatewayBaseUrl`: Base URL for the community upload gateway (`"https://genhub-upload-gateway.mustafa2146.workers.dev"`)
+- `UploadEndpoint`: Endpoint path for cloud uploads (`"/api/v1/uploads"`)
+- `UploadDeleteEndpoint`: Endpoint path for deleting cloud uploads (`"/api/v1/uploads/delete"`)
+
 ### Media Types
 
 
@@ -1561,6 +1569,13 @@ Constants for The Super Hackers content discovery and manifest creation.
 
 Constants for tool plugin metadata and configuration.
 
+### MockUrls Subclass
+
+| Constant             | Value                                 | Description                                 |
+| -------------------- | ------------------------------------- | ------------------------------------------- |
+| `MockReplayUploadUrl`| `"https://example.com/share/1234"`    | Mock upload URL for replays                 |
+| `MockMapUploadUrl`   | `"https://example.com/maps/123"`      | Mock upload URL for maps                    |
+
 ### ReplayManager Subclass
 
 Constants specific to the Replay Manager tool plugin.
@@ -1575,6 +1590,18 @@ Constants specific to the Replay Manager tool plugin.
 | `Tags`       | `["replays", "file-management", "sharing"]`| Tags associated with the Replay Manager tool     |
 | `IconPath`   | `"Assets/Icons/replay.png"`                | Icon path for the Replay Manager tool (placeholder) |
 | `IsBundled`  | `true`                                     | Whether the tool is bundled with the application |
+
+### Root Constants
+
+| Constant                               | Value         | Description                                                            |
+| -------------------------------------- | ------------- | ---------------------------------------------------------------------- |
+| `WindowsMockPathSegment`               | `"\\Mock\\"`  | Mock path separator indicator for demo environments on Windows         |
+| `UnixMockPathSegment`                  | `"/Mock/"`    | Mock path separator indicator for demo environments on Unix            |
+| `DeleteFailedTitle`                    | `"Delete Failed"` | Notification title for delete failure                              |
+| `DefaultUploadBufferSize`              | `8192` (8 KB) | Default upload buffer size in bytes                                    |
+| `UploadStageCompressionThresholdPercent` | `25`        | Upload progress stage percentage threshold for compression stage       |
+| `UploadStageCloudThresholdPercent`     | `88`          | Upload progress stage percentage threshold for cloud upload stage     |
+| `UploadStageCompletePercent`           | `100`         | Upload progress stage percentage threshold for completion stage       |
 
 ### Usage Example
 
@@ -1594,6 +1621,43 @@ var metadata = new ToolMetadata
     IsBundled = ToolConstants.ReplayManager.IsBundled,
 };
 ```
+
+---
+
+## PlatformConstants Class
+
+Platform-specific executable names and arguments used for shell operations and file reveals.
+
+| Constant                       | Value                                 | Description                                                                 |
+| ------------------------------ | ------------------------------------- | --------------------------------------------------------------------------- |
+| `WindowsExplorerExecutable`    | `"explorer.exe"`                      | Windows Explorer executable name                                            |
+| `WindowsExplorerSelectArgument`| `"/select,\"{0}\""`                   | Windows Explorer select argument format                                     |
+| `MacOSOpenExecutable`          | `"open"`                              | macOS open command executable name (resolved via PATH)                      |
+| `LinuxXdgOpenExecutable`       | `"xdg-open"`                          | Linux xdg-open command executable name (resolved via PATH)                  |
+| `WindowsExplorerPath`          | Dynamic property                      | Resolves absolute path to Windows Explorer via Windows directory with fallback |
+
+---
+
+## ReplayManagerConstants Class
+
+Constants specifically for the Replay Manager feature.
+
+| Constant                       | Value                                 | Description                                                                 |
+| ------------------------------ | ------------------------------------- | --------------------------------------------------------------------------- |
+| `MaxReplaySizeBytes`           | `1048576` (1MB)                       | Maximum size for a single replay file                                       |
+| `MaxZipEntries`                | `100`                                 | Maximum allowed entries in a replay ZIP archive                             |
+| `MaxAggregateUncompressedBytes`| `52428800` (50MB)                     | Maximum aggregate uncompressed bytes for replay ZIP archives                |
+| `MaxCompressionRatio`          | `50.0`                                | Maximum compression ratio allowed for replay ZIP archives                   |
+| `MaxUploadBytesPerPeriod`      | `10485760` (10MB)                     | Maximum upload bytes per period                                             |
+| `TempImportFilePrefix`         | `"genhub_import_"`                    | Prefix for temporary import files                                           |
+| `TempShareFilePrefix`          | `"genhub_share_"`                     | Prefix for temporary share files                                            |
+| `DefaultImportedReplayFileName`| `"imported_replay.rep"`               | Default file name for imported replays                                      |
+| `ZipFilePattern`               | `"*.zip"`                             | File pattern for replay ZIP archives                                        |
+| `DefaultZipName`               | `"replays"`                           | Default name for exported replay ZIP files                                  |
+| `DeleteFailedTitle`            | `"Delete Failed"`                     | Notification title for delete failure                                       |
+| `UploadCategory`               | `"replays"`                           | Category identifier for replay uploads                                      |
+| `WindowsMockPathSegment`       | `"\\Mock\\"`                          | Mock path separator indicator for demo environments on Windows              |
+| `UnixMockPathSegment`          | `"/Mock/"`                            | Mock path separator indicator for demo environments on Unix                 |
 
 ---
 

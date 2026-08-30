@@ -14,4 +14,9 @@ public static class RegexConstants
     /// Regex pattern for GenTool replay links.
     /// </summary>
     public const string GenToolReplayPattern = @"href=""([^\""]+\.rep)""";
+
+    /// <summary>
+    /// Regex pattern for Strata / GameReplays replay links.
+    /// </summary>
+    public const string StrataReplayPattern = @"(?:href=[""'](?<url>[^""']+\.(?:rep|zip))[""']|(?<url>https?://[^""'\s<>]+\.(?:rep|zip)))";
 }

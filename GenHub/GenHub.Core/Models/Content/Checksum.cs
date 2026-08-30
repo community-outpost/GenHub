@@ -18,4 +18,14 @@ public class Checksum
     /// </summary>
     [JsonPropertyName("sha256")]
     public string Sha256 { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Creates a deep copy of the current <see cref="Checksum"/> instance.
+    /// </summary>
+    /// <returns>A new <see cref="Checksum"/> instance with identical values.</returns>
+    public Checksum Clone() => new()
+    {
+        Md5 = Md5,
+        Sha256 = Sha256,
+    };
 }

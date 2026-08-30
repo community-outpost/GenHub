@@ -223,6 +223,50 @@ public sealed class PathHelperTests
         Assert.Equal(expected, normalized);
     }
 
+    /// <summary>
+    /// Verifies that SanitizeFileName removes invalid filesystem characters, trims whitespace and trailing dots, and prefixes Windows reserved device names.
+    /// </summary>
+    [Fact]
+    public void SanitizeFileName_RemovesInvalidCharactersAndHandlesEdgeCases()
+    {
+        var invalidChars = new string(Path.GetInvalidFileNameChars());
+        var input = $"  valid{invalidChars}file name.txt  ";
+        var sanitized = PathHelper.SanitizeFileName(input);
+
+        Assert.Equal("validfile name.txt", sanitized);
+        Assert.Equal(string.Empty, PathHelper.SanitizeFileName(string.Empty));
+        Assert.Equal("trailing", PathHelper.SanitizeFileName("trailing...."));
+        Assert.Equal("_CON.zip", PathHelper.SanitizeFileName("CON.zip"));
+        Assert.Equal("_nul", PathHelper.SanitizeFileName("nul"));
+        Assert.Equal("_com1.txt", PathHelper.SanitizeFileName("com1.txt"));
+    }
+
+    /// <summary>
+    /// Verifies that GetUniqueNumberedPath appends an incrementing counter when files exist.
+    /// </summary>
+    [Fact]
+    public void GetUniqueNumberedPath_GeneratesUniqueNamesWhenFilesExist()
+    {
+        var tempDir = CreateWorkingDirectory();
+        try
+        {
+            var targetPath = Path.Combine(tempDir, "archive.zip");
+            Assert.Equal(targetPath, PathHelper.GetUniqueNumberedPath(targetPath));
+
+            File.WriteAllText(targetPath, "test");
+            var secondPath = PathHelper.GetUniqueNumberedPath(targetPath);
+            Assert.Equal(Path.Combine(tempDir, "archive (1).zip"), secondPath);
+
+            File.WriteAllText(secondPath, "test2");
+            var thirdPath = PathHelper.GetUniqueNumberedPath(targetPath);
+            Assert.Equal(Path.Combine(tempDir, "archive (2).zip"), thirdPath);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
     private static string CreateWorkingDirectory()
     {
         var root = Path.Combine(Path.GetTempPath(), "GenHubContainmentLinks", Guid.NewGuid().ToString("N"));

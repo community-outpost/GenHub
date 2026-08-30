@@ -1,8 +1,7 @@
 <#
 .SYNOPSIS
-    Safe build and compile check script for GenHub.
-    Prevents parallel build conflicts, protects machine responsiveness,
-    and detects active debug sessions.
+    Serialized build/check script for GenHub. Prevents build conflicts when
+    multiple agents work simultaneously and avoids builds during debugging.
 
 .DESCRIPTION
     Uses a named mutex to ensure only one build runs at a time.
@@ -48,6 +47,7 @@ param(
 
     [string]$Project = "",
 
+    [ValidateRange(0, 2147483)]
     [int]$TimeoutSeconds = 120,
 
     [ValidateSet("quiet", "minimal", "normal", "detailed")]
@@ -91,21 +91,25 @@ function Test-DebuggerActive {
     }
 
     # Check if GenHub output DLLs are locked (indicates active debugging)
-    $binDebugDirs = Get-ChildItem -Path $SolutionDir -Directory -Recurse -Filter "Debug" |
+    $binDebugDirs = Get-ChildItem -Path $SolutionDir -Directory -Recurse -Filter "Debug" -ErrorAction SilentlyContinue |
         Where-Object { $_.Parent.Name -eq "bin" }
 
     foreach ($dir in $binDebugDirs) {
-        $dlls = Get-ChildItem -Path $dir.FullName -Filter "GenHub*.dll" -ErrorAction SilentlyContinue
+        $dlls = Get-ChildItem -Path $dir.FullName -Filter "GenHub*.dll" -Recurse -ErrorAction SilentlyContinue
         foreach ($dll in $dlls) {
             try {
-                # Try to open exclusively - if it fails, the file is locked (debugger)
+                # Try to open with ReadWrite/None to test for exclusive debugger locks
                 $stream = [System.IO.File]::Open($dll.FullName, [System.IO.FileMode]::Open, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
                 $stream.Close()
                 $stream.Dispose()
             }
-            catch {
+            catch [System.IO.IOException] {
                 # File is locked - debugger is likely active
                 return $true
+            }
+            catch {
+                # Ignore non-lock errors (e.g. access permissions or file moved)
+                Write-Verbose "Non-lock error checking file $($dll.FullName): $_"
             }
         }
     }
@@ -184,7 +188,7 @@ try {
 
             # Use --no-restore to skip package resolution (much faster)
             # Use --no-dependencies when checking a single project (skip transitive)
-            $dotnetArgs = @(
+            $buildArgs = @(
                 "build", $target,
                 "--no-restore",
                 "--nologo",
@@ -193,24 +197,24 @@ try {
             )
 
             if ($Project) {
-                $dotnetArgs += "--no-dependencies"
+                $buildArgs += "--no-dependencies"
             }
 
-            & dotnet @dotnetArgs
+            & dotnet @buildArgs
             $exitCode = $LASTEXITCODE
         }
 
         "build" {
             Write-Status "Running full build on: $(Split-Path $target -Leaf)"
 
-            $dotnetArgs = @(
+            $buildArgs = @(
                 "build", $target,
                 "--nologo",
                 "--verbosity", $Verbosity,
                 "-maxcpucount:2"
             )
 
-            & dotnet @dotnetArgs
+            & dotnet @buildArgs
             $exitCode = $LASTEXITCODE
         }
 
@@ -234,8 +238,8 @@ try {
     exit $exitCode
 }
 finally {
-    # Clean up lock file
-    if (Test-Path $LockFilePath) {
+    # Clean up lock file only if we acquired the lock
+    if ($acquired -and (Test-Path $LockFilePath)) {
         Remove-Item $LockFilePath -Force -ErrorAction SilentlyContinue
     }
 

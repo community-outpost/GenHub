@@ -75,7 +75,6 @@ public class CommunityOutpostResolver(
 
             // Extract metadata from resolver metadata (set by the discoverer/parser)
             var contentCode = GetMetadataValue(discoveredItem, "contentCode", "unknown");
-            var catalogVersion = GetMetadataValue(discoveredItem, "catalogVersion", "unknown");
             var category = GetMetadataValue(discoveredItem, "category", "Other");
             var fileSize = GetMetadataValueLong(discoveredItem, "fileSize", 0);
 
@@ -83,10 +82,13 @@ public class CommunityOutpostResolver(
             var contentMetadata = GenPatcherContentRegistry.GetMetadata(contentCode);
 
             // Determine filename from URL or content code
-            var downloadUrl = discoveredItem.SourceUrl ?? throw new InvalidOperationException(
-                "SourceUrl cannot be null for Community Outpost content");
+            if (!Uri.TryCreate(discoveredItem.SourceUrl, UriKind.Absolute, out var downloadUri))
+            {
+                throw new InvalidOperationException(
+                    "SourceUrl must be a valid absolute URI for Community Outpost content");
+            }
 
-            var filename = GetFilenameFromUrl(downloadUrl, contentCode);
+            var filename = DetermineFilename(downloadUri, contentCode);
 
             // Get all mirror URLs for fallback support
             var mirrorUrls = GetMirrorUrls(discoveredItem);
@@ -104,7 +106,7 @@ public class CommunityOutpostResolver(
             var versionSource = !string.IsNullOrEmpty(contentMetadata.Version)
                 ? contentMetadata.Version
                 : discoveredItem.Version;
-            var manifestVersion = ExtractManifestVersion(versionSource);
+            var manifestVersion = ExtractVersionNumberForManifestId(versionSource);
 
             logger.LogDebug(
                 "Generating manifest ID: Publisher={Publisher}, ContentType={ContentType}, ContentName={ContentName}, Version={Version}",
@@ -160,13 +162,12 @@ public class CommunityOutpostResolver(
             // Add the file as a remote download
             manifest.AddRemoteFileAsync(
                 filename,
-                downloadUrl,
+                downloadUri.AbsoluteUri,
                 ContentSourceType.RemoteDownload,
                 isExecutable: false).Wait(cancellationToken);
 
             // Store additional metadata in the manifest for the deliverer
             var builtManifest = manifest.Build();
-            builtManifest.ManifestVersion = manifestVersion;
 
             // Store the install target from content metadata
             builtManifest.InstallationInstructions ??= new InstallationInstructions();
@@ -284,7 +285,7 @@ public class CommunityOutpostResolver(
     /// <summary>
     /// Extracts a numeric version suitable for manifest ID.
     /// </summary>
-    private static string ExtractManifestVersion(string version)
+    private static string ExtractVersionNumberForManifestId(string version)
     {
         if (string.IsNullOrEmpty(version))
         {
@@ -349,7 +350,7 @@ public class CommunityOutpostResolver(
     /// </summary>
     private static string GetMetadataValue(ContentSearchResult item, string key, string defaultValue)
     {
-        if (item.ResolverMetadata != null && item.ResolverMetadata.TryGetValue(key, out var value))
+        if (item.ResolverMetadata?.TryGetValue(key, out var value) == true)
         {
             return value;
         }
@@ -367,24 +368,16 @@ public class CommunityOutpostResolver(
     }
 
     /// <summary>
-    /// Gets the filename from the download URL or generates one from the content code.
+    /// Determines the filename from the download URI or generates one from the content code.
     /// </summary>
-    private static string GetFilenameFromUrl(string url, string contentCode)
+    private static string DetermineFilename(Uri downloadUri, string contentCode)
     {
-        try
-        {
-            var uri = new Uri(url);
-            var path = uri.AbsolutePath;
-            var lastSegment = path.Split('/')[^1];
+        var path = downloadUri.AbsolutePath;
+        var lastSegment = path.Split('/')[^1];
 
-            if (!string.IsNullOrEmpty(lastSegment) && lastSegment.Contains('.'))
-            {
-                return lastSegment;
-            }
-        }
-        catch
+        if (!string.IsNullOrEmpty(lastSegment) && lastSegment.Contains('.'))
         {
-            // Fall through to default filename
+            return lastSegment;
         }
 
         return $"{contentCode}{CommunityOutpostConstants.DatFileExtension}";
@@ -393,7 +386,7 @@ public class CommunityOutpostResolver(
     /// <summary>
     /// Gets the list of mirror URLs from the search result metadata.
     /// </summary>
-    private List<string> GetMirrorUrls(ContentSearchResult item)
+    private IReadOnlyList<string> GetMirrorUrls(ContentSearchResult item)
     {
         var mirrorUrlsJson = GetMetadataValue(item, "mirrorUrls", "[]");
 

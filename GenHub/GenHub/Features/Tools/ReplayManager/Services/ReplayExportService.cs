@@ -1,8 +1,3 @@
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Services;
-using GenHub.Core.Interfaces.Tools.ReplayManager;
-using GenHub.Core.Models.Tools.ReplayManager;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,6 +5,13 @@ using System.IO.Compression;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Services;
+using GenHub.Core.Interfaces.Tools.ReplayManager;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Tools.ReplayManager;
+using GenHub.Core.Models.Tools.UploadThing;
+using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Tools.ReplayManager.Services;
 
@@ -22,56 +24,48 @@ public sealed class ReplayExportService(
     ILogger<ReplayExportService> logger) : IReplayExportService
 {
     /// <inheritdoc />
-    public async Task<string?> UploadToUploadThingAsync(
+    public async Task<OperationResult<UploadResult>> UploadToUploadThingAsync(
         IEnumerable<ReplayFile> replays,
         IProgress<double>? progress = null,
         CancellationToken ct = default)
     {
+        var replayList = replays.ToList();
+        if (replayList.Count == 0)
+        {
+            return OperationResult<UploadResult>.CreateFailure("No replays selected for upload.");
+        }
+
         string? zipToUpload = null;
         bool isTemporaryZip = false;
 
         try
         {
-            var replayList = replays.ToList();
-            if (replayList.Count == 0) return null;
+            var (path, isTemp, uploadProgress) = await ResolveZipToUploadAsync(replayList, progress, ct);
+            zipToUpload = path;
+            isTemporaryZip = isTemp;
 
-            if (replayList.Count == 1 && replayList[0].FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrEmpty(zipToUpload) || !File.Exists(zipToUpload))
             {
-                var (isValid, errorMessage) = zipValidationService.ValidateZip(replayList[0].FullPath);
-                if (!isValid)
-                {
-                    logger.LogError("ZIP validation failed for upload: {Error}", errorMessage);
-                    throw new ArgumentException(errorMessage ?? "Invalid ZIP archive for upload.");
-                }
-
-                zipToUpload = replayList[0].FullPath;
-            }
-            else
-            {
-                var tempZip = Path.Combine(Path.GetTempPath(), $"{ReplayManagerConstants.TempShareFilePrefix}{Guid.NewGuid()}.zip");
-                var createdZip = await ExportToZipAsync(replayList, tempZip, progress, ct);
-                if (createdZip == null) return null;
-
-                zipToUpload = createdZip;
-                isTemporaryZip = true;
+                return OperationResult<UploadResult>.CreateFailure("Failed to prepare replay archive for upload.");
             }
 
-            if (new FileInfo(zipToUpload).Length > ReplayManagerConstants.MaxReplaySizeBytes)
+            if (new FileInfo(zipToUpload).Length > ReplayManagerConstants.MaxUploadBytesPerPeriod)
             {
                 logger.LogError("File exceeds size limit: {Path}", zipToUpload);
-                return null;
+                return OperationResult<UploadResult>.CreateFailure("Exported archive exceeds maximum size limit of 10MB.");
             }
 
-            return await uploadThingService.UploadFileAsync(zipToUpload, progress, ct);
+            return await uploadThingService.UploadFileAsync(zipToUpload, uploadProgress, ct);
         }
-        catch (ArgumentException)
+        catch (ArgumentException ex)
         {
-            throw; // Bubble up validation errors
+            logger.LogError(ex, "Invalid replay argument for upload");
+            return OperationResult<UploadResult>.CreateFailure(ex.Message);
         }
-        catch (Exception ex)
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or InvalidOperationException) && ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to upload to UploadThing");
-            return null;
+            return OperationResult<UploadResult>.CreateFailure($"Replay export failed: {ex.Message}");
         }
         finally
         {
@@ -106,7 +100,7 @@ public sealed class ReplayExportService(
                     foreach (var replay in replayList)
                     {
                         count++;
-                        progress?.Report((double)count / total * 0.4);
+                        progress?.Report((double)count / total);
 
                         if (!File.Exists(replay.FullPath)) continue;
                         archive.CreateEntryFromFile(replay.FullPath, replay.FileName);
@@ -121,5 +115,30 @@ public sealed class ReplayExportService(
             logger.LogError(ex, "Failed to create ZIP: {Path}", destinationPath);
             return null;
         }
+    }
+
+    private async Task<(string? Path, bool IsTemporary, IProgress<double>? UploadProgress)> ResolveZipToUploadAsync(
+        IReadOnlyList<ReplayFile> replayList,
+        IProgress<double>? progress,
+        CancellationToken ct)
+    {
+        if (replayList.Count == 1 && replayList[0].FileName.EndsWith(FileTypes.ZipFileExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            var (isValid, errorMessage) = zipValidationService.ValidateZip(replayList[0].FullPath);
+            if (!isValid)
+            {
+                logger.LogError("ZIP validation failed for upload: {Error}", errorMessage);
+                throw new ArgumentException(errorMessage ?? "Invalid ZIP archive for upload.");
+            }
+
+            return (replayList[0].FullPath, false, progress);
+        }
+
+        var tempZip = Path.Combine(Path.GetTempPath(), $"{ReplayManagerConstants.TempShareFilePrefix}{Guid.NewGuid()}{FileTypes.ZipFileExtension}");
+        var zipProgress = progress != null ? new Progress<double>(p => progress.Report(p * 0.25)) : null;
+        var uploadProgress = progress != null ? new Progress<double>(p => progress.Report(0.25 + (p * 0.75))) : null;
+
+        var createdZip = await ExportToZipAsync(replayList, tempZip, zipProgress, ct);
+        return (createdZip, true, uploadProgress);
     }
 }

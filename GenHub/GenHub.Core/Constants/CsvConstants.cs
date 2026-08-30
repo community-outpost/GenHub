@@ -1,8 +1,11 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
 /// Constants specific to CSV catalog discovery and content pipeline.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized URI constants for remote catalog discovery")]
 public static class CsvConstants
 {
     /// <summary>
@@ -19,6 +22,16 @@ public static class CsvConstants
     /// Description for the CSV catalog discoverer.
     /// </summary>
     public const string Description = "Discovers base game manifests from verified CSV catalogs.";
+
+    /// <summary>
+    /// Source name for the CSV catalog content provider.
+    /// </summary>
+    public const string ProviderSourceName = "CSV Catalog Provider";
+
+    /// <summary>
+    /// Description for the CSV catalog content provider.
+    /// </summary>
+    public const string ProviderDescription = "Provides base game manifests from verified CSV catalogs.";
 
     /// <summary>
     /// Resolver ID for CSV catalog content.
@@ -64,4 +77,54 @@ public static class CsvConstants
     /// Special language filter value to include all languages.
     /// </summary>
     public const string AllLanguagesFilter = "All";
+
+    /// <summary>
+    /// Canonical language code for English.
+    /// </summary>
+    public const string LanguageEn = "EN";
+
+    /// <summary>
+    /// Canonical language code for German.
+    /// </summary>
+    public const string LanguageDe = "DE";
+
+    /// <summary>
+    /// Canonical language code for French.
+    /// </summary>
+    public const string LanguageFr = "FR";
+
+    /// <summary>
+    /// Canonical language code for Polish.
+    /// </summary>
+    public const string LanguagePl = "PL";
+
+    /// <summary>
+    /// Canonical language code for Spanish.
+    /// </summary>
+    public const string LanguageEs = "ES";
+
+    /// <summary>
+    /// Canonical language code for Italian.
+    /// </summary>
+    public const string LanguageIt = "IT";
+
+    /// <summary>
+    /// Canonical language code for Korean.
+    /// </summary>
+    public const string LanguageKo = "KO";
+
+    /// <summary>
+    /// Canonical language code for Brazilian Portuguese.
+    /// </summary>
+    public const string LanguagePtBr = "PT-BR";
+
+    /// <summary>
+    /// Canonical language code for Simplified Chinese.
+    /// </summary>
+    public const string LanguageZhCn = "ZH-CN";
+
+    /// <summary>
+    /// Canonical language code for Traditional Chinese.
+    /// </summary>
+    public const string LanguageZhTw = "ZH-TW";
 }

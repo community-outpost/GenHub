@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -234,4 +235,10 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
     /// <returns>The legacy application data path as a string.</returns>
     public string GetLegacyConfiguredDataPath() =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppConstants.AppName);
+
+    /// <inheritdoc />
+    public CsvCatalogConfiguration GetCsvCatalogConfiguration()
+    {
+        return _configuration?.GetSection(ConfigurationKeys.GenHubSection).Get<CsvCatalogConfiguration>() ?? new CsvCatalogConfiguration();
+    }
 }

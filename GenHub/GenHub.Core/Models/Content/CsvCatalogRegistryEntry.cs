@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
@@ -73,4 +74,33 @@ public class CsvCatalogRegistryEntry
     /// </summary>
     [JsonPropertyName("isActive")]
     public bool IsActive { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets an alias for <see cref="SupportedLanguages"/> to support configuration binding.
+    /// </summary>
+    [JsonIgnore]
+    public List<string> Languages
+    {
+        get => SupportedLanguages;
+        set => SupportedLanguages = value;
+    }
+
+    /// <summary>
+    /// Creates a deep copy of the current <see cref="CsvCatalogRegistryEntry"/> instance.
+    /// </summary>
+    /// <returns>A new <see cref="CsvCatalogRegistryEntry"/> instance with identical values.</returns>
+    public CsvCatalogRegistryEntry Clone() => new()
+    {
+        Id = Id,
+        Url = Url,
+        GameType = GameType,
+        Version = Version,
+        SupportedLanguages = SupportedLanguages != null ? [.. SupportedLanguages] : [],
+        FileCount = FileCount,
+        TotalSizeBytes = TotalSizeBytes,
+        Checksum = Checksum?.Clone(),
+        GeneratedAt = GeneratedAt,
+        GeneratorVersion = GeneratorVersion,
+        IsActive = IsActive,
+    };
 }

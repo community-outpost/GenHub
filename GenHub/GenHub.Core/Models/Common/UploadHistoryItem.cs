@@ -9,8 +9,10 @@ namespace GenHub.Core.Models.Common;
 /// <param name="SizeBytes">The size of the uploaded file in bytes.</param>
 /// <param name="Url">The public URL of the upload.</param>
 /// <param name="FileName">The name of the uploaded file.</param>
+/// <param name="Category">Optional tool or file category.</param>
 public record UploadHistoryItem(
     DateTime Timestamp,
     long SizeBytes,
     string Url,
-    string FileName);
+    string FileName,
+    string? Category = null);

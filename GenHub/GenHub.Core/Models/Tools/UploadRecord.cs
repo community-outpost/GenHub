@@ -28,6 +28,30 @@ public sealed class UploadRecord
     public string? FileName { get; set; }
 
     /// <summary>
+    /// Gets or sets the SHA-256 hash of the uploaded file for deduplication.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? FileHash { get; set; }
+
+    /// <summary>
+    /// Gets or sets the file key assigned by the cloud storage provider.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? FileKey { get; set; }
+
+    /// <summary>
+    /// Gets or sets the cryptographic HMAC deletion token.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? DeleteToken { get; set; }
+
+    /// <summary>
+    /// Gets or sets the category or tool identifier of the upload (e.g. "replays", "maps").
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Category { get; set; }
+
+    /// <summary>
     /// Gets or sets a value indicating whether a legacy record was pending deletion.
     /// </summary>
     /// <remarks>
