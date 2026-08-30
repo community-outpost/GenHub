@@ -203,16 +203,16 @@ public abstract class BasePackageDeploymentFix(
                     Directory.CreateDirectory(markerDir);
                 }
 
-                File.Copy(globalMarker, scopedMarker, overwrite: false);
+                File.Move(globalMarker, scopedMarker);
             }
             catch (IOException ex)
             {
-                Logger.LogWarning(ex, "Failed to copy legacy global marker {GlobalMarker} to scoped marker {ScopedMarker}", globalMarker, scopedMarker);
+                Logger.LogWarning(ex, "Failed to migrate legacy global marker {GlobalMarker} to scoped marker {ScopedMarker}", globalMarker, scopedMarker);
                 return globalMarker;
             }
             catch (UnauthorizedAccessException ex)
             {
-                Logger.LogWarning(ex, "Permission denied copying legacy global marker {GlobalMarker} to scoped marker {ScopedMarker}", globalMarker, scopedMarker);
+                Logger.LogWarning(ex, "Permission denied migrating legacy global marker {GlobalMarker} to scoped marker {ScopedMarker}", globalMarker, scopedMarker);
                 return globalMarker;
             }
         }
@@ -533,9 +533,20 @@ public abstract class BasePackageDeploymentFix(
 
         if (!hasRollbackError)
         {
-            if (Directory.Exists(backupDir) && !Directory.EnumerateFileSystemEntries(backupDir).Any())
+            try
             {
-                DeleteDirectorySafely(backupDir);
+                if (Directory.Exists(backupDir) && !Directory.EnumerateFileSystemEntries(backupDir).Any())
+                {
+                    DeleteDirectorySafely(backupDir);
+                }
+            }
+            catch (IOException ex)
+            {
+                Logger.LogWarning(ex, "Failed to inspect or delete empty backup directory {BackupDir} during rollback", backupDir);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                Logger.LogWarning(ex, "Permission denied inspecting or deleting empty backup directory {BackupDir} during rollback", backupDir);
             }
 
             details.Add("✓ Rollback completed.");

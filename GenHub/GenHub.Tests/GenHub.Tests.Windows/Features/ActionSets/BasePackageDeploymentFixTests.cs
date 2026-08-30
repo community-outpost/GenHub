@@ -301,11 +301,11 @@ public sealed class BasePackageDeploymentFixTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that when a legacy global marker exists, GetMarkerPath migrates the records
-    /// to the scoped marker and preserves the global marker for other installations.
+    /// Verifies that when a legacy global marker exists and scoped marker is missing, GetMarkerPath migrates
+    /// the global marker to the scoped marker and consumes the legacy global marker to prevent resurrection.
     /// </summary>
     [Fact]
-    public void GetMarkerPath_WhenLegacyGlobalMarkerExists_MigratesToScopedMarkerAndPreservesGlobalMarker()
+    public void GetMarkerPath_WhenLegacyGlobalMarkerExists_MigratesToScopedMarkerAndConsumesGlobalMarker()
     {
         var fix = new TestPackageDeploymentFix(_loggerMock.Object, _httpClientFactoryMock.Object);
         var installationPath = Path.Combine(_testDirectory, "GameInstallLegacyMarker");
@@ -331,7 +331,7 @@ public sealed class BasePackageDeploymentFixTests : IDisposable
             resolvedPath.Should().Be(scopedMarker);
             File.Exists(scopedMarker).Should().BeTrue();
             File.ReadAllText(scopedMarker).Should().Be("legacy_content");
-            File.Exists(globalMarker).Should().BeTrue("Global marker must be preserved for other installations");
+            File.Exists(globalMarker).Should().BeFalse("Legacy global marker must be moved to scoped marker to prevent resurrection");
         }
         finally
         {
