@@ -37,8 +37,7 @@ public class CommunityOutpostResolver(
         string ContentCode,
         string Filename,
         IReadOnlyList<string> MirrorUrls,
-        long FileSize,
-        string ManifestVersion);
+        long FileSize);
 
     /// <inheritdoc/>
     public string ResolverId => CommunityOutpostConstants.PublisherId;
@@ -172,8 +171,7 @@ public class CommunityOutpostResolver(
                     contentCode,
                     filename,
                     mirrorUrls,
-                    fileSize,
-                    manifestVersion));
+                    fileSize));
 
             logger.LogInformation(
                 "Successfully resolved Community Outpost manifest: {ManifestId} for {ContentCode} ({Category})",
@@ -198,7 +196,6 @@ public class CommunityOutpostResolver(
         ContentManifest builtManifest,
         ManifestMetadataContext context)
     {
-        builtManifest.ManifestVersion = context.ManifestVersion;
         builtManifest.InstallationInstructions ??= new InstallationInstructions();
         builtManifest.Metadata ??= new ContentMetadata();
 
