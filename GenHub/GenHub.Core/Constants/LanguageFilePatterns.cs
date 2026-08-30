@@ -226,11 +226,6 @@ public static class LanguageFilePatterns
     public const string AudioZHBig = "AudioZH.big";
 
     /// <summary>
-    /// File pattern for Zero Hour INI BIG files: "INIZH.big".
-    /// </summary>
-    public const string IniZHBig = "INIZH.big";
-
-    /// <summary>
     /// Wildcard file pattern for any Zero Hour BIG files: "*ZH.big".
     /// </summary>
     public const string AnyZeroHourBig = "*ZH.big";

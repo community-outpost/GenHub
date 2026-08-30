@@ -84,7 +84,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
         progress?.Report(new ValidationProgress(3, 3, "Validation Complete"));
 
         _logger.LogDebug("Full content validation for {ManifestId} completed with {IssueCount} issues.", manifest.Id, issues.Count);
-        return new ValidationResult(manifest.Id, issues);
+        return new ValidationResult(manifest.Id, issues, totalFilesValidated: integrityResult.TotalFilesValidated);
     }
 
     /// <inheritdoc/>
@@ -175,7 +175,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
         }
 
         _logger.LogDebug("Content integrity validation for {ManifestId} completed with {IssueCount} issues.", manifest.Id, issues.Count);
-        return new ValidationResult(manifest.Id, issues);
+        return new ValidationResult(manifest.Id, issues, totalFilesValidated: totalFiles);
     }
 
     /// <inheritdoc/>

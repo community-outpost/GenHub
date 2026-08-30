@@ -113,7 +113,7 @@ public class LanguageDetector : ILanguageDetector
         {
             (LanguageFilePatterns.EnglishZHBig, CsvConstants.LanguageEn),
             (LanguageFilePatterns.AudioZHBig, CsvConstants.LanguageEn),
-            (LanguageFilePatterns.IniZHBig, CsvConstants.LanguageEn),
+            (GameClientConstants.ZeroHourIniBig, CsvConstants.LanguageEn),
             (LanguageFilePatterns.GermanZHBig, CsvConstants.LanguageDe),
             (LanguageFilePatterns.FrenchZHBig, CsvConstants.LanguageFr),
             (LanguageFilePatterns.SpanishZHBig, CsvConstants.LanguageEs),
