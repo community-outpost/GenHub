@@ -214,11 +214,9 @@ def crawl_superhackers_releases(token: str | None = None, inspect_binaries: bool
     return entries
 
 
-def generate_generalsonline_candidates(start_year: int, end_year: int) -> list[tuple[str, str, str, str]]:
-    """Generates candidate (date_code, version_str, manifest_id, url) tuples for GeneralsOnline."""
-    known_dates = ["021326", "032926", "042826", "060526", "062026", "081326"]
-    date_set = set(known_dates)
-
+def generate_date_codes(start_year: int, end_year: int) -> set[str]:
+    """Generates all valid MMDDYY date codes within the given year range."""
+    date_set = {"021326", "032926", "042826", "060526", "062026", "081326"}
     try:
         curr_date = datetime.date(start_year, 1, 1)
         target_end = min(datetime.date(end_year, 12, 31), datetime.date.today() + datetime.timedelta(days=7))
@@ -227,30 +225,40 @@ def generate_generalsonline_candidates(start_year: int, end_year: int) -> list[t
             curr_date += datetime.timedelta(days=1)
     except (ValueError, OverflowError):
         pass
+    return date_set
 
+
+def _build_variant_candidate(date_code: str, qfe: int | None, is_eac: bool) -> tuple[str, str, str, str]:
+    qfe_part = f"_QFE{qfe}" if qfe is not None else ""
+    eac_part = "_EAC" if is_eac else ""
+    suffix = f"{qfe_part}{eac_part}"
+    zip_name = f"GeneralsOnline_portable_{date_code}{suffix}.zip"
+    url = f"{GENERALSONLINE_CDN}/{zip_name}"
+    manifest_type = "eac.zerohour" if is_eac else "zerohour"
+    qfe_digit = str(qfe) if qfe is not None else "0"
+    manifest_id = f"1.{date_code}{qfe_digit}.generalsonline.gameclient.{manifest_type}"
+    version_str = f"{date_code}{suffix}"
+    return (date_code, version_str, manifest_id, url)
+
+
+def build_candidates_for_date(date_code: str) -> list[tuple[str, str, str, str]]:
+    """Builds base and QFE candidate descriptors for a single date code."""
+    candidates = [
+        _build_variant_candidate(date_code, qfe=None, is_eac=False),
+        _build_variant_candidate(date_code, qfe=None, is_eac=True),
+    ]
+    for qfe in range(1, 10):
+        candidates.append(_build_variant_candidate(date_code, qfe=qfe, is_eac=False))
+        candidates.append(_build_variant_candidate(date_code, qfe=qfe, is_eac=True))
+    return candidates
+
+
+def generate_generalsonline_candidates(start_year: int, end_year: int) -> list[tuple[str, str, str, str]]:
+    """Generates candidate (date_code, version_str, manifest_id, url) tuples for GeneralsOnline."""
+    date_set = generate_date_codes(start_year, end_year)
     candidates = []
     for date_code in sorted(date_set):
-        # 1. Base portable release (no QFE)
-        for is_eac in (False, True):
-            suffix = "_EAC" if is_eac else ""
-            zip_name = f"GeneralsOnline_portable_{date_code}{suffix}.zip"
-            url = f"{GENERALSONLINE_CDN}/{zip_name}"
-            manifest_type = "eac.zerohour" if is_eac else "zerohour"
-            manifest_id = f"1.{date_code}0.generalsonline.gameclient.{manifest_type}"
-            version_str = f"{date_code}{suffix}"
-            candidates.append((date_code, version_str, manifest_id, url))
-
-        # 2. QFE releases (QFE1 through QFE9)
-        for qfe in range(1, 10):
-            for is_eac in (False, True):
-                suffix = f"_QFE{qfe}_EAC" if is_eac else f"_QFE{qfe}"
-                zip_name = f"GeneralsOnline_portable_{date_code}{suffix}.zip"
-                url = f"{GENERALSONLINE_CDN}/{zip_name}"
-                manifest_type = "eac.zerohour" if is_eac else "zerohour"
-                manifest_id = f"1.{date_code}{qfe}.generalsonline.gameclient.{manifest_type}"
-                version_str = f"{date_code}{suffix}"
-                candidates.append((date_code, version_str, manifest_id, url))
-
+        candidates.extend(build_candidates_for_date(date_code))
     return candidates
 
 
