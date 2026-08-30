@@ -469,10 +469,12 @@ public class CommunityOutpostDeliverer(
                         manifest.Id,
                         addResult.FirstError);
 
-                    await RollbackManifestsAsync(registeredManifestIds);
+                    var rollbackErrors = await RollbackManifestsAsync(registeredManifestIds);
                     await CleanupTemporaryFilesAsync(archivePath, extractPath);
-                    return OperationResult<ContentManifest>.CreateFailure(
-                        $"Failed to register manifest {manifest.Id}: {addResult.FirstError}");
+                    var failureMessage = rollbackErrors.Count > 0
+                        ? $"Failed to register manifest {manifest.Id}: {addResult.FirstError} (Rollback errors: {string.Join("; ", rollbackErrors)})"
+                        : $"Failed to register manifest {manifest.Id}: {addResult.FirstError}";
+                    return OperationResult<ContentManifest>.CreateFailure(failureMessage);
                 }
 
                 registeredManifestIds.Add(manifest.Id);
@@ -513,18 +515,25 @@ public class CommunityOutpostDeliverer(
                 await RollbackManifestsAsync(registeredManifestIds);
             }
 
+            logger.LogInformation(
+                "Delivery of {ManifestId} was cancelled; downloaded archive is preserved for resume",
+                packageManifest.Id);
             throw;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to deliver Community Outpost content");
+            var rollbackErrors = new List<string>();
             if (registeredManifestIds.Count > 0)
             {
-                await RollbackManifestsAsync(registeredManifestIds);
+                rollbackErrors = await RollbackManifestsAsync(registeredManifestIds);
             }
 
             await CleanupTemporaryFilesAsync(archivePath, extractPath);
-            return OperationResult<ContentManifest>.CreateFailure($"Content delivery failed: {ex.Message}");
+            var failureMessage = rollbackErrors.Count > 0
+                ? $"Content delivery failed: {ex.Message} (Rollback errors: {string.Join("; ", rollbackErrors)})"
+                : $"Content delivery failed: {ex.Message}";
+            return OperationResult<ContentManifest>.CreateFailure(failureMessage);
         }
     }
 
