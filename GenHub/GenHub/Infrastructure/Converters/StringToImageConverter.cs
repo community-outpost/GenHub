@@ -25,8 +25,9 @@ public class StringToImageConverter : IValueConverter
         try
         {
             // Handle avares:// URIs (embedded resources)
-            if (path.StartsWith(UriConstants.AvarUriScheme, StringComparison.OrdinalIgnoreCase))
+            if (path.StartsWith("avares://", StringComparison.OrdinalIgnoreCase))
             {
+                // Ensure URI is well-formed for Avalonia
                 var uri = new Uri(path);
                 var asset = AssetLoader.Open(uri);
                 return new Bitmap(asset);
@@ -40,17 +41,24 @@ public class StringToImageConverter : IValueConverter
                 return new Bitmap(asset);
             }
 
-            // Handle web URLs
-            if (path.StartsWith(UriConstants.HttpUriScheme, StringComparison.OrdinalIgnoreCase) ||
-                path.StartsWith(UriConstants.HttpsUriScheme, StringComparison.OrdinalIgnoreCase))
+            // Handle asset paths starting with 'Assets/'
+            if (path.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
             {
-                // TODO: For web URLs, you might want to implement caching/downloading
-                // For now, return null to avoid blocking
+                var uri = new Uri($"avares://GenHub/{path}");
+                var asset = AssetLoader.Open(uri);
+                return new Bitmap(asset);
+            }
+
+            // Handle web URLs
+            if (path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                // TODO: For web URLs, implement caching/downloading if needed
                 return null;
             }
 
             // Handle local file paths
-            if (File.Exists(path))
+            if (Path.IsPathRooted(path) && File.Exists(path))
             {
                 return new Bitmap(path);
             }
@@ -59,8 +67,7 @@ public class StringToImageConverter : IValueConverter
         }
         catch
         {
-            // If manual loading fails, return the path string to let Avalonia's built-in
-            // type converter attempt to handle it (works for some valid URIs that AssetLoader might miss context for).
+            // Fallback for relative paths that might be intended for Avalonia's built-in converter
             return path;
         }
     }

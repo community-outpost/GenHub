@@ -24,13 +24,18 @@ public class InvertedBoolToVisibilityConverter : IValueConverter
         }
 
         // For other cases, return string (legacy support)
-        return value is bool boolValue ? (!boolValue ? "Visible" : "Collapsed") : "Visible";
+        if (value is bool boolValue)
+        {
+            return boolValue ? "Collapsed" : "Visible";
+        }
+
+        return "Visible";
     }
 
     /// <inheritdoc />
-    /// <exception cref="NotImplementedException">Always thrown as this converter only supports one-way conversion.</exception>
+    /// <exception cref="NotSupportedException">Always thrown as this converter only supports one-way conversion.</exception>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        throw new NotImplementedException();
+        throw new NotSupportedException();
     }
 }

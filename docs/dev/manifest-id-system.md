@@ -64,6 +64,7 @@ This normalization ensures the manifest ID schema remains valid (dots separate s
 - GenHub Mod: `1.0.genhub.mod.custom-mod`
 - GeneralsOnline Client: `1.0.generalsonline.gameclient.generalsonline_30hz`
 - CNC Labs Map: `1.0.cnclabs.map.desert-storm`
+- WorldBuilder Tool: `1.0.ea.moddingtool.worldbuilder`
 
 **Publisher Attribution**: Community publisher name (e.g., "genhub", "generalsonline", "cnclabs")
 
@@ -179,8 +180,8 @@ if (idResult.Success)
 
 // Using generator directly with version constant
 string idString = ManifestIdGenerator.GenerateGameInstallationId(
-    installation, 
-    gameType, 
+    installation,
+    gameType,
     ManifestConstants.GeneralsManifestVersion); // "1.08" → generates "1.108.steam.gameinstallation.generals"
 ```
 
@@ -254,28 +255,28 @@ The `NormalizeVersionString()` method processes version values as follows:
 using static GenHub.Core.Constants.ManifestConstants;
 
 var generalsId = ManifestIdGenerator.GenerateGameInstallationId(
-    installation, 
-    GameType.Generals, 
+    installation,
+    GameType.Generals,
     GeneralsManifestVersion); // "1.08" → "108"
 // Result: "1.108.steam.gameinstallation.generals"
 
 var zhId = ManifestIdGenerator.GenerateGameInstallationId(
-    zhInstallation, 
-    GameType.ZeroHour, 
+    zhInstallation,
+    GameType.ZeroHour,
     ZeroHourManifestVersion); // "1.04" → "104"
 // Result: "1.104.steam.gameinstallation.zerohour"
 
 // Using custom version strings
 var customId = ManifestIdGenerator.GenerateGameInstallationId(
-    installation, 
-    GameType.Generals, 
+    installation,
+    GameType.Generals,
     "2.0"); // "2.0" → "20"
 // Result: "1.20.steam.gameinstallation.generals"
 
 // Using integer versions (no normalization needed)
 var defaultId = ManifestIdGenerator.GenerateGameInstallationId(
-    installation, 
-    GameType.Generals, 
+    installation,
+    GameType.Generals,
     0); // 0 → "0"
 // Result: "1.0.steam.gameinstallation.generals"
 ```
@@ -304,7 +305,7 @@ NormalizeVersionString("1..08"); // ❌ Results in "108" but has invalid format
 - Format: `schemaVersion.userVersion.publisher.contentType.contentName`
 - **UserVersion**: Accepts integers (0, 1, 2) or version strings ("1.08", "1.04"). Version strings have dots removed during normalization ("1.08" → "108")
 - **Publisher**: Can be platform (steam, eaapp, retail) or community publisher (genhub, generalsonline, cnclabs, moddb)
-- **ContentType**: Must be valid content type (gameinstallation, gameclient, mod, patch, addon, mappack, languagepack, etc.)
+- **ContentType**: Must be valid content type (gameinstallation, gameclient, mod, patch, addon, mappack, languagepack, moddingtool, etc.)
 - **ContentName**: Alphanumeric with dashes (e.g., "generals", "custom-mod")
 - **Total Segments**: Exactly 5 segments required
 ## Error Handling

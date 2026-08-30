@@ -66,6 +66,11 @@ public static class GitHubTopicsConstants
     public const string MapTopic = "map";
 
     /// <summary>
+    /// Topic for modding tool content.
+    /// </summary>
+    public const string ModdingToolTopic = "tool";
+
+    /// <summary>
     /// Default number of results per page for GitHub API searches.
     /// </summary>
     public const int DefaultPerPage = 30;

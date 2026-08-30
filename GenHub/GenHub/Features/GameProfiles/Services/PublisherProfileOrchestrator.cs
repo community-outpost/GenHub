@@ -10,6 +10,7 @@ using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -28,12 +29,14 @@ public class PublisherProfileOrchestrator(
     IContentManifestPool manifestPool,
     IGameClientProfileService gameClientProfileService,
     INotificationService notificationService,
+    IContentVersionComparer versionComparer,
     ILogger<PublisherProfileOrchestrator> logger) : IPublisherProfileOrchestrator
 {
     /// <inheritdoc/>
     public async Task<OperationResult<int>> CreateProfilesForPublisherClientAsync(
         GameInstallation installation,
         GameClient gameClient,
+        bool forceReacquireContent = false,
         CancellationToken cancellationToken = default)
     {
         try
@@ -56,23 +59,52 @@ public class PublisherProfileOrchestrator(
             // Check if manifests already exist in the pool for this publisher
             var existingManifests = await GetPublisherManifestsFromPoolAsync(publisherType, cancellationToken);
 
+            bool shouldAcquire = false;
             if (existingManifests.Count == 0)
             {
-                // No manifests in pool - need to acquire content first
+                // No manifests in pool - need to acquire
+                shouldAcquire = true;
                 logger.LogInformation(
-                    "No existing manifests found for {PublisherType}, triggering content acquisition",
+                    "No existing {PublisherType} manifests found, will acquire content",
+                    publisherType);
+            }
+            else if (forceReacquireContent)
+            {
+                // Force reacquire requested - always acquire
+                shouldAcquire = true;
+                logger.LogInformation(
+                    "Force reacquire requested for {PublisherType}",
+                    publisherType);
+            }
+            else
+            {
+                // Check if a newer version is available
+                var hasNewerVersion = await CheckForNewerVersionAsync(publisherType, existingManifests, cancellationToken);
+                if (hasNewerVersion)
+                {
+                    shouldAcquire = true;
+                    logger.LogInformation(
+                        "Newer version available for {PublisherType}, will acquire content",
+                        publisherType);
+                }
+                else
+                {
+                    logger.LogInformation(
+                        "Found {Count} existing {PublisherType} manifests in pool with latest version, skipping acquisition",
+                        existingManifests.Count,
+                        publisherType);
+                }
+            }
+
+            if (shouldAcquire)
+            {
+                logger.LogInformation(
+                    "Acquisition triggered for {PublisherType}",
                     publisherType);
                 await AcquirePublisherClientContentAsync(gameClient, cancellationToken);
 
                 // Re-check after acquisition
                 existingManifests = await GetPublisherManifestsFromPoolAsync(publisherType, cancellationToken);
-            }
-            else
-            {
-                logger.LogInformation(
-                    "Found {Count} existing {PublisherType} manifests in pool, skipping acquisition",
-                    existingManifests.Count,
-                    publisherType);
             }
 
             // Create profiles for ALL GameClient manifests from this publisher
@@ -91,10 +123,10 @@ public class PublisherProfileOrchestrator(
                 }
                 else
                 {
-                    // Not an error - might already exist
-                    logger.LogDebug(
-                        "Skipped profile creation for {ManifestId}: {Reason}",
+                    logger.LogInformation(
+                        "Skipped profile creation for {ManifestId} ({Name}): {Reason}",
                         manifest.Id,
+                        manifest.Name,
                         ManifestHelper.FormatErrors(profileResult.Errors));
                 }
             }
@@ -145,19 +177,13 @@ public class PublisherProfileOrchestrator(
 
                     // For Community Outpost, exclude base game content (10gn, 10zh)
                     // Base games should only be created as fallback when user explicitly declines Community Patch
-                    if (string.Equals(publisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(publisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) &&
+                        m.Metadata?.Tags?.Any(t => t.Equals("basegame", StringComparison.OrdinalIgnoreCase)) == true)
                     {
-                        // Check for 'basegame' tag in metadata (added by CommunityOutpostResolver)
-                        var hasBaseGameTag = m.Metadata?.Tags?.Any(t =>
-                            t.Equals("basegame", StringComparison.OrdinalIgnoreCase)) ?? false;
-
-                        if (hasBaseGameTag)
-                        {
-                            logger.LogDebug(
-                                "Skipping base game manifest {ManifestId} - base games should only be created when user declines Community Patch",
-                                m.Id);
-                            return false;
-                        }
+                        logger.LogDebug(
+                            "Skipping base game manifest {ManifestId} - base games should only be created when user declines Community Patch",
+                            m.Id);
+                        return false;
                     }
 
                     return true;
@@ -252,6 +278,96 @@ public class PublisherProfileOrchestrator(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error acquiring content for publisher client {ClientName}", gameClient.Name);
+        }
+    }
+
+    /// <summary>
+    /// Checks if a newer version is available for the publisher content.
+    /// </summary>
+    /// <param name="publisherType">The publisher type to check.</param>
+    /// <param name="existingManifests">The currently installed manifests.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if a newer version is available, false otherwise.</returns>
+    private async Task<bool> CheckForNewerVersionAsync(
+        string publisherType,
+        List<ContentManifest> existingManifests,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Get the highest version from existing manifests
+            var highestInstalledVersion = existingManifests
+                .Select(m => m.Version)
+                .Where(v => !string.IsNullOrWhiteSpace(v))
+                .OrderByDescending(v => v, versionComparer.GetScheme(publisherType))
+                .FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(highestInstalledVersion))
+            {
+                logger.LogDebug("No valid version found in existing manifests for {PublisherType}", publisherType);
+                return true; // If we can't determine version, assume we should update
+            }
+
+            logger.LogDebug(
+                "Highest installed version for {PublisherType}: {Version}",
+                publisherType,
+                highestInstalledVersion);
+
+            // Discover the latest available version from the provider
+            var searchQuery = new ContentSearchQuery
+            {
+                ProviderName = publisherType,
+                ContentType = ContentType.GameClient,
+            };
+
+            var searchResult = await contentOrchestrator.SearchAsync(searchQuery, cancellationToken);
+            if (!searchResult.Success || searchResult.Data == null || !searchResult.Data.Any())
+            {
+                logger.LogDebug("No content discovered from {PublisherType} provider for version check", publisherType);
+                return false; // If we can't discover new content, don't trigger acquisition
+            }
+
+            var latestAvailable = searchResult.Data.First();
+            var latestAvailableVersion = latestAvailable.Version;
+
+            if (string.IsNullOrWhiteSpace(latestAvailableVersion))
+            {
+                logger.LogDebug("No version information in discovered content for {PublisherType}", publisherType);
+                return false; // If no version info, assume current is fine
+            }
+
+            logger.LogDebug(
+                "Latest available version for {PublisherType}: {Version}",
+                publisherType,
+                latestAvailableVersion);
+
+            // Compare versions
+            var comparison = versionComparer.Compare(
+                latestAvailableVersion,
+                highestInstalledVersion,
+                publisherType);
+
+            if (comparison > 0)
+            {
+                logger.LogInformation(
+                    "Newer version available for {PublisherType}: {LatestVersion} > {InstalledVersion}",
+                    publisherType,
+                    latestAvailableVersion,
+                    highestInstalledVersion);
+                return true;
+            }
+
+            logger.LogDebug(
+                "Installed version is up to date for {PublisherType}: {InstalledVersion} >= {LatestVersion}",
+                publisherType,
+                highestInstalledVersion,
+                latestAvailableVersion);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Error checking for newer version for {PublisherType}, assuming current is fine to avoid loops", publisherType);
+            return false; // On error, don't trigger acquisition to avoid potential infinite loops
         }
     }
 }

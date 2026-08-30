@@ -1,14 +1,7 @@
-using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.GameInstallations;
-using GenHub.Core.Interfaces.GameProfiles;
-using GenHub.Core.Interfaces.GameSettings;
+using GenHub.Core.Interfaces.Launcher;
 using GenHub.Core.Interfaces.Launching;
-using GenHub.Core.Interfaces.Manifest;
-using GenHub.Core.Interfaces.Storage;
-using GenHub.Core.Interfaces.Workspace;
 using GenHub.Features.Launching;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -30,6 +23,9 @@ public static class GameLaunchingModule
         // GameLauncher is scoped - one per request/operation to avoid captive dependencies
         // This prevents issues where scoped dependencies (like IGameProfileManager) are captured by singletons
         services.AddScoped<IGameLauncher, GameLauncher>();
+
+        // SteamLauncher for Steam integration - provisions files directly to game installation
+        services.AddScoped<ISteamLauncher, SteamLauncher>();
 
         return services;
     }

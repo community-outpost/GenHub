@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Markup.Xaml;
 
 namespace GenHub.Features.Downloads.Views;
 
@@ -13,5 +14,13 @@ public partial class PublisherCardView : UserControl
     public PublisherCardView()
     {
         InitializeComponent();
+    }
+
+    /// <summary>
+    /// Loads and initializes the XAML components for this view.
+    /// </summary>
+    private void InitializeComponent()
+    {
+        AvaloniaXamlLoader.Load(this);
     }
 }

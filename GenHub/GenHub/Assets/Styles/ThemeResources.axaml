@@ -1,5 +1,144 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ==================================================================== -->
+    <!-- 1. Semantic Surface Tokens                                           -->
+    <!-- ==================================================================== -->
+    <Color x:Key="SurfaceBackgroundDark">#08080C</Color>
+    <Color x:Key="SurfaceCardDark">#111118</Color>
+    <Color x:Key="SurfaceElevatedDark">#181822</Color>
+    <Color x:Key="SurfaceHoverDark">#222230</Color>
+
+    <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="{StaticResource SurfaceBackgroundDark}" />
+    <SolidColorBrush x:Key="SurfaceBackgroundDarkBrush" Color="{StaticResource SurfaceBackgroundDark}" />
+    <SolidColorBrush x:Key="SurfaceCardBrush" Color="{StaticResource SurfaceCardDark}" />
+    <SolidColorBrush x:Key="SurfaceCardDarkBrush" Color="{StaticResource SurfaceCardDark}" />
+    <SolidColorBrush x:Key="SurfaceElevatedBrush" Color="{StaticResource SurfaceElevatedDark}" />
+    <SolidColorBrush x:Key="SurfaceElevatedDarkBrush" Color="{StaticResource SurfaceElevatedDark}" />
+    <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{StaticResource SurfaceHoverDark}" />
+    <SolidColorBrush x:Key="SurfaceHoverDarkBrush" Color="{StaticResource SurfaceHoverDark}" />
+
+    <!-- Surface Semantic Brushes -->
+    <SolidColorBrush x:Key="WindowBackground" Color="{DynamicResource SurfaceBackgroundDark}" />
+    <SolidColorBrush x:Key="MainContentBackground" Color="{DynamicResource SurfaceBackgroundDark}" />
+    <SolidColorBrush x:Key="CardBackground" Color="{DynamicResource SurfaceCardDark}" />
+    <SolidColorBrush x:Key="DetailsBackground" Color="{DynamicResource SurfaceElevatedDark}" />
+
+    <!-- Sidebar Surface Gradient -->
+    <LinearGradientBrush x:Key="SidebarSurfaceGradientBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+        <GradientStop Offset="0.0" Color="#E60D0D15" />
+        <GradientStop Offset="0.5" Color="#F011111C" />
+        <GradientStop Offset="1.0" Color="#FA08080E" />
+    </LinearGradientBrush>
+
+    <!-- ==================================================================== -->
+    <!-- 2. Semantic Border Tokens                                            -->
+    <!-- ==================================================================== -->
+    <Color x:Key="BorderSubtleDark">#282838</Color>
+    <Color x:Key="BorderHighlightDark">#3F3F5A</Color>
+
+    <SolidColorBrush x:Key="BorderSubtleBrush" Color="{StaticResource BorderSubtleDark}" />
+    <SolidColorBrush x:Key="BorderSubtleDarkBrush" Color="{StaticResource BorderSubtleDark}" />
+    <SolidColorBrush x:Key="BorderHighlightBrush" Color="{StaticResource BorderHighlightDark}" />
+    <SolidColorBrush x:Key="BorderHighlightDarkBrush" Color="{StaticResource BorderHighlightDark}" />
+
+    <!-- Border Semantic Brush -->
+    <SolidColorBrush x:Key="BorderBrush" Color="{DynamicResource BorderSubtleDark}" />
+
+    <!-- ==================================================================== -->
+    <!-- 3. Semantic Text Tokens                                              -->
+    <!-- ==================================================================== -->
+    <Color x:Key="TextPrimaryColor">#F0F0F8</Color>
+    <Color x:Key="TextSecondaryColor">#9A9AB0</Color>
+    <Color x:Key="TextMutedColor">#656578</Color>
+
+    <SolidColorBrush x:Key="TextPrimary" Color="{StaticResource TextPrimaryColor}" />
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}" />
+    <SolidColorBrush x:Key="TextSecondary" Color="{StaticResource TextSecondaryColor}" />
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}" />
+    <SolidColorBrush x:Key="TextMuted" Color="{StaticResource TextMutedColor}" />
+    <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMutedColor}" />
+
+    <!-- ==================================================================== -->
+    <!-- 4. Faction / Accent / Status Tokens                                  -->
+    <!-- ==================================================================== -->
+
+    <!-- Generals Faction Tokens -->
+    <Color x:Key="GeneralsColor">#BD5A0F</Color>
+    <Color x:Key="GeneralsColorBright">#D97706</Color>
+    <Color x:Key="GeneralsAccentColor">#D97706</Color>
+    <SolidColorBrush x:Key="GeneralsFactionBrush" Color="{StaticResource GeneralsColor}" />
+    <SolidColorBrush x:Key="GeneralsAccentBrush" Color="{StaticResource GeneralsAccentColor}" />
+    <SolidColorBrush x:Key="GeneralsColorBrush" Color="{StaticResource GeneralsColor}" />
+    <LinearGradientBrush x:Key="GeneralsFactionGradientBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="{StaticResource GeneralsColor}" Offset="0" />
+        <GradientStop Color="{StaticResource GeneralsColorBright}" Offset="1" />
+    </LinearGradientBrush>
+
+    <!-- Zero Hour Faction Tokens -->
+    <Color x:Key="ZeroHourColor">#1B6575</Color>
+    <Color x:Key="ZeroHourColorBright">#06B6D4</Color>
+    <Color x:Key="ZeroHourAccentColor">#06B6D4</Color>
+    <SolidColorBrush x:Key="ZeroHourFactionBrush" Color="{StaticResource ZeroHourColor}" />
+    <SolidColorBrush x:Key="ZeroHourAccentBrush" Color="{StaticResource ZeroHourAccentColor}" />
+    <SolidColorBrush x:Key="ZeroHourColorBrush" Color="{StaticResource ZeroHourColor}" />
+    <LinearGradientBrush x:Key="ZeroHourFactionGradientBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="{StaticResource ZeroHourColor}" Offset="0" />
+        <GradientStop Color="{StaticResource ZeroHourColorBright}" Offset="1" />
+    </LinearGradientBrush>
+
+    <!-- Accent Tokens -->
+    <Color x:Key="AccentColor">#A855F7</Color>
+    <Color x:Key="SystemAccentColor">#A855F7</Color>
+    <Color x:Key="AccentLightColor">#C084FC</Color>
+    <Color x:Key="AccentDarkColor">#7C4DFF</Color>
+    <Color x:Key="AccentGlowColor">#80A855F7</Color>
+    <Color x:Key="AccentBadgeBackgroundColor">#20A855F7</Color>
+    <Color x:Key="AccentBadgeForegroundColor">#CCA855F7</Color>
+    <Color x:Key="AccentTintBackgroundColor">#231A36</Color>
+    <Color x:Key="PrimaryButtonBackgroundDark">#A855F7</Color>
+
+    <SolidColorBrush x:Key="SystemAccentColorBrush" Color="{StaticResource SystemAccentColor}" />
+    <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" />
+    <SolidColorBrush x:Key="AccentColorBrush" Color="{StaticResource AccentColor}" />
+    <SolidColorBrush x:Key="AccentLightBrush" Color="{StaticResource AccentLightColor}" />
+    <SolidColorBrush x:Key="AccentDarkBrush" Color="{StaticResource AccentDarkColor}" />
+    <SolidColorBrush x:Key="AccentGlowBrush" Color="{StaticResource AccentGlowColor}" />
+    <SolidColorBrush x:Key="AccentBadgeBackgroundBrush" Color="{StaticResource AccentBadgeBackgroundColor}" />
+    <SolidColorBrush x:Key="AccentBadgeForegroundBrush" Color="{StaticResource AccentBadgeForegroundColor}" />
+    <SolidColorBrush x:Key="AccentTintBackgroundBrush" Color="{StaticResource AccentTintBackgroundColor}" />
+    <SolidColorBrush x:Key="PrimaryButtonBackground" Color="{DynamicResource AccentColor}" />
+
+    <!-- Status Tokens: Success -->
+    <Color x:Key="SuccessColor">#10B981</Color>
+    <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}" />
+    <SolidColorBrush x:Key="StatusSuccessBrush" Color="{StaticResource SuccessColor}" />
+
+    <!-- Status Tokens: Warning -->
+    <Color x:Key="WarningColor">#FFA500</Color>
+    <Color x:Key="WarningHighlightColor">#F59E0B</Color>
+    <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" />
+    <SolidColorBrush x:Key="WarningHighlightBrush" Color="{StaticResource WarningHighlightColor}" />
+
+    <!-- Status Tokens: Error -->
+    <Color x:Key="ErrorColor">#EF4444</Color>
+    <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}" />
+    <SolidColorBrush x:Key="StatusErrorBrush" Color="{StaticResource ErrorColor}" />
+
+    <!-- Gradients and UI Elements -->
+    <Color x:Key="PrimaryGradientStart">#E040FB</Color>
+    <Color x:Key="PrimaryGradientEnd">#7C4DFF</Color>
+    <LinearGradientBrush x:Key="PrimaryGradientBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="{StaticResource PrimaryGradientStart}" Offset="0" />
+        <GradientStop Color="{StaticResource PrimaryGradientEnd}" Offset="1" />
+    </LinearGradientBrush>
+
+    <Color x:Key="CheckBoxCheckedColor">#AA00FF</Color>
+    <SolidColorBrush x:Key="CheckBoxCheckedBrush" Color="{StaticResource CheckBoxCheckedColor}" />
+
+    <!-- ==================================================================== -->
+    <!-- 5. Compatibility / Legacy Colors & Brushes                           -->
+    <!-- ==================================================================== -->
     <!-- Light theme colors -->
     <Color x:Key="WindowBackgroundLight">#F7F7F9</Color>
     <Color x:Key="TitleBarBackgroundLight">#EAEAEF</Color>
@@ -11,41 +150,128 @@
     <Color x:Key="ComboBoxBackgroundLight">#FFFFFF</Color>
     <Color x:Key="TextBoxBackgroundLight">#FFFFFF</Color>
     <Color x:Key="ButtonBackgroundLight">#F0F0F4</Color>
-    <Color x:Key="PrimaryButtonBackgroundLight">#0078D7</Color>
-    
+    <Color x:Key="PrimaryButtonBackgroundLight">#A855F7</Color>
+
     <!-- Dark theme colors -->
-    <Color x:Key="WindowBackgroundDark">#1F1F1F</Color>
-    <Color x:Key="TitleBarBackgroundDark">#2A2A2A</Color>
-    <Color x:Key="SidebarBackgroundDark">#252525</Color>
-    <Color x:Key="DetailsBackgroundDark">#2D2D2D</Color>
-    <Color x:Key="StatusBarBackgroundDark">#2A2A2A</Color>
-    <Color x:Key="TreeViewBackgroundDark">#303030</Color>
-    <Color x:Key="BorderBrushDark">#404040</Color>
-    <Color x:Key="ComboBoxBackgroundDark">#3A3A3A</Color>
-    <Color x:Key="TextBoxBackgroundDark">#3A3A3A</Color>
-    <Color x:Key="ButtonBackgroundDark">#3A3A3A</Color>
-    <Color x:Key="PrimaryButtonBackgroundDark">#0078D7</Color>
-    
-    <!-- Default theme resources -->
-    <!-- Using dark theme colors as application default -->
-    <SolidColorBrush x:Key="WindowBackground" Color="{DynamicResource WindowBackgroundDark}" />
+    <Color x:Key="WindowBackgroundDark">#08080C</Color>
+    <Color x:Key="TitleBarBackgroundDark">#08080C</Color>
+    <Color x:Key="SidebarBackgroundDark">#08080C</Color>
+    <Color x:Key="DetailsBackgroundDark">#181822</Color>
+    <Color x:Key="StatusBarBackgroundDark">#08080C</Color>
+    <Color x:Key="TreeViewBackgroundDark">#111118</Color>
+    <Color x:Key="BorderBrushDark">#282838</Color>
+    <Color x:Key="ComboBoxBackgroundDark">#181822</Color>
+    <Color x:Key="TextBoxBackgroundDark">#181822</Color>
+    <Color x:Key="ButtonBackgroundDark">#181822</Color>
+
+    <!-- Component Brushes -->
     <SolidColorBrush x:Key="TitleBarBackground" Color="{DynamicResource TitleBarBackgroundDark}" />
-    <SolidColorBrush x:Key="TitleBarForeground" Color="White" />
+    <SolidColorBrush x:Key="TitleBarForeground" Color="#F0F0F8" />
     <SolidColorBrush x:Key="SidebarBackground" Color="{DynamicResource SidebarBackgroundDark}" />
-    <SolidColorBrush x:Key="DetailsBackground" Color="{DynamicResource DetailsBackgroundDark}" />
-    <SolidColorBrush x:Key="MainContentBackground" Color="{DynamicResource WindowBackgroundDark}" />
     <SolidColorBrush x:Key="StatusBarBackground" Color="{DynamicResource StatusBarBackgroundDark}" />
-    <SolidColorBrush x:Key="StatusBarForeground" Color="White" />
-    <SolidColorBrush x:Key="EmptyStateForeground" Color="White" />
+    <SolidColorBrush x:Key="StatusBarForeground" Color="#9A9AB0" />
+    <SolidColorBrush x:Key="EmptyStateForeground" Color="#9A9AB0" />
     <SolidColorBrush x:Key="TreeViewBackground" Color="{DynamicResource TreeViewBackgroundDark}" />
-    <SolidColorBrush x:Key="BorderBrush" Color="{DynamicResource BorderBrushDark}" />
     <SolidColorBrush x:Key="ComboBoxBackground" Color="{DynamicResource ComboBoxBackgroundDark}" />
     <SolidColorBrush x:Key="TextBoxBackground" Color="{DynamicResource TextBoxBackgroundDark}" />
     <SolidColorBrush x:Key="ButtonBackground" Color="{DynamicResource ButtonBackgroundDark}" />
-    <SolidColorBrush x:Key="PrimaryButtonBackground" Color="{DynamicResource PrimaryButtonBackgroundDark}" />
     <SolidColorBrush x:Key="PrimaryButtonForeground" Color="White" />
-    <SolidColorBrush x:Key="CardBackground" Color="#333333" />
-    <SolidColorBrush x:Key="AccentColor" Color="#7B1FA2" />
-    
-    <Color x:Key="SystemAccentColor">#7B1FA2</Color>
+
+    <!-- ==================================================================== -->
+    <!-- 6. StreamGeometry Icons                                              -->
+    <!-- ==================================================================== -->
+    <StreamGeometry x:Key="CheckmarkIcon">M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z</StreamGeometry>
+    <StreamGeometry x:Key="WarningIcon">M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z</StreamGeometry>
+    <StreamGeometry x:Key="ConfirmationCheckIcon">M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z</StreamGeometry>
+    <StreamGeometry x:Key="WrenchIcon">M22.7,19L13.6,9.9C14.5,7.6 14,4.9 12.1,3C10.1,1 7.1,0.6 4.7,1.7L9,6L6,9L1.7,4.7C0.6,7.1 1,10.1 3,12.1C4.9,14 7.6,14.5 9.9,13.6L19,22.7L22.7,19Z</StreamGeometry>
+
+    <!-- ==================================================================== -->
+    <!-- 7. Glassmorphic Sidebar & Accent Definitions                         -->
+    <!-- ==================================================================== -->
+    <Color x:Key="SidebarGlassBackground">#CC050510</Color> <!-- 80% opacity Dark Blue-Black (Solid Backdrop) -->
+    <Color x:Key="SidebarGlassBorder">#334527A0</Color> <!-- 20% Opacity Dark Purple Border (Subtle) -->
+    <Color x:Key="SidebarGlowColor">#664527A0</Color> <!-- Subtle Glow -->
+    <SolidColorBrush x:Key="SidebarGlassBorderBrush" Color="{StaticResource SidebarGlassBorder}" />
+
+    <!-- Pure Blue-Purple Palette (NO PINK) -->
+    <Color x:Key="PurpleAccentDark">#311B92</Color> <!-- Deep Dark Purple (Material Deep Purple 900) -->
+    <Color x:Key="PurpleAccentMid">#4527A0</Color> <!-- Dark Purple (Material Deep Purple 800) -->
+    <Color x:Key="PurpleAccentBright">#673AB7</Color> <!-- Medium Purple (Material Deep Purple 500) -->
+    <Color x:Key="PurpleGlow">#804527A0</Color>
+
+    <!-- Sidebar Gradients - Strong Backdrop -->
+    <LinearGradientBrush x:Key="SidebarBackgroundGradient" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#CC050510" Offset="0" />
+        <GradientStop Color="#E60A0A1A" Offset="1" /> <!-- Almost solid at bottom -->
+    </LinearGradientBrush>
+
+    <!-- Accent Gradient -->
+    <LinearGradientBrush x:Key="PurpleAccentGradient" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#311B92" Offset="0" />   <!-- Deep Dark Purple -->
+        <GradientStop Color="#673AB7" Offset="1" />   <!-- Medium Purple -->
+    </LinearGradientBrush>
+
+    <!-- Hover and Selection States -->
+    <SolidColorBrush x:Key="SidebarItemHoverBinding" Color="#1AFFFFFF" />
+    <SolidColorBrush x:Key="SidebarItemHoverBackground" Color="#1AFFFFFF" />
+    <SolidColorBrush x:Key="SidebarItemSelectedBackground" Color="{DynamicResource AccentBadgeBackgroundColor}" />
+    <SolidColorBrush x:Key="SidebarItemHoverBorder" Color="Transparent" />
+    <SolidColorBrush x:Key="SidebarItemSelectedBorder" Color="{DynamicResource AccentColor}" />
+
+    <!-- ==================================================================== -->
+    <!-- 8. Semantic Scrollbar Tokens                                         -->
+    <!-- ==================================================================== -->
+    <Color x:Key="ScrollbarTrackColor">#00000000</Color>
+    <Color x:Key="ScrollbarThumbColor">#38384D</Color>
+    <Color x:Key="ScrollbarThumbHoverColor">#585876</Color>
+
+    <SolidColorBrush x:Key="ScrollbarTrackBrush" Color="{StaticResource ScrollbarTrackColor}" />
+    <SolidColorBrush x:Key="ScrollbarThumbBrush" Color="{StaticResource ScrollbarThumbColor}" />
+    <SolidColorBrush x:Key="ScrollbarThumbHoverBrush" Color="{StaticResource ScrollbarThumbHoverColor}" />
+    <SolidColorBrush x:Key="ScrollbarThumbPressedBrush" Color="{DynamicResource AccentColor}" />
+
+    <!-- Fluent Theme ScrollBar brush key aliases -->
+    <SolidColorBrush x:Key="ScrollBarThumbFill" Color="{StaticResource ScrollbarThumbColor}" />
+    <SolidColorBrush x:Key="ScrollBarThumbFillPointerOver" Color="{StaticResource ScrollbarThumbHoverColor}" />
+    <SolidColorBrush x:Key="ScrollBarThumbFillPressed" Color="{DynamicResource AccentColor}" />
+    <SolidColorBrush x:Key="ScrollBarTrackFill" Color="{StaticResource ScrollbarTrackColor}" />
+    <SolidColorBrush x:Key="ScrollBarTrackFillPointerOver" Color="{StaticResource ScrollbarTrackColor}" />
+    <SolidColorBrush x:Key="ScrollBarTrackFillPressed" Color="{StaticResource ScrollbarTrackColor}" />
+
+    <!-- ==================================================================== -->
+    <!-- 9. Fluent Theme ComboBox Aliases                                     -->
+    <!-- ==================================================================== -->
+    <SolidColorBrush x:Key="ComboBoxItemBackground" Color="Transparent" />
+    <SolidColorBrush x:Key="ComboBoxItemBackgroundPointerOver" Color="{DynamicResource AccentColor}" />
+    <SolidColorBrush x:Key="ComboBoxItemBackgroundSelected" Color="{DynamicResource AccentBadgeBackgroundColor}" />
+    <SolidColorBrush x:Key="ComboBoxItemBackgroundSelectedPointerOver" Color="{DynamicResource AccentColor}" />
+    <SolidColorBrush x:Key="ComboBoxItemForeground" Color="{DynamicResource TextPrimaryColor}" />
+    <SolidColorBrush x:Key="ComboBoxItemForegroundPointerOver" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="ComboBoxItemForegroundSelected" Color="{DynamicResource TextPrimaryColor}" />
+    <SolidColorBrush x:Key="ComboBoxItemForegroundSelectedPointerOver" Color="#FFFFFF" />
+
+    <!-- ==================================================================== -->
+    <!-- 10. Fluent Theme Expander Aliases                                    -->
+    <!-- ==================================================================== -->
+    <SolidColorBrush x:Key="ExpanderHeaderBackground" Color="Transparent" />
+    <SolidColorBrush x:Key="ExpanderHeaderBackgroundPointerOver" Color="{DynamicResource AccentTintBackgroundColor}" />
+    <SolidColorBrush x:Key="ExpanderHeaderBackgroundPressed" Color="{DynamicResource AccentBadgeBackgroundColor}" />
+    <SolidColorBrush x:Key="ExpanderHeaderBackgroundDisabled" Color="Transparent" />
+    <SolidColorBrush x:Key="ExpanderHeaderBorderBrush" Color="Transparent" />
+    <SolidColorBrush x:Key="ExpanderHeaderBorderBrushPointerOver" Color="Transparent" />
+    <SolidColorBrush x:Key="ExpanderHeaderBorderBrushPressed" Color="Transparent" />
+    <SolidColorBrush x:Key="ExpanderHeaderBorderBrushDisabled" Color="Transparent" />
+    <SolidColorBrush x:Key="ExpanderHeaderForeground" Color="{DynamicResource TextPrimaryColor}" />
+    <SolidColorBrush x:Key="ExpanderHeaderForegroundPointerOver" Color="{DynamicResource TextPrimaryColor}" />
+    <SolidColorBrush x:Key="ExpanderHeaderForegroundPressed" Color="{DynamicResource TextPrimaryColor}" />
+    <SolidColorBrush x:Key="ExpanderHeaderForegroundDisabled" Color="{DynamicResource TextMutedColor}" />
+    <SolidColorBrush x:Key="ExpanderChevronForeground" Color="{DynamicResource TextSecondaryColor}" />
+    <SolidColorBrush x:Key="ExpanderChevronForegroundPointerOver" Color="{DynamicResource AccentLightColor}" />
+    <SolidColorBrush x:Key="ExpanderChevronForegroundPressed" Color="{DynamicResource AccentLightColor}" />
+    <SolidColorBrush x:Key="ExpanderChevronBackground" Color="Transparent" />
+    <SolidColorBrush x:Key="ExpanderChevronBackgroundPointerOver" Color="Transparent" />
+    <SolidColorBrush x:Key="ExpanderChevronBackgroundPressed" Color="Transparent" />
+    <SolidColorBrush x:Key="ExpanderChevronBorderBrush" Color="Transparent" />
+    <SolidColorBrush x:Key="ExpanderChevronBorderBrushPointerOver" Color="Transparent" />
+    <SolidColorBrush x:Key="ExpanderChevronBorderBrushPressed" Color="Transparent" />
 </ResourceDictionary>

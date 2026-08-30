@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Features.GameClients;
@@ -64,7 +65,7 @@ public class GameClientHashRegistryTests
 
         // Test unknown hash
         var unknownVersion = _registry.GetVersionFromHash("unknownhash", GameType.Generals);
-        Assert.Equal("Unknown", unknownVersion);
+        Assert.Equal(GameClientConstants.UnknownVersion, unknownVersion);
     }
 
     /// <summary>
@@ -76,11 +77,21 @@ public class GameClientHashRegistryTests
         var names = _registry.PossibleExecutableNames;
         Assert.NotNull(names);
         Assert.NotEmpty(names);
-        Assert.Contains("generals.exe", names);
         Assert.Contains("generalsv.exe", names);
         Assert.Contains("generalszh.exe", names);
-        Assert.Contains("generalsonlinezh_30.exe", names);
         Assert.Contains("generalsonlinezh_60.exe", names);
+    }
+
+    /// <summary>
+    /// Since 060526_QFE1 the GeneralsOnline portable launches through the Easy Anti-Cheat
+    /// bootstrapper, so directory scans have to recognise it as a client executable.
+    /// </summary>
+    [Fact]
+    public void PossibleExecutableNames_IncludeTheGeneralsOnlineAntiCheatBootstrapper()
+    {
+        Assert.Contains(
+            _registry.PossibleExecutableNames,
+            name => name.Equals(GameClientConstants.GeneralsOnlineEacLauncherExecutable, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>

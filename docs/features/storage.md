@@ -30,6 +30,7 @@ GenHub implements a **two-pool CAS architecture** to optimize storage across dif
 **Location**: App data drive (typically `C:\Users\<User>\AppData\Local\GenHub\cas`)
 
 **Content Types**:
+
 - `Mod` - Community mods and modifications
 - `Map` - Custom maps and map packs
 - `Patch` - Game patches and updates
@@ -45,6 +46,7 @@ GenHub implements a **two-pool CAS architecture** to optimize storage across dif
 **Location**: Same drive as the game installation (e.g., `D:\Games\GenHub\cas` if game is on `D:`)
 
 **Content Types**:
+
 - `GameInstallation` - Base game installations
 - `GameClient` - Game executables and clients
 
@@ -64,6 +66,7 @@ public interface ICasPoolResolver
 ```
 
 **Routing Logic**:
+
 - `GameInstallation` and `GameClient` → **Installation Pool** (if available)
 - All other content types → **Primary Pool**
 - If Installation Pool is not configured, all content falls back to Primary Pool
@@ -141,6 +144,7 @@ var allStorages = poolManager.GetAllStorages();
 Low-level interface for individual pool operations.
 
 **Responsibilities**:
+
 - Hash-based content storage and retrieval
 - File integrity verification
 - Reference tracking for garbage collection
@@ -177,6 +181,7 @@ public class CasConfiguration
 ```
 
 **Default Values**:
+
 - `GcGracePeriod`: 7 days
 - `AutoGcInterval`: 30 days
 - `MaxConcurrentOperations`: 4
@@ -236,6 +241,7 @@ CAS enables efficient workspace assembly via hard links:
 - **Cross Drive**: Files must be copied (CAS on different drive than workspace)
 
 The multi-pool architecture minimizes cross-drive scenarios:
+
 - User content (maps, mods) → Primary Pool → User data directories (same drive)
 - Game installations → Installation Pool → Workspace (same drive as game)
 
@@ -244,6 +250,7 @@ The multi-pool architecture minimizes cross-drive scenarios:
 Garbage collection removes unreferenced content to free disk space.
 
 **Process**:
+
 1. **Reference Scan**: Identify all content referenced by profiles, manifests, and user data
 2. **Grace Period**: Only delete content unreferenced for longer than `GcGracePeriod`
 3. **Cleanup**: Remove unreferenced files from all pools
@@ -262,6 +269,7 @@ Console.WriteLine($"Reclaimed {gcResult.SpaceReclaimed} bytes");
 ```
 
 **Automatic Garbage Collection**:
+
 - Runs every `AutoGcInterval` (default: 30 days)
 - Can be disabled via `EnableAutomaticGc = false`
 - Respects `GcGracePeriod` to avoid deleting recently used content
@@ -295,7 +303,7 @@ The workspace system uses CAS as the source of truth for all content:
 
 The `ContentStorageService` orchestrates content acquisition and CAS storage:
 
-1. **Download**: Content is downloaded from providers (GitHub, ModDB, etc.)
+1. **Download**: Content is downloaded from publishers (GitHub, ModDB, etc.)
 2. **Store in CAS**: Downloaded files are stored in appropriate pool
 3. **Manifest Update**: Content manifest is updated with CAS hashes
 4. **Cleanup**: Temporary download files are removed
@@ -314,15 +322,18 @@ User data (maps, replays, saves) is managed via CAS:
 ### Hard Link Efficiency
 
 **Benefits**:
+
 - Zero-copy file operations
 - Instant workspace assembly
 - Minimal disk space usage
 
 **Requirements**:
+
 - Source and target must be on the same drive
 - File system must support hard links (NTFS, ext4, etc.)
 
 **Multi-Pool Optimization**:
+
 - Primary Pool on app data drive → User data directories (same drive)
 - Installation Pool on game drive → Workspace (same drive)
 
@@ -335,6 +346,7 @@ CAS supports concurrent operations with proper locking:
 - **Garbage Collection**: Locks prevent deletion of in-use content
 
 **Configuration**:
+
 ```csharp
 MaxConcurrentOperations = 4; // Limit concurrent CAS operations
 ```
@@ -342,6 +354,7 @@ MaxConcurrentOperations = 4; // Limit concurrent CAS operations
 ### Disk Space Management
 
 **Monitoring**:
+
 ```csharp
 var stats = await casService.GetStatsAsync(cancellationToken);
 Console.WriteLine($"Total objects: {stats.TotalObjects}");
@@ -350,6 +363,7 @@ Console.WriteLine($"Referenced objects: {stats.ReferencedObjects}");
 ```
 
 **Cleanup Strategies**:
+
 1. **Automatic GC**: Runs periodically to remove old unreferenced content
 2. **Manual GC**: User-initiated cleanup via Danger Zone
 3. **Forced GC**: Ignores grace period for immediate cleanup
@@ -359,6 +373,7 @@ Console.WriteLine($"Referenced objects: {stats.ReferencedObjects}");
 ### Common Scenarios
 
 **Hash Mismatch**:
+
 ```csharp
 // Expected hash doesn't match computed hash
 var result = await casService.StoreContentAsync(
@@ -374,16 +389,19 @@ if (result.Failed)
 ```
 
 **Cross-Drive Hard Link Failure**:
+
 - CAS automatically falls back to file copying
 - Logs warning about performance impact
 - Workspace assembly continues successfully
 
 **Insufficient Disk Space**:
+
 - Operation fails with clear error message
 - Partial writes are rolled back
 - User is notified to free disk space
 
 **Corrupted Content**:
+
 - Integrity validation detects hash mismatches
 - Corrupted files are logged and can be re-downloaded
 - Garbage collection can remove corrupted files
@@ -393,6 +411,7 @@ if (result.Failed)
 ### For Developers
 
 1. **Always Specify Content Type**: Use pool routing for optimal performance
+
    ```csharp
    // Good: Automatic pool routing
    await casService.StoreContentAsync(path, ContentType.Mod);
@@ -402,11 +421,13 @@ if (result.Failed)
    ```
 
 2. **Use Cancellation Tokens**: All operations support cancellation
+
    ```csharp
    await casService.StoreContentAsync(path, contentType, cancellationToken: cts.Token);
    ```
 
 3. **Check Result Success**: Never assume operations succeed
+
    ```csharp
    var result = await casService.StoreContentAsync(path, contentType);
    if (result.Failed)
@@ -417,6 +438,7 @@ if (result.Failed)
    ```
 
 4. **Handle Partial Failures**: Some files may succeed while others fail
+
    ```csharp
    foreach (var file in files)
    {

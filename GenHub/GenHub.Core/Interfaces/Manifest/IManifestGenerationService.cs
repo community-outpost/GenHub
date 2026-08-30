@@ -56,31 +56,15 @@ public interface IManifestGenerationService
     /// <param name="clientName">The name of the game client.</param>
     /// <param name="clientVersion">The version of the game client.</param>
     /// <param name="executablePath">The full path to the game executable.</param>
+    /// <param name="publisherInfo">Optional publisher info. If provided, overrides detection from name.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
     Task<IContentManifestBuilder> CreateGameClientManifestAsync(
         string installationPath,
         GameType gameType,
         string clientName,
         string clientVersion,
-        string executablePath);
-
-    /// <summary>
-    /// Creates a manifest builder for a GeneralsOnline game client with special handling.
-    /// GeneralsOnline clients are auto-updated, so hash validation is bypassed until a dedicated
-    /// publisher system is implemented for downloading and updating via content manifest endpoints.
-    /// </summary>
-    /// <param name="installationPath">Path to the game client installation.</param>
-    /// <param name="gameType">The game type (Generals, ZeroHour).</param>
-    /// <param name="clientName">The name of the GeneralsOnline client.</param>
-    /// <param name="clientVersion">The version of the client (typically "Auto-Updated").</param>
-    /// <param name="executablePath">The full path to the GeneralsOnline executable.</param>
-    /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
-    Task<IContentManifestBuilder> CreateGeneralsOnlineClientManifestAsync(
-        string installationPath,
-        GameType gameType,
-        string clientName,
-        string clientVersion,
-        string executablePath);
+        string executablePath,
+        PublisherInfo? publisherInfo = null);
 
     /// <summary>
     /// Saves a manifest to a file.

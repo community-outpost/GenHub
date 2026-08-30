@@ -85,26 +85,39 @@ public class GameProfile
     public string BaseContentId { get; set; }
     public List<string> EnabledMods { get; set; }
     public Dictionary<string, string> LaunchArguments { get; set; }
+    public string? ToolContentId { get; set; }
+    public bool IsToolProfile => !string.IsNullOrWhiteSpace(ToolContentId);
 }
 ```
 
-### Manifest
+### ContentManifest
 
-Content manifest describing files and metadata.
+Comprehensive manifest for content distribution in GenHub ecosystem.
 
 ```csharp
-public class Manifest
+public class ContentManifest
 {
-    public string Id { get; set; }
+    public string ManifestVersion { get; set; }
+    public ManifestId Id { get; set; }
     public string Name { get; set; }
     public string Version { get; set; }
-    public string Description { get; set; }
-    public string Author { get; set; }
-    public List<ManifestDependency> Dependencies { get; set; }
+    public ContentType ContentType { get; set; }
+    public GameType TargetGame { get; set; }
+    public PublisherInfo Publisher { get; set; }
+    public ContentMetadata Metadata { get; set; }
+    public string? OriginalPublisherName { get; set; }
+    public string? OriginalContentId { get; set; }
+    public string? SourcePath { get; set; }
+    public List<ContentDependency> Dependencies { get; set; }
+    public List<ContentReference> ContentReferences { get; set; }
+    public List<string> KnownAddons { get; set; }
     public List<ManifestFile> Files { get; set; }
-    public Dictionary<string, object> Metadata { get; set; }
+    public List<string> RequiredDirectories { get; set; }
+    public InstallationInstructions InstallationInstructions { get; set; }
 }
 ```
+
+**Purpose**: Central contract between content publishers and the GenHub launcher, describing all aspects of a content package including files, dependencies, metadata, and installation instructions.
 
 ### ValidationIssue
 
@@ -124,22 +137,6 @@ public class ValidationIssue
 
 Models for managing user-generated content across game profiles.
 
-#### UserDataSwitchInfo
-
-Analysis results for user data impact when switching profiles.
-
-```csharp
-public class UserDataSwitchInfo
-{
-    public string OldProfileId { get; set; }
-    public string NewProfileId { get; set; }
-    public int FileCount { get; set; }
-    public long TotalSizeBytes { get; set; }
-}
-```
-
-**Purpose**: Provides information to the UI about what user data would be affected by a profile switch, enabling informed user decisions.
-
 #### UserDataManifest
 
 Tracks installed user data files for a specific profile.
@@ -149,7 +146,7 @@ public class UserDataManifest
 {
     public string ManifestId { get; set; }
     public string ProfileId { get; set; }
-    public List<InstalledFile> InstalledFiles { get; set; }
+    public List<UserDataFileEntry> InstalledFiles { get; set; }
     public bool IsActive { get; set; }
     public DateTime InstalledAt { get; set; }
 }
@@ -157,22 +154,175 @@ public class UserDataManifest
 
 **Purpose**: Maintains the relationship between content manifests and the files they install, enabling activation/deactivation and cleanup operations.
 
-#### InstalledFile
+#### UserDataFileEntry
 
-Represents a single user data file installed by a manifest.
+Represents a single file that has been installed to the user's data directory.
 
 ```csharp
-public class InstalledFile
+public class UserDataFileEntry
 {
-    public string SourcePath { get; set; }
-    public string TargetPath { get; set; }
-    public string Hash { get; set; }
-    public long SizeBytes { get; set; }
+    public string RelativePath { get; set; }
+    public string AbsolutePath { get; set; }
+    public string SourceHash { get; set; }
+    public long FileSize { get; set; }
+    public ContentInstallTarget InstallTarget { get; set; }
+    public bool WasOverwritten { get; set; }
+    public string? BackupPath { get; set; }
+    public DateTime InstalledAt { get; set; }
     public bool IsHardLink { get; set; }
+    public string? CasHash { get; set; }
 }
 ```
 
-**Purpose**: Tracks individual file installations, supporting verification, cleanup, and efficient storage via hard links.
+**Purpose**: Tracks individual file installations to user data directories, supporting verification, cleanup, conflict resolution, and efficient storage via hard links from CAS.
+
+### WorkspaceDelta
+
+Represents a delta operation for workspace reconciliation.
+
+```csharp
+public class WorkspaceDelta
+{
+    public WorkspaceDeltaOperation Operation { get; set; }
+    public ManifestFile File { get; set; }
+    public string WorkspacePath { get; set; }
+    public string Reason { get; set; }
+}
+```
+
+**Purpose**: Describes a single file operation (add, update, remove) needed to reconcile workspace state with desired manifest configuration.
+
+### WorkspaceInfo
+
+Information about a prepared workspace.
+
+```csharp
+public class WorkspaceInfo
+{
+    public string Id { get; set; }
+    public string WorkspacePath { get; set; }
+    public string GameClientId { get; set; }
+    public WorkspaceStrategy Strategy { get; set; }
+    public bool IsPrepared { get; set; }
+    public List<ValidationIssue> ValidationIssues { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime LastAccessedAt { get; set; }
+    public long TotalSizeBytes { get; set; }
+    public int FileCount { get; set; }
+    public bool IsValid { get; set; }
+    public string ExecutablePath { get; set; }
+    public string WorkingDirectory { get; set; }
+    public List<string> ManifestIds { get; set; }
+    public Dictionary<string, string> ManifestVersions { get; set; }
+}
+```
+
+**Purpose**: Tracks workspace state including preparation status, validation results, and manifest versions for change detection.
+
+### ContentSearchResult
+
+Represents a single result from a content search operation.
+
+```csharp
+public class ContentSearchResult
+{
+    public string Id { get; set; }
+    public string Name { get; set; }
+    public string? Description { get; set; }
+    public object? Data { get; set; }
+    public string Version { get; set; }
+    public ContentType ContentType { get; set; }
+    public bool IsInferred { get; set; }
+    public GameType TargetGame { get; set; }
+    public string PublisherName { get; set; }
+    public string? AuthorName { get; set; }
+    public string? IconUrl { get; set; }
+    public string? BannerUrl { get; set; }
+    public IList<string> ScreenshotUrls { get; }
+    public IList<string> Tags { get; }
+    public DateTime? LastUpdated { get; set; }
+    public long DownloadSize { get; set; }
+    public int DownloadCount { get; set; }
+    public float Rating { get; set; }
+    public IDictionary<string, string> Metadata { get; }
+    public bool IsInstalled { get; set; }
+    public bool HasUpdate { get; set; }
+    public bool RequiresResolution { get; set; }
+    public string? ResolverId { get; set; }
+    public string? SourceUrl { get; set; }
+    public IDictionary<string, string> ResolverMetadata { get; }
+    public ParsedWebPage? ParsedPageData { get; set; }
+}
+```
+
+**Purpose**: Provides rich metadata about discovered content from various publishers, supporting search, browsing, and content resolution workflows.
+
+### ContentDiscoveryResult
+
+Represents the result of a content discovery operation with pagination.
+
+```csharp
+public class ContentDiscoveryResult
+{
+    public IEnumerable<ContentSearchResult> Items { get; init; }
+    public bool HasMoreItems { get; init; }
+    public int? TotalItems { get; init; }
+}
+```
+
+**Purpose**: Wraps search results with pagination metadata for efficient content browsing.
+
+### ManifestFile
+
+Represents a file entry in a content manifest.
+
+```csharp
+public class ManifestFile
+{
+    public string RelativePath { get; set; }
+    public ContentSourceType SourceType { get; set; }
+    public ContentInstallTarget InstallTarget { get; set; }
+    public long Size { get; set; }
+    public string Hash { get; set; }
+    public FilePermissions Permissions { get; set; }
+    public bool IsExecutable { get; set; }
+    public string? DownloadUrl { get; set; }
+    public bool IsRequired { get; set; }
+    public string? SourcePath { get; set; }
+    public string? PatchSourceFile { get; set; }
+    public ExtractionConfiguration? PackageInfo { get; set; }
+}
+```
+
+**Purpose**: Describes a single file in a content package, including its source, destination, verification hash, and installation requirements.
+
+### ContentDependency
+
+Enhanced dependency specification with advanced relationship management.
+
+```csharp
+public class ContentDependency
+{
+    public ManifestId Id { get; set; }
+    public string Name { get; set; }
+    public ContentType DependencyType { get; set; }
+    public string? PublisherType { get; set; }
+    public bool StrictPublisher { get; set; }
+    public string? MinVersion { get; set; }
+    public string? MaxVersion { get; set; }
+    public string? ExactVersion { get; set; }
+    public List<string> CompatibleVersions { get; set; }
+    public List<GameType> CompatibleGameTypes { get; set; }
+    public bool IsExclusive { get; set; }
+    public List<ManifestId> ConflictsWith { get; set; }
+    public DependencyInstallBehavior InstallBehavior { get; set; }
+    public bool IsOptional { get; set; }
+    public List<string> RequiredPublisherTypes { get; set; }
+    public List<string> IncompatiblePublisherTypes { get; set; }
+}
+```
+
+**Purpose**: Defines complex dependency relationships between content packages, supporting version constraints, publisher requirements, conflicts, and installation behaviors.
 
 ### WorkspaceCleanupConfirmation
 
@@ -355,6 +505,130 @@ public enum ProcessPriorityClass
     RealTime
 }
 ```
+
+### ContentSourceType
+
+Defines the source of content files in a manifest.
+
+```csharp
+public enum ContentSourceType
+{
+    Unknown = 0,           // Content source is unknown or undefined
+    GameInstallation = 1,  // Content comes from the game installation
+    ContentAddressable = 2, // Content is stored in CAS system
+    LocalFile = 3,         // Content is a local file on the filesystem
+    RemoteDownload = 4,    // Content needs to be downloaded from a remote URL
+    ExtractedPackage = 5,  // Content is extracted from a package/archive file
+    PatchFile = 6,         // Content is a patch file that modifies existing content
+}
+```
+
+**Purpose**: Properly separates content origins from workspace placement strategies, enabling flexible content sourcing.
+
+### ContentInstallTarget
+
+Defines the target installation location for content.
+
+```csharp
+public enum ContentInstallTarget
+{
+    Workspace = 0,              // Install to game's workspace directory (default)
+    UserDataDirectory = 1,      // Install to user's Documents folder for the game
+    UserMapsDirectory = 2,      // Install to Maps subdirectory within user data
+    UserReplaysDirectory = 3,   // Install to Replays subdirectory within user data
+    UserScreenshotsDirectory = 4, // Install to Screenshots subdirectory within user data
+    System = 5,                 // Install to system location (requires elevation)
+}
+```
+
+**Purpose**: Different content types may need to be installed to different locations. Maps go to UserMapsDirectory, replays to UserReplaysDirectory, while mods and patches go to Workspace.
+
+### PackageType
+
+Defines the type of a content package.
+
+```csharp
+public enum PackageType : byte
+{
+    None,       // No package type specified / unknown
+    Zip,        // A standard ZIP archive
+    Tar,        // A tarball archive
+    TarGz,      // A GZipped tarball archive
+    SevenZip,   // A 7-Zip archive
+    Installer,  // A self-contained installer executable
+}
+```
+
+**Purpose**: Identifies archive format for extraction operations.
+
+### GameType
+
+Represents the type of Command and Conquer game.
+
+```csharp
+public enum GameType
+{
+    Generals,   // Command and Conquer: Generals
+    ZeroHour,   // Command and Conquer: Generals – Zero Hour
+    Unknown,    // Unknown game type
+}
+```
+
+**Purpose**: Distinguishes between base game and expansion for content compatibility and user data paths.
+
+### ContentType
+
+Defines the type of content in a manifest.
+
+```csharp
+public enum ContentType
+{
+    // Foundation types
+    GameInstallation,   // EA/Steam/Disk installation
+    GameClient,         // Independent game executable
+
+    // Content types
+    Mod,                // Major gameplay changes
+    Patch,              // Balance/configuration changes
+    Addon,              // Utilities/tools
+    MapPack,            // Map collections
+    LanguagePack,       // Localization
+
+    // Meta types
+    ContentBundle,      // Collection of multiple contents
+    PublisherReferral,  // Link to other publisher content
+    ContentReferral,    // Link to specific content
+
+    // Individual content
+    Mission,            // Story-driven gameplay with objectives
+    Map,                // Free-play or skirmish mode on a map
+    Skin,               // UI customization skins
+    Video,              // Video content (trailers, gameplay recordings)
+    Replay,             // Game replay files
+    Screensaver,        // Screensaver files
+    Executable,         // Standalone executable file
+    ModdingTool,        // Modding and mapping tools/utilities
+    UnknownContentType, // Unknown content type
+}
+```
+
+**Purpose**: Categorizes content for proper handling, installation, and user interface presentation.
+
+### DependencyInstallBehavior
+
+Defines how a dependency should be handled during installation.
+
+```csharp
+public enum DependencyInstallBehavior
+{
+    RequireExisting = 0, // Dependency must already exist, don't auto-install
+    AutoInstall = 1,     // Install if missing
+    Optional = 2,        // User can choose to install
+    Suggest = 3,         // Recommend but don't require
+}
+```
+
+**Purpose**: Controls automatic dependency resolution and installation workflows.
 
 ## Model Validation
 

@@ -64,13 +64,7 @@ public class ModDBFilter
             parameters.Add($"sort={Sort}");
         }
 
-        if (Page > 1)
-        {
-            parameters.Add($"page={Page}");
-        }
-
-        // Add filter=t when any filter is applied
-        if (parameters.Count > 0 && (Page == 1 || parameters.Count > 1))
+        if (parameters.Count > 0)
         {
             parameters.Insert(0, "filter=t");
         }

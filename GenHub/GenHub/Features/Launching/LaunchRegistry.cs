@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.GameProfile;
@@ -15,11 +16,35 @@ namespace GenHub.Features.Launching;
 /// In-memory implementation of the launch registry.
 /// Automatically cleans up workspaces when game processes exit.
 /// </summary>
-public class LaunchRegistry(ILogger<LaunchRegistry> logger, IWorkspaceManager? workspaceManager = null) : ILaunchRegistry
+public class LaunchRegistry : ILaunchRegistry
 {
+    private const int MaxInspectionFailures = 5;
+    private readonly ILogger<LaunchRegistry> _logger;
+    private readonly IWorkspaceManager? _workspaceManager;
+    private readonly IGameProcessManager? _processManager;
     private readonly ConcurrentDictionary<string, GameLaunchInfo> _activeLaunches = new();
-    private readonly ILogger<LaunchRegistry> _logger = logger;
-    private readonly IWorkspaceManager? _workspaceManager = workspaceManager;
+    private readonly ConcurrentDictionary<string, int> _inspectionFailureCounts = new();
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="LaunchRegistry"/> class.
+    /// </summary>
+    /// <param name="logger">The logger instance.</param>
+    /// <param name="workspaceManager">Optional workspace manager for cleanup.</param>
+    /// <param name="processManager">Optional process manager for tracking game processes.</param>
+    public LaunchRegistry(
+        ILogger<LaunchRegistry> logger,
+        IWorkspaceManager? workspaceManager = null,
+        IGameProcessManager? processManager = null)
+    {
+        _logger = logger;
+        _workspaceManager = workspaceManager;
+        _processManager = processManager;
+
+        if (_processManager != null)
+        {
+            _processManager.ProcessExited += OnProcessExited;
+        }
+    }
 
     /// <summary>
     /// Registers a new game launch in the registry.
@@ -47,6 +72,7 @@ public class LaunchRegistry(ILogger<LaunchRegistry> logger, IWorkspaceManager? w
 
         if (_activeLaunches.TryRemove(launchId, out var launchInfo))
         {
+            _inspectionFailureCounts.TryRemove(launchId, out _);
             launchInfo.TerminatedAt = System.DateTime.UtcNow;
             _logger.LogInformation("Unregistered launch {LaunchId} for profile {ProfileId}", launchId, launchInfo.ProfileId);
         }
@@ -86,6 +112,28 @@ public class LaunchRegistry(ILogger<LaunchRegistry> logger, IWorkspaceManager? w
     }
 
     /// <summary>
+    /// Handles the ProcessExited event from the game process manager.
+    /// </summary>
+    /// <param name="sender">The event sender.</param>
+    /// <param name="e">The event arguments containing process exit information.</param>
+    private void OnProcessExited(object? sender, Core.Models.Events.GameProcessExitedEventArgs e)
+    {
+        _logger.LogInformation("[LaunchRegistry] Received process exit event for PID {ProcessId}", e.ProcessId);
+
+        // Find launch info by process ID
+        var launch = _activeLaunches.Values.FirstOrDefault(l => l.ProcessInfo.ProcessId == e.ProcessId);
+        if (launch != null)
+        {
+            _inspectionFailureCounts.TryRemove(launch.LaunchId, out _);
+            _logger.LogInformation("[LaunchRegistry] Updating launch {LaunchId} as terminated", launch.LaunchId);
+
+            // e.ExitTime might be non-nullable DateTime
+            launch.TerminatedAt = e.ExitTime != default ? e.ExitTime : DateTime.UtcNow;
+            launch.ProcessInfo.IsRunning = false;
+        }
+    }
+
+    /// <summary>
     /// Attempts to update the process status for a launch.
     /// </summary>
     /// <param name="launchInfo">The launch information to update.</param>
@@ -101,7 +149,9 @@ public class LaunchRegistry(ILogger<LaunchRegistry> logger, IWorkspaceManager? w
             if (runningProcess == null)
             {
                 _logger.LogDebug("Process {ProcessId} for launch {LaunchId} no longer exists", launchInfo.ProcessInfo.ProcessId, launchId);
+                _inspectionFailureCounts.TryRemove(launchId, out _);
                 launchInfo.TerminatedAt = DateTime.UtcNow;
+                launchInfo.ProcessInfo.IsRunning = false;
 
                 // NOTE: Workspace is NOT cleaned up automatically - it persists across launches
                 // Only clean up workspace when profile is deleted or content changes
@@ -121,23 +171,33 @@ public class LaunchRegistry(ILogger<LaunchRegistry> logger, IWorkspaceManager? w
                         launchInfo.TerminatedAt = DateTime.UtcNow;
                     }
 
+                    _inspectionFailureCounts.TryRemove(launchId, out _);
+                    launchInfo.ProcessInfo.IsRunning = false;
+
                     // NOTE: Workspace is NOT cleaned up automatically - it persists across launches
+                }
+                else
+                {
+                    // Process is actively running and inspected successfully
+                    _inspectionFailureCounts.TryRemove(launchId, out _);
                 }
             }
         }
-        catch (UnauthorizedAccessException uaex)
-        {
-            _logger.LogWarning(uaex, "Access denied checking process status for launch {LaunchId}", launchId);
-            launchInfo.TerminatedAt = DateTime.UtcNow;
-
-            // NOTE: Workspace is NOT cleaned up on error - it persists
-        }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to check process status for launch {LaunchId}", launchId);
-            launchInfo.TerminatedAt = DateTime.UtcNow;
-
-            // NOTE: Workspace is NOT cleaned up on error - it persists
+            var failures = _inspectionFailureCounts.AddOrUpdate(launchId, 1, (_, count) => count + 1);
+            if (failures >= MaxInspectionFailures)
+            {
+                _logger.LogWarning(ex, "[LaunchRegistry] Process inspection failed {Failures} consecutive times for launch {LaunchId}. Marking as terminated.", failures, launchId);
+                launchInfo.TerminatedAt = DateTime.UtcNow;
+                launchInfo.ProcessInfo.IsRunning = false;
+                _inspectionFailureCounts.TryRemove(new KeyValuePair<string, int>(launchId, failures));
+            }
+            else
+            {
+                // Do not mark process terminated on transient inspection error; preserve it as active so safe teardown guards hold
+                _logger.LogWarning(ex, "Failed to check process status for launch {LaunchId} (attempt {Failures}/{MaxFailures})", launchId, failures, MaxInspectionFailures);
+            }
         }
     }
 

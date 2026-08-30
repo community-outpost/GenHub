@@ -55,6 +55,14 @@ concurrent access safety.
 
 ---
 
+### [Content Reconciliation](./reconciliation)
+
+Unified content reconciliation system for profile updates and CAS lifecycle management.
+Enforces correct execution order for content replacement, removal, and garbage collection
+operations. Provides atomic operations, event pipeline, and complete audit trail.
+
+---
+
 ### [Game Settings](./game-settings)
 
 Comprehensive game configuration management supporting all Options.ini settings

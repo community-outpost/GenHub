@@ -1,0 +1,99 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Info.ViewModels"
+             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:infoViews="clr-namespace:GenHub.Features.Info.Views"
+             xmlns:controls="clr-namespace:GenHub.Common.Controls"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
+             x:Class="GenHub.Features.Info.Views.InfoView"
+             x:DataType="vm:InfoViewModel">
+
+  <UserControl.Resources>
+  </UserControl.Resources>
+
+  <UserControl.DataTemplates>
+    <DataTemplate DataType="vm:FaqSectionViewModel">
+      <infoViews:FaqSectionView />
+    </DataTemplate>
+    <DataTemplate DataType="vm:GenHubInfoSectionViewModel">
+      <infoViews:GenHubInfoSectionView />
+    </DataTemplate>
+  </UserControl.DataTemplates>
+
+  <UserControl.Styles>
+    <!-- Override local styles to align with theme -->
+    <Style Selector="ListBoxItem">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Margin" Value="0" />
+    </Style>
+
+    <Style Selector="TextBlock.header">
+      <Setter Property="FontSize" Value="28"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+      <Setter Property="Margin" Value="0,0,0,20"/>
+    </Style>
+  </UserControl.Styles>
+
+  <controls:SidebarLayout PaneTitle="Info"
+                          ItemsSource="{Binding SidebarItems}"
+                          SelectedItem="{Binding SelectedSidebarItem, Mode=TwoWay}"
+                          IsPaneOpen="{Binding IsPaneOpen, Mode=TwoWay}"
+                          OpenPaneLength="{Binding OpenPaneLength, Mode=TwoWay}">
+
+    <controls:SidebarLayout.PaneHeader>
+        <ComboBox ItemsSource="{Binding Modules}"
+                  SelectedItem="{Binding SelectedModule}"
+                  HorizontalAlignment="Stretch">
+              <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                      <TextBlock Text="{Binding}" Foreground="{DynamicResource TextPrimary}" />
+                  </DataTemplate>
+              </ComboBox.ItemTemplate>
+        </ComboBox>
+    </controls:SidebarLayout.PaneHeader>
+
+    <controls:SidebarLayout.ItemTemplate>
+        <DataTemplate>
+            <ContentControl Content="{Binding}">
+                <ContentControl.DataTemplates>
+                    <!-- Guide Section Item -->
+                    <DataTemplate DataType="vm:InfoSectionViewModel">
+                        <StackPanel Orientation="Horizontal" Spacing="16">
+                            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="14" FontWeight="Medium" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimary}"/>
+                        </StackPanel>
+                    </DataTemplate>
+                    <!-- Zero Hour FAQ Category -->
+                    <DataTemplate DataType="vm:FaqCategoryViewModel">
+                        <StackPanel Orientation="Horizontal" Spacing="16">
+                             <material:MaterialIcon Kind="HelpCircleOutline"
+                                                    Width="20"
+                                                    Height="20"
+                                                    Foreground="{DynamicResource AccentBrush}"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"/>
+                             <TextBlock Text="{Binding Title}"
+                                        VerticalAlignment="Center"
+                                        FontSize="14"
+                                        FontWeight="Medium"
+                                        TextWrapping="Wrap"
+                                        Foreground="{DynamicResource TextPrimary}"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ContentControl.DataTemplates>
+            </ContentControl>
+        </DataTemplate>
+    </controls:SidebarLayout.ItemTemplate>
+
+    <!-- Content Area -->
+    <Border Background="Transparent" Padding="20">
+        <Panel>
+            <!-- Main Content (Guide or Zero Hour) -->
+            <ContentControl Content="{Binding SelectedSection}" />
+        </Panel>
+    </Border>
+  </controls:SidebarLayout>
+
+</UserControl>

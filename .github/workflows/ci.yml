@@ -1,18 +1,36 @@
 name: GenHub CI
 
-permissions:
-  contents: read
-  pull-requests: write
+permissions: {}
 
 on:
+  # release/** is covered explicitly rather than incidentally. A release branch is only built
+  # today because an open release PR happens to point at main, which makes its head a pull_request
+  # head — so coverage disappears the moment that PR merges or closes.
   push:
-    branches: [ main, development]
+    branches: [main, development, 'release/**']
+
+  # Filters on the base branch, so without release/** a PR *into* a release branch gets no
+  # pre-merge CI at all. That is how #343 and #368 merged unbuilt.
   pull_request:
-    branches: [ main, development]
+    branches: [main, development, 'release/**']
   workflow_dispatch:
 
+# A release branch is normally the head of an open release PR, so a push to it would otherwise
+# start a second full matrix under a different key. Same-repository pull requests therefore share
+# a group with pushes describing the same branch, and collapse.
+#
+# Only same-repository heads are keyed by branch name. A fork's head ref is contributor-controlled,
+# so keying on it unconditionally would let a fork branch named `development`, `main` or
+# `release/*` land in a protected branch's group — and because cancel-in-progress is on for pull
+# requests, each push to that PR would cancel the protected branch's running CI. Fork pull requests
+# fall back to github.ref_name, which is `<pr-number>/merge` and therefore unique per PR.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: >-
+    ${{ github.workflow }}-${{
+      github.event.pull_request.head.repo.full_name == github.repository
+        && github.event.pull_request.head.ref
+        || github.ref_name
+    }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -22,18 +40,22 @@ env:
   UI_PROJECT: 'GenHub/GenHub/GenHub.csproj'
   WINDOWS_PROJECT: 'GenHub/GenHub.Windows/GenHub.Windows.csproj'
   LINUX_PROJECT: 'GenHub/GenHub.Linux/GenHub.Linux.csproj'
+  MACOS_PROJECT: 'GenHub/GenHub.MacOS/GenHub.MacOS.csproj'
   TEST_PROJECTS: 'GenHub/GenHub.Tests/**/*.csproj'
 
 jobs:
   detect-changes:
     name: Detect File Changes
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 5
     outputs:
       core: ${{ steps.filter.outputs.core }}
       ui: ${{ steps.filter.outputs.ui }}
       windows: ${{ steps.filter.outputs.windows }}
       linux: ${{ steps.filter.outputs.linux }}
+      macos: ${{ steps.filter.outputs.macos }}
       tests: ${{ steps.filter.outputs.tests }}
       any: ${{ steps.filter.outputs.any }}
     steps:
@@ -53,6 +75,8 @@ jobs:
               - 'GenHub/GenHub.Windows/**'
             linux:
               - 'GenHub/GenHub.Linux/**'
+            macos:
+              - 'GenHub/GenHub.MacOS/**'
             tests:
               - 'GenHub/GenHub.Tests/**'
             any:
@@ -60,6 +84,8 @@ jobs:
               - '**/*.axaml'
               - '**/*.csproj'
               - '**/*.sln'
+              - '**/*.props'
+              - '**/*.targets'
               - '.github/workflows/**'
 
       - name: Changes Summary
@@ -69,12 +95,15 @@ jobs:
           echo "- UI: ${{ steps.filter.outputs.ui == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
           echo "- Windows: ${{ steps.filter.outputs.windows == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
           echo "- Linux: ${{ steps.filter.outputs.linux == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- macOS: ${{ steps.filter.outputs.macos == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
 
   build-windows:
     name: Build Windows
     needs: detect-changes
     if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.any == 'true' || needs.detect-changes.outputs.core == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.windows == 'true' }}
     runs-on: windows-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Code
@@ -97,16 +126,18 @@ jobs:
         id: buildinfo
         shell: pwsh
         run: |
-          $shortHash = "${{ github.sha }}".Substring(0, 7)
           $prNumber = "${{ github.event.pull_request.number }}"
           $runNumber = "${{ github.run_number }}"
+          $headSha = "${{ github.event.pull_request.head.sha }}"
 
           # Velopack requires SemVer2 3-part version (MAJOR.MINOR.PATCH)
           # Using 0.0.X format to indicate alpha/pre-release status
-          if ($prNumber) {
+          if ($prNumber -and $headSha) {
+            $shortHash = $headSha.Substring(0, 7)
             $version = "0.0.$runNumber-pr$prNumber"
             $channel = "PR"
           } else {
+            $shortHash = "${{ github.sha }}".Substring(0, 7)
             $version = "0.0.$runNumber"
             $channel = "CI"
           }
@@ -141,6 +172,7 @@ jobs:
 
           Write-Host "Building Windows project"
           dotnet build "${{ env.WINDOWS_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} @buildProps
+
 
       - name: Publish Windows App
         shell: pwsh
@@ -186,7 +218,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          $testProjects = Get-ChildItem -Path "GenHub/GenHub.Tests" -Recurse -Filter *.csproj | Where-Object { $_.Name -notlike '*Linux*' }
+          $testProjects = Get-ChildItem -Path "GenHub/GenHub.Tests" -Recurse -Filter *.csproj | Where-Object { $_.Name -notlike '*Linux*' -and $_.Name -notlike '*MacOS*' }
           if ($testProjects) {
             foreach ($testProject in $testProjects) {
               Write-Host "Testing $($testProject.FullName)"
@@ -228,6 +260,8 @@ jobs:
     needs: detect-changes
     if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.any == 'true' || needs.detect-changes.outputs.core == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.linux == 'true' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Code
@@ -237,11 +271,6 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Install Linux Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libx11-dev
 
       - name: Cache NuGet Packages
         uses: actions/cache@v3
@@ -254,16 +283,18 @@ jobs:
       - name: Extract Build Info
         id: buildinfo
         run: |
-          SHORT_HASH=$(echo "${{ github.sha }}" | cut -c1-7)
           PR_NUMBER="${{ github.event.pull_request.number }}"
           RUN_NUMBER="${{ github.run_number }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
 
           # Velopack requires SemVer2 3-part version (MAJOR.MINOR.PATCH)
           # Using 0.0.X format to indicate alpha/pre-release status
-          if [ -n "$PR_NUMBER" ]; then
+          if [ -n "$PR_NUMBER" ] && [ -n "$HEAD_SHA" ]; then
+            SHORT_HASH=$(echo "$HEAD_SHA" | cut -c1-7)
             VERSION="0.0.${RUN_NUMBER}-pr${PR_NUMBER}"
             CHANNEL="PR"
           else
+            SHORT_HASH=$(echo "${{ github.sha }}" | cut -c1-7)
             VERSION="0.0.${RUN_NUMBER}"
             CHANNEL="CI"
           fi
@@ -327,7 +358,7 @@ jobs:
         run: |
           shopt -s globstar nullglob
           for test_project in ${{ env.TEST_PROJECTS }}; do
-            [[ "$test_project" == *Windows* ]] && continue
+            [[ "$test_project" == *Windows* || "$test_project" == *MacOS* ]] && continue
             echo "Testing $test_project"
             dotnet test "$test_project" -c ${{ env.BUILD_CONFIGURATION }} --verbosity normal
           done
@@ -348,21 +379,272 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  build-macos:
+    name: Build macOS
+    needs: detect-changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.any == 'true' || needs.detect-changes.outputs.core == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.macos == 'true' }}
+    # macos-14 and newer are Apple Silicon. Pinning a version rather than using
+    # macos-latest keeps the runner architecture stable when the label moves.
+    runs-on: macos-15
+    permissions:
+      contents: read
+    timeout-minutes: 30
 
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache NuGet Packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Extract Build Info
+        id: buildinfo
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          RUN_NUMBER="${{ github.run_number }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+          if [ -n "$PR_NUMBER" ] && [ -n "$HEAD_SHA" ]; then
+            SHORT_HASH=$(echo "$HEAD_SHA" | cut -c1-7)
+            VERSION="0.0.${RUN_NUMBER}-pr${PR_NUMBER}"
+            CHANNEL="PR"
+          else
+            SHORT_HASH=$(echo "${{ github.sha }}" | cut -c1-7)
+            VERSION="0.0.${RUN_NUMBER}"
+            CHANNEL="CI"
+          fi
+
+          echo "SHORT_HASH=$SHORT_HASH" >> $GITHUB_OUTPUT
+          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "CHANNEL=$CHANNEL" >> $GITHUB_OUTPUT
+
+      - name: Build Projects
+        run: |
+          BUILD_PROPS="-p:Version=${{ steps.buildinfo.outputs.VERSION }} -p:GitShortHash=${{ steps.buildinfo.outputs.SHORT_HASH }} -p:PullRequestNumber=${{ steps.buildinfo.outputs.PR_NUMBER }} -p:BuildChannel=${{ steps.buildinfo.outputs.CHANNEL }}"
+
+          dotnet build "${{ env.CORE_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
+          dotnet build "${{ env.UI_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
+          dotnet build "${{ env.MACOS_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
+
+      # Runs the macOS composition root before publish. "Run Tests" at the end of this job
+      # already covered this project, but it sits after Publish and Smoke Test App Launch —
+      # so an unresolvable service killed the job at the smoke test, as a status-134 crash
+      # after packaging, and the assertion that names the service never executed. Running it
+      # here fails in seconds with the service name. A missing platform registration is
+      # invisible to per-branch CI, appearing only once both halves are merged, so this is
+      # the earliest point it can surface.
+      - name: Run macOS Tests
+        run: |
+          dotnet test GenHub/GenHub.Tests/GenHub.Tests.MacOS/GenHub.Tests.MacOS.csproj \
+            -c ${{ env.BUILD_CONFIGURATION }} --verbosity normal
+
+      - name: Publish macOS App
+        run: |
+          BUILD_PROPS="-p:Version=${{ steps.buildinfo.outputs.VERSION }} -p:GitShortHash=${{ steps.buildinfo.outputs.SHORT_HASH }} -p:PullRequestNumber=${{ steps.buildinfo.outputs.PR_NUMBER }} -p:BuildChannel=${{ steps.buildinfo.outputs.CHANNEL }}"
+
+          dotnet publish "${{ env.MACOS_PROJECT }}" \
+            -c ${{ env.BUILD_CONFIGURATION }} \
+            -r osx-arm64 \
+            --self-contained true \
+            -o "macos-publish" \
+            $BUILD_PROPS
+
+      # Unsigned and unnotarized: this proves the build and startup path, it is not a
+      # distributable artifact. Signing needs a Developer ID identity, and the vendored
+      # Playwright payload under Contents/MacOS breaks `codesign --deep` besides.
+      - name: Create .app Bundle
+        run: |
+          .github/scripts/package-macos-app.sh \
+            macos-publish \
+            macos-dist \
+            "${{ steps.buildinfo.outputs.VERSION }}"
+
+      # A bundle that builds but dies on startup is worse than no bundle, because CI
+      # goes green. Launch it headless and require it to survive; that is what caught
+      # the IGitHubTokenStorage crash, which every build-only check passed straight
+      # through.
+      - name: Smoke Test App Launch
+        run: |
+          APP_BIN="macos-dist/GenHub.app/Contents/MacOS/GenHub.MacOS"
+          "$APP_BIN" > app-launch.log 2>&1 &
+          APP_PID=$!
+
+          SURVIVED=0
+          for _ in $(seq 1 "$MACOS_SMOKE_TEST_SECONDS"); do
+            sleep 1
+            if ! kill -0 "$APP_PID" 2>/dev/null; then
+              break
+            fi
+            SURVIVED=$((SURVIVED + 1))
+          done
+
+          if kill -0 "$APP_PID" 2>/dev/null; then
+            echo "App stayed up for ${SURVIVED}s"
+            if kill "$APP_PID" 2>/dev/null; then
+              wait "$APP_PID" 2>/dev/null || true
+            else
+              set +e
+              wait "$APP_PID"
+              APP_STATUS=$?
+              set -e
+              echo "::error::GenHub.app exited before CI could stop it (status $APP_STATUS). Log follows."
+              cat app-launch.log
+              exit 1
+            fi
+          else
+            set +e
+            wait "$APP_PID"
+            APP_STATUS=$?
+            set -e
+            echo "::error::GenHub.app exited during startup (status $APP_STATUS). Log follows."
+            cat app-launch.log
+            exit 1
+          fi
+        env:
+          # Avalonia needs a window server. The macOS runner provides one, so no
+          # headless backend is configured here; if that changes, set
+          # AVALONIA_SCREEN_SCALE_FACTORS or switch to a headless platform.
+          DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+          MACOS_SMOKE_TEST_SECONDS: '15'
+
+      # Platform test projects are run only on their matching hosts.
+      - name: Run Tests
+        shell: bash
+        run: |
+          while IFS= read -r test_project; do
+            # MacOS is covered by "Run macOS Tests" before publish, so it is skipped
+            # here rather than run a second time.
+            [[ "$test_project" == *Windows* || "$test_project" == *Linux* || "$test_project" == *MacOS* ]] && continue
+            echo "Testing $test_project"
+            dotnet test "$test_project" -c ${{ env.BUILD_CONFIGURATION }} --verbosity normal
+          done < <(find GenHub/GenHub.Tests -type f -name '*.csproj' | sort)
+
+      - name: Upload macOS App Bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: genhub-macos-app-${{ steps.buildinfo.outputs.VERSION }}
+          path: macos-dist/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Launch Log On Failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: genhub-macos-launch-log-${{ steps.buildinfo.outputs.VERSION }}
+          path: app-launch.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # Launches the real native engine with no game data at all and requires the abort the
+  # engine is known to produce (exit code 1 once INI loading finds nothing to read). No
+  # licensed retail content is involved; what this covers is everything before that
+  # point — the binary loads, its dylibs resolve, and startup fails fast instead of
+  # hanging. No other job executes the native launch path at all.
+  engine-launch-smoke:
+    name: Engine Launch Smoke Test
+    needs: detect-changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.any == 'true' }}
+    # macos-14 and newer are Apple Silicon, matching the arm64 engine asset.
+    runs-on: macos-15
+    permissions:
+      contents: read
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache NuGet Packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      # `latest-bgfx` is a moving tag, republished as the engine advances. Deliberate
+      # tradeoff: this job tracks the current engine build rather than pinning a
+      # reproducible one, so an engine regression surfaces here first.
+      - name: Download Native Engine
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download latest-bgfx \
+            --repo bobtista/GeneralsGameCode \
+            --pattern 'GeneralsZH-macos-arm64.zip' \
+            --dir engine-download
+          # The archive wraps everything in a GeneralsZH-macos-arm64/ directory, so it is
+          # staged and the wrapper's contents lifted out. Not `unzip -j`: that would also
+          # flatten Data/INI/, which the engine reads by path.
+          unzip -q engine-download/GeneralsZH-macos-arm64.zip -d engine-staging
+          root="$(find engine-staging -mindepth 1 -maxdepth 1 -type d)"
+          if [ ! -f "$root/generalszh" ]; then
+            echo "::error::generalszh not found in the release archive; contents were:"
+            find engine-staging -maxdepth 2
+            exit 1
+          fi
+          mv "$root" native-client
+          chmod +x native-client/generalszh
+          ls -l native-client
+
+      # GENHUB_REQUIRE_NATIVE_SMOKE turns "no client found" from a silent skip into a
+      # failure. Without it a broken download would leave the test skipping and this
+      # job permanently, meaninglessly green.
+      - name: Run Engine Launch Smoke Test
+        env:
+          GENHUB_NATIVE_CLIENT_DIR: ${{ github.workspace }}/native-client
+          GENHUB_REQUIRE_NATIVE_SMOKE: '1'
+        run: |
+          dotnet test GenHub/GenHub.Tests/GenHub.Tests.Core/GenHub.Tests.Core.csproj \
+            -c ${{ env.BUILD_CONFIGURATION }} \
+            --filter "FullyQualifiedName~EngineLaunchSmokeTests" \
+            --verbosity normal
 
   summary:
     name: Build Summary
-    needs: [build-windows, build-linux]
+    # detect-changes is in `needs` so its own failure reaches the gate below. Without it a
+    # failed detect-changes skips every build, and all-skipped reads as a clean pass.
+    needs: [detect-changes, build-windows, build-linux, build-macos, engine-launch-smoke]
     if: always()
     runs-on: ubuntu-latest
+    permissions: {}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
+      # A job skipped by detect-changes gating is a legitimate outcome, rendered as
+      # such rather than as a failure.
       - name: Generate Summary
         run: |
           echo "### 🚀 GenHub Build Results" >> $GITHUB_STEP_SUMMARY
           echo "| Platform | Status |" >> $GITHUB_STEP_SUMMARY
           echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
-          echo "| Windows | ${{ needs.build-windows.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Linux | ${{ needs.build-linux.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Windows | ${{ needs.build-windows.result == 'success' && '✅ Passed' || needs.build-windows.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Linux | ${{ needs.build-linux.result == 'success' && '✅ Passed' || needs.build-linux.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| macOS | ${{ needs.build-macos.result == 'success' && '✅ Passed' || needs.build-macos.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Engine Smoke | ${{ needs.engine-launch-smoke.result == 'success' && '✅ Passed' || needs.engine-launch-smoke.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+
+      # Turns the summary into a real gate: branch protection can require this one
+      # check and a failed or cancelled job anywhere in `needs` blocks the merge.
+      # Skipped jobs pass — being gated off by detect-changes is not a failure.
+      - name: Fail when a required job failed
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: exit 1

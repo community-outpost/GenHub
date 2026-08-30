@@ -1,14 +1,22 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
 /// Constants specific to ModDB and its content pipeline components.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized URI constants / mock demo paths")]
 public static class ModDBConstants
 {
     // ===== Base URLs =====
 
     /// <summary>Base URL for ModDB website.</summary>
     public const string BaseUrl = "https://www.moddb.com";
+
+    /// <summary>
+    /// URL to the ModDB icon.
+    /// </summary>
+    public const string IconUrl = "avares://GenHub/Assets/Icons/Publishers/moddb.png";
 
     /// <summary>Base URL for C&amp;C Generals content.</summary>
     public const string GeneralsBaseUrl = BaseUrl + "/games/cc-generals";
@@ -44,8 +52,22 @@ public static class ModDBConstants
     /// <summary>Publisher type identifier for ModDB content pipeline.</summary>
     public const string PublisherType = "moddb";
 
-    /// <summary>Publisher name for manifests.</summary>
-    public const string PublisherName = "ModDB";
+    /// <summary>Publisher ID for the ModDB service.</summary>
+    public const string PublisherId = "moddb";
+
+    /// <summary>Display name for the publisher.</summary>
+    public const string PublisherDisplayName = "ModDB";
+
+    /// <summary>Format string for including the author with the publisher name.</summary>
+    public const string PublisherNameFormat = "ModDB ({0})";
+
+    /// <summary>Format for author tag.</summary>
+    public const string AuthorTagFormat = "by {0}";
+
+    /// <summary>
+    /// UserAgent string that mimics a standard web browser.
+    /// </summary>
+    public const string BrowserUserAgent = ApiConstants.BrowserUserAgent;
 
     /// <summary>Publisher logo source path for UI display.</summary>
     public const string LogoSource = "/Assets/Logos/moddb-logo.png";
@@ -362,6 +384,12 @@ public static class ModDBConstants
     /// <summary>Default description when none is available.</summary>
     public const string DefaultDescription = "Content from ModDB";
 
+    /// <summary>Format for parsing release dates (YYYYMMDD).</summary>
+    public const string ReleaseDateFormat = "yyyyMMdd";
+
+    /// <summary>Default filename for ModDB downloads.</summary>
+    public const string DefaultDownloadFilename = "ModDBDownload.zip";
+
     // ===== Timeframe Values =====
 
     /// <summary>Timeframe: Past 24 hours.</summary>
@@ -382,5 +410,5 @@ public static class ModDBConstants
     // ===== Content Tags =====
 
     /// <summary>Content tags for search and categorization.</summary>
-    public static readonly string[] Tags = new[] { "ModDB", "Community", "Mods", "Maps" };
+    public static readonly string[] Tags = ["ModDB", "Community", "Mods", "Maps"];
 }

@@ -1,0 +1,88 @@
+/* Footer */
+footer {
+    border-top: 1px solid var(--glass-border);
+    padding: 3rem 1.5rem;
+    text-align: center;
+    color: var(--text-muted);
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--blur-sm));
+    -webkit-backdrop-filter: blur(var(--blur-sm));
+    position: relative;
+}
+
+footer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--primary-light), transparent);
+    opacity: 0.2;
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.footer-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.footer-brand img {
+    width: 24px;
+    height: 24px;
+    opacity: 0.7;
+}
+
+footer p {
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+}
+
+.footer-links {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+footer a {
+    color: var(--primary-light);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+footer a::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 1px;
+    background: var(--primary-light);
+    transition: width 0.2s ease;
+}
+
+footer a:hover {
+    color: var(--text-main);
+}
+
+footer a:hover::after {
+    width: 100%;
+}
+
+.footer-divider {
+    color: var(--text-muted);
+    opacity: 0.3;
+}

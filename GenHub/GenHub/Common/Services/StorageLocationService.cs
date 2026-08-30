@@ -18,7 +18,9 @@ namespace GenHub.Common.Services;
 /// </summary>
 public class StorageLocationService(
     IUserSettingsService userSettingsService,
+    IConfigurationProviderService configurationProviderService,
     IGameInstallationService gameInstallationService,
+    IStorageWritabilityProbe writabilityProbe,
     ILogger<StorageLocationService> logger) : IStorageLocationService
 {
     /// <inheritdoc/>
@@ -27,21 +29,32 @@ public class StorageLocationService(
         ArgumentNullException.ThrowIfNull(installation);
 
         var settings = userSettingsService.Get();
-        if (!settings.UseInstallationAdjacentStorage)
+        var configuredInstallationPoolPath = settings.CasConfiguration.InstallationPoolRootPath;
+        if (!string.IsNullOrWhiteSpace(configuredInstallationPoolPath) &&
+            writabilityProbe.CanCreateStorageAt(configuredInstallationPoolPath))
         {
-            // Fall back to centralized AppData location
-            var appDataPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppConstants.AppName,
-                DirectoryNames.CasPool);
-            logger.LogDebug("Using centralized CAS pool path: {CasPoolPath} (installation-adjacent disabled)", appDataPath);
-            return appDataPath;
+            return Path.GetFullPath(configuredInstallationPoolPath);
         }
 
-        var installationRoot = PathHelper.GetSafeParentDirectory(installation.InstallationPath);
-        var casPoolPath = Path.Combine(installationRoot, DirectoryNames.GenHubCasPool);
-        logger.LogDebug("Resolved CAS pool path: {CasPoolPath} for installation {InstallationId}", casPoolPath, installation.Id);
-        return casPoolPath;
+        if (settings.UseInstallationAdjacentStorage)
+        {
+            var installationPath = installation.InstallationPath;
+            if (!string.IsNullOrWhiteSpace(installationPath))
+            {
+                var adjacentPath = Path.Combine(installationPath, DirectoryNames.GenHubCasPool);
+                if (writabilityProbe.CanCreateStorageAt(adjacentPath))
+                {
+                    return Path.GetFullPath(adjacentPath);
+                }
+            }
+        }
+
+        var primaryPoolPath = configurationProviderService.GetCasConfiguration().CasRootPath;
+        logger.LogInformation(
+            "Using primary CAS pool path {CasPoolPath} for installation {InstallationId}",
+            primaryPoolPath,
+            installation.Id);
+        return primaryPoolPath;
     }
 
     /// <inheritdoc/>
@@ -50,20 +63,25 @@ public class StorageLocationService(
         ArgumentNullException.ThrowIfNull(installation);
 
         var settings = userSettingsService.Get();
-        if (!settings.UseInstallationAdjacentStorage)
+        if (settings.UseInstallationAdjacentStorage &&
+            TryGetWritableInstallationAdjacentPath(installation, DirectoryNames.GenHubWorkspace, out var adjacentPath))
         {
-            // Fall back to centralized AppData location
-            var appDataPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppConstants.AppName,
-                "Workspaces");
-            logger.LogDebug("Using centralized workspace path: {WorkspacePath} (installation-adjacent disabled)", appDataPath);
-            return appDataPath;
+            logger.LogDebug(
+                "Resolved installation-adjacent workspace path: {WorkspacePath} for installation {InstallationId}",
+                adjacentPath,
+                installation.Id);
+            return adjacentPath;
         }
 
-        var installationRoot = PathHelper.GetSafeParentDirectory(installation.InstallationPath);
-        var workspacePath = Path.Combine(installationRoot, DirectoryNames.GenHubWorkspace);
-        logger.LogDebug("Resolved workspace path: {WorkspacePath} for installation {InstallationId}", workspacePath, installation.Id);
+        var configuredWorkspacePath = settings.WorkspacePath;
+        var workspacePath = !string.IsNullOrWhiteSpace(configuredWorkspacePath) && writabilityProbe.CanCreateStorageAt(configuredWorkspacePath)
+            ? Path.GetFullPath(configuredWorkspacePath)
+            : Path.Combine(configurationProviderService.GetApplicationDataPath(), DirectoryNames.Workspaces);
+
+        logger.LogInformation(
+            "Using centralized workspace path {WorkspacePath} for installation {InstallationId}",
+            workspacePath,
+            installation.Id);
         return workspacePath;
     }
 
@@ -153,5 +171,24 @@ public class StorageLocationService(
             sameVolume);
 
         return sameVolume;
+    }
+
+    private bool TryGetWritableInstallationAdjacentPath(
+        IGameInstallation installation,
+        string directoryName,
+        out string path)
+    {
+        var installationRoot = PathHelper.GetSafeParentDirectory(installation.InstallationPath);
+        path = Path.Combine(installationRoot, directoryName);
+        if (writabilityProbe.CanCreateStorageAt(path))
+        {
+            return true;
+        }
+
+        logger.LogWarning(
+            "Installation-adjacent storage path {StoragePath} is not writable for installation {InstallationId}; falling back to user storage",
+            path,
+            installation.Id);
+        return false;
     }
 }

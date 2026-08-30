@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Extensions.Enums;
@@ -25,7 +26,7 @@ public static class PublisherExtensions
             Publisher.GeneralsOnline => "GeneralsOnline",
             Publisher.SuperHackers => "TheSuperHackers",
             Publisher.CncLabs => "CNClabs",
-            _ => "Unknown",
+            _ => GameClientConstants.UnknownVersion,
         };
     }
 }

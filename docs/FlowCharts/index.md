@@ -9,11 +9,12 @@ This section contains detailed flowcharts that illustrate how GenHub's various s
 
 ## Available Flowcharts
 
-- **[Publisher Discovery Flow](./Publisher-Discovery-Flow.md)** - Dynamic publisher registration and content flow architecture
-- **[Content Discovery Flow](./Discovery-Flow.md)** - How GenHub discovers content from multiple sources
+- **[Content Discovery Flow](./Discovery-Flow.md)** - How GenHub discovers content from publishers and sources
 - **[Content Resolution Flow](./Resolution-Flow.md)** - Converting discovered content into installable manifests
 - **[Content Acquisition Flow](./Acquisition-Flow.md)** - Downloading and preparing content packages
 - **[Workspace Assembly Flow](./Assembly-Flow.md)** - Building isolated game workspaces
+- **[Manifest Creation Flow](./Manifest-Creation-Flow.md)** - Creating ContentManifest files programmatically
+- **[Game Detection Flow](./Detection-Flow.md)** - Detecting and validating game installations
 - **[Complete User Flow](./Complete-User-Flow.md)** - End-to-end user experience example
 
 ## Understanding the Diagrams

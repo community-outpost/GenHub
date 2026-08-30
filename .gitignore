@@ -5,6 +5,8 @@
 .*
 !.github/
 !.gitignore
+!.agents/
+!.claude/
 
 *.suo
 *.user
@@ -21,6 +23,7 @@ docs/.vitepress/dist/
 docs/.vitepress/cache/
 
 # Build results
+build.lock
 
 [Dd]ebug/
 [Rr]elease/
@@ -169,5 +172,15 @@ _NCrunch*
 **/.idea/**/modules.xml
 
 # Velopack releases
-/releases/
-/Releases/
+releases/
+Releases/
+.gitnexus
+
+# SampleCatalogs: machine-specific generated shortcuts. Never commit them.
+GenHub/GenHub/SampleCatalogs/register-genhub-scheme.reg
+GenHub/GenHub/SampleCatalogs/register-genhub-scheme.desktop
+GenHub/GenHub/SampleCatalogs/register-genhub-scheme.app/
+GenHub/GenHub/SampleCatalogs/Subscribe-Test-Catalog.url
+GenHub/GenHub/SampleCatalogs/Subscribe-Test-Catalog.desktop
+GenHub/GenHub/SampleCatalogs/Subscribe-Test-Catalog.command
+GenHub/GenHub/SampleCatalogs/Subscribe-Test-Catalog.webloc

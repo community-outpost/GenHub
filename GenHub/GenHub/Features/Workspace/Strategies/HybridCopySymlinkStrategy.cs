@@ -44,7 +44,7 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
     /// <inheritdoc/>
     public override long EstimateDiskUsage(WorkspaceConfiguration configuration)
     {
-        if (configuration?.Manifests == null || configuration.Manifests.Count == 0)
+        if (configuration?.Manifests is null || configuration.Manifests.Count == 0)
             return 0;
 
         long totalUsage = 0;
@@ -92,7 +92,8 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
             Directory.CreateDirectory(workspacePath);
 
             // Deduplicate files by RelativePath - multiple manifests may contain the same file
-            var allFiles = configuration.GetAllUniqueFiles().ToList();
+            // include files where InstallTarget is Workspace.
+            var allFiles = configuration.GetWorkspaceUniqueFiles().ToList();
             var totalFiles = allFiles.Count;
             var processedFiles = 0;
             long totalBytesProcessed = 0;
@@ -113,7 +114,7 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
             // Process each manifest and its files to maintain manifest context for source path resolution
             foreach (var manifest in configuration.Manifests)
             {
-                foreach (var file in manifest.Files ?? Enumerable.Empty<ManifestFile>())
+                foreach (var file in (manifest.Files ?? Enumerable.Empty<ManifestFile>()).Where(f => f.InstallTarget == ContentInstallTarget.Workspace))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     var destinationPath = Path.Combine(workspacePath, file.RelativePath);
@@ -125,15 +126,35 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
                         {
                             if (isEssential)
                             {
-                                await FileOperations.CopyFromCasAsync(file.Hash, destinationPath, cancellationToken);
+                                var success = await FileOperations.CopyFromCasAsync(file.Hash, destinationPath, contentType: manifest.ContentType, cancellationToken: cancellationToken);
+                                if (!success)
+                                {
+                                    throw new InvalidOperationException($"Failed to copy essential file from CAS: {file.RelativePath} (Hash: {file.Hash})");
+                                }
+
                                 copiedFiles++;
                                 totalBytesProcessed += file.Size;
                             }
                             else
                             {
-                                await FileOperations.LinkFromCasAsync(file.Hash, destinationPath, useHardLink: false, cancellationToken);
-                                symlinkedFiles++;
-                                totalBytesProcessed += LinkOverheadBytes;
+                                var success = await FileOperations.LinkFromCasAsync(file.Hash, destinationPath, useHardLink: false, contentType: manifest.ContentType, cancellationToken: cancellationToken);
+                                if (!success)
+                                {
+                                    Logger.LogWarning("CAS Link failed for {RelativePath}, attempting copy from CAS", file.RelativePath);
+                                    var copySuccess = await FileOperations.CopyFromCasAsync(file.Hash, destinationPath, contentType: manifest.ContentType, cancellationToken: cancellationToken);
+                                    if (!copySuccess)
+                                    {
+                                        throw new InvalidOperationException($"Failed to link or copy file from CAS: {file.RelativePath} (Hash: {file.Hash})");
+                                    }
+
+                                    copiedFiles++;
+                                    totalBytesProcessed += file.Size;
+                                }
+                                else
+                                {
+                                    symlinkedFiles++;
+                                    totalBytesProcessed += LinkOverheadBytes;
+                                }
                             }
                         }
                         else
@@ -235,11 +256,12 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
     /// </summary>
     /// <param name="hash">CAS hash of the file.</param>
     /// <param name="targetPath">Target path for the file.</param>
+    /// <param name="contentType">The content type of the file.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Task representing the async operation.</returns>
-    protected override async Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken)
+    protected override async Task CreateCasLinkAsync(string hash, string targetPath, ContentType? contentType, CancellationToken cancellationToken)
     {
-        var success = await FileOperations.CopyFromCasAsync(hash, targetPath, cancellationToken);
+        var success = await FileOperations.CopyFromCasAsync(hash, targetPath, contentType: contentType, cancellationToken: cancellationToken);
         if (!success)
         {
             throw new InvalidOperationException($"Failed to copy from CAS for hash {hash} to {targetPath}");
@@ -304,12 +326,7 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
     {
         // For game installation files, treat them the same as local files
         // We need to find the manifest that contains this file
-        var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file));
-        if (manifest == null)
-        {
-            throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
-        }
-
+        var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file)) ?? throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
         await ProcessLocalFileAsync(file, manifest, targetPath, configuration, cancellationToken);
     }
 }

@@ -1,3 +1,8 @@
+using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using GenHub.Core.Constants;
+
 namespace GenHub.Core.Models.GameSettings;
 
 /// <summary>GeneralsOnline game client settings (inherits TheSuperHackers settings plus GeneralsOnline-specific options).</summary>
@@ -7,23 +12,147 @@ public class GeneralsOnlineSettings : TheSuperHackersSettings
     public bool ShowFps { get; set; }
 
     /// <summary>Gets or sets a value indicating whether to show ping/latency.</summary>
-    public bool ShowPing { get; set; } = true;
+    public bool ShowPing { get; set; } = GameSettingsGeneralsOnlineConstants.DefaultShowPing;
 
     /// <summary>Gets or sets a value indicating whether to enable auto-login.</summary>
     public bool AutoLogin { get; set; }
 
     /// <summary>Gets or sets a value indicating whether to remember username.</summary>
-    public bool RememberUsername { get; set; } = true;
+    public bool RememberUsername { get; set; } = GameSettingsGeneralsOnlineConstants.DefaultRememberUsername;
 
     /// <summary>Gets or sets a value indicating whether to enable notifications.</summary>
-    public bool EnableNotifications { get; set; } = true;
+    public bool EnableNotifications { get; set; } = GameSettingsGeneralsOnlineConstants.DefaultEnableNotifications;
 
     /// <summary>Gets or sets the chat font size.</summary>
-    public int ChatFontSize { get; set; } = 12;
+    public int ChatFontSize { get; set; } = GameSettingsGeneralsOnlineConstants.DefaultChatFontSize;
 
     /// <summary>Gets or sets a value indicating whether to enable sound notifications.</summary>
-    public bool EnableSoundNotifications { get; set; } = true;
+    public bool EnableSoundNotifications { get; set; } = GameSettingsGeneralsOnlineConstants.DefaultEnableSoundNotifications;
 
     /// <summary>Gets or sets a value indicating whether to show player ranks.</summary>
-    public bool ShowPlayerRanks { get; set; } = true;
+    public bool ShowPlayerRanks { get; set; } = GameSettingsGeneralsOnlineConstants.DefaultShowPlayerRanks;
+
+    /// <summary>Gets or sets the camera settings.</summary>
+    public CameraSettings Camera { get; set; } = new();
+
+    /// <summary>Gets or sets the chat settings.</summary>
+    public ChatSettings Chat { get; set; } = new();
+
+    /// <summary>Gets or sets the debug settings.</summary>
+    public DebugSettings Debug { get; set; } = new();
+
+    /// <summary>Gets or sets the render settings.</summary>
+    public RenderSettings Render { get; set; } = new();
+
+    /// <summary>Gets or sets the social notification settings.</summary>
+    public SocialSettings Social { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the settings.json keys this model does not declare. GenHub rewrites the
+    /// GeneralsOnline client's own settings.json wholesale, so without this the client would
+    /// lose every option GenHub has no property for.
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement> AdditionalSettings { get; set; } = [];
+
+    /// <summary>
+    /// Replaces nested sections that a settings.json spelled as an explicit null, which is valid
+    /// JSON and overwrites the initializers, so that merging into this instance cannot throw.
+    /// </summary>
+    public void EnsureNestedSectionsInitialized()
+    {
+        Camera ??= new CameraSettings();
+        Chat ??= new ChatSettings();
+        Debug ??= new DebugSettings();
+        Render ??= new RenderSettings();
+        Social ??= new SocialSettings();
+    }
+
+    /// <summary>Nested camera settings.</summary>
+    public class CameraSettings
+    {
+        /// <summary>Gets or sets the maximum camera height only when lobby host.</summary>
+        public float MaxHeightOnlyWhenLobbyHost { get; set; } = 310.0f;
+
+        /// <summary>Gets or sets the minimum camera height.</summary>
+        public float MinHeight { get; set; } = 310.0f;
+
+        /// <summary>Gets or sets the camera move speed ratio.</summary>
+        public float MoveSpeedRatio { get; set; } = 1.5f;
+
+        /// <summary>Gets or sets the camera keys this model does not declare, so they survive a rewrite.</summary>
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement> AdditionalSettings { get; set; } = [];
+    }
+
+    /// <summary>Nested chat settings.</summary>
+    public class ChatSettings
+    {
+        /// <summary>Gets or sets the chat duration in seconds until fade out.</summary>
+        public int DurationSecondsUntilFadeOut { get; set; } = 30;
+
+        /// <summary>Gets or sets the chat keys this model does not declare, so they survive a rewrite.</summary>
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement> AdditionalSettings { get; set; } = [];
+    }
+
+    /// <summary>Nested debug settings.</summary>
+    public class DebugSettings
+    {
+        /// <summary>Gets or sets a value indicating whether debug verbose logging is enabled.</summary>
+        public bool VerboseLogging { get; set; }
+
+        /// <summary>Gets or sets the debug keys this model does not declare, so they survive a rewrite.</summary>
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement> AdditionalSettings { get; set; } = [];
+    }
+
+    /// <summary>Nested render settings.</summary>
+    public class RenderSettings
+    {
+        /// <summary>Gets or sets the render FPS limit.</summary>
+        public int FpsLimit { get; set; } = 144;
+
+        /// <summary>Gets or sets a value indicating whether to limit framerate.</summary>
+        public bool LimitFramerate { get; set; } = true;
+
+        /// <summary>Gets or sets a value indicating whether to render stats overlay.</summary>
+        public bool StatsOverlay { get; set; } = true;
+
+        /// <summary>Gets or sets the render keys this model does not declare, so they survive a rewrite.</summary>
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement> AdditionalSettings { get; set; } = [];
+    }
+
+    /// <summary>Nested social settings.</summary>
+    public class SocialSettings
+    {
+        /// <summary>Gets or sets a value indicating whether to show notification when friend comes online in gameplay.</summary>
+        public bool NotificationFriendComesOnlineGameplay { get; set; } = true;
+
+        /// <summary>Gets or sets a value indicating whether to show notification when friend comes online in menus.</summary>
+        public bool NotificationFriendComesOnlineMenus { get; set; } = true;
+
+        /// <summary>Gets or sets a value indicating whether to show notification when friend goes offline in gameplay.</summary>
+        public bool NotificationFriendGoesOfflineGameplay { get; set; } = true;
+
+        /// <summary>Gets or sets a value indicating whether to show notification when friend goes offline in menus.</summary>
+        public bool NotificationFriendGoesOfflineMenus { get; set; } = true;
+
+        /// <summary>Gets or sets a value indicating whether to show notification when player accepts request in gameplay.</summary>
+        public bool NotificationPlayerAcceptsRequestGameplay { get; set; } = true;
+
+        /// <summary>Gets or sets a value indicating whether to show notification when player accepts request in menus.</summary>
+        public bool NotificationPlayerAcceptsRequestMenus { get; set; } = true;
+
+        /// <summary>Gets or sets a value indicating whether to show notification when player sends request in gameplay.</summary>
+        public bool NotificationPlayerSendsRequestGameplay { get; set; } = true;
+
+        /// <summary>Gets or sets a value indicating whether to show notification when player sends request in menus.</summary>
+        public bool NotificationPlayerSendsRequestMenus { get; set; } = true;
+
+        /// <summary>Gets or sets the social keys this model does not declare, so they survive a rewrite.</summary>
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement> AdditionalSettings { get; set; } = [];
+    }
 }

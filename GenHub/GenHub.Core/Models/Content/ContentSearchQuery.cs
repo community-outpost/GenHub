@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Models.Content;
@@ -81,9 +82,61 @@ public class ContentSearchQuery
     public int? Page { get; set; }
 
     /// <summary>
-    /// Gets or sets sort value.
+    /// Gets or sets a value indicating whether to include older versions of content in results.
+    /// Default is false (show only latest stable version).
+    /// </summary>
+    public bool IncludeOlderVersions { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets the sort order.
     /// </summary>
     public string Sort { get; set; } = string.Empty;
+
+    // ===== ModDB-specific filters =====
+
+    /// <summary>
+    /// Gets or sets the ModDB category filter (full-version, patch, movie, etc.).
+    /// </summary>
+    public string? ModDBCategory { get; set; }
+
+    /// <summary>
+    /// Gets or sets the ModDB addon category filter (multiplayer-map, skin, etc.).
+    /// </summary>
+    public string? ModDBAddonCategory { get; set; }
+
+    /// <summary>
+    /// Gets or sets the ModDB license filter.
+    /// </summary>
+    public string? ModDBLicense { get; set; }
+
+    /// <summary>
+    /// Gets or sets the ModDB timeframe filter (24h, week, month, etc.).
+    /// </summary>
+    public string? ModDBTimeframe { get; set; }
+
+    /// <summary>
+    /// Gets or sets the ModDB section to search (mods, downloads, addons).
+    /// </summary>
+    public string? ModDBSection { get; set; }
+
+    // ===== CNCLabs-specific filters =====
+
+    /// <summary>
+    /// Gets the CNCLabs map tag filters (Cramped, Spacious, Well-balanced, etc.).
+    /// </summary>
+    public Collection<string> CNCLabsMapTags { get; } = [];
+
+    // ===== GitHub-specific filters =====
+
+    /// <summary>
+    /// Gets or sets the GitHub topic filter.
+    /// </summary>
+    public string? GitHubTopic { get; set; }
+
+    /// <summary>
+    /// Gets or sets the GitHub author/owner filter.
+    /// </summary>
+    public string? GitHubAuthor { get; set; }
 
     /// <summary>
     /// Gets or sets the optional language filter used by CSV content pipeline.
@@ -101,28 +154,38 @@ public class ContentSearchQuery
     private static readonly Dictionary<string, string> LanguageMap =
     new(StringComparer.OrdinalIgnoreCase)
     {
-        ["EN"] = "EN",
-        ["DE"] = "DE",
-        ["FR"] = "FR",
-        ["PL"] = "PL",
-        ["ES"] = "ES",
-        ["IT"] = "IT",
-        ["KO"] = "KO",
-        ["BR"] = "BR",
-        ["CN"] = "CN",
-        ["ZH"] = "CN",
-        ["ZH-CN"] = "CN",
+        [CsvConstants.AllLanguagesFilter] = CsvConstants.AllLanguagesFilter,
+        [CsvConstants.LanguageEn] = CsvConstants.LanguageEn,
+        [CsvConstants.LanguageDe] = CsvConstants.LanguageDe,
+        [CsvConstants.LanguageFr] = CsvConstants.LanguageFr,
+        [CsvConstants.LanguagePl] = CsvConstants.LanguagePl,
+        [CsvConstants.LanguageEs] = CsvConstants.LanguageEs,
+        [CsvConstants.LanguageIt] = CsvConstants.LanguageIt,
+        [CsvConstants.LanguageKo] = CsvConstants.LanguageKo,
+        [CsvConstants.LanguagePtBr] = CsvConstants.LanguagePtBr,
+        ["BR"] = CsvConstants.LanguagePtBr,
+        ["PT"] = CsvConstants.LanguagePtBr,
+        [CsvConstants.LanguageZhCn] = CsvConstants.LanguageZhCn,
+        ["CN"] = CsvConstants.LanguageZhCn,
+        ["ZH"] = CsvConstants.LanguageZhCn,
+        [CsvConstants.LanguageZhTw] = CsvConstants.LanguageZhTw,
+        ["TW"] = CsvConstants.LanguageZhTw,
     };
 
-    private static string? NormalizeLanguage(string? language)
+    /// <summary>
+    /// Normalizes a language code to the canonical casing and alias mapping.
+    /// </summary>
+    /// <param name="language">The raw language string.</param>
+    /// <returns>The normalized language string, defaulting to <see cref="CsvConstants.AllLanguagesFilter"/> when null or empty.</returns>
+    public static string NormalizeLanguage(string? language)
     {
-        // set default to "ALL" if not specified
-        // supported languages Brazilian Chinese English French German Italian Korean Polish Spanish
         if (string.IsNullOrWhiteSpace(language))
-            return "ALL";
+        {
+            return CsvConstants.AllLanguagesFilter;
+        }
 
-        var key = language.Trim().ToUpperInvariant();
+        var key = language.Trim();
 
-        return LanguageMap.TryGetValue(key, out var normalized) ? normalized : "ALL";
+        return LanguageMap.TryGetValue(key, out var normalized) ? normalized : key.ToUpperInvariant();
     }
 }

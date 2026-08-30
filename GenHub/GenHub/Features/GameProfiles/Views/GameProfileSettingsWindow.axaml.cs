@@ -1,5 +1,7 @@
 using System;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using GenHub.Core.Constants;
 using GenHub.Features.GameProfiles.ViewModels;
@@ -37,16 +39,29 @@ public partial class GameProfileSettingsWindow : Window
     /// </summary>
     /// <param name="sender">The sender.</param>
     /// <param name="e">The event arguments.</param>
-    public void OnHeaderPointerPressed(object sender, Avalonia.Input.PointerPressedEventArgs e)
+    public void OnHeaderPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (e.ClickCount == 2)
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
-            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+            if (e.ClickCount == 2 && CanResize)
+            {
+                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+            }
+            else
+            {
+                BeginMoveDrag(e);
+            }
         }
-        else
-        {
-            BeginMoveDrag(e);
-        }
+    }
+
+    /// <summary>
+    /// Handles the toggle fullscreen button click.
+    /// </summary>
+    /// <param name="sender">The sender.</param>
+    /// <param name="e">The event arguments.</param>
+    public void OnToggleFullscreenClick(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
     }
 
     /// <summary>

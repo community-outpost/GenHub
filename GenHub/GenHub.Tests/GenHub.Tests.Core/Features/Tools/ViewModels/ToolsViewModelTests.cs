@@ -56,7 +56,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task InitializeAsync_LoadsToolsSuccessfully()
+    public async Task InitializeAsync_LoadsToolsSuccessfullyAsync()
     {
         // Arrange
         var plugin1 = new MockToolPlugin("test.tool1", "Test Tool 1", "1.0.0", "Author 1");
@@ -83,7 +83,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task InitializeAsync_SetsHasToolsToFalse_WhenNoToolsLoaded()
+    public async Task InitializeAsync_SetsHasToolsToFalse_WhenNoToolsLoadedAsync()
     {
         // Arrange
         var emptyTools = new List<IToolPlugin>();
@@ -107,7 +107,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task InitializeAsync_HandlesFailureFromService()
+    public async Task InitializeAsync_HandlesFailureFromServiceAsync()
     {
         // Arrange
         _mockToolService.Setup(x => x.LoadSavedToolsAsync())
@@ -129,7 +129,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task InitializeAsync_HandlesExceptionsGracefully()
+    public async Task InitializeAsync_HandlesExceptionsGracefullyAsync()
     {
         // Arrange
         _mockToolService.Setup(x => x.LoadSavedToolsAsync())
@@ -149,7 +149,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task InitializeAsync_SetsIsLoadingCorrectly()
+    public async Task InitializeAsync_SetsIsLoadingCorrectlyAsync()
     {
         // Arrange
         var tools = new List<IToolPlugin>();
@@ -180,7 +180,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task RemoveToolAsync_RemovesToolSuccessfully()
+    public async Task RemoveToolAsync_RemovesToolSuccessfullyAsync()
     {
         // Arrange
         var plugin = new MockToolPlugin("test.tool", "Test Tool", "1.0.0", "Test Author");
@@ -208,7 +208,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task RemoveToolAsync_SelectsAnotherTool_WhenToolsRemain()
+    public async Task RemoveToolAsync_SelectsAnotherTool_WhenToolsRemainAsync()
     {
         // Arrange
         var plugin1 = new MockToolPlugin("test.tool1", "Test Tool 1", "1.0.0", "Author 1");
@@ -236,7 +236,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task RemoveToolAsync_DoesNothing_WhenNoToolSelected()
+    public async Task RemoveToolAsync_DoesNothing_WhenNoToolSelectedAsync()
     {
         // Arrange
         _viewModel.SelectedTool = null;
@@ -253,7 +253,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task RemoveToolAsync_HandlesServiceFailure()
+    public async Task RemoveToolAsync_HandlesServiceFailureAsync()
     {
         // Arrange
         var plugin = new MockToolPlugin("test.tool", "Test Tool", "1.0.0", "Test Author");
@@ -277,7 +277,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task RemoveToolAsync_HandlesExceptionsGracefully()
+    public async Task RemoveToolAsync_HandlesExceptionsGracefullyAsync()
     {
         // Arrange
         var plugin = new MockToolPlugin("test.tool", "Test Tool", "1.0.0", "Test Author");
@@ -300,7 +300,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task RefreshToolsAsync_ReloadsToolsSuccessfully()
+    public async Task RefreshToolsAsync_ReloadsToolsSuccessfullyAsync()
     {
         // Arrange
         var plugin1 = new MockToolPlugin("test.tool1", "Test Tool 1", "1.0.0", "Author 1");
@@ -327,7 +327,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task RefreshToolsAsync_DeactivatesCurrentTool_BeforeRefresh()
+    public async Task RefreshToolsAsync_DeactivatesCurrentTool_BeforeRefreshAsync()
     {
         // Arrange
         var plugin = new MockToolPlugin("test.tool", "Test Tool", "1.0.0", "Test Author");
@@ -351,7 +351,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task RefreshToolsAsync_RestoresPreviouslySelectedTool()
+    public async Task RefreshToolsAsync_RestoresPreviouslySelectedToolAsync()
     {
         // Arrange
         var plugin1 = new MockToolPlugin("test.tool1", "Test Tool 1", "1.0.0", "Author 1");
@@ -376,7 +376,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task RefreshToolsAsync_HandlesServiceFailure()
+    public async Task RefreshToolsAsync_HandlesServiceFailureAsync()
     {
         // Arrange
         _mockToolService.Setup(x => x.LoadSavedToolsAsync())
@@ -395,7 +395,7 @@ public class ToolsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task RefreshToolsAsync_HandlesExceptionsGracefully()
+    public async Task RefreshToolsAsync_HandlesExceptionsGracefullyAsync()
     {
         // Arrange
         _mockToolService.Setup(x => x.LoadSavedToolsAsync())

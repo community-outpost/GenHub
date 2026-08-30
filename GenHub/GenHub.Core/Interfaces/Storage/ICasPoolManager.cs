@@ -31,4 +31,16 @@ public interface ICasPoolManager
     /// Gets the pool resolver used by this manager.
     /// </summary>
     ICasPoolResolver PoolResolver { get; }
+
+    /// <summary>
+    /// Ensures both primary and installation pools are initialized and ready to use.
+    /// This method should be called before operations that might span both pools.
+    /// </summary>
+    void EnsureAllPoolsInitialized();
+
+    /// <summary>
+    /// Forces reinitialization of the Installation pool.
+    /// Call this after the InstallationPoolRootPath has been updated in settings.
+    /// </summary>
+    void ReinitializeInstallationPool();
 }
