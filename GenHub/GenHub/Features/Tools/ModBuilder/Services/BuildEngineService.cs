@@ -378,11 +378,11 @@ public sealed class BuildEngineService(
 
         if (stage == BuildIndex.BigBundleItem)
         {
-            await ExecuteBigBundleItemStageAsync(setup, cancellationToken).ConfigureAwait(false);
+            await ExecuteBigBundleItemStageAsync(setup, progress, cancellationToken).ConfigureAwait(false);
         }
         else if (stage == BuildIndex.ReleaseBundlePack)
         {
-            await ExecuteReleaseBundlePackStageAsync(setup, cancellationToken).ConfigureAwait(false);
+            await ExecuteReleaseBundlePackStageAsync(setup, progress, cancellationToken).ConfigureAwait(false);
         }
         else if (stage == BuildIndex.RawBundleItem)
         {
@@ -394,7 +394,7 @@ public sealed class BuildEngineService(
                     MaxDegreeOfParallelism = Environment.ProcessorCount,
                     CancellationToken = cancellationToken
                 },
-                (file, ct) => new ValueTask(ProcessFileAsync(file, stage, setup, ct)))
+                (file, ct) => new ValueTask(ProcessFileAsync(file, stage, setup, progress, ct)))
                 .ConfigureAwait(false);
         }
 
@@ -409,7 +409,7 @@ public sealed class BuildEngineService(
         return !stageFailed;
     }
 
-    private async Task ExecuteBigBundleItemStageAsync(BuildSetup setup, CancellationToken cancellationToken)
+    private async Task ExecuteBigBundleItemStageAsync(BuildSetup setup, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
     {
         var rawDir = Path.Combine(setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.RawBundleItemsSubdir);
         var bundlesDir = Path.Combine(setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.BundlesSubdir);
@@ -447,6 +447,18 @@ public sealed class BuildEngineService(
             {
                 logger.LogError("Failed to create BIG archive {Archive}: {Error}", bigFilePath, archiveResult.FirstError);
                 Interlocked.Increment(ref _filesFailed);
+            }
+            else
+            {
+                logger.LogInformation("Created bundle: {BigFile}", bigFilePath);
+                progress?.Report(new BuildProgress
+                {
+                    CurrentIndex = BuildIndex.BigBundleItem,
+                    CurrentStage = BuildStage.Archiving,
+                    CurrentFile = bigFileName,
+                    CurrentStep = $"Created bundle: {bigFileName}",
+                    ProcessedFiles = Volatile.Read(ref _filesProcessed)
+                });
             }
 
             if (Directory.Exists(itemStagingDir))
@@ -514,7 +526,7 @@ public sealed class BuildEngineService(
         return Path.GetFileName(file.AbsSourceFile);
     }
 
-    private async Task ExecuteReleaseBundlePackStageAsync(BuildSetup setup, CancellationToken cancellationToken)
+    private async Task ExecuteReleaseBundlePackStageAsync(BuildSetup setup, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
     {
         var bundlesDir = Path.Combine(setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.BundlesSubdir);
         var releaseDir = setup.Folders?.AbsReleaseDir ?? ModBuilderConstants.DefaultReleaseDir;
@@ -533,7 +545,7 @@ public sealed class BuildEngineService(
         foreach (var pack in setup.Bundles.Packs.Where(p => p.AllowBuild))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await BuildSingleReleaseBundlePackAsync(pack, bundlesDir, releaseDir, buildDir, setup.Bundles.Items, cancellationToken)
+            await BuildSingleReleaseBundlePackAsync(pack, bundlesDir, releaseDir, buildDir, setup.Bundles.Items, progress, cancellationToken)
                 .ConfigureAwait(false);
         }
     }
@@ -544,6 +556,7 @@ public sealed class BuildEngineService(
         string releaseDir,
         string buildDir,
         IReadOnlyList<BundleItem>? items,
+        IProgress<BuildProgress>? progress,
         CancellationToken cancellationToken)
     {
         var zipFileName = $"{pack.GetFullName()}.zip";
@@ -567,6 +580,18 @@ public sealed class BuildEngineService(
         {
             logger.LogError("Failed to create ZIP archive {Archive}: {Error}", zipFilePath, archiveResult.FirstError);
             Interlocked.Increment(ref _filesFailed);
+        }
+        else
+        {
+            logger.LogInformation("Created release pack: {ZipFile}", zipFilePath);
+            progress?.Report(new BuildProgress
+            {
+                CurrentIndex = BuildIndex.ReleaseBundlePack,
+                CurrentStage = BuildStage.Archiving,
+                CurrentFile = zipFileName,
+                CurrentStep = $"Created release pack: {zipFileName}",
+                ProcessedFiles = Volatile.Read(ref _filesProcessed)
+            });
         }
 
         if (Directory.Exists(packStagingDir))
@@ -611,6 +636,7 @@ public sealed class BuildEngineService(
         string filePath,
         BuildIndex stage,
         BuildSetup setup,
+        IProgress<BuildProgress>? progress,
         CancellationToken cancellationToken)
     {
         try
@@ -673,6 +699,15 @@ public sealed class BuildEngineService(
             cacheService.AddFile(filePath, unixTimeFinal, currentMd5, null);
 
             Interlocked.Increment(ref _filesProcessed);
+
+            progress?.Report(new BuildProgress
+            {
+                CurrentIndex = stage,
+                CurrentStage = BuildStage.Processing,
+                CurrentFile = Path.GetFileName(filePath),
+                CurrentStep = $"Processing file: {Path.GetFileName(filePath)}",
+                ProcessedFiles = Volatile.Read(ref _filesProcessed)
+            });
 
             logger.LogDebug("Processed file: {FilePath} for stage {Stage} (status: {Status})", filePath, stage, fileStatus);
         }

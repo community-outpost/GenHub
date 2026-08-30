@@ -1,30 +1,42 @@
 {
   "BundleItems": [
     {
-      "Name": "ModifiedINI",
+      "Name": "CoreINIPatch",
+      "Type": "INI",
       "SourceFiles": [
         "GameFilesEdited/Data/INI/**/*.ini"
       ],
       "OutputFormat": "INI",
-      "Description": "Modified tank stats - doubled health from 500 to 1000"
+      "Description": "Game balance and unit attribute INI files"
     },
     {
-      "Name": "ModifiedTextures",
+      "Name": "CoreTextures",
+      "Type": "Texture",
       "SourceFiles": [
         "GameFilesEdited/Art/Textures/**/*.tga"
       ],
       "OutputFormat": "DDS",
       "Compression": "DXT5",
       "GenerateMipmaps": true,
-      "Description": "Modified tank texture - red color scheme"
+      "Description": "Faction and vehicle textures converted to DDS"
     },
     {
-      "Name": "ModifiedSounds",
+      "Name": "CoreAudio",
+      "Type": "Audio",
       "SourceFiles": [
         "GameFilesEdited/Data/Audio/**/*.wav"
       ],
       "OutputFormat": "WAV",
-      "Description": "Custom tank movement sound"
+      "Description": "Unit sound effects and combat audio"
+    },
+    {
+      "Name": "GameScripts",
+      "Type": "Script",
+      "SourceFiles": [
+        "GameFilesEdited/Data/Scripts/**/*.txt"
+      ],
+      "OutputFormat": "TXT",
+      "Description": "AI and gameplay script overrides"
     }
   ]
 }

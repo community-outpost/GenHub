@@ -98,19 +98,6 @@
 
         <!-- Quick Actions -->
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-          <Button Command="{Binding LoadSampleProjectCommand}"
-                  Classes="dashboard-secondary-btn"
-                  ToolTip.Tip="Load the bundled BasicMod sample project">
-            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-              <Path Width="15" Height="15"
-                    Fill="{DynamicResource AccentBrush}"
-                    Data="{StaticResource IconArchiveFile}"
-                    Stretch="Uniform"
-                    VerticalAlignment="Center"/>
-              <TextBlock Text="Explore Sample Project" VerticalAlignment="Center"/>
-            </StackPanel>
-          </Button>
-
           <Button Command="{Binding NewProjectCommand}"
                   Classes="dashboard-primary-btn">
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">

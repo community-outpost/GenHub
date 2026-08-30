@@ -419,20 +419,20 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
 
         // Assert
         loadedConfig.Should().NotBeNull();
-        loadedConfig!.Items.Should().HaveCount(2);
-        loadedConfig.Packs.Should().HaveCount(1);
+        loadedConfig!.Items.Should().HaveCount(4);
+        loadedConfig.Packs.Should().HaveCount(2);
 
-        var pack = loadedConfig.Packs[0];
-        pack.Name.Should().Be("MyMod");
-        pack.AllowBuild.Should().BeTrue();
+        var pack = loadedConfig.Packs.FirstOrDefault(p => p.Name == "CommunityDataPatch");
+        pack.Should().NotBeNull();
+        pack!.AllowBuild.Should().BeTrue();
         pack.AllowInstall.Should().BeTrue();
-        pack.ItemNames.Should().Contain(new[] { "MyTextures", "MyINI" });
+        pack.ItemNames.Should().Contain(new[] { "CoreINIPatch", "CoreTextures", "CoreAudio", "GameScripts" });
 
-        var texturesItem = loadedConfig.Items.FirstOrDefault(i => i.Name == "MyTextures");
+        var texturesItem = loadedConfig.Items.FirstOrDefault(i => i.Name == "CoreTextures");
         texturesItem.Should().NotBeNull();
         texturesItem!.Files.Should().Contain(f => Path.GetFullPath(f.AbsSourceFile) == Path.GetFullPath(textureFile));
 
-        var iniItem = loadedConfig.Items.FirstOrDefault(i => i.Name == "MyINI");
+        var iniItem = loadedConfig.Items.FirstOrDefault(i => i.Name == "CoreINIPatch");
         iniItem.Should().NotBeNull();
         iniItem!.Files.Should().Contain(f => Path.GetFullPath(f.AbsSourceFile) == Path.GetFullPath(iniFile));
     }
