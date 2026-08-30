@@ -56,8 +56,8 @@ if ! cp -a "$SOURCE_DIR/." "$TARGET_DIR/" 2>&1; then
     # Attempt to restore backup
     if [ -d "$BACKUP_DIR" ]; then
         write_log "Attempting to restore backup..."
-        rm -rf "$TARGET_DIR"/* "$TARGET_DIR"/.[!.]* 2>/dev/null || true
-        cp -a "$BACKUP_DIR/." "$TARGET_DIR/" 2>/dev/null || true
+        rm -rf "${TARGET_DIR:?}"/* "${TARGET_DIR:?}"/.[!.]* 2>/dev/null || true
+        cp -a "${BACKUP_DIR:?}/." "$TARGET_DIR/" 2>/dev/null || true
     fi
     exit 1
 fi
@@ -81,11 +81,11 @@ fi
 
 # Cleanup source directory only after verified successful copy
 write_log "Cleaning up source directory..."
-rm -rf "$SOURCE_DIR" 2>/dev/null || true
+rm -rf "${SOURCE_DIR:?}" 2>/dev/null || true
 
 # Self-destruct the updater script's parent directory
 UPDATER_DIR=$(dirname "$0")
 sleep 2
-rm -rf "$UPDATER_DIR" 2>/dev/null || true
+rm -rf "${UPDATER_DIR:?}" 2>/dev/null || true
 
 write_log "Linux update script completed"
