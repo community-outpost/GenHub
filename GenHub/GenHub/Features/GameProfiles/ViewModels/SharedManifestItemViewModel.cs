@@ -85,7 +85,7 @@ public partial class SharedManifestItemViewModel(SharedManifestDependency depend
     /// <summary>
     /// Gets a truncated hash string for compact badge display.
     /// </summary>
-    public string? FormattedHash => Hash != null && Hash.Length > 16
+    public string? FormattedHash => Hash is { Length: > 16 }
         ? $"{Hash[..8]}...{Hash[^8..]}"
         : Hash;
 

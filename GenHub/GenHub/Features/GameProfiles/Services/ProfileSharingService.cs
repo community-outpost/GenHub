@@ -978,7 +978,7 @@ public class ProfileSharingService(
         foreach (var contentId in profile.EnabledContentIds ?? [])
         {
             var manifestResult = await manifestPool.GetManifestAsync(contentId, cancellationToken);
-            if (manifestResult != null && manifestResult.Success && manifestResult.Data != null)
+            if (manifestResult is { Success: true, Data: not null })
             {
                 var manifest = manifestResult.Data;
 
