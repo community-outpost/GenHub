@@ -54,6 +54,10 @@ public sealed class ReplayDirectoryServiceTests
             .Returns(_mockInstallationService.Object);
         _mockServiceProvider.Setup(sp => sp.GetService(typeof(IProfileLauncherFacade)))
             .Returns(_mockLauncherFacade.Object);
+
+        _mockInstallationService
+            .Setup(s => s.CreateAndRegisterInstallationManifestsAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
     }
 
     /// <summary>
@@ -396,13 +400,20 @@ public sealed class ReplayDirectoryServiceTests
                 .Setup(r => r.TryGetEntry("0x27533BB0", "0x76B251A3", out outEntry))
                 .Returns(true);
 
-            _mockProfileManager
-                .Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
+            var installation = new GameInstallation("/games/ZeroHour", GameInstallationType.Retail)
+            {
+                HasZeroHour = true,
+                ZeroHourPath = "/games/ZeroHour",
+            };
 
-            _mockManifestPool
-                .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+            _mockInstallationService
+                .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+
+            _mockProfileManager
+                .Setup(p => p.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((CreateProfileRequest req, CancellationToken _) =>
+                    ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "profile-123", Name = req.Name }));
 
             var service = new ReplayDirectoryService(
                 _mockHeaderParser.Object,

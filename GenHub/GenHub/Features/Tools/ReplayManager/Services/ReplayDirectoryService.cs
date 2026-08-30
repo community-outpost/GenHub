@@ -205,6 +205,12 @@ public sealed class ReplayDirectoryService(
             var (clientManifestId, gameClient) = await ResolveReplayGameClientAsync(
                 installation, replay, defaultVersion, isRetailClient, manifestPool, contentOrchestrator, ct);
 
+            if (gameClient == null || string.IsNullOrWhiteSpace(gameClient.ExecutablePath))
+            {
+                return ProfileOperationResult<GameProfile>.CreateFailure(
+                    $"Could not determine executable path for {replay.GameVersion} installation.");
+            }
+
             var enabledContentIds = new List<string>
             {
                 installationManifestId,
@@ -294,7 +300,57 @@ public sealed class ReplayDirectoryService(
         }
     }
 
-    private async Task<(string ClientManifestId, GameClient GameClient)> ResolveReplayGameClientAsync(
+    private static GameProfile? FindMatchingProfile(IEnumerable<GameProfile> profiles, GameType gameVersion, string clientManifestId, string? dataPatchManifestId)
+    {
+        return profiles.FirstOrDefault(p =>
+        {
+            if (p.GameClient?.GameType != gameVersion)
+            {
+                return false;
+            }
+
+            var clientMatches = string.Equals(p.GameClient?.Id, clientManifestId, StringComparison.OrdinalIgnoreCase) ||
+                                p.EnabledContentIds?.Any(id => string.Equals(id, clientManifestId, StringComparison.OrdinalIgnoreCase)) == true ||
+                                (clientManifestId.Contains(".retail.") && p.GameClient?.Id != null &&
+                                 (p.GameClient.Id.Contains(".steam.") || p.GameClient.Id.Contains(".eaapp.") || p.GameClient.Id.Contains(".retail.")));
+
+            if (!clientMatches)
+            {
+                return false;
+            }
+
+            if (!string.IsNullOrEmpty(dataPatchManifestId))
+            {
+                return p.EnabledContentIds?.Any(id => string.Equals(id, dataPatchManifestId, StringComparison.OrdinalIgnoreCase)) == true;
+            }
+
+            return true;
+        });
+    }
+
+    private static GameInstallation? ResolveInstallation(IReadOnlyList<GameInstallation> installations, GameType gameVersion)
+    {
+        return installations.FirstOrDefault(i =>
+            (gameVersion == GameType.Generals && i.HasGenerals) ||
+            (gameVersion == GameType.ZeroHour && i.HasZeroHour));
+    }
+
+    private static string GetDefaultExecutableName(GameType gameVersion, string? publisher)
+    {
+        if (gameVersion == GameType.Generals)
+        {
+            return GameClientConstants.GeneralsExecutable;
+        }
+
+        if (string.Equals(publisher, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
+        {
+            return GameClientConstants.SuperHackersZeroHourExecutable;
+        }
+
+        return GameClientConstants.ZeroHourExecutable;
+    }
+
+    private async Task<(string ClientManifestId, GameClient? GameClient)> ResolveReplayGameClientAsync(
         GameInstallation installation,
         ReplayFile replay,
         string defaultVersion,
@@ -310,6 +366,11 @@ public sealed class ReplayDirectoryService(
         var exePath = !string.IsNullOrWhiteSpace(targetClient?.ExecutablePath)
             ? targetClient.ExecutablePath
             : (!string.IsNullOrWhiteSpace(workingDir) ? Path.Combine(workingDir, defaultExeName) : string.Empty);
+
+        if (string.IsNullOrWhiteSpace(exePath))
+        {
+            return (string.Empty, null);
+        }
 
         if (isRetailClient)
         {
@@ -461,56 +522,6 @@ public sealed class ReplayDirectoryService(
                 await contentOrchestrator.AcquireContentAsync(patchMatch, null, ct);
             }
         }
-    }
-
-    private static GameProfile? FindMatchingProfile(IEnumerable<GameProfile> profiles, GameType gameVersion, string clientManifestId, string? dataPatchManifestId)
-    {
-        return profiles.FirstOrDefault(p =>
-        {
-            if (p.GameClient?.GameType != gameVersion)
-            {
-                return false;
-            }
-
-            var clientMatches = string.Equals(p.GameClient?.Id, clientManifestId, StringComparison.OrdinalIgnoreCase) ||
-                                p.EnabledContentIds?.Any(id => string.Equals(id, clientManifestId, StringComparison.OrdinalIgnoreCase)) == true ||
-                                (clientManifestId.Contains(".retail.") && p.GameClient?.Id != null &&
-                                 (p.GameClient.Id.Contains(".steam.") || p.GameClient.Id.Contains(".eaapp.") || p.GameClient.Id.Contains(".retail.")));
-
-            if (!clientMatches)
-            {
-                return false;
-            }
-
-            if (!string.IsNullOrEmpty(dataPatchManifestId))
-            {
-                return p.EnabledContentIds?.Any(id => string.Equals(id, dataPatchManifestId, StringComparison.OrdinalIgnoreCase)) == true;
-            }
-
-            return true;
-        });
-    }
-
-    private static GameInstallation? ResolveInstallation(IReadOnlyList<GameInstallation> installations, GameType gameVersion)
-    {
-        return installations.FirstOrDefault(i =>
-            (gameVersion == GameType.Generals && i.HasGenerals) ||
-            (gameVersion == GameType.ZeroHour && i.HasZeroHour));
-    }
-
-    private static string GetDefaultExecutableName(GameType gameVersion, string? publisher)
-    {
-        if (gameVersion == GameType.Generals)
-        {
-            return GameClientConstants.GeneralsExecutable;
-        }
-
-        if (string.Equals(publisher, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
-        {
-            return GameClientConstants.SuperHackersZeroHourExecutable;
-        }
-
-        return GameClientConstants.ZeroHourExecutable;
     }
 
     private async Task<(HashSet<string> AcquiredIds, List<GameProfile> Profiles)> FetchAcquiredManifestIdsAndProfilesAsync(CancellationToken ct)
