@@ -431,9 +431,15 @@ public class SteamLauncher : ISteamLauncher
             if (string.Equals(versionInfo.ProductName, "GenHub.ProxyLauncher", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(versionInfo.InternalName, "GenHub.ProxyLauncher", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(versionInfo.OriginalFilename, "GenHub.ProxyLauncher.exe", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(versionInfo.OriginalFilename, "GenHub.ProxyLauncher.dll", StringComparison.OrdinalIgnoreCase) ||
-                (versionInfo.FileDescription?.Contains("GenHub", StringComparison.OrdinalIgnoreCase) == true &&
-                 versionInfo.FileDescription?.Contains("Proxy", StringComparison.OrdinalIgnoreCase) == true))
+                string.Equals(versionInfo.OriginalFilename, "GenHub.ProxyLauncher.dll", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var description = versionInfo.FileDescription;
+            if (!string.IsNullOrEmpty(description) &&
+                description.Contains("GenHub", StringComparison.OrdinalIgnoreCase) &&
+                description.Contains("Proxy", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
