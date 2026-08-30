@@ -1319,6 +1319,7 @@ public class ProfileSharingService(
         }
     }
 
+    [SuppressMessage("Major Code Smell", "S6966:Await async method instead of sync counterpart", Justification = "ZipFileExtensions.CreateEntryFromFile has no asynchronous counterpart in .NET 8 BCL.")]
     private async Task<string?> CreateLocalManifestArchiveAsync(
         string tempZipPath,
         ContentManifest manifest,
