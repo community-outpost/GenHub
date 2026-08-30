@@ -231,6 +231,7 @@ public partial class ConfigEditorViewModel(
         HasChanges = true;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "RelayCommand CanExecute callback")]
     private bool CanRemoveBundleItem() => SelectedBundleItem != null;
 
     /// <summary>
@@ -275,6 +276,7 @@ public partial class ConfigEditorViewModel(
         HasChanges = true;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "RelayCommand CanExecute callback")]
     private bool CanRemoveBundlePack() => SelectedBundlePack != null;
 
     /// <summary>

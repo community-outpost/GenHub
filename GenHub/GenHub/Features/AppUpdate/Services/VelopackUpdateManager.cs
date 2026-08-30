@@ -1345,9 +1345,10 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 return null;
             }
 
+            var context = new PrArtifactContext(client, headBranch, platformFilter, prNumber, owner, repo);
             foreach (var run in runs.Value.EnumerateArray())
             {
-                var artifact = await FindMatchingArtifactInRunAsync(client, run, headBranch, platformFilter, prNumber, owner, repo, cancellationToken).ConfigureAwait(false);
+                var artifact = await FindMatchingArtifactInRunAsync(context, run, cancellationToken).ConfigureAwait(false);
                 if (artifact != null)
                 {
                     return artifact;
@@ -1427,20 +1428,23 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         return runs;
     }
 
+    private sealed record PrArtifactContext(
+        HttpClient Client,
+        string HeadBranch,
+        string PlatformFilter,
+        int PrNumber,
+        string Owner,
+        string Repo);
+
     private async Task<ArtifactUpdateInfo?> FindMatchingArtifactInRunAsync(
-        HttpClient client,
+        PrArtifactContext context,
         JsonElement run,
-        string headBranch,
-        string platformFilter,
-        int prNumber,
-        string owner,
-        string repo,
         CancellationToken cancellationToken)
     {
         var runId = run.TryGetProperty("id", out var idProp) && idProp.TryGetInt64(out var rId) ? rId : 0;
         var runBranch = run.TryGetProperty("head_branch", out var hb) ? hb.GetString() : string.Empty;
 
-        if (!string.Equals(runBranch, headBranch, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(runBranch, context.HeadBranch, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
@@ -1453,8 +1457,8 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         var headSha = run.TryGetProperty("head_sha", out var hsProp) ? hsProp.GetString() ?? string.Empty : string.Empty;
         var shortHash = headSha.Length >= AppConstants.GitShortHashLength ? headSha[..AppConstants.GitShortHashLength] : headSha;
 
-        var artifactsUrl = string.Format(ApiConstants.GitHubApiRunArtifactsFormat, owner, repo, runId);
-        var artifactsResponse = await SendWithRetryAsync(client, artifactsUrl, cancellationToken).ConfigureAwait(false);
+        var artifactsUrl = string.Format(ApiConstants.GitHubApiRunArtifactsFormat, context.Owner, context.Repo, runId);
+        var artifactsResponse = await SendWithRetryAsync(context.Client, artifactsUrl, cancellationToken).ConfigureAwait(false);
 
         if (artifactsResponse == null || !artifactsResponse.IsSuccessStatusCode)
         {
@@ -1471,10 +1475,10 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             return null;
         }
 
-        var platformArtifact = FindPlatformArtifactInRun(artifacts, platformFilter, prNumber, runId, runUrl, shortHash, createdAt);
+        var platformArtifact = FindPlatformArtifactInRun(artifacts, context.PlatformFilter, context.PrNumber, runId, runUrl, shortHash, createdAt);
         if (platformArtifact != null)
         {
-            _logger.LogInformation("Found artifact for PR #{PrNumber}: {Version}", prNumber, platformArtifact.Version);
+            _logger.LogInformation("Found artifact for PR #{PrNumber}: {Version}", context.PrNumber, platformArtifact.Version);
             return platformArtifact;
         }
 
@@ -1555,6 +1559,43 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         }
     }
 
+    private static bool IsMatchingBranchRun(JsonElement run, string? branch, out string actualBranch, out string eventType)
+    {
+        eventType = run.TryGetProperty("event", out var e) ? e.GetString() ?? "unknown" : "unknown";
+        actualBranch = run.TryGetProperty("head_branch", out var b) ? b.GetString() ?? branch ?? "unknown" : branch ?? "unknown";
+
+        if (!string.IsNullOrEmpty(branch) && !string.Equals(actualBranch, branch, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(branch) &&
+            !string.Equals(eventType, "push", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(eventType, "workflow_dispatch", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static DateTime ParseRunCreatedAt(JsonElement run)
+    {
+        if (run.TryGetProperty("created_at", out var catProp))
+        {
+            try
+            {
+                return catProp.GetDateTime();
+            }
+            catch (FormatException)
+            {
+                return DateTime.MinValue;
+            }
+        }
+
+        return DateTime.MinValue;
+    }
+
     private async Task<ArtifactUpdateInfo?> CheckRunForLatestArtifactAsync(
         HttpClient client,
         JsonElement run,
@@ -1566,42 +1607,21 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     {
         var runId = run.TryGetProperty("id", out var idProp) && idProp.TryGetInt64(out var rId) ? rId : 0;
         var runUrl = run.TryGetProperty("html_url", out var huProp) ? huProp.GetString() ?? string.Empty : string.Empty;
-        var eventType = run.TryGetProperty("event", out var e) ? e.GetString() : "unknown";
         var headSha = run.TryGetProperty("head_sha", out var hsProp) ? hsProp.GetString() ?? string.Empty : string.Empty;
         var shortHash = headSha.Length >= AppConstants.GitShortHashLength ? headSha[..AppConstants.GitShortHashLength] : headSha;
-        var actualBranch = run.TryGetProperty("head_branch", out var b) ? b.GetString() : branch ?? "unknown";
+
+        if (!IsMatchingBranchRun(run, branch, out var actualBranch, out var eventType))
+        {
+            _logger.LogDebug("Skipping run {RunId} ({ActualBranch}, {EventType}) for branch {Branch}", runId, actualBranch, eventType, branch);
+            return null;
+        }
 
         _logger.LogDebug("Checking run {RunId} ({EventType}) on branch {ActualBranch}", runId, eventType, actualBranch);
 
-        if (!string.IsNullOrEmpty(branch) && !string.Equals(actualBranch, branch, StringComparison.Ordinal))
-        {
-            _logger.LogDebug("Skipping run {RunId} ({ActualBranch}) - does not match requested branch {Branch}", runId, actualBranch, branch);
-            return null;
-        }
-
-        if (!string.IsNullOrEmpty(branch) && !string.Equals(eventType, "push", StringComparison.OrdinalIgnoreCase) && !string.Equals(eventType, "workflow_dispatch", StringComparison.OrdinalIgnoreCase))
-        {
-            _logger.LogDebug("Skipping run {RunId} ({EventType}) - not a push or workflow_dispatch event for branch {Branch}", runId, eventType, branch);
-            return null;
-        }
-
-        var createdAt = DateTime.MinValue;
-        if (run.TryGetProperty("created_at", out var catProp))
-        {
-            try
-            {
-                createdAt = catProp.GetDateTime();
-            }
-            catch (FormatException)
-            {
-                createdAt = DateTime.MinValue;
-            }
-        }
-
-        _logger.LogDebug("Checking run {RunId} on branch {Branch} ({Hash}) for artifacts...", runId, actualBranch, shortHash);
+        var createdAt = ParseRunCreatedAt(run);
 
         var artifactsUrl = string.Format(ApiConstants.GitHubApiRunArtifactsFormat, owner, repo, runId);
-        var artifactsResponse = await SendWithRetryAsync(client, artifactsUrl, cancellationToken);
+        var artifactsResponse = await SendWithRetryAsync(client, artifactsUrl, cancellationToken).ConfigureAwait(false);
 
         if (artifactsResponse == null || !artifactsResponse.IsSuccessStatusCode)
         {
@@ -1609,7 +1629,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             return null;
         }
 
-        var artifactsJson = await artifactsResponse.Content.ReadAsStringAsync(cancellationToken);
+        var artifactsJson = await artifactsResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         var artifactsData = JsonSerializer.Deserialize<JsonElement>(artifactsJson);
 
         if (!artifactsData.TryGetProperty("artifacts", out var artifacts) || artifacts.GetArrayLength() == 0)

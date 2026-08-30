@@ -68,8 +68,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         }
         catch (Exception ex) when (ex is not InvalidOperationException && ex is not FileNotFoundException)
         {
-            logger.LogError(ex, "Failed to load configuration: {ConfigPath}", configPath);
-            throw;
+            throw new InvalidOperationException($"Failed to load configuration: {configPath}", ex);
         }
     }
 
