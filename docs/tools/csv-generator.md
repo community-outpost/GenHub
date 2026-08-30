@@ -109,7 +109,7 @@ var options = new CsvGeneratorOptions(
     Language: "EN",
     UpdateIndex: true);
 
-var result = await generator.GenerateCsvFileAsync(options, cancellationToken);
+var result = await generator.GenerateCsvFileAsync(options);
 
 if (result.Success)
 {

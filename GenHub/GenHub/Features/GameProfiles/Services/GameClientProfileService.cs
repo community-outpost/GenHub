@@ -546,7 +546,32 @@ public class GameClientProfileService(
         }
         else
         {
-            // For non-installation dependencies (MapPack, etc.), use the dependency ID directly
+            // For non-installation dependencies (MapPack, Patches, etc.), verify against the manifest pool
+            var exactResult = await manifestPool.GetManifestAsync(dependency.Id, cancellationToken);
+            if (exactResult.Success && exactResult.Data != null)
+            {
+                return exactResult.Data.Id.Value;
+            }
+
+            // Fallback: search pool for a catalog-compatible manifest
+            var allResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
+            if (allResult.Success && allResult.Data != null)
+            {
+                var compatible = allResult.Data.FirstOrDefault(m =>
+                    DependencyResolver.HasCompatibleCatalogIdentity(dependency.Id.Value, m.Id.Value));
+
+                if (compatible != null)
+                {
+                    logger.LogInformation(
+                        "Resolved dependency '{DependencyName}' (ID: {DeclaredId}) to compatible pooled manifest {ResolvedId}",
+                        dependency.Name,
+                        dependency.Id.Value,
+                        compatible.Id.Value);
+                    return compatible.Id.Value;
+                }
+            }
+
+            // If not found in pool, return the declared ID directly as fallback
             return dependency.Id.Value;
         }
     }

@@ -123,10 +123,10 @@ public class PublisherProfileOrchestrator(
                 }
                 else
                 {
-                    // Not an error - might already exist
-                    logger.LogDebug(
-                        "Skipped profile creation for {ManifestId}: {Reason}",
+                    logger.LogInformation(
+                        "Skipped profile creation for {ManifestId} ({Name}): {Reason}",
                         manifest.Id,
+                        manifest.Name,
                         ManifestHelper.FormatErrors(profileResult.Errors));
                 }
             }

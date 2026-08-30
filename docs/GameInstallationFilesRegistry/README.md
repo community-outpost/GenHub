@@ -88,8 +88,8 @@ Each CSV file is RFC 4180 compliant with headers on the first line.
 
 ```csv
 relativePath,size,md5,sha256,gameType,language,isRequired,metadata,downloadUrl
-Data/INI/GameData.ini,12345,aebed2f8fa6f42b8c76929dfc8f90a00,ef61474057b21db70ae4356c3f22c088e583b3fd00c0b21da0c298949e8c3d62,Generals,All,True,"{""category"":""config""}",https://raw.githubusercontent.com/community-outpost/GenHub/main/docs/GameInstallationFilesRegistry/Generals-1.08.csv
-Data/Lang/English/game.str,67890,fc015ddbe16ac6b4d39a85f5612d7233,39d67dba96111178fcceefae2bedb2dc65b55b968741162c714b333c0b0f5f2e,Generals,EN,True,"{""category"":""language""}",https://raw.githubusercontent.com/community-outpost/GenHub/main/docs/GameInstallationFilesRegistry/Generals-1.08.csv
+Data/INI/GameData.ini,12345,aebed2f8fa6f42b8c76929dfc8f90a00,ef61474057b21db70ae4356c3f22c088e583b3fd00c0b21da0c298949e8c3d62,Generals,All,True,"{""category"":""config""}",
+Data/Lang/English/game.str,67890,fc015ddbe16ac6b4d39a85f5612d7233,39d67dba96111178fcceefae2bedb2dc65b55b968741162c714b333c0b0f5f2e,Generals,EN,True,"{""category"":""language""}",
 ```
 
 ### Column Specifications

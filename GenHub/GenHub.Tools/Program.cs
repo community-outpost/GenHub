@@ -26,6 +26,11 @@ public static class Program
         var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var updateIndex = false;
 
+        var knownValueOptions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "installDir", "gameType", "version", "output", "language", "index", "downloadUrl",
+        };
+
         for (var i = 0; i < args.Length; i++)
         {
             var arg = args[i];
@@ -35,9 +40,21 @@ public static class Program
                 continue;
             }
 
+            if (arg.Equals("--help", StringComparison.OrdinalIgnoreCase) ||
+                arg.Equals("-h", StringComparison.OrdinalIgnoreCase) ||
+                arg.Equals("/?", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             if (arg.StartsWith("--", StringComparison.Ordinal))
             {
                 var key = arg[2..];
+                if (!knownValueOptions.Contains(key))
+                {
+                    throw new ArgumentException($"Unrecognized command-line argument: {arg}");
+                }
+
                 if (i + 1 < args.Length && !args[i + 1].StartsWith("--", StringComparison.Ordinal))
                 {
                     dict[key] = args[i + 1];
@@ -45,8 +62,12 @@ public static class Program
                 }
                 else
                 {
-                    dict[key] = "true";
+                    throw new ArgumentException($"Option {arg} requires a value.");
                 }
+            }
+            else
+            {
+                throw new ArgumentException($"Unrecognized command-line argument: {arg}");
             }
         }
 
@@ -152,7 +173,7 @@ public static class Program
         logger.LogInformation(string.Empty);
         logger.LogInformation("Optional options:");
         logger.LogInformation("  --language <code>        Canonical language code for localized files (default: 'EN').");
-        logger.LogInformation("                           Supported: EN, DE, FR, ES, IT, KO, PL, PT-BR, ZH-CN, ZH-TW.");
+        logger.LogInformation("                           Supported: EN, DE, FR, ES, IT, KO, PL, PT-BR, ZH-CN, ZH-TW, All.");
         logger.LogInformation("  --updateIndex            Automatically update or create index.json with new checksums.");
         logger.LogInformation("  --index <json-path>      Custom path to index.json (used with --updateIndex).");
         logger.LogInformation("  --downloadUrl <url>      Custom download URL prefix or template.");

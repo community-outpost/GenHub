@@ -71,6 +71,7 @@ public class CsvGenerator(ILogger logger)
         var upper = language.Trim().ToUpperInvariant();
         return upper switch
         {
+            "EN" or "ENGLISH" => CsvConstants.LanguageEn,
             "DE" or "GERMAN" or "DEUTSCH" => CsvConstants.LanguageDe,
             "FR" or "FRENCH" or "FRANCAIS" => CsvConstants.LanguageFr,
             "ES" or "SPANISH" or "ESPANOL" => CsvConstants.LanguageEs,
@@ -81,7 +82,7 @@ public class CsvGenerator(ILogger logger)
             "ZH-CN" or "ZH_CN" or "ZHCN" or "CHINESE" or "CHINESESIMPLIFIED" or "SIMPLIFIEDCHINESE" => CsvConstants.LanguageZhCn,
             "ZH-TW" or "ZH_TW" or "ZHTW" or "CHINESETRADITIONAL" or "TRADITIONALCHINESE" => CsvConstants.LanguageZhTw,
             "ALL" => CsvConstants.AllLanguagesFilter,
-            _ => upper,
+            _ => string.Empty,
         };
     }
 
@@ -122,6 +123,10 @@ public class CsvGenerator(ILogger logger)
         }
 
         var normalizedLanguage = NormalizeLanguage(options.Language);
+        if (string.IsNullOrWhiteSpace(normalizedLanguage))
+        {
+            return OperationResult<CsvGenerationSummary>.CreateFailure($"Invalid language: '{options.Language}'. Supported languages are: EN, DE, FR, ES, IT, KO, PL, PT-BR, ZH-CN, ZH-TW, All.");
+        }
 
         logger.LogInformation(
             "Scanning directory: {Path} for {GameType} {Version} (Language: {Language})",
@@ -132,13 +137,19 @@ public class CsvGenerator(ILogger logger)
 
         try
         {
-            var (entries, filesScanned) = await ScanInstallationAsync(
+            var (entries, filesScanned, failures) = await ScanInstallationAsync(
                 options.InstallDir,
                 normalizedGameType,
                 normalizedLanguage,
                 options.DownloadUrl,
                 options.OutputPath,
                 cancellationToken);
+
+            if (failures.Count > 0)
+            {
+                logger.LogError("Failed to process {Count} files during scanning", failures.Count);
+                return OperationResult<CsvGenerationSummary>.CreateFailure($"Failed to process {failures.Count} files during scanning: {string.Join("; ", failures)}", DateTime.UtcNow - startTime);
+            }
 
             var outputDir = Path.GetDirectoryName(options.OutputPath);
             if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
@@ -158,7 +169,7 @@ public class CsvGenerator(ILogger logger)
                     ? options.IndexFilePath
                     : Path.Combine(outputDir ?? string.Empty, "index.json");
 
-                await UpdateIndexFileAsync(options, indexPath, entries.Count, csvSize, csvMd5, csvSha256, cancellationToken);
+                await UpdateIndexFileAsync(options, normalizedGameType, indexPath, entries.Count, csvSize, csvMd5, csvSha256, cancellationToken);
                 indexUpdated = true;
             }
 
@@ -388,57 +399,12 @@ public class CsvGenerator(ILogger logger)
         await csv.WriteRecordsAsync(entries, cancellationToken);
     }
 
-    private async Task<(List<CsvCatalogEntry> Entries, int FilesScanned)> ScanInstallationAsync(
-        string installationPath,
-        string gameType,
-        string languageCode,
-        string? downloadUrlOverride,
-        string outputPath,
-        CancellationToken cancellationToken)
-    {
-        var entries = new List<CsvCatalogEntry>();
-        var files = Directory.GetFiles(installationPath, "*", SearchOption.AllDirectories);
-        var totalFiles = files.Length;
-
-        logger.LogInformation("Scanning {Count} files in {Path}", totalFiles, installationPath);
-
-        for (var i = 0; i < totalFiles; i++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var file = files[i];
-            if (i > 0 && i % 100 == 0)
-            {
-                logger.LogInformation("Processed {Current}/{Total} files", i, totalFiles);
-            }
-
-            try
-            {
-                var entry = await CreateCsvEntryAsync(file, installationPath, gameType, languageCode, downloadUrlOverride, outputPath, cancellationToken);
-                if (entry != null)
-                {
-                    entries.Add(entry);
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to process file: {Path}", file);
-            }
-        }
-
-        return (entries.OrderBy(e => e.RelativePath, StringComparer.OrdinalIgnoreCase).ToList(), totalFiles);
-    }
-
-    private async Task<CsvCatalogEntry?> CreateCsvEntryAsync(
+    private static async Task<CsvCatalogEntry?> CreateCsvEntryAsync(
         string filePath,
         string installationPath,
         string gameType,
         string defaultLanguage,
         string? downloadUrlOverride,
-        string outputPath,
         CancellationToken cancellationToken)
     {
         var relativePath = Path.GetRelativePath(installationPath, filePath).Replace('\\', '/');
@@ -451,11 +417,10 @@ public class CsvGenerator(ILogger logger)
 
         var (md5, sha256) = await CalculateHashesAsync(filePath, cancellationToken);
         var isSpecific = IsLanguageSpecific(relativePath);
-        var outputFileName = Path.GetFileName(outputPath);
 
         var downloadUrl = !string.IsNullOrWhiteSpace(downloadUrlOverride)
             ? downloadUrlOverride
-            : $"https://raw.githubusercontent.com/community-outpost/GenHub/main/docs/GameInstallationFilesRegistry/{outputFileName}";
+            : string.Empty;
 
         return new CsvCatalogEntry
         {
@@ -471,8 +436,84 @@ public class CsvGenerator(ILogger logger)
         };
     }
 
+    private async Task<(List<CsvCatalogEntry> Entries, int FilesScanned, List<string> Failures)> ScanInstallationAsync(
+        string installationPath,
+        string gameType,
+        string languageCode,
+        string? downloadUrlOverride,
+        string outputPath,
+        CancellationToken cancellationToken)
+    {
+        var entries = new List<CsvCatalogEntry>();
+        var failures = new List<string>();
+        var files = Directory.GetFiles(installationPath, "*", SearchOption.AllDirectories);
+        var totalFiles = files.Length;
+
+        string? normalizedOutputPath = null;
+        if (!string.IsNullOrWhiteSpace(outputPath))
+        {
+            try
+            {
+                normalizedOutputPath = Path.GetFullPath(outputPath);
+            }
+            catch (Exception)
+            {
+                normalizedOutputPath = null;
+            }
+        }
+
+        logger.LogInformation("Scanning {Count} files in {Path}", totalFiles, installationPath);
+
+        for (var i = 0; i < totalFiles; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var file = files[i];
+
+            if (normalizedOutputPath != null)
+            {
+                try
+                {
+                    if (string.Equals(Path.GetFullPath(file), normalizedOutputPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+                }
+                catch (Exception)
+                {
+                    // Ignore path resolution failure and proceed
+                }
+            }
+
+            if (i > 0 && i % 100 == 0)
+            {
+                logger.LogInformation("Processed {Current}/{Total} files", i, totalFiles);
+            }
+
+            try
+            {
+                var entry = await CreateCsvEntryAsync(file, installationPath, gameType, languageCode, downloadUrlOverride, cancellationToken);
+                if (entry != null)
+                {
+                    entries.Add(entry);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to process file: {Path}", file);
+                failures.Add($"{file}: {ex.Message}");
+            }
+        }
+
+        return (entries.OrderBy(e => e.RelativePath, StringComparer.OrdinalIgnoreCase).ToList(), totalFiles, failures);
+    }
+
     private async Task UpdateIndexFileAsync(
         CsvGeneratorOptions options,
+        string normalizedGameType,
         string indexPath,
         int entryCount,
         long totalSizeBytes,
@@ -497,7 +538,7 @@ public class CsvGenerator(ILogger logger)
         index.Version = "1.0.0";
         index.LastUpdatedAt = DateTime.UtcNow;
 
-        var targetId = $"{options.GameType.ToLowerInvariant()}-{options.Version.ToLowerInvariant()}";
+        var targetId = $"{normalizedGameType.ToLowerInvariant()}-{options.Version.ToLowerInvariant()}";
         var existingEntry = index.Entries.FirstOrDefault(e => e.Id.Equals(targetId, StringComparison.OrdinalIgnoreCase));
 
         var outputFileName = Path.GetFileName(options.OutputPath);
@@ -507,7 +548,7 @@ public class CsvGenerator(ILogger logger)
 
         if (existingEntry != null)
         {
-            existingEntry.GameType = options.GameType;
+            existingEntry.GameType = normalizedGameType;
             existingEntry.Version = options.Version;
             existingEntry.Url = entryUrl;
             existingEntry.FileCount = entryCount;
@@ -516,13 +557,27 @@ public class CsvGenerator(ILogger logger)
             existingEntry.GeneratedAt = DateTime.UtcNow;
             existingEntry.GeneratorVersion = "1.0.0";
             existingEntry.IsActive = true;
+            existingEntry.SupportedLanguages =
+            [
+                CsvConstants.AllLanguagesFilter,
+                CsvConstants.LanguageEn,
+                CsvConstants.LanguageDe,
+                CsvConstants.LanguageFr,
+                CsvConstants.LanguageEs,
+                CsvConstants.LanguageIt,
+                CsvConstants.LanguageKo,
+                CsvConstants.LanguagePl,
+                CsvConstants.LanguagePtBr,
+                CsvConstants.LanguageZhCn,
+                CsvConstants.LanguageZhTw,
+            ];
         }
         else
         {
             index.Entries.Add(new CsvCatalogRegistryEntry
             {
                 Id = targetId,
-                GameType = options.GameType,
+                GameType = normalizedGameType,
                 Version = options.Version,
                 Url = entryUrl,
                 FileCount = entryCount,
