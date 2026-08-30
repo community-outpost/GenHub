@@ -966,8 +966,8 @@ public class ProfileSharingServiceTests
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
-        Assert.Single(result.Data.RequiredManifests);
-        Assert.Equal("https://50ea2z8yuk.ufs.sh/f/testkey12345", result.Data.RequiredManifests[0].PackageUrl);
+        Assert.Single(result.Data.Manifests);
+        Assert.Equal("https://50ea2z8yuk.ufs.sh/f/testkey12345", result.Data.Manifests[0].PackageUrl);
     }
 
     private static GameProfile CreateTestProfile(string id, string name)
