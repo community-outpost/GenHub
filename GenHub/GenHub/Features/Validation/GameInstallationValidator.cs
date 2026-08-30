@@ -12,6 +12,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
 using GenHub.Features.Content.Services.ContentProviders;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -215,7 +216,7 @@ public class GameInstallationValidator(
         if (manifest == null && manifestProvider != null)
         {
             logger.LogDebug("Attempting fallback manifest lookup via IManifestProvider for '{Path}' ({GameType})", installationPath, gameType);
-            var targetInstall = new GameInstallation(installationPath, installation?.InstallationType ?? GameInstallationType.Unknown, null);
+            var targetInstall = new GameInstallation(installationPath, installation?.InstallationType ?? GameInstallationType.Unknown, NullLogger<GameInstallation>.Instance);
             if (gameType == GameType.ZeroHour)
             {
                 targetInstall.SetPaths(generalsPath: null, zeroHourPath: installationPath);
@@ -264,7 +265,9 @@ public class GameInstallationValidator(
                 progress,
                 cancellationToken);
             issues.AddRange(fullValidation.Issues);
-            totalFiles = manifest.Files?.Count ?? 0;
+            totalFiles = fullValidation.TotalFilesValidated > 0
+                ? fullValidation.TotalFilesValidated
+                : manifest.Files?.Count ?? 0;
         }
         catch (OperationCanceledException)
         {

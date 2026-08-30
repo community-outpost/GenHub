@@ -112,8 +112,8 @@ public class LanguageDetector : ILanguageDetector
         var zhPatterns = new (string Pattern, string Language)[]
         {
             (LanguageFilePatterns.EnglishZHBig, CsvConstants.LanguageEn),
-            ("AudioZH.big", CsvConstants.LanguageEn),
-            ("INIZH.big", CsvConstants.LanguageEn),
+            (LanguageFilePatterns.AudioZHBig, CsvConstants.LanguageEn),
+            (LanguageFilePatterns.IniZHBig, CsvConstants.LanguageEn),
             (LanguageFilePatterns.GermanZHBig, CsvConstants.LanguageDe),
             (LanguageFilePatterns.FrenchZHBig, CsvConstants.LanguageFr),
             (LanguageFilePatterns.SpanishZHBig, CsvConstants.LanguageEs),
@@ -122,7 +122,7 @@ public class LanguageDetector : ILanguageDetector
             (LanguageFilePatterns.PolishZHBig, CsvConstants.LanguagePl),
             (LanguageFilePatterns.PortugueseZHBig, CsvConstants.LanguagePtBr),
             (LanguageFilePatterns.ChineseZHBig, CsvConstants.LanguageZhCn),
-            ("*ZH.big", CsvConstants.LanguageEn),
+            (LanguageFilePatterns.AnyZeroHourBig, CsvConstants.LanguageEn),
         };
 
         foreach (var (pattern, language) in zhPatterns)
