@@ -567,8 +567,9 @@ public class ProfileSharingService(
 
     /// <summary>
     /// Removes machine-specific artwork paths before a profile is packaged for sharing.
-    /// Local absolute paths, UNC paths, URLs, and traversal segments are stripped to
-    /// avoid leaking exporter filesystem details to recipients.
+    /// Local absolute paths, UNC paths, and traversal segments are stripped to
+    /// avoid leaking exporter filesystem details to recipients. Built-in application
+    /// assets (avares://, /Assets/, Assets/) are preserved.
     /// </summary>
     private static string? SanitizeShareableArtworkPath(string? path)
     {
@@ -578,6 +579,14 @@ public class ProfileSharingService(
         }
 
         string trimmed = path.Trim();
+
+        // Built-in assets and Avalonia resources are safe and portable across all GenHub installations
+        if (trimmed.StartsWith("avares://", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("/Assets/", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
+        {
+            return trimmed;
+        }
 
         bool isWindowsDrive = (trimmed.Length >= 2 && char.IsLetter(trimmed[0]) && trimmed[1] == ':') ||
             (trimmed.Length >= 3 && char.IsLetter(trimmed[0]) && trimmed[1] == ':' && (trimmed[2] == '/' || trimmed[2] == '\\'));
@@ -1166,7 +1175,7 @@ public class ProfileSharingService(
                     continue;
                 }
 
-                var dependency = await BuildManifestDependencyAsync(profile.Name, manifest, cancellationToken);
+                var dependency = await BuildManifestDependencyAsync(manifest, cancellationToken);
                 manifests.Add(dependency);
             }
             else
@@ -1217,7 +1226,6 @@ public class ProfileSharingService(
     }
 
     private async Task<SharedManifestDependency> BuildManifestDependencyAsync(
-        string profileName,
         ContentManifest manifest,
         CancellationToken cancellationToken)
     {
@@ -1244,7 +1252,7 @@ public class ProfileSharingService(
 
         if (isLocal && uploadThingService != null && casService != null && dependencyFiles.Count > 0)
         {
-            var (uploadedUrl, uploadHash) = await PackageAndUploadLocalManifestAsync(profileName, manifest, cancellationToken);
+            var (uploadedUrl, uploadHash) = await PackageAndUploadLocalManifestAsync(manifest, cancellationToken);
             if (!string.IsNullOrWhiteSpace(uploadedUrl))
             {
                 packageUrl = uploadedUrl;
@@ -1286,7 +1294,6 @@ public class ProfileSharingService(
     }
 
     private async Task<(string? Url, string? Hash)> PackageAndUploadLocalManifestAsync(
-        string profileName,
         ContentManifest manifest,
         CancellationToken cancellationToken)
     {
@@ -1307,7 +1314,7 @@ public class ProfileSharingService(
                 return (null, null);
             }
 
-            return await UploadLocalManifestPackageAsync(profileName, manifest, tempZipPath, zipHash, cancellationToken);
+            return await UploadLocalManifestPackageAsync(manifest, tempZipPath, zipHash, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -1320,7 +1327,6 @@ public class ProfileSharingService(
         }
     }
 
-    [SuppressMessage("Major Code Smell", "S6966:Await async method instead of sync counterpart", Justification = "ZipFileExtensions.CreateEntryFromFile has no asynchronous counterpart in .NET 8 BCL.")]
     private async Task<string?> CreateLocalManifestArchiveAsync(
         string tempZipPath,
         ContentManifest manifest,
@@ -1331,16 +1337,24 @@ public class ProfileSharingService(
             return null;
         }
 
+        var sortedFiles = manifest.Files.OrderBy(f => f.RelativePath, StringComparer.Ordinal).ToList();
+        var fixedTimestamp = new DateTimeOffset(2000, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
         using (var zipFile = File.Create(tempZipPath))
         using (var archive = new ZipArchive(zipFile, ZipArchiveMode.Create))
         {
-            foreach (var file in manifest.Files)
+            foreach (var file in sortedFiles)
             {
                 var contentPathResult = await casService.GetContentPathAsync(file.Hash, manifest.ContentType, cancellationToken);
                 if (contentPathResult.Success && File.Exists(contentPathResult.Data))
                 {
                     var entryName = file.RelativePath.Replace('\\', '/');
-                    archive.CreateEntryFromFile(contentPathResult.Data, entryName, CompressionLevel.Optimal);
+                    var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
+                    entry.LastWriteTime = fixedTimestamp;
+
+                    await using var sourceStream = File.OpenRead(contentPathResult.Data);
+                    await using var entryStream = entry.Open();
+                    await sourceStream.CopyToAsync(entryStream, cancellationToken);
                 }
                 else
                 {
@@ -1366,7 +1380,6 @@ public class ProfileSharingService(
     }
 
     private async Task<(string? Url, string? Hash)> UploadLocalManifestPackageAsync(
-        string profileName,
         ContentManifest manifest,
         string tempZipPath,
         string zipHash,
@@ -1408,7 +1421,7 @@ public class ProfileSharingService(
             uploadHistoryService?.RecordUpload(
                 zipInfo.Length,
                 data.PublicUrl,
-                $"{profileName} - {manifest.Name}.zip",
+                $"{manifest.Name}.zip",
                 data.FileKey,
                 data.DeleteToken,
                 zipHash,
@@ -2154,10 +2167,10 @@ public class ProfileSharingService(
             {
                 hasNameConflict = true;
                 int counter = 1;
-                suggestedName = $"{profileName}{ProfileSharingConstants.NameConflictSuffix}";
+                suggestedName = $"{profileName} ({counter})";
                 while (existingNames.Contains(suggestedName))
                 {
-                    suggestedName = $"{profileName}{ProfileSharingConstants.NameConflictSuffix} ({++counter})";
+                    suggestedName = $"{profileName} ({++counter})";
                 }
             }
         }

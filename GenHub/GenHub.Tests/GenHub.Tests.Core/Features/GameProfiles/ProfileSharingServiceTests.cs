@@ -237,7 +237,7 @@ public class ProfileSharingServiceTests
         Assert.True(inspection.HasValidGameInstallation);
         Assert.Equal("inst-1", inspection.MatchedGameInstallationId);
         Assert.True(inspection.HasNameConflict);
-        Assert.Equal("Generals Online Ranked (Imported)", inspection.SuggestedProfileName);
+        Assert.Equal("Generals Online Ranked (1)", inspection.SuggestedProfileName);
         Assert.NotEmpty(inspection.SecurityWarnings);
     }
 
@@ -1402,6 +1402,149 @@ public class ProfileSharingServiceTests
         Assert.NotNull(package);
         var dependency = Assert.Single(package.RequiredManifests);
         Assert.Equal(GameType.ZeroHour, dependency.TargetGame);
+    }
+
+    /// <summary>
+    /// Verifies that built-in application icons and cover art paths are preserved during profile export.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ExportProfileToUriAsync_Should_PreserveBuiltInIconsAndCoversAsync()
+    {
+        // Arrange
+        var profile = CreateTestProfile("artwork-profile-1", "Artwork Profile");
+        profile.IconPath = "/Assets/Icons/zerohour-icon.png";
+        profile.CoverPath = "avares://GenHub/Assets/Covers/zerohour-cover.png";
+
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync("artwork-profile-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _manifestPoolMock.Setup(m => m.GetManifestAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(CreateTestManifest("1.0.generalsonline.gameclient.generalsonline", "ZH", ContentType.GameClient)));
+
+        // Act
+        var result = await _service.ExportProfileToUriAsync("artwork-profile-1");
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+
+        var inspectResult = await _service.InspectSharedProfileAsync(result.Data);
+        Assert.True(inspectResult.Success);
+        Assert.NotNull(inspectResult.Data);
+        Assert.Equal("/Assets/Icons/zerohour-icon.png", inspectResult.Data.ProfileMetadata.IconPath);
+        Assert.Equal("avares://GenHub/Assets/Covers/zerohour-cover.png", inspectResult.Data.ProfileMetadata.CoverPath);
+    }
+
+    /// <summary>
+    /// Verifies that exporting multiple profiles with the exact same local content component reuses existing cloud upload without re-uploading.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ExportProfileToUriAsync_MultipleProfilesWithSameLocalContent_ReusesExistingCloudUploadAsync()
+    {
+        // Arrange
+        var profile1 = CreateTestProfile("profile-1", "Profile 1");
+        profile1.EnabledContentIds = ["1.0.local.map.defcon51"];
+
+        var profile2 = CreateTestProfile("profile-2", "Profile 2");
+        profile2.EnabledContentIds = ["1.0.local.map.defcon51"];
+
+        var tempDir = Path.Combine(Path.GetTempPath(), "ProfileSharingDedupeTest_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var tempFile = Path.Combine(tempDir, "map.ini");
+        await File.WriteAllTextAsync(tempFile, "Map Content Data");
+
+        var localManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.local.map.defcon51"),
+            Name = "[BSM] Defcon 51 V3",
+            Version = "1.0",
+            ContentType = ContentType.Map,
+            Publisher = new PublisherInfo
+            {
+                Name = PublisherTypeConstants.Local,
+                PublisherType = PublisherTypeConstants.Local,
+            },
+            Files =
+            [
+                new ManifestFile
+                {
+                    RelativePath = "Maps/Defcon51/map.ini",
+                    Hash = "fakehash123",
+                    Size = 16,
+                },
+            ],
+        };
+
+        var casMock = new Mock<ICasService>();
+        casMock.Setup(c => c.GetContentPathAsync("fakehash123", ContentType.Map, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateSuccess(tempFile));
+
+        var uploadThingMock = new Mock<IUploadThingService>();
+        uploadThingMock.Setup(u => u.UploadFileAsync(It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<UploadResult>.CreateSuccess(new UploadResult
+            {
+                FileKey = "key123",
+                PublicUrl = "https://utfs.io/f/defcon51.zip",
+                DeleteToken = "token123",
+                FileName = "[BSM] Defcon 51 V3.zip",
+                FileSize = 100,
+            }));
+
+        string? savedHash = null;
+        var uploadHistoryMock = new Mock<IUploadHistoryService>();
+        uploadHistoryMock.Setup(h => h.FindExistingUploadAsync(It.IsAny<string>()))
+            .ReturnsAsync((string hash) => savedHash != null && savedHash == hash
+                ? new UploadRecord { FileHash = hash, Url = "https://utfs.io/f/defcon51.zip" }
+                : null);
+
+        uploadHistoryMock.Setup(h => h.RecordUpload(It.IsAny<long>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Callback<long, string, string, string?, string?, string?, string?>((size, url, name, key, token, hash, cat) =>
+            {
+                savedHash = hash;
+            });
+
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync("profile-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile1));
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync("profile-2", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile2));
+
+        _manifestPoolMock.Setup(m => m.GetManifestAsync("1.0.local.map.defcon51", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(localManifest));
+
+        var service = new ProfileSharingService(
+            _profileRepositoryMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _contentOrchestratorMock.Object,
+            _factoryResolver,
+            NullLogger<ProfileSharingService>.Instance,
+            casMock.Object,
+            uploadThingMock.Object,
+            uploadHistoryMock.Object);
+
+        try
+        {
+            // Act: Export Profile 1 -> should upload to cloud once
+            var result1 = await service.ExportProfileToUriAsync("profile-1");
+            Assert.True(result1.Success);
+
+            // Act: Export Profile 2 with identical map -> should reuse existing upload without uploading
+            var result2 = await service.ExportProfileToUriAsync("profile-2");
+            Assert.True(result2.Success);
+
+            // Assert: Upload was called exactly ONCE across both profile exports
+            uploadThingMock.Verify(u => u.UploadFileAsync(It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()), Times.Once);
+            uploadHistoryMock.Verify(h => h.RecordUpload(It.IsAny<long>(), "https://utfs.io/f/defcon51.zip", "[BSM] Defcon 51 V3.zip", "key123", "token123", It.IsAny<string>(), ProfileSharingConstants.UploadCategoryProfiles), Times.Once);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
     }
 
     private static GameProfile CreateTestProfile(string id, string name)

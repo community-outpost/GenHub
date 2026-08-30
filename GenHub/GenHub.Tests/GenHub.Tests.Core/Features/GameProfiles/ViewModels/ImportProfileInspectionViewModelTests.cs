@@ -64,7 +64,7 @@ public class ImportProfileInspectionViewModelTests
             CachedManifestCount = 1,
             MissingManifestCount = 1,
             HasNameConflict = true,
-            SuggestedProfileName = "Generals Online Pro (Imported)",
+            SuggestedProfileName = "Generals Online Pro (1)",
             SecurityWarnings = ["Warning: dangerous args stripped"],
             Package = package,
         };
@@ -77,7 +77,7 @@ public class ImportProfileInspectionViewModelTests
             NullLogger<ImportProfileInspectionViewModel>.Instance);
 
         // Assert
-        Assert.Equal("Generals Online Pro (Imported)", vm.ProfileName);
+        Assert.Equal("Generals Online Pro (1)", vm.ProfileName);
         Assert.True(vm.HasNameConflict);
         Assert.True(vm.HasValidGameInstallation);
         Assert.Single(vm.CompatibleInstallations);

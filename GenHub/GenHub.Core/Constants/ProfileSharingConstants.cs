@@ -31,10 +31,6 @@ public static class ProfileSharingConstants
     /// </summary>
     public const string ProfileFilePattern = "*.ghprofile";
 
-    /// <summary>
-    /// Suffix appended to profile names when an imported profile has a naming conflict.
-    /// </summary>
-    public const string NameConflictSuffix = " (Imported)";
 
     /// <summary>
     /// Maximum allowed length for profile names during import.

@@ -123,18 +123,23 @@ public partial class ImportProfileInspectionViewModel : ObservableObject
             return null;
         }
 
-        if (path.StartsWith("avares://", StringComparison.OrdinalIgnoreCase))
+        string trimmed = path.Trim();
+
+        // Built-in assets and Avalonia resources are safe and portable across all GenHub installations
+        if (trimmed.StartsWith("avares://", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("/Assets/", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
         {
-            return path;
+            return trimmed;
         }
 
-        if (Path.IsPathRooted(path) || path.StartsWith(@"\\", StringComparison.Ordinal) ||
-            path.Contains("://", StringComparison.Ordinal) || path.Contains("..", StringComparison.Ordinal))
+        if (Path.IsPathRooted(trimmed) || trimmed.StartsWith(@"\\", StringComparison.Ordinal) ||
+            trimmed.Contains("://", StringComparison.Ordinal) || trimmed.Contains("..", StringComparison.Ordinal))
         {
             return null;
         }
 
-        return path;
+        return trimmed;
     }
 
     private static string FormatBytes(long bytes)
