@@ -105,7 +105,7 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
         ThemeColor = !string.IsNullOrEmpty(profile.ThemeColor) ? profile.ThemeColor : "#9575CD";
         ShareUri = shareUri;
 
-        bool containsLocal = profile.EnabledContentIds?.Any(id => id.Contains(".local.", StringComparison.OrdinalIgnoreCase)) ?? false;
+        bool containsLocal = profile.EnabledContentIds?.Any(id => id.Contains(".local.", StringComparison.OrdinalIgnoreCase)) == true;
         HasCloudUploads = containsLocal;
         CloudUploadDetails = containsLocal
             ? "Custom local content was packaged and uploaded to cloud storage (14-day retention). You can manage or delete uploads in Settings > Uploads & Storage."

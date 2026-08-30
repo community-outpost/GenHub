@@ -927,7 +927,7 @@ public class ProfileSharingServiceTests
     /// </summary>
     /// <returns>A task representing the test.</returns>
     [Fact]
-    public async Task InspectSharedProfileAsync_Should_RecognizeModernUfsCloudPackages()
+    public async Task InspectSharedProfileAsync_Should_RecognizeModernUfsCloudPackagesAsync()
     {
         // Arrange
         var package = new SharedGameProfilePackage

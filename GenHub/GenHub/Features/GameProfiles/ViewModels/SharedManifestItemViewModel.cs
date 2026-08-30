@@ -128,14 +128,12 @@ public partial class SharedManifestItemViewModel(SharedManifestDependency depend
     /// <summary>
     /// Gets the provenance description of the content source.
     /// </summary>
-    public string Provenance => IsCloudPackage
-        ? "GenHub Cloud (UploadThing)"
-        : (!string.IsNullOrWhiteSpace(dependency.Publisher) ? dependency.Publisher : "Community");
+    public string Provenance => GetProvenance();
 
     /// <summary>
     /// Gets the detailed file view models for inspector display.
     /// </summary>
-    public IReadOnlyList<ManifestFileItemViewModel> FileItems =>
+    public IReadOnlyList<ManifestFileItemViewModel> FileItems { get; } =
         dependency.Files.Select(f => new ManifestFileItemViewModel(f)).ToList();
 
     /// <summary>
@@ -158,6 +156,18 @@ public partial class SharedManifestItemViewModel(SharedManifestDependency depend
                ext.Equals(".cmd", StringComparison.OrdinalIgnoreCase) ||
                ext.Equals(".ps1", StringComparison.OrdinalIgnoreCase) ||
                ext.Equals(".vbs", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string GetProvenance()
+    {
+        if (IsCloudPackage)
+        {
+            return "GenHub Cloud (UploadThing)";
+        }
+
+        return !string.IsNullOrWhiteSpace(dependency.Publisher)
+            ? dependency.Publisher
+            : "Community";
     }
 
     /// <summary>
