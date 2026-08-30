@@ -103,7 +103,7 @@ public class DependencyResolverTests
     /// </summary>
     /// <returns>A task representing the test operation.</returns>
     [Fact]
-    public async Task ResolveDependenciesAsync_ExactManifestInPool_ResolvesSuccessfully()
+    public async Task ResolveDependenciesAsync_ExactManifestInPool_ResolvesSuccessfullyAsync()
     {
         var manifestId = "1.104.communityoutpost.gameclient.zerohour";
         var manifest = new ContentManifest
@@ -128,7 +128,7 @@ public class DependencyResolverTests
     /// </summary>
     /// <returns>A task representing the test operation.</returns>
     [Fact]
-    public async Task ResolveDependenciesAsync_FallbackToCatalogCompatibleManifest_ResolvesSuccessfully()
+    public async Task ResolveDependenciesAsync_FallbackToCatalogCompatibleManifest_ResolvesSuccessfullyAsync()
     {
         var declaredId = "1.0828261.generalsonline.gamedata.zerohour";
         var actualPoolId = "1.82826.generalsonline.patch.gamedata";
@@ -159,7 +159,7 @@ public class DependencyResolverTests
     /// </summary>
     /// <returns>A task representing the test operation.</returns>
     [Fact]
-    public async Task ResolveDependenciesAsync_MissingManifest_ThrowsInvalidOperationException()
+    public async Task ResolveDependenciesAsync_MissingManifest_ThrowsInvalidOperationExceptionAsync()
     {
         var missingId = "1.999.unknown.gameclient.nonexistent";
 
@@ -183,7 +183,7 @@ public class DependencyResolverTests
     /// </summary>
     /// <returns>A task representing the test operation.</returns>
     [Fact]
-    public async Task ResolveDependenciesWithManifestsAsync_TransitiveDependencies_ResolvesAllManifests()
+    public async Task ResolveDependenciesWithManifestsAsync_TransitiveDependencies_ResolvesAllManifestsAsync()
     {
         var rootId = "1.104.communityoutpost.gameclient.zerohour";
         var depId = "1.104.communityoutpost.mappack.quickmatch";
@@ -236,7 +236,7 @@ public class DependencyResolverTests
     /// </summary>
     /// <returns>A task representing the test operation.</returns>
     [Fact]
-    public async Task ResolveDependenciesWithManifestsAsync_GeneralsOnlineDiscrepancy_ResolvesPooledManifest()
+    public async Task ResolveDependenciesWithManifestsAsync_GeneralsOnlineDiscrepancy_ResolvesPooledManifestAsync()
     {
         var requestedClient = "1.0828261.generalsonline.gameclient.zerohour";
         var requestedGameData = "1.0828261.generalsonline.gamedata.zerohour";

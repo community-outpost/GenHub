@@ -971,7 +971,8 @@ public class GameLauncher(
 
         var launchConfig = BuildGameLaunchConfiguration(finalExecutablePath, workspaceInfo, arguments, profile, installation);
 
-        var archiveRootError = ValidateRetailArchiveRoots(launchConfig.EnvironmentVariables, installation, profile.GameClient.GameType);
+        var targetGame = profile.GameClient?.GameType ?? GameType.Generals;
+        var archiveRootError = ValidateRetailArchiveRoots(launchConfig.EnvironmentVariables, installation, targetGame);
         if (archiveRootError is not null)
         {
             logger.LogError("[GameLauncher] Retail archive root validation failed: {Error}", archiveRootError);

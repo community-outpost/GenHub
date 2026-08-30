@@ -116,7 +116,7 @@ public class GameProfileEndToEndLaunchTests : IDisposable
     /// </summary>
     /// <returns>A task representing the test operation.</returns>
     [Fact]
-    public async Task EndToEnd_GeneralsOnlineProfile_ResolvesDiscrepantManifestsAndLaunches()
+    public async Task EndToEnd_GeneralsOnlineProfile_ResolvesDiscrepantManifestsAndLaunchesAsync()
     {
         // Arrange - Retail Installation
         var installationId = "install-retail-1";
