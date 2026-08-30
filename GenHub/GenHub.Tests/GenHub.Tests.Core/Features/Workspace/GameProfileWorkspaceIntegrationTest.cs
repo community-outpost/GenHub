@@ -163,14 +163,14 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
     [Fact]
     public async Task PrepareWorkspace_SymlinkStrategy_LinksGameInstallationAndClientFilesAsync()
     {
-        // Skip on systems that don't support symlinks
+        // Skip on Windows if not running with administrator privileges
         bool isWindows = OperatingSystem.IsWindows();
         bool isAdmin = isWindows &&
             new System.Security.Principal.WindowsPrincipal(
                 System.Security.Principal.WindowsIdentity.GetCurrent())
             .IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
 
-        if (!isWindows || !isAdmin)
+        if (isWindows && !isAdmin)
         {
             return;
         }
@@ -228,7 +228,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
                 System.Security.Principal.WindowsIdentity.GetCurrent())
             .IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
 
-        if (!isWindows || !isAdmin)
+        if (isWindows && !isAdmin)
         {
             return;
         }
@@ -336,7 +336,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
 
         // Skip symlink strategies when not admin on Windows
         if ((strategy == WorkspaceStrategy.SymlinkOnly || strategy == WorkspaceStrategy.HybridCopySymlink) &&
-            (!isWindows || !isAdmin))
+            isWindows && !isAdmin)
         {
             return;
         }

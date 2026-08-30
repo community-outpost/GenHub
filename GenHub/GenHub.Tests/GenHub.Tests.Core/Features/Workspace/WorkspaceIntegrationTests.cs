@@ -114,7 +114,7 @@ public class WorkspaceIntegrationTests : IDisposable
 
         if ((strategy == WorkspaceStrategy.SymlinkOnly ||
              strategy == WorkspaceStrategy.HybridCopySymlink) &&
-            (!isWindows || !isAdmin))
+            isWindows && !isAdmin)
         {
             return;
         }

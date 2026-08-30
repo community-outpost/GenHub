@@ -80,19 +80,9 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
 
-            // Deduplicate files by RelativePath with priority ordering (GameClient > GameInstallation)
-            // so lower-priority sources cannot overwrite higher-priority files like modded clients.
+            // Deduplicate files by RelativePath with priority ordering (higher priority content wins)
             // ONLY include files where InstallTarget is Workspace.
-            var prioritizedFiles = configuration.Manifests
-                .SelectMany((manifest, index) => (manifest.Files ?? Enumerable.Empty<ManifestFile>())
-                    .Where(f => f.InstallTarget == ContentInstallTarget.Workspace)
-                    .Select(file => new { File = file, Manifest = manifest, ManifestIndex = index }))
-                .GroupBy(x => x.File.RelativePath, StringComparer.OrdinalIgnoreCase)
-                .Select(g => g
-                    .OrderByDescending(x => ContentTypePriority.GetPriority(x.Manifest.ContentType))
-                    .ThenByDescending(x => x.ManifestIndex) // deterministic tie-breaker
-                    .First())
-                .ToList();
+            var prioritizedFiles = configuration.GetPrioritizedWorkspaceFiles();
 
             var totalFiles = prioritizedFiles.Count;
             var processedFiles = 0;
@@ -107,12 +97,9 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             Logger.LogDebug("Processing {TotalFiles} files (prioritized by content type)", totalFiles);
             ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
-            foreach (var prioritized in prioritizedFiles)
+            foreach (var (file, manifest) in prioritizedFiles)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-
-                var manifest = prioritized.Manifest;
-                var file = prioritized.File;
                 var destinationPath = Path.Combine(workspacePath, file.RelativePath);
 
                 try

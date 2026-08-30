@@ -53,16 +53,13 @@ public sealed class FullCopyStrategy(
             return 0;
 
         long totalSize = 0;
-        foreach (var manifest in configuration.Manifests)
+        foreach (var file in configuration.GetWorkspaceUniqueFiles())
         {
-            foreach (var file in (manifest.Files ?? Enumerable.Empty<ManifestFile>()).Where(f => f.InstallTarget == ContentInstallTarget.Workspace))
-            {
-                // Prevent negative sizes and overflow
-                long safeSize = Math.Max(0, file.Size);
-                if (long.MaxValue - totalSize < safeSize)
-                    return long.MaxValue; // Indicate overflow
-                totalSize += safeSize;
-            }
+            // Prevent negative sizes and overflow
+            long safeSize = Math.Max(0, file.Size);
+            if (long.MaxValue - totalSize < safeSize)
+                return long.MaxValue; // Indicate overflow
+            totalSize += safeSize;
         }
 
         return totalSize;
@@ -96,9 +93,10 @@ public sealed class FullCopyStrategy(
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
 
+            // Deduplicate files by RelativePath with priority ordering (higher priority content wins)
             // ONLY include files where InstallTarget is Workspace.
-            var allFiles = configuration.GetWorkspaceUniqueFiles().ToList();
-            var totalFiles = allFiles.Count;
+            var prioritizedFiles = configuration.GetPrioritizedWorkspaceFiles();
+            var totalFiles = prioritizedFiles.Count;
             var processedFiles = 0;
             long totalBytesProcessed = 0;
 
@@ -123,84 +121,64 @@ public sealed class FullCopyStrategy(
                 degreeOfParallelism = Environment.ProcessorCount * 2;
             }
 
-            // Group files by destination path to handle conflicts
-            // include files where InstallTarget is Workspace.
-            var filesByDestination = configuration.Manifests
-                .SelectMany(m => (m.Files ?? Enumerable.Empty<ManifestFile>())
-                    .Where(f => f.InstallTarget == ContentInstallTarget.Workspace)
-                    .Select(f => new { Manifest = m, File = f }))
-                .GroupBy(item => item.File.RelativePath, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
             await Parallel.ForEachAsync(
-                filesByDestination,
+                prioritizedFiles,
                 new ParallelOptions
                 {
                     MaxDegreeOfParallelism = degreeOfParallelism,
                     CancellationToken = cancellationToken,
                 },
-                async (fileGroup, ct) =>
+                async (item, ct) =>
                 {
-                    // For each destination path, process files in priority order (lowest to highest)
-                    // Priority: GameInstallation (10) < Addon (40) < GameClient (50) < Patch (90) < Mod (100)
-                    // This ensures higher priority content overwrites lower priority
-                    var orderedFiles = fileGroup
-                        .OrderBy(item => ContentTypePriority.GetPriority(item.Manifest.ContentType))
-                        .ToList();
+                    var file = item.File;
+                    var manifest = item.Manifest;
+                    var destinationPath = Path.Combine(workspacePath, file.RelativePath);
 
-                    // Process all versions of this file in priority order
-                    // The last one (highest priority) will be the final version
-                    foreach (var item in orderedFiles)
+                    try
                     {
-                        var destinationPath = Path.Combine(workspacePath, item.File.RelativePath);
-
-                        try
+                        if (file.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                         {
-                            if (item.File.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(item.File.Hash))
+                            // Use CAS content
+                            await CreateCasLinkAsync(file.Hash, destinationPath, manifest.ContentType, ct);
+                        }
+                        else
+                        {
+                            // Resolve source path supporting multi-source installations
+                            var sourcePath = ResolveSourcePath(file, manifest, configuration);
+
+                            if (!ValidateSourceFile(sourcePath, file.RelativePath))
                             {
-                                // Use CAS content
-                                await CreateCasLinkAsync(item.File.Hash, destinationPath, item.Manifest.ContentType, ct);
+                                return;
                             }
-                            else
+
+                            await FileOperations.CopyFileAsync(sourcePath, destinationPath, ct);
+
+                            // Verify file integrity if hash is provided
+                            if (!string.IsNullOrEmpty(file.Hash))
                             {
-                                // Resolve source path supporting multi-source installations
-                                var sourcePath = ResolveSourcePath(item.File, item.Manifest, configuration);
-
-                                if (!ValidateSourceFile(sourcePath, item.File.RelativePath))
+                                var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, ct);
+                                if (!hashValid)
                                 {
-                                    continue;
-                                }
-
-                                await FileOperations.CopyFileAsync(sourcePath, destinationPath, ct);
-
-                                // Verify file integrity if hash is provided
-                                if (!string.IsNullOrEmpty(item.File.Hash))
-                                {
-                                    var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, item.File.Hash, ct);
-                                    if (!hashValid)
-                                    {
-                                        Logger.LogWarning("Hash verification failed for file: {RelativePath}", item.File.RelativePath);
-                                    }
+                                    Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
                                 }
                             }
                         }
-                        catch (Exception ex)
+
+                        Interlocked.Add(ref totalBytesProcessed, file.Size);
+                        var current = Interlocked.Increment(ref processedFiles);
+                        if (current % 50 == 0 || current == totalFiles)
                         {
-                            Logger.LogError(
-                                ex,
-                                "Failed to copy file {RelativePath} to {DestinationPath}",
-                                item.File.RelativePath,
-                                destinationPath);
-                            throw new InvalidOperationException($"Failed to copy file {item.File.RelativePath}: {ex.Message}", ex);
+                            ReportProgress(progress, current, totalFiles, "Copying files", file.RelativePath);
                         }
                     }
-
-                    // Only count the file group once for progress reporting
-                    Interlocked.Add(ref totalBytesProcessed, orderedFiles.First().File.Size);
-                    var current = Interlocked.Increment(ref processedFiles);
-                    if (current % 50 == 0 || current == totalFiles)
+                    catch (Exception ex)
                     {
-                        ReportProgress(progress, current, totalFiles, "Copying files", orderedFiles.First().File.RelativePath);
+                        Logger.LogError(
+                            ex,
+                            "Failed to copy file {RelativePath} to {DestinationPath}",
+                            file.RelativePath,
+                            destinationPath);
+                        throw new InvalidOperationException($"Failed to copy file {file.RelativePath}: {ex.Message}", ex);
                     }
                 });
 

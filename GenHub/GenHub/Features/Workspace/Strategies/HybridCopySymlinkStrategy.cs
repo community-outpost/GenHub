@@ -48,18 +48,15 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
             return 0;
 
         long totalUsage = 0;
-        foreach (var manifest in configuration.Manifests)
+        foreach (var file in configuration.GetWorkspaceUniqueFiles())
         {
-            foreach (var file in manifest.Files)
+            if (IsEssentialFile(file.RelativePath, file.Size))
             {
-                if (IsEssentialFile(file.RelativePath, file.Size))
-                {
-                    totalUsage += file.Size;
-                }
-                else
-                {
-                    totalUsage += LinkOverheadBytes;
-                }
+                totalUsage += file.Size;
+            }
+            else
+            {
+                totalUsage += LinkOverheadBytes;
             }
         }
 
@@ -91,10 +88,10 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
 
-            // Deduplicate files by RelativePath - multiple manifests may contain the same file
-            // include files where InstallTarget is Workspace.
-            var allFiles = configuration.GetWorkspaceUniqueFiles().ToList();
-            var totalFiles = allFiles.Count;
+            // Deduplicate files by RelativePath with priority ordering (higher priority content wins)
+            // ONLY include files where InstallTarget is Workspace.
+            var prioritizedFiles = configuration.GetPrioritizedWorkspaceFiles();
+            var totalFiles = prioritizedFiles.Count;
             var processedFiles = 0;
             long totalBytesProcessed = 0;
             var estimatedTotalBytes = EstimateDiskUsage(configuration);
@@ -103,7 +100,7 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
             Logger.LogDebug("Processing {TotalFiles} files with estimated size {EstimatedSize} bytes", totalFiles, estimatedTotalBytes);
 
             // Pre-classify files for reporting
-            var essentialCount = allFiles.Count(f => IsEssentialFile(f.RelativePath, f.Size));
+            var essentialCount = prioritizedFiles.Count(p => IsEssentialFile(p.File.RelativePath, p.File.Size));
             var nonEssentialCount = totalFiles - essentialCount;
             Logger.LogDebug(
                 "Classified {EssentialCount} essential files (will copy) and {NonEssentialCount} non-essential files (will symlink)",
@@ -111,25 +108,38 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
                 nonEssentialCount);
             ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
-            // Process each manifest and its files to maintain manifest context for source path resolution
-            foreach (var manifest in configuration.Manifests)
+            // Process prioritized files maintaining winning manifest context for source path resolution
+            foreach (var (file, manifest) in prioritizedFiles)
             {
-                foreach (var file in (manifest.Files ?? Enumerable.Empty<ManifestFile>()).Where(f => f.InstallTarget == ContentInstallTarget.Workspace))
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var destinationPath = Path.Combine(workspacePath, file.RelativePath);
-                    var isEssential = IsEssentialFile(file.RelativePath, file.Size);
+                cancellationToken.ThrowIfCancellationRequested();
+                var destinationPath = Path.Combine(workspacePath, file.RelativePath);
+                var isEssential = IsEssentialFile(file.RelativePath, file.Size);
 
-                    try
+                try
+                {
+                    if (file.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                     {
-                        if (file.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
+                        if (isEssential)
                         {
-                            if (isEssential)
+                            var success = await FileOperations.CopyFromCasAsync(file.Hash, destinationPath, contentType: manifest.ContentType, cancellationToken: cancellationToken);
+                            if (!success)
                             {
-                                var success = await FileOperations.CopyFromCasAsync(file.Hash, destinationPath, contentType: manifest.ContentType, cancellationToken: cancellationToken);
-                                if (!success)
+                                throw new InvalidOperationException($"Failed to copy essential file from CAS: {file.RelativePath} (Hash: {file.Hash})");
+                            }
+
+                            copiedFiles++;
+                            totalBytesProcessed += file.Size;
+                        }
+                        else
+                        {
+                            var success = await FileOperations.LinkFromCasAsync(file.Hash, destinationPath, useHardLink: false, contentType: manifest.ContentType, cancellationToken: cancellationToken);
+                            if (!success)
+                            {
+                                Logger.LogWarning("CAS Link failed for {RelativePath}, attempting copy from CAS", file.RelativePath);
+                                var copySuccess = await FileOperations.CopyFromCasAsync(file.Hash, destinationPath, contentType: manifest.ContentType, cancellationToken: cancellationToken);
+                                if (!copySuccess)
                                 {
-                                    throw new InvalidOperationException($"Failed to copy essential file from CAS: {file.RelativePath} (Hash: {file.Hash})");
+                                    throw new InvalidOperationException($"Failed to link or copy file from CAS: {file.RelativePath} (Hash: {file.Hash})");
                                 }
 
                                 copiedFiles++;
@@ -137,94 +147,78 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
                             }
                             else
                             {
-                                var success = await FileOperations.LinkFromCasAsync(file.Hash, destinationPath, useHardLink: false, contentType: manifest.ContentType, cancellationToken: cancellationToken);
-                                if (!success)
-                                {
-                                    Logger.LogWarning("CAS Link failed for {RelativePath}, attempting copy from CAS", file.RelativePath);
-                                    var copySuccess = await FileOperations.CopyFromCasAsync(file.Hash, destinationPath, contentType: manifest.ContentType, cancellationToken: cancellationToken);
-                                    if (!copySuccess)
-                                    {
-                                        throw new InvalidOperationException($"Failed to link or copy file from CAS: {file.RelativePath} (Hash: {file.Hash})");
-                                    }
+                                symlinkedFiles++;
+                                totalBytesProcessed += LinkOverheadBytes;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Resolve source path supporting multi-source installations
+                        var sourcePath = ResolveSourcePath(file, manifest, configuration);
+                        if (!ValidateSourceFile(sourcePath, file.RelativePath))
+                        {
+                            continue;
+                        }
 
-                                    copiedFiles++;
-                                    totalBytesProcessed += file.Size;
-                                }
-                                else
+                        if (isEssential)
+                        {
+                            await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
+                            copiedFiles++;
+                            totalBytesProcessed += file.Size;
+                            if (!string.IsNullOrEmpty(file.Hash))
+                            {
+                                var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
+                                if (!hashValid)
                                 {
-                                    symlinkedFiles++;
-                                    totalBytesProcessed += LinkOverheadBytes;
+                                    throw new InvalidOperationException($"Hash verification failed for essential file: {file.RelativePath}");
                                 }
                             }
                         }
                         else
                         {
-                            // Resolve source path supporting multi-source installations
-                            var sourcePath = ResolveSourcePath(file, manifest, configuration);
-                            if (!ValidateSourceFile(sourcePath, file.RelativePath))
+                            try
                             {
-                                continue;
+                                await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, allowFallback: false, cancellationToken);
+                                symlinkedFiles++;
+                                totalBytesProcessed += LinkOverheadBytes;
                             }
-
-                            if (isEssential)
+                            catch (UnauthorizedAccessException) when (FileOperationsService.AreSameVolume(sourcePath, destinationPath))
                             {
-                                await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
-                                copiedFiles++;
-                                totalBytesProcessed += file.Size;
-                                if (!string.IsNullOrEmpty(file.Hash))
-                                {
-                                    var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
-                                    if (!hashValid)
-                                    {
-                                        throw new InvalidOperationException($"Hash verification failed for essential file: {file.RelativePath}");
-                                    }
-                                }
-                            }
-                            else
-                            {
+                                // Fall back to hardlink on same volume when symlink fails due to lack of admin rights
+                                Logger.LogWarning("Symlink creation failed (no admin rights), falling back to hardlink for {RelativePath}", file.RelativePath);
                                 try
                                 {
-                                    await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, allowFallback: false, cancellationToken);
-                                    symlinkedFiles++;
+                                    await FileOperations.CreateHardLinkAsync(destinationPath, sourcePath, cancellationToken);
+                                    symlinkedFiles++; // Still count as symlinked for reporting purposes
                                     totalBytesProcessed += LinkOverheadBytes;
                                 }
-                                catch (UnauthorizedAccessException) when (FileOperationsService.AreSameVolume(sourcePath, destinationPath))
+                                catch (Exception hardLinkEx)
                                 {
-                                    // Fall back to hardlink on same volume when symlink fails due to lack of admin rights
-                                    Logger.LogWarning("Symlink creation failed (no admin rights), falling back to hardlink for {RelativePath}", file.RelativePath);
-                                    try
-                                    {
-                                        await FileOperations.CreateHardLinkAsync(destinationPath, sourcePath, cancellationToken);
-                                        symlinkedFiles++; // Still count as symlinked for reporting purposes
-                                        totalBytesProcessed += LinkOverheadBytes;
-                                    }
-                                    catch (Exception hardLinkEx)
-                                    {
-                                        Logger.LogError(hardLinkEx, "Hardlink fallback also failed for {RelativePath}, attempting copy", file.RelativePath);
-                                        await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
-                                        copiedFiles++;
-                                        totalBytesProcessed += file.Size;
-                                    }
+                                    Logger.LogError(hardLinkEx, "Hardlink fallback also failed for {RelativePath}, attempting copy", file.RelativePath);
+                                    await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
+                                    copiedFiles++;
+                                    totalBytesProcessed += file.Size;
                                 }
                             }
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        var operation = isEssential ? "copy" : "create symlink for";
-                        Logger.LogError(
-                            ex,
-                            "Failed to {Operation} file {RelativePath} to {DestinationPath}",
-                            operation,
-                            file.RelativePath,
-                            destinationPath);
-                        throw new InvalidOperationException($"Failed to {operation} file {file.RelativePath}: {ex.Message}", ex);
-                    }
-
-                    processedFiles++;
-                    var currentOperation = isEssential ? "Copying essential file" : "Creating symlink";
-                    ReportProgress(progress, processedFiles, totalFiles, currentOperation, file.RelativePath);
                 }
+                catch (Exception ex)
+                {
+                    var operation = isEssential ? "copy" : "create symlink for";
+                    Logger.LogError(
+                        ex,
+                        "Failed to {Operation} file {RelativePath} to {DestinationPath}",
+                        operation,
+                        file.RelativePath,
+                        destinationPath);
+                    throw new InvalidOperationException($"Failed to {operation} file {file.RelativePath}: {ex.Message}", ex);
+                }
+
+                processedFiles++;
+                var currentOperation = isEssential ? "Copying essential file" : "Creating symlink";
+                ReportProgress(progress, processedFiles, totalFiles, currentOperation, file.RelativePath);
             }
 
             UpdateWorkspaceInfo(workspaceInfo, processedFiles, totalBytesProcessed, configuration);

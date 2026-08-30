@@ -44,8 +44,11 @@ public sealed class SymlinkOnlyStrategy(
     /// <inheritdoc/>
     public override long EstimateDiskUsage(WorkspaceConfiguration configuration)
     {
+        if (configuration?.Manifests is null || configuration.Manifests.Count == 0)
+            return 0;
+
         // Symbolic links use minimal space - approximate 1KB per link for metadata
-        return configuration.Manifests.SelectMany(m => m.Files).Count() * LinkOverheadBytes;
+        return configuration.GetWorkspaceUniqueFiles().Count() * LinkOverheadBytes;
     }
 
     /// <inheritdoc/>
@@ -80,8 +83,10 @@ public sealed class SymlinkOnlyStrategy(
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
 
-            var allFiles = configuration.Manifests.SelectMany(m => m.Files).ToList();
-            var totalFiles = allFiles.Count;
+            // Deduplicate files by RelativePath with priority ordering (higher priority content wins)
+            // ONLY include files where InstallTarget is Workspace.
+            var prioritizedFiles = configuration.GetPrioritizedWorkspaceFiles();
+            var totalFiles = prioritizedFiles.Count;
             var processedFiles = 0;
 
             Logger.LogDebug("Processing {TotalFiles} files in parallel", totalFiles);
@@ -105,16 +110,8 @@ public sealed class SymlinkOnlyStrategy(
                 degreeOfParallelism = Environment.ProcessorCount * 2;
             }
 
-            // Deduplicate files by RelativePath - multiple manifests may contain the same file
-            // (e.g., GameClient and GameInstallation both contain the executable)
-            // Group by path and take the first occurrence to avoid parallel creation conflicts
-            // include files where InstallTarget is Workspace.
-            var manifestFiles = configuration.GetWorkspaceUniqueFiles()
-                .Select(f => new { Manifest = configuration.Manifests.First(m => m.Files.Contains(f)), File = f })
-                .ToList();
-
             await Parallel.ForEachAsync(
-                manifestFiles,
+                prioritizedFiles,
                 new ParallelOptions
                 {
                     MaxDegreeOfParallelism = degreeOfParallelism,

@@ -151,16 +151,16 @@ public class WorkspaceCasIntegrationTests : IDisposable
     [Fact]
     public async Task PrepareWorkspace_WithCasContent_CreatesCorrectLinksAsync()
     {
-        // Skip test if running on non-Windows or without admin privileges
+        // Skip test on Windows if not running with administrator privileges
         bool isWindows = OperatingSystem.IsWindows();
         bool isAdmin = isWindows &&
             new System.Security.Principal.WindowsPrincipal(
                 System.Security.Principal.WindowsIdentity.GetCurrent())
             .IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
 
-        if (!isWindows || !isAdmin)
+        if (isWindows && !isAdmin)
         {
-            return; // Skip test on non-Windows or non-admin
+            return; // Skip test on Windows without admin
         }
 
         // The CAS object should already be verified to exist from constructor
