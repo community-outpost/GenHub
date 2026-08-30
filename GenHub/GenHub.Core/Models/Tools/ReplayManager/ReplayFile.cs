@@ -9,6 +9,8 @@ namespace GenHub.Core.Models.Tools.ReplayManager;
 /// </summary>
 public sealed class ReplayFile : IExportableFile
 {
+    private const string UnknownValue = "Unknown";
+
     /// <summary>
     /// Gets or sets the full path to the replay file.
     /// </summary>
@@ -73,7 +75,7 @@ public sealed class ReplayFile : IExportableFile
         ReplayCompatibilityStatus.RequiresProfile => "Profile Needed",
         ReplayCompatibilityStatus.Downloadable => "Download Required",
         ReplayCompatibilityStatus.Orphaned => "Mismatch Risk",
-        _ => "Unknown",
+        _ => UnknownValue,
     };
 
     /// <summary>
@@ -82,11 +84,11 @@ public sealed class ReplayFile : IExportableFile
     public string CompatibilityTooltip => CompatibilityStatus switch
     {
         ReplayCompatibilityStatus.Compatible =>
-            $"Compatible with profile '{MatchingProfileName ?? MatchedClient?.Description ?? "Unknown"}'. Exe CRC: {Metadata?.FormattedExeCrc ?? "N/A"}, INI CRC: {Metadata?.FormattedIniCrc ?? "N/A"}.",
+            $"Compatible with profile '{MatchingProfileName ?? MatchedClient?.Description ?? UnknownValue}'. Exe CRC: {Metadata?.FormattedExeCrc ?? "N/A"}, INI CRC: {Metadata?.FormattedIniCrc ?? "N/A"}.",
         ReplayCompatibilityStatus.RequiresProfile =>
-            $"Game client '{MatchedClient?.Description ?? "Unknown"}' is installed. Click 'Create Profile' to configure and play this replay.",
+            $"Game client '{MatchedClient?.Description ?? UnknownValue}' is installed. Click 'Create Profile' to configure and play this replay.",
         ReplayCompatibilityStatus.Downloadable =>
-            $"Game client '{MatchedClient?.Description ?? "Unknown"}' is known and available on CDN. Profile creation will acquire the client.",
+            $"Game client '{MatchedClient?.Description ?? UnknownValue}' is known and available on CDN. Profile creation will acquire the client.",
         ReplayCompatibilityStatus.Orphaned =>
             $"Exe CRC {Metadata?.FormattedExeCrc ?? "N/A"} or INI CRC {Metadata?.FormattedIniCrc ?? "N/A"} is not recognized. Replay playback may desync or mismatch.",
         _ => "Replay header metadata is not available or could not be parsed.",

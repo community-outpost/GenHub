@@ -164,6 +164,7 @@ public class MockUploadHistoryService : IUploadHistoryService
 /// <summary>
 /// Mock implementation of <see cref="IReplayDirectoryService"/> for testing and demos.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Mock implementation for testing/demo UI")]
 public class MockReplayDirectoryService : IReplayDirectoryService
 {
     /// <inheritdoc/>
@@ -305,6 +306,7 @@ public class MockReplayExportService : IReplayExportService
 /// <summary>
 /// Mock implementation of <see cref="IMapDirectoryService"/> for testing and demos.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Mock implementation for testing/demo UI")]
 public class MockMapDirectoryService : IMapDirectoryService
 {
     /// <inheritdoc/>

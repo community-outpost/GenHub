@@ -13,7 +13,6 @@ import json
 import os
 import re
 import sys
-import urllib.error
 import urllib.request
 import zipfile
 import zlib
@@ -90,7 +89,7 @@ def check_url_exists(url: str, timeout: int = 5) -> bool:
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status == 200
-    except (urllib.error.URLError, urllib.error.HTTPError, OSError):
+    except OSError:
         return False
 
 
@@ -119,13 +118,13 @@ def inspect_archive_binary(download_url: str, binary_patterns: list[str]) -> tup
                     ini_crc = compute_buffer_crc(ini_bytes)
 
             return exe_crc, sha256, ini_crc
-    except (urllib.error.URLError, urllib.error.HTTPError, zipfile.BadZipFile, OSError) as e:
+    except (OSError, zipfile.BadZipFile) as e:
         print(f"Warning: could not inspect archive {download_url}: {e}", file=sys.stderr)
         return "", "", ""
 
 
-def crawl_superhackers_releases(token: str | None = None, inspect_binaries: bool = False) -> list[dict]:
-    """Fetches and maps releases from TheSuperHackers repository on GitHub across all pages (2025, 2026, etc.)."""
+def fetch_github_releases(repo: str, token: str | None = None) -> list[dict]:
+    """Fetches all release records from a GitHub repository."""
     headers = {"User-Agent": "GenHub-Replay-Crawler"}
     if token:
         headers["Authorization"] = f"token {token}"
@@ -133,7 +132,7 @@ def crawl_superhackers_releases(token: str | None = None, inspect_binaries: bool
     releases = []
     page = 1
     while True:
-        url = f"https://api.github.com/repos/{SUPERHACKERS_REPO}/releases?per_page=100&page={page}"
+        url = f"https://api.github.com/repos/{repo}/releases?per_page=100&page={page}"
         req = urllib.request.Request(url, headers=headers)
         try:
             with urllib.request.urlopen(req, timeout=15) as resp:
@@ -145,10 +144,56 @@ def crawl_superhackers_releases(token: str | None = None, inspect_binaries: bool
             if 'rel="next"' not in link_header:
                 break
             page += 1
-        except (urllib.error.URLError, urllib.error.HTTPError, OSError, json.JSONDecodeError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             print(f"Warning: could not reach GitHub API page {page} ({e}). Falling back to cached catalog.", file=sys.stderr)
             break
 
+    return releases
+
+
+def parse_superhackers_asset(date_str: str, version_num: str, asset: dict, inspect_binaries: bool) -> dict | None:
+    """Parses a single release asset into a mapping entry if it is a relevant gameclient zip."""
+    name = asset.get("name", "")
+    download_url = asset.get("browser_download_url", "")
+    if not (name.endswith(".zip") and "generals" in name.lower()):
+        return None
+
+    game_type = "ZeroHour" if "zh" in name.lower() else "Generals"
+    manifest_type = "zerohour" if game_type == "ZeroHour" else "generals"
+    manifest_id = f"1.{version_num}.superhackers.gameclient.{manifest_type}"
+    default_ini = "0x76B251A3" if game_type == "ZeroHour" else "0x323577BD"
+
+    exe_crc = ""
+    sha256 = ""
+    ini_crc = default_ini
+
+    if inspect_binaries and download_url:
+        target_bin = ["generalszh.exe"] if game_type == "ZeroHour" else ["generals.exe"]
+        c_exe, c_sha, c_ini = inspect_archive_binary(download_url, target_bin)
+        if c_exe:
+            exe_crc = c_exe
+        if c_sha:
+            sha256 = c_sha
+        if c_ini:
+            ini_crc = c_ini
+
+    return {
+        "exeCrc": exe_crc,
+        "iniCrc": ini_crc,
+        "sha256": sha256,
+        "manifestId": manifest_id,
+        "publisher": "superhackers",
+        "gameType": game_type,
+        "version": date_str,
+        "buildDate": date_str,
+        "description": f"TheSuperHackers {game_type} weekly {date_str}",
+        "cdnUrl": download_url,
+    }
+
+
+def crawl_superhackers_releases(token: str | None = None, inspect_binaries: bool = False) -> list[dict]:
+    """Fetches and maps releases from TheSuperHackers repository on GitHub across all pages (2025, 2026, etc.)."""
+    releases = fetch_github_releases(SUPERHACKERS_REPO, token)
     if not releases:
         return []
 
@@ -162,51 +207,18 @@ def crawl_superhackers_releases(token: str | None = None, inspect_binaries: bool
         version_num = date_str.replace("-", "")
 
         for asset in rel.get("assets", []):
-            name = asset.get("name", "")
-            download_url = asset.get("browser_download_url", "")
-            if name.endswith(".zip") and "generals" in name.lower():
-                game_type = "ZeroHour" if "zh" in name.lower() else "Generals"
-                manifest_type = "zerohour" if game_type == "ZeroHour" else "generals"
-                manifest_id = f"1.{version_num}.superhackers.gameclient.{manifest_type}"
-                default_ini = "0x76B251A3" if game_type == "ZeroHour" else "0x323577BD"
-
-                exe_crc = ""
-                sha256 = ""
-                ini_crc = default_ini
-
-                if inspect_binaries and download_url:
-                    target_bin = ["generalszh.exe"] if game_type == "ZeroHour" else ["generals.exe"]
-                    c_exe, c_sha, c_ini = inspect_archive_binary(download_url, target_bin)
-                    if c_exe:
-                        exe_crc = c_exe
-                    if c_sha:
-                        sha256 = c_sha
-                    if c_ini:
-                        ini_crc = c_ini
-
-                entry = {
-                    "exeCrc": exe_crc,
-                    "iniCrc": ini_crc,
-                    "sha256": sha256,
-                    "manifestId": manifest_id,
-                    "publisher": "superhackers",
-                    "gameType": game_type,
-                    "version": date_str,
-                    "buildDate": date_str,
-                    "description": f"TheSuperHackers {game_type} weekly {date_str}",
-                    "cdnUrl": download_url,
-                }
+            entry = parse_superhackers_asset(date_str, version_num, asset, inspect_binaries)
+            if entry:
                 entries.append(entry)
 
     return entries
 
 
-def crawl_generalsonline_releases(inspect_binaries: bool = False, start_year: int = 2025, end_year: int = 2026) -> list[dict]:
-    """Probes and maps portable releases from the GeneralsOnline CDN across 2025, 2026, and all QFE variants."""
+def generate_generalsonline_candidates(start_year: int, end_year: int) -> list[tuple[str, str, str, str]]:
+    """Generates candidate (date_code, version_str, manifest_id, url) tuples for GeneralsOnline."""
     known_dates = ["021326", "032926", "042826", "060526", "062026", "081326"]
     date_set = set(known_dates)
 
-    # Generate all candidate date codes MMDDYY from start_year-01-01 to end_year-12-31
     try:
         curr_date = datetime.date(start_year, 1, 1)
         target_end = min(datetime.date(end_year, 12, 31), datetime.date.today() + datetime.timedelta(days=7))
@@ -239,7 +251,11 @@ def crawl_generalsonline_releases(inspect_binaries: bool = False, start_year: in
                 version_str = f"{date_code}{suffix}"
                 candidates.append((date_code, version_str, manifest_id, url))
 
-    # Probe candidate URLs concurrently
+    return candidates
+
+
+def filter_available_candidates(candidates: list[tuple[str, str, str, str]]) -> list[tuple[str, str, str, str]]:
+    """Probes candidate URLs concurrently and returns reachable ones."""
     valid_candidates = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
         future_to_cand = {executor.submit(check_url_exists, cand[3]): cand for cand in candidates}
@@ -248,44 +264,69 @@ def crawl_generalsonline_releases(inspect_binaries: bool = False, start_year: in
             try:
                 if future.result():
                     valid_candidates.append(cand)
-            except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
+            except OSError as e:
                 print(f"Warning: error probing candidate {cand[3]}: {e}", file=sys.stderr)
+    return valid_candidates
+
+
+def build_generalsonline_entry(cand: tuple[str, str, str, str], inspect_binaries: bool) -> dict | None:
+    """Builds a single catalog entry from a verified GeneralsOnline release candidate."""
+    date_code, version_str, manifest_id, url = cand
+    exe_crc = ""
+    sha256 = ""
+    ini_crc = "0x5CB7992C"
+
+    if inspect_binaries:
+        c_exe, c_sha, c_ini = inspect_archive_binary(url, ["generalsonlinezh_60.exe", "generalsonlinezh.exe"])
+        if not c_exe:
+            return None
+        exe_crc = c_exe
+        sha256 = c_sha
+        if c_ini:
+            ini_crc = c_ini
+
+    year = f"20{date_code[4:6]}"
+    month = date_code[0:2]
+    day = date_code[2:4]
+    build_date = f"{year}-{month}-{day}"
+
+    return {
+        "exeCrc": exe_crc,
+        "iniCrc": ini_crc,
+        "sha256": sha256,
+        "manifestId": manifest_id,
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": version_str,
+        "buildDate": build_date,
+        "description": f"GeneralsOnline {version_str} portable release",
+        "cdnUrl": url,
+    }
+
+
+def crawl_generalsonline_releases(inspect_binaries: bool = False, start_year: int = 2025, end_year: int = 2026) -> list[dict]:
+    """Probes and maps portable releases from the GeneralsOnline CDN across 2025, 2026, and all QFE variants."""
+    candidates = generate_generalsonline_candidates(start_year, end_year)
+    valid_candidates = filter_available_candidates(candidates)
 
     entries = []
-    for date_code, version_str, manifest_id, url in valid_candidates:
-        exe_crc = ""
-        sha256 = ""
-        ini_crc = "0x5CB7992C"
-
-        if inspect_binaries:
-            c_exe, c_sha, c_ini = inspect_archive_binary(url, ["generalsonlinezh_60.exe", "generalsonlinezh.exe"])
-            if not c_exe:
-                continue
-            exe_crc = c_exe
-            sha256 = c_sha
-            if c_ini:
-                ini_crc = c_ini
-
-        year = f"20{date_code[4:6]}"
-        month = date_code[0:2]
-        day = date_code[2:4]
-        build_date = f"{year}-{month}-{day}"
-
-        entry = {
-            "exeCrc": exe_crc,
-            "iniCrc": ini_crc,
-            "sha256": sha256,
-            "manifestId": manifest_id,
-            "publisher": "generalsonline",
-            "gameType": "ZeroHour",
-            "version": version_str,
-            "buildDate": build_date,
-            "description": f"GeneralsOnline {version_str} portable release",
-            "cdnUrl": url,
-        }
-        entries.append(entry)
+    for cand in valid_candidates:
+        entry = build_generalsonline_entry(cand, inspect_binaries)
+        if entry:
+            entries.append(entry)
 
     return entries
+
+
+def _update_existing_entry(existing: dict, incoming: dict) -> None:
+    """Updates missing metadata and checksums on an existing catalog entry."""
+    if incoming.get("cdnUrl"):
+        existing["cdnUrl"] = incoming["cdnUrl"]
+    for key in ("exeCrc", "iniCrc"):
+        if not existing.get(key) and incoming.get(key):
+            existing[key] = normalize_hex(incoming[key])
+    if not existing.get("sha256") and incoming.get("sha256"):
+        existing["sha256"] = incoming["sha256"]
 
 
 def merge_catalogs(existing: list[dict], crawled: list[dict]) -> list[dict]:
@@ -297,18 +338,9 @@ def merge_catalogs(existing: list[dict], crawled: list[dict]) -> list[dict]:
         if not m_id:
             continue
         if m_id in by_manifest:
-            existing_entry = by_manifest[m_id]
-            if item.get("cdnUrl"):
-                existing_entry["cdnUrl"] = item["cdnUrl"]
-            if not existing_entry.get("exeCrc") and item.get("exeCrc"):
-                existing_entry["exeCrc"] = normalize_hex(item["exeCrc"])
-            if not existing_entry.get("sha256") and item.get("sha256"):
-                existing_entry["sha256"] = item["sha256"]
-            if not existing_entry.get("iniCrc") and item.get("iniCrc"):
-                existing_entry["iniCrc"] = normalize_hex(item["iniCrc"])
-        else:
-            if item.get("exeCrc"):
-                by_manifest[m_id] = item
+            _update_existing_entry(by_manifest[m_id], item)
+        elif item.get("exeCrc"):
+            by_manifest[m_id] = dict(item)
 
     return list(by_manifest.values())
 
@@ -360,7 +392,7 @@ def build_catalog(output_path: str = DEFAULT_OUTPUT_PATH, crawl: bool = False, i
                 loaded = json.load(f)
                 if isinstance(loaded, dict) and "mappings" in loaded:
                     existing_mappings = merge_catalogs(existing_mappings, loaded["mappings"])
-        except Exception as e:
+        except (OSError, json.JSONDecodeError) as e:
             print(f"Warning: could not read existing catalog: {e}", file=sys.stderr)
 
     if crawl:
