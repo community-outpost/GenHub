@@ -171,9 +171,7 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
 
     private void ShowStatus(string message)
     {
-        _statusMessage = message;
-        _isStatusMessageVisible = true;
-        OnPropertyChanged(nameof(StatusMessage));
-        OnPropertyChanged(nameof(IsStatusMessageVisible));
+        StatusMessage = message;
+        IsStatusMessageVisible = true;
     }
 }

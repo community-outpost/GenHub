@@ -106,7 +106,7 @@ public partial class ImportProfileInspectionViewModel : ObservableObject
     /// <summary>
     /// Gets a value indicating whether there are dependencies that need to be downloaded.
     /// </summary>
-    public bool HasMissingDownloads => _missingManifestCount > 0;
+    public bool HasMissingDownloads => MissingManifestCount > 0;
 
     /// <summary>
     /// Event triggered when the dialog requests to close.
@@ -296,9 +296,7 @@ public partial class ImportProfileInspectionViewModel : ObservableObject
 
     private void SetError(string message)
     {
-        _errorMessage = message;
-        _hasError = true;
-        OnPropertyChanged(nameof(ErrorMessage));
-        OnPropertyChanged(nameof(HasError));
+        ErrorMessage = message;
+        HasError = true;
     }
 }

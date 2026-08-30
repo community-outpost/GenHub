@@ -10,6 +10,7 @@ using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameProfiles;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.GameProfiles.ViewModels;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -226,7 +227,7 @@ public class ImportProfileInspectionViewModelTests
             ManifestId = "outpost.mod.shockwave.1.20",
             DisplayName = "ShockWave Mod",
             Version = "1.20",
-            ContentType = ContentType.Mod,
+            ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
             Publisher = "Community Outpost",
             DownloadSize = 500 * 1024 * 1024,
             IsCachedLocally = false,
@@ -255,6 +256,7 @@ public class ImportProfileInspectionViewModelTests
             ProfileMetadata = package.Profile,
             Manifests = [dependency],
             HasValidGameInstallation = true,
+            MatchedGameInstallationId = null,
             CompatibleInstallations = [],
             TotalDownloadBytesRequired = 500 * 1024 * 1024,
             CachedManifestCount = 0,
