@@ -296,12 +296,24 @@ After packaging, Velopack generates:
 - **User Data**: `%APPDATA%\GenHub\`
 - **Update Cache**: `%LOCALAPPDATA%\GenHub\packages\`
 
-**Note**: Velopack uses a "one-click" installer that always installs to LocalAppData. This location:
+**Note**: Velopack uses a "one-click" installer that installs to LocalAppData by default. This location:
 
 - Does not require administrator privileges
 - Is standard for modern auto-updating applications (VS Code, Discord, Slack, etc.)
 - Enables seamless automatic updates
 - Is isolated per-user for better security
+
+### Custom Installation Path (--installto)
+
+Users who wish to install GenHub to a custom drive or directory (e.g. `D:\Games\GenHub`) can use the `--installto` (or short form `-t`) parameter during setup:
+
+```cmd
+GenHub-win-Setup.exe --installto "D:\Games\GenHub"
+```
+
+Any application arguments must follow a `--` separator if needed. When `--installto` is specified, Velopack installs all binaries, `Update.exe`, and package metadata into the designated target folder instead of `%LOCALAPPDATA%\GenHub\`. Automatic updates continue to work normally within the custom installation directory.
+
+Existing installations on `C:` can also be migrated to a new location at any time using the in-app **Settings → Migrate Installation** workflow.
 
 ### Linux Installation
 
@@ -309,7 +321,11 @@ After packaging, Velopack generates:
 - **User Data**: `~/.config/GenHub/`
 - **Update Cache**: `~/.cache/GenHub/`
 
-The app ID `GenHub` ensures clean, predictable installation paths without vendor prefixes.
+The app ID `GenHub` ensures clean, predictable installation paths without vendor prefixes. Note that CI release pipelines currently produce `.nupkg` packages and JSON release-feed manifests for Linux updates; no standalone installer or AppImage picker is distributed at this time.
+
+### Protocol Handler & URI Scheme Registration
+
+On Windows, the `genhub://` custom URI scheme is registered under `HKCU\Software\Classes\genhub` on application startup. If the installation directory is moved or migrated to a different folder or drive, the registration automatically self-heals upon next launch from the new location by updating the command path in the registry. Linux and macOS do not use registry-based protocol handlers, so no re-registration is needed on those platforms.
 
 ## Update Features
 
@@ -470,6 +486,13 @@ Common issues:
 - Ensure using `ApplyUpdatesAndRestart()` not `ApplyUpdatesAndExit()`
 - Check logs for update application errors
 - Verify update package integrity
+
+### Custom Installation Directory Updates
+
+When GenHub is installed into a custom directory via `--installto <path>` or relocated using the in-app migration tool:
+- Automatic updates continue to operate seamlessly within the custom directory. Velopack automatically resolves the update root relative to the running executable's path (`AppContext.BaseDirectory`).
+- New version binaries and packages will be staged and applied directly inside the custom folder without reverting to `%LOCALAPPDATA%\GenHub`.
+- Desktop shortcuts and protocol handler registrations automatically point to the new location.
 
 ## Security Considerations
 

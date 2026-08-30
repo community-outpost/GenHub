@@ -421,6 +421,64 @@
         </Border>
       </Expander>
 
+      <!-- Migrate Installation -->
+      <Expander x:Name="Expander_MigrateInstallation" IsExpanded="False" HorizontalAlignment="Stretch">
+        <Expander.Header>
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <PathIcon Data="M20,6H12L10,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8A2,2 0 0,0 20,6M12,17L8,13H11V9H13V13H16L12,17Z"
+                          Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
+                <TextBlock Text="Migrate Installation" Classes="section-header" Margin="0"/>
+            </StackPanel>
+        </Expander.Header>
+        <Border Padding="20">
+          <StackPanel Spacing="20">
+            <TextBlock Text="Relocate GenHub Installation" Classes="setting-label" />
+            <TextBlock Text="Move the GenHub application files and binaries to another drive or directory. Useful for freeing up space on your system partition."
+                       Classes="setting-description" />
+
+            <!-- Target Path -->
+            <StackPanel Spacing="8">
+              <TextBlock Text="Target Installation Directory" Classes="setting-label" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Grid.Column="0"
+                         Text="{Binding MigrationTargetPath}"
+                         Watermark="e.g. D:\Games\GenHub"
+                         LostFocus="OnTextBoxLostFocus" />
+                <Button Grid.Column="1"
+                        Content="Browse"
+                        Command="{Binding BrowseMigrationTargetPathCommand}"
+                        Classes="browse-button"
+                        IsEnabled="{Binding !IsMigrating}" />
+              </Grid>
+              <TextBlock Text="Select an empty or new folder on your preferred drive (e.g. D:\Games\GenHub)."
+                         Classes="setting-description" />
+            </StackPanel>
+
+            <!-- Relocate CAS and Workspaces Checkbox -->
+            <StackPanel Spacing="8">
+              <CheckBox Content="Also relocate CAS storage pool and game workspaces to target directory"
+                        IsChecked="{Binding RelocateCasAndWorkspacesWithMigration}"
+                        IsEnabled="{Binding !IsMigrating}" />
+              <TextBlock Text="Moves cached mod files, game content, and workspaces to the new drive to maximize freed space on the current drive."
+                         Classes="setting-description" Margin="24,0,0,0" />
+            </StackPanel>
+
+            <!-- Migration Progress (when active) -->
+            <StackPanel Spacing="8" IsVisible="{Binding IsMigrating}">
+              <ProgressBar Value="{Binding MigrationProgressPercentage}" Minimum="0" Maximum="100" Height="6" />
+              <TextBlock Text="{Binding MigrationStatusText}" Classes="setting-description" Foreground="{DynamicResource AccentBrush}" />
+            </StackPanel>
+
+            <!-- Migrate Button -->
+            <Button Content="Migrate Installation Location"
+                    Command="{Binding MigrateInstallationLocationCommand}"
+                    Classes="danger-button"
+                    IsEnabled="{Binding !IsMigrating}"
+                    Margin="0,8,0,0" />
+          </StackPanel>
+        </Border>
+      </Expander>
+
       <!-- Logs Settings -->
       <Expander x:Name="Expander_Logs" IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>

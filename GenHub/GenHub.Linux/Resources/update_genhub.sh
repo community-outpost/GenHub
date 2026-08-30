@@ -33,7 +33,7 @@ if kill -0 $PROCESS_ID 2>/dev/null; then
 fi
 
 write_log "Ensuring all GenHub processes are closed..."
-+pkill -f "^$CURRENT_EXE\$" || true
+pkill -f "^$CURRENT_EXE\$" || true
 sleep 2
 
 write_log "Starting file replacement..."

@@ -42,6 +42,7 @@ public class SettingsViewModelTests
     private readonly Mock<IStorageLocationService> _mockStorageLocationService;
     private readonly Mock<IUserDataTracker> _mockUserDataTracker;
     private readonly Mock<IDialogService> _mockDialogService;
+    private readonly Mock<IStorageMigrationService> _mockStorageMigrationService;
     private readonly UserSettings _defaultSettings;
 
     /// <summary>
@@ -62,6 +63,7 @@ public class SettingsViewModelTests
         _mockStorageLocationService = new Mock<IStorageLocationService>();
         _mockUserDataTracker = new Mock<IUserDataTracker>();
         _mockDialogService = new Mock<IDialogService>();
+        _mockStorageMigrationService = new Mock<IStorageMigrationService>();
         _defaultSettings = new UserSettings();
 
         _mockConfigService.Setup(x => x.Get()).Returns(_defaultSettings);
@@ -88,20 +90,7 @@ public class SettingsViewModelTests
         _mockConfigService.Setup(x => x.Get()).Returns(customSettings);
 
         // Act
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object);
+        var viewModel = CreateViewModel();
 
         // Assert
         Assert.Equal("Emerald", viewModel.Theme);
@@ -118,24 +107,9 @@ public class SettingsViewModelTests
     public async Task SaveSettingsCommand_UpdatesUserSettingsServiceAsync()
     {
         // Arrange
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object)
-        {
-            Theme = "Emerald",
-            MaxConcurrentDownloads = 5,
-        };
+        var viewModel = CreateViewModel();
+        viewModel.Theme = "Emerald";
+        viewModel.MaxConcurrentDownloads = 5;
 
         _mockConfigService.Invocations.Clear();
 
@@ -155,25 +129,10 @@ public class SettingsViewModelTests
     public async Task ResetToDefaultsCommand_ResetsAllPropertiesAsync()
     {
         // Arrange
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object)
-        {
-            Theme = "Emerald",
-            MaxConcurrentDownloads = 10,
-            EnableDetailedLogging = true,
-        };
+        var viewModel = CreateViewModel();
+        viewModel.Theme = "Emerald";
+        viewModel.MaxConcurrentDownloads = 10;
+        viewModel.EnableDetailedLogging = true;
 
         // Act
         await Task.Run(() => viewModel.ResetToDefaultsCommand.Execute(null));
@@ -203,20 +162,7 @@ public class SettingsViewModelTests
         _mockConfigService.Setup(x => x.Get()).Returns(customSettings);
 
         // Act
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object);
+        var viewModel = CreateViewModel();
 
         // Assert
         Assert.False(viewModel.AutoCheckForUpdatesPeriodically);
@@ -231,24 +177,9 @@ public class SettingsViewModelTests
     public async Task SaveSettingsCommand_UpdatesPeriodicUpdateSettingsAsync()
     {
         // Arrange
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object)
-        {
-            AutoCheckForUpdatesPeriodically = false,
-            PeriodicUpdateCheckIntervalMinutes = 45,
-        };
+        var viewModel = CreateViewModel();
+        viewModel.AutoCheckForUpdatesPeriodically = false;
+        viewModel.PeriodicUpdateCheckIntervalMinutes = 45;
 
         UserSettings? capturedSettings = null;
         _mockConfigService.Setup(x => x.Update(It.IsAny<Action<UserSettings>>()))
@@ -274,24 +205,8 @@ public class SettingsViewModelTests
     public void MaxConcurrentDownloads_SetsValueWithinBounds()
     {
         // Arrange
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object)
-        {
-            // Act & Assert - Test lower bound
-            MaxConcurrentDownloads = 0,
-        };
+        var viewModel = CreateViewModel();
+        viewModel.MaxConcurrentDownloads = 0;
         Assert.Equal(1, viewModel.MaxConcurrentDownloads); // ViewModel clamps to 1
 
         // Act & Assert - Test upper bound
@@ -310,20 +225,7 @@ public class SettingsViewModelTests
     public void AvailableThemes_ReturnsExpectedValues()
     {
         // Arrange
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object);
+        var viewModel = CreateViewModel();
 
         // Act
         var themes = viewModel.AvailableThemes.Select(t => t.Id).ToList();
@@ -341,20 +243,7 @@ public class SettingsViewModelTests
     public void AvailableWorkspaceStrategies_ReturnsAllEnumValues()
     {
         // Arrange
-        _ = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object);
+        _ = CreateViewModel();
 
         // Act
         var strategies = SettingsViewModel.AvailableWorkspaceStrategies.ToList();
@@ -374,20 +263,7 @@ public class SettingsViewModelTests
     {
         // Arrange
         _mockConfigService.Setup(x => x.SaveAsync(default)).ThrowsAsync(new IOException("Disk full"));
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object);
+        var viewModel = CreateViewModel();
 
         // Act
         await Task.Run(() => viewModel.SaveSettingsCommand.Execute(null));
@@ -413,20 +289,7 @@ public class SettingsViewModelTests
         _mockConfigService.Setup(x => x.Get()).Throws(new Exception("Configuration error"));
 
         // Act
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object);
+        var viewModel = CreateViewModel();
 
         // Assert - Should not throw and use defaults
         Assert.Equal("Dark", viewModel.Theme);
@@ -501,7 +364,6 @@ public class SettingsViewModelTests
                 It.IsAny<string>(),
                 It.IsAny<string?>()))
             .ReturnsAsync(true);
-
         var viewModel = CreateViewModel();
 
         // Act
@@ -1153,21 +1015,7 @@ public class SettingsViewModelTests
         var mockThemeService = new Mock<IThemeService>();
         mockThemeService.Setup(s => s.AvailableThemes).Returns(ThemeConstants.AllThemes);
 
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object,
-            mockThemeService.Object);
+        var viewModel = CreateViewModel(mockThemeService.Object);
 
         // Act
         await viewModel.SelectColorThemeCommand.ExecuteAsync(ThemeConstants.EmeraldTheme);
@@ -1191,24 +1039,8 @@ public class SettingsViewModelTests
         var mockThemeService = new Mock<IThemeService>();
         mockThemeService.Setup(s => s.AvailableThemes).Returns(ThemeConstants.AllThemes);
 
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object,
-            mockThemeService.Object)
-        {
-            Theme = "Emerald",
-        };
+        var viewModel = CreateViewModel(mockThemeService.Object);
+        viewModel.Theme = "Emerald";
 
         // Act
         await viewModel.ResetToDefaultsCommand.ExecuteAsync(null);
@@ -1232,7 +1064,7 @@ public class SettingsViewModelTests
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([new ContentManifest { Name = "manifest-to-delete" }]));
     }
 
-    private SettingsViewModel CreateViewModel() => new(
+    private SettingsViewModel CreateViewModel(IThemeService? themeService = null) => new(
         _mockConfigService.Object,
         _mockLogger.Object,
         _mockCasService.Object,
@@ -1245,5 +1077,7 @@ public class SettingsViewModelTests
         _mockInstallationService.Object,
         _mockStorageLocationService.Object,
         _mockUserDataTracker.Object,
-        _mockDialogService.Object);
+        _mockDialogService.Object,
+        _mockStorageMigrationService.Object,
+        themeService);
 }
