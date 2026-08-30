@@ -13,6 +13,30 @@ namespace GenHub.Tools;
 /// </summary>
 public static class Program
 {
+    private const string UsageHelpText = """
+        GenHub CSV Generation Utility
+        ================================
+        Usage: GenHub.Tools --installDir <path> --gameType <Generals|ZeroHour> --version <v> --output <file> [options]
+
+        Required arguments:
+          --installDir <path>      Path to the game installation root directory.
+          --gameType <type>        Target game type: 'Generals' or 'ZeroHour'.
+          --version <version>      Game release version (e.g., '1.08', '1.04').
+          --output <csv-path>      Path to save the generated CSV catalog file.
+
+        Optional options:
+          --language <code>        Canonical language code for localized files (default: 'EN').
+                                   Supported: EN, DE, FR, ES, IT, KO, PL, PT-BR, ZH-CN, ZH-TW, All.
+          --updateIndex            Automatically update or create index.json with new checksums.
+          --index <json-path>      Custom path to index.json (used with --updateIndex).
+          --downloadUrl <url>      Custom download URL prefix or template.
+          --help, -h               Show this help information.
+
+        Examples:
+          GenHub.Tools --installDir "C:\Games\Generals" --gameType Generals --version 1.08 --output "docs/GameInstallationFilesRegistry/Generals-1.08.csv" --language EN --updateIndex
+          GenHub.Tools --installDir "C:\Games\ZeroHour" --gameType ZeroHour --version 1.04 --output "docs/GameInstallationFilesRegistry/ZeroHour-1.04.csv" --language DE --updateIndex
+        """;
+
     /// <summary>
     /// Parses command-line arguments into a structured <see cref="CsvGeneratorOptions"/> object.
     /// </summary>
@@ -33,44 +57,58 @@ public static class Program
 
         for (var i = 0; i < args.Length; i++)
         {
-            var arg = args[i];
-            if (arg.Equals("--updateIndex", StringComparison.OrdinalIgnoreCase))
-            {
-                updateIndex = true;
-                continue;
-            }
+            ParseArgument(args, ref i, dict, ref updateIndex, knownValueOptions);
+        }
 
-            if (arg.Equals("--help", StringComparison.OrdinalIgnoreCase) ||
-                arg.Equals("-h", StringComparison.OrdinalIgnoreCase) ||
-                arg.Equals("/?", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
+        ValidateRequiredArguments(dict);
 
-            if (arg.StartsWith("--", StringComparison.Ordinal))
-            {
-                var key = arg[2..];
-                if (!knownValueOptions.Contains(key))
-                {
-                    throw new ArgumentException($"Unrecognized command-line argument: {arg}");
-                }
+        return BuildOptions(dict, updateIndex);
+    }
 
-                if (i + 1 < args.Length && !args[i + 1].StartsWith("--", StringComparison.Ordinal))
-                {
-                    dict[key] = args[i + 1];
-                    i++;
-                }
-                else
-                {
-                    throw new ArgumentException($"Option {arg} requires a value.");
-                }
-            }
-            else
+    private static void ParseArgument(
+        string[] args,
+        ref int i,
+        Dictionary<string, string> dict,
+        ref bool updateIndex,
+        HashSet<string> knownValueOptions)
+    {
+        var arg = args[i];
+        if (arg.Equals("--updateIndex", StringComparison.OrdinalIgnoreCase))
+        {
+            updateIndex = true;
+            return;
+        }
+
+        if (arg.Equals("--help", StringComparison.OrdinalIgnoreCase) ||
+            arg.Equals("-h", StringComparison.OrdinalIgnoreCase) ||
+            arg.Equals("/?", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (arg.StartsWith("--", StringComparison.Ordinal))
+        {
+            var key = arg[2..];
+            if (!knownValueOptions.Contains(key))
             {
                 throw new ArgumentException($"Unrecognized command-line argument: {arg}");
             }
+
+            if (i + 1 < args.Length && !args[i + 1].StartsWith("--", StringComparison.Ordinal))
+            {
+                dict[key] = args[i + 1];
+                i++;
+                return;
+            }
+
+            throw new ArgumentException($"Option {arg} requires a value.");
         }
 
+        throw new ArgumentException($"Unrecognized command-line argument: {arg}");
+    }
+
+    private static void ValidateRequiredArguments(Dictionary<string, string> dict)
+    {
         var required = new[] { "installDir", "gameType", "version", "output" };
         foreach (var req in required)
         {
@@ -79,7 +117,10 @@ public static class Program
                 throw new ArgumentException($"Missing required command-line argument: --{req}");
             }
         }
+    }
 
+    private static CsvGeneratorOptions BuildOptions(Dictionary<string, string> dict, bool updateIndex)
+    {
         var language = dict.TryGetValue("language", out var lang) ? lang : CsvConstants.LanguageEn;
         var index = dict.TryGetValue("index", out var idx) ? idx : null;
         var downloadUrl = dict.TryGetValue("downloadUrl", out var dl) ? dl : null;
@@ -161,26 +202,6 @@ public static class Program
 
     private static void PrintUsage(ILogger logger)
     {
-        logger.LogInformation("GenHub CSV Generation Utility");
-        logger.LogInformation("================================");
-        logger.LogInformation("Usage: GenHub.Tools --installDir <path> --gameType <Generals|ZeroHour> --version <v> --output <file> [options]");
-        logger.LogInformation(string.Empty);
-        logger.LogInformation("Required arguments:");
-        logger.LogInformation("  --installDir <path>      Path to the game installation root directory.");
-        logger.LogInformation("  --gameType <type>        Target game type: 'Generals' or 'ZeroHour'.");
-        logger.LogInformation("  --version <version>      Game release version (e.g., '1.08', '1.04').");
-        logger.LogInformation("  --output <csv-path>      Path to save the generated CSV catalog file.");
-        logger.LogInformation(string.Empty);
-        logger.LogInformation("Optional options:");
-        logger.LogInformation("  --language <code>        Canonical language code for localized files (default: 'EN').");
-        logger.LogInformation("                           Supported: EN, DE, FR, ES, IT, KO, PL, PT-BR, ZH-CN, ZH-TW, All.");
-        logger.LogInformation("  --updateIndex            Automatically update or create index.json with new checksums.");
-        logger.LogInformation("  --index <json-path>      Custom path to index.json (used with --updateIndex).");
-        logger.LogInformation("  --downloadUrl <url>      Custom download URL prefix or template.");
-        logger.LogInformation("  --help, -h               Show this help information.");
-        logger.LogInformation(string.Empty);
-        logger.LogInformation("Examples:");
-        logger.LogInformation("  GenHub.Tools --installDir \"C:\\Games\\Generals\" --gameType Generals --version 1.08 --output \"docs/GameInstallationFilesRegistry/Generals-1.08.csv\" --language EN --updateIndex");
-        logger.LogInformation("  GenHub.Tools --installDir \"C:\\Games\\ZeroHour\" --gameType ZeroHour --version 1.04 --output \"docs/GameInstallationFilesRegistry/ZeroHour-1.04.csv\" --language DE --updateIndex");
+        logger.LogInformation("{UsageText}", UsageHelpText);
     }
 }

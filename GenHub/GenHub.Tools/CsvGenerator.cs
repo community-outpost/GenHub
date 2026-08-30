@@ -169,7 +169,8 @@ public class CsvGenerator(ILogger logger)
                     ? options.IndexFilePath
                     : Path.Combine(outputDir ?? string.Empty, "index.json");
 
-                await UpdateIndexFileAsync(options, normalizedGameType, indexPath, entries.Count, csvSize, csvMd5, csvSha256, cancellationToken);
+                var checksum = new Checksum { Md5 = csvMd5, Sha256 = csvSha256 };
+                await UpdateIndexFileAsync(options, normalizedGameType, indexPath, entries.Count, csvSize, checksum, cancellationToken);
                 indexUpdated = true;
             }
 
@@ -288,8 +289,8 @@ public class CsvGenerator(ILogger logger)
         sha256.TransformFinalBlock([], 0, 0);
 
         return (
-            Convert.ToHexString(md5.Hash!).ToLowerInvariant(),
-            Convert.ToHexString(sha256.Hash!).ToLowerInvariant());
+            Convert.ToHexString(md5.Hash ?? []).ToLowerInvariant(),
+            Convert.ToHexString(sha256.Hash ?? []).ToLowerInvariant());
     }
 
     [SuppressMessage("Security", "CA5351:Do Not Use Broken Cryptographic Algorithms", Justification = "MD5 hash is required by the CSV catalog format for backward compatibility.")]
@@ -436,6 +437,45 @@ public class CsvGenerator(ILogger logger)
         };
     }
 
+    private static string? TryGetFullPath(string path)
+    {
+        try
+        {
+            return Path.GetFullPath(path);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            return null;
+        }
+        catch (PathTooLongException)
+        {
+            return null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    private static bool ShouldSkipFile(string file, string? normalizedOutputPath)
+    {
+        if (normalizedOutputPath == null)
+        {
+            return false;
+        }
+
+        var fullPath = TryGetFullPath(file);
+        return fullPath != null && string.Equals(fullPath, normalizedOutputPath, StringComparison.OrdinalIgnoreCase);
+    }
+
     private async Task<(List<CsvCatalogEntry> Entries, int FilesScanned, List<string> Failures)> ScanInstallationAsync(
         string installationPath,
         string gameType,
@@ -448,19 +488,7 @@ public class CsvGenerator(ILogger logger)
         var failures = new List<string>();
         var files = Directory.GetFiles(installationPath, "*", SearchOption.AllDirectories);
         var totalFiles = files.Length;
-
-        string? normalizedOutputPath = null;
-        if (!string.IsNullOrWhiteSpace(outputPath))
-        {
-            try
-            {
-                normalizedOutputPath = Path.GetFullPath(outputPath);
-            }
-            catch (Exception)
-            {
-                normalizedOutputPath = null;
-            }
-        }
+        var normalizedOutputPath = !string.IsNullOrWhiteSpace(outputPath) ? TryGetFullPath(outputPath) : null;
 
         logger.LogInformation("Scanning {Count} files in {Path}", totalFiles, installationPath);
 
@@ -469,19 +497,9 @@ public class CsvGenerator(ILogger logger)
             cancellationToken.ThrowIfCancellationRequested();
             var file = files[i];
 
-            if (normalizedOutputPath != null)
+            if (ShouldSkipFile(file, normalizedOutputPath))
             {
-                try
-                {
-                    if (string.Equals(Path.GetFullPath(file), normalizedOutputPath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-                }
-                catch (Exception)
-                {
-                    // Ignore path resolution failure and proceed
-                }
+                continue;
             }
 
             if (i > 0 && i % 100 == 0)
@@ -489,26 +507,47 @@ public class CsvGenerator(ILogger logger)
                 logger.LogInformation("Processed {Current}/{Total} files", i, totalFiles);
             }
 
-            try
-            {
-                var entry = await CreateCsvEntryAsync(file, installationPath, gameType, languageCode, downloadUrlOverride, cancellationToken);
-                if (entry != null)
-                {
-                    entries.Add(entry);
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to process file: {Path}", file);
-                failures.Add($"{file}: {ex.Message}");
-            }
+            await ProcessInstallationFileAsync(
+                file,
+                installationPath,
+                gameType,
+                languageCode,
+                downloadUrlOverride,
+                entries,
+                failures,
+                cancellationToken);
         }
 
         return (entries.OrderBy(e => e.RelativePath, StringComparer.OrdinalIgnoreCase).ToList(), totalFiles, failures);
+    }
+
+    private async Task ProcessInstallationFileAsync(
+        string file,
+        string installationPath,
+        string gameType,
+        string languageCode,
+        string? downloadUrlOverride,
+        List<CsvCatalogEntry> entries,
+        List<string> failures,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var entry = await CreateCsvEntryAsync(file, installationPath, gameType, languageCode, downloadUrlOverride, cancellationToken);
+            if (entry != null)
+            {
+                entries.Add(entry);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to process file: {Path}", file);
+            failures.Add($"{file}: {ex.Message}");
+        }
     }
 
     private async Task UpdateIndexFileAsync(
@@ -517,8 +556,7 @@ public class CsvGenerator(ILogger logger)
         string indexPath,
         int entryCount,
         long totalSizeBytes,
-        string csvMd5,
-        string csvSha256,
+        Checksum checksum,
         CancellationToken cancellationToken)
     {
         CsvCatalogRegistryIndex index;
@@ -553,7 +591,7 @@ public class CsvGenerator(ILogger logger)
             existingEntry.Url = entryUrl;
             existingEntry.FileCount = entryCount;
             existingEntry.TotalSizeBytes = totalSizeBytes;
-            existingEntry.Checksum = new Checksum { Md5 = csvMd5, Sha256 = csvSha256 };
+            existingEntry.Checksum = checksum;
             existingEntry.GeneratedAt = DateTime.UtcNow;
             existingEntry.GeneratorVersion = "1.0.0";
             existingEntry.IsActive = true;
@@ -596,7 +634,7 @@ public class CsvGenerator(ILogger logger)
                     CsvConstants.LanguageZhCn,
                     CsvConstants.LanguageZhTw,
                 ],
-                Checksum = new Checksum { Md5 = csvMd5, Sha256 = csvSha256 },
+                Checksum = checksum,
                 GeneratedAt = DateTime.UtcNow,
                 GeneratorVersion = "1.0.0",
                 IsActive = true,

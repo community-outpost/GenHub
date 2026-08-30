@@ -180,10 +180,7 @@ public class PublisherProfileOrchestrator(
                     if (string.Equals(publisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
                     {
                         // Check for 'basegame' tag in metadata (added by CommunityOutpostResolver)
-                        var hasBaseGameTag = m.Metadata?.Tags?.Any(t =>
-                            t.Equals("basegame", StringComparison.OrdinalIgnoreCase)) ?? false;
-
-                        if (hasBaseGameTag)
+                        if (m.Metadata?.Tags?.Any(t => t.Equals("basegame", StringComparison.OrdinalIgnoreCase)) == true)
                         {
                             logger.LogDebug(
                                 "Skipping base game manifest {ManifestId} - base games should only be created when user declines Community Patch",
