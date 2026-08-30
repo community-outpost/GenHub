@@ -1131,7 +1131,10 @@ public class ProfileSharingService(
                 var contentPathResult = await casService.GetContentPathAsync(file.Hash, manifest.ContentType, cancellationToken);
                 if (contentPathResult.Success && File.Exists(contentPathResult.Data))
                 {
-                    archive.CreateEntryFromFile(contentPathResult.Data, file.RelativePath);
+                    var entry = archive.CreateEntry(file.RelativePath, CompressionLevel.Optimal);
+                    await using var entryStream = entry.Open();
+                    await using var sourceStream = File.OpenRead(contentPathResult.Data);
+                    await sourceStream.CopyToAsync(entryStream, cancellationToken);
                 }
                 else
                 {
@@ -1431,7 +1434,32 @@ public class ProfileSharingService(
         SharedManifestDependency dependency,
         CancellationToken cancellationToken)
     {
-        ZipFile.ExtractToDirectory(tempZipPath, stagingDir, true);
+        using (var archive = ZipFile.OpenRead(tempZipPath))
+        {
+            foreach (var entry in archive.Entries)
+            {
+                if (string.IsNullOrEmpty(entry.Name))
+                {
+                    continue;
+                }
+
+                var destinationPath = Path.GetFullPath(Path.Combine(stagingDir, entry.FullName));
+                if (!destinationPath.StartsWith(Path.GetFullPath(stagingDir), StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var directory = Path.GetDirectoryName(destinationPath);
+                if (!string.IsNullOrEmpty(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                await using var entryStream = entry.Open();
+                await using var outputStream = File.Create(destinationPath);
+                await entryStream.CopyToAsync(outputStream, cancellationToken);
+            }
+        }
 
         foreach (var file in dependency.Files)
         {
