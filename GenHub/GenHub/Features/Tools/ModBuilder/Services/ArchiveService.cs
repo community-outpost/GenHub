@@ -19,6 +19,7 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 /// <summary>
 /// Service for creating various archive formats (BIG, ZIP, TAR, TAR.GZ).
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "S6966:Await async methods", Justification = "ZipArchiveEntry.Open and TarWriter.Write do not provide async overloads in standard BCL / SharpCompress")]
 public sealed class ArchiveService(
     ILogger<ArchiveService> logger) : IArchiveService
 {
