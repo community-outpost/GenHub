@@ -249,6 +249,7 @@ public class GameProfileModuleTests
             var repository = serviceProvider.GetService<IGameProfileRepository>();
 
             // Assert
+            Assert.NotNull(repository);
             var expectedProfilesDir = Path.Combine(tempDir, "Profiles");
             Assert.True(Directory.Exists(expectedProfilesDir));
         }

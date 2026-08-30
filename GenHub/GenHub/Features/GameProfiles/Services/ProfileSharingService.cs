@@ -367,19 +367,23 @@ public class ProfileSharingService(
 
     private static bool IsPrivateOrReservedIpv4(byte[] bytes)
     {
-        return bytes[0] == 0 ||
-               bytes[0] == 10 ||
-               (bytes[0] == 100 && bytes[1] >= 64 && bytes[1] <= 127) ||
-               bytes[0] == 127 ||
-               (bytes[0] == 169 && bytes[1] == 254) ||
-               (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) ||
-               (bytes[0] == 192 && bytes[1] == 168) ||
-               (bytes[0] == 192 && bytes[1] == 0 && bytes[2] == 0) ||
-               (bytes[0] == 192 && bytes[1] == 0 && bytes[2] == 2) ||
-               (bytes[0] == 198 && (bytes[1] == 18 || bytes[1] == 19)) ||
-               (bytes[0] == 198 && bytes[1] == 51 && bytes[2] == 100) ||
-               (bytes[0] == 203 && bytes[1] == 0 && bytes[2] == 113) ||
-               bytes[0] >= 224;
+        return bytes switch
+        {
+            [0, ..] => true,
+            [10, ..] => true,
+            [100, >= 64 and <= 127, ..] => true,
+            [127, ..] => true,
+            [169, 254, ..] => true,
+            [172, >= 16 and <= 31, ..] => true,
+            [192, 168, ..] => true,
+            [192, 0, 0, ..] => true,
+            [192, 0, 2, ..] => true,
+            [198, 18 or 19, ..] => true,
+            [198, 51, 100, ..] => true,
+            [203, 0, 113, ..] => true,
+            [>= 224, ..] => true,
+            _ => false,
+        };
     }
 
     private static async ValueTask<Stream> ConnectToValidatedAddressAsync(

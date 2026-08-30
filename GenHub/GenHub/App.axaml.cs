@@ -77,9 +77,7 @@ public partial class App : Application
 
             // Handle startup arguments sequentially once the window is opened and active
             mainWindow.Opened += (_, _) =>
-            {
                 SafeFireAndForget(HandleStartupArgsAsync(desktop.Args, mainWindow), nameof(HandleStartupArgsAsync));
-            };
         }
 
         base.OnFrameworkInitializationCompleted();
