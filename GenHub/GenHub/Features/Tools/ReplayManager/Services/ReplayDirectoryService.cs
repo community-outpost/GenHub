@@ -416,7 +416,7 @@ public sealed class ReplayDirectoryService(
             var patchManifest = allManifestsResult.Data.FirstOrDefault(m =>
                 (m.ContentType == ContentType.Patch || m.ContentType == ContentType.MapPack) &&
                 (string.Equals(m.Id.Value, dataPatchManifestId, StringComparison.OrdinalIgnoreCase) ||
-                 (m.Dependencies != null && m.Dependencies.Any(d => string.Equals(d.Id.Value, dataPatchManifestId, StringComparison.OrdinalIgnoreCase))) ||
+                 m.Dependencies?.Any(d => string.Equals(d.Id.Value, dataPatchManifestId, StringComparison.OrdinalIgnoreCase)) == true ||
                  (!string.IsNullOrEmpty(publisher) && string.Equals(m.Publisher?.PublisherType, publisher, StringComparison.OrdinalIgnoreCase))));
 
             if (patchManifest != null)
@@ -428,6 +428,16 @@ public sealed class ReplayDirectoryService(
         return null;
     }
 
+    private static string GetReplayClientTitle(ReplayFile replay)
+    {
+        if (replay.MatchedClient != null)
+        {
+            return replay.MatchedClient.Description ?? replay.MatchedClient.Publisher ?? "Game";
+        }
+
+        return replay.GameVersion == GameType.ZeroHour ? "Zero Hour" : "Generals";
+    }
+
     private static CreateProfileRequest BuildReplayProfileRequest(
         ReplayFile replay,
         GameInstallation installation,
@@ -436,9 +446,7 @@ public sealed class ReplayDirectoryService(
         List<string> enabledContentIds)
     {
         var isUnmapped = replay.MatchedClient == null;
-        var clientTitle = isUnmapped
-            ? (replay.GameVersion == GameType.ZeroHour ? "Zero Hour" : "Generals")
-            : (replay.MatchedClient?.Description ?? replay.MatchedClient?.Publisher ?? "Game");
+        var clientTitle = GetReplayClientTitle(replay);
 
         var profileName = $"{clientTitle} (Replay: {Path.GetFileNameWithoutExtension(replay.FileName)})";
         var description = isUnmapped
@@ -460,9 +468,9 @@ public sealed class ReplayDirectoryService(
 
     private static GameProfile? FindMatchingProfile(IEnumerable<GameProfile> profiles, GameType gameVersion, string clientManifestId, string? dataPatchManifestId)
     {
-        var isRetailClient = clientManifestId.Contains(ReplayManagerConstants.RetailManifestSegment) ||
-                             clientManifestId.Contains(".steam.") ||
-                             clientManifestId.Contains(".eaapp.");
+        var isRetailClient = clientManifestId.Contains(ReplayManagerConstants.RetailManifestSegment, StringComparison.OrdinalIgnoreCase) ||
+                             clientManifestId.Contains(".steam.", StringComparison.OrdinalIgnoreCase) ||
+                             clientManifestId.Contains(".eaapp.", StringComparison.OrdinalIgnoreCase);
 
         return profiles.FirstOrDefault(p =>
         {
@@ -481,8 +489,8 @@ public sealed class ReplayDirectoryService(
     {
         var isProfileThirdParty = string.Equals(profile.GameClient?.PublisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
                                   string.Equals(profile.GameClient?.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
-                                  (profile.GameClient?.Id != null && (profile.GameClient.Id.Contains(".superhackers.") || profile.GameClient.Id.Contains(".generalsonline."))) ||
-                                  (profile.EnabledContentIds != null && profile.EnabledContentIds.Any(id => id.Contains(".superhackers.") || id.Contains(".generalsonline.")));
+                                  (profile.GameClient?.Id != null && (profile.GameClient.Id.Contains(".superhackers.", StringComparison.OrdinalIgnoreCase) || profile.GameClient.Id.Contains(".generalsonline.", StringComparison.OrdinalIgnoreCase))) ||
+                                  profile.EnabledContentIds?.Any(id => id.Contains(".superhackers.", StringComparison.OrdinalIgnoreCase) || id.Contains(".generalsonline.", StringComparison.OrdinalIgnoreCase)) == true;
 
         if (isProfileThirdParty)
         {
@@ -491,11 +499,14 @@ public sealed class ReplayDirectoryService(
 
         if (!string.IsNullOrEmpty(dataPatchManifestId))
         {
-            return profile.EnabledContentIds != null && profile.EnabledContentIds.Any(id => string.Equals(id, dataPatchManifestId, StringComparison.OrdinalIgnoreCase));
+            return profile.EnabledContentIds?.Any(id => string.Equals(id, dataPatchManifestId, StringComparison.OrdinalIgnoreCase)) == true;
         }
 
-        var hasCustomDataPatch = profile.EnabledContentIds != null && profile.EnabledContentIds.Any(id =>
-            id.Contains(".gamedata.") || id.Contains(".datapatch.") || id.Contains(".community.") || id.Contains(".mod."));
+        var hasCustomDataPatch = profile.EnabledContentIds?.Any(id =>
+            id.Contains(".gamedata.", StringComparison.OrdinalIgnoreCase) ||
+            id.Contains(".datapatch.", StringComparison.OrdinalIgnoreCase) ||
+            id.Contains(".community.", StringComparison.OrdinalIgnoreCase) ||
+            id.Contains(".mod.", StringComparison.OrdinalIgnoreCase)) == true;
 
         return !hasCustomDataPatch;
     }
@@ -510,7 +521,7 @@ public sealed class ReplayDirectoryService(
             var publisher = ExtractPublisherFromManifestId(clientManifestId);
             if (!string.IsNullOrEmpty(publisher) &&
                 (string.Equals(profile.GameClient?.PublisherType, publisher, StringComparison.OrdinalIgnoreCase) ||
-                 (profile.EnabledContentIds != null && profile.EnabledContentIds.Any(id => id.Contains("." + publisher + ".")))))
+                 profile.EnabledContentIds?.Any(id => id.Contains("." + publisher + ".", StringComparison.OrdinalIgnoreCase)) == true))
             {
                 clientMatches = true;
             }
