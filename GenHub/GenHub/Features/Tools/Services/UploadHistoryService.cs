@@ -42,7 +42,10 @@ public sealed class UploadHistoryService(
     private List<UploadRecord>? _cache;
 
     /// <inheritdoc />
-    public long MaxUploadBytesPerPeriod => MapManagerConstants.MaxUploadBytesPerPeriod;
+    public event EventHandler? UploadHistoryChanged;
+
+    /// <inheritdoc />
+    public long MaxUploadBytesPerPeriod => ReplayManagerConstants.MaxUploadBytesPerPeriod;
 
     /// <inheritdoc />
     public async Task<bool> CanUploadAsync(long fileSizeBytes, string? category = null)
@@ -83,6 +86,7 @@ public sealed class UploadHistoryService(
                 SaveHistoryInternal(history);
                 _cache = history; // Update cache
                 logger.LogInformation("Recorded upload of {Size} bytes for category '{Category}'. Total history: {Count} items.", fileSizeBytes, resolvedCategory, history.Count);
+                UploadHistoryChanged?.Invoke(this, EventArgs.Empty);
             }
             catch (IOException ex)
             {
@@ -202,6 +206,7 @@ public sealed class UploadHistoryService(
                     "Removed {Count} item(s) for {Url} from upload history.",
                     removed,
                     url);
+                UploadHistoryChanged?.Invoke(this, EventArgs.Empty);
             }
         }
 
@@ -233,6 +238,7 @@ public sealed class UploadHistoryService(
                 SaveHistoryInternal(history);
                 _cache = history;
                 logger.LogInformation("Cleared {RemovedCount} upload history items for category '{Category}'. Failed cloud deletions: {FailedCount}.", removed, category ?? "all", failedDeletions.Count);
+                UploadHistoryChanged?.Invoke(this, EventArgs.Empty);
             }
         }
 
@@ -240,9 +246,7 @@ public sealed class UploadHistoryService(
     }
 
     private static long GetLimitForCategory(string? category) =>
-        string.Equals(category, ReplayManagerConstants.UploadCategory, StringComparison.OrdinalIgnoreCase)
-            ? ReplayManagerConstants.MaxUploadBytesPerPeriod
-            : MapManagerConstants.MaxUploadBytesPerPeriod;
+        ReplayManagerConstants.MaxUploadBytesPerPeriod;
 
     private static string InferCategory(string? fileName)
     {

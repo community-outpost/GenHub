@@ -287,6 +287,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _uploadHistoryService = uploadHistoryService;
         ActiveUploads = new(_activeUploads);
 
+        if (_uploadHistoryService != null)
+        {
+            _uploadHistoryService.UploadHistoryChanged += OnUploadHistoryChanged;
+        }
+
         LoadSettings();
         _ = RefreshUploadsAsync();
         _ = LoadPatStatusAsync();
@@ -405,12 +410,22 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             if (disposing)
             {
+                if (_uploadHistoryService != null)
+                {
+                    _uploadHistoryService.UploadHistoryChanged -= OnUploadHistoryChanged;
+                }
+
                 _memoryUpdateTimer?.Dispose();
                 _dangerZoneUpdateTimer?.Dispose();
             }
 
             _disposed = true;
         }
+    }
+
+    private void OnUploadHistoryChanged(object? sender, EventArgs e)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = RefreshUploadsAsync());
     }
 
     // Handle text property changes with validation
