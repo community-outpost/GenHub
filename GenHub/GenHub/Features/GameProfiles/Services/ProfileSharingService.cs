@@ -82,7 +82,7 @@ public class ProfileSharingService(
         {
             if (string.IsNullOrWhiteSpace(profileId))
             {
-                return OperationResult<string>.CreateFailure("Profile identifier cannot be empty.");
+                return OperationResult<string>.CreateFailure(ProfileSharingConstants.EmptyProfileIdErrorMessage);
             }
 
             var packageResult = await BuildPackageFromProfileIdAsync(profileId, cancellationToken);
@@ -118,7 +118,7 @@ public class ProfileSharingService(
         {
             if (string.IsNullOrWhiteSpace(profileId))
             {
-                return OperationResult<string>.CreateFailure("Profile identifier cannot be empty.");
+                return OperationResult<string>.CreateFailure(ProfileSharingConstants.EmptyProfileIdErrorMessage);
             }
 
             if (string.IsNullOrWhiteSpace(destinationPath))
@@ -157,7 +157,7 @@ public class ProfileSharingService(
         {
             if (string.IsNullOrWhiteSpace(profileId))
             {
-                return OperationResult<string>.CreateFailure("Profile identifier cannot be empty.");
+                return OperationResult<string>.CreateFailure(ProfileSharingConstants.EmptyProfileIdErrorMessage);
             }
 
             var packageResult = await BuildPackageFromProfileIdAsync(profileId, cancellationToken);
@@ -841,20 +841,20 @@ public class ProfileSharingService(
     private static bool IsCustomLocalManifest(ContentManifest manifest)
     {
         if (manifest.ContentType == ContentType.GameInstallation ||
-            manifest.Id.ToString().Contains(".gameinstallation.", StringComparison.OrdinalIgnoreCase) ||
-            manifest.Id.ToString().Contains(".gameclient.", StringComparison.OrdinalIgnoreCase))
+            manifest.Id.ToString().Contains(ManifestConstants.GameInstallationSegment, StringComparison.OrdinalIgnoreCase) ||
+            manifest.Id.ToString().Contains(ManifestConstants.GameClientSegment, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
         if (manifest.Publisher?.PublisherType == PublisherTypeConstants.Local ||
-            string.Equals(manifest.Publisher?.PublisherType, "Local", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(manifest.Publisher?.Name, "Local", StringComparison.OrdinalIgnoreCase))
+            string.Equals(manifest.Publisher?.PublisherType, PublisherTypeConstants.Local, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(manifest.Publisher?.Name, PublisherTypeConstants.Local, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
-        return manifest.Id.ToString().Contains(".local.", StringComparison.OrdinalIgnoreCase);
+        return manifest.Id.ToString().Contains(ManifestConstants.LocalSegment, StringComparison.OrdinalIgnoreCase);
     }
 
     private static async Task<OperationResult<bool>> ExtractAndVerifyPackageFilesAsync(
@@ -889,32 +889,48 @@ public class ProfileSharingService(
         string canonicalStagingDir,
         CancellationToken cancellationToken)
     {
-        using var archive = ZipFile.OpenRead(tempZipPath);
-        foreach (var entry in archive.Entries)
+        try
         {
-            if (string.IsNullOrEmpty(entry.Name))
+            using var archive = ZipFile.OpenRead(tempZipPath);
+            foreach (var entry in archive.Entries)
             {
-                continue;
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (string.IsNullOrEmpty(entry.Name))
+                {
+                    continue;
+                }
+
+                var normalizedRelativePath = entry.FullName.Replace('\\', '/');
+                var destinationPath = Path.GetFullPath(Path.Combine(stagingDir, normalizedRelativePath));
+                if (!destinationPath.StartsWith(canonicalStagingDir, StringComparison.Ordinal))
+                {
+                    return OperationResult<bool>.CreateFailure($"Package contains entry attempting directory traversal: {entry.FullName}");
+                }
+
+                var directory = Path.GetDirectoryName(destinationPath);
+                if (!string.IsNullOrEmpty(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                await using (var entryStream = entry.Open())
+                await using (var outputStream = File.Create(destinationPath))
+                {
+                    await entryStream.CopyToAsync(outputStream, cancellationToken);
+                }
             }
 
-            var destinationPath = Path.GetFullPath(Path.Combine(stagingDir, entry.FullName));
-            if (!destinationPath.StartsWith(canonicalStagingDir, StringComparison.Ordinal))
-            {
-                return OperationResult<bool>.CreateFailure($"Package contains entry attempting directory traversal: {entry.FullName}");
-            }
-
-            var directory = Path.GetDirectoryName(destinationPath);
-            if (!string.IsNullOrEmpty(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            await using var entryStream = entry.Open();
-            await using var outputStream = File.Create(destinationPath);
-            await entryStream.CopyToAsync(outputStream, cancellationToken);
+            return OperationResult<bool>.CreateSuccess(true);
         }
-
-        return OperationResult<bool>.CreateSuccess(true);
+        catch (InvalidDataException ex)
+        {
+            return OperationResult<bool>.CreateFailure($"Archive extraction failed: {ex.Message}");
+        }
+        catch (IOException ex)
+        {
+            return OperationResult<bool>.CreateFailure($"Archive I/O error: {ex.Message}");
+        }
     }
 
     private static async Task<OperationResult<bool>> VerifyExtractedFilesAsync(
@@ -936,7 +952,12 @@ public class ProfileSharingService(
                 return OperationResult<bool>.CreateFailure(validatePathResult.Errors);
             }
 
-            var filePath = validatePathResult.Data!;
+            var filePath = validatePathResult.Data;
+            if (string.IsNullOrWhiteSpace(filePath))
+            {
+                return OperationResult<bool>.CreateFailure($"Package contains invalid path for: {file.RelativePath}");
+            }
+
             if (!string.IsNullOrWhiteSpace(file.Hash))
             {
                 var hashCheckResult = await ValidateFileChecksumAsync(filePath, file.RelativePath, file.Hash, cancellationToken);
@@ -960,13 +981,14 @@ public class ProfileSharingService(
             return OperationResult<string>.CreateFailure("Package contains a file with an empty or missing relative path.");
         }
 
-        if (Path.IsPathRooted(relativePath) ||
-            relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Contains(".."))
+        var normalizedPath = relativePath.Replace('\\', '/');
+        if (Path.IsPathRooted(normalizedPath) ||
+            normalizedPath.Split('/', StringSplitOptions.RemoveEmptyEntries).Contains(ProfileSharingConstants.ParentDirectorySegment))
         {
             return OperationResult<string>.CreateFailure($"Package contains invalid relative path: {relativePath}");
         }
 
-        var filePath = Path.GetFullPath(Path.Combine(stagingDir, relativePath));
+        var filePath = Path.GetFullPath(Path.Combine(stagingDir, normalizedPath));
         if (!filePath.StartsWith(canonicalStagingDir, StringComparison.Ordinal))
         {
             return OperationResult<string>.CreateFailure($"Package path escapes staging directory: {relativePath}");
@@ -1022,7 +1044,7 @@ public class ProfileSharingService(
         {
             var dep = package.RequiredManifests[i];
             if (dep.ContentType == ContentType.GameInstallation ||
-                dep.ManifestId.Contains(".gameinstallation.", StringComparison.OrdinalIgnoreCase))
+                dep.ManifestId.Contains(ManifestConstants.GameInstallationSegment, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -1150,7 +1172,7 @@ public class ProfileSharingService(
             else
             {
                 // Exclude any gameinstallation IDs
-                if (contentId.Contains(".gameinstallation.", StringComparison.OrdinalIgnoreCase))
+                if (contentId.Contains(ManifestConstants.GameInstallationSegment, StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -1199,7 +1221,22 @@ public class ProfileSharingService(
         ContentManifest manifest,
         CancellationToken cancellationToken)
     {
-        var dependencyFiles = manifest.Files ?? [];
+        var dependencyFiles = (manifest.Files ?? []).Select(f => new ManifestFile
+        {
+            RelativePath = f.RelativePath,
+            Hash = f.Hash,
+            Size = f.Size,
+            SourceType = f.SourceType != ContentSourceType.Unknown ? f.SourceType : ContentSourceType.ContentAddressable,
+            InstallTarget = f.InstallTarget,
+            IsRequired = f.IsRequired,
+            IsExecutable = f.IsExecutable,
+            Permissions = f.Permissions,
+            DownloadUrl = f.DownloadUrl,
+            SourcePath = f.SourcePath,
+            PatchSourceFile = f.PatchSourceFile,
+            PackageInfo = f.PackageInfo,
+        }).ToList();
+
         string? packageUrl = null;
         string? packageHash = null;
 
@@ -1217,9 +1254,15 @@ public class ProfileSharingService(
                     RelativePath = f.RelativePath,
                     Hash = f.Hash,
                     Size = f.Size,
+                    SourceType = f.SourceType != ContentSourceType.Unknown ? f.SourceType : ContentSourceType.ContentAddressable,
+                    InstallTarget = f.InstallTarget,
+                    IsRequired = f.IsRequired,
                     DownloadUrl = uploadedUrl,
                     IsExecutable = f.IsExecutable,
                     Permissions = f.Permissions,
+                    SourcePath = f.SourcePath,
+                    PatchSourceFile = f.PatchSourceFile,
+                    PackageInfo = f.PackageInfo,
                 }).ToList();
             }
         }
@@ -1251,7 +1294,7 @@ public class ProfileSharingService(
             return (null, null);
         }
 
-        var stagingBase = Path.Combine(Path.GetTempPath(), "GenHub", "CloudUploadStaging");
+        var stagingBase = Path.Combine(Path.GetTempPath(), AppConstants.AppName, "CloudUploadStaging");
         var tempZipPath = Path.Combine(stagingBase, $"{Guid.NewGuid():N}.zip");
 
         try
@@ -1276,7 +1319,6 @@ public class ProfileSharingService(
         }
     }
 
-    [SuppressMessage("Major Code Smell", "S6966:Await async method instead of sync counterpart", Justification = "ZipArchiveEntry.Open has no asynchronous OpenAsync method in .NET 8 BCL.")]
     private async Task<string?> CreateLocalManifestArchiveAsync(
         string tempZipPath,
         ContentManifest manifest,
@@ -1295,10 +1337,8 @@ public class ProfileSharingService(
                 var contentPathResult = await casService.GetContentPathAsync(file.Hash, manifest.ContentType, cancellationToken);
                 if (contentPathResult.Success && File.Exists(contentPathResult.Data))
                 {
-                    var entry = archive.CreateEntry(file.RelativePath, CompressionLevel.Optimal);
-                    await using var entryStream = entry.Open();
-                    await using var sourceStream = File.OpenRead(contentPathResult.Data);
-                    await sourceStream.CopyToAsync(entryStream, cancellationToken);
+                    var entryName = file.RelativePath.Replace('\\', '/');
+                    archive.CreateEntryFromFile(contentPathResult.Data, entryName, CompressionLevel.Optimal);
                 }
                 else
                 {
@@ -1559,7 +1599,7 @@ public class ProfileSharingService(
             }
         }
 
-        var stagingBase = Path.Combine(Path.GetTempPath(), "GenHub", "CasMaterializeStaging");
+        var stagingBase = Path.Combine(Path.GetTempPath(), AppConstants.AppName, "CasMaterializeStaging");
         var stagingDir = Path.Combine(stagingBase, Guid.NewGuid().ToString("N"));
 
         try
@@ -1568,14 +1608,22 @@ public class ProfileSharingService(
             foreach (var file in dependency.Files)
             {
                 var blobPathResult = await casService.GetContentPathAsync(file.Hash, dependency.ContentType, cancellationToken);
-                var destinationPath = Path.GetFullPath(Path.Combine(stagingDir, file.RelativePath));
+                var normalizedRelativePath = file.RelativePath.Replace('\\', '/');
+                var destinationPath = Path.GetFullPath(Path.Combine(stagingDir, normalizedRelativePath));
                 var directory = Path.GetDirectoryName(destinationPath);
                 if (!string.IsNullOrEmpty(directory))
                 {
                     Directory.CreateDirectory(directory);
                 }
 
-                File.Copy(blobPathResult.Data!, destinationPath, true);
+                if (blobPathResult.Success && !string.IsNullOrWhiteSpace(blobPathResult.Data) && File.Exists(blobPathResult.Data))
+                {
+                    File.Copy(blobPathResult.Data, destinationPath, true);
+                }
+                else
+                {
+                    return OperationResult<bool>.CreateFailure($"Failed to locate local CAS content for: {file.RelativePath}");
+                }
             }
 
             return await RegisterExtractedManifestAsync(validatedManifestId, dependency, stagingDir, cancellationToken);
@@ -1597,7 +1645,7 @@ public class ProfileSharingService(
         string packageUrl,
         CancellationToken cancellationToken)
     {
-        var stagingBase = Path.Combine(Path.GetTempPath(), "GenHub", "SharedImportStaging");
+        var stagingBase = Path.Combine(Path.GetTempPath(), AppConstants.AppName, "SharedImportStaging");
         var stagingDir = Path.Combine(stagingBase, Guid.NewGuid().ToString("N"));
         var tempZipPath = Path.Combine(stagingBase, $"{Guid.NewGuid():N}.zip");
 
@@ -1687,10 +1735,24 @@ public class ProfileSharingService(
             ContentType = dependency.ContentType,
             Publisher = new PublisherInfo
             {
-                Name = dependency.Publisher ?? "GenHub (Local)",
+                Name = dependency.Publisher ?? ProfileSharingConstants.DefaultLocalPublisherName,
                 PublisherType = dependency.PublisherType ?? PublisherTypeConstants.Local,
             },
-            Files = [.. dependency.Files],
+            Files = dependency.Files.Select(f => new ManifestFile
+            {
+                RelativePath = f.RelativePath,
+                Hash = f.Hash,
+                Size = f.Size,
+                SourceType = f.SourceType != ContentSourceType.Unknown ? f.SourceType : ContentSourceType.ContentAddressable,
+                InstallTarget = f.InstallTarget,
+                IsRequired = f.IsRequired,
+                IsExecutable = f.IsExecutable,
+                Permissions = f.Permissions,
+                DownloadUrl = f.DownloadUrl,
+                SourcePath = f.SourcePath,
+                PatchSourceFile = f.PatchSourceFile,
+                PackageInfo = f.PackageInfo,
+            }).ToList(),
         };
 
         var addResult = await manifestPool.AddManifestAsync(contentManifest, stagingDir, cancellationToken: cancellationToken);
@@ -1746,7 +1808,7 @@ public class ProfileSharingService(
         ManifestId validatedManifestId,
         CancellationToken cancellationToken)
     {
-        var stagingBase = Path.Combine(Path.GetTempPath(), "GenHub", "SharedImportStaging");
+        var stagingBase = Path.Combine(Path.GetTempPath(), AppConstants.AppName, "SharedImportStaging");
         var stagingDir = Path.Combine(stagingBase, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(stagingDir);
 
@@ -1760,10 +1822,24 @@ public class ProfileSharingService(
                 ContentType = dependency.ContentType,
                 Publisher = new PublisherInfo
                 {
-                    Name = dependency.Publisher ?? "Community",
+                    Name = dependency.Publisher ?? ProfileSharingConstants.DefaultCommunityPublisherName,
                     PublisherType = dependency.PublisherType ?? PublisherTypeConstants.Unknown,
                 },
-                Files = [.. dependency.Files],
+                Files = dependency.Files.Select(f => new ManifestFile
+                {
+                    RelativePath = f.RelativePath,
+                    Hash = f.Hash,
+                    Size = f.Size,
+                    SourceType = f.SourceType != ContentSourceType.Unknown ? f.SourceType : ContentSourceType.ContentAddressable,
+                    InstallTarget = f.InstallTarget,
+                    IsRequired = f.IsRequired,
+                    IsExecutable = f.IsExecutable,
+                    Permissions = f.Permissions,
+                    DownloadUrl = f.DownloadUrl,
+                    SourcePath = f.SourcePath,
+                    PatchSourceFile = f.PatchSourceFile,
+                    PackageInfo = f.PackageInfo,
+                }).ToList(),
             };
 
             var canonicalStagingPrefix = Path.GetFullPath(stagingDir) + Path.DirectorySeparatorChar;
@@ -1825,12 +1901,15 @@ public class ProfileSharingService(
             return OperationResult<bool>.CreateFailure($"Manifest file {file.RelativePath} is missing required cryptographic hash.");
         }
 
-        if (string.IsNullOrWhiteSpace(file.RelativePath) || Path.IsPathRooted(file.RelativePath) || file.RelativePath.Contains(".."))
+        var normalizedRelativePath = file.RelativePath.Replace('\\', '/');
+        if (string.IsNullOrWhiteSpace(normalizedRelativePath) ||
+            Path.IsPathRooted(normalizedRelativePath) ||
+            normalizedRelativePath.Split('/', StringSplitOptions.RemoveEmptyEntries).Contains(ProfileSharingConstants.ParentDirectorySegment))
         {
             return OperationResult<bool>.CreateFailure($"Invalid relative path in manifest: {file.RelativePath}");
         }
 
-        var destination = Path.GetFullPath(Path.Combine(stagingDir, file.RelativePath));
+        var destination = Path.GetFullPath(Path.Combine(stagingDir, normalizedRelativePath));
         if (!destination.StartsWith(canonicalStagingPrefix, StringComparison.Ordinal))
         {
             return OperationResult<bool>.CreateFailure($"File path escapes staging directory: {file.RelativePath}");
@@ -1981,7 +2060,7 @@ public class ProfileSharingService(
         foreach (var reqManifest in package.RequiredManifests)
         {
             if (reqManifest.ContentType == ContentType.GameInstallation ||
-                reqManifest.ManifestId.Contains(".gameinstallation.", StringComparison.OrdinalIgnoreCase))
+                reqManifest.ManifestId.Contains(ManifestConstants.GameInstallationSegment, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }

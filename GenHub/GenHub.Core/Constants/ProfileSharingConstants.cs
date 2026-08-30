@@ -70,4 +70,24 @@ public static class ProfileSharingConstants
     /// Maximum allowed file size for cloud upload packages (10 MB gateway limit).
     /// </summary>
     public const long MaxCloudUploadSizeBytes = 10 * 1024 * 1024;
+
+    /// <summary>
+    /// Error message when an export or inspection operation is invoked with an empty profile ID.
+    /// </summary>
+    public const string EmptyProfileIdErrorMessage = "Profile identifier cannot be empty.";
+
+    /// <summary>
+    /// Parent directory segment in file paths.
+    /// </summary>
+    public const string ParentDirectorySegment = "..";
+
+    /// <summary>
+    /// Default publisher name used for local content attribution in shared packages.
+    /// </summary>
+    public const string DefaultLocalPublisherName = "GenHub (Local)";
+
+    /// <summary>
+    /// Default publisher name used for generic community content in shared packages.
+    /// </summary>
+    public const string DefaultCommunityPublisherName = "Community";
 }

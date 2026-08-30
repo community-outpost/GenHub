@@ -1,7 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -1125,7 +1130,13 @@ public class ProfileSharingServiceTests
 
             // Assert
             Assert.True(result.Success);
-            _manifestPoolMock.Verify(m => m.AddManifestAsync(It.Is<ContentManifest>(cm => cm.Id == manifestId), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
+            _manifestPoolMock.Verify(
+                m => m.AddManifestAsync(
+                    It.Is<ContentManifest>(cm => cm.Id == manifestId && cm.Files.All(f => f.SourceType == ContentSourceType.ContentAddressable)),
+                    It.IsAny<string>(),
+                    It.IsAny<IProgress<ContentStorageProgress>>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
             _contentOrchestratorMock.Verify(c => c.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()), Times.Never);
         }
         finally
@@ -1133,6 +1144,220 @@ public class ProfileSharingServiceTests
             if (File.Exists(tempCasFile))
             {
                 File.Delete(tempCasFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that importing local content with Windows-style backslashes and subdirectories normalizes paths and preserves file properties.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportSharedProfileAsync_Should_NormalizeBackslashPathsAndPreserveFilePropertiesAsync()
+    {
+        // Arrange
+        var tempCasFile = Path.GetTempFileName();
+        File.WriteAllText(tempCasFile, "map content");
+
+        var manifestId = ManifestId.Create("1.0.local.mod.bsm-defcon-51-v3");
+        var hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+
+        var package = new SharedGameProfilePackage
+        {
+            Profile = new SharedProfileMetadata
+            {
+                Name = "Local Map Profile",
+                GameType = GameType.ZeroHour,
+                GameVersion = "1.04",
+            },
+            RequiredManifests =
+            [
+                new SharedManifestDependency
+                {
+                    ManifestId = manifestId.Value,
+                    DisplayName = "[BSM] Defcon 51 V3",
+                    Version = "1.0",
+                    ContentType = ContentType.Mod,
+                    Files =
+                    [
+                        new ManifestFile
+                        {
+                            RelativePath = @"[BSM] Defcon 51 V3\map.ini",
+                            Hash = hash,
+                            Size = 100,
+                            InstallTarget = ContentInstallTarget.UserMapsDirectory,
+                            IsRequired = true,
+                        },
+                        new ManifestFile
+                        {
+                            RelativePath = @"[BSM] Defcon 51 V3\map.str",
+                            Hash = hash,
+                            Size = 50,
+                            InstallTarget = ContentInstallTarget.UserMapsDirectory,
+                        },
+                    ],
+                },
+            ],
+        };
+
+        var casMock = new Mock<ICasService>();
+        casMock.Setup(c => c.GetContentPathAsync(hash, ContentType.Mod, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateSuccess(tempCasFile));
+
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync(manifestId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        ContentManifest? capturedManifest = null;
+        _manifestPoolMock.Setup(m => m.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
+            .Callback<ContentManifest, string?, IProgress<ContentStorageProgress>?, CancellationToken>((cm, _, _, _) => capturedManifest = cm)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        _installationServiceMock.Setup(i => i.GetInstallationAsync("inst-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(new GameInstallation("/games/zh", GameInstallationType.Retail)
+            {
+                Id = "inst-1",
+                HasZeroHour = true,
+                AvailableGameClients =
+                [
+                    new GameClient { Id = "client-zh", Name = "Zero Hour", GameType = GameType.ZeroHour },
+                ],
+            }));
+
+        _profileRepositoryMock.Setup(r => r.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "prof-new", Name = "Local Map Profile" }));
+
+        var service = new ProfileSharingService(
+            _profileRepositoryMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _contentOrchestratorMock.Object,
+            _factoryResolver,
+            NullLogger<ProfileSharingService>.Instance,
+            casMock.Object);
+
+        try
+        {
+            // Act
+            var request = new SharedProfileImportRequest
+            {
+                Package = package,
+                ProfileName = "Local Map Profile",
+                GameInstallationId = "inst-1",
+            };
+            var result = await service.ImportSharedProfileAsync(request);
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.NotNull(capturedManifest);
+            Assert.Equal(2, capturedManifest.Files.Count);
+            Assert.All(capturedManifest.Files, f =>
+            {
+                Assert.NotEqual(ContentSourceType.Unknown, f.SourceType);
+                Assert.Equal(ContentSourceType.ContentAddressable, f.SourceType);
+                Assert.Equal(ContentInstallTarget.UserMapsDirectory, f.InstallTarget);
+            });
+        }
+        finally
+        {
+            if (File.Exists(tempCasFile))
+            {
+                File.Delete(tempCasFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that exporting a profile containing local files preserves all metadata fields including non-unknown source types.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ExportProfileToUriAsync_Should_PreserveManifestFileProperties_ForLocalContentAsync()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName();
+        File.WriteAllText(tempFile, "sample content");
+
+        var localProfile = CreateTestProfile("local-profile-map", "Map Profile");
+        localProfile.EnabledContentIds = ["1.0.local.map.defcon"];
+
+        var casMock = new Mock<ICasService>();
+        var uploadThingMock = new Mock<IUploadThingService>();
+        var uploadHistoryMock = new Mock<IUploadHistoryService>();
+
+        casMock.Setup(c => c.GetContentPathAsync(It.IsAny<string>(), It.IsAny<ContentType>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateSuccess(tempFile));
+
+        uploadThingMock.Setup(u => u.UploadFileAsync(It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<UploadResult>.CreateSuccess(new UploadResult("https://utfs.io/f/maptest.zip", "key123", "token123")));
+
+        var localManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.local.map.defcon"),
+            Name = "Defcon Map",
+            Version = "1.0",
+            ContentType = ContentType.Map,
+            Publisher = new PublisherInfo
+            {
+                Name = "GenHub (Local)",
+                PublisherType = PublisherTypeConstants.Local,
+            },
+            Files =
+            [
+                new ManifestFile
+                {
+                    RelativePath = @"Defcon/map.ini",
+                    Hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                    Size = 100,
+                    InstallTarget = ContentInstallTarget.UserMapsDirectory,
+                    SourceType = ContentSourceType.ContentAddressable,
+                    IsRequired = true,
+                },
+            ],
+        };
+
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync("local-profile-map", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(localProfile));
+
+        _manifestPoolMock.Setup(m => m.GetManifestAsync("1.0.local.map.defcon", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(localManifest));
+
+        var service = new ProfileSharingService(
+            _profileRepositoryMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _contentOrchestratorMock.Object,
+            _factoryResolver,
+            NullLogger<ProfileSharingService>.Instance,
+            casMock.Object,
+            uploadThingMock.Object,
+            uploadHistoryMock.Object);
+
+        try
+        {
+            // Act
+            var result = await service.ExportProfileToUriAsync("local-profile-map");
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.NotNull(result.Data);
+
+            var dataParam = result.Data.Replace($"{CommandLineConstants.ProfileImportUriPrefix}?{CommandLineConstants.DataQueryParam}", string.Empty);
+            var json = ProfileSharingCompressionHelper.DecodeAndDecompress(dataParam);
+            var package = JsonSerializer.Deserialize<SharedGameProfilePackage>(json, TestJsonOptions);
+
+            Assert.NotNull(package);
+            var dep = Assert.Single(package.RequiredManifests);
+            var file = Assert.Single(dep.Files);
+            Assert.Equal(ContentSourceType.ContentAddressable, file.SourceType);
+            Assert.Equal(ContentInstallTarget.UserMapsDirectory, file.InstallTarget);
+            Assert.True(file.IsRequired);
+            Assert.Equal("https://utfs.io/f/maptest.zip", file.DownloadUrl);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
             }
         }
     }

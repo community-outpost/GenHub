@@ -42,6 +42,21 @@ public static class ManifestConstants
     public const string BaseGameIdPrefix = "gameinstallation";
 
     /// <summary>
+    /// Identifier segment for game installation manifests.
+    /// </summary>
+    public const string GameInstallationSegment = ".gameinstallation.";
+
+    /// <summary>
+    /// Identifier segment for game client manifests.
+    /// </summary>
+    public const string GameClientSegment = ".gameclient.";
+
+    /// <summary>
+    /// Identifier segment for locally authored custom content manifests.
+    /// </summary>
+    public const string LocalSegment = ".local.";
+
+    /// <summary>
     /// Maximum length for manifest IDs.
     /// </summary>
     public const int MaxManifestIdLength = 256;
