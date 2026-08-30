@@ -167,8 +167,18 @@ public interface IContentManifestBuilder
     /// <param name="sourcePath">The source path of the file in the game installation.</param>
     /// <param name="isExecutable">Whether the file is executable.</param>
     /// <param name="permissions">File permissions.</param>
+    /// <param name="hash">Optional pre-computed SHA256 content hash.</param>
+    /// <param name="size">Optional file size in bytes.</param>
+    /// <param name="isRequired">Whether the file is required.</param>
     /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
-    Task<IContentManifestBuilder> AddGameInstallationFileAsync(string relativePath, string sourcePath, bool isExecutable = false, FilePermissions? permissions = null);
+    Task<IContentManifestBuilder> AddGameInstallationFileAsync(
+        string relativePath,
+        string sourcePath,
+        bool isExecutable = false,
+        FilePermissions? permissions = null,
+        string? hash = null,
+        long? size = null,
+        bool isRequired = true);
 
     /// <summary>
     /// Adds a content-addressable file from the CAS system.
