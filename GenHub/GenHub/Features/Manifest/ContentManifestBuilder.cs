@@ -504,19 +504,34 @@ public partial class ContentManifestBuilder(
     /// <param name="sourcePath">The source path of the file in the game installation.</param>
     /// <param name="isExecutable">Whether the file is executable.</param>
     /// <param name="permissions">File permissions.</param>
+    /// <param name="hash">Optional pre-computed SHA256 content hash.</param>
+    /// <param name="size">Optional file size in bytes.</param>
+    /// <param name="isRequired">Whether the file is required.</param>
     /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
     public async Task<IContentManifestBuilder> AddGameInstallationFileAsync(
         string relativePath,
         string sourcePath,
         bool isExecutable = false,
-        FilePermissions? permissions = null)
+        FilePermissions? permissions = null,
+        string? hash = null,
+        long? size = null,
+        bool isRequired = true)
     {
         if (string.IsNullOrEmpty(sourcePath))
         {
             throw new ArgumentException("sourcePath cannot be null or empty for game installation files.", nameof(sourcePath));
         }
 
-        return await AddFileAsync(relativePath, sourcePath, ContentSourceType.GameInstallation, string.Empty, isExecutable, permissions);
+        return await AddFileAsync(
+            relativePath,
+            sourcePath,
+            ContentSourceType.GameInstallation,
+            string.Empty,
+            isExecutable,
+            permissions,
+            hash,
+            size,
+            isRequired);
     }
 
     /// <summary>
@@ -865,6 +880,9 @@ public partial class ContentManifestBuilder(
     /// <param name="downloadUrl">Download URL.</param>
     /// <param name="isExecutable">Is executable.</param>
     /// <param name="permissions">File permissions.</param>
+    /// <param name="hash">Optional pre-computed SHA256 content hash.</param>
+    /// <param name="size">Optional file size in bytes.</param>
+    /// <param name="isRequired">Whether the file is required.</param>
     /// <returns>The builder instance.</returns>
     private async Task<IContentManifestBuilder> AddFileAsync(
         string relativePath,
@@ -872,7 +890,10 @@ public partial class ContentManifestBuilder(
         ContentSourceType sourceType = ContentSourceType.ContentAddressable,
         string downloadUrl = "",
         bool isExecutable = false,
-        FilePermissions? permissions = null)
+        FilePermissions? permissions = null,
+        string? hash = null,
+        long? size = null,
+        bool isRequired = true)
     {
         var installTarget = DetermineInstallTarget(relativePath);
 
@@ -884,19 +905,29 @@ public partial class ContentManifestBuilder(
             IsExecutable = isExecutable,
             DownloadUrl = downloadUrl,
             InstallTarget = installTarget,
+            IsRequired = isRequired,
             Permissions = permissions ?? new FilePermissions { UnixPermissions = isExecutable ? "755" : "644", },
         };
 
-        var shouldComputeHash = false;
+        if (size.HasValue)
+        {
+            manifestFile.Size = size.Value;
+        }
+
+        if (!string.IsNullOrEmpty(hash))
+        {
+            manifestFile.Hash = hash;
+        }
+
         if (!string.IsNullOrEmpty(sourcePath) && File.Exists(sourcePath))
         {
             var fileInfo = new FileInfo(sourcePath);
-            manifestFile.Size = fileInfo.Length;
+            if (!size.HasValue)
+            {
+                manifestFile.Size = fileInfo.Length;
+            }
 
-            // Always compute hash for executable files (critical for GameClient integrity validation)
-            // For non-executable GameInstallation files, skip hash (CSV-based authority from GitHub planned)
-            shouldComputeHash = isExecutable || sourceType != ContentSourceType.GameInstallation;
-            if (shouldComputeHash)
+            if (string.IsNullOrEmpty(manifestFile.Hash))
             {
                 manifestFile.Hash = await _hashProvider.ComputeFileHashAsync(sourcePath);
             }
@@ -913,7 +944,7 @@ public partial class ContentManifestBuilder(
         }
 
         _manifest.Files.Add(manifestFile);
-        logger.LogDebug("Added file: {RelativePath} (Source: {SourceType}, Hashed: {Hashed})", relativePath, sourceType, shouldComputeHash);
+        logger.LogDebug("Added file: {RelativePath} (Source: {SourceType}, Hash: {Hash})", relativePath, sourceType, manifestFile.Hash);
         return this;
     }
 }
