@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
@@ -29,7 +30,8 @@ public class ContentReconciliationService(
     IContentManifestPool manifestPool,
     ICasReferenceTracker referenceTracker,
     ICasLifecycleManager casLifecycleManager,
-    ILogger<ContentReconciliationService> logger) : IContentReconciliationService, IDisposable
+    ILogger<ContentReconciliationService> logger,
+    ILaunchRegistry? launchRegistry = null) : IContentReconciliationService
 {
     private readonly SemaphoreSlim _reconciliationLock = new(1, 1);
 
@@ -76,8 +78,9 @@ public class ContentReconciliationService(
         try
         {
             var result = await ReconcileManifestRemovalInternalAsync(manifestId, cancellationToken);
+            var failedCount = result.Data?.FailedProfilesCount ?? 0;
 
-            if (result.Success && !skipUntrack)
+            if (result.Success && failedCount == 0 && !skipUntrack)
             {
                 logger.LogInformation("Untracking CAS references for manifest '{ManifestId}'", manifestId.Value);
                 var untrackResult = await referenceTracker.UntrackManifestAsync(manifestId.Value, cancellationToken);
@@ -86,6 +89,11 @@ public class ContentReconciliationService(
                     logger.LogError("Failed to untrack CAS references for manifest '{ManifestId}': {Error}", manifestId.Value, untrackResult.FirstError);
                     return OperationResult<ReconciliationResult>.CreateFailure($"Failed to untrack CAS references for {manifestId.Value}");
                 }
+            }
+
+            if (result.Success && failedCount > 0)
+            {
+                return OperationResult<ReconciliationResult>.CreateFailure($"Cannot remove manifest '{manifestId.Value}' because {failedCount} profile(s) are active or failed reconciliation.");
             }
 
             return result;
@@ -110,8 +118,6 @@ public class ContentReconciliationService(
         await _reconciliationLock.WaitAsync(cancellationToken);
         try
         {
-            // 1. Track new manifest CAS references FIRST (before any workspace invalidation)
-            // This ensures CAS objects are tracked before workspace rebuild attempts to use them
             var trackResult = await referenceTracker.TrackManifestReferencesAsync(newId, newManifest, cancellationToken);
             if (!trackResult.Success)
             {
@@ -120,55 +126,15 @@ public class ContentReconciliationService(
 
             logger.LogDebug("Tracked CAS references for manifest '{ManifestId}'", newId);
 
-            // 2. Reconcile Profiles
-            int profilesUpdated = 0;
-            int workspacesInvalidated = 0;
-
-            if (idChanged)
+            var (reconcileOp, profilesUpdated, workspacesInvalidated, failedProfilesCount) = await ReconcileLocalUpdateContentAsync(oldId, newManifest, idChanged, newId, cancellationToken);
+            if (!reconcileOp.Success)
             {
-                // Ensure the new manifest is available in the pool before attempting reconciliation
-                // This prevents race conditions where GetManifestAsync fails to find the just-created manifest
-                var addResult = await manifestPool.AddManifestAsync(newManifest, cancellationToken);
-                if (!addResult.Success)
-                {
-                    return OperationResult<ContentUpdateResult>.CreateFailure($"Failed to add new manifest to pool: {addResult.FirstError}");
-                }
-
-                var reconcileResult = await ReconcileBulkManifestReplacementInternalAsync(new Dictionary<string, ContentManifest> { { oldId!, newManifest } }, cancellationToken);
-                if (!reconcileResult.Success)
-                {
-                    return OperationResult<ContentUpdateResult>.CreateFailure($"Reconciliation failed: {reconcileResult.FirstError}");
-                }
-
-                profilesUpdated = reconcileResult.Data!.ProfilesUpdated;
-                workspacesInvalidated = reconcileResult.Data!.WorkspacesInvalidated;
-            }
-            else
-            {
-                // Even if ID is same, content might have changed (files removed/added).
-                // We clear workspaces to ensure deltas are applied at launch.
-                // This is safe because we've already tracked the new CAS references above.
-                var reconcileResult = await InvalidateWorkspacesForManifestInternalAsync(newId, cancellationToken);
-                profilesUpdated = reconcileResult.ProfilesUpdated;
-                workspacesInvalidated = reconcileResult.WorkspacesInvalidated;
+                return OperationResult<ContentUpdateResult>.CreateFailure(reconcileOp.FirstError ?? "Reconciliation failed");
             }
 
-            // 3. Untrack old manifest if ID changed
-            if (idChanged)
+            if (idChanged && !string.IsNullOrEmpty(oldId))
             {
-                logger.LogInformation("Untracking old manifest references for '{OldId}'", oldId);
-                var untrackResult = await referenceTracker.UntrackManifestAsync(oldId!, cancellationToken);
-
-                if (untrackResult.Success)
-                {
-                    // 4. Remove Old Manifest from pool
-                    // We can skip untrack here because we just did it above
-                    await manifestPool.RemoveManifestAsync(ManifestId.Create(oldId!), skipUntrack: true, cancellationToken);
-                }
-                else
-                {
-                    logger.LogWarning("Failed to untrack references for old manifest '{OldId}'. Skipping removal from pool. Error: {Error}", oldId, untrackResult.FirstError);
-                }
+                await CleanupOldManifestAfterUpdateAsync(oldId, failedProfilesCount, cancellationToken);
             }
 
             stopwatch.Stop();
@@ -233,7 +199,7 @@ public class ContentReconciliationService(
                 return reconcileResult;
             }
 
-            if (removeOld)
+            if (removeOld && (reconcileResult.Data?.FailedProfilesCount ?? 0) == 0)
             {
                 // 2. Untrack old CAS references only for resolved replacements
                 var successfullyUntrackedIds = new List<string>();
@@ -256,6 +222,13 @@ public class ContentReconciliationService(
                     logger.LogInformation("Removing stale manifest from pool: '{ManifestId}'", oldId);
                     await manifestPool.RemoveManifestAsync(ManifestId.Create(oldId), skipUntrack: true, cancellationToken: cancellationToken);
                 }
+            }
+            else if (removeOld)
+            {
+                logger.LogWarning(
+                    "Skipping removal of {Count} old manifests because {FailedCount} profile(s) failed reconciliation and still reference them.",
+                    manifestReplacements.Count,
+                    reconcileResult.Data?.FailedProfilesCount ?? 0);
             }
 
             return reconcileResult;
@@ -295,9 +268,9 @@ public class ContentReconciliationService(
             {
                 // 1. Reconcile Profiles (Remove manifest references)
                 var reconcileResult = await ReconcileManifestRemovalInternalAsync(manifestId, cancellationToken);
-                if (reconcileResult.Success)
+                if (reconcileResult.Success && reconcileResult.Data is { FailedProfilesCount: 0 } removalData)
                 {
-                    totalResult += reconcileResult.Data!;
+                    totalResult += removalData;
 
                     // 2. Untrack CAS references
                     logger.LogInformation("Untracking CAS references for removed manifest '{ManifestId}'", manifestId.Value);
@@ -314,13 +287,22 @@ public class ContentReconciliationService(
                 }
                 else
                 {
-                    logger.LogWarning("Skipping removal of manifest '{ManifestId}' because profile reconciliation failed: {Error}", manifestId.Value, reconcileResult.FirstError);
+                    logger.LogWarning("Skipping removal of manifest '{ManifestId}' because profile reconciliation had failures or active profile references: {Error}", manifestId.Value, reconcileResult.FirstError);
+                    if (reconcileResult.Success && reconcileResult.Data != null)
+                    {
+                        totalResult += reconcileResult.Data;
+                    }
+
                     failedManifests.Add(manifestId.Value);
                 }
             }
 
-            // Return success even with partial failures to allow cleanup of old manifests.
-            // Failed manifests are logged for visibility.
+            if (failedManifests.Count > 0)
+            {
+                return OperationResult<ReconciliationResult>.CreateFailure(
+                    $"Failed to remove manifests still referenced by active or unreconciled profiles: {string.Join(", ", failedManifests)}");
+            }
+
             return OperationResult<ReconciliationResult>.CreateSuccess(totalResult);
         }
         catch (OperationCanceledException)
@@ -383,6 +365,57 @@ public class ContentReconciliationService(
         GC.SuppressFinalize(this);
     }
 
+    private async Task<(OperationResult<bool> OpResult, int ProfilesUpdated, int WorkspacesInvalidated, int FailedProfilesCount)> ReconcileLocalUpdateContentAsync(
+        string? oldId,
+        ContentManifest newManifest,
+        bool idChanged,
+        string newId,
+        CancellationToken cancellationToken)
+    {
+        if (idChanged && !string.IsNullOrEmpty(oldId))
+        {
+            var addResult = await manifestPool.AddManifestAsync(newManifest, cancellationToken);
+            if (!addResult.Success)
+            {
+                return (OperationResult<bool>.CreateFailure($"Failed to add new manifest to pool: {addResult.FirstError}"), 0, 0, 0);
+            }
+
+            var reconcileResult = await ReconcileBulkManifestReplacementInternalAsync(new Dictionary<string, ContentManifest> { { oldId, newManifest } }, cancellationToken);
+            if (!reconcileResult.Success)
+            {
+                return (OperationResult<bool>.CreateFailure($"Reconciliation failed: {reconcileResult.FirstError}"), 0, 0, 0);
+            }
+
+            var data = reconcileResult.Data;
+            return (OperationResult<bool>.CreateSuccess(true), data?.ProfilesUpdated ?? 0, data?.WorkspacesInvalidated ?? 0, data?.FailedProfilesCount ?? 0);
+        }
+
+        var invalidateResult = await InvalidateWorkspacesForManifestInternalAsync(newId, cancellationToken);
+        return (OperationResult<bool>.CreateSuccess(true), invalidateResult.ProfilesUpdated, invalidateResult.WorkspacesInvalidated, 0);
+    }
+
+    private async Task CleanupOldManifestAfterUpdateAsync(string oldId, int failedProfilesCount, CancellationToken cancellationToken)
+    {
+        if (failedProfilesCount == 0)
+        {
+            logger.LogInformation("Untracking old manifest references for '{OldId}'", oldId);
+            var untrackResult = await referenceTracker.UntrackManifestAsync(oldId, cancellationToken);
+
+            if (untrackResult.Success)
+            {
+                await manifestPool.RemoveManifestAsync(ManifestId.Create(oldId), skipUntrack: true, cancellationToken);
+            }
+            else
+            {
+                logger.LogWarning("Failed to untrack references for old manifest '{OldId}'. Skipping removal from pool. Error: {Error}", oldId, untrackResult.FirstError);
+            }
+        }
+        else
+        {
+            logger.LogWarning("Skipping removal of old manifest '{OldId}' because {FailedCount} profile(s) failed reconciliation and still reference it.", oldId, failedProfilesCount);
+        }
+    }
+
     private async Task<ReconciliationResult> InvalidateWorkspacesForManifestInternalAsync(string manifestId, CancellationToken cancellationToken)
     {
         var profilesResult = await profileManager.GetAllProfilesAsync(cancellationToken);
@@ -392,9 +425,17 @@ public class ContentReconciliationService(
             p.EnabledContentIds?.Contains(manifestId, StringComparer.OrdinalIgnoreCase) == true &&
             !string.IsNullOrEmpty(p.ActiveWorkspaceId)).ToList() ?? [];
 
+        var runningProfileIds = await GetRunningProfileIdsAsync();
+
         int invalidatedCount = 0;
         foreach (var profile in affectedProfiles)
         {
+            if (runningProfileIds.Contains(profile.Id))
+            {
+                logger.LogWarning("Skipping workspace invalidation for running profile '{ProfileName}'", profile.Name);
+                continue;
+            }
+
             logger.LogDebug("Invalidating workspace for profile '{ProfileName}' due to manifest update", profile.Name);
             var cleanupResult = await workspaceManager.CleanupWorkspaceAsync(profile.ActiveWorkspaceId!, cancellationToken);
             if (!cleanupResult.Success)
@@ -462,6 +503,8 @@ public class ContentReconciliationService(
 
         logger.LogInformation("Found {Count} affected profiles for bulk reconciliation", affectedProfiles.Count);
 
+        var runningProfileIds = await GetRunningProfileIdsAsync();
+
         int updatedProfilesCount = 0;
         int invalidatedWorkspacesCount = 0;
         var failedProfiles = new List<string>();
@@ -488,6 +531,13 @@ public class ContentReconciliationService(
                         PublisherType = m.Publisher?.PublisherType,
                         InstallationId = profile.GameClient.InstallationId, // Preserve installation link
                     };
+                }
+
+                if (runningProfileIds.Contains(profile.Id))
+                {
+                    logger.LogWarning("Cannot replace manifests in profile '{ProfileName}' because it is actively running", profile.Name);
+                    failedProfiles.Add(profile.Name);
+                    continue;
                 }
 
                 bool workspaceInvalidated = false;
@@ -563,6 +613,8 @@ public class ContentReconciliationService(
             return OperationResult<ReconciliationResult>.CreateSuccess(ReconciliationResult.Empty);
         }
 
+        var runningProfileIds = await GetRunningProfileIdsAsync();
+
         int updatedProfilesCount = 0;
         int invalidatedWorkspacesCount = 0;
         var failedProfiles = new List<string>();
@@ -576,6 +628,14 @@ public class ContentReconciliationService(
                     .ToList();
 
                 bool workspaceInvalidated = false;
+
+                if (runningProfileIds.Contains(profile.Id))
+                {
+                    logger.LogWarning("Cannot remove manifest '{ManifestId}' because profile '{ProfileName}' is actively running", manifestId.Value, profile.Name);
+                    failedProfiles.Add(profile.Name);
+                    continue;
+                }
+
                 if (!string.IsNullOrEmpty(profile.ActiveWorkspaceId))
                 {
                     logger.LogDebug("Cleaning up workspace '{WorkspaceId}' for deleted content in profile '{ProfileName}'", profile.ActiveWorkspaceId, profile.Name);
@@ -617,5 +677,23 @@ public class ContentReconciliationService(
         // Return success even with partial failures (as results now include failure count) to allow cleanup of old manifests.
         // Failed profiles are logged for visibility.
         return OperationResult<ReconciliationResult>.CreateSuccess(new ReconciliationResult(updatedProfilesCount, invalidatedWorkspacesCount, failedProfiles.Count));
+    }
+
+    private async Task<HashSet<string>> GetRunningProfileIdsAsync()
+    {
+        var runningProfileIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (launchRegistry != null)
+        {
+            var activeLaunches = await launchRegistry.GetAllActiveLaunchesAsync();
+            foreach (var launch in activeLaunches)
+            {
+                if (!launch.TerminatedAt.HasValue && !string.IsNullOrEmpty(launch.ProfileId))
+                {
+                    runningProfileIds.Add(launch.ProfileId);
+                }
+            }
+        }
+
+        return runningProfileIds;
     }
 }

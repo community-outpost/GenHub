@@ -1365,10 +1365,11 @@ public class UserDataTrackerService(
     /// </summary>
     /// <param name="manifest">The manifest whose installed files should be removed.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns><c>true</c> when every backup for the manifest was restored; otherwise, <c>false</c>.</returns>
+    /// <returns><c>true</c> when every file was cleanly uninstalled and every backup for the manifest was restored; otherwise, <c>false</c>.</returns>
     private async Task<bool> CleanupInstalledFilesAsync(UserDataManifest manifest, CancellationToken cancellationToken)
     {
         var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
+        var allCleanedUp = true;
         var allBackupsRestored = true;
         var index = await LoadIndexUnlockedAsync(cancellationToken);
 
@@ -1389,6 +1390,7 @@ public class UserDataTrackerService(
 
             var hasBackup = !string.IsNullOrEmpty(file.BackupPath) && File.Exists(file.BackupPath);
             var backupRestored = false;
+            var fileProcessed = true;
 
             try
             {
@@ -1400,9 +1402,16 @@ public class UserDataTrackerService(
                     {
                         case FileHashVerification.Match:
                             File.Delete(file.AbsolutePath);
-                            logger.LogDebug("[UserData] Deleted file: {Path}", file.AbsolutePath);
+                            if (File.Exists(file.AbsolutePath))
+                            {
+                                fileProcessed = false;
+                            }
+                            else
+                            {
+                                logger.LogDebug("[UserData] Deleted file: {Path}", file.AbsolutePath);
+                                CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath), userDataBasePath);
+                            }
 
-                            CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath), userDataBasePath);
                             break;
 
                         case FileHashVerification.Mismatch when hasBackup:
@@ -1420,6 +1429,7 @@ public class UserDataTrackerService(
 
                         default:
                             restoreNeeded = false;
+                            fileProcessed = false;
                             logger.LogWarning(
                                 "[UserData] Could not verify {Path} against its recorded hash, so it is left untouched along with any backup; the deployed file may still be pristine",
                                 file.AbsolutePath);
@@ -1454,7 +1464,13 @@ public class UserDataTrackerService(
             }
             catch (Exception ex)
             {
+                fileProcessed = false;
                 logger.LogWarning(ex, "[UserData] Failed to uninstall file: {Path}", file.AbsolutePath);
+            }
+
+            if (!fileProcessed)
+            {
+                allCleanedUp = false;
             }
 
             if (hasBackup && !backupRestored)
@@ -1467,7 +1483,7 @@ public class UserDataTrackerService(
             }
         }
 
-        return allBackupsRestored;
+        return allCleanedUp && allBackupsRestored;
     }
 
     private void EnsureDirectoriesExist()

@@ -80,6 +80,13 @@ public interface IProfileContentLinker
     string? GetActiveProfileId();
 
     /// <summary>
+    /// Gets the currently active profile ID for the specified game type (if any).
+    /// </summary>
+    /// <param name="targetGame">The target game type.</param>
+    /// <returns>The active profile ID for the specified game, or null if none is active.</returns>
+    string? GetActiveProfileId(GameType targetGame);
+
+    /// <summary>
     /// Checks if a profile has its user data currently active.
     /// </summary>
     /// <param name="profileId">The profile ID to check.</param>

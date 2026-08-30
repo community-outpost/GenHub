@@ -556,9 +556,10 @@ public class GameProcessManagerTests
                 var spawn = spawnChild ? $"\"{childPath}\" {LauncherLifetimeSeconds} &\n" : string.Empty;
                 var linger = exitImmediately ? string.Empty : $"sleep {LauncherLifetimeSeconds}\n";
                 var complain = stderrMessage is null ? string.Empty : $"echo \"{stderrMessage}\" >&2\n";
+                var recordPid = exitImmediately ? string.Empty : $"echo $$ > \"{Path.Combine(workingDirectory, LauncherPidFileName)}\"\n";
 
                 // The harness does not start the launcher, so the launcher reports its own PID.
-                script = $"#!/bin/bash\necho $$ > \"{Path.Combine(workingDirectory, LauncherPidFileName)}\"\n{complain}{spawn}{linger}";
+                script = $"#!/bin/bash\n{recordPid}{complain}{spawn}{linger}";
             }
 
             File.WriteAllText(launcherPath, script);

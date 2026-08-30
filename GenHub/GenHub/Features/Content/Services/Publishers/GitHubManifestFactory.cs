@@ -78,6 +78,14 @@ public class GitHubManifestFactory(
                                 filePath.EndsWith(".bat", StringComparison.OrdinalIgnoreCase) ||
                                 filePath.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase);
 
+            var installTarget = originalManifest.ContentType switch
+            {
+                ContentType.Map => ContentInstallTarget.UserMapsDirectory,
+                ContentType.MapPack => ContentInstallTarget.UserMapsDirectory,
+                ContentType.Replay => ContentInstallTarget.UserReplaysDirectory,
+                _ => ContentInstallTarget.Workspace,
+            };
+
             return new ManifestFile
             {
                 RelativePath = relativePath,
@@ -85,6 +93,7 @@ public class GitHubManifestFactory(
                 Hash = fileHash,
                 IsRequired = true,
                 IsExecutable = isExecutable,
+                InstallTarget = installTarget,
                 SourceType = ContentSourceType.ContentAddressable,
                 SourcePath = filePath,
             };

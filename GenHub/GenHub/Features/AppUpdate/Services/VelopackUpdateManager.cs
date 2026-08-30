@@ -528,49 +528,45 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
             // Track if subscribed PR is still open
             bool subscribedPrFound = false;
-            var prTasks = new List<Task<PullRequestInfo>>();
 
             foreach (var pr in prsData.EnumerateArray())
             {
-                var prJson = pr.Clone();
-                prTasks.Add(Task.Run(
-                    async () =>
+                var prNumber = pr.GetProperty("number").GetInt32();
+                var title = pr.GetProperty("title").GetString() ?? GameClientConstants.UnknownVersion;
+                var branchName = pr.TryGetProperty("head", out var head)
+                    ? head.GetProperty("ref").GetString() ?? "unknown"
+                    : "unknown";
+                var author = pr.TryGetProperty("user", out var user)
+                    ? user.GetProperty("login").GetString() ?? "unknown"
+                    : "unknown";
+                var state = pr.GetProperty("state").GetString() ?? "open";
+                var updatedAt = pr.TryGetProperty("updated_at", out var updatedAtProp)
+                    ? updatedAtProp.GetDateTimeOffset()
+                    : (DateTimeOffset?)null;
+
+                // Only fetch artifacts for the subscribed PR to prevent exhausting rate limits across all open PRs
+                ArtifactUpdateInfo? latestArtifact = null;
+                if (SubscribedPrNumber.HasValue && SubscribedPrNumber.Value == prNumber)
                 {
-                    var prNumber = prJson.GetProperty("number").GetInt32();
-                    var title = prJson.GetProperty("title").GetString() ?? GameClientConstants.UnknownVersion;
-                    var branchName = prJson.TryGetProperty("head", out var head)
-                        ? head.GetProperty("ref").GetString() ?? "unknown"
-                        : "unknown";
-                    var author = prJson.TryGetProperty("user", out var user)
-                        ? user.GetProperty("login").GetString() ?? "unknown"
-                        : "unknown";
-                    var state = prJson.GetProperty("state").GetString() ?? "open";
-                    var updatedAt = prJson.TryGetProperty("updated_at", out var updatedAtProp)
-                        ? updatedAtProp.GetDateTimeOffset()
-                        : (DateTimeOffset?)null;
+                    latestArtifact = await FindLatestArtifactForPrAsync(client, prNumber, cancellationToken);
+                }
 
-                    // Find latest artifact for this PR
-                    ArtifactUpdateInfo? latestArtifact = await FindLatestArtifactForPrAsync(client, prNumber, cancellationToken);
-
-                    return new PullRequestInfo
-                    {
-                        Number = prNumber,
-                        Title = title,
-                        BranchName = branchName,
-                        Author = author,
-                        State = state,
-                        UpdatedAt = updatedAt,
-                        LatestArtifact = latestArtifact,
-                    };
-                },
-                    cancellationToken));
+                results.Add(new PullRequestInfo
+                {
+                    Number = prNumber,
+                    Title = title,
+                    BranchName = branchName,
+                    Author = author,
+                    State = state,
+                    UpdatedAt = updatedAt,
+                    LatestArtifact = latestArtifact,
+                });
             }
 
-            var prInfos = await Task.WhenAll(prTasks);
-            var sortedPrs = prInfos
+            var sortedPrs = results
                 .OrderByDescending(p => p.UpdatedAt ?? DateTimeOffset.MinValue)
                 .ToList();
-            results.AddRange(sortedPrs);
+            results = sortedPrs;
 
             // Check if subscribed PR is still open
             subscribedPrFound = results.Any(p => p.Number == SubscribedPrNumber);
@@ -897,12 +893,19 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         IProgress<UpdateProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        if (prInfo.LatestArtifact == null)
+        var artifact = prInfo.LatestArtifact;
+        if (artifact == null && _gitHubTokenStorage is { } storage && await storage.LoadTokenAsync() is { } token)
+        {
+            using var client = CreateConfiguredHttpClientWithToken(token);
+            artifact = await FindLatestArtifactForPrAsync(client, prInfo.Number, cancellationToken);
+        }
+
+        if (artifact == null)
         {
             throw new InvalidOperationException($"PR #{prInfo.Number} has no artifacts available");
         }
 
-        await InstallArtifactAsync(prInfo.LatestArtifact, progress, cancellationToken);
+        await InstallArtifactAsync(artifact, progress, cancellationToken);
     }
 
     /// <inheritdoc/>

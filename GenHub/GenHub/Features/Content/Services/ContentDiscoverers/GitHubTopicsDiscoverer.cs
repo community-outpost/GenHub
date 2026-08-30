@@ -163,27 +163,30 @@ public partial class GitHubTopicsDiscoverer(
 
                     // Try to get latest release for version info
                     GitHubRelease? latestRelease = null;
-                    try
+                    if (!gitHubApiClient.IsRateLimited)
                     {
-                        // Apply rate limiting
-                        await _rateLimitSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                         try
                         {
-                            latestRelease = await gitHubApiClient.GetLatestReleaseAsync(
-                                repo.Owner.Login,
-                                repo.Name,
-                                cancellationToken).ConfigureAwait(false);
+                            // Apply rate limiting
+                            await _rateLimitSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                            try
+                            {
+                                latestRelease = await gitHubApiClient.GetLatestReleaseAsync(
+                                    repo.Owner.Login,
+                                    repo.Name,
+                                    cancellationToken).ConfigureAwait(false);
+                            }
+                            finally
+                            {
+                                // Add delay before releasing semaphore to maintain rate limit
+                                await Task.Delay(RateLimitDelay, cancellationToken).ConfigureAwait(false);
+                                _rateLimitSemaphore.Release();
+                            }
                         }
-                        finally
+                        catch (Exception ex)
                         {
-                            // Add delay before releasing semaphore to maintain rate limit
-                            await Task.Delay(RateLimitDelay, cancellationToken).ConfigureAwait(false);
-                            _rateLimitSemaphore.Release();
+                            logger.LogDebug(ex, "No releases found for {Repo}, will use repo info", repo.FullName);
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogDebug(ex, "No releases found for {Repo}, will use repo info", repo.FullName);
                     }
 
                     // Create search results (may return multiple for multi-asset releases)
@@ -330,7 +333,7 @@ public partial class GitHubTopicsDiscoverer(
             return true;
 
         // Check for source-related patterns
-        if (VariantPatterns.ExcludedPatterns.Any(p => lowerName.Contains(p)))
+        if (VariantPatterns.ExcludedPatterns.Any(lowerName.Contains))
             return true;
 
         return false;
@@ -342,7 +345,7 @@ public partial class GitHubTopicsDiscoverer(
     private static bool IsArchiveAsset(string assetName)
     {
         var lowerName = assetName.ToLowerInvariant();
-        return VariantPatterns.ArchiveExtensions.Any(ext => lowerName.EndsWith(ext));
+        return VariantPatterns.ArchiveExtensions.Any(lowerName.EndsWith);
     }
 
     /// <summary>

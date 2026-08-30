@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -10,6 +11,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameProfiles;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
@@ -57,10 +59,8 @@ public partial class GameProfileSettingsViewModel
         {
             IsLoadingContent = true;
             StatusMessage = "Loading content...";
-            var existingLocks = AvailableContent
-                .Concat(EnabledContent)
-                .GroupBy(x => x.ManifestId.Value, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => (g.First().IsLocked, g.First().CanToggle), StringComparer.OrdinalIgnoreCase);
+
+            await RefreshHotswapStateAsync();
 
             AvailableContent.Clear();
 
@@ -111,12 +111,6 @@ public partial class GameProfileSettingsViewModel
                     }
 
                     var viewModelItem = ConvertToViewModelContentDisplayItem(coreItem);
-                    if (existingLocks.TryGetValue(coreItem.ManifestId, out var lockState))
-                    {
-                        viewModelItem.IsLocked = lockState.IsLocked;
-                        viewModelItem.CanToggle = lockState.CanToggle;
-                    }
-
                     AvailableContent.Add(viewModelItem);
                 }
                 catch (ArgumentException argEx)
@@ -199,6 +193,7 @@ public partial class GameProfileSettingsViewModel
         {
             StatusMessage = "This content item is locked and cannot be modified";
             _logger?.LogWarning("DisableContent: Cannot disable locked item {DisplayName}", contentItem.DisplayName);
+            _localNotificationService.ShowWarning("Content Locked", $"'{contentItem.DisplayName}' is locked and cannot be modified while the game is running.");
             return;
         }
 
@@ -397,84 +392,11 @@ public partial class GameProfileSettingsViewModel
 
             if (string.IsNullOrEmpty(CurrentProfileId))
             {
-                var createRequest = new CreateProfileRequest
-                {
-                    Name = Name,
-                    Description = Description,
-                    GameInstallationId = SelectedGameInstallation.SourceId,
-                    GameClientId = SelectedGameInstallation.GameClientId,
-                    WorkspaceStrategy = SelectedWorkspaceStrategy,
-                    EnabledContentIds = enabledContentIds,
-                    CommandLineArguments = CommandLineArguments,
-                    IconPath = IconPath,
-                    CoverPath = CoverPath,
-                    ThemeColor = ColorValue,
-                };
-
-                var gameSettings = GameSettingsViewModel.GetProfileSettings();
-                PopulateGameSettings(createRequest, gameSettings);
-
-                var result = await _gameProfileManager.CreateProfileAsync(createRequest);
-                if (result.Success && result.Data != null)
-                {
-                    if (GameSettingsViewModel.SaveSettingsCommand.CanExecute(null))
-                    {
-                        await GameSettingsViewModel.SaveSettingsCommand.ExecuteAsync(null);
-                    }
-
-                    StatusMessage = "Profile created successfully";
-                    _logger?.LogInformation("Created new profile {ProfileName} with {ContentCount} enabled content items", Name, enabledContentIds.Count);
-
-                    ExecuteCancel();
-                }
-                else
-                {
-                    StatusMessage = $"Failed to create profile: {string.Join(", ", result.Errors)}";
-                    _logger?.LogWarning("Failed to create profile: {Errors}", string.Join(", ", result.Errors));
-                }
+                await CreateProfileAsync(enabledContentIds, cancellationToken: default);
             }
             else
             {
-                var gameSettings = GameSettingsViewModel.GetProfileSettings();
-
-                var updateRequest = new UpdateProfileRequest
-                {
-                    Name = Name,
-                    Description = Description,
-                    ThemeColor = ColorValue,
-                    GameInstallationId = SelectedGameInstallation?.SourceId,
-
-                    WorkspaceStrategy = OriginalWorkspaceStrategy.HasValue && SelectedWorkspaceStrategy != OriginalWorkspaceStrategy.Value
-                        ? SelectedWorkspaceStrategy
-                        : null,
-                    EnabledContentIds = enabledContentIds,
-                    CommandLineArguments = CommandLineArguments,
-                    IconPath = IconPath,
-                    CoverPath = CoverPath,
-                };
-
-                PopulateGameSettings(updateRequest, gameSettings);
-
-                var result = await _gameProfileManager.UpdateProfileAsync(CurrentProfileId, updateRequest);
-                if (result.Success && result.Data != null)
-                {
-                    if (GameSettingsViewModel.SaveSettingsCommand.CanExecute(null))
-                    {
-                        await GameSettingsViewModel.SaveSettingsCommand.ExecuteAsync(null);
-                    }
-
-                    StatusMessage = "Profile updated successfully";
-                    _logger?.LogInformation("Updated profile {ProfileId} with {ContentCount} enabled content items", CurrentProfileId, enabledContentIds.Count);
-
-                    WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(result.Data));
-
-                    ExecuteCancel();
-                }
-                else
-                {
-                    StatusMessage = $"Failed to update profile: {string.Join(", ", result.Errors)}";
-                    _logger?.LogWarning("Failed to update profile {ProfileId}: {Errors}", CurrentProfileId, string.Join(", ", result.Errors));
-                }
+                await UpdateProfileAsync(enabledContentIds, cancellationToken: default);
             }
         }
         catch (Exception ex)
@@ -485,6 +407,306 @@ public partial class GameProfileSettingsViewModel
         finally
         {
             IsSaving = false;
+        }
+    }
+
+    private async Task CreateProfileAsync(List<string> enabledContentIds, CancellationToken cancellationToken = default)
+    {
+        if (_gameProfileManager == null)
+        {
+            return;
+        }
+
+        var createRequest = new CreateProfileRequest
+        {
+            Name = Name,
+            Description = Description,
+            GameInstallationId = SelectedGameInstallation?.SourceId,
+            GameClientId = SelectedGameInstallation?.GameClientId,
+            WorkspaceStrategy = SelectedWorkspaceStrategy,
+            EnabledContentIds = enabledContentIds,
+            CommandLineArguments = CommandLineArguments,
+            IconPath = IconPath,
+            CoverPath = CoverPath,
+            ThemeColor = ColorValue,
+        };
+
+        var gameSettings = GameSettingsViewModel.GetProfileSettings();
+        PopulateGameSettings(createRequest, gameSettings);
+
+        var result = await _gameProfileManager.CreateProfileAsync(createRequest, cancellationToken);
+        if (result.Success && result.Data != null)
+        {
+            CurrentProfileId = result.Data.Id;
+
+            if (GameSettingsViewModel.SaveSettingsCommand.CanExecute(null))
+            {
+                await GameSettingsViewModel.SaveSettingsCommand.ExecuteAsync(null);
+            }
+
+            StatusMessage = "Profile created successfully";
+            _logger?.LogInformation("Created new profile {ProfileName} with {ContentCount} enabled content items", Name, enabledContentIds.Count);
+
+            WeakReferenceMessenger.Default.Send(new ProfileCreatedMessage(result.Data));
+            ExecuteCancel();
+        }
+        else
+        {
+            StatusMessage = $"Failed to create profile: {string.Join(", ", result.Errors)}";
+            _logger?.LogWarning("Failed to create profile: {Errors}", string.Join(", ", result.Errors));
+        }
+    }
+
+    private async Task UpdateProfileAsync(List<string> enabledContentIds, CancellationToken cancellationToken = default)
+    {
+        if (_gameProfileManager == null || string.IsNullOrEmpty(CurrentProfileId))
+        {
+            return;
+        }
+
+        var gameSettings = GameSettingsViewModel.GetProfileSettings();
+
+        var wasHotswap = IsHotswapMode;
+        bool isProfileRunning = await CheckIsProfileRunningAsync();
+        if (!wasHotswap && isProfileRunning)
+        {
+            StatusMessage = "Game session started; non-hotswappable settings are now locked";
+            _localNotificationService.ShowWarning(
+                "Hotswap Mode Enabled",
+                "The game was started while editing this profile. Non-hotswappable settings have been locked. Please review your changes and save again.");
+            return;
+        }
+
+        var liveGameType = SelectedGameInstallation?.GameType ?? GameTypeFilter;
+        var updateRequest = BuildUpdateRequest(enabledContentIds, gameSettings);
+
+        if (isProfileRunning && _profileContentLinker != null && _manifestPool != null)
+        {
+            var liveSyncSuccess = await PerformLiveSyncAsync(enabledContentIds, liveGameType, cancellationToken);
+            if (!liveSyncSuccess)
+            {
+                return;
+            }
+        }
+
+        var result = await _gameProfileManager.UpdateProfileAsync(CurrentProfileId, updateRequest, cancellationToken);
+        if (result.Success && result.Data != null)
+        {
+            await HandleProfileUpdateSuccessAsync(result, enabledContentIds, isProfileRunning);
+        }
+        else
+        {
+            await HandleProfileUpdateFailureAsync(isProfileRunning, liveGameType, result, cancellationToken);
+        }
+    }
+
+    private UpdateProfileRequest BuildUpdateRequest(List<string> enabledContentIds, UpdateProfileRequest? gameSettings)
+    {
+        var updateRequest = new UpdateProfileRequest
+        {
+            Name = Name,
+            Description = Description,
+            ThemeColor = ColorValue,
+            GameInstallationId = SelectedGameInstallation?.SourceId,
+            WorkspaceStrategy = OriginalWorkspaceStrategy.HasValue && SelectedWorkspaceStrategy != OriginalWorkspaceStrategy.Value
+                ? SelectedWorkspaceStrategy
+                : null,
+            EnabledContentIds = enabledContentIds,
+            CommandLineArguments = CommandLineArguments,
+            IconPath = IconPath,
+            CoverPath = CoverPath,
+        };
+
+        PopulateGameSettings(updateRequest, gameSettings);
+        return updateRequest;
+    }
+
+    private async Task HandleProfileUpdateSuccessAsync(ProfileOperationResult<GameProfile> result, List<string> enabledContentIds, bool isProfileRunning)
+    {
+        if (!isProfileRunning && GameSettingsViewModel.SaveSettingsCommand.CanExecute(null))
+        {
+            await GameSettingsViewModel.SaveSettingsCommand.ExecuteAsync(null);
+        }
+
+        if (isProfileRunning)
+        {
+            _localNotificationService.ShowSuccess(
+                "Live Update Complete",
+                "Content changes have been applied to the active game session.");
+        }
+
+        StatusMessage = "Profile updated successfully";
+        _logger?.LogInformation("Updated profile {ProfileId} with {ContentCount} enabled content items", CurrentProfileId, enabledContentIds.Count);
+
+        WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(result.Data));
+        ExecuteCancel();
+    }
+
+    private async Task<bool> CheckIsProfileRunningAsync()
+    {
+        if (string.IsNullOrEmpty(CurrentProfileId))
+        {
+            return false;
+        }
+
+        var isRunning = await DetermineHotswapModeAsync(CurrentProfileId);
+        if (isRunning != IsHotswapMode)
+        {
+            IsHotswapMode = isRunning;
+            UpdateAllItemsHotswapState();
+        }
+
+        return isRunning;
+    }
+
+    private async Task<bool> PerformLiveSyncAsync(
+        List<string> enabledContentIds,
+        GameType liveGameType,
+        CancellationToken cancellationToken = default)
+    {
+        if (_manifestPool == null || _profileContentLinker == null || string.IsNullOrEmpty(CurrentProfileId))
+        {
+            return false;
+        }
+
+        var manifests = new List<ContentManifest>();
+        var missingManifestIds = new List<string>();
+        foreach (var id in enabledContentIds)
+        {
+            if (!ManifestId.TryCreate(id, out var manifestId))
+            {
+                missingManifestIds.Add(id);
+                continue;
+            }
+
+            var manifestRes = await _manifestPool.GetManifestAsync(manifestId, cancellationToken);
+            if (manifestRes.Success && manifestRes.Data != null)
+            {
+                manifests.Add(manifestRes.Data);
+            }
+            else
+            {
+                missingManifestIds.Add(id);
+            }
+        }
+
+        if (missingManifestIds.Count > 0)
+        {
+            var error = $"Cannot live-sync active session: failed to resolve manifests for {string.Join(", ", missingManifestIds)}";
+            StatusMessage = error;
+            _localNotificationService.ShowWarning("Live Update Warning", error);
+            _logger?.LogWarning("Profile {ProfileId} live sync aborted due to missing manifests: {Ids}", CurrentProfileId, string.Join(", ", missingManifestIds));
+            return false;
+        }
+
+        var liveUpdateResult = await _profileContentLinker.UpdateProfileUserDataAsync(
+            CurrentProfileId,
+            manifests,
+            liveGameType,
+            cancellationToken);
+
+        if (!liveUpdateResult.Success)
+        {
+            StatusMessage = $"Live sync failed: {liveUpdateResult.FirstError}";
+            _localNotificationService.ShowWarning(
+                "Live Update Failed",
+                $"Live content synchronization failed: {liveUpdateResult.FirstError}. Profile changes were not saved.");
+            _logger?.LogWarning("Profile {ProfileId} live sync failed: {Error}", CurrentProfileId, liveUpdateResult.FirstError);
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task HandleProfileUpdateFailureAsync(
+        bool isProfileRunning,
+        GameType liveGameType,
+        ProfileOperationResult<GameProfile> result,
+        CancellationToken cancellationToken = default)
+    {
+        if (!isProfileRunning || _profileContentLinker == null || _manifestPool == null || string.IsNullOrEmpty(CurrentProfileId))
+        {
+            StatusMessage = $"Failed to update profile: {string.Join(", ", result.Errors)}";
+            _logger?.LogWarning("Failed to update profile {ProfileId}: {Errors}", CurrentProfileId, string.Join(", ", result.Errors));
+            return;
+        }
+
+        var (originalManifests, missingOriginalIds) = await ResolveOriginalManifestsForRollbackAsync(cancellationToken);
+        if (missingOriginalIds.Count > 0)
+        {
+            _logger?.LogError("Live sync rollback for profile {ProfileId} had missing original manifests: {Ids}", CurrentProfileId, string.Join(", ", missingOriginalIds));
+            _localNotificationService.ShowError(
+                "Live Rollback Warning",
+                $"Profile save failed ({string.Join(", ", result.Errors)}), and original content could not be fully resolved for rollback: {string.Join(", ", missingOriginalIds)}. Live content was left as synchronized and may not match the saved profile.");
+            StatusMessage = $"Failed to update profile: {string.Join(", ", result.Errors)}. Live rollback skipped: unresolved original manifests.";
+            _logger?.LogWarning("Failed to update profile {ProfileId}: {Errors}", CurrentProfileId, string.Join(", ", result.Errors));
+            return;
+        }
+
+        await ExecuteLiveSyncRollbackAsync(originalManifests, liveGameType, result, cancellationToken);
+    }
+
+    private async Task<(List<ContentManifest> Manifests, List<string> MissingIds)> ResolveOriginalManifestsForRollbackAsync(CancellationToken cancellationToken)
+    {
+        var originalManifests = new List<ContentManifest>();
+        var missingOriginalIds = new List<string>();
+
+        if (_manifestPool == null)
+        {
+            return (originalManifests, _originalEnabledContentIds.ToList());
+        }
+
+        foreach (var id in _originalEnabledContentIds)
+        {
+            if (!ManifestId.TryCreate(id, out var manifestId))
+            {
+                missingOriginalIds.Add(id);
+                continue;
+            }
+
+            var manifestRes = await _manifestPool.GetManifestAsync(manifestId, cancellationToken);
+            if (manifestRes.Success && manifestRes.Data != null)
+            {
+                originalManifests.Add(manifestRes.Data);
+            }
+            else
+            {
+                missingOriginalIds.Add(id);
+            }
+        }
+
+        return (originalManifests, missingOriginalIds);
+    }
+
+    private async Task ExecuteLiveSyncRollbackAsync(
+        List<ContentManifest> originalManifests,
+        GameType liveGameType,
+        ProfileOperationResult<GameProfile> result,
+        CancellationToken cancellationToken)
+    {
+        if (_profileContentLinker == null || string.IsNullOrEmpty(CurrentProfileId))
+        {
+            return;
+        }
+
+        var rollbackResult = await _profileContentLinker.UpdateProfileUserDataAsync(
+            CurrentProfileId,
+            originalManifests,
+            liveGameType,
+            cancellationToken);
+
+        if (!rollbackResult.Success)
+        {
+            _logger?.LogError("Failed to roll back live user data sync for profile {ProfileId}: {Error}", CurrentProfileId, rollbackResult.FirstError);
+            _localNotificationService.ShowError(
+                "Live Rollback Failed",
+                $"Profile save failed ({string.Join(", ", result.Errors)}), and live content rollback reported: {rollbackResult.FirstError}");
+            StatusMessage = $"Failed to update profile: {string.Join(", ", result.Errors)}. Live rollback failed: {rollbackResult.FirstError}";
+        }
+        else
+        {
+            _logger?.LogInformation("Successfully rolled back live user data sync for profile {ProfileId}", CurrentProfileId);
+            StatusMessage = $"Failed to update profile: {string.Join(", ", result.Errors)}. Live content was rolled back.";
         }
     }
 

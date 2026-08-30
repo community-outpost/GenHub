@@ -26,6 +26,7 @@ using GenHub.Features.GitHub.Services;
 using GenHub.Features.Manifest;
 using GenHub.Features.Storage.Services;
 using GenHub.Infrastructure.Services;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
@@ -139,7 +140,13 @@ public static class ContentPipelineModule
         });
 
         // Register GitHub API client
-        services.AddSingleton<IGitHubApiClient, OctokitGitHubApiClient>();
+        services.AddSingleton<IGitHubApiClient>(sp => new OctokitGitHubApiClient(
+            sp.GetRequiredService<Octokit.IGitHubClient>(),
+            sp.GetRequiredService<IHttpClientFactory>(),
+            sp.GetRequiredService<ILogger<OctokitGitHubApiClient>>(),
+            sp.GetRequiredService<IMemoryCache>(),
+            sp.GetService<IGitHubTokenStorage>(),
+            sp.GetService<GitHubRateLimitTracker>()));
 
         // Register Local Content Service
         services.AddTransient<ILocalContentService, LocalContentService>();

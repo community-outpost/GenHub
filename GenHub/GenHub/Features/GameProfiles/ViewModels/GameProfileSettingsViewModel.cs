@@ -13,11 +13,14 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
+using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Workspace;
 using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.Notifications.Services;
 using GenHub.Features.Notifications.ViewModels;
@@ -121,27 +124,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         if (gameSettings != null) GameSettingsMapper.PopulateRequest(request, gameSettings);
     }
 
-    private static ContentDisplayItem ConvertToViewModelContentDisplayItem(Core.Models.Content.ContentDisplayItem coreItem)
-    {
-        return new ContentDisplayItem
-        {
-            ManifestId = ManifestId.Create(coreItem.ManifestId),
-            DisplayName = coreItem.DisplayName,
-            ContentType = coreItem.ContentType,
-            GameType = coreItem.GameType,
-            InstallationType = coreItem.InstallationType,
-            Publisher = coreItem.Publisher,
-            Version = coreItem.Version,
-            SourceId = coreItem.SourceId,
-            GameClientId = coreItem.GameClientId,
-            IsEnabled = coreItem.IsEnabled,
-            IsEditable = coreItem.IsEditable,
-            SourcePath = coreItem.SourcePath,
-            IsLocked = false,
-            CanToggle = true,
-        };
-    }
-
     private static void ValidateSingleDependencyWarning(
         ContentManifest manifest,
         ContentDependency dependency,
@@ -198,6 +180,75 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private static bool HasCompatibleCatalogMatch(string declaredId, string availableId) =>
         DependencyResolver.HasCompatibleCatalogIdentity(declaredId, availableId);
 
+    private static bool IsDependencyAlreadyEnabled(ContentDependency dependency, IEnumerable<ContentDisplayItem> enabledContent)
+    {
+        var declaredId = dependency.Id.ToString();
+        return declaredId != ManifestConstants.DefaultContentDependencyId
+            ? enabledContent.Any(x => x.ManifestId.Value == declaredId ||
+                (x.ContentType == dependency.DependencyType &&
+                 HasCompatibleCatalogMatch(declaredId, x.ManifestId.Value)))
+            : enabledContent.Any(x => x.ContentType == dependency.DependencyType);
+    }
+
+    private static (bool IsLocked, bool CanToggle) GetItemHotswapState(bool isHotswapMode, ContentType contentType, ContentManifest? manifest = null)
+    {
+        var isHotswappable = manifest != null
+            ? ContentHotswapClassification.IsHotswappable(manifest)
+            : ContentHotswapClassification.IsHotswappable(contentType);
+        var isLocked = isHotswapMode && !isHotswappable;
+        var canToggle = !isHotswapMode || isHotswappable;
+        return (isLocked, canToggle);
+    }
+
+    private ContentDisplayItem ConvertToViewModelContentDisplayItem(Core.Models.Content.ContentDisplayItem coreItem)
+    {
+        var (isLocked, canToggle) = GetItemHotswapState(IsHotswapMode, coreItem.ContentType, coreItem.Manifest);
+
+        return new ContentDisplayItem
+        {
+            ManifestId = ManifestId.Create(coreItem.ManifestId),
+            DisplayName = coreItem.DisplayName,
+            ContentType = coreItem.ContentType,
+            GameType = coreItem.GameType,
+            InstallationType = coreItem.InstallationType,
+            Publisher = coreItem.Publisher,
+            Version = coreItem.Version,
+            SourceId = coreItem.SourceId,
+            GameClientId = coreItem.GameClientId,
+            IsEnabled = coreItem.IsEnabled,
+            IsEditable = coreItem.IsEditable,
+            SourcePath = coreItem.SourcePath,
+            Manifest = coreItem.Manifest,
+            IsLocked = isLocked,
+            CanToggle = canToggle,
+        };
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Operates on observable collection properties defined across partial view model classes")]
+    private void UpdateAllItemsHotswapState()
+    {
+        var hotswapMode = IsHotswapMode;
+        foreach (var item in EnabledContent)
+        {
+            var (isLocked, canToggle) = GetItemHotswapState(hotswapMode, item.ContentType, item.Manifest);
+            item.IsLocked = isLocked;
+            item.CanToggle = canToggle;
+        }
+
+        foreach (var item in AvailableContent)
+        {
+            var (isLocked, canToggle) = GetItemHotswapState(hotswapMode, item.ContentType, item.Manifest);
+            item.IsLocked = isLocked;
+            item.CanToggle = canToggle;
+        }
+
+        foreach (var item in AvailableGameInstallations)
+        {
+            item.IsLocked = hotswapMode;
+            item.CanToggle = !hotswapMode;
+        }
+    }
+
     private readonly IGameProfileManager? _gameProfileManager;
     private readonly IGameSettingsService? _gameSettingsService;
     private readonly IConfigurationProviderService? _configurationProvider;
@@ -211,8 +262,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly IDialogService? _dialogService;
     private readonly ILogger<GameProfileSettingsViewModel>? _logger;
     private readonly ILogger<GameSettingsViewModel>? _gameSettingsLogger;
+    private readonly IProfileContentLinker? _profileContentLinker;
+    private readonly ILaunchRegistry? _launchRegistry;
 
     private readonly NotificationService _localNotificationService = new(NullLogger<NotificationService>.Instance);
+    private readonly List<string> _originalEnabledContentIds = [];
 
     private WorkspaceStrategy? OriginalWorkspaceStrategy { get; set; }
 
@@ -249,6 +303,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// <param name="dialogService">The dialog service.</param>
     /// <param name="logger">The logger for this view model.</param>
     /// <param name="gameSettingsLogger">The logger for the game settings view model.</param>
+    /// <param name="profileContentLinker">The profile content linker service.</param>
+    /// <param name="launchRegistry">The launch registry service.</param>
     public GameProfileSettingsViewModel(
         IGameProfileManager? gameProfileManager,
         IGameSettingsService? gameSettingsService,
@@ -262,7 +318,9 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         IGenLauncherNormalizationService? genLauncherNormalizationService,
         IDialogService? dialogService,
         ILogger<GameProfileSettingsViewModel>? logger,
-        ILogger<GameSettingsViewModel>? gameSettingsLogger)
+        ILogger<GameSettingsViewModel>? gameSettingsLogger,
+        IProfileContentLinker? profileContentLinker = null,
+        ILaunchRegistry? launchRegistry = null)
     {
         _gameProfileManager = gameProfileManager;
         _gameSettingsService = gameSettingsService;
@@ -277,6 +335,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         _dialogService = dialogService;
         _logger = logger;
         _gameSettingsLogger = gameSettingsLogger;
+        _profileContentLinker = profileContentLinker;
+        _launchRegistry = launchRegistry;
 
         NotificationManager = new NotificationManagerViewModel(
             _localNotificationService,
@@ -298,6 +358,32 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         // Global manifest replacement - update our state surgicaly to avoid losing unsaved toggles
         // Dispatch to UI thread to ensure ObservableCollection mutations happen safely
         Dispatcher.UIThread.Post(() => _ = HandleManifestReplacementAsync(message.OldId, message.NewId));
+    }
+
+    /// <summary>
+    /// Refreshes the hotswap mode and updates item lock states if the profile running state has changed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public virtual async Task RefreshHotswapStateAsync()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(CurrentProfileId))
+            {
+                return;
+            }
+
+            var isRunning = await DetermineHotswapModeAsync(CurrentProfileId);
+            if (isRunning != IsHotswapMode)
+            {
+                IsHotswapMode = isRunning;
+                UpdateAllItemsHotswapState();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Error refreshing hotswap mode for profile {ProfileId}", CurrentProfileId);
+        }
     }
 
     /// <summary>
@@ -395,10 +481,26 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// </summary>
     partial void OnSelectedGameInstallationChanged(ContentDisplayItem? value)
     {
-        if (value is { GameType: var gameType } && gameType != GameTypeFilter)
+        if (value != null)
         {
-            GameTypeFilter = gameType;
-            _logger?.LogInformation("Auto-synced GameTypeFilter to {GameType} based on SelectedGameInstallation", gameType);
+            value.IsEnabled = true;
+            foreach (var item in AvailableGameInstallations)
+            {
+                item.IsEnabled = item.ManifestId.Value == value.ManifestId.Value;
+            }
+
+            if (value.GameType != GameTypeFilter)
+            {
+                GameTypeFilter = value.GameType;
+                _logger?.LogInformation("Auto-synced GameTypeFilter to {GameType} based on SelectedGameInstallation", value.GameType);
+            }
+        }
+        else
+        {
+            foreach (var item in AvailableGameInstallations)
+            {
+                item.IsEnabled = false;
+            }
         }
     }
 
@@ -409,6 +511,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         bool bypassLoadingGuard = false,
         bool isRootOperation = true,
         List<string>? autoEnabledNames = null,
+        HashSet<string>? warnedLockedNames = null,
         CancellationToken cancellationToken = default)
     {
         if (contentItem is null || !CanEnableContent(contentItem, bypassLoadingGuard))
@@ -420,7 +523,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         ActivateContentItem(contentItem);
 
         var autoResolved = autoEnabledNames ?? [];
-        await ResolveDependenciesAsync(contentItem, autoResolved, cancellationToken);
+        var warnedLocked = warnedLockedNames ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        await ResolveDependenciesAsync(contentItem, autoResolved, warnedLocked, cancellationToken);
 
         if (isRootOperation)
         {
@@ -443,6 +547,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         if (contentItem.IsLocked)
         {
             StatusMessage = "This content item is locked and cannot be modified";
+            _logger?.LogWarning("EnableContent: Cannot enable locked item {DisplayName}", contentItem.DisplayName);
+            _localNotificationService.ShowWarning("Content Locked", $"'{contentItem.DisplayName}' is locked and cannot be modified while the game is running.");
             return false;
         }
 
@@ -548,7 +654,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         await ValidateEnabledContentDependenciesAsync(contentItem.DisplayName, cancellationToken);
     }
 
-    private async Task ResolveDependenciesAsync(ContentDisplayItem contentItem, List<string> autoEnabledNames, CancellationToken cancellationToken = default)
+    private async Task ResolveDependenciesAsync(
+        ContentDisplayItem contentItem,
+        List<string> autoEnabledNames,
+        HashSet<string> warnedLockedNames,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -564,11 +674,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             {
                 if (dependency.DependencyType == ContentType.GameInstallation)
                 {
-                    await ResolveGameInstallationDependencyAsync(contentItem, dependency, autoEnabledNames, cancellationToken);
+                    await ResolveGameInstallationDependencyAsync(contentItem, dependency, autoEnabledNames, warnedLockedNames, cancellationToken);
                 }
                 else
                 {
-                    await ResolveContentDependencyAsync(dependency, autoEnabledNames, cancellationToken);
+                    await ResolveContentDependencyAsync(dependency, autoEnabledNames, warnedLockedNames, cancellationToken);
                 }
             }
         }
@@ -620,6 +730,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         ContentDisplayItem contentItem,
         ContentDependency dependency,
         List<string> autoEnabledNames,
+        HashSet<string> warnedLockedNames,
         CancellationToken cancellationToken = default)
     {
         bool isSatisfied = false;
@@ -666,29 +777,52 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
         if (compatibleInstallation != null)
         {
-            if (!autoEnabledNames.Contains(compatibleInstallation.DisplayName))
+            if (!compatibleInstallation.IsLocked && compatibleInstallation.CanToggle)
             {
-                autoEnabledNames.Add(compatibleInstallation.DisplayName);
-            }
+                if (!autoEnabledNames.Contains(compatibleInstallation.DisplayName))
+                {
+                    autoEnabledNames.Add(compatibleInstallation.DisplayName);
+                }
 
-            await EnableContentInternal(compatibleInstallation, bypassLoadingGuard: true, isRootOperation: false, autoEnabledNames, cancellationToken);
+                await EnableContentInternal(compatibleInstallation, bypassLoadingGuard: true, isRootOperation: false, autoEnabledNames, warnedLockedNames, cancellationToken);
+            }
+            else
+            {
+                _logger?.LogWarning("Auto-resolve skipped: Installation {DisplayName} is locked or cannot toggle", compatibleInstallation.DisplayName);
+                if (compatibleInstallation.IsLocked && warnedLockedNames.Add(compatibleInstallation.DisplayName))
+                {
+                    _localNotificationService.ShowWarning("Content Locked", $"Required dependency '{compatibleInstallation.DisplayName}' is locked and cannot be automatically enabled while the game is running.");
+                }
+            }
         }
     }
 
     private async Task ResolveContentDependencyAsync(
         ContentDependency dependency,
         List<string> autoEnabledNames,
+        HashSet<string> warnedLockedNames,
         CancellationToken cancellationToken = default)
     {
+        if (IsDependencyAlreadyEnabled(dependency, EnabledContent) || dependency.IsOptional || _profileContentLoader == null)
+        {
+            return;
+        }
+
+        var match = await FindMatchingContentDependencyAsync(dependency);
+        if (match != null)
+        {
+            await ProcessMatchedDependencyItemAsync(match, autoEnabledNames, warnedLockedNames, cancellationToken);
+        }
+    }
+
+    private async Task<Core.Models.Content.ContentDisplayItem?> FindMatchingContentDependencyAsync(ContentDependency dependency)
+    {
+        if (_profileContentLoader == null)
+        {
+            return null;
+        }
+
         var declaredId = dependency.Id.ToString();
-        bool alreadyEnabled = declaredId != ManifestConstants.DefaultContentDependencyId
-            ? EnabledContent.Any(x => x.ManifestId.Value == declaredId ||
-                (x.ContentType == dependency.DependencyType &&
-                 HasCompatibleCatalogMatch(declaredId, x.ManifestId.Value)))
-            : EnabledContent.Any(x => x.ContentType == dependency.DependencyType);
-
-        if (alreadyEnabled || dependency.IsOptional || _profileContentLoader == null) return;
-
         var availableOfTargetType = await _profileContentLoader.LoadAvailableContentAsync(
             dependency.DependencyType,
             new ObservableCollection<Core.Models.Content.ContentDisplayItem>(AvailableGameInstallations.Select(x => new Core.Models.Content.ContentDisplayItem
@@ -701,22 +835,34 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             })),
             EnabledContent.Select(x => x.ManifestId.Value));
 
-        var match = declaredId != ManifestConstants.DefaultContentDependencyId
+        return declaredId != ManifestConstants.DefaultContentDependencyId
             ? (availableOfTargetType.FirstOrDefault(x => x.ManifestId == declaredId)
                ?? availableOfTargetType.FirstOrDefault(x => HasCompatibleCatalogMatch(declaredId, x.ManifestId)))
             : availableOfTargetType.FirstOrDefault(x => x.ContentType == dependency.DependencyType);
+    }
 
-        if (match != null)
+    private async Task ProcessMatchedDependencyItemAsync(
+        Core.Models.Content.ContentDisplayItem match,
+        List<string> autoEnabledNames,
+        HashSet<string> warnedLockedNames,
+        CancellationToken cancellationToken)
+    {
+        var viewModelItem = ConvertToViewModelContentDisplayItem(match);
+        if (!viewModelItem.IsEnabled && !viewModelItem.IsLocked && viewModelItem.CanToggle)
         {
-            var viewModelItem = ConvertToViewModelContentDisplayItem(match);
-            if (!viewModelItem.IsEnabled)
+            if (!autoEnabledNames.Contains(viewModelItem.DisplayName))
             {
-                if (!autoEnabledNames.Contains(viewModelItem.DisplayName))
-                {
-                    autoEnabledNames.Add(viewModelItem.DisplayName);
-                }
+                autoEnabledNames.Add(viewModelItem.DisplayName);
+            }
 
-                await EnableContentInternal(viewModelItem, bypassLoadingGuard: true, isRootOperation: false, autoEnabledNames, cancellationToken);
+            await EnableContentInternal(viewModelItem, bypassLoadingGuard: true, isRootOperation: false, autoEnabledNames, warnedLockedNames, cancellationToken);
+        }
+        else if (viewModelItem.IsLocked || !viewModelItem.CanToggle)
+        {
+            _logger?.LogWarning("Auto-resolve skipped: Content {DisplayName} is locked or cannot toggle", viewModelItem.DisplayName);
+            if (viewModelItem.IsLocked && warnedLockedNames.Add(viewModelItem.DisplayName))
+            {
+                _localNotificationService.ShowWarning("Content Locked", $"Required dependency '{viewModelItem.DisplayName}' is locked and cannot be automatically enabled while the game is running.");
             }
         }
     }
@@ -906,6 +1052,15 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                 SelectedGameInstallation = AvailableGameInstallations
                     .OrderByDescending(i => i.GameType == Core.Models.Enums.GameType.ZeroHour)
                     .First();
+                SelectedGameInstallation.IsEnabled = true;
+            }
+            else if (SelectedGameInstallation != null)
+            {
+                var match = AvailableGameInstallations.FirstOrDefault(a => a.ManifestId.Value == SelectedGameInstallation.ManifestId.Value);
+                if (match != null)
+                {
+                    match.IsEnabled = true;
+                }
             }
         }
         catch (Exception ex)

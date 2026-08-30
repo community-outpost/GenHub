@@ -82,6 +82,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly INotificationService _notificationService;
     private readonly ILogger<SettingsViewModel> _logger;
     private readonly IGitHubTokenStorage? _gitHubTokenStorage;
+    private readonly IGitHubApiClient? _gitHubApiClient;
     private readonly Timer _memoryUpdateTimer;
     private readonly Timer _dangerZoneUpdateTimer;
     private readonly IConfigurationProviderService _configurationProvider;
@@ -247,6 +248,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="dialogService">Dialog service used to confirm destructive actions.</param>
     /// <param name="themeService">Theme service for dynamic accent theming.</param>
     /// <param name="gitHubTokenStorage">GitHub token storage.</param>
+    /// <param name="gitHubApiClient">GitHub API client.</param>
     public SettingsViewModel(
         IUserSettingsService userSettingsService,
         ILogger<SettingsViewModel> logger,
@@ -262,7 +264,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IUserDataTracker userDataTracker,
         IDialogService dialogService,
         IThemeService? themeService = null,
-        IGitHubTokenStorage? gitHubTokenStorage = null)
+        IGitHubTokenStorage? gitHubTokenStorage = null,
+        IGitHubApiClient? gitHubApiClient = null)
     {
         _userSettingsService = userSettingsService ?? throw new ArgumentNullException(nameof(userSettingsService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -279,6 +282,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _themeService = themeService;
         _gitHubTokenStorage = gitHubTokenStorage;
+        _gitHubApiClient = gitHubApiClient;
 
         LoadSettings();
         _ = LoadPatStatusAsync();
@@ -1004,6 +1008,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
 
             await _gitHubTokenStorage.SaveTokenAsync(secureString);
+            _gitHubApiClient?.SetAuthenticationToken(secureString);
 
             // Try to check for artifacts to validate the PAT
             if (_updateManager != null)
@@ -1026,6 +1031,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 {
                     // Rollback on validation failure
                     await _gitHubTokenStorage.DeleteTokenAsync();
+                    _gitHubApiClient?.ClearAuthenticationToken();
                     throw;
                 }
             }
@@ -1062,6 +1068,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             await _gitHubTokenStorage.DeleteTokenAsync();
+            _gitHubApiClient?.ClearAuthenticationToken();
             HasGitHubPat = false;
             IsPatValid = false;
             PatStatusMessage = "GitHub PAT removed";

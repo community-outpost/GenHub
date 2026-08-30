@@ -14,6 +14,11 @@ public interface IGitHubApiClient
     bool IsAuthenticated { get; }
 
     /// <summary>
+    /// Gets a value indicating whether the GitHub API rate limit is reached.
+    /// </summary>
+    bool IsRateLimited { get; }
+
+    /// <summary>
     /// Gets the latest release from the specified repository.
     /// </summary>
     /// <param name="owner">The repository owner.</param>
@@ -120,6 +125,11 @@ public interface IGitHubApiClient
     /// </summary>
     /// <param name="token">The GitHub token.</param>
     void SetAuthenticationToken(SecureString token);
+
+    /// <summary>
+    /// Clears any configured authentication token.
+    /// </summary>
+    void ClearAuthenticationToken();
 
     /// <summary>
     /// Gets the currently authenticated user.
