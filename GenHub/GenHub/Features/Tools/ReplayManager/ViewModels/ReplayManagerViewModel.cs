@@ -945,7 +945,7 @@ public partial class ReplayManagerViewModel(
         }
 
         IsBusy = true;
-        StatusMessage = $"Creating profile for {replay.FileName}...";
+        StatusMessage = $"Configuring profile for {replay.FileName}...";
 
         try
         {
@@ -954,7 +954,7 @@ public partial class ReplayManagerViewModel(
             {
                 notificationService.ShowSuccess(
                     "Profile Created",
-                    $"Created profile '{result.Data.Name}' matching Exe CRC {replay.Metadata?.FormattedExeCrc} and INI CRC {replay.Metadata?.FormattedIniCrc}.");
+                    $"Created profile '{result.Data.Name}' for {replay.ClientAndPatchDisplay}.");
                 StatusMessage = $"Created profile '{result.Data.Name}'.";
                 await LoadReplaysAsync();
             }

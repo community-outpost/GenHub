@@ -67,6 +67,37 @@ public sealed class ReplayFile : IExportableFile
     public string FormattedSize => FormatFileSize(SizeInBytes);
 
     /// <summary>
+    /// Gets the user-facing display text for the game client and data patch version.
+    /// </summary>
+    public string ClientAndPatchDisplay
+    {
+        get
+        {
+            if (MatchedClient != null)
+            {
+                if (!string.IsNullOrWhiteSpace(MatchedClient.DataPatchName))
+                {
+                    return $"{MatchedClient.Description} • {MatchedClient.DataPatchName}";
+                }
+
+                return MatchedClient.Description;
+            }
+
+            if (Metadata != null && (!string.IsNullOrEmpty(Metadata.FormattedExeCrc) || !string.IsNullOrEmpty(Metadata.FormattedIniCrc)))
+            {
+                if (!string.IsNullOrEmpty(Metadata.BuildTimeString))
+                {
+                    return $"{Metadata.VersionString ?? "Zero Hour"} ({Metadata.BuildTimeString})";
+                }
+
+                return $"Custom (Exe: {Metadata.FormattedExeCrc ?? "N/A"}, INI: {Metadata.FormattedIniCrc ?? "N/A"})";
+            }
+
+            return UnknownValue;
+        }
+    }
+
+    /// <summary>
     /// Gets the user-friendly compatibility status badge text.
     /// </summary>
     public string CompatibilityBadgeText => CompatibilityStatus switch
@@ -74,7 +105,7 @@ public sealed class ReplayFile : IExportableFile
         ReplayCompatibilityStatus.Compatible => "Ready to Play",
         ReplayCompatibilityStatus.RequiresProfile => "Profile Needed",
         ReplayCompatibilityStatus.Downloadable => "Download Required",
-        ReplayCompatibilityStatus.Orphaned => "Mismatch Risk",
+        ReplayCompatibilityStatus.Orphaned => "Custom / Unmapped",
         _ => UnknownValue,
     };
 
@@ -84,13 +115,13 @@ public sealed class ReplayFile : IExportableFile
     public string CompatibilityTooltip => CompatibilityStatus switch
     {
         ReplayCompatibilityStatus.Compatible =>
-            $"Compatible with profile '{MatchingProfileName ?? MatchedClient?.Description ?? UnknownValue}'. Exe CRC: {Metadata?.FormattedExeCrc ?? "N/A"}, INI CRC: {Metadata?.FormattedIniCrc ?? "N/A"}.",
+            $"Profile '{MatchingProfileName ?? MatchedClient?.Description ?? UnknownValue}' is ready with matching client and data patch. Click 'Play' to watch this replay.",
         ReplayCompatibilityStatus.RequiresProfile =>
-            $"Game client '{MatchedClient?.Description ?? UnknownValue}' is installed. Click 'Create Profile' to configure and play this replay.",
+            $"Game client and patch for '{MatchedClient?.Description ?? UnknownValue}' are available. Click 'Create Profile' to configure a dedicated profile.",
         ReplayCompatibilityStatus.Downloadable =>
-            $"Game client '{MatchedClient?.Description ?? UnknownValue}' is known and available on CDN. Profile creation will acquire the client.",
+            $"Game client and data patch for '{MatchedClient?.Description ?? UnknownValue}' can be downloaded. Click 'Setup' to acquire and configure this profile.",
         ReplayCompatibilityStatus.Orphaned =>
-            $"Exe CRC {Metadata?.FormattedExeCrc ?? "N/A"} or INI CRC {Metadata?.FormattedIniCrc ?? "N/A"} is not recognized. Replay playback may desync or mismatch.",
+            $"Exe CRC {Metadata?.FormattedExeCrc ?? "N/A"} / INI CRC {Metadata?.FormattedIniCrc ?? "N/A"} is not in the official catalog. Click 'Profile' to configure using your base installation.",
         _ => "Replay header metadata is not available or could not be parsed.",
     };
 

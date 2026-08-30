@@ -99,7 +99,7 @@
           <DataGrid.Columns>
             <DataGridTextColumn Header="Filename" Binding="{Binding FileName}" Width="2*" MinWidth="130" />
             <DataGridTextColumn Header="Map" Binding="{Binding Metadata.MapName}" Width="*" MinWidth="100" IsReadOnly="True" />
-            <DataGridTextColumn Header="Client / Build" Binding="{Binding MatchedClient.Description}" Width="1.5*" MinWidth="130" IsReadOnly="True" />
+            <DataGridTextColumn Header="Client / Build" Binding="{Binding ClientAndPatchDisplay}" Width="1.8*" MinWidth="140" IsReadOnly="True" />
             <DataGridTextColumn Header="Exe CRC" Binding="{Binding Metadata.FormattedExeCrc}" Width="Auto" MinWidth="90" IsReadOnly="True" />
             <DataGridTextColumn Header="INI CRC" Binding="{Binding Metadata.FormattedIniCrc}" Width="Auto" MinWidth="90" IsReadOnly="True" />
             <DataGridTemplateColumn Header="Compatibility" Width="Auto" MinWidth="130">
@@ -114,7 +114,7 @@
                                  IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.RequiresProfile}}"/>
                       <TextBlock Text="●" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource WarningBrush}"
                                  IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Downloadable}}"/>
-                      <TextBlock Text="●" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource ErrorBrush}"
+                      <TextBlock Text="●" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource WarningBrush}"
                                  IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Orphaned}}"/>
                       <TextBlock Text="●" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"
                                  IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Unknown}}"/>
@@ -149,34 +149,41 @@
                       </StackPanel>
                     </Button>
 
-                    <!-- Create Profile Button (When RequiresProfile or Downloadable) -->
-                    <Button Classes="Secondary" Padding="8,4"
+                    <!-- Create Profile Button (When RequiresProfile) -->
+                    <Button Classes="Primary" Padding="8,4"
                             Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).CreateProfileForReplayCommand}"
                             CommandParameter="{Binding}"
                             IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.RequiresProfile}}"
-                            ToolTip.Tip="Create a dedicated game profile for this replay's installed game client">
+                            ToolTip.Tip="Create a dedicated game profile configured with matching game client and data patch">
                       <StackPanel Orientation="Horizontal" Spacing="4">
                         <TextBlock Text="➕" FontSize="10"/>
                         <TextBlock Text="Profile" FontSize="11"/>
                       </StackPanel>
                     </Button>
 
+                    <!-- Download & Setup Button (When Downloadable) -->
                     <Button Classes="Secondary" Padding="8,4"
                             Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).CreateProfileForReplayCommand}"
                             CommandParameter="{Binding}"
                             IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Downloadable}}"
-                            ToolTip.Tip="Create profile for this replay's game client catalog release">
+                            ToolTip.Tip="Download required game client and data patch, then create profile">
                       <StackPanel Orientation="Horizontal" Spacing="4">
                         <TextBlock Text="📥" FontSize="10"/>
-                        <TextBlock Text="Profile" FontSize="11"/>
+                        <TextBlock Text="Setup" FontSize="11"/>
                       </StackPanel>
                     </Button>
 
-                    <!-- Mismatch Risk Indicator (When Orphaned / Unknown CRC) -->
-                    <TextBlock Text="⚠️ Mismatch" FontSize="11" Foreground="{DynamicResource WarningBrush}"
-                               IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Orphaned}}"
-                               ToolTip.Tip="Executable or INI CRC is not recognized in the catalog. Replay playback may desync or mismatch."
-                               VerticalAlignment="Center"/>
+                    <!-- Custom / Unmapped Profile Button (When Orphaned / Custom CRC) -->
+                    <Button Classes="icon-subtle" Padding="6,4"
+                            Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).CreateProfileForReplayCommand}"
+                            CommandParameter="{Binding}"
+                            IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Orphaned}}"
+                            ToolTip.Tip="Create a profile using your base game installation to watch this custom replay">
+                      <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="⚙️" FontSize="10"/>
+                        <TextBlock Text="Profile" FontSize="11"/>
+                      </StackPanel>
+                    </Button>
                   </StackPanel>
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
