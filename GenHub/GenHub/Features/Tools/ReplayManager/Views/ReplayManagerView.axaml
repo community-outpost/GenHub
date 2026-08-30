@@ -156,17 +156,10 @@
             </DataGridTemplateColumn>
             <DataGridTextColumn Header="Size" Binding="{Binding FormattedSize}" Width="Auto" MinWidth="65" IsReadOnly="True" />
             <DataGridTextColumn Header="Modified" Binding="{Binding LastModified, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="Auto" MinWidth="115" IsReadOnly="True" />
-            <DataGridTemplateColumn Width="150" Header="Actions">
+            <DataGridTemplateColumn Width="Auto" MinWidth="110" Header="Actions">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
                   <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <Button Command="{Binding #Root.((vm:ReplayManagerViewModel)DataContext).RevealFileCommand}"
-                            CommandParameter="{Binding}"
-                            Classes="icon-subtle" Padding="6"
-                            ToolTip.Tip="Reveal in explorer">
-                      <PathIcon Data="{StaticResource ToolIcon.FolderEyeOutline}" Width="15" Height="15" Foreground="{DynamicResource AccentLightBrush}"/>
-                    </Button>
-
                     <!-- Play Replay Button (When Compatible with matching profile) -->
                     <Button Classes="Primary" Padding="8,4"
                             Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).LaunchReplayCommand}"

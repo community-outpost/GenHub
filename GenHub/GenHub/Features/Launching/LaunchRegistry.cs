@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Models.GameProfile;
@@ -125,6 +126,7 @@ public class LaunchRegistry : ILaunchRegistry
             // e.ExitTime might be non-nullable DateTime
             launch.TerminatedAt = e.ExitTime != default ? e.ExitTime : DateTime.UtcNow;
             launch.ProcessInfo.IsRunning = false;
+            WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(launch.ProfileId, e.ProcessId));
         }
     }
 
