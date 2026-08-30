@@ -375,22 +375,6 @@ public sealed class ReplayDirectoryServiceTests
                 Description = "TheSuperHackers ZeroHour weekly 2026-08-21",
             };
 
-            var profile = new GameProfile
-            {
-                Id = "profile-123",
-                Name = "TSH Zero Hour Profile",
-                GameClient = new GameClient
-                {
-                    Id = "1.20260821.thesuperhackers.gameclient.zerohour",
-                    Name = "TSH Zero Hour",
-                    GameType = GameType.ZeroHour,
-                    InstallationId = "inst-1",
-                    ExecutablePath = "/path/generalszh.exe",
-                    WorkingDirectory = "/path",
-                },
-                EnabledContentIds = ["1.20260821.thesuperhackers.gameclient.zerohour"],
-            };
-
             _mockHeaderParser
                 .Setup(p => p.ParseHeaderAsync(replayFilePath, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<ReplayMetadata>.CreateSuccess(metadata));

@@ -363,9 +363,11 @@ public sealed class ReplayDirectoryService(
         var targetPath = replay.GameVersion == GameType.Generals ? installation.GeneralsPath : installation.ZeroHourPath;
         var defaultExeName = GetDefaultExecutableName(replay.GameVersion, replay.MatchedClient?.Publisher);
         var workingDir = !string.IsNullOrEmpty(targetPath) ? targetPath : installation.InstallationPath;
-        var exePath = !string.IsNullOrWhiteSpace(targetClient?.ExecutablePath)
-            ? targetClient.ExecutablePath
-            : (!string.IsNullOrWhiteSpace(workingDir) ? Path.Combine(workingDir, defaultExeName) : string.Empty);
+        var exePath = targetClient?.ExecutablePath;
+        if (string.IsNullOrWhiteSpace(exePath) && !string.IsNullOrWhiteSpace(workingDir))
+        {
+            exePath = Path.Combine(workingDir, defaultExeName);
+        }
 
         if (string.IsNullOrWhiteSpace(exePath))
         {
@@ -397,29 +399,27 @@ public sealed class ReplayDirectoryService(
 
             return (clientManifestId, gameClient);
         }
-        else
+
+        var thirdPartyManifestId = replay.MatchedClient?.ManifestId ?? string.Empty;
+        if (replay.MatchedClient != null)
         {
-            var clientManifestId = replay.MatchedClient?.ManifestId ?? string.Empty;
-            if (replay.MatchedClient != null)
-            {
-                await AcquireThirdPartyClientAndDependenciesAsync(contentOrchestrator, manifestPool, replay.MatchedClient, replay.GameVersion, ct);
-            }
-
-            var clientName = replay.MatchedClient?.Description ?? $"{replay.MatchedClient?.Publisher} {replay.MatchedClient?.Version}";
-            var gameClient = new GameClient
-            {
-                Id = clientManifestId,
-                Name = clientName,
-                Version = replay.MatchedClient?.Version ?? defaultVersion,
-                GameType = replay.GameVersion,
-                PublisherType = replay.MatchedClient?.Publisher ?? string.Empty,
-                InstallationId = installation.Id,
-                ExecutablePath = exePath,
-                WorkingDirectory = workingDir,
-            };
-
-            return (clientManifestId, gameClient);
+            await AcquireThirdPartyClientAndDependenciesAsync(contentOrchestrator, manifestPool, replay.MatchedClient, replay.GameVersion, ct);
         }
+
+        var thirdPartyClientName = replay.MatchedClient?.Description ?? $"{replay.MatchedClient?.Publisher} {replay.MatchedClient?.Version}";
+        var thirdPartyGameClient = new GameClient
+        {
+            Id = thirdPartyManifestId,
+            Name = thirdPartyClientName,
+            Version = replay.MatchedClient?.Version ?? defaultVersion,
+            GameType = replay.GameVersion,
+            PublisherType = replay.MatchedClient?.Publisher ?? string.Empty,
+            InstallationId = installation.Id,
+            ExecutablePath = exePath,
+            WorkingDirectory = workingDir,
+        };
+
+        return (thirdPartyManifestId, thirdPartyGameClient);
     }
 
     private async Task AcquireThirdPartyClientAndDependenciesAsync(
