@@ -47,11 +47,23 @@ public partial class SharedManifestItemViewModel(SharedManifestDependency depend
     /// <summary>
     /// Gets the publisher display name.
     /// </summary>
-    public string Publisher => !string.IsNullOrWhiteSpace(dependency.Publisher)
-        ? dependency.Publisher
-        : !string.IsNullOrWhiteSpace(dependency.PublisherType)
-            ? dependency.PublisherType
-            : "Community";
+    public string Publisher
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(dependency.Publisher))
+            {
+                return dependency.Publisher;
+            }
+
+            if (!string.IsNullOrWhiteSpace(dependency.PublisherType))
+            {
+                return dependency.PublisherType;
+            }
+
+            return "Community";
+        }
+    }
 
     /// <summary>
     /// Gets the download size in bytes.

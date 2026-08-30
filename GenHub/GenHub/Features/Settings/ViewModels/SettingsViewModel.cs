@@ -1863,7 +1863,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 _ => "0%",
             };
 
-            UploadQuotaText = $"{formattedUsed} / {limitMb:F0} MB Used ({percentText})";
+            UploadQuotaText = $"{formattedUsed} / {limitMb:F1} MB Used ({percentText})";
         }
         catch (Exception ex)
         {

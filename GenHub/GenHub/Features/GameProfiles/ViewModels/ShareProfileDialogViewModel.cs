@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading.Tasks;
 using Avalonia;
@@ -18,6 +19,7 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// <summary>
 /// ViewModel for the Share Profile dialog modal.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates CommunityToolkit generated observable properties.")]
 public partial class ShareProfileDialogViewModel : ViewModelBase
 {
     private readonly IProfileSharingService _profileSharingService;

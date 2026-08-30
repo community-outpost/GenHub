@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -19,6 +20,7 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// <summary>
 /// ViewModel for the rich pre-import profile inspection dialog window.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates and accesses CommunityToolkit generated observable properties.")]
 public partial class ImportProfileInspectionViewModel : ObservableObject
 {
     private readonly SharedProfileInspectionResult _inspectionResult;
