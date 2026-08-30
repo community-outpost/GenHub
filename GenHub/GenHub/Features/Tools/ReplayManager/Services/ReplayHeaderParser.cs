@@ -60,7 +60,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         try
         {
             // Accumulate stream data to ensure full header buffer is read
-            var buffer = new byte[16384];
+            var buffer = new byte[ReplayManagerConstants.ReplayHeaderBufferSize];
             var bytesRead = 0;
 
             while (bytesRead < buffer.Length)
@@ -74,7 +74,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
                 bytesRead += read;
             }
 
-            if (bytesRead < 28)
+            if (bytesRead < ReplayManagerConstants.MinReplayHeaderSizeBytes)
             {
                 return OperationResult<ReplayMetadata>.CreateFailure("Replay file is too small to contain a valid header.");
             }
@@ -88,7 +88,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
                 }
             }
 
-            var offset = 6 + 22;
+            var offset = ReplayManagerConstants.ReplayHeaderInitialOffsetBytes;
 
             // 3. Read VersionString (null-terminated UTF-16LE)
             var versionString = ReadNullTerminatedUtf16String(buffer, ref offset, bytesRead);
@@ -209,7 +209,10 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
                 var parts = slotData.Split(',', StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length > 0)
                 {
-                    var playerName = parts[0].TrimStart('H', 'C', 'X', 'O');
+                    var rawName = parts[0];
+                    var playerName = rawName.Length > 1 && (rawName[0] is 'H' or 'C' or 'X' or 'O' or 'h' or 'c' or 'x' or 'o')
+                        ? rawName[1..]
+                        : rawName;
                     if (!string.IsNullOrWhiteSpace(playerName) && players.All(p => !string.Equals(p, playerName, StringComparison.OrdinalIgnoreCase)))
                     {
                         players.Add(playerName);

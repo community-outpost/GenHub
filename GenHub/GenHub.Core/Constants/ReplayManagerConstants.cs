@@ -53,6 +53,21 @@ public static class ReplayManagerConstants
     public const string ReplayHeaderMagic = "GENREP";
 
     /// <summary>
+    /// Initial buffer size in bytes for reading replay headers (16 KB).
+    /// </summary>
+    public const int ReplayHeaderBufferSize = 16384;
+
+    /// <summary>
+    /// Minimum size in bytes required for a valid replay header (28 bytes).
+    /// </summary>
+    public const int MinReplayHeaderSizeBytes = 28;
+
+    /// <summary>
+    /// Fixed offset in bytes to skip the replay magic header and initial fixed metadata fields.
+    /// </summary>
+    public const int ReplayHeaderInitialOffsetBytes = 28;
+
+    /// <summary>
     /// Default GitHub Gist URL providing the live CRC mapping catalog.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official GenHub Gist endpoint for community gameclient CRC catalog.")]

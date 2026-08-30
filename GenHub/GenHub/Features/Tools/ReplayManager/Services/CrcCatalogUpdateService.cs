@@ -34,7 +34,7 @@ public sealed class CrcCatalogUpdateService(
     };
 
     /// <inheritdoc />
-    protected override string ServiceName => "ReplayManager:CrcCatalog";
+    protected override string ServiceName => ReplayManagerConstants.CrcCatalogCacheKey;
 
     /// <inheritdoc />
     protected override TimeSpan UpdateCheckInterval => ReplayManagerConstants.DefaultCatalogUpdateInterval;

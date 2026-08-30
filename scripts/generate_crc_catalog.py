@@ -19,6 +19,7 @@ import zlib
 
 SUPERHACKERS_REPO = "TheSuperHackers/GeneralsGameCode"
 GENERALSONLINE_CDN = "https://cdn.playgenerals.online"
+GENERALSONLINE_KNOWN_DATES = ("021326", "032926", "042826", "060526", "062026", "081326")
 DEFAULT_OUTPUT_PATH = os.path.join(
     os.path.dirname(__file__), "..", "GenHub", "GenHub", "Resources", "crc-mapping.json"
 )
@@ -215,8 +216,16 @@ def crawl_superhackers_releases(token: str | None = None, inspect_binaries: bool
 
 
 def generate_date_codes(start_year: int, end_year: int) -> set[str]:
-    """Generates all valid MMDDYY date codes within the given year range."""
-    date_set = {"021326", "032926", "042826", "060526", "062026", "081326"}
+    """Generates all valid MMDDYY date codes within the given year range including known release dates."""
+    date_set = set()
+    for code in GENERALSONLINE_KNOWN_DATES:
+        try:
+            year = 2000 + int(code[4:6])
+            if start_year <= year <= end_year:
+                date_set.add(code)
+        except (ValueError, IndexError):
+            continue
+
     try:
         curr_date = datetime.date(start_year, 1, 1)
         target_end = min(datetime.date(end_year, 12, 31), datetime.date.today() + datetime.timedelta(days=7))
@@ -382,10 +391,11 @@ def validate_catalog(catalog: dict) -> bool:
             print(f"Validation error at {m_id}: invalid gameType {entry.get('gameType')}", file=sys.stderr)
             valid = False
 
-        exe_crc = entry.get("exeCrc")
-        if exe_crc and not re.match(r"^0x[0-9A-Fa-f]{8}$", exe_crc):
-            print(f"Validation error at {m_id}: invalid exeCrc format '{exe_crc}'", file=sys.stderr)
-            valid = False
+        for crc_name in ("exeCrc", "iniCrc"):
+            crc_val = entry.get(crc_name)
+            if crc_val and not re.match(r"^0x[0-9A-Fa-f]{8}$", crc_val):
+                print(f"Validation error at {m_id}: invalid {crc_name} format '{crc_val}'", file=sys.stderr)
+                valid = False
 
     return valid
 
@@ -400,7 +410,7 @@ def build_catalog(output_path: str = DEFAULT_OUTPUT_PATH, crawl: bool = False, i
                 loaded = json.load(f)
                 if isinstance(loaded, dict) and "mappings" in loaded:
                     existing_mappings = merge_catalogs(existing_mappings, loaded["mappings"])
-        except (OSError, json.JSONDecodeError) as e:
+        except (OSError, ValueError) as e:
             print(f"Warning: could not read existing catalog: {e}", file=sys.stderr)
 
     if crawl:
@@ -419,7 +429,9 @@ def build_catalog(output_path: str = DEFAULT_OUTPUT_PATH, crawl: bool = False, i
         "mappings": existing_mappings,
     }
 
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    output_dir = os.path.dirname(output_path)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(catalog, f, indent=2)
         f.write("\n")
