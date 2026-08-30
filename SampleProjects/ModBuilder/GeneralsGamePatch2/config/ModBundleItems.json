@@ -1,0 +1,42 @@
+{
+  "BundleItems": [
+    {
+      "Name": "PatchINI",
+      "Type": "INI",
+      "SourceFiles": [
+        "GameFilesEdited/Data/INI/**/*.ini"
+      ],
+      "OutputFormat": "INI",
+      "Description": "Generals community bugfix and balance INI rules"
+    },
+    {
+      "Name": "PatchTextures",
+      "Type": "Texture",
+      "SourceFiles": [
+        "GameFilesEdited/Art/Textures/**/*.tga"
+      ],
+      "OutputFormat": "DDS",
+      "Compression": "DXT5",
+      "GenerateMipmaps": true,
+      "Description": "Community patch UI and vehicle asset corrections"
+    },
+    {
+      "Name": "PatchAudio",
+      "Type": "Audio",
+      "SourceFiles": [
+        "GameFilesEdited/Data/Audio/**/*.wav"
+      ],
+      "OutputFormat": "WAV",
+      "Description": "Restored combat sound effects and unit audio"
+    },
+    {
+      "Name": "PatchScripts",
+      "Type": "Script",
+      "SourceFiles": [
+        "GameFilesEdited/Data/Scripts/**/*.txt"
+      ],
+      "OutputFormat": "TXT",
+      "Description": "AI waypoint and map trigger community fixes"
+    }
+  ]
+}

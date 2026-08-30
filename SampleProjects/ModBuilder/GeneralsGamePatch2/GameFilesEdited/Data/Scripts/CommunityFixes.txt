@@ -1,0 +1,4 @@
+// Generals GamePatch 2.0 Trigger Script Fixes
+[Script_USA_AI_Expansion]
+Condition = TimerExpired("BaseTimer")
+Action = BuildUnit("AmericaVehicleCrusader", 3)
