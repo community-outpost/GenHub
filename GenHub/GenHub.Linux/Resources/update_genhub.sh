@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Parameters are placeholders to be replaced by the application
-LOG_FILE="{{LOG_FILE}}"
-PROCESS_ID={{PROCESS_ID}}
-SOURCE_DIR="{{SOURCE_DIR}}"
-TARGET_DIR="{{TARGET_DIR}}"
-CURRENT_EXE="{{CURRENT_EXE}}"
-BACKUP_DIR="{{BACKUP_DIR}}"
+# Arguments passed from application
+PROCESS_ID="${1:-{{PROCESS_ID}}}"
+SOURCE_DIR="${2:-{{SOURCE_DIR}}}"
+TARGET_DIR="${3:-{{TARGET_DIR}}}"
+CURRENT_EXE="${4:-{{CURRENT_EXE}}}"
+LOG_FILE="${5:-{{LOG_FILE}}}"
+BACKUP_DIR="${6:-{{BACKUP_DIR}}}"
 
 write_log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
@@ -17,7 +17,7 @@ write_log "Waiting for main application (PID: $PROCESS_ID) to close..."
 
 # Wait for the main process to exit
 for i in {1..60}; do
-    if ! kill -0 $PROCESS_ID 2>/dev/null; then
+    if ! kill -0 "$PROCESS_ID" 2>/dev/null; then
         write_log "Main process has exited"
         break
     fi
@@ -25,11 +25,11 @@ for i in {1..60}; do
 done
 
 # Force terminate if still running
-if kill -0 $PROCESS_ID 2>/dev/null; then
+if kill -0 "$PROCESS_ID" 2>/dev/null; then
     write_log "Timeout waiting for main process. Attempting to terminate..."
-    kill -TERM $PROCESS_ID 2>/dev/null
+    kill -TERM "$PROCESS_ID" 2>/dev/null
     sleep 2
-    kill -KILL $PROCESS_ID 2>/dev/null
+    kill -KILL "$PROCESS_ID" 2>/dev/null
 fi
 
 write_log "Ensuring all GenHub processes are closed..."
@@ -45,17 +45,19 @@ mkdir -p "$BACKUP_DIR"
 # Backup existing files
 write_log "Backing up existing files..."
 if [ -d "$TARGET_DIR" ]; then
-    cp -r "$TARGET_DIR"/* "$BACKUP_DIR" 2>/dev/null || true
+    cp -a "$TARGET_DIR/." "$BACKUP_DIR/" 2>/dev/null || true
 fi
 
-# Copy new files
+# Copy new files including hidden files
 write_log "Copying new files from $SOURCE_DIR to $TARGET_DIR"
-if ! cp -r "$SOURCE_DIR"/* "$TARGET_DIR" 2>&1; then
+mkdir -p "$TARGET_DIR"
+if ! cp -a "$SOURCE_DIR/." "$TARGET_DIR/" 2>&1; then
     write_log "Error: Failed to copy update files"
     # Attempt to restore backup
     if [ -d "$BACKUP_DIR" ]; then
         write_log "Attempting to restore backup..."
-        cp -r "$BACKUP_DIR"/* "$TARGET_DIR" 2>/dev/null || true
+        rm -rf "$TARGET_DIR"/* "$TARGET_DIR"/.[!.]* 2>/dev/null || true
+        cp -a "$BACKUP_DIR/." "$TARGET_DIR/" 2>/dev/null || true
     fi
     exit 1
 fi
@@ -63,10 +65,9 @@ fi
 # Start the updated application
 write_log "Starting updated application: $CURRENT_EXE"
 if [ -f "$CURRENT_EXE" ]; then
-    # Change to the executable's directory before running
     EXE_DIR=$(dirname "$CURRENT_EXE")
     EXE_NAME=$(basename "$CURRENT_EXE")
-    cd "$EXE_DIR"
+    cd "$EXE_DIR" || exit 1
     
     if [ ! -x "$EXE_NAME" ]; then
         chmod +x "$EXE_NAME"
@@ -78,8 +79,8 @@ else
     write_log "Warning: Updated executable not found: $CURRENT_EXE"
 fi
 
-# Cleanup
-write_log "Cleaning up..."
+# Cleanup source directory only after verified successful copy
+write_log "Cleaning up source directory..."
 rm -rf "$SOURCE_DIR" 2>/dev/null || true
 
 # Self-destruct the updater script's parent directory
