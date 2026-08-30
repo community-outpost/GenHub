@@ -216,11 +216,19 @@ public class CommunityOutpostDeliverer(
         var isCCG = segments.Any(segment => segment.Equals("CCG", StringComparison.OrdinalIgnoreCase));
         var dirName = Path.GetFileName(directoryPath);
 
-        GameType? targetGame = isZH ? GameType.ZeroHour : (isCCG ? GameType.Generals : null);
+        GameType? targetGame = null;
+        if (isZH)
+        {
+            targetGame = GameType.ZeroHour;
+        }
+        else if (isCCG)
+        {
+            targetGame = GameType.Generals;
+        }
 
         var matchedVariant = metadata.Variants.FirstOrDefault(variant =>
         {
-            if (targetGame.HasValue && variant.TargetGame.HasValue && variant.TargetGame.Value != targetGame.Value)
+            if (variant.TargetGame.HasValue && variant.TargetGame != targetGame)
             {
                 return false;
             }
@@ -442,6 +450,8 @@ public class CommunityOutpostDeliverer(
                 }
             }
 
+            var registeredManifestIds = new List<ManifestId>();
+
             foreach (var manifest in manifests)
             {
                 var addResult = await manifestPool.AddManifestAsync(
@@ -456,10 +466,25 @@ public class CommunityOutpostDeliverer(
                         "Failed to register manifest {ManifestId}: {Error}",
                         manifest.Id,
                         addResult.FirstError);
+
+                    foreach (var registeredId in registeredManifestIds)
+                    {
+                        try
+                        {
+                            await manifestPool.RemoveManifestAsync(registeredId, cancellationToken: cancellationToken);
+                        }
+                        catch (Exception rollbackEx)
+                        {
+                            logger.LogWarning(rollbackEx, "Failed to roll back manifest {ManifestId} during delivery cleanup", registeredId);
+                        }
+                    }
+
                     await CleanupTemporaryFilesAsync(archivePath, extractPath);
                     return OperationResult<ContentManifest>.CreateFailure(
                         $"Failed to register manifest {manifest.Id}: {addResult.FirstError}");
                 }
+
+                registeredManifestIds.Add(manifest.Id);
 
                 // After successful storage, update SourceType to ContentAddressable
                 // since the files are now in CAS

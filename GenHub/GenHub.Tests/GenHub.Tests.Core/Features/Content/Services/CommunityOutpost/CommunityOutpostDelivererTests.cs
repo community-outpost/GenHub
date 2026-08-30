@@ -289,11 +289,11 @@ public sealed class CommunityOutpostDelivererTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that repacking gracefully handles metadata with empty OutputFilename.
+    /// Verifies that repacking is skipped for content metadata that does not require repacking.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task RepackContentIfNeededAsync_WithEmptyOutputFilename_SkipsRepackAsync()
+    public async Task RepackContentIfNeededAsync_WithNonRepackingContent_SkipsRepackAsync()
     {
         var manifest = new ContentManifest
         {

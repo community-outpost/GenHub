@@ -84,6 +84,13 @@ public class CommunityOutpostResolverTests
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
 
+        builderMock.Verify(
+            m => m.WithBasicInfo(
+                CommunityOutpostConstants.PublisherType,
+                "community-patch",
+                "20260827"),
+            Times.Once);
+
         var manifest = result.Data;
         Assert.Equal(ManifestConstants.DefaultManifestVersion, manifest.ManifestVersion);
         Assert.Equal("27-08-2026", manifest.Version);
@@ -101,21 +108,27 @@ public class CommunityOutpostResolverTests
     /// </summary>
     /// <param name="contentCode">The content code under test.</param>
     /// <param name="expectedName">The expected display name.</param>
+    /// <param name="version">The patch version string.</param>
+    /// <param name="expectedNumericVersion">The expected numeric version for manifest ID.</param>
+    /// <param name="expectedContentName">The expected content name for manifest ID.</param>
     /// <param name="expectedGame">The expected game type.</param>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Theory]
-    [InlineData("104e", "Zero Hour 1.04 (English)", GameType.ZeroHour)]
-    [InlineData("108e", "Generals 1.08 (English)", GameType.Generals)]
+    [InlineData("104e", "Zero Hour 1.04 (English)", "1.04", "104", "patch104english", GameType.ZeroHour)]
+    [InlineData("108e", "Generals 1.08 (English)", "1.08", "108", "patch108english", GameType.Generals)]
     public async Task ResolveAsync_BaseGamePatch_GeneratesManifestAcceptedByIngestionGateAsync(
         string contentCode,
         string expectedName,
+        string version,
+        string expectedNumericVersion,
+        string expectedContentName,
         GameType expectedGame)
     {
         // Arrange
         var builderMock = CreateBuilderMock(
-            ManifestId.Create($"1.104.communityoutpost.gameclient.{contentCode}"),
+            ManifestId.Create($"1.{expectedNumericVersion}.communityoutpost.gameclient.{expectedContentName}"),
             expectedName,
-            "1.04",
+            version,
             ContentType.GameClient,
             expectedGame);
 
@@ -126,9 +139,9 @@ public class CommunityOutpostResolverTests
 
         var searchResult = new ContentSearchResult
         {
-            Id = $"1.104.communityoutpost.gameclient.{contentCode}",
+            Id = $"1.{expectedNumericVersion}.communityoutpost.gameclient.{expectedContentName}",
             Name = expectedName,
-            Version = "1.04",
+            Version = version,
             SourceUrl = $"https://legi.cc/gp2/files/{contentCode}.dat",
             ContentType = ContentType.GameClient,
             TargetGame = expectedGame,
@@ -142,8 +155,16 @@ public class CommunityOutpostResolverTests
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
 
+        builderMock.Verify(
+            m => m.WithBasicInfo(
+                CommunityOutpostConstants.PublisherType,
+                expectedContentName,
+                expectedNumericVersion),
+            Times.Once);
+
         var manifest = result.Data;
         Assert.Equal(ManifestConstants.DefaultManifestVersion, manifest.ManifestVersion);
+        Assert.Equal(version, manifest.Version);
 
         var accepted = ManifestIngestionGate.TryAccept(manifest, out var rejectionReason);
         Assert.True(accepted, $"Manifest should be accepted by ManifestIngestionGate, but was rejected with: {rejectionReason}");
