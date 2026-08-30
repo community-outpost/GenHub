@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -19,10 +18,9 @@ namespace GenHub.Features.Content.Services.ContentDeliverers;
 /// Delivers remote HTTP content.
 /// Pure delivery - downloads and extracts content.
 /// </summary>
-public class HttpContentDeliverer(IDownloadService downloadService, IContentManifestBuilder manifestBuilder, ILogger<HttpContentDeliverer> logger) : IContentDeliverer
+public class HttpContentDeliverer(IDownloadService downloadService, ILogger<HttpContentDeliverer> logger) : IContentDeliverer
 {
     private readonly IDownloadService _downloadService = downloadService;
-    private readonly IContentManifestBuilder _manifestBuilder = manifestBuilder;
     private readonly ILogger<HttpContentDeliverer> _logger = logger;
 
     /// <inheritdoc />
@@ -56,41 +54,6 @@ public class HttpContentDeliverer(IDownloadService downloadService, IContentMani
     {
         try
         {
-            // Extract publisher from the manifest ID (3rd segment)
-            var idSegments = packageManifest.Id.Value.Split('.');
-            var publisherId = idSegments.Length >= 3 ? idSegments[2] : "unknown";
-
-            var manifestVersionInt = int.TryParse(packageManifest.Version, out var parsedVersion) ? parsedVersion : 0;
-            var deliveredManifest = _manifestBuilder
-                .WithBasicInfo(publisherId, packageManifest.Name, manifestVersionInt)
-                .WithContentType(packageManifest.ContentType, packageManifest.TargetGame)
-                .WithPublisher(
-                    packageManifest.Publisher?.Name ?? string.Empty,
-                    packageManifest.Publisher?.Website ?? string.Empty,
-                    packageManifest.Publisher?.SupportUrl ?? string.Empty,
-                    packageManifest.Publisher?.ContactEmail ?? string.Empty)
-                .WithMetadata(
-                    packageManifest.Metadata?.Description ?? string.Empty,
-                    packageManifest.Metadata?.Tags,
-                    packageManifest.Metadata?.IconUrl ?? string.Empty,
-                    packageManifest.Metadata?.ScreenshotUrls,
-                    packageManifest.Metadata?.ChangelogUrl ?? string.Empty);
-
-            // Add dependencies
-            foreach (var dep in packageManifest.Dependencies)
-            {
-                deliveredManifest.AddDependency(
-                    dep.Id,
-                    dep.Name,
-                    dep.DependencyType,
-                    dep.InstallBehavior,
-                    dep.MinVersion ?? string.Empty,
-                    dep.MaxVersion ?? string.Empty,
-                    dep.CompatibleVersions,
-                    dep.IsExclusive,
-                    dep.ConflictsWith);
-            }
-
             var filesToDownload = packageManifest.Files.Where(f => !string.IsNullOrEmpty(f.DownloadUrl)).ToList();
             var totalFiles = filesToDownload.Count;
             var processedFiles = 0;
@@ -100,7 +63,7 @@ public class HttpContentDeliverer(IDownloadService downloadService, IContentMani
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var localPath = Path.Combine(targetDirectory, file.RelativePath);
+                var localPath = ResolveTargetPath(targetDirectory, file.RelativePath);
 
                 // Ensure directory exists
                 var directory = Path.GetDirectoryName(localPath);
@@ -130,38 +93,17 @@ public class HttpContentDeliverer(IDownloadService downloadService, IContentMani
                         $"Failed to download {file.RelativePath}: {downloadResult.FirstError}");
                 }
 
-                // Add the delivered file using the builder
-                await deliveredManifest.AddRemoteFileAsync(
-                    file.RelativePath,
-                    file.DownloadUrl ?? string.Empty,
-                    ContentSourceType.ContentAddressable,
-                    isExecutable: file.IsExecutable,
-                    permissions: file.Permissions);
-
+                cancellationToken.ThrowIfCancellationRequested();
                 processedFiles++;
             }
 
-            // Add any other files (without DownloadUrl) as-is
-            foreach (var file in packageManifest.Files.Where(f => string.IsNullOrEmpty(f.DownloadUrl)))
-            {
-                await deliveredManifest.AddLocalFileAsync(
-                    file.RelativePath,
-                    file.SourcePath ?? string.Empty,
-                    ContentSourceType.ContentAddressable,
-                    isExecutable: file.IsExecutable,
-                    permissions: file.Permissions);
-            }
-
-            // Add required directories
-            deliveredManifest.AddRequiredDirectories([.. packageManifest.RequiredDirectories]);
-
-            // Add installation instructions if present
-            if (packageManifest.InstallationInstructions != null)
-            {
-                deliveredManifest.WithInstallationInstructions(packageManifest.InstallationInstructions.WorkspaceStrategy);
-            }
-
-            return OperationResult<ContentManifest>.CreateSuccess(deliveredManifest.Build());
+            // Delivery changes filesystem state only. The resolved manifest remains authoritative
+            // for identity, version, hashes, source types, and installation metadata.
+            return OperationResult<ContentManifest>.CreateSuccess(packageManifest);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -193,5 +135,23 @@ public class HttpContentDeliverer(IDownloadService downloadService, IContentMani
             _logger.LogError(ex, "Validation failed for HTTP content manifest {ManifestId}", manifest.Id);
             return Task.FromResult(OperationResult<bool>.CreateFailure($"Validation failed: {ex.Message}"));
         }
+    }
+
+    private static string ResolveTargetPath(string targetDirectory, string relativePath)
+    {
+        var targetRoot = Path.GetFullPath(targetDirectory);
+        var targetPath = Path.GetFullPath(relativePath, targetRoot);
+        var relativeTargetPath = Path.GetRelativePath(targetRoot, targetPath);
+
+        if (relativeTargetPath.Equals("..", StringComparison.Ordinal) ||
+            relativeTargetPath.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal) ||
+            relativeTargetPath.StartsWith($"..{Path.AltDirectorySeparatorChar}", StringComparison.Ordinal) ||
+            Path.IsPathRooted(relativeTargetPath))
+        {
+            throw new InvalidOperationException(
+                $"Content path '{relativePath}' resolves outside target directory.");
+        }
+
+        return targetPath;
     }
 }
