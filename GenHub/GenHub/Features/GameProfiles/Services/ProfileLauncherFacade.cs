@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
@@ -209,6 +210,7 @@ public class ProfileLauncherFacade(
             // 1. Profile is deleted
             // 2. Content changes require workspace refresh
             logger.LogInformation("Successfully stopped profile {ProfileId}", profileId);
+            WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(profileId, 0));
             return ProfileOperationResult<bool>.CreateSuccess(true);
         }
         catch (Exception ex)
@@ -524,6 +526,11 @@ public class ProfileLauncherFacade(
                 ProfileValidationConstants.ToolLaunchSuccessTitle,
                 $"Successfully launched '{profile.Name}'",
                 NotificationDurations.Medium);
+
+            if (toolLaunchInfo.ProcessInfo.ProcessId > 0)
+            {
+                WeakReferenceMessenger.Default.Send(new ProfileLaunchedMessage(profileId, toolLaunchInfo.ProcessInfo.ProcessId));
+            }
 
             return ProfileOperationResult<GameLaunchInfo>.CreateSuccess(toolLaunchInfo);
         }
@@ -848,6 +855,11 @@ public class ProfileLauncherFacade(
                         "Exception while persisting active workspace ID for profile '{ProfileId}'",
                         profileId);
                 }
+            }
+
+            if (launchInfo.ProcessInfo.ProcessId > 0)
+            {
+                WeakReferenceMessenger.Default.Send(new ProfileLaunchedMessage(profileId, launchInfo.ProcessInfo.ProcessId));
             }
 
             return ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo);

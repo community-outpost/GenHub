@@ -748,8 +748,17 @@ public sealed class ReplayDirectoryService(
         }
     }
 
-    private static async Task AcquireGeneralsOnlineMapPacksAsync(IContentOrchestrator contentOrchestrator, CancellationToken ct)
+    private static async Task AcquireGeneralsOnlineMapPacksAsync(IContentOrchestrator contentOrchestrator, IContentManifestPool manifestPool, CancellationToken ct)
     {
+        var allManifests = await manifestPool.GetAllManifestsAsync(ct);
+        if (allManifests.Success && allManifests.Data != null &&
+            allManifests.Data.Any(m => m.ContentType == ContentType.MapPack &&
+                                       (string.Equals(m.Publisher?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
+                                        m.Id.Value.Contains("." + GeneralsOnlineConstants.PublisherType + "."))))
+        {
+            return;
+        }
+
         var mapPackQuery = new ContentSearchQuery
         {
             ProviderName = GeneralsOnlineConstants.PublisherType,
@@ -779,10 +788,20 @@ public sealed class ReplayDirectoryService(
             return;
         }
 
-        var dataPatchManifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(dataPatchManifestId), ct);
-        if (dataPatchManifestResult != null && dataPatchManifestResult.Success && dataPatchManifestResult.Data != null)
+        var allManifests = await manifestPool.GetAllManifestsAsync(ct);
+        if (allManifests.Success && allManifests.Data != null)
         {
-            return;
+            var alreadyExists = allManifests.Data.Any(m =>
+                string.Equals(m.Id.Value, dataPatchManifestId, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrEmpty(publisher) &&
+                 (m.ContentType == ContentType.Patch || m.ContentType == ContentType.MapPack) &&
+                 (string.Equals(m.Publisher?.PublisherType, publisher, StringComparison.OrdinalIgnoreCase) ||
+                  m.Id.Value.Contains("." + publisher + "."))));
+
+            if (alreadyExists)
+            {
+                return;
+            }
         }
 
         var dataPatchQuery = new ContentSearchQuery
@@ -905,9 +924,19 @@ public sealed class ReplayDirectoryService(
             return;
         }
 
-        var clientManifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(matchedClient.ManifestId), ct);
-        if (clientManifestResult != null && clientManifestResult.Success && clientManifestResult.Data != null)
+        var allManifests = await manifestPool.GetAllManifestsAsync(ct);
+        var existingManifests = allManifests.Success && allManifests.Data != null ? allManifests.Data : [];
+
+        var isAlreadyAcquired = existingManifests.Any(m =>
+            string.Equals(m.Id.Value, matchedClient.ManifestId, StringComparison.OrdinalIgnoreCase) ||
+            (!string.IsNullOrEmpty(matchedClient.Publisher) &&
+             m.ContentType == ContentType.GameClient &&
+             (string.Equals(m.Publisher?.PublisherType, matchedClient.Publisher, StringComparison.OrdinalIgnoreCase) ||
+              m.Id.Value.Contains("." + matchedClient.Publisher + "."))));
+
+        if (isAlreadyAcquired)
         {
+            logger.LogDebug("[ReplayManager] Client for publisher '{Publisher}' already acquired in manifest pool, skipping download.", matchedClient.Publisher);
             return;
         }
 
@@ -936,10 +965,10 @@ public sealed class ReplayDirectoryService(
             }
         }
 
-        // If GeneralsOnline, also ensure MapPack is acquired
+        // If GeneralsOnline, also ensure MapPack is acquired if missing
         if (string.Equals(matchedClient.Publisher, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
         {
-            await AcquireGeneralsOnlineMapPacksAsync(contentOrchestrator, ct);
+            await AcquireGeneralsOnlineMapPacksAsync(contentOrchestrator, manifestPool, ct);
         }
     }
 

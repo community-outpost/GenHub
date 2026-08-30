@@ -1,3 +1,10 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -13,6 +20,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Shortcuts;
@@ -26,13 +34,6 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameProfiles.Views;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
 
@@ -55,10 +56,14 @@ public partial class GameProfileLauncherViewModel(
     INotificationService notificationService,
     ISetupWizardService setupWizardService,
     IDialogService dialogService,
-    ILogger<GameProfileLauncherViewModel> logger) : ViewModelBase,
+    ILogger<GameProfileLauncherViewModel> logger,
+    ILaunchRegistry? launchRegistry = null) : ViewModelBase,
     IRecipient<ProfileCreatedMessage>,
     IRecipient<ProfileUpdatedMessage>,
-    IRecipient<ProfileListUpdatedMessage>
+    IRecipient<ProfileListUpdatedMessage>,
+    IRecipient<ProfileLaunchedMessage>,
+    IRecipient<ProfileStoppedMessage>,
+    IRecipient<ProfileDeletedMessage>
 {
     private readonly SemaphoreSlim _launchSemaphore = new(1, 1);
     private readonly System.Timers.Timer _headerCollapseTimer = new(TimeIntervals.HeaderCollapseDelayMs);
@@ -209,6 +214,28 @@ public partial class GameProfileLauncherViewModel(
                 var profileCount = Profiles.Count - 1;
                 StatusMessage = $"Loaded {profileCount} profiles";
                 logger.LogInformation("Loaded {Count} game profiles", profileCount);
+
+                if (launchRegistry != null)
+                {
+                    try
+                    {
+                        var activeLaunches = await launchRegistry.GetAllActiveLaunchesAsync();
+                        var activeLaunchDict = activeLaunches.ToDictionary(l => l.ProfileId, l => l.ProcessInfo.ProcessId, StringComparer.OrdinalIgnoreCase);
+                        foreach (var item in Profiles.OfType<GameProfileItemViewModel>())
+                        {
+                            if (activeLaunchDict.TryGetValue(item.ProfileId, out var pid))
+                            {
+                                item.IsProcessRunning = true;
+                                item.ProcessId = pid;
+                                item.NotifyCanLaunchChanged();
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Failed to sync active launches during initialization");
+                    }
+                }
             }
             else
             {
@@ -309,6 +336,66 @@ public partial class GameProfileLauncherViewModel(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error refreshing profiles after list update");
+            }
+        });
+    }
+
+    /// <summary>
+    /// Receives notification when a profile has been launched.
+    /// </summary>
+    /// <param name="message">The profile launched message.</param>
+    public void Receive(ProfileLaunchedMessage message)
+    {
+        logger.LogInformation("Profile launched notification received for {ProfileId} (PID: {ProcessId})", message.ProfileId, message.ProcessId);
+
+        Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p => p.ProfileId.Equals(message.ProfileId, StringComparison.OrdinalIgnoreCase));
+            if (profile != null)
+            {
+                profile.IsProcessRunning = true;
+                profile.ProcessId = message.ProcessId;
+                profile.NotifyCanLaunchChanged();
+            }
+        });
+    }
+
+    /// <summary>
+    /// Receives notification when a running profile has stopped.
+    /// </summary>
+    /// <param name="message">The profile stopped message.</param>
+    public void Receive(ProfileStoppedMessage message)
+    {
+        logger.LogInformation("Profile stopped notification received for {ProfileId} (PID: {ProcessId})", message.ProfileId, message.ProcessId);
+
+        Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p =>
+                (!string.IsNullOrEmpty(message.ProfileId) && p.ProfileId.Equals(message.ProfileId, StringComparison.OrdinalIgnoreCase)) ||
+                (message.ProcessId > 0 && p.ProcessId == message.ProcessId));
+            if (profile != null)
+            {
+                profile.IsProcessRunning = false;
+                profile.ProcessId = 0;
+                profile.NotifyCanLaunchChanged();
+            }
+        });
+    }
+
+    /// <summary>
+    /// Receives notification when a profile is deleted.
+    /// </summary>
+    /// <param name="message">The profile deleted message.</param>
+    public void Receive(ProfileDeletedMessage message)
+    {
+        logger.LogInformation("Profile deleted notification received for {ProfileId}", message.ProfileId);
+
+        Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p => p.ProfileId.Equals(message.ProfileId, StringComparison.OrdinalIgnoreCase));
+            if (profile != null)
+            {
+                Profiles.Remove(profile);
             }
         });
     }
