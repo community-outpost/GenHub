@@ -466,13 +466,35 @@ public sealed class ReplayDirectoryService(
         };
     }
 
-    private static GameProfile? FindMatchingProfile(IEnumerable<GameProfile> profiles, GameType gameVersion, string clientManifestId, string? dataPatchManifestId)
+    private static GameProfile? FindMatchingProfile(
+        IEnumerable<GameProfile> profiles,
+        GameType gameVersion,
+        string clientManifestId,
+        string? dataPatchManifestId,
+        ReplayFile? replay = null)
     {
+        var profileList = profiles.ToList();
+
+        // 1. Direct replay profile match by ID or Description
+        if (replay != null)
+        {
+            var byIdOrName = profileList.FirstOrDefault(p =>
+                p.GameClient?.GameType == gameVersion &&
+                ((!string.IsNullOrEmpty(replay.MatchingProfileId) && string.Equals(p.Id, replay.MatchingProfileId, StringComparison.OrdinalIgnoreCase)) ||
+                 (!string.IsNullOrEmpty(p.Description) && p.Description.Contains(replay.FileName, StringComparison.OrdinalIgnoreCase))));
+
+            if (byIdOrName != null)
+            {
+                return byIdOrName;
+            }
+        }
+
+        // 2. Compatibility match based on client and patch IDs
         var isRetailClient = clientManifestId.Contains(ReplayManagerConstants.RetailManifestSegment, StringComparison.OrdinalIgnoreCase) ||
                              clientManifestId.Contains(".steam.", StringComparison.OrdinalIgnoreCase) ||
                              clientManifestId.Contains(".eaapp.", StringComparison.OrdinalIgnoreCase);
 
-        return profiles.FirstOrDefault(p =>
+        return profileList.FirstOrDefault(p =>
         {
             if (p.GameClient?.GameType != gameVersion)
             {
@@ -516,12 +538,11 @@ public sealed class ReplayDirectoryService(
         var clientMatches = string.Equals(profile.GameClient?.Id, clientManifestId, StringComparison.OrdinalIgnoreCase) ||
                             profile.EnabledContentIds?.Any(id => string.Equals(id, clientManifestId, StringComparison.OrdinalIgnoreCase)) == true;
 
-        if (!clientMatches)
+        var publisher = ExtractPublisherFromManifestId(clientManifestId);
+        if (!clientMatches && !string.IsNullOrEmpty(publisher))
         {
-            var publisher = ExtractPublisherFromManifestId(clientManifestId);
-            if (!string.IsNullOrEmpty(publisher) &&
-                (string.Equals(profile.GameClient?.PublisherType, publisher, StringComparison.OrdinalIgnoreCase) ||
-                 profile.EnabledContentIds?.Any(id => id.Contains("." + publisher + ".", StringComparison.OrdinalIgnoreCase)) == true))
+            if (string.Equals(profile.GameClient?.PublisherType, publisher, StringComparison.OrdinalIgnoreCase) ||
+                profile.EnabledContentIds?.Any(id => id.Contains("." + publisher + ".", StringComparison.OrdinalIgnoreCase)) == true)
             {
                 clientMatches = true;
             }
@@ -534,7 +555,14 @@ public sealed class ReplayDirectoryService(
 
         if (!string.IsNullOrEmpty(dataPatchManifestId))
         {
-            return profile.EnabledContentIds?.Any(id => string.Equals(id, dataPatchManifestId, StringComparison.OrdinalIgnoreCase)) == true;
+            var patchPublisher = ExtractPublisherFromManifestId(dataPatchManifestId);
+            return profile.EnabledContentIds?.Any(id =>
+                string.Equals(id, dataPatchManifestId, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrEmpty(patchPublisher) &&
+                 id.Contains("." + patchPublisher + ".", StringComparison.OrdinalIgnoreCase) &&
+                 (id.Contains(".patch.", StringComparison.OrdinalIgnoreCase) ||
+                  id.Contains(".gamedata.", StringComparison.OrdinalIgnoreCase) ||
+                  id.Contains(".datapatch.", StringComparison.OrdinalIgnoreCase)))) == true;
         }
 
         return true;
@@ -542,6 +570,17 @@ public sealed class ReplayDirectoryService(
 
     private static string ExtractPublisherFromManifestId(string manifestId)
     {
+        if (string.IsNullOrWhiteSpace(manifestId))
+        {
+            return string.Empty;
+        }
+
+        var segments = manifestId.Split(ManifestConstants.ManifestIdSegmentSeparator);
+        if (segments.Length >= 3)
+        {
+            return segments[2];
+        }
+
         if (manifestId.Contains(".generalsonline.", StringComparison.OrdinalIgnoreCase))
         {
             return PublisherTypeConstants.GeneralsOnline;
@@ -584,17 +623,24 @@ public sealed class ReplayDirectoryService(
             return true;
         }
 
-        var isRetail = string.IsNullOrWhiteSpace(match.Publisher) ||
-                       string.Equals(match.Publisher, "ea", StringComparison.OrdinalIgnoreCase) ||
-                       match.ManifestId.Contains(ReplayManagerConstants.RetailManifestSegment);
+        var publisher = !string.IsNullOrWhiteSpace(match.Publisher)
+            ? match.Publisher
+            : ExtractPublisherFromManifestId(match.ManifestId);
 
-        if (!isRetail)
+        var isRetail = string.IsNullOrWhiteSpace(publisher) ||
+                       string.Equals(publisher, "ea", StringComparison.OrdinalIgnoreCase) ||
+                       match.ManifestId.Contains(ReplayManagerConstants.RetailManifestSegment, StringComparison.OrdinalIgnoreCase);
+
+        if (isRetail)
         {
-            return false;
+            var gameTypeSuffix = gameVersion == GameType.ZeroHour ? "zerohour" : "generals";
+            return acquiredIds.Any(id => id.Contains(".gameinstallation.", StringComparison.OrdinalIgnoreCase) && id.EndsWith(gameTypeSuffix, StringComparison.OrdinalIgnoreCase));
         }
 
-        var gameTypeSuffix = gameVersion == GameType.ZeroHour ? "zerohour" : "generals";
-        return acquiredIds.Any(id => id.Contains(".gameinstallation.") && id.EndsWith(gameTypeSuffix, StringComparison.OrdinalIgnoreCase));
+        // Third-party publisher: check if any gameclient manifest for this publisher exists in acquiredIds
+        return acquiredIds.Any(id =>
+            id.Contains("." + publisher + ".", StringComparison.OrdinalIgnoreCase) &&
+            id.Contains(".gameclient.", StringComparison.OrdinalIgnoreCase));
     }
 
     private static ReplayCompatibilityStatus DetermineUnconfiguredStatus(CrcMappingEntry match, bool isInstalled)
@@ -606,7 +652,7 @@ public sealed class ReplayDirectoryService(
 
         var isRetail = string.IsNullOrWhiteSpace(match.Publisher) ||
                        string.Equals(match.Publisher, "ea", StringComparison.OrdinalIgnoreCase) ||
-                       match.ManifestId.Contains(ReplayManagerConstants.RetailManifestSegment);
+                       match.ManifestId.Contains(ReplayManagerConstants.RetailManifestSegment, StringComparison.OrdinalIgnoreCase);
 
         if (!string.IsNullOrWhiteSpace(match.CdnUrl) || !isRetail)
         {
@@ -624,7 +670,7 @@ public sealed class ReplayDirectoryService(
     {
         replay.MatchedClient = match;
 
-        var matchingProfile = FindMatchingProfile(profiles, replay.GameVersion, match.ManifestId, match.DataPatchManifestId);
+        var matchingProfile = FindMatchingProfile(profiles, replay.GameVersion, match.ManifestId, match.DataPatchManifestId, replay);
         if (matchingProfile != null)
         {
             replay.MatchingProfileId = matchingProfile.Id;
@@ -807,6 +853,21 @@ public sealed class ReplayDirectoryService(
                 WorkingDirectory = workingDir,
             };
 
+            if (string.IsNullOrWhiteSpace(gameClient.ExecutablePath))
+            {
+                gameClient.ExecutablePath = exePath;
+            }
+
+            if (string.IsNullOrWhiteSpace(gameClient.WorkingDirectory))
+            {
+                gameClient.WorkingDirectory = workingDir;
+            }
+
+            if (string.IsNullOrWhiteSpace(gameClient.PublisherType))
+            {
+                gameClient.PublisherType = installation.InstallationType.ToIdentifierString();
+            }
+
             return (clientManifestId, gameClient);
         }
 
@@ -970,7 +1031,21 @@ public sealed class ReplayDirectoryService(
         else
         {
             replay.MatchedClient = null;
-            replay.CompatibilityStatus = ReplayCompatibilityStatus.Orphaned;
+            var unmappedProfile = profiles.FirstOrDefault(p =>
+                p.GameClient?.GameType == replay.GameVersion &&
+                ((!string.IsNullOrEmpty(replay.MatchingProfileId) && string.Equals(p.Id, replay.MatchingProfileId, StringComparison.OrdinalIgnoreCase)) ||
+                 (!string.IsNullOrEmpty(p.Description) && p.Description.Contains(replay.FileName, StringComparison.OrdinalIgnoreCase))));
+
+            if (unmappedProfile != null)
+            {
+                replay.MatchingProfileId = unmappedProfile.Id;
+                replay.MatchingProfileName = unmappedProfile.Name;
+                replay.CompatibilityStatus = ReplayCompatibilityStatus.Compatible;
+            }
+            else
+            {
+                replay.CompatibilityStatus = ReplayCompatibilityStatus.Orphaned;
+            }
         }
     }
 
