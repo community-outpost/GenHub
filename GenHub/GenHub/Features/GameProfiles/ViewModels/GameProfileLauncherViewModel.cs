@@ -348,7 +348,7 @@ public partial class GameProfileLauncherViewModel(
     {
         logger.LogInformation("Profile launched notification received for {ProfileId} (PID: {ProcessId})", message.ProfileId, message.ProcessId);
 
-        Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+        RunOnUi(() =>
         {
             var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p => p.ProfileId.Equals(message.ProfileId, StringComparison.OrdinalIgnoreCase));
             if (profile != null)
@@ -368,7 +368,7 @@ public partial class GameProfileLauncherViewModel(
     {
         logger.LogInformation("Profile stopped notification received for {ProfileId} (PID: {ProcessId})", message.ProfileId, message.ProcessId);
 
-        Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+        RunOnUi(() =>
         {
             var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p =>
                 (!string.IsNullOrEmpty(message.ProfileId) && p.ProfileId.Equals(message.ProfileId, StringComparison.OrdinalIgnoreCase)) ||
@@ -390,7 +390,7 @@ public partial class GameProfileLauncherViewModel(
     {
         logger.LogInformation("Profile deleted notification received for {ProfileId}", message.ProfileId);
 
-        Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+        RunOnUi(() =>
         {
             var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p => p.ProfileId.Equals(message.ProfileId, StringComparison.OrdinalIgnoreCase));
             if (profile != null)
@@ -443,6 +443,18 @@ public partial class GameProfileLauncherViewModel(
         }
 
         return copyName;
+    }
+
+    private static void RunOnUi(Action action)
+    {
+        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+        }
+        else
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(action);
+        }
     }
 
     private static Window? GetMainWindow()

@@ -382,8 +382,7 @@ public sealed class ReplayDirectoryService(
                 contentOrchestrator, manifestPool, rawDataPatchId, replay.MatchedClient.Publisher, replay.GameVersion, ct);
 
             // Verify if data patch exists in manifest pool (exact ID or compatible identity)
-            var resolvedDataPatchId = await ResolveExistingPatchManifestIdAsync(manifestPool, rawDataPatchId, replay.MatchedClient.Publisher, ct);
-
+            var resolvedDataPatchId = await ResolveExistingPatchManifestIdAsync(manifestPool, rawDataPatchId, replay.MatchedClient.Publisher, replay.GameVersion, replay.MatchedClient.Version, ct);
             if (!string.IsNullOrEmpty(resolvedDataPatchId) && !enabledContentIds.Contains(resolvedDataPatchId, StringComparer.OrdinalIgnoreCase))
             {
                 enabledContentIds.Add(resolvedDataPatchId);
@@ -397,6 +396,8 @@ public sealed class ReplayDirectoryService(
         IContentManifestPool manifestPool,
         string dataPatchManifestId,
         string? publisher,
+        GameType gameVersion,
+        string? clientVersion,
         CancellationToken ct)
     {
         if (string.IsNullOrEmpty(dataPatchManifestId))
@@ -414,10 +415,13 @@ public sealed class ReplayDirectoryService(
         if (allManifestsResult.Success && allManifestsResult.Data != null)
         {
             var patchManifest = allManifestsResult.Data.FirstOrDefault(m =>
+                m.TargetGame == gameVersion &&
                 (m.ContentType == ContentType.Patch || m.ContentType == ContentType.MapPack) &&
                 (string.Equals(m.Id.Value, dataPatchManifestId, StringComparison.OrdinalIgnoreCase) ||
                  m.Dependencies?.Any(d => string.Equals(d.Id.Value, dataPatchManifestId, StringComparison.OrdinalIgnoreCase)) == true ||
-                 (!string.IsNullOrEmpty(publisher) && string.Equals(m.Publisher?.PublisherType, publisher, StringComparison.OrdinalIgnoreCase))));
+                 (!string.IsNullOrEmpty(publisher) &&
+                  string.Equals(m.Publisher?.PublisherType, publisher, StringComparison.OrdinalIgnoreCase) &&
+                  (!string.IsNullOrEmpty(clientVersion) && string.Equals(m.Version?.ToString(), clientVersion, StringComparison.OrdinalIgnoreCase)))));
 
             if (patchManifest != null)
             {
@@ -509,10 +513,20 @@ public sealed class ReplayDirectoryService(
 
     private static bool IsProfileMatchingRetail(GameProfile profile, string? dataPatchManifestId)
     {
+        var superHackersSegment = $"{ManifestConstants.ManifestIdSegmentSeparator}{PublisherTypeConstants.TheSuperHackers}{ManifestConstants.ManifestIdSegmentSeparator}";
+        var legacySuperHackersSegment = $"{ManifestConstants.ManifestIdSegmentSeparator}superhackers{ManifestConstants.ManifestIdSegmentSeparator}";
+        var generalsOnlineSegment = $"{ManifestConstants.ManifestIdSegmentSeparator}{PublisherTypeConstants.GeneralsOnline}{ManifestConstants.ManifestIdSegmentSeparator}";
+
         var isProfileThirdParty = string.Equals(profile.GameClient?.PublisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
                                   string.Equals(profile.GameClient?.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
-                                  (profile.GameClient?.Id != null && (profile.GameClient.Id.Contains(".superhackers.", StringComparison.OrdinalIgnoreCase) || profile.GameClient.Id.Contains(".generalsonline.", StringComparison.OrdinalIgnoreCase))) ||
-                                  profile.EnabledContentIds?.Any(id => id.Contains(".superhackers.", StringComparison.OrdinalIgnoreCase) || id.Contains(".generalsonline.", StringComparison.OrdinalIgnoreCase)) == true;
+                                  (profile.GameClient?.Id != null &&
+                                   (profile.GameClient.Id.Contains(superHackersSegment, StringComparison.OrdinalIgnoreCase) ||
+                                    profile.GameClient.Id.Contains(legacySuperHackersSegment, StringComparison.OrdinalIgnoreCase) ||
+                                    profile.GameClient.Id.Contains(generalsOnlineSegment, StringComparison.OrdinalIgnoreCase))) ||
+                                  profile.EnabledContentIds?.Any(id =>
+                                      id.Contains(superHackersSegment, StringComparison.OrdinalIgnoreCase) ||
+                                      id.Contains(legacySuperHackersSegment, StringComparison.OrdinalIgnoreCase) ||
+                                      id.Contains(generalsOnlineSegment, StringComparison.OrdinalIgnoreCase)) == true;
 
         if (isProfileThirdParty)
         {
@@ -792,11 +806,12 @@ public sealed class ReplayDirectoryService(
         if (allManifests.Success && allManifests.Data != null)
         {
             var alreadyExists = allManifests.Data.Any(m =>
-                string.Equals(m.Id.Value, dataPatchManifestId, StringComparison.OrdinalIgnoreCase) ||
-                (!string.IsNullOrEmpty(publisher) &&
-                 (m.ContentType == ContentType.Patch || m.ContentType == ContentType.MapPack) &&
-                 (string.Equals(m.Publisher?.PublisherType, publisher, StringComparison.OrdinalIgnoreCase) ||
-                  m.Id.Value.Contains("." + publisher + "."))));
+                m.TargetGame == gameVersion &&
+                (string.Equals(m.Id.Value, dataPatchManifestId, StringComparison.OrdinalIgnoreCase) ||
+                 (!string.IsNullOrEmpty(publisher) &&
+                  (m.ContentType == ContentType.Patch || m.ContentType == ContentType.MapPack) &&
+                  (string.Equals(m.Publisher?.PublisherType, publisher, StringComparison.OrdinalIgnoreCase) ||
+                   m.Id.Value.Contains("." + publisher + ".")))));
 
             if (alreadyExists)
             {
@@ -931,8 +946,9 @@ public sealed class ReplayDirectoryService(
             string.Equals(m.Id.Value, matchedClient.ManifestId, StringComparison.OrdinalIgnoreCase) ||
             (!string.IsNullOrEmpty(matchedClient.Publisher) &&
              m.ContentType == ContentType.GameClient &&
-             (string.Equals(m.Publisher?.PublisherType, matchedClient.Publisher, StringComparison.OrdinalIgnoreCase) ||
-              m.Id.Value.Contains("." + matchedClient.Publisher + "."))));
+             m.TargetGame == gameVersion &&
+             string.Equals(m.Publisher?.PublisherType, matchedClient.Publisher, StringComparison.OrdinalIgnoreCase) &&
+             (!string.IsNullOrEmpty(matchedClient.Version) && string.Equals(m.Version?.ToString(), matchedClient.Version, StringComparison.OrdinalIgnoreCase))));
 
         if (isAlreadyAcquired)
         {

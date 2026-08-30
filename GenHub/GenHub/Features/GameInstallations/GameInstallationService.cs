@@ -544,7 +544,9 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                     Name = matchingManifest.Name,
                     WorkingDirectory = gamePath,
                     ExecutablePath = exePath,
-                    PublisherType = installType,
+                    PublisherType = installation.InstallationType == GameInstallationType.Retail
+                        ? PublisherInfoConstants.Retail.Name
+                        : installType,
                     GameType = gameType,
                     InstallationId = installation.Id,
                     Version = matchingManifest.Version,

@@ -418,8 +418,8 @@ public class GameProfileLauncherViewModelTests
 
         vm.Receive(new ProfileLaunchedMessage("test-profile-123", 45678));
 
-        // Note: Dispatched on UI thread
-        Assert.NotNull(vm);
+        Assert.True(item.IsProcessRunning);
+        Assert.Equal(45678, item.ProcessId);
     }
 
     private static ProfileResourceService CreateProfileResourceService()
