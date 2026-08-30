@@ -73,64 +73,13 @@ public sealed class ReplayDirectoryService(
                        f.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        var acquiredIds = new HashSet<string>(StringComparer.Ordinal);
-        var existingProfiles = new List<GameProfile>();
+        var (acquiredIds, existingProfiles) = await FetchAcquiredManifestIdsAndProfilesAsync(ct);
 
-        try
-        {
-            using var scope = scopeFactory.CreateScope();
-            var manifestPool = scope.ServiceProvider.GetService<IContentManifestPool>();
-            if (manifestPool != null)
-            {
-                var manifestsResult = await manifestPool.GetAllManifestsAsync(ct);
-                if (manifestsResult.Success && manifestsResult.Data != null)
-                {
-                    foreach (var manifest in manifestsResult.Data)
-                    {
-                        acquiredIds.Add(manifest.Id.Value);
-                    }
-                }
-            }
-
-            var profileManager = scope.ServiceProvider.GetService<IGameProfileManager>();
-            if (profileManager != null)
-            {
-                var profilesResult = await profileManager.GetAllProfilesAsync(ct);
-                if (profilesResult.Success && profilesResult.Data != null)
-                {
-                    existingProfiles.AddRange(profilesResult.Data);
-                }
-            }
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            logger.LogWarning(ex, "Failed to retrieve acquired manifests or profiles for replay compatibility matching.");
-        }
-
-        var replayFiles = new List<ReplayFile>();
+        var replayFiles = new List<ReplayFile>(files.Count);
         foreach (var file in files)
         {
             ct.ThrowIfCancellationRequested();
-            var info = new FileInfo(file);
-            var replay = new ReplayFile
-            {
-                FullPath = file,
-                FileName = Path.GetFileName(file),
-                SizeInBytes = info.Length,
-                LastModified = info.LastWriteTime,
-                GameVersion = version,
-            };
-
-            if (file.EndsWith(".rep", StringComparison.OrdinalIgnoreCase))
-            {
-                var parseResult = await headerParser.ParseHeaderAsync(file, ct);
-                if (parseResult.Success && parseResult.Data != null)
-                {
-                    replay.Metadata = parseResult.Data;
-                    ResolveCompatibility(replay, acquiredIds, existingProfiles);
-                }
-            }
-
+            var replay = await ProcessReplayFileAsync(file, version, acquiredIds, existingProfiles, ct);
             replayFiles.Add(replay);
         }
 
@@ -286,7 +235,7 @@ public sealed class ReplayDirectoryService(
             var launcherFacade = scope.ServiceProvider.GetRequiredService<IProfileLauncherFacade>();
 
             var launchResult = await launcherFacade.LaunchProfileAsync(
-                replay.MatchingProfileId!,
+                replay.MatchingProfileId ?? string.Empty,
                 skipUserDataCleanup: false,
                 cancellationToken: ct);
 
@@ -335,11 +284,11 @@ public sealed class ReplayDirectoryService(
 
         var gameClient = new GameClient
         {
-            Id = replay.MatchedClient!.ManifestId,
+            Id = replay.MatchedClient?.ManifestId ?? string.Empty,
             Name = clientName,
-            Version = replay.MatchedClient.Version,
+            Version = replay.MatchedClient?.Version ?? string.Empty,
             GameType = replay.GameVersion,
-            PublisherType = replay.MatchedClient.Publisher,
+            PublisherType = replay.MatchedClient?.Publisher ?? string.Empty,
             InstallationId = installation.Id,
             ExecutablePath = exePath,
             WorkingDirectory = workingDir,
@@ -350,12 +299,81 @@ public sealed class ReplayDirectoryService(
             Name = profileName,
             Description = $"Profile configured for {clientName} (Exe: {replay.Metadata?.FormattedExeCrc}, INI: {replay.Metadata?.FormattedIniCrc})",
             GameInstallationId = installation.Id,
-            GameClientId = replay.MatchedClient.ManifestId,
+            GameClientId = replay.MatchedClient?.ManifestId ?? string.Empty,
             GameClient = gameClient,
-            EnabledContentIds = [replay.MatchedClient.ManifestId],
+            EnabledContentIds = !string.IsNullOrEmpty(replay.MatchedClient?.ManifestId) ? [replay.MatchedClient.ManifestId] : [],
             WorkspaceStrategy = WorkspaceStrategy.SymlinkOnly,
             UseSteamLaunch = installation.InstallationType == GameInstallationType.Steam,
         };
+    }
+
+    private async Task<(HashSet<string> AcquiredIds, List<GameProfile> Profiles)> FetchAcquiredManifestIdsAndProfilesAsync(CancellationToken ct)
+    {
+        var acquiredIds = new HashSet<string>(StringComparer.Ordinal);
+        var existingProfiles = new List<GameProfile>();
+
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var manifestPool = scope.ServiceProvider.GetService<IContentManifestPool>();
+            if (manifestPool != null)
+            {
+                var manifestsResult = await manifestPool.GetAllManifestsAsync(ct);
+                if (manifestsResult.Success && manifestsResult.Data != null)
+                {
+                    foreach (var manifest in manifestsResult.Data)
+                    {
+                        acquiredIds.Add(manifest.Id.Value);
+                    }
+                }
+            }
+
+            var profileManager = scope.ServiceProvider.GetService<IGameProfileManager>();
+            if (profileManager != null)
+            {
+                var profilesResult = await profileManager.GetAllProfilesAsync(ct);
+                if (profilesResult.Success && profilesResult.Data != null)
+                {
+                    existingProfiles.AddRange(profilesResult.Data);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Failed to retrieve acquired manifests or profiles for replay compatibility matching.");
+        }
+
+        return (acquiredIds, existingProfiles);
+    }
+
+    private async Task<ReplayFile> ProcessReplayFileAsync(
+        string file,
+        GameType version,
+        HashSet<string> acquiredIds,
+        IReadOnlyList<GameProfile> existingProfiles,
+        CancellationToken ct)
+    {
+        var info = new FileInfo(file);
+        var replay = new ReplayFile
+        {
+            FullPath = file,
+            FileName = Path.GetFileName(file),
+            SizeInBytes = info.Length,
+            LastModified = info.LastWriteTime,
+            GameVersion = version,
+        };
+
+        if (file.EndsWith(".rep", StringComparison.OrdinalIgnoreCase))
+        {
+            var parseResult = await headerParser.ParseHeaderAsync(file, ct);
+            if (parseResult.Success && parseResult.Data != null)
+            {
+                replay.Metadata = parseResult.Data;
+                ResolveCompatibility(replay, acquiredIds, existingProfiles);
+            }
+        }
+
+        return replay;
     }
 
     private void ResolveCompatibility(ReplayFile replay, HashSet<string> acquiredIds, IReadOnlyList<GameProfile> profiles)
