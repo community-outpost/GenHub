@@ -1483,14 +1483,7 @@ public class ProfileSharingServiceTests
 
         var uploadThingMock = new Mock<IUploadThingService>();
         uploadThingMock.Setup(u => u.UploadFileAsync(It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<UploadResult>.CreateSuccess(new UploadResult
-            {
-                FileKey = "key123",
-                PublicUrl = "https://utfs.io/f/defcon51.zip",
-                DeleteToken = "token123",
-                FileName = "[BSM] Defcon 51 V3.zip",
-                FileSize = 100,
-            }));
+            .ReturnsAsync(OperationResult<UploadResult>.CreateSuccess(new UploadResult("https://utfs.io/f/defcon51.zip", "key123", "token123")));
 
         string? savedHash = null;
         var uploadHistoryMock = new Mock<IUploadHistoryService>();

@@ -31,7 +31,6 @@ public static class ProfileSharingConstants
     /// </summary>
     public const string ProfileFilePattern = "*.ghprofile";
 
-
     /// <summary>
     /// Maximum allowed length for profile names during import.
     /// </summary>
