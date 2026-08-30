@@ -695,7 +695,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        await _projectConfigService.RemoveFromRecentProjectsAsync(path).ConfigureAwait(false);
+        await _projectConfigService.RemoveFromRecentProjectsAsync(path, CancellationToken.None).ConfigureAwait(false);
         await LoadRecentProjectsAsync().ConfigureAwait(false);
         _notificationService.ShowInfo("Project Removed", $"Removed '{name}' from recent projects.");
     }
@@ -739,7 +739,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 File.Delete(path);
             }
 
-            await _projectConfigService.RemoveFromRecentProjectsAsync(path).ConfigureAwait(false);
+            await _projectConfigService.RemoveFromRecentProjectsAsync(path, CancellationToken.None).ConfigureAwait(false);
 
             if (ProjectPath.Equals(path, StringComparison.OrdinalIgnoreCase))
             {
