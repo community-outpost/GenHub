@@ -26,28 +26,28 @@
         </Style>
 
         <Style Selector="TextBox.glass">
-            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="Background" Value="#10FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#20FFFFFF"/>
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="10,8"/>
         </Style>
         <Style Selector="TextBox.glass:focus">
-            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+            <Setter Property="Background" Value="#15FFFFFF"/>
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
         <Style Selector="ComboBox.glass">
-            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="Background" Value="#10FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#20FFFFFF"/>
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="10,8"/>
         </Style>
 
         <Style Selector="Button.icon-btn">
-             <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
-             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+             <Setter Property="Background" Value="#10FFFFFF"/>
+             <Setter Property="BorderBrush" Value="#20FFFFFF"/>
              <Setter Property="BorderThickness" Value="1"/>
              <Setter Property="Padding" Value="10,8"/>
              <Setter Property="CornerRadius" Value="6"/>
@@ -61,7 +61,7 @@
              </Setter>
         </Style>
         <Style Selector="Button.icon-btn:pointerover">
-             <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+             <Setter Property="Background" Value="#20FFFFFF"/>
              <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}"/>
         </Style>
 
@@ -83,7 +83,7 @@
             <Setter Property="Background" Value="{DynamicResource AccentLightBrush}"/>
         </Style>
         <Style Selector="Button.accent:disabled">
-            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
+            <Setter Property="Background" Value="#10FFFFFF"/>
             <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
             <Setter Property="Cursor" Value="Arrow"/>
         </Style>
@@ -179,9 +179,9 @@
                 </StackPanel>
 
                 <!-- RIGHT COLUMN: Tree Preview -->
-                <Border Grid.Column="1" Background="{DynamicResource SurfaceCardBrush}" CornerRadius="10" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" ClipToBounds="True">
+                <Border Grid.Column="1" Background="#10FFFFFF" CornerRadius="10" BorderBrush="#20FFFFFF" BorderThickness="1" ClipToBounds="True">
                     <Grid RowDefinitions="Auto,*">
-                        <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="16,10">
+                        <Border Background="#08FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="0,0,0,1" Padding="16,10">
                             <TextBlock Text="CONTENT PREVIEW" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" LetterSpacing="0.8"/>
                         </Border>
 

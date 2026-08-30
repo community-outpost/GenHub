@@ -1,0 +1,383 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
+        xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+        mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="420"
+        x:Class="GenHub.Features.GameProfiles.Views.ShareProfileDialogWindow"
+        x:DataType="vm:ShareProfileDialogViewModel"
+        Title="Share Game Profile"
+        Width="580"
+        SizeToContent="Height"
+        MinHeight="480"
+        MaxHeight="720"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        SystemDecorations="Full"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        TransparencyLevelHint="AcrylicBlur"
+        Background="Transparent">
+
+    <Window.Resources>
+        <conv:ColorToBrushConverter x:Key="ColorToBrushConverter" />
+        <conv:ThemeBackgroundConverter x:Key="ThemeBackgroundConverter" />
+        <SolidColorBrush x:Key="SuccessGreenFill" Color="#2500E676" />
+        <Color x:Key="OverlayWhite50Color">#80FFFFFF</Color>
+        <Color x:Key="OverlayWhite12Color">#20FFFFFF</Color>
+        <Color x:Key="OverlayWhite02Color">#05FFFFFF</Color>
+        <SolidColorBrush x:Key="FillWhite08" Color="#15FFFFFF" />
+        <SolidColorBrush x:Key="FillWhite14" Color="#25FFFFFF" />
+        <SolidColorBrush x:Key="BorderWhite19" Color="#30FFFFFF" />
+        <SolidColorBrush x:Key="BorderWhite31" Color="#50FFFFFF" />
+        <SolidColorBrush x:Key="SuccessGreen" Color="#00E676" />
+        <Color x:Key="DialogSurfaceColor">#0D0D0D</Color>
+    </Window.Resources>
+
+    <!-- Root Container with Margin for Window Shadow -->
+    <Grid Margin="16">
+        <!-- Main Window Border -->
+        <Border CornerRadius="16"
+                BorderThickness="1"
+                ClipToBounds="False"
+                BoxShadow="0 12 36 0 #90000000">
+
+            <Border.BorderBrush>
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                    <GradientStop Color="{StaticResource OverlayWhite50Color}" Offset="0" />
+                    <GradientStop Color="{StaticResource OverlayWhite12Color}" Offset="0.5" />
+                    <GradientStop Color="{StaticResource OverlayWhite02Color}" Offset="1" />
+                </LinearGradientBrush>
+            </Border.BorderBrush>
+
+            <Panel>
+                <!-- Acrylic Backdrop -->
+                <ExperimentalAcrylicBorder IsHitTestVisible="False" CornerRadius="16">
+                    <ExperimentalAcrylicBorder.Material>
+                        <ExperimentalAcrylicMaterial
+                            BackgroundSource="Digger"
+                            TintColor="{StaticResource DialogSurfaceColor}"
+                            TintOpacity="0.95"
+                            MaterialOpacity="0.85" />
+                    </ExperimentalAcrylicBorder.Material>
+                </ExperimentalAcrylicBorder>
+
+                <!-- Subtle Tint -->
+                <Border CornerRadius="16"
+                        Background="{Binding ThemeColor, Converter={StaticResource ThemeBackgroundConverter}}"
+                        IsHitTestVisible="False" />
+
+                <!-- Layout -->
+                <Grid RowDefinitions="Auto,Auto,Auto" Margin="24">
+
+                    <!-- Header -->
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+                        <StackPanel Grid.Column="0" Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <PathIcon Data="M18,16.08C17.24,16.08 16.56,16.38 16.04,16.85L8.91,12.7C8.96,12.47 9,12.24 9,12C9,11.76 8.96,11.53 8.91,11.3L15.96,7.19C16.5,7.69 17.21,8 18,8A3,3 0 0,0 21,5A3,3 0 0,0 18,2A3,3 0 0,0 15,5C15,5.24 15.04,5.47 15.09,5.7L8.04,9.81C7.5,9.31 6.79,9 6,9A3,3 0 0,0 3,12A3,3 0 0,0 6,15C6.79,15 7.5,14.69 8.04,14.19L15.16,18.34C15.11,18.55 15.08,18.77 15.08,19C15.08,20.61 16.39,21.91 18,21.91C19.61,21.91 20.92,20.61 20.92,19A2.92,2.92 0 0,0 18,16.08Z"
+                                          Width="18" Height="18"
+                                          Foreground="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}"
+                                          VerticalAlignment="Center" />
+                                <TextBlock Text="SHARE GAME PROFILE"
+                                           FontSize="16"
+                                           FontWeight="Bold"
+                                           Foreground="{DynamicResource TextPrimary}"
+                                           LetterSpacing="0.8"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{Binding ProfileName}"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimary}" />
+                                <Border Background="{StaticResource FillWhite14}" CornerRadius="4" Padding="6,2">
+                                    <TextBlock Text="{Binding GameVersion}" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Close Button -->
+                        <Button Grid.Column="1"
+                                Command="{Binding CloseCommand}"
+                                Width="30" Height="30"
+                                CornerRadius="15"
+                                Background="{StaticResource FillWhite08}"
+                                Foreground="{DynamicResource TextMuted}"
+                                Padding="0"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                Cursor="Hand">
+                            <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                                      Width="12" Height="12" />
+                        </Button>
+                    </Grid>
+
+                    <!-- Content Body -->
+                    <StackPanel Grid.Row="1" Spacing="16">
+
+                        <!-- Status Alert (if visible) -->
+                        <Border Background="{StaticResource SuccessGreenFill}"
+                                BorderBrush="{StaticResource SuccessGreen}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="12,8"
+                                IsVisible="{Binding IsStatusMessageVisible}">
+                            <TextBlock Text="{Binding StatusMessage}"
+                                       Foreground="{StaticResource SuccessGreen}"
+                                       FontSize="12"
+                                       FontWeight="SemiBold" />
+                        </Border>
+
+                        <!-- Cloud Storage Notice Card -->
+                        <Border Background="{StaticResource FillWhite08}"
+                                BorderBrush="{DynamicResource AccentLightBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="12,10"
+                                IsVisible="{Binding HasCloudUploads}">
+                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                                <PathIcon Grid.Row="0" Grid.Column="0"
+                                          Data="M19.35,10.04C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.04C2.34,8.36 0,10.91 0,14A6,6 0 0,0 6,20H19A5,5 0 0,0 24,15C24,12.36 21.95,10.22 19.35,10.04Z"
+                                          Width="16" Height="16"
+                                          Foreground="{DynamicResource AccentLightBrush}"
+                                          VerticalAlignment="Top"
+                                          Margin="0,2,10,0" />
+                                <StackPanel Grid.Row="0" Grid.Column="1" Spacing="2">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0" Text="Cloud Storage Sync &amp; Quota"
+                                                   FontSize="11"
+                                                   FontWeight="Bold"
+                                                   Foreground="{DynamicResource AccentLightBrush}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding UploadQuotaText}"
+                                                   FontSize="10"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextSecondary}"
+                                                   IsVisible="{Binding UploadQuotaText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                    </Grid>
+                                    <TextBlock Text="{Binding CloudUploadDetails}"
+                                               FontSize="10"
+                                               Foreground="{DynamicResource TextSecondary}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+
+                                <!-- Quota Progress Bar (Row 1) -->
+                                <ProgressBar Grid.Row="1" Grid.Column="1"
+                                             Value="{Binding UploadQuotaPercentage}"
+                                             Minimum="0" Maximum="100"
+                                             Height="4"
+                                             CornerRadius="2"
+                                             Margin="0,6,0,2"
+                                             Foreground="{DynamicResource AccentBrush}"
+                                             IsVisible="{Binding UploadQuotaText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                                <!-- Warning message if quota limit reached (Row 2) -->
+                                <Border Grid.Row="2" Grid.Column="1"
+                                        Background="#25FFA500"
+                                        BorderBrush="{DynamicResource WarningBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="8,4"
+                                        Margin="0,6,0,0"
+                                        IsVisible="{Binding HasUploadWarnings}">
+                                    <TextBlock Text="{Binding UploadWarningMessage}"
+                                               Foreground="{DynamicResource WarningBrush}"
+                                               FontSize="10"
+                                               FontWeight="SemiBold"
+                                               TextWrapping="Wrap" />
+                                </Border>
+
+                                <!-- Generate Link Button (Row 3, shown if link not yet generated) -->
+                                <Button Grid.Row="3" Grid.Column="1"
+                                        Command="{Binding GenerateShareLinkCommand}"
+                                        IsEnabled="{Binding !IsGeneratingLink}"
+                                        Height="34"
+                                        Margin="0,10,0,0"
+                                        HorizontalAlignment="Left"
+                                        Padding="14,0"
+                                        Background="{DynamicResource AccentBrush}"
+                                        Foreground="White"
+                                        CornerRadius="6"
+                                        Cursor="Hand"
+                                        IsVisible="{Binding !IsShareUriGenerated}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <ProgressBar Width="14" Height="14"
+                                                     IsIndeterminate="True"
+                                                     IsVisible="{Binding IsGeneratingLink}" />
+                                        <PathIcon Data="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z"
+                                                  Width="13" Height="13"
+                                                  Foreground="White"
+                                                  IsVisible="{Binding !IsGeneratingLink}" />
+                                        <TextBlock Text="{Binding GeneratingStatusText}"
+                                                   FontSize="11"
+                                                   FontWeight="SemiBold"
+                                                   IsVisible="{Binding IsGeneratingLink}" />
+                                        <TextBlock Text="Generate Share Link (Upload to Cloud)"
+                                                   FontSize="11"
+                                                   FontWeight="SemiBold"
+                                                   IsVisible="{Binding !IsGeneratingLink}" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                        </Border>
+
+                        <!-- Share Link Field (shown when link is generated) -->
+                        <StackPanel Spacing="6" IsVisible="{Binding IsShareUriGenerated}">
+                            <TextBlock Text="Protocol Share Link (genhub://):"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource TextSecondary}"
+                                       FontWeight="Medium" />
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBox Grid.Column="0"
+                                         Text="{Binding ShareUri, Mode=OneWay}"
+                                         IsReadOnly="True"
+                                         Height="38"
+                                         Background="{StaticResource FillWhite08}"
+                                         BorderBrush="{StaticResource BorderWhite19}"
+                                         CornerRadius="8,0,0,8"
+                                         Foreground="{DynamicResource TextPrimary}"
+                                         FontSize="11"
+                                         Padding="10,0"
+                                         VerticalContentAlignment="Center" />
+                                <Button Grid.Column="1"
+                                         Command="{Binding CopyUriCommand}"
+                                         Height="38"
+                                         Padding="16,0"
+                                         Background="{StaticResource PrimaryGradientBrush}"
+                                         Foreground="White"
+                                         FontWeight="SemiBold"
+                                         CornerRadius="0,8,8,0"
+                                         HorizontalContentAlignment="Center"
+                                         VerticalContentAlignment="Center"
+                                         Cursor="Hand">
+                                    <Button.Styles>
+                                        <Style Selector="Button">
+                                            <Setter Property="Transitions">
+                                                <Transitions>
+                                                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" />
+                                                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" />
+                                                </Transitions>
+                                            </Setter>
+                                        </Style>
+                                        <Style Selector="Button:pointerover">
+                                            <Setter Property="Opacity" Value="0.9" />
+                                        </Style>
+                                        <Style Selector="Button:pressed">
+                                            <Setter Property="RenderTransform" Value="scale(0.98)" />
+                                        </Style>
+                                    </Button.Styles>
+                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <PathIcon Data="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"
+                                                  Width="13" Height="13"
+                                                  Foreground="White"
+                                                  VerticalAlignment="Center" />
+                                        <TextBlock Text="Copy Link"
+                                                   FontSize="12"
+                                                   FontWeight="SemiBold"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                            <TextBlock Text="Recipients opening this link or .ghprofile package will launch GenHub's import inspector."
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextMuted}" />
+                        </StackPanel>
+
+                        <!-- File Export Action -->
+                        <Border Background="{StaticResource FillWhite08}"
+                                BorderBrush="{StaticResource BorderWhite19}"
+                                BorderThickness="1"
+                                CornerRadius="10"
+                                Padding="14,12"
+                                Margin="0,4,0,0">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock Text="Standalone Profile Package (.ghprofile)"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimary}" />
+                                    <TextBlock Text="Export a portable profile file you can share with friends directly."
+                                               FontSize="11"
+                                               Foreground="{DynamicResource TextSecondary}" />
+                                </StackPanel>
+
+                                <Button Grid.Column="1"
+                                        Command="{Binding ExportFileCommand}"
+                                        Height="36"
+                                        Padding="14,0"
+                                        Background="{StaticResource FillWhite14}"
+                                        BorderBrush="{StaticResource BorderWhite31}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        HorizontalContentAlignment="Center"
+                                        VerticalContentAlignment="Center"
+                                        Cursor="Hand">
+                                    <Button.Styles>
+                                        <Style Selector="Button">
+                                            <Setter Property="Transitions">
+                                                <Transitions>
+                                                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" />
+                                                    <BrushTransition Property="Background" Duration="0:0:0.15" />
+                                                </Transitions>
+                                            </Setter>
+                                        </Style>
+                                        <Style Selector="Button:pointerover">
+                                            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}" />
+                                            <Setter Property="RenderTransform" Value="translateY(-1px)" />
+                                        </Style>
+                                        <Style Selector="Button:pressed">
+                                            <Setter Property="RenderTransform" Value="scale(0.98)" />
+                                        </Style>
+                                    </Button.Styles>
+                                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <PathIcon Data="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M12,19L8,15H10.5V12H13.5V15H16L12,19Z"
+                                                  Width="14" Height="14"
+                                                  Foreground="{DynamicResource TextPrimary}"
+                                                  VerticalAlignment="Center" />
+                                        <TextBlock Text="Export File"
+                                                   Foreground="{DynamicResource TextPrimary}"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                        </Border>
+
+                    </StackPanel>
+
+                    <!-- Footer -->
+                    <Grid Grid.Row="2" Margin="0,16,0,0">
+                        <Button HorizontalAlignment="Right"
+                                Command="{Binding CloseCommand}"
+                                Content="Close"
+                                Width="90" Height="36"
+                                Background="{StaticResource FillWhite08}"
+                                BorderBrush="{StaticResource BorderWhite19}"
+                                BorderThickness="1"
+                                Foreground="{DynamicResource TextPrimary}"
+                                CornerRadius="8"
+                                FontWeight="Medium"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                Cursor="Hand">
+                            <Button.Styles>
+                                <Style Selector="Button:pointerover">
+                                    <Setter Property="Background" Value="{StaticResource FillWhite14}" />
+                                    <Setter Property="BorderBrush" Value="{StaticResource BorderWhite31}" />
+                                </Style>
+                                <Style Selector="Button:pressed">
+                                    <Setter Property="RenderTransform" Value="scale(0.98)" />
+                                </Style>
+                            </Button.Styles>
+                        </Button>
+                    </Grid>
+
+                </Grid>
+            </Panel>
+        </Border>
+    </Grid>
+</Window>

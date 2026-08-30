@@ -366,11 +366,11 @@ public sealed class UploadHistoryServiceTests : IDisposable
         // 11MB replay upload (exceeds 10MB replay limit)
         Assert.False(await service.CanUploadAsync(11 * 1024 * 1024, ReplayManagerConstants.UploadCategory));
 
-        // 50MB map upload (within 100MB map limit)
-        Assert.True(await service.CanUploadAsync(50 * 1024 * 1024, MapManagerConstants.UploadCategory));
+        // 9MB map upload (within 10MB map limit)
+        Assert.True(await service.CanUploadAsync(9 * 1024 * 1024, MapManagerConstants.UploadCategory));
 
-        // 101MB map upload (exceeds 100MB map limit)
-        Assert.False(await service.CanUploadAsync(101 * 1024 * 1024, MapManagerConstants.UploadCategory));
+        // 11MB map upload (exceeds 10MB map limit)
+        Assert.False(await service.CanUploadAsync(11 * 1024 * 1024, MapManagerConstants.UploadCategory));
     }
 
     /// <summary>
@@ -382,7 +382,7 @@ public sealed class UploadHistoryServiceTests : IDisposable
     {
         var service = CreateService();
         service.RecordUpload(5 * 1024 * 1024, "https://utfs.io/f/replay1", "game.rep", "key_rep", "token_rep", null, ReplayManagerConstants.UploadCategory);
-        service.RecordUpload(20 * 1024 * 1024, "https://utfs.io/f/map1", "map.zip", "key_map", "token_map", null, MapManagerConstants.UploadCategory);
+        service.RecordUpload(2 * 1024 * 1024, "https://utfs.io/f/map1", "map.zip", "key_map", "token_map", null, MapManagerConstants.UploadCategory);
 
         var replayUsage = await service.GetUsageInfoAsync(ReplayManagerConstants.UploadCategory);
         var mapUsage = await service.GetUsageInfoAsync(MapManagerConstants.UploadCategory);
@@ -390,8 +390,32 @@ public sealed class UploadHistoryServiceTests : IDisposable
         Assert.Equal(5 * 1024 * 1024, replayUsage.UsedBytes);
         Assert.Equal(ReplayManagerConstants.MaxUploadBytesPerPeriod, replayUsage.LimitBytes);
 
-        Assert.Equal(20 * 1024 * 1024, mapUsage.UsedBytes);
+        Assert.Equal(2 * 1024 * 1024, mapUsage.UsedBytes);
         Assert.Equal(MapManagerConstants.MaxUploadBytesPerPeriod, mapUsage.LimitBytes);
+    }
+
+    /// <summary>
+    /// Verifies that UploadHistoryChanged fires on record, remove, and clear operations.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task UploadHistoryChanged_FiresOnMutationsAsync()
+    {
+        var service = CreateService();
+        int eventCount = 0;
+        service.UploadHistoryChanged += (_, _) => eventCount++;
+
+        service.RecordUpload(1024, "https://utfs.io/f/test1", "test.rep");
+        Assert.Equal(1, eventCount);
+
+        await service.RemoveHistoryItemAsync("https://utfs.io/f/test1", deleteFromCloud: false);
+        Assert.Equal(2, eventCount);
+
+        service.RecordUpload(2048, "https://utfs.io/f/test2", "test2.rep");
+        Assert.Equal(3, eventCount);
+
+        await service.ClearHistoryAsync(deleteFromCloud: false);
+        Assert.Equal(4, eventCount);
     }
 
     private UploadHistoryService CreateService()

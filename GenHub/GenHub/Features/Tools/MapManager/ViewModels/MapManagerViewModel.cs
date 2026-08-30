@@ -751,11 +751,7 @@ public partial class MapManagerViewModel : ObservableObject
 
         var fileName = SelectedMaps.Count == 1 ? SelectedMaps[0].FileName : $"{MapManagerConstants.DefaultZipName}{Path.GetExtension(MapManagerConstants.ZipFilePattern)}";
         _uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash, MapManagerConstants.UploadCategory);
-
-        if (IsHistoryOpen)
-        {
-            await LoadHistoryAsync();
-        }
+        await LoadHistoryAsync();
 
         StatusMessage = "Uploaded! Link copied to clipboard.";
         _notificationService.ShowSuccess("Upload Complete", "Link copied to clipboard!");

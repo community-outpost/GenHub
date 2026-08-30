@@ -1,7 +1,9 @@
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
@@ -13,8 +15,10 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
+using GenHub.Features.GameProfiles.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace GenHub;
 
@@ -28,6 +32,7 @@ public partial class App : Application
     private readonly IConfigurationProviderService _configurationProvider;
     private readonly IProfileLauncherFacade _profileLauncherFacade;
     private readonly IThemeService? _themeService;
+    private bool _startupArgsHandled;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="App"/> class with the specified service provider.
@@ -71,8 +76,9 @@ public partial class App : Application
             // Subscribe to IPC commands from secondary instances (Windows only)
             SubscribeToSingleInstanceCommands(mainWindow);
 
-            // Handle startup arguments sequentially (launch profile, then subscription if present)
-            SafeFireAndForget(HandleStartupArgsAsync(desktop.Args, mainWindow), nameof(HandleStartupArgsAsync));
+            // Handle startup arguments sequentially once the window is opened and active
+            mainWindow.Opened += (_, _) =>
+                SafeFireAndForget(HandleStartupArgsAsync(desktop.Args, mainWindow), nameof(HandleStartupArgsAsync));
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -176,13 +182,15 @@ public partial class App : Application
 
     private async Task HandleStartupArgsAsync(string[]? args, MainWindow mainWindow)
     {
-        if (args == null || args.Length == 0)
+        if (_startupArgsHandled || args == null || args.Length == 0)
         {
             return;
         }
 
+        _startupArgsHandled = true;
         await HandleLaunchProfileArgsAsync(args, mainWindow);
         await HandleSubscriptionArgsAsync(args, mainWindow);
+        await HandleImportProfileArgsAsync(args, mainWindow);
     }
 
     private async Task HandleLaunchProfileArgsAsync(string[]? args, MainWindow mainWindow)
@@ -223,9 +231,28 @@ public partial class App : Application
         await HandleSubscriptionUrlAsync(subscriptionUrl, mainWindow);
     }
 
+    private async Task HandleImportProfileArgsAsync(string[]? args, MainWindow mainWindow)
+    {
+        if (args == null || args.Length == 0)
+        {
+            return;
+        }
+
+        var shareUri = CommandLineParser.ExtractProfileShareUri(args);
+        if (string.IsNullOrWhiteSpace(shareUri))
+        {
+            return;
+        }
+
+        var logger = _serviceProvider.GetService<ILogger<App>>();
+        logger?.LogInformation("Startup profile import request received");
+
+        await HandleImportProfileUriAsync(shareUri, mainWindow);
+    }
+
     private void SubscribeToSingleInstanceCommands(MainWindow mainWindow)
     {
-        // Get the SingleInstanceManager from AppLocator (set by Windows Program.cs)
+        // Get the SingleInstanceManager from AppLocator (set by platform hosts)
         var singleInstanceManager = AppLocator.SingleInstanceManager;
         if (singleInstanceManager is null)
         {
@@ -259,9 +286,37 @@ public partial class App : Application
             // Handle the subscription URL
             SafeFireAndForget(HandleSubscriptionUrlAsync(subscriptionUrl, mainWindow), nameof(HandleSubscriptionUrlAsync));
         }
+        else if (command.StartsWith(IpcCommands.ImportProfilePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var shareUri = command[IpcCommands.ImportProfilePrefix.Length..];
+            logger?.LogInformation("Received IPC profile import command");
+
+            // Handle profile import
+            SafeFireAndForget(HandleImportProfileUriAsync(shareUri, mainWindow), nameof(HandleImportProfileUriAsync));
+        }
         else
         {
             logger?.LogWarning("Unknown IPC command received: {Command}", command);
+        }
+    }
+
+    private async Task HandleImportProfileUriAsync(string shareUriOrPath, MainWindow mainWindow)
+    {
+        var launcherViewModel = _serviceProvider.GetService<GameProfileLauncherViewModel>();
+        if (launcherViewModel != null)
+        {
+            if (mainWindow.WindowState == WindowState.Minimized)
+            {
+                mainWindow.WindowState = WindowState.Normal;
+            }
+
+            mainWindow.Activate();
+            await launcherViewModel.ImportProfileFromFileOrUriAsync(shareUriOrPath);
+        }
+        else
+        {
+            var logger = _serviceProvider.GetService<ILogger<App>>();
+            logger?.LogError("GameProfileLauncherViewModel is not available for import.");
         }
     }
 

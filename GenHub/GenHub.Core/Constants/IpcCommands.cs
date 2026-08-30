@@ -15,4 +15,10 @@ public static class IpcCommands
     /// (<c>subscribe:&lt;absolute-url&gt;</c>). Same payload as <c>genhub://subscribe?url=...</c>.
     /// </summary>
     public const string SubscribePrefix = "subscribe:";
+
+    /// <summary>
+    /// Command prefix used to forward a shared profile URI or payload to the primary instance
+    /// (<c>import-profile:&lt;uri-or-payload&gt;</c>).
+    /// </summary>
+    public const string ImportProfilePrefix = "import-profile:";
 }

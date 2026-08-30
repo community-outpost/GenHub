@@ -1,10 +1,14 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Runtime.Versioning;
 using Avalonia;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Infrastructure.DependencyInjection;
+using GenHub.Linux.Features.Shortcuts;
 using GenHub.Linux.Infrastructure.DependencyInjection;
+using GenHub.Linux.Infrastructure.SingleInstance;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Velopack;
@@ -18,6 +22,7 @@ public class Program
 {
     private const string UpdaterUserAgent = "GenHub-Updater/1.0";
     private static readonly TimeSpan UpdaterTimeout = TimeIntervals.UpdaterTimeout;
+    private static LinuxSingleInstanceManager? _singleInstanceManager;
 
     /// <summary>
     /// Main entry point for the application.
@@ -35,51 +40,57 @@ public class Program
         // Initialize Velopack - must be first to handle install/update hooks
         VelopackApp.Build().Run();
 
-        // Create lockfile to guarantee that only one instance is running on linux
-        var lockFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".genhub", "lock");
-        Directory.CreateDirectory(Path.GetDirectoryName(lockFilePath)!);
-        FileStream? lockFile = null;
+        using var bootstrapLoggerFactory = LoggingModule.CreateBootstrapLoggerFactory();
+        var bootstrapLogger = bootstrapLoggerFactory.CreateLogger<Program>();
+
+        bool multiInstance = args.Contains(CommandLineConstants.MultiInstanceArg, StringComparer.OrdinalIgnoreCase) ||
+                             args.Contains(CommandLineConstants.MultiInstanceShortArg, StringComparer.OrdinalIgnoreCase) ||
+                             Environment.GetEnvironmentVariable(CommandLineConstants.MultiInstanceEnvVar) == CommandLineConstants.MultiInstanceEnvEnabledValue;
+
+        if (!multiInstance)
+        {
+            _singleInstanceManager = LinuxSingleInstanceManager.TryCreatePrimary(bootstrapLoggerFactory.CreateLogger<LinuxSingleInstanceManager>());
+            if (_singleInstanceManager == null)
+            {
+                // Secondary instance: forward command to primary and exit
+                LinuxSingleInstanceManager.SendCommandToPrimaryInstance(args, bootstrapLogger);
+                return;
+            }
+        }
+
+        // Register genhub:// protocol handler on Linux desktop
+        LinuxUriSchemeRegistrar.Register(bootstrapLogger);
+
         try
         {
-            lockFile = new FileStream(lockFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
-        }
-        catch (IOException)
-        {
-            // Another instance is running
-            return;
-        }
+            bootstrapLogger.LogInformation("Starting GenHub Linux application");
 
-        using (lockFile)
-        using (var bootstrapLoggerFactory = LoggingModule.CreateBootstrapLoggerFactory())
-        {
-            var bootstrapLogger = bootstrapLoggerFactory.CreateLogger<Program>();
+            var services = new ServiceCollection();
+
             try
             {
-                bootstrapLogger.LogInformation("Starting GenHub Linux application");
+                // Register shared services and Linux-specific services
+                services.ConfigureApplicationServices(s => s.AddLinuxServices());
+            }
+            catch (Exception configEx)
+            {
+                bootstrapLogger.LogCritical(configEx, "Failed to configure application services");
+                throw;
+            }
 
-                var services = new ServiceCollection();
-
-                try
-                {
-                    // Register shared services and Linux-specific services
-                    services.ConfigureApplicationServices(s => s.AddLinuxServices());
-                }
-                catch (Exception configEx)
-                {
-                    bootstrapLogger.LogCritical(configEx, "Failed to configure application services");
-                    throw;
-                }
-
+            using (_singleInstanceManager)
+            {
                 var serviceProvider = services.BuildServiceProvider();
                 AppLocator.Services = serviceProvider;
+                AppLocator.SingleInstanceManager = _singleInstanceManager;
 
                 BuildAvaloniaApp(serviceProvider).StartWithClassicDesktopLifetime(args);
             }
-            catch (Exception ex)
-            {
-                bootstrapLogger.LogCritical(ex, "Application terminated unexpectedly");
-                throw;
-            }
+        }
+        catch (Exception ex)
+        {
+            bootstrapLogger.LogCritical(ex, "Application terminated unexpectedly");
+            throw;
         }
     }
 

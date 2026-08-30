@@ -114,31 +114,39 @@ public partial class WindowsFileOperationsService(
 
                     // Store the content in the correct pool (determined by contentType)
                     var migrateResult = await casService.StoreContentAsync(casSourcePath, contentType.Value, hash, cancellationToken).ConfigureAwait(false);
-                    if (!migrateResult.Success)
+                    if (migrateResult.Success)
                     {
-                        logger.LogError("Failed to migrate content {Hash} to correct CAS pool: {Error}", hash, migrateResult.FirstError);
-                        return false;
+                        var newPathResult = await casService.GetContentPathAsync(hash, contentType.Value, cancellationToken).ConfigureAwait(false);
+                        if (newPathResult.Success && newPathResult.Data != null)
+                        {
+                            casSourcePath = newPathResult.Data;
+                            sameVolume = FileOperationsService.AreSameVolume(casSourcePath, destinationPath);
+                            if (sameVolume)
+                            {
+                                logger.LogInformation("Successfully migrated content {Hash} to correct CAS pool at {NewPath}", hash, casSourcePath);
+                            }
+                        }
                     }
 
-                    // Get the new path from the correct pool
-                    pathResult = await casService.GetContentPathAsync(hash, contentType.Value, cancellationToken).ConfigureAwait(false);
-                    if (!pathResult.Success || pathResult.Data == null)
+                    if (!sameVolume)
                     {
-                        logger.LogError("Failed to get migrated content path for hash {Hash}: {Error}", hash, pathResult.FirstError);
+                        logger.LogWarning(
+                            "Cannot create hard link across different volumes/drives (Source={SourceRoot}, Destination={DestRoot}) for hash {Hash}",
+                            Path.GetPathRoot(casSourcePath),
+                            destRoot,
+                            hash);
                         return false;
                     }
-
-                    casSourcePath = pathResult.Data;
-                    logger.LogInformation("Successfully migrated content {Hash} to correct CAS pool at {NewPath}", hash, casSourcePath);
                 }
                 else if (!sameVolume)
                 {
-                    // No content type provided and volumes differ - hard link will fail
-                    var errorMessage = $"Cannot create hard link across different volumes/drives: Source={casSourcePath} (volume {sourceRoot}), Destination={destinationPath} (volume {destRoot})";
-
-                    // Exception will be caught and logged by the outer catch block
-                    throw new IOException(errorMessage);
-            }
+                    logger.LogWarning(
+                        "Cannot create hard link across different volumes/drives without content type (Source={SourceRoot}, Destination={DestRoot}) for hash {Hash}",
+                        sourceRoot,
+                        destRoot,
+                        hash);
+                    return false;
+                }
             }
 
             FileOperationsService.EnsureDirectoryExists(destinationPath);
