@@ -92,7 +92,9 @@ public partial class SharedManifestItemViewModel(SharedManifestDependency depend
     /// <summary>
     /// Gets the primary download URL if available.
     /// </summary>
-    public string? DownloadUrl => dependency.Files.FirstOrDefault(f => !string.IsNullOrWhiteSpace(f.DownloadUrl))?.DownloadUrl;
+    public string? DownloadUrl => !string.IsNullOrWhiteSpace(dependency.PackageUrl)
+        ? dependency.PackageUrl
+        : dependency.Files.FirstOrDefault(f => !string.IsNullOrWhiteSpace(f.DownloadUrl))?.DownloadUrl;
 
     /// <summary>
     /// Gets the list of file entries for this content package.
@@ -103,6 +105,34 @@ public partial class SharedManifestItemViewModel(SharedManifestDependency depend
     /// Gets the number of files in the manifest.
     /// </summary>
     public int FilesCount => dependency.Files.Count;
+
+    /// <summary>
+    /// Gets a value indicating whether this component package contains executable binaries (.exe, .dll, .asi, .bat, .cmd).
+    /// </summary>
+    public bool ContainsExecutables => dependency.Files.Any(IsExecutableFile);
+
+    /// <summary>
+    /// Gets the count of executable files contained in this component.
+    /// </summary>
+    public int ExecutableFilesCount => dependency.Files.Count(IsExecutableFile);
+
+    /// <summary>
+    /// Gets a value indicating whether this package originates from a temporary cloud upload.
+    /// </summary>
+    public bool IsCloudPackage => !string.IsNullOrWhiteSpace(DownloadUrl) && DownloadUrl.Contains(ApiConstants.UploadThingUrlFragment, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the provenance description of the content source.
+    /// </summary>
+    public string Provenance => IsCloudPackage
+        ? "GenHub Cloud (UploadThing)"
+        : (!string.IsNullOrWhiteSpace(dependency.Publisher) ? dependency.Publisher : "Community");
+
+    /// <summary>
+    /// Gets the detailed file view models for inspector display.
+    /// </summary>
+    public IReadOnlyList<ManifestFileItemViewModel> FileItems =>
+        dependency.Files.Select(f => new ManifestFileItemViewModel(f)).ToList();
 
     /// <summary>
     /// Gets a value indicating whether additional inspection details are available.
@@ -160,5 +190,74 @@ public partial class SharedManifestItemViewModel(SharedManifestDependency depend
                 await topLevel.Clipboard.SetTextAsync(DownloadUrl);
             }
         }
+    }
+
+    private static bool IsExecutableFile(ManifestFile file)
+    {
+        if (string.IsNullOrWhiteSpace(file.RelativePath))
+        {
+            return false;
+        }
+
+        var ext = Path.GetExtension(file.RelativePath);
+        return ext.Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".dll", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".asi", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".bat", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".cmd", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".ps1", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".vbs", StringComparison.OrdinalIgnoreCase);
+    }
+}
+
+/// <summary>
+/// ViewModel representing an individual file entry inside a manifest for security inspection.
+/// </summary>
+/// <param name="file">The manifest file.</param>
+public sealed class ManifestFileItemViewModel(ManifestFile file)
+{
+    /// <summary>
+    /// Gets the relative path of the file within the package.
+    /// </summary>
+    public string RelativePath => file.RelativePath;
+
+    /// <summary>
+    /// Gets the file name.
+    /// </summary>
+    public string FileName => Path.GetFileName(file.RelativePath);
+
+    /// <summary>
+    /// Gets the size in bytes.
+    /// </summary>
+    public long Size => file.Size;
+
+    /// <summary>
+    /// Gets the formatted file size string.
+    /// </summary>
+    public string FormattedSize => FormatBytes(file.Size);
+
+    /// <summary>
+    /// Gets the SHA-256 hash string.
+    /// </summary>
+    public string? Hash => file.Hash;
+
+    /// <summary>
+    /// Gets a value indicating whether this file is an executable binary or script.
+    /// </summary>
+    public bool IsExecutable =>
+        file.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
+        file.RelativePath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ||
+        file.RelativePath.EndsWith(".asi", StringComparison.OrdinalIgnoreCase) ||
+        file.RelativePath.EndsWith(".bat", StringComparison.OrdinalIgnoreCase) ||
+        file.RelativePath.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase) ||
+        file.RelativePath.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase) ||
+        file.RelativePath.EndsWith(".vbs", StringComparison.OrdinalIgnoreCase);
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes <= 0) return "0 B";
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024.0):F1} MB";
     }
 }

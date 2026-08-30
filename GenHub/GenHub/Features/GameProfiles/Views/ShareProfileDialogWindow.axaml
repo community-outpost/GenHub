@@ -128,6 +128,33 @@
                                        FontWeight="SemiBold" />
                         </Border>
 
+                        <!-- Cloud Storage Notice Card -->
+                        <Border Background="{StaticResource FillWhite08}"
+                                BorderBrush="{DynamicResource AccentLightBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="12,8"
+                                IsVisible="{Binding HasCloudUploads}">
+                            <Grid ColumnDefinitions="Auto,*">
+                                <PathIcon Grid.Column="0"
+                                          Data="M19.35,10.04C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.04C2.34,8.36 0,10.91 0,14A6,6 0 0,0 6,20H19A5,5 0 0,0 24,15C24,12.36 21.95,10.22 19.35,10.04Z"
+                                          Width="16" Height="16"
+                                          Foreground="{DynamicResource AccentLightBrush}"
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,10,0" />
+                                <StackPanel Grid.Column="1" Spacing="2">
+                                    <TextBlock Text="Cloud Storage Sync"
+                                               FontSize="11"
+                                               FontWeight="Bold"
+                                               Foreground="{DynamicResource AccentLightBrush}" />
+                                    <TextBlock Text="{Binding CloudUploadDetails}"
+                                               FontSize="10"
+                                               Foreground="{DynamicResource TextSecondary}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
                         <!-- Share Link Field -->
                         <StackPanel Spacing="6">
                             <TextBlock Text="Protocol Share Link (genhub://):"

@@ -246,7 +246,9 @@ public sealed class UploadHistoryService(
     }
 
     private static long GetLimitForCategory(string? category) =>
-        ReplayManagerConstants.MaxUploadBytesPerPeriod;
+        string.Equals(category, ProfileSharingConstants.UploadCategoryProfiles, StringComparison.OrdinalIgnoreCase)
+            ? ProfileSharingConstants.MaxCloudUploadSizeBytes
+            : ReplayManagerConstants.MaxUploadBytesPerPeriod;
 
     private static string InferCategory(string? fileName)
     {

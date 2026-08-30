@@ -44,6 +44,12 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isStatusMessageVisible;
 
+    [ObservableProperty]
+    private bool _hasCloudUploads;
+
+    [ObservableProperty]
+    private string _cloudUploadDetails = string.Empty;
+
     /// <summary>
     /// Event raised when the dialog should be closed.
     /// </summary>
@@ -74,6 +80,12 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
             : $"{profile.Version}".Trim();
         ThemeColor = !string.IsNullOrEmpty(profile.ThemeColor) ? profile.ThemeColor : "#9575CD";
         ShareUri = shareUri;
+
+        bool containsLocal = profile.EnabledContentIds?.Any(id => id.Contains(".local.", StringComparison.OrdinalIgnoreCase)) ?? false;
+        HasCloudUploads = containsLocal;
+        CloudUploadDetails = containsLocal
+            ? "Custom local content was packaged and uploaded to cloud storage (14-day retention). You can manage or delete uploads in Settings > Uploads & Storage."
+            : string.Empty;
     }
 
     private static TopLevel? GetMainWindowTopLevel()

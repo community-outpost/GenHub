@@ -55,4 +55,19 @@ public static class ProfileSharingConstants
     /// Maximum allowed size for a single downloaded manifest dependency file (500 MB).
     /// </summary>
     public const long MaxDownloadedFileBytes = 500 * 1024 * 1024;
+
+    /// <summary>
+    /// Category name used when registering uploaded game profile packages in upload history.
+    /// </summary>
+    public const string UploadCategoryProfiles = "Profiles";
+
+    /// <summary>
+    /// Retention period in days for cloud storage uploads.
+    /// </summary>
+    public const int CloudUploadRetentionDays = 14;
+
+    /// <summary>
+    /// Maximum allowed file size for cloud upload packages (10 MB gateway limit).
+    /// </summary>
+    public const long MaxCloudUploadSizeBytes = 10 * 1024 * 1024;
 }

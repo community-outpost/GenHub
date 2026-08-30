@@ -55,6 +55,16 @@ public sealed class SharedManifestDependency
     public string? Hash { get; init; }
 
     /// <summary>
+    /// Gets the direct archive package URL if the component is hosted as a single archive.
+    /// </summary>
+    public string? PackageUrl { get; init; }
+
+    /// <summary>
+    /// Gets the cryptographic hash of the single package archive if applicable.
+    /// </summary>
+    public string? PackageHash { get; init; }
+
+    /// <summary>
     /// Gets the file entries for downloading this content.
     /// </summary>
     public IReadOnlyList<ManifestFile> Files { get; init; } = [];

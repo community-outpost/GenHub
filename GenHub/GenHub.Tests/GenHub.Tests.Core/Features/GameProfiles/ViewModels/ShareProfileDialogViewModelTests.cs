@@ -76,4 +76,31 @@ public class ShareProfileDialogViewModelTests
         // Assert
         Assert.True(closed);
     }
+
+    /// <summary>
+    /// Verifies that constructor sets HasCloudUploads when local content is present in enabled content IDs.
+    /// </summary>
+    [Fact]
+    public void Constructor_Should_DetectCloudUploads_WhenLocalContentIsPresent()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "prof-local",
+            Name = "Local Setup",
+            EnabledContentIds = ["1.0.local.mod.custommod"],
+        };
+
+        // Act
+        var vm = new ShareProfileDialogViewModel(
+            "prof-local",
+            profile,
+            "genhub://profile/import?data=local",
+            _sharingServiceMock.Object,
+            NullLogger<ShareProfileDialogViewModel>.Instance);
+
+        // Assert
+        Assert.True(vm.HasCloudUploads);
+        Assert.NotEmpty(vm.CloudUploadDetails);
+    }
 }

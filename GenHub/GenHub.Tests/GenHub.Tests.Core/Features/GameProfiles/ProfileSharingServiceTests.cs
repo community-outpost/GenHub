@@ -9,10 +9,13 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Services;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -22,6 +25,8 @@ using GenHub.Core.Models.GameProfiles;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Core.Models.Tools;
+using GenHub.Core.Models.Tools.UploadThing;
 using GenHub.Features.Content.Services.Publishers;
 using GenHub.Features.GameProfiles.Services;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -833,6 +838,88 @@ public class ProfileSharingServiceTests
         // Assert
         Assert.False(result.Success);
         Assert.Contains("manifest", result.FirstError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies that exporting a profile containing local content packages and uploads the component via UploadThing.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ExportProfileToUriAsync_Should_UploadLocalContentToUploadThing_WhenLocalManifestExistsAsync()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName();
+        File.WriteAllText(tempFile, "sample mod content");
+        var localProfile = CreateTestProfile("local-profile-1", "Local Modded Setup");
+        localProfile.EnabledContentIds = ["1.0.local.mod.custommod"];
+
+        var casMock = new Mock<ICasService>();
+        var uploadThingMock = new Mock<IUploadThingService>();
+        var uploadHistoryMock = new Mock<IUploadHistoryService>();
+
+        casMock.Setup(c => c.GetContentPathAsync(It.IsAny<string>(), It.IsAny<ContentType>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateSuccess(tempFile));
+
+        uploadThingMock.Setup(u => u.UploadFileAsync(It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<UploadResult>.CreateSuccess(new UploadResult("https://utfs.io/f/testupload.zip", "key123", "token123")));
+
+        var localManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.local.mod.custommod"),
+            Name = "Custom Mod",
+            Version = "1.0",
+            ContentType = ContentType.Mod,
+            Publisher = new PublisherInfo
+            {
+                Name = "GenHub (Local)",
+                PublisherType = PublisherTypeConstants.Local,
+            },
+            Files =
+            [
+                new ManifestFile
+                {
+                    RelativePath = "Data/INI/GameData.ini",
+                    Hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                    Size = 100,
+                },
+            ],
+        };
+
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync("local-profile-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(localProfile));
+
+        _manifestPoolMock.Setup(m => m.GetManifestAsync("1.0.local.mod.custommod", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(localManifest));
+
+        var serviceWithUpload = new ProfileSharingService(
+            _profileRepositoryMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _contentOrchestratorMock.Object,
+            _factoryResolver,
+            NullLogger<ProfileSharingService>.Instance,
+            casMock.Object,
+            uploadThingMock.Object,
+            uploadHistoryMock.Object);
+
+        try
+        {
+            // Act
+            var result = await serviceWithUpload.ExportProfileToUriAsync("local-profile-1");
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.NotNull(result.Data);
+            uploadThingMock.Verify(u => u.UploadFileAsync(It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()), Times.Once);
+            uploadHistoryMock.Verify(h => h.RecordUpload(It.IsAny<long>(), "https://utfs.io/f/testupload.zip", It.IsAny<string>(), "key123", "token123", It.IsAny<string>(), ProfileSharingConstants.UploadCategoryProfiles), Times.Once);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
     }
 
     private static GameProfile CreateTestProfile(string id, string name)

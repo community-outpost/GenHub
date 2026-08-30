@@ -204,13 +204,29 @@ public partial class ImportProfileInspectionViewModel : ObservableObject
         MissingManifestCount = inspectionResult.MissingManifestCount;
         CachedManifestCount = inspectionResult.CachedManifestCount;
 
-        SecurityWarnings = new ObservableCollection<string>(inspectionResult.SecurityWarnings);
-        HasSecurityWarnings = inspectionResult.SecurityWarnings.Count > 0;
+        var warnings = new List<string>(inspectionResult.SecurityWarnings);
+        int totalExecutables = Manifests.Sum(m => m.ExecutableFilesCount);
+        TotalExecutableFilesCount = totalExecutables;
+        HasExecutableWarnings = totalExecutables > 0;
+
+        if (HasExecutableWarnings)
+        {
+            warnings.Insert(0, $"Executable binaries detected ({totalExecutables} file(s) ending in .exe, .dll, or .asi). Ensure you trust the author before running.");
+        }
+
+        SecurityWarnings = new ObservableCollection<string>(warnings);
+        HasSecurityWarnings = warnings.Count > 0;
 
         ActionButtonText = TotalDownloadBytesRequired > 0
             ? $"Import & Download ({FormattedTotalDownloadSize})"
             : "Import Profile";
     }
+
+    [ObservableProperty]
+    private bool _hasExecutableWarnings;
+
+    [ObservableProperty]
+    private int _totalExecutableFilesCount;
 
     [RelayCommand]
     private async Task ConfirmImportAsync()

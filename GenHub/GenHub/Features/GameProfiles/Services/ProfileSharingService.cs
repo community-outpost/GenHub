@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -15,10 +16,13 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Services;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -29,6 +33,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace GenHub.Features.GameProfiles.Services;
 
@@ -41,7 +46,10 @@ public class ProfileSharingService(
     IGameInstallationService installationService,
     IContentOrchestrator contentOrchestrator,
     PublisherManifestFactoryResolver publisherManifestFactoryResolver,
-    ILogger<ProfileSharingService> logger) : IProfileSharingService, IDisposable
+    ILogger<ProfileSharingService> logger,
+    ICasService? casService = null,
+    IUploadThingService? uploadThingService = null,
+    IUploadHistoryService? uploadHistoryService = null) : IProfileSharingService, IDisposable
 {
     private sealed record ManifestInspectionSummary(
         List<SharedManifestDependency> Manifests,
@@ -86,7 +94,7 @@ public class ProfileSharingService(
 
             if (encodedPayload.Length > ProfileSharingConstants.MaxInlinePayloadLength)
             {
-                logger.LogWarning("Exported profile {ProfileId} payload ({Length} chars) exceeds inline limit.", profileId, encodedPayload.Length);
+                logger?.LogWarning("Exported profile {ProfileId} payload ({Length} chars) exceeds inline limit.", profileId, encodedPayload.Length);
                 return OperationResult<string>.CreateFailure(
                     $"Profile payload ({encodedPayload.Length} characters) exceeds the maximum inline sharing limit of {ProfileSharingConstants.MaxInlinePayloadLength} characters. Please export as a .ghprofile file instead.");
             }
@@ -96,7 +104,7 @@ public class ProfileSharingService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unexpected error generating share URI for profile {ProfileId}.", profileId);
+            logger?.LogError(ex, "Unexpected error generating share URI for profile {ProfileId}.", profileId);
             return OperationResult<string>.CreateFailure($"Failed to generate share URI: {ex.Message}");
         }
     }
@@ -130,12 +138,12 @@ public class ProfileSharingService(
             }
 
             await File.WriteAllTextAsync(destinationPath, json, cancellationToken);
-            logger.LogInformation("Exported profile {ProfileId} to file: {DestinationPath}", profileId, destinationPath);
+            logger?.LogInformation("Exported profile {ProfileId} to file: {DestinationPath}", profileId, destinationPath);
             return OperationResult<string>.CreateSuccess(destinationPath);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unexpected error exporting profile {ProfileId} to file {DestinationPath}.", profileId, destinationPath);
+            logger?.LogError(ex, "Unexpected error exporting profile {ProfileId} to file {DestinationPath}.", profileId, destinationPath);
             return OperationResult<string>.CreateFailure($"Failed to export profile to file: {ex.Message}");
         }
     }
@@ -161,7 +169,7 @@ public class ProfileSharingService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unexpected error exporting profile {ProfileId} to JSON.", profileId);
+            logger?.LogError(ex, "Unexpected error exporting profile {ProfileId} to JSON.", profileId);
             return OperationResult<string>.CreateFailure($"Failed to export profile to JSON: {ex.Message}");
         }
     }
@@ -223,7 +231,7 @@ public class ProfileSharingService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unexpected error during profile inspection.");
+            logger?.LogError(ex, "Unexpected error during profile inspection.");
             return OperationResult<SharedProfileInspectionResult>.CreateFailure($"Failed to inspect shared profile: {ex.Message}");
         }
     }
@@ -271,13 +279,13 @@ public class ProfileSharingService(
                 return OperationResult<GameProfile>.CreateFailure(saveResult.Errors);
             }
 
-            logger.LogInformation("Successfully imported profile: {ProfileName} ({ProfileId})", newProfile.Name, newProfile.Id);
+            logger?.LogInformation("Successfully imported profile: {ProfileName} ({ProfileId})", newProfile.Name, newProfile.Id);
             WeakReferenceMessenger.Default.Send(new ProfileCreatedMessage(saveResult.Data));
             return OperationResult<GameProfile>.CreateSuccess(saveResult.Data);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unexpected error during profile import.");
+            logger?.LogError(ex, "Unexpected error during profile import.");
             return OperationResult<GameProfile>.CreateFailure($"Failed to import profile: {ex.Message}");
         }
     }
@@ -862,7 +870,7 @@ public class ProfileSharingService(
             var isCachedResult = await manifestPool.IsManifestAcquiredAsync(dep.ManifestId, cancellationToken);
             if (!isCachedResult.Success || !isCachedResult.Data)
             {
-                logger.LogInformation("Acquiring missing dependency for profile import: {ManifestId}", dep.ManifestId);
+                logger?.LogInformation("Acquiring missing dependency for profile import: {ManifestId}", dep.ManifestId);
                 progress?.Report(new ContentAcquisitionProgress
                 {
                     Phase = ContentAcquisitionPhase.Downloading,
@@ -969,18 +977,8 @@ public class ProfileSharingService(
                     continue;
                 }
 
-                manifests.Add(new SharedManifestDependency
-                {
-                    ManifestId = manifest.Id.ToString(),
-                    DisplayName = manifest.Name,
-                    Version = manifest.Version,
-                    ContentType = manifest.ContentType,
-                    Publisher = manifest.Publisher?.Name,
-                    PublisherType = manifest.Publisher?.PublisherType,
-                    DownloadSize = manifest.Files?.Sum(f => f.Size) ?? 0,
-                    IsCachedLocally = true,
-                    Files = manifest.Files ?? [],
-                });
+                var dependency = await BuildManifestDependencyAsync(profile.Name, manifest, cancellationToken);
+                manifests.Add(dependency);
             }
             else
             {
@@ -1027,6 +1025,175 @@ public class ProfileSharingService(
         };
 
         return OperationResult<SharedGameProfilePackage>.CreateSuccess(package);
+    }
+
+    private async Task<SharedManifestDependency> BuildManifestDependencyAsync(
+        string profileName,
+        ContentManifest manifest,
+        CancellationToken cancellationToken)
+    {
+        var dependencyFiles = manifest.Files ?? [];
+        string? packageUrl = null;
+        string? packageHash = null;
+
+        bool isLocal = manifest.Id.ToString().Contains(".local.", StringComparison.OrdinalIgnoreCase) ||
+                       manifest.Publisher?.PublisherType == PublisherTypeConstants.Local ||
+                       (manifest.Files != null && manifest.Files.Count > 0 && manifest.Files.All(f => string.IsNullOrWhiteSpace(f.DownloadUrl)));
+
+        if (isLocal && uploadThingService != null && casService != null && dependencyFiles.Count > 0)
+        {
+            var (uploadedUrl, uploadHash) = await PackageAndUploadLocalManifestAsync(profileName, manifest, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(uploadedUrl))
+            {
+                packageUrl = uploadedUrl;
+                packageHash = uploadHash;
+                dependencyFiles = dependencyFiles.Select(f => new ManifestFile
+                {
+                    RelativePath = f.RelativePath,
+                    Hash = f.Hash,
+                    Size = f.Size,
+                    DownloadUrl = uploadedUrl,
+                    Executable = f.Executable,
+                    Permissions = f.Permissions,
+                }).ToList();
+            }
+        }
+
+        return new SharedManifestDependency
+        {
+            ManifestId = manifest.Id.ToString(),
+            DisplayName = manifest.Name,
+            Version = manifest.Version,
+            ContentType = manifest.ContentType,
+            Publisher = manifest.Publisher?.Name,
+            PublisherType = manifest.Publisher?.PublisherType,
+            DownloadSize = dependencyFiles.Sum(f => f.Size),
+            IsCachedLocally = true,
+            Hash = manifest.Hash,
+            PackageUrl = packageUrl,
+            PackageHash = packageHash,
+            Files = dependencyFiles,
+        };
+    }
+
+    private async Task<(string? Url, string? Hash)> PackageAndUploadLocalManifestAsync(
+        string profileName,
+        ContentManifest manifest,
+        CancellationToken cancellationToken)
+    {
+        if (uploadThingService == null || casService == null || manifest.Files == null || manifest.Files.Count == 0)
+        {
+            return (null, null);
+        }
+
+        var stagingBase = Path.Combine(Path.GetTempPath(), "GenHub", "CloudUploadStaging");
+        var tempZipPath = Path.Combine(stagingBase, $"{Guid.NewGuid():N}.zip");
+
+        try
+        {
+            Directory.CreateDirectory(stagingBase);
+
+            using (var zipFile = File.Create(tempZipPath))
+            using (var archive = new ZipArchive(zipFile, ZipArchiveMode.Create))
+            {
+                foreach (var file in manifest.Files)
+                {
+                    var contentPathResult = await casService.GetContentPathAsync(file.Hash, manifest.ContentType, cancellationToken);
+                    if (contentPathResult.Success && File.Exists(contentPathResult.Data))
+                    {
+                        archive.CreateEntryFromFile(contentPathResult.Data, file.RelativePath);
+                    }
+                    else
+                    {
+                        (logger ?? NullLogger<ProfileSharingService>.Instance).LogWarning(
+                            "File {RelativePath} ({Hash}) not found in CAS for local manifest {ManifestId}.",
+                            file.RelativePath,
+                            file.Hash,
+                            manifest.Id);
+                    }
+                }
+            }
+
+            var zipInfo = new FileInfo(tempZipPath);
+            if (zipInfo.Length == 0)
+            {
+                return (null, null);
+            }
+
+            using var sha = SHA256.Create();
+            await using var readStream = File.OpenRead(tempZipPath);
+            var hashBytes = await sha.ComputeHashAsync(readStream, cancellationToken);
+            var zipHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+
+            if (uploadHistoryService != null)
+            {
+                var existing = await uploadHistoryService.FindExistingUploadAsync(zipHash);
+                if (existing != null && !string.IsNullOrWhiteSpace(existing.Url))
+                {
+                    (logger ?? NullLogger<ProfileSharingService>.Instance).LogInformation(
+                        "Reusing existing cloud upload for local manifest {ManifestId}: {Url}",
+                        manifest.Id,
+                        existing.Url);
+                    return (existing.Url, zipHash);
+                }
+            }
+
+            if (zipInfo.Length > ProfileSharingConstants.MaxCloudUploadSizeBytes)
+            {
+                (logger ?? NullLogger<ProfileSharingService>.Instance).LogWarning(
+                    "Local manifest {ManifestId} size ({Size} bytes) exceeds cloud upload quota of {Max} bytes.",
+                    manifest.Id,
+                    zipInfo.Length,
+                    ProfileSharingConstants.MaxCloudUploadSizeBytes);
+                return (null, zipHash);
+            }
+
+            var uploadResult = await uploadThingService.UploadFileAsync(tempZipPath, null, cancellationToken);
+            if (uploadResult.Success && uploadResult.Data != null)
+            {
+                var data = uploadResult.Data;
+                uploadHistoryService?.RecordUpload(
+                    zipInfo.Length,
+                    data.PublicUrl,
+                    $"{profileName} - {manifest.Name}.zip",
+                    data.FileKey,
+                    data.DeleteToken,
+                    zipHash,
+                    ProfileSharingConstants.UploadCategoryProfiles);
+
+                (logger ?? NullLogger<ProfileSharingService>.Instance).LogInformation(
+                    "Uploaded local manifest {ManifestId} package to cloud: {Url}",
+                    manifest.Id,
+                    data.PublicUrl);
+
+                return (data.PublicUrl, zipHash);
+            }
+
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogWarning(
+                "Failed to upload local manifest {ManifestId} package: {Error}",
+                manifest.Id,
+                uploadResult.FirstError);
+            return (null, zipHash);
+        }
+        catch (Exception ex)
+        {
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogError(ex, "Unexpected error uploading local manifest {ManifestId}", manifest.Id);
+            return (null, null);
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(tempZipPath))
+                {
+                    File.Delete(tempZipPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                (logger ?? NullLogger<ProfileSharingService>.Instance).LogWarning(ex, "Failed to delete temp zip {Path}", tempZipPath);
+            }
+        }
     }
 
     private async Task<OperationResult<string>> ResolvePayloadJsonAsync(string shareUriOrJsonOrPath, CancellationToken cancellationToken)
@@ -1117,7 +1284,7 @@ public class ProfileSharingService(
         }
         catch (HttpRequestException ex)
         {
-            logger.LogWarning(ex, "Failed to fetch remote profile payload from {Uri}", profileUri);
+            logger?.LogWarning(ex, "Failed to fetch remote profile payload from {Uri}", profileUri);
             return OperationResult<string>.CreateFailure($"Failed to fetch remote profile payload: {ex.Message}");
         }
     }
@@ -1134,6 +1301,19 @@ public class ProfileSharingService(
                 return OperationResult<bool>.CreateFailure($"Invalid manifest ID '{dependency.ManifestId}'.");
             }
 
+            string? packageUrl = !string.IsNullOrWhiteSpace(dependency.PackageUrl)
+                ? dependency.PackageUrl
+                : dependency.Files.FirstOrDefault(f => !string.IsNullOrWhiteSpace(f.DownloadUrl))?.DownloadUrl;
+
+            bool isZipArchive = !string.IsNullOrWhiteSpace(packageUrl) &&
+                (packageUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
+                 packageUrl.Contains(ApiConstants.UploadThingUrlFragment, StringComparison.OrdinalIgnoreCase));
+
+            if (isZipArchive && !string.IsNullOrWhiteSpace(packageUrl))
+            {
+                return await DownloadAndRegisterZipPackageAsync(dependency, validatedManifestId, packageUrl, cancellationToken);
+            }
+
             // Direct per-file download is only possible when files exist, and each file has a direct download URL and hash.
             // Extracted CAS packages (e.g. ModDB, CnCLabs, AoDMaps) don't carry individual file download URLs
             // and must be acquired via the content orchestrator provider/resolver pipeline.
@@ -1146,8 +1326,123 @@ public class ProfileSharingService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error acquiring missing manifest {ManifestId}", dependency.ManifestId);
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogError(ex, "Error acquiring missing manifest {ManifestId}", dependency.ManifestId);
             return OperationResult<bool>.CreateFailure($"Failed to acquire manifest: {ex.Message}");
+        }
+    }
+
+    private async Task<OperationResult<bool>> DownloadAndRegisterZipPackageAsync(
+        SharedManifestDependency dependency,
+        ManifestId validatedManifestId,
+        string packageUrl,
+        CancellationToken cancellationToken)
+    {
+        var stagingBase = Path.Combine(Path.GetTempPath(), "GenHub", "SharedImportStaging");
+        var stagingDir = Path.Combine(stagingBase, Guid.NewGuid().ToString("N"));
+        var tempZipPath = Path.Combine(stagingBase, $"{Guid.NewGuid():N}.zip");
+
+        try
+        {
+            Directory.CreateDirectory(stagingBase);
+            Directory.CreateDirectory(stagingDir);
+
+            if (!Uri.TryCreate(packageUrl, UriKind.Absolute, out var uri) || !await IsSafeRemoteUriAsync(uri, cancellationToken))
+            {
+                return OperationResult<bool>.CreateFailure($"Unsafe package download URL blocked: {packageUrl}");
+            }
+
+            using (var response = await SendWithManualRedirectsAsync(safeHttpClient, uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken))
+            {
+                if (response.StatusCode == HttpStatusCode.NotFound || response.StatusCode == HttpStatusCode.Gone)
+                {
+                    return OperationResult<bool>.CreateFailure(
+                        $"The cloud package for '{dependency.DisplayName}' has expired or is no longer available. Please request an updated share link from the author.");
+                }
+
+                response.EnsureSuccessStatusCode();
+
+                await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+                await using var fileStream = File.Create(tempZipPath);
+                await responseStream.CopyToAsync(fileStream, cancellationToken);
+            }
+
+            ZipFile.ExtractToDirectory(tempZipPath, stagingDir, true);
+
+            foreach (var file in dependency.Files)
+            {
+                var filePath = Path.Combine(stagingDir, file.RelativePath);
+                if (!File.Exists(filePath))
+                {
+                    return OperationResult<bool>.CreateFailure($"Package is missing expected file: {file.RelativePath}");
+                }
+
+                if (!string.IsNullOrWhiteSpace(file.Hash))
+                {
+                    using var sha = SHA256.Create();
+                    await using var stream = File.OpenRead(filePath);
+                    var hashBytes = await sha.ComputeHashAsync(stream, cancellationToken);
+                    var actualHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+                    var expectedHash = file.Hash.Replace("-", string.Empty).ToLowerInvariant();
+                    if (!string.Equals(actualHash, expectedHash, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return OperationResult<bool>.CreateFailure($"SHA-256 hash mismatch for {file.RelativePath}.");
+                    }
+                }
+            }
+
+            var contentManifest = new ContentManifest
+            {
+                Id = validatedManifestId,
+                Name = dependency.DisplayName,
+                Version = dependency.Version,
+                ContentType = dependency.ContentType,
+                Publisher = new PublisherInfo
+                {
+                    Name = dependency.Publisher ?? "GenHub (Local)",
+                    PublisherType = dependency.PublisherType ?? PublisherTypeConstants.Local,
+                },
+                Files = [.. dependency.Files],
+            };
+
+            var factory = publisherManifestFactoryResolver.ResolveFactory(contentManifest);
+            if (factory != null)
+            {
+                var createdManifests = await factory.CreateManifestsFromExtractedContentAsync(contentManifest, stagingDir, cancellationToken);
+                foreach (var m in createdManifests)
+                {
+                    await manifestPool.AddManifestAsync(m, stagingDir, cancellationToken: cancellationToken);
+                }
+            }
+            else
+            {
+                await manifestPool.AddManifestAsync(contentManifest, stagingDir, cancellationToken: cancellationToken);
+            }
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (Exception ex)
+        {
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogError(ex, "Failed to download and register cloud package for {ManifestId}", dependency.ManifestId);
+            return OperationResult<bool>.CreateFailure($"Failed to download cloud package: {ex.Message}");
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(tempZipPath))
+                {
+                    File.Delete(tempZipPath);
+                }
+
+                if (Directory.Exists(stagingDir) && Path.GetFullPath(stagingDir).StartsWith(Path.GetFullPath(stagingBase), StringComparison.Ordinal))
+                {
+                    Directory.Delete(stagingDir, true);
+                }
+            }
+            catch (Exception ex)
+            {
+                (logger ?? NullLogger<ProfileSharingService>.Instance).LogWarning(ex, "Failed to clean up staging directory {StagingDir}", stagingDir);
+            }
         }
     }
 
@@ -1214,7 +1509,7 @@ public class ProfileSharingService(
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Failed to clean up staging directory {StagingDir}", stagingDir);
+                logger?.LogWarning(ex, "Failed to clean up staging directory {StagingDir}", stagingDir);
             }
         }
     }
@@ -1297,7 +1592,7 @@ public class ProfileSharingService(
         }
         catch (HttpRequestException ex)
         {
-            logger.LogWarning(ex, "Failed to download file {RelativePath} from {Url}", file.RelativePath, file.DownloadUrl);
+            logger?.LogWarning(ex, "Failed to download file {RelativePath} from {Url}", file.RelativePath, file.DownloadUrl);
             return OperationResult<bool>.CreateFailure($"Failed to download {file.RelativePath}: {ex.Message}");
         }
     }
@@ -1328,7 +1623,7 @@ public class ProfileSharingService(
 
                 if (match != null)
                 {
-                    logger.LogWarning(
+                    logger?.LogWarning(
                         "Fallback acquisition matched dependency '{DisplayName}' by display name rather than Manifest ID '{ManifestId}'.",
                         dependency.DisplayName,
                         dependency.ManifestId);
@@ -1345,7 +1640,7 @@ public class ProfileSharingService(
             }
         }
 
-        logger.LogWarning(
+        logger?.LogWarning(
             "Dependency '{DisplayName}' ({ManifestId}) could not be acquired from any connected content source.",
             dependency.DisplayName,
             dependency.ManifestId);
@@ -1362,7 +1657,7 @@ public class ProfileSharingService(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to deserialize shared profile package JSON.");
+            logger?.LogWarning(ex, "Failed to deserialize shared profile package JSON.");
             return OperationResult<SharedGameProfilePackage>.CreateFailure($"Invalid shared profile package format: {ex.Message}");
         }
 
