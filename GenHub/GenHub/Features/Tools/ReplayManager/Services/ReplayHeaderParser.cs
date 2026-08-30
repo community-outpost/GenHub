@@ -210,7 +210,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
                 if (parts.Length > 0)
                 {
                     var rawName = parts[0];
-                    var playerName = rawName.Length > 1 && (rawName[0] is 'H' or 'C' or 'X' or 'O' or 'h' or 'c' or 'x' or 'o')
+                    var playerName = rawName.Length > 0 && (rawName[0] is 'H' or 'C' or 'X' or 'O' or 'h' or 'c' or 'x' or 'o')
                         ? rawName[1..]
                         : rawName;
                     if (!string.IsNullOrWhiteSpace(playerName) && players.All(p => !string.Equals(p, playerName, StringComparison.OrdinalIgnoreCase)))
