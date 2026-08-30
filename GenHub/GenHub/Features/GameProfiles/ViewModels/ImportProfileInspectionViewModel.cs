@@ -94,6 +94,7 @@ public partial class ImportProfileInspectionViewModel : ObservableObject
     private string _formattedTotalDownloadSize = "0 MB";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasMissingDownloads))]
     private int _missingManifestCount;
 
     [ObservableProperty]
@@ -105,7 +106,7 @@ public partial class ImportProfileInspectionViewModel : ObservableObject
     /// <summary>
     /// Gets a value indicating whether there are dependencies that need to be downloaded.
     /// </summary>
-    public bool HasMissingDownloads => MissingManifestCount > 0;
+    public bool HasMissingDownloads => _missingManifestCount > 0;
 
     /// <summary>
     /// Event triggered when the dialog requests to close.
@@ -294,7 +295,9 @@ public partial class ImportProfileInspectionViewModel : ObservableObject
 
     private void SetError(string message)
     {
-        ErrorMessage = message;
-        HasError = true;
+        _errorMessage = message;
+        _hasError = true;
+        OnPropertyChanged(nameof(ErrorMessage));
+        OnPropertyChanged(nameof(HasError));
     }
 }

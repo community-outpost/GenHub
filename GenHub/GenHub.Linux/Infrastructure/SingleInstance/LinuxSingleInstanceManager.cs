@@ -135,6 +135,15 @@ public sealed class LinuxSingleInstanceManager : ISingleInstanceCommandReceiver,
             // Ignore disposal errors
         }
 
+        try
+        {
+            _pipeListenerTask?.Wait(TimeSpan.FromSeconds(1));
+        }
+        catch
+        {
+            // Ignore task cancellation / disposal errors
+        }
+
         _lockFile.Dispose();
         _pipeServerCts.Dispose();
     }

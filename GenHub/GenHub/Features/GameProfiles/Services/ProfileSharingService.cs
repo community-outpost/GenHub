@@ -826,6 +826,24 @@ public class ProfileSharingService(
         return parameters;
     }
 
+    private static async Task<OperationResult<string>> ResolveInlinePayloadAsync(string encoded, CancellationToken cancellationToken)
+    {
+        if (encoded.Length > ProfileSharingConstants.MaxInlinePayloadLength)
+        {
+            return OperationResult<string>.CreateFailure($"Inline payload length ({encoded.Length}) exceeds maximum permitted size.");
+        }
+
+        try
+        {
+            string decompressed = await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(encoded, cancellationToken);
+            return OperationResult<string>.CreateSuccess(decompressed);
+        }
+        catch (Exception ex) when (ex is FormatException or InvalidDataException or ArgumentException)
+        {
+            return OperationResult<string>.CreateFailure($"Unable to parse inline shared profile payload: {ex.Message}");
+        }
+    }
+
     private async Task<GameInstallation?> ResolveSelectedInstallationAsync(string? installationId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(installationId))
@@ -1076,24 +1094,6 @@ public class ProfileSharingService(
         }
 
         return OperationResult<string>.CreateFailure($"Unsupported or malformed genhub:// sharing URI: {input}");
-    }
-
-    private async Task<OperationResult<string>> ResolveInlinePayloadAsync(string encoded, CancellationToken cancellationToken)
-    {
-        if (encoded.Length > ProfileSharingConstants.MaxInlinePayloadLength)
-        {
-            return OperationResult<string>.CreateFailure($"Inline payload length ({encoded.Length}) exceeds maximum permitted size.");
-        }
-
-        try
-        {
-            string decompressed = await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(encoded, cancellationToken);
-            return OperationResult<string>.CreateSuccess(decompressed);
-        }
-        catch (Exception ex) when (ex is FormatException or InvalidDataException or ArgumentException)
-        {
-            return OperationResult<string>.CreateFailure($"Unable to parse inline shared profile payload: {ex.Message}");
-        }
     }
 
     private async Task<OperationResult<string>> ResolveRemotePayloadAsync(string url, CancellationToken cancellationToken)
