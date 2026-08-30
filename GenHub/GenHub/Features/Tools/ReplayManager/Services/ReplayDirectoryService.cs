@@ -323,6 +323,17 @@ public sealed class ReplayDirectoryService(
             WorkingDirectory = workingDir,
         };
 
+        var enabledContentIds = new List<string>();
+        if (!string.IsNullOrEmpty(replay.MatchedClient?.ManifestId))
+        {
+            enabledContentIds.Add(replay.MatchedClient.ManifestId);
+        }
+
+        if (!string.IsNullOrEmpty(replay.MatchedClient?.DataPatchManifestId))
+        {
+            enabledContentIds.Add(replay.MatchedClient.DataPatchManifestId);
+        }
+
         var request = new CreateProfileRequest
         {
             Name = profileName,
@@ -330,7 +341,7 @@ public sealed class ReplayDirectoryService(
             GameInstallationId = installation.Id,
             GameClientId = replay.MatchedClient?.ManifestId ?? string.Empty,
             GameClient = gameClient,
-            EnabledContentIds = !string.IsNullOrEmpty(replay.MatchedClient?.ManifestId) ? [replay.MatchedClient.ManifestId] : [],
+            EnabledContentIds = enabledContentIds,
             WorkspaceStrategy = WorkspaceStrategy.HardLink,
             UseSteamLaunch = installation.InstallationType == GameInstallationType.Steam,
         };

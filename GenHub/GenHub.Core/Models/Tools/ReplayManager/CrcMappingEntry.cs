@@ -21,12 +21,22 @@ public sealed record CrcMappingEntry
     public string? Sha256 { get; init; }
 
     /// <summary>
-    /// Gets the 5-segment manifest ID (e.g., "1.20260821.superhackers.gameclient.zerohour").
+    /// Gets the 5-segment manifest ID (e.g., "1.20260821.thesuperhackers.gameclient.zerohour").
     /// </summary>
     public string ManifestId { get; init; } = string.Empty;
 
     /// <summary>
-    /// Gets the publisher identifier (e.g., "steam", "ea", "superhackers", "generalsonline").
+    /// Gets the optional data patch or core INI manifest ID (e.g., "1.0828261.generalsonline.gamedata.zerohour").
+    /// </summary>
+    public string? DataPatchManifestId { get; init; }
+
+    /// <summary>
+    /// Gets the user-friendly name of the data patch or INI configuration (e.g., "Community Patch Core INI (81FB5632)").
+    /// </summary>
+    public string? DataPatchName { get; init; }
+
+    /// <summary>
+    /// Gets the publisher identifier (e.g., "steam", "ea", "thesuperhackers", "generalsonline").
     /// </summary>
     public string Publisher { get; init; } = string.Empty;
 
@@ -36,7 +46,7 @@ public sealed record CrcMappingEntry
     public string GameType { get; init; } = string.Empty;
 
     /// <summary>
-    /// Gets the version string (e.g., "1.04", "2026-08-21", "021326_QFE2").
+    /// Gets the version string (e.g., "1.04", "2026-08-21", "082826_QFE1").
     /// </summary>
     public string Version { get; init; } = string.Empty;
 
@@ -51,7 +61,12 @@ public sealed record CrcMappingEntry
     public string Description { get; init; } = string.Empty;
 
     /// <summary>
-    /// Gets the direct CDN or GitHub release asset download URL if available.
+    /// Gets the direct CDN or GitHub release asset download URL for the game client if available.
     /// </summary>
     public string? CdnUrl { get; init; }
+
+    /// <summary>
+    /// Gets the direct CDN or patch download URL for the data patch BIG/INI if available.
+    /// </summary>
+    public string? DataPatchCdnUrl { get; init; }
 }

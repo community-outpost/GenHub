@@ -46,6 +46,18 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
                 return true;
             }
 
+            var normalized = NormalizeHex(exeCrc);
+            if (!string.IsNullOrEmpty(normalized) && state.ExeMap.TryGetValue(normalized, out var baseEntry))
+            {
+                entry = baseEntry with
+                {
+                    IniCrc = $"0x{NormalizeHex(iniCrc)}",
+                    DataPatchName = $"Custom INI (0x{NormalizeHex(iniCrc)})",
+                    DataPatchManifestId = null,
+                };
+                return true;
+            }
+
             entry = null;
             return false;
         }

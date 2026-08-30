@@ -312,7 +312,7 @@ public sealed class ReplayDirectoryServiceTests
             CompatibilityStatus = ReplayCompatibilityStatus.Downloadable,
         };
         Assert.Equal("Download Required", downloadableReplay.CompatibilityBadgeText);
-        Assert.Contains("available on CDN", downloadableReplay.CompatibilityTooltip);
+        Assert.Contains("can be downloaded", downloadableReplay.CompatibilityTooltip);
 
         // Orphaned state
         var orphanedReplay = new ReplayFile
@@ -324,8 +324,8 @@ public sealed class ReplayDirectoryServiceTests
             GameVersion = GameType.ZeroHour,
             CompatibilityStatus = ReplayCompatibilityStatus.Orphaned,
         };
-        Assert.Equal("Mismatch Risk", orphanedReplay.CompatibilityBadgeText);
-        Assert.Contains("mismatch", orphanedReplay.CompatibilityTooltip, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Custom / Unmapped", orphanedReplay.CompatibilityBadgeText);
+        Assert.Contains("official catalog", orphanedReplay.CompatibilityTooltip, StringComparison.OrdinalIgnoreCase);
 
         // Unknown state
         var unknownReplay = new ReplayFile
