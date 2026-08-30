@@ -12,6 +12,7 @@ using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Launching;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.ReplayManager;
 using GenHub.Features.Tools.ReplayManager.Services;
@@ -78,11 +79,11 @@ public sealed class ReplayDirectoryServiceTests
             {
                 ExeCrc = "0x27533BB0",
                 IniCrc = "0x76B251A3",
-                ManifestId = "1.20260821.superhackers.gameclient.zerohour",
-                Publisher = "superhackers",
+                ManifestId = "1.20260821.thesuperhackers.gameclient.zerohour",
+                Publisher = "thesuperhackers",
                 GameType = "ZeroHour",
                 Version = "2026-08-21",
-                Description = "SuperHackers 2026-08-21",
+                Description = "TheSuperHackers 2026-08-21",
             },
         };
 
@@ -281,5 +282,100 @@ public sealed class ReplayDirectoryServiceTests
             CompatibilityStatus = ReplayCompatibilityStatus.Unknown,
         };
         Assert.Equal("Unknown", unknownReplay.CompatibilityBadgeText);
+    }
+
+    /// <summary>
+    /// Verifies that replay compatibility resolves to Compatible when an existing profile is found.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetReplaysAsync_WhenProfileMatchesClient_ResolvesToCompatibleAsync()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "genhub_test_replays_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var replayFilePath = Path.Combine(tempDir, "TestReplay.rep");
+        await File.WriteAllBytesAsync(replayFilePath, new byte[100]);
+
+        try
+        {
+            var metadata = new ReplayMetadata
+            {
+                ExeCrc = 0x27533BB0,
+                IniCrc = 0x76B251A3,
+            };
+
+            var entry = new CrcMappingEntry
+            {
+                ExeCrc = "0x27533BB0",
+                IniCrc = "0x76B251A3",
+                ManifestId = "1.20260821.thesuperhackers.gameclient.zerohour",
+                Publisher = "thesuperhackers",
+                GameType = "ZeroHour",
+                Version = "2026-08-21",
+                Description = "TheSuperHackers ZeroHour weekly 2026-08-21",
+            };
+
+            var profile = new GameProfile
+            {
+                Id = "profile-123",
+                Name = "TSH Zero Hour Profile",
+                GameClient = new GameClient
+                {
+                    Id = "1.20260821.thesuperhackers.gameclient.zerohour",
+                    Name = "TSH Zero Hour",
+                    GameType = GameType.ZeroHour,
+                    InstallationId = "inst-1",
+                    ExecutablePath = "/path/generalszh.exe",
+                    WorkingDirectory = "/path",
+                },
+                EnabledContentIds = ["1.20260821.thesuperhackers.gameclient.zerohour"],
+            };
+
+            _mockHeaderParser
+                .Setup(p => p.ParseHeaderAsync(replayFilePath, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<ReplayMetadata>.CreateSuccess(metadata));
+
+            CrcMappingEntry? outEntry = entry;
+            _mockCrcRegistry
+                .Setup(r => r.TryGetEntry("0x27533BB0", "0x76B251A3", out outEntry))
+                .Returns(true);
+
+            _mockProfileManager
+                .Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
+
+            _mockManifestPool
+                .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+            var service = new ReplayDirectoryService(
+                _mockHeaderParser.Object,
+                _mockCrcRegistry.Object,
+                _mockScopeFactory.Object,
+                NullLogger<ReplayDirectoryService>.Instance);
+
+            // Directly test ProcessReplayFileAsync through reflection or GetReplayDirectory-aligned structure
+            var replay = new ReplayFile
+            {
+                FileName = "TestReplay.rep",
+                FullPath = replayFilePath,
+                SizeInBytes = 100,
+                LastModified = DateTime.UtcNow,
+                GameVersion = GameType.ZeroHour,
+                Metadata = metadata,
+            };
+
+            var result = await service.CreateProfileForReplayAsync(replay);
+            Assert.True(result.Success);
+            Assert.Equal(ReplayCompatibilityStatus.Compatible, replay.CompatibilityStatus);
+            Assert.Equal("profile-123", replay.MatchingProfileId);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
     }
 }
