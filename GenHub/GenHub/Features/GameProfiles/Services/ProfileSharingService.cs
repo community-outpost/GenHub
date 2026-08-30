@@ -906,7 +906,7 @@ public class ProfileSharingService(
                 return OperationResult<bool>.CreateFailure(validatePathResult.Errors);
             }
 
-            var filePath = validatePathResult.Data!;
+            var filePath = validatePathResult.Data;
             if (!string.IsNullOrWhiteSpace(file.Hash))
             {
                 var hashCheckResult = await ValidateFileChecksumAsync(filePath, file.RelativePath, file.Hash, cancellationToken);
