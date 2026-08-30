@@ -458,45 +458,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var result = await _projectConfigService.GetRecentProjectsAsync(10, CancellationToken.None).ConfigureAwait(false);
             if (result.Success && result.Data != null)
             {
-                var projectInfos = new List<RecentProjectInfo>();
-                foreach (var path in result.Data)
-                {
-                    var name = Path.GetFileNameWithoutExtension(path);
-                    if (string.IsNullOrWhiteSpace(name))
-                    {
-                        name = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-                    }
-
-                    if (string.IsNullOrWhiteSpace(name))
-                    {
-                        name = "Untitled Project";
-                    }
-
-                    DateTime? lastWriteTime = null;
-                    try
-                    {
-                        if (File.Exists(path))
-                        {
-                            lastWriteTime = File.GetLastWriteTime(path);
-                        }
-                        else if (Directory.Exists(path))
-                        {
-                            lastWriteTime = Directory.GetLastWriteTime(path);
-                        }
-                    }
-                    catch
-                    {
-                        // Ignore I/O errors reading timestamp
-                    }
-
-                    projectInfos.Add(new RecentProjectInfo
-                    {
-                        Name = name,
-                        Path = path,
-                        LastBuildTime = lastWriteTime,
-                        Version = "1.0.0",
-                    });
-                }
+                var projectInfos = result.Data.Select(CreateRecentProjectInfo).ToList();
 
                 await InvokeOnUIThreadAsync(() =>
                 {
@@ -512,6 +474,45 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         {
             _logger.LogError(ex, "Failed to load recent projects");
         }
+    }
+
+    private static RecentProjectInfo CreateRecentProjectInfo(string path)
+    {
+        var name = Path.GetFileNameWithoutExtension(path);
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            name = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        }
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            name = "Untitled Project";
+        }
+
+        DateTime? lastWriteTime = null;
+        try
+        {
+            if (File.Exists(path))
+            {
+                lastWriteTime = File.GetLastWriteTime(path);
+            }
+            else if (Directory.Exists(path))
+            {
+                lastWriteTime = Directory.GetLastWriteTime(path);
+            }
+        }
+        catch (Exception)
+        {
+            // Ignore I/O errors reading timestamp
+        }
+
+        return new RecentProjectInfo
+        {
+            Name = name,
+            Path = path,
+            LastBuildTime = lastWriteTime,
+            Version = "1.0.0",
+        };
     }
 
     /// <summary>
@@ -714,14 +715,12 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var confirmed = _dialogService != null
-            ? await _dialogService.ShowConfirmationAsync(
-                "Delete Project",
-                $"Are you sure you want to permanently delete '{name}'?\n\nThis will delete the project file and its directory from disk:\n{path}",
-                confirmText: "Delete",
-                cancelText: "Cancel",
-                sessionKey: "ModBuilder_DeleteProject_Confirmation").ConfigureAwait(false)
-            : true;
+        var confirmed = _dialogService == null || await _dialogService.ShowConfirmationAsync(
+            "Delete Project",
+            $"Are you sure you want to permanently delete '{name}'?\n\nThis will delete the project file and its directory from disk:\n{path}",
+            confirmText: "Delete",
+            cancelText: "Cancel",
+            sessionKey: "ModBuilder_DeleteProject_Confirmation").ConfigureAwait(false);
 
         if (!confirmed)
         {
@@ -778,7 +777,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             }
         }
 
-        return CurrentProject?.ProjectDir ?? string.Empty;
+        return string.Empty;
     }
 
     private static (string Path, string Name) ExtractProjectInfo(object? parameter)
@@ -787,6 +786,16 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         {
             RecentProjectInfo info => (info.Path, info.Name),
             string s => (s, Path.GetFileNameWithoutExtension(s)),
+            _ => (string.Empty, string.Empty)
+        };
+    }
+
+    private static (string IconPath, string DisplayType) GetInstallationDisplayInfo(string? installationType)
+    {
+        return installationType switch
+        {
+            "Generals" => ("avares://GenHub/Assets/Icons/generals-icon.png", "Generals"),
+            "ZeroHour" => ("avares://GenHub/Assets/Icons/zerohour-icon.png", "Zero Hour"),
             _ => (string.Empty, string.Empty)
         };
     }
@@ -800,51 +809,24 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         _logger.LogInformation("LoadSampleProjectAsync requested");
         try
         {
-            var candidatePaths = new[]
+            var samplePath = await ResolveSampleProjectPathAsync().ConfigureAwait(false);
+
+            if (string.IsNullOrEmpty(samplePath))
             {
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SampleProjects", "ModBuilder", "BasicMod", "BasicMod.mbproj"),
-                Path.Combine(AppContext.BaseDirectory, "SampleProjects", "ModBuilder", "BasicMod", "BasicMod.mbproj"),
-                Path.Combine(Directory.GetCurrentDirectory(), "SampleProjects", "ModBuilder", "BasicMod", "BasicMod.mbproj"),
-                Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "SampleProjects", "ModBuilder", "BasicMod", "BasicMod.mbproj")),
-                Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SampleProjects", "ModBuilder", "BasicMod", "BasicMod.mbproj")),
-            };
-
-            var samplePath = candidatePaths.FirstOrDefault(File.Exists);
-
-            if (samplePath == null)
-            {
-                // Fall back to generating a fresh, buildable sample project in the user's ModBuilder folder
-                var defaultFolder = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    "ModBuilder",
-                    "BasicMod");
-                Directory.CreateDirectory(defaultFolder);
-                var generatedPath = Path.Combine(defaultFolder, "BasicMod.mbproj");
-
-                var createResult = await _projectConfigService.CreateProjectAsync(
-                    generatedPath,
-                    "BasicMod",
-                    cancellationToken: CancellationToken.None).ConfigureAwait(false);
-
-                if (createResult.Success)
-                {
-                    await _projectStructureGenerator.GenerateProjectStructureAsync(generatedPath, CancellationToken.None).ConfigureAwait(false);
-                    samplePath = generatedPath;
-                }
-                else
-                {
-                    _notificationService.ShowWarning(
-                        "Sample Not Found",
-                        "Sample project not found and could not be created automatically.");
-                    AppendBuildLog($"Sample project not found in search paths: {string.Join(", ", candidatePaths)}");
-                    return;
-                }
+                _notificationService.ShowWarning(
+                    "Sample Not Found",
+                    "Sample project not found and could not be created automatically.");
+                AppendBuildLog("Sample project not found in search paths and could not be created.");
+                return;
             }
 
             _logger.LogInformation("Found sample project at: {SamplePath}", samplePath);
 
-            // Ensure sample TGA exists
-            await EnsureSampleTgaExistsAsync(Path.GetDirectoryName(samplePath)!).ConfigureAwait(false);
+            var sampleDir = Path.GetDirectoryName(samplePath);
+            if (!string.IsNullOrEmpty(sampleDir))
+            {
+                await EnsureSampleTgaExistsAsync(sampleDir).ConfigureAwait(false);
+            }
 
             await LoadProjectFromPathAsync(samplePath).ConfigureAwait(false);
 
@@ -857,6 +839,44 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             _logger.LogError(ex, "Failed to load sample project");
             _notificationService.ShowError("Load Failed", $"Failed to load sample project: {ex.Message}");
         }
+    }
+
+    private async Task<string?> ResolveSampleProjectPathAsync()
+    {
+        var candidatePaths = new[]
+        {
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SampleProjectsDirLiteral, ModBuilderLiteral, BasicModLiteral, BasicModProjectFileLiteral),
+            Path.Combine(AppContext.BaseDirectory, SampleProjectsDirLiteral, ModBuilderLiteral, BasicModLiteral, BasicModProjectFileLiteral),
+            Path.Combine(Directory.GetCurrentDirectory(), SampleProjectsDirLiteral, ModBuilderLiteral, BasicModLiteral, BasicModProjectFileLiteral),
+            Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", SampleProjectsDirLiteral, ModBuilderLiteral, BasicModLiteral, BasicModProjectFileLiteral)),
+            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", SampleProjectsDirLiteral, ModBuilderLiteral, BasicModLiteral, BasicModProjectFileLiteral)),
+        };
+
+        var samplePath = candidatePaths.FirstOrDefault(File.Exists);
+        if (samplePath != null)
+        {
+            return samplePath;
+        }
+
+        var defaultFolder = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            ModBuilderLiteral,
+            BasicModLiteral);
+        Directory.CreateDirectory(defaultFolder);
+        var generatedPath = Path.Combine(defaultFolder, BasicModProjectFileLiteral);
+
+        var createResult = await _projectConfigService.CreateProjectAsync(
+            generatedPath,
+            BasicModLiteral,
+            cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+        if (createResult.Success)
+        {
+            await _projectStructureGenerator.GenerateProjectStructureAsync(generatedPath, CancellationToken.None).ConfigureAwait(false);
+            return generatedPath;
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -950,7 +970,12 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             }
         }
 
-        Directory.CreateDirectory(Path.GetDirectoryName(tgaPath)!);
+        var tgaDir = Path.GetDirectoryName(tgaPath);
+        if (!string.IsNullOrEmpty(tgaDir))
+        {
+            Directory.CreateDirectory(tgaDir);
+        }
+
         using var fileStream = File.Create(tgaPath);
         await image.SaveAsync(fileStream, new SixLabors.ImageSharp.Formats.Tga.TgaEncoder()).ConfigureAwait(false);
     }
@@ -1257,12 +1282,97 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        // TODO: Open bundle editor dialog
+        _logger.LogInformation("Editing bundle: {BundleName}", SelectedBundle.Name);
         await Task.CompletedTask;
-        _logger.LogInformation("Edit bundle: {BundleName}", SelectedBundle.Name);
     }
 
     private bool CanEditBundle() => IsProjectLoaded && SelectedBundle != null && !IsBuildRunning;
+
+    private BuildStep DetermineBuildSteps()
+    {
+        var buildSteps = BuildStep.None;
+        if (CleanEnabled) buildSteps |= BuildStep.Clean;
+        if (BuildEnabled) buildSteps |= BuildStep.Build;
+        if (ReleaseEnabled) buildSteps |= BuildStep.Release;
+        if (InstallEnabled) buildSteps |= BuildStep.Install;
+        if (RunGameEnabled) buildSteps |= BuildStep.Run;
+        if (UninstallEnabled) buildSteps |= BuildStep.Uninstall;
+        return buildSteps;
+    }
+
+    private async Task<BuildConfiguration> PrepareBuildConfigurationAsync(CancellationToken cancellationToken)
+    {
+        var buildConfig = CurrentProject?.Configuration;
+        if (buildConfig == null && CurrentProject != null && CurrentProject.ConfigFiles.Count > 0)
+        {
+            var configPath = Path.Combine(CurrentProject.ProjectDir, CurrentProject.ConfigFiles[0]);
+            buildConfig = await _configurationLoaderService.LoadConfigurationAsync(
+                configPath,
+                cancellationToken).ConfigureAwait(false);
+            CurrentProject.Configuration = buildConfig;
+        }
+
+        buildConfig ??= new BuildConfiguration();
+
+        var resolvedGameDir = ResolveGameDirectory(buildConfig);
+        if (!string.IsNullOrEmpty(resolvedGameDir))
+        {
+            buildConfig.Folders.AbsGameDir = resolvedGameDir;
+            if (CurrentProject != null && string.IsNullOrEmpty(CurrentProject.GameDir))
+            {
+                CurrentProject.GameDir = resolvedGameDir;
+            }
+
+            if (string.IsNullOrEmpty(GameDirectory))
+            {
+                GameDirectory = resolvedGameDir;
+            }
+        }
+
+        buildConfig.ZipCompressionLevel = SelectedCompressionLevel;
+        return buildConfig;
+    }
+
+    private async Task HandleBuildSuccessAsync(int filesProcessed, int bundlesCreated)
+    {
+        AppendBuildLog($"\n=== Build Completed Successfully in {LastBuildTime:mm\\:ss\\.fff} ===");
+
+        await InvokeOnUIThreadAsync(() =>
+        {
+            if (filesProcessed == 0)
+            {
+                const string noFilesMessage = "Build completed but no files were processed.\n" +
+                    "Check that:\n" +
+                    "- Files exist in GameFilesEdited folder\n" +
+                    "- Bundles are configured in config/ModBundleItems.json\n" +
+                    "- File paths in config match actual files";
+                _notificationService.ShowInfo(
+                    "Build Complete (No Files)",
+                    noFilesMessage,
+                    autoDismissMs: 8000);
+            }
+            else
+            {
+                var outputPath = CurrentProject != null
+                    ? Path.Combine(CurrentProject.ProjectDir, CurrentProject.Directories.Build)
+                    : string.Empty;
+                var summaryMessage = $"Processed {filesProcessed} files\n" +
+                    $"Created {bundlesCreated} bundles\n" +
+                    $"Time: {LastBuildTime:mm\\:ss}\n" +
+                    $"Output: {outputPath}";
+                _notificationService.ShowSuccess(
+                    "Build Complete",
+                    summaryMessage);
+            }
+        });
+
+        StatusMessage = "Build completed successfully";
+
+        if (!string.IsNullOrEmpty(ProjectPath))
+        {
+            await _projectConfigService.UpdateLastBuildTimeAsync(ProjectPath).ConfigureAwait(false);
+        }
+    }
 
     /// <summary>
     /// Executes the build.
@@ -1276,9 +1386,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        // VALIDATE: Check if there are files to build
         var fileCount = await CountFilesToBuildAsync().ConfigureAwait(false);
-
         if (fileCount == 0)
         {
             await InvokeOnUIThreadAsync(() =>
@@ -1320,52 +1428,12 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         try
         {
-            // Load or use existing configuration
-            var buildConfig = CurrentProject.Configuration;
-            if (buildConfig == null && CurrentProject.ConfigFiles.Count > 0)
-            {
-                var configPath = Path.Combine(CurrentProject.ProjectDir, CurrentProject.ConfigFiles[0]);
-                buildConfig = await _configurationLoaderService.LoadConfigurationAsync(
-                    configPath,
-                    _buildCancellationTokenSource.Token).ConfigureAwait(false);
-                CurrentProject.Configuration = buildConfig;
-            }
-
-            if (buildConfig == null)
-            {
-                buildConfig = new BuildConfiguration();
-            }
-
-            // Ensure GameDir is populated in configuration folders
-            var resolvedGameDir = ResolveGameDirectory(buildConfig);
-            if (!string.IsNullOrEmpty(resolvedGameDir))
-            {
-                buildConfig.Folders.AbsGameDir = resolvedGameDir;
-                if (string.IsNullOrEmpty(CurrentProject.GameDir))
-                {
-                    CurrentProject.GameDir = resolvedGameDir;
-                }
-
-                if (string.IsNullOrEmpty(GameDirectory))
-                {
-                    GameDirectory = resolvedGameDir;
-                }
-            }
-
-            // Update compression level
-            buildConfig.ZipCompressionLevel = SelectedCompressionLevel;
-
-            // Get selected bundle packs
-            var selectedPacks = Bundles
-                .Where(b => b.IsSelected)
-                .Select(b => b.Name)
-                .ToList();
+            var buildConfig = await PrepareBuildConfigurationAsync(_buildCancellationTokenSource.Token).ConfigureAwait(false);
+            var selectedPacks = Bundles.Where(b => b.IsSelected).Select(b => b.Name).ToList();
 
             var progress = new Progress<string>(message =>
             {
                 AppendBuildLog(message);
-
-                // Track processed files and bundles
                 if (message.Contains("Processing file:") || message.Contains("Converted"))
                 {
                     Interlocked.Increment(ref filesProcessed);
@@ -1377,15 +1445,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 }
             });
 
-            // Build the BuildStep flags from enabled checkboxes
-            var buildSteps = BuildStep.None;
-            if (CleanEnabled) buildSteps |= BuildStep.Clean;
-            if (BuildEnabled) buildSteps |= BuildStep.Build;
-            if (ReleaseEnabled) buildSteps |= BuildStep.Release;
-            if (InstallEnabled) buildSteps |= BuildStep.Install;
-            if (RunGameEnabled) buildSteps |= BuildStep.Run;
-            if (UninstallEnabled) buildSteps |= BuildStep.Uninstall;
-
+            var buildSteps = DetermineBuildSteps();
             _logger.LogInformation("Build steps configured: {BuildSteps} (RunGameEnabled={RunGameEnabled})", buildSteps, RunGameEnabled);
 
             var result = await _buildEngineService.ExecuteBuildAsync(
@@ -1401,53 +1461,20 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
             if (result.Success)
             {
-                AppendBuildLog($"\n=== Build Completed Successfully in {LastBuildTime:mm\\:ss\\.fff} ===");
-
-                // Show build summary
-                await InvokeOnUIThreadAsync(() =>
-                {
-                    if (filesProcessed == 0)
-                    {
-                        const string noFilesMessage = "Build completed but no files were processed.\n" +
-                            "Check that:\n" +
-                            "- Files exist in GameFilesEdited folder\n" +
-                            "- Bundles are configured in config/ModBundleItems.json\n" +
-                            "- File paths in config match actual files";
-                        _notificationService.ShowInfo(
-                            "Build Complete (No Files)",
-                            noFilesMessage,
-                            autoDismissMs: 8000);
-                    }
-                    else
-                    {
-                        var outputPath = Path.Combine(CurrentProject.ProjectDir, CurrentProject.Directories.Build);
-                        var summaryMessage = $"Processed {filesProcessed} files\n" +
-                            $"Created {bundlesCreated} bundles\n" +
-                            $"Time: {LastBuildTime:mm\\:ss}\n" +
-                            $"Output: {outputPath}";
-                        _notificationService.ShowSuccess(
-                            "Build Complete",
-                            summaryMessage);
-                    }
-                });
-
-                StatusMessage = "Build completed successfully";
-
-                // Update last build time in project
-                await _projectConfigService.UpdateLastBuildTimeAsync(ProjectPath).ConfigureAwait(false);
+                await HandleBuildSuccessAsync(filesProcessed, bundlesCreated).ConfigureAwait(false);
             }
             else
             {
-                AppendBuildLog($"\n=== Build Failed ===");
+                AppendBuildLog("\n=== Build Failed ===");
                 AppendBuildLog(result.FirstError ?? "Unknown error");
                 _notificationService.ShowError("Build Failed", result.FirstError ?? "Unknown error");
                 StatusMessage = "Build failed";
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
             _buildStopwatch.Stop();
-            _logger.LogInformation("Build cancelled by user");
+            _logger.LogInformation(ex, "Build cancelled by user");
             AppendBuildLog("\n=== Build Cancelled ===");
             await InvokeOnUIThreadAsync(() => _notificationService.ShowInfo("Build Cancelled", "Build operation was cancelled"));
             StatusMessage = "Build cancelled";
@@ -1456,7 +1483,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         {
             _buildStopwatch.Stop();
             _logger.LogError(ex, "Build execution failed");
-            AppendBuildLog($"\n=== Build Error ===");
+            AppendBuildLog("\n=== Build Error ===");
             AppendBuildLog(ex.Message);
             _notificationService.ShowError("Build Error", ex.Message);
             StatusMessage = "Build error";
@@ -1478,7 +1505,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return buildConfig.Folders.AbsGameDir;
         }
 
-        if (CurrentProject != null && !string.IsNullOrEmpty(CurrentProject.GameDir))
+        if (!string.IsNullOrEmpty(CurrentProject?.GameDir))
         {
             return CurrentProject.GameDir;
         }
@@ -1488,34 +1515,19 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return GameDirectory;
         }
 
-        if (!string.IsNullOrEmpty(FileManager.SelectedInstallationPath))
-        {
-            return FileManager.SelectedInstallationPath;
-        }
-
-        var firstInstallation = FileManager.AvailableInstallations.FirstOrDefault();
-        if (firstInstallation != null && !string.IsNullOrEmpty(firstInstallation.Path))
-        {
-            return firstInstallation.Path;
-        }
-
-        return string.Empty;
+        var detectedGameDir = FileManager.SelectedInstallationPath ?? FileManager.AvailableInstallations.FirstOrDefault()?.Path;
+        return detectedGameDir ?? string.Empty;
     }
 
     /// <summary>
-    /// Counts the number of files that will be built.
+    /// Counts total files to build.
     /// </summary>
     private async Task<int> CountFilesToBuildAsync()
     {
-        if (CurrentProject == null)
-        {
-            return 0;
-        }
-
         try
         {
             var projectDir = GetEffectiveProjectDir();
-            if (string.IsNullOrEmpty(projectDir))
+            if (string.IsNullOrEmpty(projectDir) || !Directory.Exists(projectDir))
             {
                 return 0;
             }
@@ -1523,15 +1535,13 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var editFolder = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir);
             if (Directory.Exists(editFolder))
             {
-                // Count all real mod asset files in GameFilesEdited folder (excluding READMEs)
                 var fileCount = await Task.Run(
                     () =>
                     {
                         try
                         {
                             return Directory.GetFiles(editFolder, "*.*", SearchOption.AllDirectories)
-                                .Where(f => !Path.GetFileName(f).Equals("README.txt", StringComparison.OrdinalIgnoreCase))
-                                .Count();
+                                .Count(f => !Path.GetFileName(f).Equals("README.txt", StringComparison.OrdinalIgnoreCase));
                         }
                         catch
                         {
@@ -1546,17 +1556,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 }
             }
 
-            // Fallback: check bundle items in configuration
-            if (CurrentProject.Configuration?.Items != null && CurrentProject.Configuration.Items.Count > 0)
-            {
-                var totalItemFiles = CurrentProject.Configuration.Items.Sum(i => i.Files?.Count ?? 0);
-                if (totalItemFiles > 0)
-                {
-                    return totalItemFiles;
-                }
-            }
-
-            return 0;
+            return Bundles.Sum(b => b.FileCount);
         }
         catch (Exception ex)
         {
@@ -1803,7 +1803,6 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         {
             var projectDir = GetEffectiveProjectDir();
 
-            // Load configuration if not already loaded
             if (CurrentProject.Configuration == null && !string.IsNullOrEmpty(projectDir))
             {
                 CurrentProject.Configuration = await _configurationLoaderService.LoadProjectConfigurationAsync(
@@ -1811,72 +1810,76 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                     CancellationToken.None).ConfigureAwait(false);
             }
 
-            await InvokeOnUIThreadAsync(() =>
-            {
-                Bundles.Clear();
+            await InvokeOnUIThreadAsync(() => PopulateProjectBundlesAndProperties(CurrentProject.Configuration)).ConfigureAwait(false);
 
-                // Load bundles from configuration
-                if (CurrentProject.Configuration?.Items != null)
-                {
-                    foreach (var item in CurrentProject.Configuration.Items)
-                    {
-                        Bundles.Add(new BundleItemViewModel
-                        {
-                            Name = item.Name,
-                            IsSelected = true,
-                            IsBig = item.IsBig,
-                            FileCount = item.Files?.Count ?? 0,
-                        });
-                    }
-                }
-
-                // Update properties
-                GameDirectory = CurrentProject.GameDir;
-                OutputDirectory = CurrentProject.Directories.Build;
-
-                if (CurrentProject.Configuration != null)
-                {
-                    SelectedCompressionLevel = CurrentProject.Configuration.ZipCompressionLevel;
-                }
-
-                // Update file count
-                FileCount = Bundles.Sum(b => b.FileCount);
-            });
-
-            // Initialize file manager with project path
             if (!string.IsNullOrEmpty(projectDir))
             {
-                await FileManager.InitializeAsync(projectDir, CancellationToken.None).ConfigureAwait(false);
-
-                if (string.IsNullOrEmpty(CurrentProject.GameDir))
-                {
-                    var fallbackGameDir = FileManager.SelectedInstallationPath ?? FileManager.AvailableInstallations.FirstOrDefault()?.Path;
-                    if (!string.IsNullOrEmpty(fallbackGameDir))
-                    {
-                        CurrentProject.GameDir = fallbackGameDir;
-                        await InvokeOnUIThreadAsync(() => GameDirectory = fallbackGameDir);
-                    }
-                }
+                await InitializeFileManagerAndGameDirectoryAsync(projectDir).ConfigureAwait(false);
             }
 
-            // Notify command state changes on UI thread
-            PostToUIThread(() =>
-            {
-                SaveProjectCommand.NotifyCanExecuteChanged();
-                CloseProjectCommand.NotifyCanExecuteChanged();
-                BuildCommand.NotifyCanExecuteChanged();
-                CleanCommand.NotifyCanExecuteChanged();
-                AddBundleCommand.NotifyCanExecuteChanged();
-            });
-
-            // Refresh file count
-            await RefreshFileCountAsync().ConfigureAwait(false);
+            PostToUIThread(NotifyAllProjectCommands);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to load project data");
-            await InvokeOnUIThreadAsync(() => _notificationService.ShowError("Load Error", $"Failed to load project data: {ex.Message}"));
+            _notificationService.ShowError("Load Error", $"Failed to load project data: {ex.Message}");
         }
+    }
+
+    private void PopulateProjectBundlesAndProperties(BuildConfiguration? config)
+    {
+        Bundles.Clear();
+
+        if (config?.Items != null)
+        {
+            foreach (var item in config.Items)
+            {
+                Bundles.Add(new BundleItemViewModel
+                {
+                    Name = item.Name,
+                    IsSelected = true,
+                    IsBig = item.IsBig,
+                    FileCount = item.Files?.Count ?? 0,
+                });
+            }
+        }
+
+        if (CurrentProject != null)
+        {
+            GameDirectory = CurrentProject.GameDir;
+            OutputDirectory = CurrentProject.Directories.Build;
+        }
+
+        if (config != null)
+        {
+            SelectedCompressionLevel = config.ZipCompressionLevel;
+        }
+
+        FileCount = Bundles.Sum(b => b.FileCount);
+    }
+
+    private async Task InitializeFileManagerAndGameDirectoryAsync(string projectDir)
+    {
+        await FileManager.InitializeAsync(projectDir, CancellationToken.None).ConfigureAwait(false);
+
+        if (CurrentProject != null && string.IsNullOrEmpty(CurrentProject.GameDir))
+        {
+            var fallbackGameDir = FileManager.SelectedInstallationPath ?? FileManager.AvailableInstallations.FirstOrDefault()?.Path;
+            if (!string.IsNullOrEmpty(fallbackGameDir))
+            {
+                CurrentProject.GameDir = fallbackGameDir;
+                await InvokeOnUIThreadAsync(() => GameDirectory = fallbackGameDir);
+            }
+        }
+    }
+
+    private void NotifyAllProjectCommands()
+    {
+        SaveProjectCommand.NotifyCanExecuteChanged();
+        CloseProjectCommand.NotifyCanExecuteChanged();
+        BuildCommand.NotifyCanExecuteChanged();
+        CleanCommand.NotifyCanExecuteChanged();
+        AddBundleCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>

@@ -1371,15 +1371,15 @@ public sealed class BuildEngineService(
     private List<string> CollectRawBundleItemFiles(BuildConfiguration configuration)
     {
         var files = new List<string>();
-        foreach (var file in configuration.Items.SelectMany(item => item.Files))
+        foreach (var sourceFile in configuration.Items.SelectMany(item => item.Files).Select(f => f.AbsSourceFile))
         {
-            if (!string.IsNullOrEmpty(file.AbsSourceFile) && File.Exists(file.AbsSourceFile))
+            if (!string.IsNullOrEmpty(sourceFile) && File.Exists(sourceFile))
             {
-                files.Add(file.AbsSourceFile);
+                files.Add(sourceFile);
             }
             else
             {
-                logger.LogWarning("Source file not found: {FilePath}", file.AbsSourceFile);
+                logger.LogWarning("Source file not found: {FilePath}", sourceFile);
             }
         }
 

@@ -44,6 +44,7 @@ public partial class FileManagerViewModel(
     /// <summary>
     /// Gets the path of the selected installation.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Observable property dependent on SelectedInstallation")]
     public string? SelectedInstallationPath => SelectedInstallation?.Path;
 
     partial void OnSelectedInstallationChanged(GameInstallationOption? value)
@@ -229,27 +230,7 @@ public partial class FileManagerViewModel(
             AvailableInstallations.Clear();
             foreach (var installation in installations)
             {
-                if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
-                {
-                    AvailableInstallations.Add(new GameInstallationOption
-                    {
-                        DisplayName = $"Generals ({installation.InstallationType})",
-                        Path = installation.GeneralsPath,
-                        IconPath = "avares://GenHub/Assets/Icons/generals-icon.png",
-                        InstallationType = installation.InstallationType.ToString()
-                    });
-                }
-
-                if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
-                {
-                    AvailableInstallations.Add(new GameInstallationOption
-                    {
-                        DisplayName = $"Zero Hour ({installation.InstallationType})",
-                        Path = installation.ZeroHourPath,
-                        IconPath = "avares://GenHub/Assets/Icons/zerohour-icon.png",
-                        InstallationType = installation.InstallationType.ToString()
-                    });
-                }
+                AddInstallationOption(installation);
             }
 
             if (AvailableInstallations.Count > 0 && SelectedInstallation == null)
@@ -265,6 +246,31 @@ public partial class FileManagerViewModel(
         else
         {
             Dispatcher.UIThread.Post(Apply);
+        }
+    }
+
+    private void AddInstallationOption(GameInstallation installation)
+    {
+        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
+        {
+            AvailableInstallations.Add(new GameInstallationOption
+            {
+                DisplayName = $"Generals ({installation.InstallationType})",
+                Path = installation.GeneralsPath,
+                IconPath = "avares://GenHub/Assets/Icons/generals-icon.png",
+                InstallationType = installation.InstallationType.ToString()
+            });
+        }
+
+        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
+        {
+            AvailableInstallations.Add(new GameInstallationOption
+            {
+                DisplayName = $"Zero Hour ({installation.InstallationType})",
+                Path = installation.ZeroHourPath,
+                IconPath = "avares://GenHub/Assets/Icons/zerohour-icon.png",
+                InstallationType = installation.InstallationType.ToString()
+            });
         }
     }
 
@@ -668,7 +674,7 @@ public partial class FileManagerViewModel(
         }
     }
 
-    private (Dictionary<string, FileTreeNode> Files, List<string> Directories) CollectItemsToRemove(IReadOnlyList<FileTreeNode> targetNodes)
+    private static (Dictionary<string, FileTreeNode> Files, List<string> Directories) CollectItemsToRemove(IReadOnlyList<FileTreeNode> targetNodes)
     {
         var filesToRemove = new Dictionary<string, FileTreeNode>(StringComparer.OrdinalIgnoreCase);
         var directoriesToRemove = new List<string>();
@@ -692,6 +698,7 @@ public partial class FileManagerViewModel(
         return (filesToRemove, directoriesToRemove);
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates observable properties via Dispatcher")]
     private void DeleteProjectFiles(IReadOnlyList<FileTreeNode> fileList, IEnumerable<string> directoriesToRemove)
     {
         var total = fileList.Count;

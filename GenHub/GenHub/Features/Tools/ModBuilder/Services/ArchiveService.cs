@@ -82,9 +82,8 @@ public sealed class ArchiveService(
             progress?.Report(1.0);
             return OperationResult<bool>.CreateSuccess(true);
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException)
         {
-            logger.LogInformation(ex, "BIG archive creation cancelled: {Target}", targetBigPath);
             throw;
         }
         catch (Exception ex)
@@ -195,9 +194,8 @@ public sealed class ArchiveService(
             logger.LogInformation("Successfully created ZIP archive: {Target}", targetZipPath);
             return OperationResult<bool>.CreateSuccess(true);
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException)
         {
-            logger.LogInformation(ex, "ZIP archive creation cancelled: {Target}", targetZipPath);
             throw;
         }
         catch (Exception ex)
@@ -303,9 +301,8 @@ public sealed class ArchiveService(
             logger.LogInformation("Successfully created TAR archive: {Target}", targetTarPath);
             return OperationResult<bool>.CreateSuccess(true);
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException)
         {
-            logger.LogInformation(ex, "TAR archive creation cancelled: {Target}", targetTarPath);
             throw;
         }
         catch (Exception ex)
@@ -411,9 +408,8 @@ public sealed class ArchiveService(
             logger.LogInformation("Successfully created TAR.GZ archive: {Target}", targetTarGzPath);
             return OperationResult<bool>.CreateSuccess(true);
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException)
         {
-            logger.LogInformation(ex, "TAR.GZ archive creation cancelled: {Target}", targetTarGzPath);
             throw;
         }
         catch (Exception ex)
