@@ -35,6 +35,7 @@ public class HttpContentDelivererTests
         var manifest = CreateManifest("generals-1.08-en", "1.08", relativePath, expectedHash);
         var downloadService = CreateSuccessfulDownloadService();
         var deliverer = CreateDeliverer(downloadService.Object);
+        var expectedDestinationPath = Path.GetFullPath(relativePath, Path.GetFullPath(targetDirectory));
 
         try
         {
@@ -50,12 +51,12 @@ public class HttpContentDelivererTests
             result.Data.Files[0].Size.Should().Be(7);
             result.Data.Files[0].IsRequired.Should().BeFalse();
             result.Data.Files[0].InstallTarget.Should().Be(ContentInstallTarget.Workspace);
-            File.Exists(Path.Combine(targetDirectory, relativePath)).Should().BeTrue();
+            File.Exists(expectedDestinationPath).Should().BeTrue();
 
             downloadService.Verify(
                 d => d.DownloadFileAsync(
                     new Uri("https://example.com/game.dat"),
-                    Path.Combine(targetDirectory, relativePath),
+                    expectedDestinationPath,
                     expectedHash,
                     It.IsAny<IProgress<DownloadProgress>?>(),
                     It.IsAny<CancellationToken>()),
