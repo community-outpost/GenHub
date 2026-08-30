@@ -165,7 +165,7 @@ public class StorageMigrationServiceTests : IDisposable
         Assert.NotNull(result.Data);
         Assert.False(result.Data.IsValid);
         Assert.False(result.Data.HasWritePermission);
-        Assert.Contains("permission", result.Data.ErrorMessage ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("writable", result.Data.ErrorMessage ?? string.Empty, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
