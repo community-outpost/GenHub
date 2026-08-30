@@ -1392,12 +1392,16 @@ public class ProfileSharingServiceTests
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
 
         // Act
-        var result = await _service.ExportProfileToPackageAsync("profile-targetgame-1");
+        var jsonResult = await _service.ExportProfileToJsonAsync("profile-targetgame-1");
+        Assert.True(jsonResult.Success);
+        Assert.NotNull(jsonResult.Data);
+
+        var inspectResult = await _service.InspectSharedProfileAsync(jsonResult.Data);
 
         // Assert
-        Assert.True(result.Success);
-        Assert.NotNull(result.Data);
-        var dependency = Assert.Single(result.Data.Dependencies);
+        Assert.True(inspectResult.Success);
+        Assert.NotNull(inspectResult.Data);
+        var dependency = Assert.Single(inspectResult.Data.Dependencies);
         Assert.Equal(GameType.ZeroHour, dependency.TargetGame);
     }
 
