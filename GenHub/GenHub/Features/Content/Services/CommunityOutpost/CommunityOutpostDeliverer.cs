@@ -307,6 +307,10 @@ public class CommunityOutpostDeliverer(
         IProgress<ContentAcquisitionProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        var archivePath = string.Empty;
+        var extractPath = string.Empty;
+        var registeredManifestIds = new List<ManifestId>();
+
         try
         {
             logger.LogInformation(
@@ -332,7 +336,7 @@ public class CommunityOutpostDeliverer(
                             archiveFile.DownloadUrl!.EndsWith(".7z", StringComparison.OrdinalIgnoreCase);
 
             var archiveExtension = isSevenZip ? ".7z" : ".zip";
-            var archivePath = Path.Combine(targetDirectory, $"content{archiveExtension}");
+            archivePath = Path.Combine(targetDirectory, $"content{archiveExtension}");
 
             progress?.Report(new ContentAcquisitionProgress
             {
@@ -355,7 +359,7 @@ public class CommunityOutpostDeliverer(
             }
 
             // Step 2: Extract archive
-            var extractPath = Path.Combine(targetDirectory, "extracted");
+            extractPath = Path.Combine(targetDirectory, "extracted");
             Directory.CreateDirectory(extractPath);
 
             progress?.Report(new ContentAcquisitionProgress
@@ -450,8 +454,6 @@ public class CommunityOutpostDeliverer(
                 }
             }
 
-            var registeredManifestIds = new List<ManifestId>();
-
             foreach (var manifest in manifests)
             {
                 var addResult = await manifestPool.AddManifestAsync(
@@ -467,18 +469,7 @@ public class CommunityOutpostDeliverer(
                         manifest.Id,
                         addResult.FirstError);
 
-                    foreach (var registeredId in registeredManifestIds)
-                    {
-                        try
-                        {
-                            await manifestPool.RemoveManifestAsync(registeredId, cancellationToken: cancellationToken);
-                        }
-                        catch (Exception rollbackEx)
-                        {
-                            logger.LogWarning(rollbackEx, "Failed to roll back manifest {ManifestId} during delivery cleanup", registeredId);
-                        }
-                    }
-
+                    await RollbackManifestsAsync(registeredManifestIds);
                     await CleanupTemporaryFilesAsync(archivePath, extractPath);
                     return OperationResult<ContentManifest>.CreateFailure(
                         $"Failed to register manifest {manifest.Id}: {addResult.FirstError}");
@@ -517,11 +508,22 @@ public class CommunityOutpostDeliverer(
         }
         catch (OperationCanceledException)
         {
+            if (registeredManifestIds.Count > 0)
+            {
+                await RollbackManifestsAsync(registeredManifestIds);
+            }
+
             throw;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to deliver Community Outpost content");
+            if (registeredManifestIds.Count > 0)
+            {
+                await RollbackManifestsAsync(registeredManifestIds);
+            }
+
+            await CleanupTemporaryFilesAsync(archivePath, extractPath);
             return OperationResult<ContentManifest>.CreateFailure($"Content delivery failed: {ex.Message}");
         }
     }
@@ -592,7 +594,7 @@ public class CommunityOutpostDeliverer(
             // Delete archive file
             try
             {
-                if (File.Exists(archivePath))
+                if (!string.IsNullOrEmpty(archivePath) && File.Exists(archivePath))
                 {
                     File.Delete(archivePath);
                     logger.LogDebug("Deleted archive file: {Path}", archivePath);
@@ -606,7 +608,7 @@ public class CommunityOutpostDeliverer(
             // Delete extracted directory
             try
             {
-                if (Directory.Exists(extractPath))
+                if (!string.IsNullOrEmpty(extractPath) && Directory.Exists(extractPath))
                 {
                     Directory.Delete(extractPath, recursive: true);
                     logger.LogDebug("Deleted extracted directory: {Path}", extractPath);
@@ -617,6 +619,39 @@ public class CommunityOutpostDeliverer(
                 logger.LogWarning(ex, "Failed to delete extracted directory {Path}", extractPath);
             }
         });
+    }
+
+    /// <summary>
+    /// Rolls back registered manifests from the manifest pool on failure.
+    /// </summary>
+    private async Task<List<string>> RollbackManifestsAsync(IReadOnlyList<ManifestId> manifestIdsToRollback)
+    {
+        var rollbackErrors = new List<string>();
+        foreach (var registeredId in manifestIdsToRollback)
+        {
+            try
+            {
+                var removeResult = await manifestPool.RemoveManifestAsync(registeredId, cancellationToken: CancellationToken.None);
+                if (!removeResult.Success)
+                {
+                    logger.LogWarning(
+                        "Failed to rollback manifest {ManifestId} during delivery cleanup: {Error}",
+                        registeredId,
+                        removeResult.FirstError);
+                    rollbackErrors.Add($"Rollback of manifest {registeredId} failed: {removeResult.FirstError}");
+                }
+            }
+            catch (Exception rollbackEx)
+            {
+                logger.LogWarning(
+                    rollbackEx,
+                    "Failed to rollback manifest {ManifestId} during delivery cleanup",
+                    registeredId);
+                rollbackErrors.Add($"Rollback exception for manifest {registeredId}: {rollbackEx.Message}");
+            }
+        }
+
+        return rollbackErrors;
     }
 
     /// <summary>

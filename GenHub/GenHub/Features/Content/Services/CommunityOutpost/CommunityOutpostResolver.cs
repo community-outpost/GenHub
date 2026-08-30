@@ -88,7 +88,7 @@ public class CommunityOutpostResolver(
                     "SourceUrl must be a valid absolute URI for Community Outpost content");
             }
 
-            var filename = GetFilenameFromUrl(downloadUri, contentCode);
+            var filename = DetermineFilename(downloadUri, contentCode);
 
             // Get all mirror URLs for fallback support
             var mirrorUrls = GetMirrorUrls(discoveredItem);
@@ -368,9 +368,9 @@ public class CommunityOutpostResolver(
     }
 
     /// <summary>
-    /// Gets the filename from the download URI or generates one from the content code.
+    /// Determines the filename from the download URI or generates one from the content code.
     /// </summary>
-    private static string GetFilenameFromUrl(Uri downloadUri, string contentCode)
+    private static string DetermineFilename(Uri downloadUri, string contentCode)
     {
         var path = downloadUri.AbsolutePath;
         var lastSegment = path.Split('/')[^1];
@@ -386,7 +386,7 @@ public class CommunityOutpostResolver(
     /// <summary>
     /// Gets the list of mirror URLs from the search result metadata.
     /// </summary>
-    private List<string> GetMirrorUrls(ContentSearchResult item)
+    private IReadOnlyList<string> GetMirrorUrls(ContentSearchResult item)
     {
         var mirrorUrlsJson = GetMetadataValue(item, "mirrorUrls", "[]");
 
