@@ -448,6 +448,23 @@ const executeDelete = async (fileKey: string, token: string): Promise<boolean> =
   }
 };
 
+const processValidatedDelete = async (payload: DeletePayload, env: Env): Promise<Response> => {
+  const verification = await verifyDeleteRequest(payload.fileKey, payload.deleteToken, env);
+  if (!verification.valid) {
+    return new Response(JSON.stringify({ error: verification.error }), { status: 403, headers: CORS_HEADERS });
+  }
+
+  const isSuccess = await executeDelete(payload.fileKey, env.UPLOADTHING_TOKEN);
+  if (!isSuccess) {
+    return new Response(JSON.stringify({ success: false, error: "Storage provider deletion failed" }), {
+      status: 502,
+      headers: CORS_HEADERS,
+    });
+  }
+
+  return new Response(JSON.stringify({ success: true }), { status: 200, headers: CORS_HEADERS });
+};
+
 const handleDeleteUpload = async (request: Request, env: Env): Promise<Response> => {
   if (!env.UPLOADTHING_TOKEN || !env.GATEWAY_HMAC_SECRET) {
     return new Response(JSON.stringify({ error: "Gateway storage service unconfigured" }), { status: 503, headers: CORS_HEADERS });
@@ -461,20 +478,7 @@ const handleDeleteUpload = async (request: Request, env: Env): Promise<Response>
       return new Response(JSON.stringify({ error: payloadError }), { status: 400, headers: CORS_HEADERS });
     }
 
-    const verification = await verifyDeleteRequest(payload.fileKey, payload.deleteToken, env);
-    if (!verification.valid) {
-      return new Response(JSON.stringify({ error: verification.error }), { status: 403, headers: CORS_HEADERS });
-    }
-
-    const isSuccess = await executeDelete(payload.fileKey, env.UPLOADTHING_TOKEN);
-    if (!isSuccess) {
-      return new Response(JSON.stringify({ success: false, error: "Storage provider deletion failed" }), {
-        status: 502,
-        headers: CORS_HEADERS,
-      });
-    }
-
-    return new Response(JSON.stringify({ success: true }), { status: 200, headers: CORS_HEADERS });
+    return await processValidatedDelete(payload, env);
   } catch (err: unknown) {
     console.error("Delete failed:", getErrorMessage(err));
     return new Response(JSON.stringify({ error: "Delete failed" }), {

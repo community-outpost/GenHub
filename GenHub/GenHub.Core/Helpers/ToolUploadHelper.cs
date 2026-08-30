@@ -1,5 +1,12 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Models.Tools.MapManager;
+using GenHub.Core.Models.Tools.ReplayManager;
 
 namespace GenHub.Core.Helpers;
 
@@ -72,7 +79,11 @@ public static class ToolUploadHelper
             var hashBytes = await System.Security.Cryptography.SHA256.HashDataAsync(stream, ct);
             return Convert.ToHexString(hashBytes).ToLowerInvariant();
         }
-        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && ex is not OperationCanceledException)
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
         {
             return null;
         }
@@ -98,9 +109,90 @@ public static class ToolUploadHelper
             using var response = await httpClient.SendAsync(request, ct);
             return response.IsSuccessStatusCode;
         }
-        catch (Exception ex) when ((ex is System.Net.Http.HttpRequestException or IOException or InvalidOperationException) && ex is not OperationCanceledException)
+        catch (System.Net.Http.HttpRequestException)
         {
             return false;
         }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Calculates the total size in bytes of a collection of map files including their directory assets.
+    /// </summary>
+    /// <param name="maps">The map files.</param>
+    /// <returns>Total size in bytes.</returns>
+    public static long CalculateMapsSize(IEnumerable<MapFile> maps)
+    {
+        long total = 0;
+        foreach (var map in maps)
+        {
+            total += GetMapFileSize(map);
+        }
+
+        return total;
+    }
+
+    /// <summary>
+    /// Calculates the total size in bytes of a collection of replay files.
+    /// </summary>
+    /// <param name="replays">The replay files.</param>
+    /// <returns>Total size in bytes.</returns>
+    public static long CalculateReplaysSize(IEnumerable<ReplayFile> replays)
+    {
+        long total = 0;
+        foreach (var replay in replays.Where(r => File.Exists(r.FullPath)))
+        {
+            try
+            {
+                total += new FileInfo(replay.FullPath).Length;
+            }
+            catch (IOException)
+            {
+                // Ignore missing or inaccessible files in size estimate
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Ignore missing or inaccessible files in size estimate
+            }
+        }
+
+        return total;
+    }
+
+    private static long GetMapFileSize(MapFile map)
+    {
+        long mapSize = 0;
+        try
+        {
+            if (File.Exists(map.FullPath))
+            {
+                mapSize += new FileInfo(map.FullPath).Length;
+            }
+
+            if (map.IsDirectory && map.AssetFiles != null)
+            {
+                foreach (var asset in map.AssetFiles.Where(File.Exists))
+                {
+                    mapSize += new FileInfo(asset).Length;
+                }
+            }
+        }
+        catch (IOException)
+        {
+            // Ignore missing or inaccessible files in size estimate
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Ignore missing or inaccessible files in size estimate
+        }
+
+        return mapSize;
     }
 }

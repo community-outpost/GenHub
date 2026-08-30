@@ -615,7 +615,7 @@ public partial class MapManagerViewModel : ObservableObject
             return;
         }
 
-        long totalSizeBytes = CalculateSelectedMapsSize(SelectedMaps);
+        long totalSizeBytes = ToolUploadHelper.CalculateMapsSize(SelectedMaps);
         if (!await ValidateUploadLimitsAsync(totalSizeBytes))
         {
             return;
@@ -672,38 +672,6 @@ public partial class MapManagerViewModel : ObservableObject
             IsBusy = false;
             Progress = 0;
         }
-    }
-
-    private long CalculateSelectedMapsSize(IReadOnlyList<MapFile> maps)
-    {
-        long total = 0;
-        foreach (var map in maps)
-        {
-            try
-            {
-                if (File.Exists(map.FullPath))
-                {
-                    total += new FileInfo(map.FullPath).Length;
-                }
-
-                if (map.IsDirectory && map.AssetFiles != null)
-                {
-                    foreach (var asset in map.AssetFiles)
-                    {
-                        if (File.Exists(asset))
-                        {
-                            total += new FileInfo(asset).Length;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                // Ignore missing or inaccessible files in size estimate
-            }
-        }
-
-        return total;
     }
 
     private bool ValidateDemoMapsSelected()

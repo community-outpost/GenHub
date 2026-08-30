@@ -679,7 +679,7 @@ public partial class ReplayManagerViewModel(
             return;
         }
 
-        long totalSizeBytes = CalculateSelectedReplaysSize(SelectedReplays);
+        long totalSizeBytes = ToolUploadHelper.CalculateReplaysSize(SelectedReplays);
         if (!await ValidateUploadLimitsAsync(totalSizeBytes))
         {
             return;
@@ -736,27 +736,6 @@ public partial class ReplayManagerViewModel(
             IsBusy = false;
             Progress = 0;
         }
-    }
-
-    private long CalculateSelectedReplaysSize(IReadOnlyList<ReplayFile> replays)
-    {
-        long total = 0;
-        foreach (var replay in replays)
-        {
-            try
-            {
-                if (File.Exists(replay.FullPath))
-                {
-                    total += new FileInfo(replay.FullPath).Length;
-                }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                // Ignore missing or inaccessible files in size estimate
-            }
-        }
-
-        return total;
     }
 
     private bool ValidateDemoReplaysSelected()

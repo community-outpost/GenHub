@@ -232,7 +232,7 @@ public sealed class UploadHistoryService(
             {
                 SaveHistoryInternal(history);
                 _cache = history;
-                logger.LogInformation("Cleared {Count} upload history items for category '{Category}'. Failed cloud deletions: {Failed}.", removed, category ?? "all", failedDeletions.Count);
+                logger.LogInformation("Cleared {RemovedCount} upload history items for category '{Category}'. Failed cloud deletions: {FailedCount}.", removed, category ?? "all", failedDeletions.Count);
             }
         }
 
