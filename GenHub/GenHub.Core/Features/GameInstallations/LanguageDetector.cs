@@ -1,10 +1,10 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Models.Content;
 using System;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Models.Content;
 
 namespace GenHub.Core.Features.GameInstallations;
 
