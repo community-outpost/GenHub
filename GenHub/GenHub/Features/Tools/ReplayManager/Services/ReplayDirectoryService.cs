@@ -288,7 +288,19 @@ public sealed class ReplayDirectoryService(
         var targetPath = replay.GameVersion == GameType.Generals ? installation.GeneralsPath : installation.ZeroHourPath;
         var defaultExeName = GetDefaultExecutableName(replay.GameVersion, replay.MatchedClient?.Publisher);
         var workingDir = !string.IsNullOrEmpty(targetPath) ? targetPath : installation.InstallationPath;
-        var exePath = targetClient?.ExecutablePath ?? (!string.IsNullOrEmpty(workingDir) ? Path.Combine(workingDir, defaultExeName) : string.Empty);
+        string exePath;
+        if (!string.IsNullOrWhiteSpace(targetClient?.ExecutablePath))
+        {
+            exePath = targetClient.ExecutablePath;
+        }
+        else if (!string.IsNullOrWhiteSpace(workingDir))
+        {
+            exePath = Path.Combine(workingDir, defaultExeName);
+        }
+        else
+        {
+            exePath = string.Empty;
+        }
 
         if (string.IsNullOrWhiteSpace(exePath))
         {
