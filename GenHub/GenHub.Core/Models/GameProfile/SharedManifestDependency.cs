@@ -30,6 +30,11 @@ public sealed class SharedManifestDependency
     public required ContentType ContentType { get; init; }
 
     /// <summary>
+    /// Gets the target game type (Generals, ZeroHour, or Unknown).
+    /// </summary>
+    public GameType TargetGame { get; init; } = GameType.Unknown;
+
+    /// <summary>
     /// Gets the publisher name.
     /// </summary>
     public string? Publisher { get; init; }

@@ -1273,6 +1273,7 @@ public class ProfileSharingService(
             DisplayName = manifest.Name,
             Version = manifest.Version,
             ContentType = manifest.ContentType,
+            TargetGame = manifest.TargetGame,
             Publisher = manifest.Publisher?.Name,
             PublisherType = manifest.Publisher?.PublisherType,
             DownloadSize = dependencyFiles.Sum(f => f.Size),
@@ -1734,6 +1735,7 @@ public class ProfileSharingService(
             Name = dependency.DisplayName,
             Version = dependency.Version,
             ContentType = dependency.ContentType,
+            TargetGame = dependency.TargetGame,
             Publisher = new PublisherInfo
             {
                 Name = dependency.Publisher ?? ProfileSharingConstants.DefaultLocalPublisherName,
@@ -1821,6 +1823,7 @@ public class ProfileSharingService(
                 Name = dependency.DisplayName,
                 Version = dependency.Version,
                 ContentType = dependency.ContentType,
+                TargetGame = dependency.TargetGame,
                 Publisher = new PublisherInfo
                 {
                     Name = dependency.Publisher ?? ProfileSharingConstants.DefaultCommunityPublisherName,

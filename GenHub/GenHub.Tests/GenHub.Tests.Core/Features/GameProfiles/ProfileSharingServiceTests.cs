@@ -1362,6 +1362,45 @@ public class ProfileSharingServiceTests
         }
     }
 
+    /// <summary>
+    /// Verifies that TargetGame is correctly preserved in shared manifest dependencies when exported.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ExportProfileToPackageAsync_PreservesTargetGame_InSharedDependenciesAsync()
+    {
+        // Arrange
+        var profile = CreateTestProfile("profile-targetgame-1", "ZH Profile");
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync("profile-targetgame-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.local.map.defcon"),
+            Name = "Defcon Map",
+            Version = "1.0",
+            ContentType = ContentType.Map,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo
+            {
+                Name = "Local",
+                PublisherType = PublisherTypeConstants.Local,
+            },
+        };
+        profile.EnabledContentIds = ["1.0.local.map.defcon"];
+        _manifestPoolMock.Setup(m => m.GetManifestAsync("1.0.local.map.defcon", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
+
+        // Act
+        var result = await _service.ExportProfileToPackageAsync("profile-targetgame-1");
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var dependency = Assert.Single(result.Data.Dependencies);
+        Assert.Equal(GameType.ZeroHour, dependency.TargetGame);
+    }
+
     private static GameProfile CreateTestProfile(string id, string name)
     {
         return new GameProfile
