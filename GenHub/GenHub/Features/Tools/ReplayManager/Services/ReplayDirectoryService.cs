@@ -539,13 +539,12 @@ public sealed class ReplayDirectoryService(
                             profile.EnabledContentIds?.Any(id => string.Equals(id, clientManifestId, StringComparison.OrdinalIgnoreCase)) == true;
 
         var publisher = ExtractPublisherFromManifestId(clientManifestId);
-        if (!clientMatches && !string.IsNullOrEmpty(publisher))
+        if (!clientMatches &&
+            !string.IsNullOrEmpty(publisher) &&
+            (string.Equals(profile.GameClient?.PublisherType, publisher, StringComparison.OrdinalIgnoreCase) ||
+             profile.EnabledContentIds?.Any(id => id.Contains("." + publisher + ".", StringComparison.OrdinalIgnoreCase)) == true))
         {
-            if (string.Equals(profile.GameClient?.PublisherType, publisher, StringComparison.OrdinalIgnoreCase) ||
-                profile.EnabledContentIds?.Any(id => id.Contains("." + publisher + ".", StringComparison.OrdinalIgnoreCase)) == true)
-            {
-                clientMatches = true;
-            }
+            clientMatches = true;
         }
 
         if (!clientMatches)
