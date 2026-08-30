@@ -40,6 +40,9 @@ public class SettingsViewModelMigrationTests
     private readonly Mock<IDialogService> _mockDialogService;
     private readonly Mock<IStorageMigrationService> _mockStorageMigrationService;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SettingsViewModelMigrationTests"/> class.
+    /// </summary>
     public SettingsViewModelMigrationTests()
     {
         _mockConfigService = new Mock<IUserSettingsService>();
@@ -59,6 +62,10 @@ public class SettingsViewModelMigrationTests
         _mockConfigService.Setup(x => x.Get()).Returns(new UserSettings());
     }
 
+    /// <summary>
+    /// Tests that MigrateInstallationLocationCommand shows warning when target path is empty.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
     [Fact]
     public async Task MigrateInstallationLocationCommand_ShowsWarning_WhenTargetPathIsEmptyAsync()
     {
@@ -76,6 +83,10 @@ public class SettingsViewModelMigrationTests
             Times.Never);
     }
 
+    /// <summary>
+    /// Tests that MigrateInstallationLocationCommand shows error when preflight validation fails.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
     [Fact]
     public async Task MigrateInstallationLocationCommand_ShowsError_WhenPreflightValidationFailsAsync()
     {
@@ -83,7 +94,11 @@ public class SettingsViewModelMigrationTests
         vm.MigrationTargetPath = "/valid/path";
 
         var preflightResult = OperationResult<StorageMigrationPreflightResult>.CreateSuccess(
-            StorageMigrationPreflightResult.Failure("Not enough space."));
+            new StorageMigrationPreflightResult
+            {
+                IsValid = false,
+                ErrorMessage = "Not enough space.",
+            });
 
         _mockStorageMigrationService
             .Setup(x => x.ValidatePreflightAsync("/valid/path", true, It.IsAny<CancellationToken>()))
@@ -98,6 +113,10 @@ public class SettingsViewModelMigrationTests
         Assert.False(vm.IsMigrating);
     }
 
+    /// <summary>
+    /// Tests that MigrateInstallationLocationCommand aborts when user declines confirmation.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
     [Fact]
     public async Task MigrateInstallationLocationCommand_Aborts_WhenUserDeclinesConfirmationAsync()
     {
@@ -105,7 +124,14 @@ public class SettingsViewModelMigrationTests
         vm.MigrationTargetPath = "/target/folder";
 
         var preflightResult = OperationResult<StorageMigrationPreflightResult>.CreateSuccess(
-            StorageMigrationPreflightResult.Success(100, 1000));
+            new StorageMigrationPreflightResult
+            {
+                IsValid = true,
+                RequiredBytes = 100,
+                AvailableBytes = 1000,
+                HasSufficientSpace = true,
+                HasWritePermission = true,
+            });
 
         _mockStorageMigrationService
             .Setup(x => x.ValidatePreflightAsync("/target/folder", true, It.IsAny<CancellationToken>()))
@@ -129,6 +155,10 @@ public class SettingsViewModelMigrationTests
         Assert.False(vm.IsMigrating);
     }
 
+    /// <summary>
+    /// Tests that MigrateInstallationLocationCommand executes migration when confirmed.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
     [Fact]
     public async Task MigrateInstallationLocationCommand_ExecutesMigration_WhenConfirmedAsync()
     {
@@ -137,7 +167,14 @@ public class SettingsViewModelMigrationTests
         vm.RelocateCasAndWorkspacesWithMigration = true;
 
         var preflightResult = OperationResult<StorageMigrationPreflightResult>.CreateSuccess(
-            StorageMigrationPreflightResult.Success(100, 1000));
+            new StorageMigrationPreflightResult
+            {
+                IsValid = true,
+                RequiredBytes = 100,
+                AvailableBytes = 1000,
+                HasSufficientSpace = true,
+                HasWritePermission = true,
+            });
 
         _mockStorageMigrationService
             .Setup(x => x.ValidatePreflightAsync("/target/folder", true, It.IsAny<CancellationToken>()))
