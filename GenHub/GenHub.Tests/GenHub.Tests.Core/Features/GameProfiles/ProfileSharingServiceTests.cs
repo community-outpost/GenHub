@@ -1090,7 +1090,7 @@ public class ProfileSharingServiceTests
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         _installationServiceMock.Setup(i => i.GetInstallationAsync("inst-1", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(new GameInstallation
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(new GameInstallation("/games/zh", GameInstallationType.Retail)
             {
                 Id = "inst-1",
                 HasZeroHour = true,
