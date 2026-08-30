@@ -365,7 +365,10 @@ public partial class GameProfileLauncherViewModel(
 
         try
         {
-            logger.LogInformation("Inspecting shared profile for import from: {Path}", shareUriOrPath);
+            var safeSource = shareUriOrPath.StartsWith("genhub://", StringComparison.OrdinalIgnoreCase)
+                ? "genhub:// URI"
+                : Path.GetFileName(shareUriOrPath);
+            logger.LogInformation("Inspecting shared profile for import from source: {Source}", safeSource);
             var inspectResult = await profileSharingService.InspectSharedProfileAsync(shareUriOrPath);
 
             if (!inspectResult.Success || inspectResult.Data == null)
