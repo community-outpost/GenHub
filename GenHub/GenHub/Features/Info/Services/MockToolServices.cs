@@ -295,6 +295,7 @@ public class MockReplayImportService : IReplayImportService
 /// <summary>
 /// Mock implementation of <see cref="IReplayExportService"/> for testing and demos.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Mock implementation for testing/demo UI")]
 public class MockReplayExportService : IReplayExportService
 {
     /// <inheritdoc/>
@@ -445,6 +446,7 @@ public class MockMapImportService : IMapImportService
 /// <summary>
 /// Mock implementation of <see cref="IMapExportService"/> for testing and demos.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Mock implementation for testing/demo UI")]
 public class MockMapExportService : IMapExportService
 {
     /// <inheritdoc/>
