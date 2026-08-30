@@ -157,9 +157,7 @@ public class CsvResolver(
 
         foreach (var record in records)
         {
-            if (string.IsNullOrWhiteSpace(record.RelativePath) ||
-                Path.IsPathRooted(record.RelativePath) ||
-                record.RelativePath.Contains("..", StringComparison.Ordinal))
+            if (IsUnsafeRelativePath(record.RelativePath))
             {
                 continue;
             }
@@ -177,6 +175,26 @@ public class CsvResolver(
         }
 
         return matchingEntries;
+    }
+
+    private static bool IsUnsafeRelativePath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return true;
+        }
+
+        if (Path.IsPathRooted(path) || path.StartsWith('/') || path.StartsWith('\\'))
+        {
+            return true;
+        }
+
+        if (path.Length >= 2 && char.IsLetter(path[0]) && path[1] == ':')
+        {
+            return true;
+        }
+
+        return path.Contains("..", StringComparison.Ordinal);
     }
 
     private static bool MatchesLanguage(string? entryLanguage, string targetLanguage)
@@ -206,9 +224,19 @@ public class CsvResolver(
             Uri.TryCreate(entry.DownloadUrl, UriKind.Absolute, out var url) &&
             (url.Scheme == Uri.UriSchemeHttp || url.Scheme == Uri.UriSchemeHttps);
 
-        var sourceType = isRemote
-            ? (hasValidDownloadUrl ? ContentSourceType.RemoteDownload : ContentSourceType.GameInstallation)
-            : ContentSourceType.LocalFile;
+        ContentSourceType sourceType;
+        if (!isRemote)
+        {
+            sourceType = ContentSourceType.LocalFile;
+        }
+        else if (hasValidDownloadUrl)
+        {
+            sourceType = ContentSourceType.RemoteDownload;
+        }
+        else
+        {
+            sourceType = ContentSourceType.GameInstallation;
+        }
 
         return new ManifestFile
         {
