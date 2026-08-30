@@ -359,10 +359,10 @@ public class GameProfileModuleTests
     }
 
     /// <summary>
-    /// Tests that ProfileSharingService is registered as singleton.
+    /// Tests that ProfileSharingService is registered as scoped.
     /// </summary>
     [Fact]
-    public void AddGameProfileServices_ProfileSharingService_ShouldBeSingleton()
+    public void AddGameProfileServices_ProfileSharingService_ShouldBeScoped()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -379,19 +379,26 @@ public class GameProfileModuleTests
         services.AddSingleton<IGamePathProvider>(new Mock<IGamePathProvider>().Object);
         services.AddSingleton<ISymlinkCapabilityProvider>(new Mock<ISymlinkCapabilityProvider>().Object);
 
-        services.AddSingleton<IGameInstallationService>(new Mock<IGameInstallationService>().Object);
-        services.AddSingleton<IContentManifestPool>(new Mock<IContentManifestPool>().Object);
-        services.AddSingleton<IContentOrchestrator>(new Mock<IContentOrchestrator>().Object);
-        services.AddSingleton<PublisherManifestFactoryResolver>(new PublisherManifestFactoryResolver([], Microsoft.Extensions.Logging.Abstractions.NullLogger<PublisherManifestFactoryResolver>.Instance));
+        services.AddScoped(provider => new Mock<IGameInstallationService>().Object);
+        services.AddScoped(provider => new Mock<IContentManifestPool>().Object);
+        services.AddScoped(provider => new Mock<IContentOrchestrator>().Object);
+        services.AddScoped(provider => new Mock<IWorkspaceManager>().Object);
+        services.AddScoped(provider => new Mock<ILaunchRegistry>().Object);
+        services.AddScoped<INotificationService>(provider => new Mock<INotificationService>().Object);
+        services.AddScoped<IPublisherReconcilerRegistry>(provider => new Mock<IPublisherReconcilerRegistry>().Object);
 
         // Act
         services.AddGameProfileServices();
         var serviceProvider = services.BuildServiceProvider();
 
         // Assert
-        var instance1 = serviceProvider.GetService<IProfileSharingService>();
-        var instance2 = serviceProvider.GetService<IProfileSharingService>();
+        using var scope1 = serviceProvider.CreateScope();
+        using var scope2 = serviceProvider.CreateScope();
+
+        var instance1 = scope1.ServiceProvider.GetService<IProfileSharingService>();
+        var instance2 = scope2.ServiceProvider.GetService<IProfileSharingService>();
         Assert.NotNull(instance1);
-        Assert.Same(instance1, instance2);
+        Assert.NotNull(instance2);
+        Assert.NotSame(instance1, instance2);
     }
 }

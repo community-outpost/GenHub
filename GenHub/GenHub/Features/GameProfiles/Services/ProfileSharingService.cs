@@ -65,41 +65,6 @@ public class ProfileSharingService(
     // HTTP client whose connections are pinned to previously validated addresses, defeating DNS rebinding.
     private readonly HttpClient safeHttpClient = CreateSafeHttpClient();
 
-    private static HttpClient CreateSafeHttpClient()
-    {
-        var client = new HttpClient(new SocketsHttpHandler
-        {
-            ConnectCallback = (context, token) =>
-                ConnectToValidatedAddressAsync(ValidatedHostAddresses, context, token),
-            AllowAutoRedirect = false,
-        })
-        {
-            Timeout = TimeSpan.FromSeconds(30),
-        };
-
-        client.DefaultRequestHeaders.UserAgent.ParseAdd(ApiConstants.DefaultUserAgent);
-        return client;
-    }
-
-    /// <inheritdoc/>
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    /// <summary>
-    /// Releases managed and unmanaged resources.
-    /// </summary>
-    /// <param name="disposing">True if called from Dispose; false if from finalizer.</param>
-    protected virtual void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            safeHttpClient.Dispose();
-        }
-    }
-
     /// <inheritdoc/>
     public async Task<OperationResult<string>> ExportProfileToUriAsync(string profileId, CancellationToken cancellationToken = default)
     {
@@ -334,6 +299,41 @@ public class ProfileSharingService(
             headerInfo,
             desc,
             shareUri);
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases managed and unmanaged resources.
+    /// </summary>
+    /// <param name="disposing">True if called from Dispose; false if from finalizer.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            safeHttpClient.Dispose();
+        }
+    }
+
+    private static HttpClient CreateSafeHttpClient()
+    {
+        var client = new HttpClient(new SocketsHttpHandler
+        {
+            ConnectCallback = (context, token) =>
+                ConnectToValidatedAddressAsync(ValidatedHostAddresses, context, token),
+            AllowAutoRedirect = false,
+        })
+        {
+            Timeout = TimeSpan.FromSeconds(30),
+        };
+
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(ApiConstants.DefaultUserAgent);
+        return client;
     }
 
     private static bool IsPublicIpAddress(IPAddress ip)
@@ -795,6 +795,33 @@ public class ProfileSharingService(
         }
     }
 
+    private static Dictionary<string, string> ParseQueryParameters(string queryString)
+    {
+        var parameters = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(queryString))
+        {
+            return parameters;
+        }
+
+        var pairs = queryString.Split('&', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var pair in pairs)
+        {
+            int eqIdx = pair.IndexOf('=');
+            if (eqIdx >= 0)
+            {
+                string key = Uri.UnescapeDataString(pair[..eqIdx]);
+                string val = Uri.UnescapeDataString(pair[(eqIdx + 1)..]);
+                parameters[key] = val;
+            }
+            else
+            {
+                parameters[Uri.UnescapeDataString(pair)] = string.Empty;
+            }
+        }
+
+        return parameters;
+    }
+
     private async Task<GameInstallation?> ResolveSelectedInstallationAsync(string? installationId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(installationId))
@@ -1045,33 +1072,6 @@ public class ProfileSharingService(
         }
 
         return OperationResult<string>.CreateFailure($"Unsupported or malformed genhub:// sharing URI: {input}");
-    }
-
-    private static Dictionary<string, string> ParseQueryParameters(string queryString)
-    {
-        var parameters = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (string.IsNullOrWhiteSpace(queryString))
-        {
-            return parameters;
-        }
-
-        var pairs = queryString.Split('&', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var pair in pairs)
-        {
-            int eqIdx = pair.IndexOf('=');
-            if (eqIdx >= 0)
-            {
-                string key = Uri.UnescapeDataString(pair[..eqIdx]);
-                string val = Uri.UnescapeDataString(pair[(eqIdx + 1)..]);
-                parameters[key] = val;
-            }
-            else
-            {
-                parameters[Uri.UnescapeDataString(pair)] = string.Empty;
-            }
-        }
-
-        return parameters;
     }
 
     private async Task<OperationResult<string>> ResolveInlinePayloadAsync(string encoded, CancellationToken cancellationToken)

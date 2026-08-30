@@ -834,11 +834,15 @@ public class ProfileSharingServiceTests
     public async Task ImportSharedProfileAsync_Should_ReturnFailure_WhenManifestsListIsNullAsync()
     {
         // Arrange
-        var profile = CreateTestProfile("profile-null-manifests", "Null Manifests Profile");
         var package = new SharedGameProfilePackage
         {
             SchemaVersion = 1,
-            Profile = SharedGameProfileMetadata.FromGameProfile(profile),
+            Profile = new SharedProfileMetadata
+            {
+                Name = "Null Manifests Profile",
+                GameType = GameType.ZeroHour,
+                GameVersion = "1.04",
+            },
             RequiredManifests = null!,
         };
 
@@ -846,6 +850,7 @@ public class ProfileSharingServiceTests
         {
             Package = package,
             ProfileName = "Imported Null Manifests",
+            GameInstallationId = "inst-1",
         };
 
         // Act
