@@ -191,11 +191,30 @@ public abstract class BasePackageDeploymentFix(
         var key = ComputeInstallationKey(installation);
         var scopedMarker = Path.Combine(baseDir, $"{Path.GetFileNameWithoutExtension(defaultMarkerFileName)}_{key}{Path.GetExtension(defaultMarkerFileName)}");
 
-        // Backward compatibility: check legacy global marker if scoped marker is missing
+        // Backward compatibility: migrate legacy global marker to scoped marker if scoped marker is missing
         var globalMarker = Path.Combine(baseDir, defaultMarkerFileName);
         if (!File.Exists(scopedMarker) && File.Exists(globalMarker))
         {
-            return globalMarker;
+            try
+            {
+                var markerDir = Path.GetDirectoryName(scopedMarker);
+                if (!string.IsNullOrEmpty(markerDir))
+                {
+                    Directory.CreateDirectory(markerDir);
+                }
+
+                File.Copy(globalMarker, scopedMarker, overwrite: false);
+            }
+            catch (IOException ex)
+            {
+                Logger.LogWarning(ex, "Failed to copy legacy global marker {GlobalMarker} to scoped marker {ScopedMarker}", globalMarker, scopedMarker);
+                return globalMarker;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                Logger.LogWarning(ex, "Permission denied copying legacy global marker {GlobalMarker} to scoped marker {ScopedMarker}", globalMarker, scopedMarker);
+                return globalMarker;
+            }
         }
 
         return scopedMarker;
@@ -331,7 +350,11 @@ public abstract class BasePackageDeploymentFix(
             }
 
             var records = ParseMarkerRecords(lines, installation);
-            var (removedCount, restoredCount, restoredBackupPaths, remainingRecords) = RestoreOrDeleteRecordedFiles(records, ct);
+            var (removedCount, restoredCount, restoredBackupPaths, remainingRecords) = RestoreOrDeleteRecordedFiles(
+                records,
+                installation,
+                persistentBackupDir,
+                ct);
 
             var markerUpdated = UpdateMarkerAfterUndo(targetMarkerPath, remainingRecords);
             if (!markerUpdated)
@@ -457,6 +480,72 @@ public abstract class BasePackageDeploymentFix(
         return false;
     }
 
+    /// <summary>
+    /// Rolls back deployed assets and restores backed-up files upon deployment failure.
+    /// </summary>
+    /// <param name="backupEntries">The list of backup entries tracked during deployment.</param>
+    /// <param name="backupDir">The persistent backup directory path.</param>
+    /// <param name="details">The diagnostic details list.</param>
+    protected void RollbackDeployment(
+        List<(string DestPath, bool ExistedBefore, string? BackupPath)> backupEntries,
+        string backupDir,
+        List<string> details)
+    {
+        details.Add("Rolling back deployed assets...");
+        var hasRollbackError = false;
+        foreach (var (destPath, existedBefore, backupPath) in backupEntries)
+        {
+            try
+            {
+                if (existedBefore)
+                {
+                    if (!string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
+                    {
+                        File.Copy(backupPath, destPath, overwrite: true);
+                        DeleteFileSafely(backupPath);
+                    }
+                    else
+                    {
+                        hasRollbackError = true;
+                        Logger.LogWarning("Original backup missing for {DestPath} during rollback", destPath);
+                    }
+                }
+                else if (File.Exists(destPath))
+                {
+                    DeleteFileSafely(destPath);
+                    if (File.Exists(destPath))
+                    {
+                        hasRollbackError = true;
+                    }
+                }
+            }
+            catch (IOException ex)
+            {
+                hasRollbackError = true;
+                Logger.LogWarning(ex, "Failed to restore or remove file during rollback: {Path}", destPath);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                hasRollbackError = true;
+                Logger.LogWarning(ex, "Permission denied restoring or removing file during rollback: {Path}", destPath);
+            }
+        }
+
+        if (!hasRollbackError)
+        {
+            if (Directory.Exists(backupDir) && !Directory.EnumerateFileSystemEntries(backupDir).Any())
+            {
+                DeleteDirectorySafely(backupDir);
+            }
+
+            details.Add("✓ Rollback completed.");
+        }
+        else
+        {
+            details.Add("⚠ Rollback completed with some file warnings. Backups have been retained for recovery.");
+        }
+    }
+
     private static async Task DownloadToFileAsync(HttpResponseMessage response, string tempFile, CancellationToken ct)
     {
         await using var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
@@ -472,6 +561,61 @@ public abstract class BasePackageDeploymentFix(
 
         var bytes = System.Text.Encoding.UTF8.GetBytes(installation.InstallationPath.ToUpperInvariant());
         return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes))[..12].ToLowerInvariant();
+    }
+
+    private static bool IsPathWithinDirectory(string filePath, string directoryPath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath) || string.IsNullOrWhiteSpace(directoryPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            var fullDir = Path.GetFullPath(directoryPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            var fullFile = Path.GetFullPath(filePath);
+            return fullFile.StartsWith(fullDir, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
+        catch (PathTooLongException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsValidDestinationPath(string destPath, GameInstallation installation)
+    {
+        if (string.IsNullOrWhiteSpace(destPath) || !Path.IsPathRooted(destPath))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(installation.InstallationPath) &&
+            IsPathWithinDirectory(destPath, installation.InstallationPath))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(installation.GeneralsPath) &&
+            IsPathWithinDirectory(destPath, installation.GeneralsPath))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(installation.ZeroHourPath) &&
+            IsPathWithinDirectory(destPath, installation.ZeroHourPath))
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private List<(string DestPath, string? BackupPath)> ParseMarkerRecords(string[] lines, GameInstallation installation)
@@ -505,6 +649,8 @@ public abstract class BasePackageDeploymentFix(
 
     private (int RemovedCount, int RestoredCount, List<string> RestoredBackupPaths, List<(string DestPath, string? BackupPath)> RemainingRecords) RestoreOrDeleteRecordedFiles(
         IEnumerable<(string DestPath, string? BackupPath)> records,
+        GameInstallation installation,
+        string persistentBackupDir,
         CancellationToken ct)
     {
         var removedCount = 0;
@@ -516,8 +662,17 @@ public abstract class BasePackageDeploymentFix(
         {
             ct.ThrowIfCancellationRequested();
             var trimmedDest = destPath.Trim();
-            if (string.IsNullOrEmpty(trimmedDest) || !Path.IsPathRooted(trimmedDest))
+            if (!IsValidDestinationPath(trimmedDest, installation))
             {
+                Logger.LogWarning("Skipping recorded destination {FilePath} as it is outside the installation directory", trimmedDest);
+                remainingRecords.Add((trimmedDest, backupPath));
+                continue;
+            }
+
+            if (!string.IsNullOrEmpty(backupPath) && !IsPathWithinDirectory(backupPath, persistentBackupDir))
+            {
+                Logger.LogWarning("Skipping recorded backup {BackupPath} as it is outside the backup directory", backupPath);
+                remainingRecords.Add((trimmedDest, backupPath));
                 continue;
             }
 
@@ -615,61 +770,6 @@ public abstract class BasePackageDeploymentFix(
             Logger.LogWarning(ex, "Permission denied rewriting marker file {MarkerPath} with remaining files", targetMarkerPath);
             DeleteFileSafely(tempMarker);
             return false;
-        }
-    }
-
-    private void RollbackDeployment(
-        List<(string DestPath, bool ExistedBefore, string? BackupPath)> backupEntries,
-        string backupDir,
-        List<string> details)
-    {
-        details.Add("Rolling back deployed assets...");
-        var hasRollbackError = false;
-        foreach (var (destPath, existedBefore, backupPath) in backupEntries)
-        {
-            try
-            {
-                if (existedBefore)
-                {
-                    if (!string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
-                    {
-                        File.Copy(backupPath, destPath, overwrite: true);
-                    }
-                    else
-                    {
-                        hasRollbackError = true;
-                        Logger.LogWarning("Original backup missing for {DestPath} during rollback", destPath);
-                    }
-                }
-                else if (File.Exists(destPath))
-                {
-                    DeleteFileSafely(destPath);
-                    if (File.Exists(destPath))
-                    {
-                        hasRollbackError = true;
-                    }
-                }
-            }
-            catch (IOException ex)
-            {
-                hasRollbackError = true;
-                Logger.LogWarning(ex, "Failed to restore or remove file during rollback: {Path}", destPath);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                hasRollbackError = true;
-                Logger.LogWarning(ex, "Permission denied restoring or removing file during rollback: {Path}", destPath);
-            }
-        }
-
-        if (!hasRollbackError)
-        {
-            DeleteDirectorySafely(backupDir);
-            details.Add("✓ Rollback completed.");
-        }
-        else
-        {
-            details.Add("⚠ Rollback completed with some file warnings. Backups have been retained for recovery.");
         }
     }
 

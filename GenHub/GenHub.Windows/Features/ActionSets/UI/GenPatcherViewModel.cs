@@ -94,6 +94,7 @@ public partial class GenPatcherViewModel(
     private CancellationTokenSource? _batchCts;
     private CancellationTokenSource? _refreshCts;
     private int _refreshVersion;
+    private bool _isRevertingSelection;
 
     /// <summary>
     /// Gets a value indicating whether the user can change the target installation (not busy).
@@ -193,6 +194,11 @@ public partial class GenPatcherViewModel(
 
     partial void OnSelectedInstallationChanged(GameInstallation? oldValue, GameInstallation? newValue)
     {
+        if (_isRevertingSelection)
+        {
+            return;
+        }
+
         if (newValue == null)
         {
             return;
@@ -203,7 +209,18 @@ public partial class GenPatcherViewModel(
             logger.LogWarning("Cannot switch installation while fix is applying. Reverting to previous installation.");
             if (oldValue != null)
             {
-                Avalonia.Threading.Dispatcher.UIThread.Post(() => SelectedInstallation = oldValue);
+                _isRevertingSelection = true;
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    try
+                    {
+                        SelectedInstallation = oldValue;
+                    }
+                    finally
+                    {
+                        _isRevertingSelection = false;
+                    }
+                });
             }
 
             return;

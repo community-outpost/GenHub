@@ -76,7 +76,8 @@ public sealed class BasePackageDeploymentFixTests : IDisposable
         var destFile = Path.Combine(installationPath, "game_asset.dll");
         await File.WriteAllTextAsync(destFile, "ImportantOriginalOrModifiedContent");
 
-        var missingBackupFile = Path.Combine(_testDirectory, "Backups", "missing_backup.bak");
+        var backupDir = fix.PublicGetBackupDirectory(installation);
+        var missingBackupFile = Path.Combine(backupDir, "missing_backup.bak");
         var markerPath = fix.PublicGetMarkerPath(installation);
         var markerDir = Path.GetDirectoryName(markerPath);
         if (!string.IsNullOrEmpty(markerDir))
@@ -94,6 +95,99 @@ public sealed class BasePackageDeploymentFixTests : IDisposable
             File.Exists(destFile).Should().BeTrue("Destination file must be preserved when backup is missing");
             var content = await File.ReadAllTextAsync(destFile);
             content.Should().Be("ImportantOriginalOrModifiedContent");
+        }
+        finally
+        {
+            if (File.Exists(markerPath))
+            {
+                File.Delete(markerPath);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when a marker contains a destination path outside the game installation directory,
+    /// undo rejects modifying or deleting that arbitrary path and returns failure.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the test operation.</returns>
+    [Fact]
+    public async Task Undo_WhenDestPathIsOutsideInstallationDirectory_RejectsPathAndFailsSafely()
+    {
+        var fix = new TestPackageDeploymentFix(_loggerMock.Object, _httpClientFactoryMock.Object);
+        var installationPath = Path.Combine(_testDirectory, "GameInstallDestOutside");
+        Directory.CreateDirectory(installationPath);
+        var installation = new GameInstallation(installationPath, GameInstallationType.Steam);
+
+        var outsideDir = Path.Combine(_testDirectory, "OutsideFolder");
+        Directory.CreateDirectory(outsideDir);
+        var outsideFile = Path.Combine(outsideDir, "critical_file.txt");
+        await File.WriteAllTextAsync(outsideFile, "CriticalProtectedContent");
+
+        var markerPath = fix.PublicGetMarkerPath(installation);
+        var markerDir = Path.GetDirectoryName(markerPath);
+        if (!string.IsNullOrEmpty(markerDir))
+        {
+            Directory.CreateDirectory(markerDir);
+        }
+
+        await File.WriteAllLinesAsync(markerPath, [$"{outsideFile}|"]);
+
+        try
+        {
+            var result = await fix.UndoAsync(installation);
+
+            result.Success.Should().BeFalse();
+            File.Exists(outsideFile).Should().BeTrue("Arbitrary files outside installation directory must never be deleted");
+            var content = await File.ReadAllTextAsync(outsideFile);
+            content.Should().Be("CriticalProtectedContent");
+        }
+        finally
+        {
+            if (File.Exists(markerPath))
+            {
+                File.Delete(markerPath);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when a marker references a backup path outside the designated backup directory,
+    /// undo rejects copying that file into the installation directory.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the test operation.</returns>
+    [Fact]
+    public async Task Undo_WhenBackupPathIsOutsideBackupDirectory_RejectsBackupAndFailsSafely()
+    {
+        var fix = new TestPackageDeploymentFix(_loggerMock.Object, _httpClientFactoryMock.Object);
+        var installationPath = Path.Combine(_testDirectory, "GameInstallBackupOutside");
+        Directory.CreateDirectory(installationPath);
+        var installation = new GameInstallation(installationPath, GameInstallationType.Steam);
+
+        var destFile = Path.Combine(installationPath, "game_asset.dll");
+        await File.WriteAllTextAsync(destFile, "CurrentInstalledContent");
+
+        var untrustedDir = Path.Combine(_testDirectory, "UntrustedLocation");
+        Directory.CreateDirectory(untrustedDir);
+        var untrustedBackupFile = Path.Combine(untrustedDir, "payload.dll");
+        await File.WriteAllTextAsync(untrustedBackupFile, "UntrustedPayloadContent");
+
+        var markerPath = fix.PublicGetMarkerPath(installation);
+        var markerDir = Path.GetDirectoryName(markerPath);
+        if (!string.IsNullOrEmpty(markerDir))
+        {
+            Directory.CreateDirectory(markerDir);
+        }
+
+        await File.WriteAllLinesAsync(markerPath, [$"{destFile}|{untrustedBackupFile}"]);
+
+        try
+        {
+            var result = await fix.UndoAsync(installation);
+
+            result.Success.Should().BeFalse();
+            File.Exists(destFile).Should().BeTrue();
+            var content = await File.ReadAllTextAsync(destFile);
+            content.Should().Be("CurrentInstalledContent", "Destination must not be overwritten from untrusted path outside backup directory");
         }
         finally
         {
@@ -206,6 +300,109 @@ public sealed class BasePackageDeploymentFixTests : IDisposable
         File.Exists(Path.Combine(extractDir, "entry2.dat")).Should().BeFalse();
     }
 
+    /// <summary>
+    /// Verifies that when a legacy global marker exists, GetMarkerPath migrates the records
+    /// to the scoped marker and preserves the global marker for other installations.
+    /// </summary>
+    [Fact]
+    public void GetMarkerPath_WhenLegacyGlobalMarkerExists_MigratesToScopedMarkerAndPreservesGlobalMarker()
+    {
+        var fix = new TestPackageDeploymentFix(_loggerMock.Object, _httpClientFactoryMock.Object);
+        var installationPath = Path.Combine(_testDirectory, "GameInstallLegacyMarker");
+        Directory.CreateDirectory(installationPath);
+        var installation = new GameInstallation(installationPath, GameInstallationType.Steam);
+
+        var scopedMarker = fix.PublicGetMarkerPath(installation);
+        var baseDir = Path.GetDirectoryName(scopedMarker)!;
+        Directory.CreateDirectory(baseDir);
+
+        var globalMarker = Path.Combine(baseDir, "TestPackageDeploymentFix.done");
+        if (File.Exists(scopedMarker))
+        {
+            File.Delete(scopedMarker);
+        }
+
+        File.WriteAllText(globalMarker, "legacy_content");
+
+        try
+        {
+            var resolvedPath = fix.PublicGetMarkerPath(installation);
+
+            resolvedPath.Should().Be(scopedMarker);
+            File.Exists(scopedMarker).Should().BeTrue();
+            File.ReadAllText(scopedMarker).Should().Be("legacy_content");
+            File.Exists(globalMarker).Should().BeTrue("Global marker must be preserved for other installations");
+        }
+        finally
+        {
+            if (File.Exists(scopedMarker))
+            {
+                File.Delete(scopedMarker);
+            }
+
+            if (File.Exists(globalMarker))
+            {
+                File.Delete(globalMarker);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when rollback executes for a failed batch, it only removes this batch's backup files
+    /// and preserves pre-existing backup files from prior deployments.
+    /// </summary>
+    [Fact]
+    public void Rollback_WhenPriorDeploymentBackupsExist_PreservesPriorBackupsInBackupDirectory()
+    {
+        var fix = new TestPackageDeploymentFix(_loggerMock.Object, _httpClientFactoryMock.Object);
+        var installationPath = Path.Combine(_testDirectory, "GameInstallRollback");
+        Directory.CreateDirectory(installationPath);
+        var installation = new GameInstallation(installationPath, GameInstallationType.Steam);
+
+        var backupDir = fix.PublicGetBackupDirectory(installation);
+        Directory.CreateDirectory(backupDir);
+
+        // Pre-existing backup from prior deployment
+        var priorBackupFile = Path.Combine(backupDir, "prior_backup.bak");
+        File.WriteAllText(priorBackupFile, "PriorDeploymentOriginalContent");
+
+        // Current batch deployment entry that needs rollback
+        var destFile = Path.Combine(installationPath, "current_asset.ini");
+        var currentBatchBackupFile = Path.Combine(backupDir, "current_batch_backup.bak");
+        File.WriteAllText(destFile, "CurrentBatchModified");
+        File.WriteAllText(currentBatchBackupFile, "CurrentBatchOriginal");
+
+        var backupEntries = new List<(string DestPath, bool ExistedBefore, string? BackupPath)>
+        {
+            (destFile, true, currentBatchBackupFile),
+        };
+        var details = new List<string>();
+
+        try
+        {
+            fix.PublicRollbackDeployment(backupEntries, backupDir, details);
+
+            // Current batch destination should be restored
+            File.Exists(destFile).Should().BeTrue();
+            File.ReadAllText(destFile).Should().Be("CurrentBatchOriginal");
+
+            // Current batch backup file should be deleted
+            File.Exists(currentBatchBackupFile).Should().BeFalse();
+
+            // Prior deployment backup file must still exist and backup directory must not be deleted
+            Directory.Exists(backupDir).Should().BeTrue("Backup directory must be retained when prior backups exist");
+            File.Exists(priorBackupFile).Should().BeTrue("Prior deployment backup must not be destroyed by failed re-apply rollback");
+            File.ReadAllText(priorBackupFile).Should().Be("PriorDeploymentOriginalContent");
+        }
+        finally
+        {
+            if (Directory.Exists(backupDir))
+            {
+                Directory.Delete(backupDir, true);
+            }
+        }
+    }
+
     private static async Task CreateValidMultiEntryZipAsync(string archivePath)
     {
         using var zipArchive = ZipFile.Open(archivePath, ZipArchiveMode.Create);
@@ -274,6 +471,11 @@ public sealed class BasePackageDeploymentFixTests : IDisposable
         public string PublicGetMarkerPath(GameInstallation installation) => GetMarkerPath(installation);
 
         public string PublicGetBackupDirectory(GameInstallation installation) => GetBackupDirectory(installation);
+
+        public void PublicRollbackDeployment(
+            List<(string DestPath, bool ExistedBefore, string? BackupPath)> backupEntries,
+            string backupDir,
+            List<string> details) => RollbackDeployment(backupEntries, backupDir, details);
 
         protected override bool AreAssetsPresent(GameInstallation installation) => false;
 
