@@ -198,8 +198,14 @@ public sealed class ReplayDirectoryService(
                     $"No game installation found on this system supporting {replay.GameVersion}.");
             }
 
-            var request = BuildCreateProfileRequest(replay, installation);
+            var requestResult = BuildCreateProfileRequest(replay, installation);
+            if (!requestResult.Success || requestResult.Data == null)
+            {
+                return ProfileOperationResult<GameProfile>.CreateFailure(
+                    requestResult.FirstError ?? "Failed to create profile request for replay.");
+            }
 
+            var request = requestResult.Data;
             var createResult = await profileManager.CreateProfileAsync(request, ct);
             if (createResult.Success && createResult.Data != null)
             {
@@ -276,20 +282,22 @@ public sealed class ReplayDirectoryService(
             (gameVersion == GameType.ZeroHour && i.HasZeroHour));
     }
 
-    private static CreateProfileRequest BuildCreateProfileRequest(ReplayFile replay, GameInstallation installation)
+    private static OperationResult<CreateProfileRequest> BuildCreateProfileRequest(ReplayFile replay, GameInstallation installation)
     {
-        var clientName = replay.MatchedClient?.Description ?? $"{replay.MatchedClient?.Publisher} {replay.MatchedClient?.Version}";
-        var profileName = $"{clientName} (Replay: {Path.GetFileNameWithoutExtension(replay.FileName)})";
-
         var targetClient = replay.GameVersion == GameType.Generals ? installation.GeneralsClient : installation.ZeroHourClient;
         var targetPath = replay.GameVersion == GameType.Generals ? installation.GeneralsPath : installation.ZeroHourPath;
-        var defaultExeName = replay.GameVersion == GameType.Generals
-            ? GameClientConstants.GeneralsExecutable
-            : (string.Equals(replay.MatchedClient?.Publisher, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase)
-                ? GameClientConstants.SuperHackersZeroHourExecutable
-                : GameClientConstants.ZeroHourExecutable);
+        var defaultExeName = GetDefaultExecutableName(replay.GameVersion, replay.MatchedClient?.Publisher);
         var workingDir = !string.IsNullOrEmpty(targetPath) ? targetPath : installation.InstallationPath;
         var exePath = targetClient?.ExecutablePath ?? (!string.IsNullOrEmpty(workingDir) ? Path.Combine(workingDir, defaultExeName) : string.Empty);
+
+        if (string.IsNullOrWhiteSpace(exePath))
+        {
+            return OperationResult<CreateProfileRequest>.CreateFailure(
+                $"Could not determine executable path for {replay.GameVersion} installation '{installation.Id}'.");
+        }
+
+        var clientName = replay.MatchedClient?.Description ?? $"{replay.MatchedClient?.Publisher} {replay.MatchedClient?.Version}";
+        var profileName = $"{clientName} (Replay: {Path.GetFileNameWithoutExtension(replay.FileName)})";
 
         var gameClient = new GameClient
         {
@@ -303,7 +311,7 @@ public sealed class ReplayDirectoryService(
             WorkingDirectory = workingDir,
         };
 
-        return new CreateProfileRequest
+        var request = new CreateProfileRequest
         {
             Name = profileName,
             Description = $"Profile configured for {clientName} (Exe: {replay.Metadata?.FormattedExeCrc}, INI: {replay.Metadata?.FormattedIniCrc})",
@@ -314,6 +322,23 @@ public sealed class ReplayDirectoryService(
             WorkspaceStrategy = WorkspaceStrategy.HardLink,
             UseSteamLaunch = installation.InstallationType == GameInstallationType.Steam,
         };
+
+        return OperationResult<CreateProfileRequest>.CreateSuccess(request);
+    }
+
+    private static string GetDefaultExecutableName(GameType gameVersion, string? publisher)
+    {
+        if (gameVersion == GameType.Generals)
+        {
+            return GameClientConstants.GeneralsExecutable;
+        }
+
+        if (string.Equals(publisher, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
+        {
+            return GameClientConstants.SuperHackersZeroHourExecutable;
+        }
+
+        return GameClientConstants.ZeroHourExecutable;
     }
 
     private async Task<(HashSet<string> AcquiredIds, List<GameProfile> Profiles)> FetchAcquiredManifestIdsAndProfilesAsync(CancellationToken ct)

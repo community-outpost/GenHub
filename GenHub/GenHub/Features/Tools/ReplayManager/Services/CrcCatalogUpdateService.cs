@@ -84,9 +84,8 @@ public sealed class CrcCatalogUpdateService(
             await SaveLocalFallbackAsync(catalog, cancellationToken);
 
             logger.LogInformation("Successfully updated CRC mapping catalog with {Count} entries", catalog.Mappings.Count);
-            return ContentUpdateCheckResult.CreateContentAvailable(
-                catalog.LastUpdated?.ToString("O") ?? "1",
-                $"Updated {catalog.Mappings.Count} CRC mapping entries.");
+            return ContentUpdateCheckResult.CreateNoUpdateAvailable(
+                catalog.LastUpdated?.ToString("O") ?? "1");
         }
         catch (Exception ex) when (ex is IOException or HttpRequestException or JsonException)
         {
