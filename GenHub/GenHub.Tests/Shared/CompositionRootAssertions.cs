@@ -104,7 +104,6 @@ public static class CompositionRootAssertions
         ("GenHub.Core.Interfaces.Content.IContentValidator", "GenHub.Core.Interfaces.Workspace.IFileOperationsService"),
         ("GenHub.Core.Interfaces.GameInstallations.IGameInstallationService", "GenHub.Core.Interfaces.Common.IDownloadService"),
         ("GenHub.Core.Interfaces.GameInstallations.IGameInstallationService", "GenHub.Core.Interfaces.Manifest.IManifestGenerationService"),
-        ("GenHub.Core.Interfaces.Launching.ILaunchRegistry", "GenHub.Core.Interfaces.Workspace.IWorkspaceManager"),
         ("GenHub.Core.Interfaces.Tools.ReplayManager.IReplayImportService", "GenHub.Core.Interfaces.Common.IDownloadService"),
         ("Microsoft.Extensions.Hosting.IHostedService", "GenHub.Features.Manifest.ManifestDiscoveryService"),
     ];
