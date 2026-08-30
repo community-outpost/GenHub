@@ -11,7 +11,6 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
-using GenHub.Core.Interfaces.Cas;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
@@ -560,8 +559,8 @@ mkdir -p ""$TARGET_DIR""
 if ! cp -a ""$SOURCE_DIR/."" ""$TARGET_DIR/"" 2>&1; then
     write_log ""Error: Failed to copy migration files""
     if [ -d ""$BACKUP_DIR"" ]; then
-        rm -rf ""$TARGET_DIR""/* ""$TARGET_DIR""/.[!.]* 2>/dev/null || true
-        cp -a ""$BACKUP_DIR/."" ""$TARGET_DIR/"" 2>/dev/null || true
+        rm -rf ""${TARGET_DIR:?}""/* ""${TARGET_DIR:?}""/.[!.]* 2>/dev/null || true
+        cp -a ""${BACKUP_DIR:?}/."" ""$TARGET_DIR/"" 2>/dev/null || true
     fi
     exit 1
 fi
@@ -576,10 +575,10 @@ if [ -f ""$CURRENT_EXE"" ]; then
     nohup ""./$EXE_NAME"" > /dev/null 2>&1 &
 fi
 
-rm -rf ""$SOURCE_DIR"" 2>/dev/null || true
+rm -rf ""${SOURCE_DIR:?}"" 2>/dev/null || true
 UPDATER_DIR=$(dirname ""$0"")
 sleep 2
-rm -rf ""$UPDATER_DIR"" 2>/dev/null || true
+rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
 ";
     }
 
