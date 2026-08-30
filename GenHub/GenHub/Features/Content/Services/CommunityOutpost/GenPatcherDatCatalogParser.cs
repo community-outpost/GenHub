@@ -301,6 +301,7 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
                 ProviderName = provider.PublisherType,
                 AuthorName = provider.DisplayName,
                 SourceUrl = preferredUrl,
+                IconUrl = CommunityOutpostConstants.LogoSource,
                 DownloadSize = item.FileSize,
                 RequiresResolution = true,
                 ResolverId = provider.ProviderId,
@@ -320,6 +321,22 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
             if (!string.IsNullOrEmpty(metadata.LanguageCode))
             {
                 result.Tags.Add(metadata.LanguageCode);
+            }
+
+            // when this content supports variants (resolution/language), populate variant grouping and selectable variants
+            if (metadata.SupportsVariants && metadata.Variants is { Count: > 0 } variants)
+            {
+                result.VariantGroupId = $"{publisherName}.{contentType}.{item.ContentCode.ToLowerInvariant()}";
+                result.VariantFamilyName = metadata.DisplayName;
+                result.Variants = [.. variants
+                    .Select(v => new ContentVariantInfo
+                    {
+                        Id = v.Id,
+                        Name = v.Name,
+                        VariantType = v.VariantType ?? "resolution",
+                        ManifestId = $"1.0.{publisherName}.{contentType}.{item.ContentCode.ToLowerInvariant()}-{v.Id}",
+                        IsDefault = v.IsDefault,
+                    })];
             }
 
             // Store metadata for resolver

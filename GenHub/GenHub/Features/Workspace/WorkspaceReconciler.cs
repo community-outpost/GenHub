@@ -33,7 +33,9 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
         bool forceFullVerification = false)
     {
         var deltas = new List<WorkspaceDelta>();
-        var workspacePath = Path.Combine(configuration.WorkspaceRootPath, configuration.Id);
+        var workspacePath = !string.IsNullOrEmpty(workspaceInfo?.WorkspacePath)
+            ? workspaceInfo.WorkspacePath
+            : Path.Combine(configuration.WorkspaceRootPath ?? string.Empty, configuration.Id);
 
         // Build a dictionary tracking ALL occurrences of each file for conflict resolution
         // Key: relative file path, Value: list of (file, contentType, manifestId) tuples
@@ -128,6 +130,19 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
 
             if (!existingFiles.Contains(relativePath))
             {
+                if (IsOptionalOrSkippedFile(relativePath))
+                {
+                    // Optional media skipped or removed by launcher settings is not a missing file defect
+                    deltas.Add(new WorkspaceDelta
+                    {
+                        Operation = WorkspaceDeltaOperation.Skip,
+                        File = manifestFile,
+                        WorkspacePath = fullPath,
+                        Reason = "Optional file skipped or removed by configuration",
+                    });
+                    continue;
+                }
+
                 // File missing from workspace - needs to be added
                 deltas.Add(new WorkspaceDelta
                 {
@@ -170,6 +185,11 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
         {
             if (!expectedFiles.ContainsKey(relativePath))
             {
+                if (IsRuntimeOrIgnoredWorkspaceFile(relativePath))
+                {
+                    continue;
+                }
+
                 var fullPath = Path.Combine(workspacePath, relativePath);
                 deltas.Add(new WorkspaceDelta
                 {
@@ -192,6 +212,23 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
             stats.GetValueOrDefault(WorkspaceDeltaOperation.Skip, 0));
 
         return deltas;
+    }
+
+    private static bool IsOptionalOrSkippedFile(string relativePath)
+    {
+        var fileName = Path.GetFileName(relativePath.Replace('\\', '/'));
+        return string.Equals(fileName, "EA_LOGO.BIK", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(fileName, "EA_LOGO640.BIK", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsRuntimeOrIgnoredWorkspaceFile(string relativePath)
+    {
+        var fileName = Path.GetFileName(relativePath.Replace('\\', '/'));
+        return fileName.StartsWith(".gh", StringComparison.OrdinalIgnoreCase) ||
+               fileName.EndsWith(".log", StringComparison.OrdinalIgnoreCase) ||
+               fileName.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(fileName, "launch.receipt.json", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(fileName, "ReleaseCrashInfo.txt", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

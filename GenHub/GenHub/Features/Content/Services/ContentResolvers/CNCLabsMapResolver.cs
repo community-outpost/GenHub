@@ -11,14 +11,13 @@ using AngleSharp.Dom;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Helpers;
 using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging;
-
-using File = GenHub.Core.Models.Parsers.File;
 using ParsedContentDetails = GenHub.Core.Models.Content.ParsedContentDetails;
 
 namespace GenHub.Features.Content.Services.ContentResolvers;
@@ -48,6 +47,11 @@ public class CNCLabsMapResolver(
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken = default)
     {
+        logger.LogInformation(
+            "[TEMP] CNCLabsMapResolver.ResolveAsync called - Item: {Name}, SourceUrl: {Url}",
+            discoveredItem?.Name,
+            discoveredItem?.SourceUrl);
+
         if (discoveredItem?.SourceUrl == null)
         {
             return OperationResult<ContentManifest>.CreateFailure("Invalid discovered item or source URL");
@@ -80,16 +84,6 @@ public class CNCLabsMapResolver(
             // Parse details from HTML
             var mapDetails = await ParseMapDetailPageAsync(html, cancellationToken);
 
-            // Fallback: Construct download URL from Map ID if parsing failed
-            if (string.IsNullOrEmpty(mapDetails.DownloadUrl) && mapId.HasValue)
-            {
-                mapDetails = mapDetails with
-                {
-                    DownloadUrl = $"{CNCLabsConstants.PublisherWebsite}/downloads/fetch.aspx?id={mapId}",
-                };
-                logger.LogWarning("Download URL parsing failed. Constructed fallback URL: {FallbackUrl}", mapDetails.DownloadUrl);
-            }
-
             if (string.IsNullOrEmpty(mapDetails.DownloadUrl))
             {
                 return OperationResult<ContentManifest>.CreateFailure("No download URL found in map details");
@@ -97,8 +91,29 @@ public class CNCLabsMapResolver(
 
             if (!mapId.HasValue)
             {
-                logger.LogWarning("Invalid or missing map ID in resolver metadata for {Url}", discoveredItem.SourceUrl);
-                return OperationResult<ContentManifest>.CreateFailure("Invalid map ID in resolver metadata");
+                 logger.LogWarning("Invalid or missing map ID in resolver metadata for {Url}", discoveredItem.SourceUrl);
+                 return OperationResult<ContentManifest>.CreateFailure("Invalid map ID in resolver metadata");
+            }
+
+            // The new site shows no title element in some detail pages; fall back to the
+            // discovered item's name when the parser could not find one.
+            if (string.IsNullOrEmpty(mapDetails.Name))
+            {
+                mapDetails = mapDetails with { Name = discoveredItem.Name ?? string.Empty };
+            }
+
+            // The redesigned detail page no longer exposes the breadcrumb the parser used for
+            // game/content-type detection, so those come back as Unknown. The discoverer already
+            // knows both from the list page the user browsed (e.g. Zero Hour Maps), so trust it.
+            if (mapDetails.ContentType == ContentType.UnknownContentType && discoveredItem.ContentType != ContentType.UnknownContentType)
+            {
+                mapDetails = mapDetails with { ContentType = discoveredItem.ContentType };
+            }
+
+            if (mapDetails.TargetGame == GameType.Unknown &&
+                discoveredItem.TargetGame != GameType.Unknown)
+            {
+                mapDetails = mapDetails with { TargetGame = discoveredItem.TargetGame };
             }
 
             // Use factory to create manifest
@@ -135,6 +150,20 @@ public class CNCLabsMapResolver(
             .FirstOrDefault(s => s.TextContent?.Trim().EndsWith(label, StringComparison.OrdinalIgnoreCase) == true);
 
         return CNCLabsHelper.GetNextNonEmptyTextSibling(strongEl);
+    }
+
+    /// <summary>
+    /// Reads a value from the detail page's definition list (2026 Bootstrap redesign), e.g.
+    /// dt "Submitted" → dd "May 14, 2026".
+    /// </summary>
+    /// <param name="document">The parsed document.</param>
+    /// <param name="label">The dt label to look for.</param>
+    /// <returns>The dd text, or null when not present.</returns>
+    private static string? ExtractDefinitionValue(IDocument document, string label)
+    {
+        var dt = document.QuerySelectorAll("dt")
+            .FirstOrDefault(d => string.Equals(d.TextContent?.Trim(), label, StringComparison.OrdinalIgnoreCase));
+        return dt?.NextElementSibling?.TextContent?.Trim();
     }
 
     /// <summary>
@@ -181,13 +210,9 @@ public class CNCLabsMapResolver(
         var (gameType, contentType) = CNCLabsHelper.ExtractBreadcrumbCategory(document);
         logger.LogDebug("Detected game type: {GameType}, content type: {ContentType}", gameType, contentType);
 
-        // 5. Download URL
-        // 5. Download URL - Try multiple selectors for robustness
-        var downloadLink = document.QuerySelector("a[href*='DownloadFile.aspx']")
-                           ?? document.QuerySelector("a[href*='downloader.aspx']")
-                           ?? document.QuerySelector("#ctl00_Main_MapDisplay_DownloadLink")
-                           ?? document.QuerySelector("a[id$='DownloadButton']")
-                           ?? document.QuerySelector("div.DownloadButton a");
+        // 2026 site redesign: one tokenized download anchor per detail page. The token works with
+        // a plain GET and no cookies (verified), so keep the href exactly as served.
+        var downloadLink = document.QuerySelector("a[href*='/downloads/file/']");
 
         var downloadUrl = downloadLink?.GetAttribute(CNCLabsConstants.HrefAttribute) ?? string.Empty;
 
@@ -206,32 +231,34 @@ public class CNCLabsMapResolver(
 
         logger.LogDebug("Parsed download URL: {DownloadUrl}", downloadUrl);
 
-        // 6. File metadata (optional but useful)
-        var fileSizeText = ExtractMetadataValue(document, "File Size:");
+        // 6. File metadata (optional but useful). Prefer the 2026 redesign's <dl> definition list,
+        // then fall back to the legacy <strong>-based extraction for older cached pages.
+        var fileSizeText = ExtractDefinitionValue(document, "File Size") ?? ExtractMetadataValue(document, "File Size:");
         var fileSize = FileSizeFormatter.ParseToBytes(fileSizeText);
 
-        var submittedText = ExtractMetadataValue(document, "Submitted:");
+        var submittedText = ExtractDefinitionValue(document, "Submitted") ?? ExtractMetadataValue(document, "Submitted:");
         var submissionDate = DateTime.TryParse(submittedText, out var sd) ? sd : DateTime.MinValue;
 
-        var downloadsText = ExtractMetadataValue(document, "Downloads:");
+        var downloadsText = ExtractDefinitionValue(document, "Downloads") ?? ExtractMetadataValue(document, "Downloads:");
         var downloadCount = int.TryParse(downloadsText?.Replace(",", string.Empty), out var dc) ? dc : 0;
 
-        var ratingText = ExtractMetadataValue(document, "Rating:");
+        var ratingText = ExtractDefinitionValue(document, "Rating") ?? ExtractMetadataValue(document, "Rating:");
         var rating = float.TryParse(ratingText, NumberStyles.Float, CultureInfo.InvariantCulture, out var r) ? r : 0f;
 
         // 7. Preview/screenshots (if available)
         var previewImage = document.QuerySelector("img.PreviewImage")?.GetAttribute("src") ?? string.Empty;
         if (!string.IsNullOrEmpty(previewImage) && !previewImage.StartsWith("http", StringComparison.OrdinalIgnoreCase))
         {
-            previewImage = $"https://www.cnclabs.com{previewImage}";
+            previewImage = $"{CNCLabsConstants.PublisherWebsite}{previewImage}";
         }
 
         var screenshots = document.QuerySelectorAll("img.Screenshot")
             .Select(img => img.GetAttribute("src"))
-            .Where(src => !string.IsNullOrEmpty(src))
+            .OfType<string>()
+            .Where(src => !string.IsNullOrWhiteSpace(src))
             .Select(src => src.StartsWith("http", StringComparison.OrdinalIgnoreCase)
                 ? src
-                : $"https://www.cnclabs.com{src}")
+                : $"{CNCLabsConstants.PublisherWebsite}{src}")
             .ToList();
 
         return new ParsedContentDetails(

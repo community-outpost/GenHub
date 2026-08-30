@@ -506,4 +506,48 @@ public class SuperHackersProviderTests
         Assert.Single(items);
         Assert.Equal("Community Patch 2.0 Alpha 4", items[0].Name);
     }
+
+    /// <summary>
+    /// Verifies that SearchAsync sets display name when release name is pure version like 1.0.0.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SearchAsync_GeneralsGamePatch2_WhenReleaseNameIsVersionString_SetsDisplayNameAsync()
+    {
+        // Arrange
+        var release = new GitHubRelease
+        {
+            TagName = "1.0.0",
+            Name = "1.0.0",
+            Body = "## What's Changed\n* bugfix: Fixed crash",
+            HtmlUrl = "https://github.com/TheSuperHackers/GeneralsGamePatch2/releases/tag/1.0.0",
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+
+        _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
+            SuperHackersConstants.GeneralsGamePatch2Owner,
+            SuperHackersConstants.GeneralsGamePatch2Repo,
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(release);
+
+        _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
+            SuperHackersConstants.GeneralsGameCodeOwner,
+            SuperHackersConstants.GeneralsGameCodeRepo,
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync((GitHubRelease)null!);
+
+        var query = new ContentSearchQuery { ContentType = ContentType.Patch };
+
+        // Act
+        var result = await _provider.SearchAsync(query);
+
+        // Assert
+        Assert.True(result.Success);
+        var items = result.Data?.ToList();
+        Assert.NotNull(items);
+        Assert.Single(items);
+        Assert.Equal(SuperHackersConstants.GeneralsGamePatch2DisplayName, items[0].Name);
+        Assert.Equal(PublisherInfoConstants.TheSuperHackers.LogoSource, items[0].IconUrl);
+        Assert.Contains("• bugfix: Fixed crash", items[0].Description);
+    }
 }

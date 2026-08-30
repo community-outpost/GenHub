@@ -400,9 +400,11 @@ public class ManifestGenerationService(
             }
 
             var contentName = gameType.ToString().ToLowerInvariant();
+            var executableFileName = Path.GetFileName(executablePath);
             var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, downloadService, configurationProvider)
                 .WithBasicInfo(publisher, contentName, clientVersion)
-                .WithContentType(ContentType.GameClient, gameType);
+                .WithContentType(ContentType.GameClient, gameType)
+                .WithEntryPoint(executableFileName);
 
             await AddClientFilesToManifest(builder, installationPath, gameType, executablePath, publisher.Name);
 
@@ -460,11 +462,13 @@ public class ManifestGenerationService(
             };
 
             // Create unique manifest name based on executable to distinguish variants (60Hz, standard)
-            var executableFileName = Path.GetFileNameWithoutExtension(executablePath).ToLowerInvariant();
-            var contentName = $"{gameType.ToString().ToLowerInvariant()}{executableFileName.Replace("-", string.Empty).Replace(".", string.Empty)}";
+            var executableFileName = Path.GetFileName(executablePath);
+            var executableStem = Path.GetFileNameWithoutExtension(executablePath).ToLowerInvariant();
+            var contentName = $"{gameType.ToString().ToLowerInvariant()}{executableStem.Replace("-", string.Empty).Replace(".", string.Empty)}";
             var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, downloadService, configurationProvider)
                 .WithBasicInfo(publisher, contentName, clientVersion)
                 .WithContentType(ContentType.GameClient, gameType)
+                .WithEntryPoint(executableFileName)
                 .WithMetadata(
                     "GeneralsOnline community client with auto-updates and enhanced compatibility",
                     tags: ["community", "enhanced", "multiplayer", "auto-update"]);

@@ -173,9 +173,19 @@ public class GeneralsOnlineManifestFactory(
     }
 
     /// <inheritdoc />
+    public Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+        ContentManifest originalManifest,
+        string extractedDirectory,
+        CancellationToken cancellationToken = default)
+    {
+        return CreateManifestsFromExtractedContentAsync(originalManifest, extractedDirectory, progress: null, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
+        IProgress<GenHub.Core.Models.Content.ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Creating GeneralsOnline manifests from extracted content in: {Directory}", extractedDirectory);
@@ -240,6 +250,9 @@ public class GeneralsOnlineManifestFactory(
     /// Determines whether a manifest-relative path is the named file at the archive root.
     /// Nested files that merely share the name are not the published entry point.
     /// </summary>
+    /// <param name="relativePath">The candidate path.</param>
+    /// <param name="fileName">The target file name.</param>
+    /// <returns><c>true</c> if the path resolves to <paramref name="fileName"/> at the root; otherwise, <c>false</c>.</returns>
     private static bool IsArchiveRootFile(string relativePath, string fileName) =>
         string.Equals(
             relativePath.Replace('\\', '/').TrimStart('/'),
@@ -248,13 +261,13 @@ public class GeneralsOnlineManifestFactory(
 
     private static ManifestFile CreateMapManifestFile(string relativePath, FileInfo fileInfo, string hash)
     {
-        // For maps, the relative path should be relative to the Maps directory
-        // e.g., "Maps/SomeMap/SomeMap.map" -> "SomeMap/SomeMap.map"
+        // For maps, relative path should be relative to the Maps directory if present
         var mapRelativePath = relativePath;
-        if (relativePath.StartsWith(GeneralsOnlineConstants.MapsSubdirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
-            relativePath.StartsWith(GeneralsOnlineConstants.MapsSubdirectory + "/", StringComparison.OrdinalIgnoreCase))
+        var pathSegments = relativePath.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.None);
+        var mapsIndex = Array.FindIndex(pathSegments, s => s.Equals(GeneralsOnlineConstants.MapsSubdirectory, StringComparison.OrdinalIgnoreCase));
+        if (mapsIndex >= 0 && mapsIndex < pathSegments.Length - 1)
         {
-            mapRelativePath = relativePath[(GeneralsOnlineConstants.MapsSubdirectory.Length + 1)..];
+            mapRelativePath = string.Join(Path.DirectorySeparatorChar, pathSegments[(mapsIndex + 1)..]);
         }
 
         return new ManifestFile
@@ -409,8 +422,6 @@ public class GeneralsOnlineManifestFactory(
             Files = [], // Files will be populated during extraction
             Dependencies =
             [
-
-                // MapPack requires Zero Hour installation
                 GeneralsOnlineDependencyBuilder.CreateZeroHourDependencyForGeneralsOnline(),
             ],
             InstallationInstructions = new InstallationInstructions(),
@@ -450,67 +461,130 @@ public class GeneralsOnlineManifestFactory(
         // Create metadata template
         var releaseDate = originalManifest.Metadata?.ReleaseDate ?? DateTime.UtcNow;
         var changelogUrl = originalManifest.Metadata?.ChangelogUrl;
+        var isOriginalMapPack = originalManifest.ContentType == ContentType.MapPack ||
+                                 originalManifest.Id.Value.Contains("mappack", StringComparison.OrdinalIgnoreCase) ||
+                                 originalManifest.Id.Value.Contains("quickmatch", StringComparison.OrdinalIgnoreCase);
 
-        // Create 60Hz variant
-        manifests.Add(new ContentManifest
+        if (isOriginalMapPack)
         {
-            Id = ManifestId.Create(ManifestIdGenerator.GeneratePublisherContentId(
-                PublisherTypeConstants.GeneralsOnline,
-                ContentType.GameClient,
-                GeneralsOnlineConstants.Variant60HzSuffix,
-                userVersion)),
-            Name = GameClientConstants.GeneralsOnline60HzDisplayName,
-            Version = version,
-            ContentType = ContentType.GameClient,
-            TargetGame = GameType.ZeroHour,
-            Publisher = publisherInfo,
-            Metadata = new ContentMetadata
+            // When acquiring a MapPack specifically, place MapPack FIRST and preserve the original manifest ID
+            manifests.Add(new ContentManifest
             {
-                Description = GeneralsOnlineConstants.ShortDescription,
-                ReleaseDate = releaseDate,
-                IconUrl = iconUrl,
-                ThemeColor = GeneralsOnlineConstants.ThemeColor,
-                Tags = [.. GeneralsOnlineConstants.Tags, .. GetVariantTags(GeneralsOnlineConstants.Variant60HzSuffix)],
-                ChangelogUrl = changelogUrl,
-                CoverUrl = GeneralsOnlineConstants.CoverSource,
-            },
-            Files = [],
-            Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesFor60Hz(userVersion),
-            InstallationInstructions = originalManifest.InstallationInstructions ?? new InstallationInstructions
-            {
-                WorkspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy,
-            },
-        });
+                Id = originalManifest.Id,
+                Name = originalManifest.Name ?? GeneralsOnlineConstants.QuickMatchMapPackDisplayName,
+                Version = version,
+                ContentType = ContentType.MapPack,
+                TargetGame = GameType.ZeroHour,
+                Publisher = publisherInfo,
+                OriginalProviderName = originalManifest.OriginalProviderName,
+                OriginalContentId = originalManifest.OriginalContentId,
+                Metadata = originalManifest.Metadata ?? new ContentMetadata
+                {
+                    Description = GeneralsOnlineConstants.QuickMatchMapPackDescription,
+                    ReleaseDate = releaseDate,
+                    IconUrl = iconUrl,
+                    ThemeColor = GeneralsOnlineConstants.ThemeColor,
+                    Tags = [.. GeneralsOnlineConstants.MapPackTags, .. GetVariantTags(GeneralsOnlineConstants.QuickMatchMapPackSuffix)],
+                    ChangelogUrl = changelogUrl,
+                },
+                Files = [],
+                Dependencies =
+                [
+                    GeneralsOnlineDependencyBuilder.CreateZeroHourDependencyForGeneralsOnline(),
+                ],
+            });
 
-        // Create QuickMatch MapPack
-        manifests.Add(new ContentManifest
-        {
-            Id = ManifestId.Create(ManifestIdGenerator.GeneratePublisherContentId(
-                PublisherTypeConstants.GeneralsOnline,
-                ContentType.MapPack,
-                GeneralsOnlineConstants.QuickMatchMapPackSuffix,
-                userVersion)),
-            Name = GeneralsOnlineConstants.QuickMatchMapPackDisplayName,
-            Version = version,
-            ContentType = ContentType.MapPack,
-            TargetGame = GameType.ZeroHour,
-            Publisher = publisherInfo,
-            Metadata = new ContentMetadata
+            // Also include 60Hz variant as secondary option
+            manifests.Add(new ContentManifest
             {
-                Description = GeneralsOnlineConstants.QuickMatchMapPackDescription,
-                ReleaseDate = releaseDate,
-                IconUrl = iconUrl,
-                ThemeColor = GeneralsOnlineConstants.ThemeColor,
-                Tags = [.. GeneralsOnlineConstants.MapPackTags, .. GetVariantTags(GeneralsOnlineConstants.QuickMatchMapPackSuffix)],
-                ChangelogUrl = changelogUrl,
-            },
-            Files = [],
-            Dependencies =
-            [
-                GeneralsOnlineDependencyBuilder.CreateZeroHourDependencyForGeneralsOnline(),
-            ],
-            InstallationInstructions = new InstallationInstructions(),
-        });
+                Id = ManifestId.Create(ManifestIdGenerator.GeneratePublisherContentId(
+                    PublisherTypeConstants.GeneralsOnline,
+                    ContentType.GameClient,
+                    GeneralsOnlineConstants.Variant60HzSuffix,
+                    userVersion)),
+                Name = GameClientConstants.GeneralsOnline60HzDisplayName,
+                Version = version,
+                ContentType = ContentType.GameClient,
+                TargetGame = GameType.ZeroHour,
+                Publisher = publisherInfo,
+                OriginalProviderName = originalManifest.OriginalProviderName,
+                OriginalContentId = originalManifest.OriginalContentId,
+                Metadata = new ContentMetadata
+                {
+                    Description = GeneralsOnlineConstants.ShortDescription,
+                    ReleaseDate = releaseDate,
+                    IconUrl = iconUrl,
+                    ThemeColor = GeneralsOnlineConstants.ThemeColor,
+                    Tags = [.. GeneralsOnlineConstants.Tags, .. GetVariantTags(GeneralsOnlineConstants.Variant60HzSuffix)],
+                    ChangelogUrl = changelogUrl,
+                    CoverUrl = GeneralsOnlineConstants.CoverSource,
+                },
+                Files = [],
+                Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesFor60Hz(userVersion),
+            });
+        }
+        else
+        {
+            // Standard GameClient acquisition: 60Hz first, QuickMatch MapPack second
+            manifests.Add(new ContentManifest
+            {
+                Id = originalManifest.ContentType == ContentType.GameClient ? originalManifest.Id : ManifestId.Create(ManifestIdGenerator.GeneratePublisherContentId(
+                    PublisherTypeConstants.GeneralsOnline,
+                    ContentType.GameClient,
+                    GeneralsOnlineConstants.Variant60HzSuffix,
+                    userVersion)),
+                Name = GameClientConstants.GeneralsOnline60HzDisplayName,
+                Version = version,
+                ContentType = ContentType.GameClient,
+                TargetGame = GameType.ZeroHour,
+                Publisher = publisherInfo,
+                OriginalProviderName = originalManifest.OriginalProviderName,
+                OriginalContentId = originalManifest.OriginalContentId,
+                Metadata = new ContentMetadata
+                {
+                    Description = GeneralsOnlineConstants.ShortDescription,
+                    ReleaseDate = releaseDate,
+                    IconUrl = iconUrl,
+                    ThemeColor = GeneralsOnlineConstants.ThemeColor,
+                    Tags = [.. GeneralsOnlineConstants.Tags, .. GetVariantTags(GeneralsOnlineConstants.Variant60HzSuffix)],
+                    ChangelogUrl = changelogUrl,
+                    CoverUrl = GeneralsOnlineConstants.CoverSource,
+                },
+                Files = [],
+                Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesFor60Hz(userVersion),
+            });
+
+            manifests.Add(new ContentManifest
+            {
+                Id = ManifestId.Create(ManifestIdGenerator.GeneratePublisherContentId(
+                    PublisherTypeConstants.GeneralsOnline,
+                    ContentType.MapPack,
+                    GeneralsOnlineConstants.QuickMatchMapPackSuffix,
+                    userVersion)),
+                Name = GeneralsOnlineConstants.QuickMatchMapPackDisplayName,
+                Version = version,
+                ContentType = ContentType.MapPack,
+                TargetGame = GameType.ZeroHour,
+                Publisher = publisherInfo,
+                OriginalProviderName = originalManifest.OriginalProviderName,
+                OriginalContentId = originalManifest.OriginalContentId,
+                Metadata = new ContentMetadata
+                {
+                    Description = GeneralsOnlineConstants.QuickMatchMapPackDescription,
+                    ReleaseDate = releaseDate,
+                    IconUrl = iconUrl,
+                    ThemeColor = GeneralsOnlineConstants.ThemeColor,
+                    Tags = [.. GeneralsOnlineConstants.MapPackTags, .. GetVariantTags(GeneralsOnlineConstants.QuickMatchMapPackSuffix)],
+                    ChangelogUrl = changelogUrl,
+                },
+                Files = [],
+                Dependencies =
+                [
+                    GeneralsOnlineDependencyBuilder.CreateZeroHourDependencyForGeneralsOnline(),
+                ],
+                InstallationInstructions = new InstallationInstructions(),
+            });
+        }
 
         // Create GeneralsOnlineGameData data patch
         manifests.Add(new ContentManifest
@@ -599,6 +673,8 @@ public class GeneralsOnlineManifestFactory(
                 ContentType = manifest.ContentType,
                 TargetGame = manifest.TargetGame,
                 Publisher = manifest.Publisher,
+                OriginalProviderName = manifest.OriginalProviderName,
+                OriginalContentId = manifest.OriginalContentId,
                 Metadata = manifest.Metadata,
                 Files = manifestFiles,
                 Dependencies = manifest.Dependencies,

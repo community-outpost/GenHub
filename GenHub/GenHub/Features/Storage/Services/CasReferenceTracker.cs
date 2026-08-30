@@ -25,7 +25,6 @@ public class CasReferenceTracker(
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private readonly CasConfiguration _config = config.Value;
-    private readonly ILogger<CasReferenceTracker> _logger = logger;
     private readonly string _refsDirectory = Path.Combine(config.Value.CasRootPath, "refs");
 
     private readonly SemaphoreSlim _writeSemaphore = new(1, 1);
@@ -71,7 +70,7 @@ public class CasReferenceTracker(
                 ManifestId = manifestId,
                 References = references,
                 TrackedAt = DateTime.UtcNow,
-                manifest.ManifestVersion,
+                manifest.SchemaVersion,
             };
 
             var json = JsonSerializer.Serialize(refData, JsonOptions);
@@ -81,7 +80,7 @@ public class CasReferenceTracker(
             await File.WriteAllTextAsync(tempFile, json, cancellationToken);
             File.Move(tempFile, manifestRefsPath, overwrite: true);
 
-            _logger.LogDebug("Tracked {ReferenceCount} CAS references for manifest {ManifestId}", references.Count, manifestId);
+            logger.LogDebug("Tracked {ReferenceCount} CAS references for manifest {ManifestId}", references.Count, manifestId);
             return OperationResult.CreateSuccess();
         }
         catch (OperationCanceledException)
@@ -91,17 +90,17 @@ public class CasReferenceTracker(
         }
         catch (IOException ioEx)
         {
-            _logger.LogError(ioEx, "IO error while tracking manifest references for {ManifestId}", manifestId);
+            logger.LogError(ioEx, "IO error while tracking manifest references for {ManifestId}", manifestId);
             return OperationResult.CreateFailure($"IO error tracking manifest references: {ioEx.Message}");
         }
         catch (UnauthorizedAccessException uaEx)
         {
-            _logger.LogError(uaEx, "Access denied while tracking manifest references for {ManifestId}", manifestId);
+            logger.LogError(uaEx, "Access denied while tracking manifest references for {ManifestId}", manifestId);
             return OperationResult.CreateFailure($"Access denied tracking manifest references: {uaEx.Message}");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to track manifest references for {ManifestId}", manifestId);
+            logger.LogError(ex, "Failed to track manifest references for {ManifestId}", manifestId);
             return OperationResult.CreateFailure($"Failed to track manifest references: {ex.Message}");
         }
         finally
@@ -152,7 +151,7 @@ public class CasReferenceTracker(
             await File.WriteAllTextAsync(tempFile, json, cancellationToken);
             File.Move(tempFile, workspaceRefsPath, overwrite: true);
 
-            _logger.LogDebug("Tracked {ReferenceCount} CAS references for workspace {WorkspaceId}", refData.References.Count, workspaceId);
+            logger.LogDebug("Tracked {ReferenceCount} CAS references for workspace {WorkspaceId}", refData.References.Count, workspaceId);
             return OperationResult.CreateSuccess();
         }
         catch (OperationCanceledException)
@@ -161,17 +160,17 @@ public class CasReferenceTracker(
         }
         catch (IOException ioEx)
         {
-            _logger.LogError(ioEx, "IO error while tracking workspace references for {WorkspaceId}", workspaceId);
+            logger.LogError(ioEx, "IO error while tracking workspace references for {WorkspaceId}", workspaceId);
             return OperationResult.CreateFailure($"IO error tracking workspace references: {ioEx.Message}");
         }
         catch (UnauthorizedAccessException uaEx)
         {
-            _logger.LogError(uaEx, "Access denied while tracking workspace references for {WorkspaceId}", workspaceId);
+            logger.LogError(uaEx, "Access denied while tracking workspace references for {WorkspaceId}", workspaceId);
             return OperationResult.CreateFailure($"Access denied tracking workspace references: {uaEx.Message}");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to track workspace references for {WorkspaceId}", workspaceId);
+            logger.LogError(ex, "Failed to track workspace references for {WorkspaceId}", workspaceId);
             return OperationResult.CreateFailure($"Failed to track workspace references: {ex.Message}");
         }
         finally
@@ -207,7 +206,7 @@ public class CasReferenceTracker(
             if (File.Exists(manifestRefsPath))
             {
                 await Task.Run(() => File.Delete(manifestRefsPath), cancellationToken);
-                _logger.LogDebug("Removed CAS reference tracking for manifest {ManifestId}", manifestId);
+                logger.LogDebug("Removed CAS reference tracking for manifest {ManifestId}", manifestId);
             }
 
             return OperationResult.CreateSuccess();
@@ -219,7 +218,7 @@ public class CasReferenceTracker(
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to remove reference tracking for manifest {ManifestId}", manifestId);
+            logger.LogWarning(ex, "Failed to remove reference tracking for manifest {ManifestId}", manifestId);
             return OperationResult.CreateFailure($"Failed to remove manifest tracking: {ex.Message}");
         }
         finally
@@ -255,7 +254,7 @@ public class CasReferenceTracker(
             if (File.Exists(workspaceRefsPath))
             {
                 await Task.Run(() => File.Delete(workspaceRefsPath), cancellationToken);
-                _logger.LogDebug("Removed CAS reference tracking for workspace {WorkspaceId}", workspaceId);
+                logger.LogDebug("Removed CAS reference tracking for workspace {WorkspaceId}", workspaceId);
             }
 
             return OperationResult.CreateSuccess();
@@ -267,7 +266,7 @@ public class CasReferenceTracker(
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to remove reference tracking for workspace {WorkspaceId}", workspaceId);
+            logger.LogWarning(ex, "Failed to remove reference tracking for workspace {WorkspaceId}", workspaceId);
             return OperationResult.CreateFailure($"Failed to remove workspace tracking: {ex.Message}");
         }
         finally
@@ -324,7 +323,7 @@ public class CasReferenceTracker(
                 allReferences.UnionWith(references);
             }
 
-            _logger.LogDebug("Collected {ReferenceCount} total CAS references", allReferences.Count);
+            logger.LogDebug("Collected {ReferenceCount} total CAS references", allReferences.Count);
         }
         catch (OperationCanceledException)
         {
@@ -332,7 +331,7 @@ public class CasReferenceTracker(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to collect CAS references");
+            logger.LogError(ex, "Failed to collect CAS references");
             throw; // Re-throw to abort GC when reference enumeration fails
         }
 
@@ -365,12 +364,12 @@ public class CasReferenceTracker(
         }
         catch (FileNotFoundException ex)
         {
-            _logger.LogDebug(ex, "Reference file {RefFile} was deleted concurrently during scan", refFile);
+            logger.LogDebug(ex, "Reference file {RefFile} was deleted concurrently during scan", refFile);
             return references;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to read references from {RefFile}", refFile);
+            logger.LogError(ex, "Failed to read references from {RefFile}", refFile);
             throw; // Fail closed: if we can't read refs due to corruption, we shouldn't assume empty and risk GCing live data
         }
 

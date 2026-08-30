@@ -15,6 +15,7 @@
             <local:EqualityConverter x:Key="EqualityConverter" />
             <local:BoolToExpandIconConverter x:Key="BoolToExpandIconConverter" />
             <local:BoolToExpandTextConverter x:Key="BoolToExpandTextConverter" />
+            <local:StripHtmlConverter x:Key="StripHtmlConverter" />
         </ResourceDictionary>
     </Application.Resources>
 
@@ -26,6 +27,16 @@
         <StyleInclude Source="avares://GenHub/Assets/Styles/SidebarStyles.axaml" />
         <StyleInclude Source="avares://GenHub/Assets/Styles/ScrollbarStyles.axaml" />
         <StyleInclude Source="avares://GenHub/Common/Controls/SidebarLayoutStyles.axaml" />
+
+        <!-- Global ToolTip Styles: Ensure full text visibility without premature truncation -->
+        <Style Selector="ToolTip">
+            <Setter Property="MaxWidth" Value="600" />
+            <Setter Property="MaxHeight" Value="500" />
+        </Style>
+        <Style Selector="ToolTip TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="TextTrimming" Value="None" />
+        </Style>
 
         <Style Selector="ProgressBar">
             <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />

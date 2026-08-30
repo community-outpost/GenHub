@@ -15,7 +15,10 @@ public static class CommunityOutpostCatalogConstants
     public const string UnknownVersion = "unknown";
 
     /// <summary>Default base URL for making relative URLs absolute.</summary>
-    public const string DefaultBaseUrl = "https://legi.cc/patch";
+    public const string DefaultBaseUrl = CommunityOutpostConstants.BaseUrl + "/patch";
+
+    /// <summary>Default base URL for downloading GenPatcher content .dat packages.</summary>
+    public const string DefaultFilesBaseUrl = CommunityOutpostConstants.BaseUrl + "/gp2/f";
 
     /// <summary>Metadata key for the content code.</summary>
     public const string ContentCodeKey = "contentCode";

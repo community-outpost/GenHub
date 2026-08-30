@@ -10,6 +10,7 @@ using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -133,6 +134,13 @@ public class ProfileEditorFacade(
                         return ProfileOperationResult<GameProfile>.CreateFailure(string.Join(", ", resolutionResult.Errors));
                     }
 
+                    // Check for missing dependencies (can occur even on success-with-warnings)
+                    if (resolutionResult.MissingContentIds?.Any() == true)
+                    {
+                        return ProfileOperationResult<GameProfile>.CreateFailure(
+                            $"Missing or invalid content IDs: {string.Join(", ", resolutionResult.MissingContentIds)}");
+                    }
+
                     workspaceConfig.Manifests = [..resolutionResult.ResolvedManifests];
                     profile.EnabledContentIds = [..resolutionResult.ResolvedContentIds];
 
@@ -168,10 +176,23 @@ public class ProfileEditorFacade(
                         }
                         else
                         {
-                            _logger.LogWarning(
-                                "[ProfileEditor] Could not resolve source path for manifest {ManifestId} ({ContentType})",
-                                manifest.Id.Value,
-                                manifest.ContentType);
+                            bool isCasBacked = manifest.Files is { Count: > 0 } &&
+                                manifest.Files.All(f => f.SourceType == ContentSourceType.ContentAddressable);
+
+                            if (isCasBacked)
+                            {
+                                _logger.LogDebug(
+                                    "[ProfileEditor] Source path for CAS-backed manifest {ManifestId} ({ContentType}) is managed by CAS pool",
+                                    manifest.Id.Value,
+                                    manifest.ContentType);
+                            }
+                            else
+                            {
+                                _logger.LogWarning(
+                                    "[ProfileEditor] Could not resolve source path for manifest {ManifestId} ({ContentType})",
+                                    manifest.Id.Value,
+                                    manifest.ContentType);
+                            }
                         }
                     }
 

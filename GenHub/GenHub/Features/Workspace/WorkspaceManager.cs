@@ -470,6 +470,19 @@ public class WorkspaceManager(
             return null;
         }
 
+        // Verify that workspace files match manifests using delta analysis
+        var deltas = await reconciler.AnalyzeWorkspaceDeltaAsync(workspace, configuration);
+        if (deltas.Any(d => d.Operation != WorkspaceDeltaOperation.Skip))
+        {
+            var changeCount = deltas.Count(d => d.Operation != WorkspaceDeltaOperation.Skip);
+            logger.LogInformation(
+                "[Workspace] Workspace delta detected ({ChangeCount} file change(s) needed) for {Id}, workspace will be recreated.",
+                changeCount,
+                configuration.Id);
+            configuration.ForceRecreate = true;
+            return null;
+        }
+
         if (!configuration.ForceRecreate && (workspace.FileCount > 0 || Directory.Exists(workspace.WorkspacePath)))
         {
             var entryPointResult = await workspaceValidator.EnsureEntryPointExecutableAsync(workspace, cancellationToken);

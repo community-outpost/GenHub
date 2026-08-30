@@ -33,6 +33,9 @@ namespace GenHub.Tests.Core.Features.Launching;
 public class GameLauncherTests : IDisposable
 {
     private static readonly string[] TestContentIds = ["1.0.genhub.mod.test"];
+    private static readonly string TestWorkspacePath = Path.Combine(Path.GetTempPath(), "test_workspace");
+    private static readonly string TestExecutablePath = Path.Combine(TestWorkspacePath, "generals.exe");
+
     private readonly Mock<IGameProfileManager> _profileManagerMock = new();
     private readonly Mock<IWorkspaceManager> _workspaceManagerMock = new();
     private readonly Mock<IGameProcessManager> _processManagerMock = new();
@@ -49,7 +52,6 @@ public class GameLauncherTests : IDisposable
     private readonly Mock<IProfileContentLinker> _profileContentLinkerMock = new();
     private readonly Mock<ISteamLauncher> _steamLauncherMock = new();
     private readonly GameLauncher _gameLauncher;
-
     private readonly string _retailRoot;
 
     /// <summary>
@@ -163,8 +165,8 @@ public class GameLauncherTests : IDisposable
         var workspaceInfo = new WorkspaceInfo
         {
             Id = profile.Id,
-            WorkspacePath = @"C:\workspace",
-            ExecutablePath = @"C:\workspace\generals.exe",
+            WorkspacePath = TestWorkspacePath,
+            ExecutablePath = TestExecutablePath,
         };
         var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
         var manifest = new ContentManifest { Id = "1.0.genhub.mod.test", Name = "Test Content" };
@@ -307,7 +309,7 @@ public class GameLauncherTests : IDisposable
     {
         // Arrange
         var profile = CreateTestProfile();
-        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace", ExecutablePath = @"C:\workspace\generals.exe" };
+        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = TestWorkspacePath, ExecutablePath = TestExecutablePath };
         var manifest = new ContentManifest { Id = "1.0.genhub.mod.test", Name = "Test Content" };
         _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
@@ -331,6 +333,64 @@ public class GameLauncherTests : IDisposable
         // Assert
         Assert.False(result.Success);
         Assert.Contains("Process start failed", result.FirstError);
+    }
+
+    /// <summary>
+    /// Launches a profile with a CAS-stored GameClient and asserts that the source path is resolved from ManifestPool.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithCasStoredGameClient_ResolvesManifestPoolSourcePathAsync()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        var clientManifestId = "1.0.local.gameclient.contra-exe";
+        var clientManifest = new ContentManifest
+        {
+            Id = clientManifestId,
+            Name = "Contra EXE",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+        };
+
+        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = TestWorkspacePath, ExecutablePath = TestExecutablePath };
+        var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
+        var casClientDir = @"C:\CAS\clients\contra";
+
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _manifestPoolMock.Setup(x => x.GetContentDirectoryAsync(It.Is<ManifestId>(id => id.Value == clientManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string?>.CreateSuccess(casClientDir));
+
+        _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DependencyResolutionResult.CreateSuccess(
+                [clientManifestId],
+                [clientManifest],
+                []));
+
+        WorkspaceConfiguration? capturedConfig = null;
+        _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(
+                It.IsAny<WorkspaceConfiguration>(),
+                It.IsAny<IProgress<WorkspacePreparationProgress>>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<WorkspaceConfiguration, IProgress<WorkspacePreparationProgress>?, bool, CancellationToken>((cfg, _, _, _) => capturedConfig = cfg)
+            .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
+
+        _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(capturedConfig);
+        Assert.NotNull(capturedConfig.ManifestSourcePaths);
+        Assert.True(capturedConfig.ManifestSourcePaths.TryGetValue(clientManifestId, out var resolvedSourcePath));
+        Assert.Equal(casClientDir, resolvedSourcePath);
     }
 
     /// <summary>
@@ -391,7 +451,7 @@ public class GameLauncherTests : IDisposable
     {
         // Arrange
         var profile = CreateTestProfile();
-        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace", IsPrepared = true, ExecutablePath = @"C:\workspace\generals.exe" };
+        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = TestWorkspacePath, IsPrepared = true, ExecutablePath = TestExecutablePath };
         var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
         var manifest = new ContentManifest { Id = "1.0.genhub.mod.test", Name = "Test Content" };
         var progressReports = new ConcurrentBag<LaunchProgress>();
@@ -480,7 +540,8 @@ public class GameLauncherTests : IDisposable
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
 
         // Act & Assert
-        await Assert.ThrowsAsync<TaskCanceledException>(() => _gameLauncher.LaunchProfileAsync(profileId, cancellationToken: cts.Token));
+        await Assert.ThrowsAsync<TaskCanceledException>(() =>
+            _gameLauncher.LaunchProfileAsync(profileId, cancellationToken: cts.Token));
     }
 
     /// <summary>
@@ -594,7 +655,7 @@ public class GameLauncherTests : IDisposable
         // Arrange
         var profile = CreateTestProfile();
         profile.EnabledContentIds = []; // Empty content
-        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace" };
+        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = TestWorkspacePath };
         var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
 
         _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
@@ -716,7 +777,7 @@ public class GameLauncherTests : IDisposable
         // Arrange
         var profile = CreateTestProfile();
         profile.EnabledContentIds = ["1.0.genhub.mod.manifest1mod", "1.0.genhub.mod.manifest2mod", "1.0.genhub.mod.manifest3mod"];
-        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace" };
+        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = TestWorkspacePath };
         var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
 
         _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
@@ -768,7 +829,7 @@ public class GameLauncherTests : IDisposable
         profile.AudioSoundVolume = 80;
         profile.AudioMusicVolume = 60;
 
-        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace" };
+        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = TestWorkspacePath };
         var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
 
         _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
@@ -827,7 +888,7 @@ public class GameLauncherTests : IDisposable
         var profile = CreateTestProfile();
         profile.VideoWindowed = true;
 
-        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace" };
+        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = TestWorkspacePath };
         var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
 
         _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
@@ -875,7 +936,7 @@ public class GameLauncherTests : IDisposable
         // Arrange
         var profile = CreateTestProfile();
 
-        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace" };
+        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = TestWorkspacePath };
         var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
 
         _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
@@ -1079,7 +1140,13 @@ public class GameLauncherTests : IDisposable
             Id = Guid.NewGuid().ToString(),
             Name = "Test Profile",
             GameInstallationId = "install-1",
-            GameClient = new GameClient { Id = "version-1", ExecutablePath = @"C:\Games\generals.exe", GameType = GameType.Generals },
+            GameClient = new GameClient
+            {
+                Id = "version-1",
+                ExecutablePath = TestExecutablePath,
+                WorkingDirectory = TestWorkspacePath,
+                GameType = GameType.Generals,
+            },
             EnabledContentIds = ["1.0.genhub.mod.test"],
         };
     }
@@ -1144,6 +1211,14 @@ public class GameLauncherTests : IDisposable
         process.WaitForExit();
         Assert.Equal(0, process.ExitCode);
     }
+
+    private static bool HasWinArgument(GameLaunchConfiguration? config) =>
+        config?.Arguments?.ContainsKey("-win") == true;
+
+    private static bool HasEmptyWinArgument(GameLaunchConfiguration? config) =>
+        config?.Arguments != null &&
+        config.Arguments.TryGetValue("-win", out var value) &&
+        value == string.Empty;
 
     /// <summary>
     /// Wires the mocks a launch needs to reach the settings-writing step and succeed.

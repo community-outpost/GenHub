@@ -1,14 +1,19 @@
-using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Manifest;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Utilities;
+using Microsoft.Extensions.Logging;
+using SharpCompress.Archives;
+using SharpCompress.Common;
 
 namespace GenHub.Features.Content.Services.Publishers;
 
@@ -18,7 +23,9 @@ namespace GenHub.Features.Content.Services.Publishers;
 /// </summary>
 public class GitHubManifestFactory(
     ILogger<GitHubManifestFactory> logger,
-    IFileHashProvider hashProvider)
+    IFileHashProvider hashProvider,
+    IArchivePayloadProcessor archivePayloadProcessor,
+    IControlBarPackageProcessor? controlBarProcessor = null)
     : IPublisherManifestFactory
 {
     /// <inheritdoc />
@@ -29,21 +36,23 @@ public class GitHubManifestFactory(
     {
         // Handle standard "github" publisher
         var publisherMatches = manifest.Publisher?.PublisherType?.Equals("github", StringComparison.OrdinalIgnoreCase) == true;
-
-        // Also handle legacy or owner-based publisher types if they map to GitHub
-        // (But usually GitHubResolver sets PublisherType to "github")
-        // Only handle Mod or MapPack content types for now (GameClients might be handled, but usually specific factories exist)
-        // If we want to support any GitHub ZIP extraction, we can make this broader.
-        // But for safety, let's start with Mod.
-        // Update: We want to support Mod. GamClient is handled if no specific factory picks it up?
-        // Actually, GitHubManifestFactory can be a fallback for any GitHub content that was extracted.
         return publisherMatches;
+    }
+
+    /// <inheritdoc />
+    public Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+        ContentManifest originalManifest,
+        string extractedDirectory,
+        CancellationToken cancellationToken = default)
+    {
+        return CreateManifestsFromExtractedContentAsync(originalManifest, extractedDirectory, progress: null, cancellationToken);
     }
 
     /// <inheritdoc />
     public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
+        IProgress<GenHub.Core.Models.Content.ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Creating GitHub manifests from extracted content in: {Directory}", extractedDirectory);
@@ -52,6 +61,23 @@ public class GitHubManifestFactory(
         {
             logger.LogWarning("Extracted directory does not exist: {Directory}", extractedDirectory);
             return [];
+        }
+
+        await archivePayloadProcessor.ProcessPayloadAsync(
+            extractedDirectory,
+            originalManifest.ContentType,
+            originalManifest.TargetGame,
+            normalizeInactiveArchives: true,
+            progress: progress,
+            cancellationToken: cancellationToken);
+
+        if (controlBarProcessor?.IsControlBarContent(extractedDirectory, originalManifest) == true)
+        {
+            logger.LogInformation("Detected Control Bar content in GitHub payload, repacking into BIG archives");
+            await controlBarProcessor.ProcessAndRepackControlBarAsync(
+                extractedDirectory,
+                originalManifest,
+                cancellationToken: cancellationToken);
         }
 
         var files = new List<ManifestFile>();
@@ -73,10 +99,7 @@ public class GitHubManifestFactory(
             // Compute hash for ContentAddressable storage
             string fileHash = await hashProvider.ComputeFileHashAsync(filePath, cancellationToken);
 
-            // Determine if executable (simple heuristic for now, can be improved)
-            bool isExecutable = filePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
-                                filePath.EndsWith(".bat", StringComparison.OrdinalIgnoreCase) ||
-                                filePath.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase);
+            bool isExecutable = ExecutableFileClassifier.RequiresExecutePermission(relativePath, filePath);
 
             return new ManifestFile
             {
@@ -96,7 +119,7 @@ public class GitHubManifestFactory(
         // Clone the original manifest but replace files
         var manifest = new ContentManifest
         {
-            ManifestVersion = originalManifest.ManifestVersion,
+            SchemaVersion = originalManifest.SchemaVersion,
             Id = originalManifest.Id, // Keep original ID
             Name = originalManifest.Name,
             Version = originalManifest.Version,

@@ -405,30 +405,38 @@
                         Height="60"
                         PointerPressed="OnHeaderPointerPressed">
                     <Grid ColumnDefinitions="Auto,*,Auto" Margin="24,0">
-                        <!-- Profile Icon & Name Group -->
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
-                            <Border Width="36" Height="36"
-                                    Background="#25FFFFFF"
-                                    CornerRadius="18"
-                                    ClipToBounds="True"
-                                    BorderBrush="White"
-                                    BorderThickness="1.5">
-                                <Image Source="{Binding IconPath, Mode=OneWay, Converter={StaticResource StringToImageConverter}}"
-                                       Width="36" Height="36"
-                                       Stretch="UniformToFill" />
-                            </Border>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="{Binding Name, Mode=OneWay, FallbackValue='New Profile'}"
-                                           Foreground="White"
-                                           FontSize="18"
-                                           FontWeight="Bold" />
-                                <TextBlock Text="Profile Settings"
-                                           Foreground="{DynamicResource AccentLightBrush}"
-                                           FontSize="10"
-                                           FontWeight="SemiBold"
-                                           LetterSpacing="1"
-                                           Opacity="0.8" />
-                            </StackPanel>
+                        <!-- Profile Icon -->
+                        <Border Grid.Column="0"
+                                Width="36" Height="36"
+                                Background="#25FFFFFF"
+                                CornerRadius="18"
+                                ClipToBounds="True"
+                                BorderBrush="White"
+                                BorderThickness="1.5"
+                                Margin="0,0,16,0"
+                                VerticalAlignment="Center">
+                            <Image Source="{Binding IconPath, Mode=OneWay, Converter={StaticResource StringToImageConverter}}"
+                                   Width="36" Height="36"
+                                   Stretch="UniformToFill" />
+                        </Border>
+
+                        <!-- Profile Title & Subtitle -->
+                        <StackPanel Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    Margin="0,0,16,0">
+                            <TextBlock Text="{Binding Name, Mode=OneWay, FallbackValue='New Profile'}"
+                                       Foreground="White"
+                                       FontSize="18"
+                                       FontWeight="Bold"
+                                       TextTrimming="CharacterEllipsis"
+                                       TextWrapping="NoWrap"
+                                       ToolTip.Tip="{Binding Name, Mode=OneWay}" />
+                            <TextBlock Text="Profile Settings"
+                                       Foreground="{DynamicResource AccentBrush}"
+                                       FontSize="10"
+                                       FontWeight="SemiBold"
+                                       LetterSpacing="1"
+                                       Opacity="0.8" />
                         </StackPanel>
 
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
@@ -465,7 +473,7 @@
                 <!-- Tab Content Panels -->
                 <Grid Grid.Row="2" Margin="12,0,12,12" ClipToBounds="True">
                     <!-- Content Tab Panel (Index 0) -->
-                    <views:GameProfileContentEditorView IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=0}" />
+                    <views:GameProfileContentSettingsView IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=0}" />
 
                     <!-- Profile Settings Panel (Index 1) -->
                     <views:GameProfileGeneralSettingsView IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=1}" />
@@ -475,145 +483,139 @@
                         <views:GameSettingsView DataContext="{Binding GameSettingsViewModel}" />
                     </Panel>
                 </Grid>
-
-        <!-- Add Local Content Dialog -->
-        <Border Grid.RowSpan="2"
-                IsVisible="{Binding IsAddLocalContentDialogOpen}"
-                Background="#CC000000"
-                ZIndex="1002">
-            <Border Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
-                    BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}"
-                    BorderThickness="2"
-                    CornerRadius="16"
-                    Width="420"
-                    Padding="24"
-                    VerticalAlignment="Center"
-                    HorizontalAlignment="Center"
-                    TextElement.Foreground="White">
-                <StackPanel Spacing="16">
-                    <!-- Header -->
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <TextBlock Text="📁" FontSize="24" VerticalAlignment="Center" />
-                        <TextBlock Text="Add Local Content" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    </StackPanel>
-
-                    <!-- Selected Folder -->
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="Selected Folder" FontSize="12" Opacity="0.8" />
-                        <Border Background="#15FFFFFF" CornerRadius="6" Padding="10,8">
-                            <TextBlock Text="{Binding LocalContentDirectoryPath}"
-                                       FontSize="11"
-                                       TextTrimming="CharacterEllipsis"
-                                       ToolTip.Tip="{Binding LocalContentDirectoryPath}" />
-                        </Border>
-                    </StackPanel>
-
-                    <!-- Content Name -->
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="Content Name" FontSize="12" Opacity="0.8" />
-                        <TextBox Text="{Binding LocalContentName, Mode=TwoWay}"
-                                 Watermark="Enter a name for this content"
-                                 MinHeight="36" />
-                    </StackPanel>
-
-                    <!-- Content Type -->
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="Content Type" FontSize="12" Opacity="0.8" />
-                        <ComboBox ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AllowedLocalContentTypes}"
-                                  SelectedItem="{Binding SelectedLocalContentType}"
-                                  HorizontalAlignment="Stretch"
-                                  MinHeight="36">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" />
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                        <TextBlock Text="Publisher will be set to 'GenHub (Local)' for local content"
-                                   FontSize="10" Opacity="0.6" FontStyle="Italic" />
-                    </StackPanel>
-
-                    <!-- Game Type Selection - Always visible -->
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="Target Game" FontSize="12" Opacity="0.8" />
-                        <ComboBox ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableLocalGameTypes}"
-                                  SelectedItem="{Binding SelectedLocalGameType}"
-                                  HorizontalAlignment="Stretch"
-                                  MinHeight="36">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding Converter={x:Static conv:GameTypeDisplayConverter.Instance}}" />
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                        <TextBlock Text="Specify which game version this executable belongs to"
-                                   FontSize="10" Opacity="0.6" FontStyle="Italic" />
-                    </StackPanel>
-
-                    <!-- Action Buttons -->
-                    <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0">
-                        <Button Grid.Column="1" Content="Cancel"
-                                Command="{Binding CancelAddLocalContentCommand}"
-                                Background="#25000000"
-                                Foreground="White"
-                                BorderBrush="#40FFFFFF"
-                                BorderThickness="1"
-                                Width="90" Height="36"
-                                CornerRadius="8"
-                                FontWeight="Medium"
-                                Margin="0,0,12,0" />
-                        <Button Grid.Column="2" Content="✓ Add Content"
-                                Command="{Binding ConfirmAddLocalContentCommand}"
-                                Background="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}, Mode=OneWay}"
-                                Foreground="White"
-                                Width="120" Height="36"
-                                CornerRadius="8"
-                                FontWeight="Bold" />
-                    </Grid>
-                </StackPanel>
-            </Border>
-        </Border>
-        <!-- Loading overlay -->
-        <Border Grid.RowSpan="2"
-                IsVisible="{Binding IsInitializing}"
-                Background="#DD000000"
-                ZIndex="1001">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
-                <ProgressBar IsIndeterminate="True" Width="180" Height="4"/>
-                <TextBlock Text="Loading..." Foreground="White" FontSize="14" HorizontalAlignment="Center"/>
-            </StackPanel>
-        </Border>
-
-        <!-- Saving overlay -->
-        <Border Grid.RowSpan="2"
-                IsVisible="{Binding IsSaving}"
-                Background="#CC000000"
-                ZIndex="1000">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
-                <ProgressBar IsIndeterminate="True" Width="180" Height="4"/>
-                <TextBlock Text="Saving..." Foreground="White" FontSize="14" HorizontalAlignment="Center"/>
-            </StackPanel>
-        </Border>
-
-        <!-- Error Panel -->
-        <Border Grid.RowSpan="2"
-                Background="#CC000000"
-                IsVisible="{Binding LoadingError}"
-                ZIndex="1000">
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
-                <TextBlock Text="❌ Failed to load settings" FontSize="16" Foreground="White" />
-                <Button Content="Close" HorizontalAlignment="Center" Command="{Binding ExecuteCancelCommand}" />
-            </StackPanel>
-        </Border>
-
             </Grid>
 
-            <!-- Notification Container - Outside Grid for proper positioning -->
-            <notifications:NotificationContainerView DataContext="{Binding NotificationManager}"
-                                                   HorizontalAlignment="Right"
-                                                   VerticalAlignment="Top"
-                                                   Margin="0,90,10,0"
-                                                   ZIndex="2000" />
+            <!-- Add Local Content Dialog -->
+            <Border IsVisible="{Binding IsAddLocalContentDialogOpen}"
+                    Background="#CC000000"
+                    ZIndex="1002">
+                <Border Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
+                        BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}"
+                        BorderThickness="2"
+                        CornerRadius="16"
+                        Width="420"
+                        Padding="24"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Center"
+                        TextElement.Foreground="White">
+                    <StackPanel Spacing="16">
+                        <!-- Header -->
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <TextBlock Text="📁" FontSize="24" VerticalAlignment="Center" />
+                            <TextBlock Text="Add Local Content" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <!-- Selected Folder -->
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Selected Folder" FontSize="12" Opacity="0.8" />
+                            <Border Background="#15FFFFFF" CornerRadius="6" Padding="10,8">
+                                <TextBlock Text="{Binding LocalContentDirectoryPath}"
+                                           FontSize="11"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip.Tip="{Binding LocalContentDirectoryPath}" />
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Content Name -->
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Content Name" FontSize="12" Opacity="0.8" />
+                            <TextBox Text="{Binding LocalContentName, Mode=TwoWay}"
+                                     Watermark="Enter a name for this content"
+                                     MinHeight="36" />
+                        </StackPanel>
+
+                        <!-- Content Type -->
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Content Type" FontSize="12" Opacity="0.8" />
+                            <ComboBox ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AllowedLocalContentTypes}"
+                                      SelectedItem="{Binding SelectedLocalContentType}"
+                                      HorizontalAlignment="Stretch"
+                                      MinHeight="36">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <TextBlock Text="Publisher will be set to 'GenHub (Local)' for local content"
+                                       FontSize="10" Opacity="0.6" FontStyle="Italic" />
+                        </StackPanel>
+
+                        <!-- Game Type Selection - Always visible -->
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Target Game" FontSize="12" Opacity="0.8" />
+                            <ComboBox ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableLocalGameTypes}"
+                                      SelectedItem="{Binding SelectedLocalGameType}"
+                                      HorizontalAlignment="Stretch"
+                                      MinHeight="36">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={x:Static conv:GameTypeDisplayConverter.Instance}}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <TextBlock Text="Specify which game version this executable belongs to"
+                                       FontSize="10" Opacity="0.6" FontStyle="Italic" />
+                        </StackPanel>
+
+                        <!-- Action Buttons -->
+                        <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0">
+                            <Button Grid.Column="1" Content="Cancel"
+                                    Command="{Binding CancelAddLocalContentCommand}"
+                                    Background="#25000000"
+                                    Foreground="White"
+                                    BorderBrush="#40FFFFFF"
+                                    BorderThickness="1"
+                                    Width="90" Height="36"
+                                    CornerRadius="8"
+                                    FontWeight="Medium"
+                                    Margin="0,0,12,0" />
+                            <Button Grid.Column="2" Content="✓ Add Content"
+                                    Command="{Binding ConfirmAddLocalContentCommand}"
+                                    Background="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}, Mode=OneWay}"
+                                    Foreground="White"
+                                    Width="120" Height="36"
+                                    CornerRadius="8"
+                                    FontWeight="Bold" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </Border>
+
+            <!-- Loading overlay -->
+            <Border IsVisible="{Binding IsInitializing}"
+                    Background="#DD000000"
+                    ZIndex="1001">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+                    <ProgressBar IsIndeterminate="True" Width="180" Height="4"/>
+                    <TextBlock Text="Loading..." Foreground="White" FontSize="14" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Saving overlay -->
+            <Border IsVisible="{Binding IsSaving}"
+                    Background="#CC000000"
+                    ZIndex="1000">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+                    <ProgressBar IsIndeterminate="True" Width="180" Height="4"/>
+                    <TextBlock Text="Saving..." Foreground="White" FontSize="14" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Error Panel -->
+            <Border Background="#CC000000"
+                    IsVisible="{Binding LoadingError}"
+                    ZIndex="1000">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+                    <TextBlock Text="❌ Failed to load settings" FontSize="16" Foreground="White" />
+                    <Button Content="Close" HorizontalAlignment="Center" Command="{Binding ExecuteCancelCommand}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Toast Notification Overlay Layer: Positioned absolutely in the panel so it doesn't affect window or grid layout -->
+            <Panel ZIndex="2000" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,65,24,0">
+                <notifications:NotificationContainerView DataContext="{Binding NotificationManager}" />
+            </Panel>
 
             <!-- Floating Action Button for Global Save -->
             <Border ZIndex="500"

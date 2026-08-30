@@ -490,9 +490,6 @@ public class ContentReconciliationService(
                     };
                 }
 
-                bool workspaceInvalidated = false;
-
-                // Clear workspace to force launch-time sync
                 if (!string.IsNullOrEmpty(profile.ActiveWorkspaceId))
                 {
                     logger.LogDebug("Cleaning up workspace '{WorkspaceId}' for stale profile '{ProfileName}'", profile.ActiveWorkspaceId, profile.Name);
@@ -501,8 +498,10 @@ public class ContentReconciliationService(
                     {
                         logger.LogWarning("Failed to cleanup workspace '{WorkspaceId}' for profile '{ProfileName}': {Error}", profile.ActiveWorkspaceId, profile.Name, cleanupResult.FirstError);
                     }
-
-                    workspaceInvalidated = true;
+                    else
+                    {
+                        invalidatedWorkspacesCount++;
+                    }
                 }
 
                 var updateRequest = new UpdateProfileRequest
@@ -516,7 +515,6 @@ public class ContentReconciliationService(
                 if (updateResult.Success)
                 {
                     updatedProfilesCount++;
-                    if (workspaceInvalidated) invalidatedWorkspacesCount++;
                     await NotifyProfileUpdatedAsync(profile.Id, cancellationToken);
                 }
                 else
@@ -525,6 +523,10 @@ public class ContentReconciliationService(
                     failedProfiles.Add(profile.Name);
                 }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error reconciling profile '{ProfileName}': {Message}", profile.Name, ex.Message);
@@ -532,17 +534,23 @@ public class ContentReconciliationService(
             }
         }
 
-        // Return success even with partial failures to allow cleanup of old manifests.
-        // Callers can check ProfilesUpdated count vs expected count to detect partial failures.
-        // Failed profiles are logged for visibility.
+        if (failedProfiles.Count > 0)
+        {
+            logger.LogWarning("Bulk reconciliation completed with {FailedCount} failure(s): {FailedProfiles}", failedProfiles.Count, string.Join(", ", failedProfiles));
+            return OperationResult<ReconciliationResult>.CreateFailure(
+                $"Failed to reconcile {failedProfiles.Count} profile(s): {string.Join(", ", failedProfiles)}",
+                new ReconciliationResult(updatedProfilesCount, invalidatedWorkspacesCount, failedProfiles.Count),
+                TimeSpan.Zero);
+        }
+
         foreach (var replacement in replacements)
         {
             WeakReferenceMessenger.Default.Send(new ManifestReplacedMessage(replacement.Key, replacement.Value.Id.Value));
         }
 
-        logger.LogInformation("Bulk reconciliation complete. Updated {Count} profiles. {FailedCount} failures.", updatedProfilesCount, failedProfiles.Count);
+        logger.LogInformation("Bulk reconciliation complete. Updated {Count} profiles.", updatedProfilesCount);
 
-        return OperationResult<ReconciliationResult>.CreateSuccess(new ReconciliationResult(updatedProfilesCount, invalidatedWorkspacesCount, failedProfiles.Count));
+        return OperationResult<ReconciliationResult>.CreateSuccess(new ReconciliationResult(updatedProfilesCount, invalidatedWorkspacesCount, 0));
     }
 
     private async Task<OperationResult<ReconciliationResult>> ReconcileManifestRemovalInternalAsync(
@@ -571,11 +579,6 @@ public class ContentReconciliationService(
         {
             try
             {
-                var newContentIds = profile.EnabledContentIds
-                    .Where(id => !id.Equals(manifestId.Value, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-
-                bool workspaceInvalidated = false;
                 if (!string.IsNullOrEmpty(profile.ActiveWorkspaceId))
                 {
                     logger.LogDebug("Cleaning up workspace '{WorkspaceId}' for deleted content in profile '{ProfileName}'", profile.ActiveWorkspaceId, profile.Name);
@@ -584,9 +587,15 @@ public class ContentReconciliationService(
                     {
                         logger.LogWarning("Failed to cleanup workspace '{WorkspaceId}' for profile '{ProfileName}': {Error}", profile.ActiveWorkspaceId, profile.Name, cleanupResult.FirstError);
                     }
-
-                    workspaceInvalidated = true;
+                    else
+                    {
+                        invalidatedWorkspacesCount++;
+                    }
                 }
+
+                var newContentIds = profile.EnabledContentIds
+                    .Where(id => !id.Equals(manifestId.Value, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
 
                 var updateRequest = new UpdateProfileRequest
                 {
@@ -598,7 +607,6 @@ public class ContentReconciliationService(
                 if (updateResult.Success)
                 {
                     updatedProfilesCount++;
-                    if (workspaceInvalidated) invalidatedWorkspacesCount++;
                     await NotifyProfileUpdatedAsync(profile.Id, cancellationToken);
                 }
                 else
@@ -607,6 +615,10 @@ public class ContentReconciliationService(
                     failedProfiles.Add(profile.Name);
                 }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error removing manifest from profile '{ProfileName}': {Message}", profile.Name, ex.Message);
@@ -614,8 +626,15 @@ public class ContentReconciliationService(
             }
         }
 
-        // Return success even with partial failures (as results now include failure count) to allow cleanup of old manifests.
-        // Failed profiles are logged for visibility.
-        return OperationResult<ReconciliationResult>.CreateSuccess(new ReconciliationResult(updatedProfilesCount, invalidatedWorkspacesCount, failedProfiles.Count));
+        if (failedProfiles.Count > 0)
+        {
+            logger.LogWarning("Removal reconciliation failed for {FailedCount} profile(s): {FailedProfiles}", failedProfiles.Count, string.Join(", ", failedProfiles));
+            return OperationResult<ReconciliationResult>.CreateFailure(
+                $"Failed to remove manifest from {failedProfiles.Count} profile(s): {string.Join(", ", failedProfiles)}",
+                new ReconciliationResult(updatedProfilesCount, invalidatedWorkspacesCount, failedProfiles.Count),
+                TimeSpan.Zero);
+        }
+
+        return OperationResult<ReconciliationResult>.CreateSuccess(new ReconciliationResult(updatedProfilesCount, invalidatedWorkspacesCount, 0));
     }
 }

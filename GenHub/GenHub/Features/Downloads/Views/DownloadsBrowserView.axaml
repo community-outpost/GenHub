@@ -1,0 +1,375 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Downloads.ViewModels"
+             xmlns:views="clr-namespace:GenHub.Features.Downloads.Views"
+             xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
+             xmlns:constants="clr-namespace:GenHub.Core.Constants;assembly=GenHub.Core"
+             xmlns:controls="clr-namespace:GenHub.Common.Controls"
+             xmlns:infraControls="clr-namespace:GenHub.Infrastructure.Controls;assembly=GenHub"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+             x:Class="GenHub.Features.Downloads.Views.DownloadsBrowserView"
+             x:DataType="vm:DownloadsBrowserViewModel"
+             Background="Transparent">
+
+    <UserControl.Styles>
+        <!-- Header style -->
+        <Style Selector="TextBlock.page-title">
+            <Setter Property="FontSize" Value="24" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        </Style>
+
+        <!-- Search box style -->
+        <Style Selector="TextBox.search-box">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="Watermark" Value="Search..." />
+        </Style>
+
+        <Style Selector="TextBox.search-box:focus">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        </Style>
+
+        <!-- Action buttons -->
+        <Style Selector="Button.toolbar-btn">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" />
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.toolbar-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="RenderTransform" Value="scale(1.02)" />
+        </Style>
+
+        <Style Selector="Button.toolbar-btn:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.98)" />
+        </Style>
+
+        <!-- Filter Toggle -->
+        <Style Selector="ToggleButton.filter-toggle-btn">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" />
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="ToggleButton.filter-toggle-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="RenderTransform" Value="scale(1.02)" />
+        </Style>
+
+        <Style Selector="ToggleButton.filter-toggle-btn:checked">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <Style Selector="ToggleButton.filter-toggle-btn:checked:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Opacity" Value="0.9" />
+        </Style>
+
+        <!-- Load More Button -->
+        <Style Selector="Button.load-more-btn">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="32,10" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" />
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.load-more-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="RenderTransform" Value="scale(1.02)" />
+        </Style>
+
+        <Style Selector="Button.load-more-btn:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.98)" />
+        </Style>
+
+        <!-- Pane Footer Action Button -->
+        <Style Selector="Button.pane-footer-btn">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="10" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" />
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.pane-footer-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <UserControl.DataTemplates>
+        <DataTemplate DataType="vm:ContentDetailViewModel">
+            <views:ContentDetailView />
+        </DataTemplate>
+    </UserControl.DataTemplates>
+
+    <controls:SidebarLayout PaneTitle="Publishers"
+                            ItemsSource="{Binding Publishers}"
+                            SelectedItem="{Binding SelectedPublisher, Mode=TwoWay}"
+                            IsPaneOpen="{Binding IsPaneOpen, Mode=TwoWay}"
+                            OpenPaneLength="{Binding OpenPaneLength, Mode=TwoWay}"
+                            ItemTemplate="{StaticResource PublisherItemTemplate}">
+
+        <controls:SidebarLayout.Resources>
+            <converters:StringToImageConverter x:Key="StringToImageConverter" />
+            <DataTemplate x:Key="PublisherItemTemplate" DataType="vm:PublisherItemViewModel">
+                <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center" Margin="0,4">
+                    <!-- Publisher Logo -->
+                    <Panel Grid.Column="0" Width="24" Height="24" VerticalAlignment="Center" Margin="4,0,12,0">
+                        <Image infraControls:ImageLoader.Source="{Binding LogoSource}"
+                               Width="24" Height="24"
+                               Stretch="UniformToFill"
+                               IsVisible="{Binding LogoSource, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                            <Image.Clip>
+                                <EllipseGeometry Center="12,12" RadiusX="12" RadiusY="12" />
+                            </Image.Clip>
+                        </Image>
+                        <!-- Fallback icon -->
+                        <Border Width="24" Height="24"
+                                CornerRadius="12"
+                                Background="{DynamicResource SurfaceElevatedBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                IsVisible="{Binding LogoSource, Converter={x:Static StringConverters.IsNullOrEmpty}}">
+                            <TextBlock Text="●"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource AccentBrush}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" />
+                        </Border>
+                    </Panel>
+
+                    <!-- Publisher Name -->
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding DisplayName}"
+                               FontWeight="SemiBold"
+                               FontSize="13.5"
+                               Foreground="{DynamicResource TextPrimary}"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" />
+
+                    <!-- Content count badge -->
+                    <Border Grid.Column="2"
+                            Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                            BorderBrush="{DynamicResource AccentBadgeForegroundBrush}"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="7,2"
+                            Margin="8,0,4,0"
+                            IsVisible="{Binding ContentCount, Converter={x:Static converters:ComparisonConverters.IsPositive}}"
+                            VerticalAlignment="Center">
+                        <TextBlock Text="{Binding ContentCount}"
+                                   FontSize="10.5"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimary}" />
+                    </Border>
+                </Grid>
+            </DataTemplate>
+        </controls:SidebarLayout.Resources>
+
+        <controls:SidebarLayout.PaneFooter>
+            <Button Command="{Binding OpenManifestsFolderCommand}"
+                    Classes="pane-footer-btn"
+                    HorizontalAlignment="Stretch"
+                    Margin="8,0,8,12"
+                    ToolTip.Tip="Open Manifests Folder in File Explorer">
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                    <PathIcon Data="M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21L4,8V18L6.14,10H23.21L20.93,18.5C20.7,19.37 19.92,20 19,20Z"
+                              Width="16" Height="16" Foreground="{DynamicResource AccentBrush}"/>
+                    <TextBlock Text="Manifests Folder" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimary}" FontSize="13"/>
+                </StackPanel>
+            </Button>
+        </controls:SidebarLayout.PaneFooter>
+
+        <!-- Main Content Area -->
+        <Grid Margin="16,8,16,16">
+            <!-- Browser View: dock the toolbar so the card grid cannot scroll underneath it. -->
+            <DockPanel IsVisible="{Binding !IsDetailViewVisible}">
+                <Grid DockPanel.Dock="Top"
+                      Margin="0,0,0,12"
+                      IsVisible="{Binding CanSearchOrFilter}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBox Grid.Column="0"
+                             Classes="search-box"
+                             Text="{Binding SearchTerm}"
+                             Watermark="Search content..."
+                             VerticalAlignment="Center"
+                             IsVisible="{Binding CanSearch}">
+                        <TextBox.KeyBindings>
+                            <KeyBinding Gesture="Enter" Command="{Binding SearchCommand}" />
+                            <KeyBinding Gesture="Return" Command="{Binding SearchCommand}" />
+                        </TextBox.KeyBindings>
+                    </TextBox>
+
+                    <Button Grid.Column="1"
+                            Classes="toolbar-btn"
+                            Content="Search"
+                            Command="{Binding SearchCommand}"
+                            Margin="8,0,0,0"
+                            VerticalAlignment="Center"
+                            IsVisible="{Binding CanSearch}" />
+
+                    <ToggleButton Grid.Column="2"
+                                  Classes="filter-toggle-btn"
+                                  IsChecked="{Binding IsFilterPanelVisible}"
+                                  IsVisible="{Binding CanShowFilters}"
+                                  Margin="8,0,0,0"
+                                  VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="M3,2H21V2H21V4H20.92L15,9.92V22.91L9,16.91V9.91L3.09,4H3V2M5.84,4L11,9.17V16.09L13,18.09V9.17L18.16,4H5.84Z"
+                                      Width="13" Height="13"
+                                      Foreground="{Binding $parent[ToggleButton].Foreground}" />
+                            <TextBlock Text="Filters" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </ToggleButton>
+                </Grid>
+
+                <!-- Filter Panel (Collapsible) -->
+                <Border DockPanel.Dock="Top"
+                        Background="{DynamicResource CardBackground}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="16"
+                        Margin="0,0,0,12"
+                        IsVisible="{Binding IsFilterPanelVisible}">
+                    <views:FilterPanelView DataContext="{Binding CurrentFilterViewModel}" />
+                </Border>
+
+                <!-- Content Grid with Load More. Clip so scrolled cards cannot paint into the toolbar. -->
+                <Border ClipToBounds="True">
+                    <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                                  VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <ItemsControl ItemsSource="{Binding ContentItems}" HorizontalAlignment="Center">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Panel Margin="6">
+                                        <views:ContentCardView DataContext="{Binding}" />
+                                    </Panel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Load More Button -->
+                        <Button Content="Load More"
+                                Command="{Binding LoadMoreCommand}"
+                                IsEnabled="{Binding !IsLoading}"
+                                IsVisible="{Binding CanLoadMore}"
+                                Classes="load-more-btn"
+                                HorizontalAlignment="Center"
+                                Margin="0,20,0,40" />
+
+                        <!-- Loading Indicator (Bottom) -->
+                        <StackPanel Orientation="Horizontal"
+                                    HorizontalAlignment="Center"
+                                    Margin="0,10,0,40"
+                                    IsVisible="{Binding IsLoading}">
+                            <TextBlock Text="⟳"
+                                       FontSize="24"
+                                       Foreground="{DynamicResource AccentBrush}"
+                                       Margin="0,0,10,0">
+                                <TextBlock.RenderTransform>
+                                    <RotateTransform Angle="0"/>
+                                </TextBlock.RenderTransform>
+                                <TextBlock.Styles>
+                                    <Style Selector="TextBlock">
+                                        <Style.Animations>
+                                            <Animation Duration="0:0:1" IterationCount="Infinite">
+                                                <KeyFrame KeyTime="0:0:0">
+                                                    <Setter Property="RotateTransform.Angle" Value="0"/>
+                                                </KeyFrame>
+                                                <KeyFrame KeyTime="0:0:1">
+                                                    <Setter Property="RotateTransform.Angle" Value="360"/>
+                                                </KeyFrame>
+                                            </Animation>
+                                        </Style.Animations>
+                                    </Style>
+                                </TextBlock.Styles>
+                            </TextBlock>
+                            <TextBlock Text="Loading details..."
+                                       FontSize="15"
+                                       Foreground="{DynamicResource TextSecondary}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </DockPanel>
+
+            <!-- Detail View Overlay -->
+            <Grid IsVisible="{Binding IsDetailViewVisible}" Background="Transparent">
+                <ContentControl Content="{Binding SelectedContent}" />
+            </Grid>
+        </Grid>
+    </controls:SidebarLayout>
+</UserControl>

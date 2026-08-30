@@ -90,7 +90,14 @@ public sealed class FullCopyStrategy(
             if (Directory.Exists(workspacePath) && configuration.ForceRecreate)
             {
                 Logger.LogDebug("Removing existing workspace directory: {WorkspacePath}", workspacePath);
-                Directory.Delete(workspacePath, true);
+                try
+                {
+                    Directory.Delete(workspacePath, true);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "Could not delete workspace directory {WorkspacePath}, overwriting files in-place", workspacePath);
+                }
             }
 
             // Create workspace directory
@@ -156,7 +163,11 @@ public sealed class FullCopyStrategy(
 
                         try
                         {
-                            if (item.File.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(item.File.Hash))
+                            if ((item.File.SourceType == ContentSourceType.ContentAddressable ||
+                                 (!string.IsNullOrEmpty(item.File.Hash) &&
+                                  item.File.SourceType != ContentSourceType.GameInstallation &&
+                                  item.File.SourceType != ContentSourceType.LocalFile)) &&
+                                !string.IsNullOrEmpty(item.File.Hash))
                             {
                                 // Use CAS content
                                 await CreateCasLinkAsync(item.File.Hash, destinationPath, item.Manifest.ContentType, ct);

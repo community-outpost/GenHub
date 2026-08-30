@@ -236,5 +236,18 @@ public class WorkspaceSyncTests
         }
 
         protected override Task CreateCasLinkAsync(string hash, string targetPath, GenHub.Core.Models.Enums.ContentType? contentType, CancellationToken cancellationToken) => Task.CompletedTask;
+
+        protected override Task ProcessGameInstallationFileAsync(
+            ManifestFile file,
+            string targetPath,
+            WorkspaceConfiguration configuration,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+
+        protected override Task ProcessLocalFileAsync(
+            ManifestFile file,
+            ContentManifest manifest,
+            string targetPath,
+            WorkspaceConfiguration configuration,
+            CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

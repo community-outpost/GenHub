@@ -80,7 +80,7 @@
             </Setter>
         </Style>
         <Style Selector="Button.accent:pointerover">
-            <Setter Property="Background" Value="{DynamicResource AccentLightBrush}"/>
+            <Setter Property="Opacity" Value="0.9"/>
         </Style>
         <Style Selector="Button.accent:disabled">
             <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
@@ -182,7 +182,20 @@
                 <Border Grid.Column="1" Background="{DynamicResource SurfaceCardBrush}" CornerRadius="10" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" ClipToBounds="True">
                     <Grid RowDefinitions="Auto,*">
                         <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="16,10">
-                            <TextBlock Text="CONTENT PREVIEW" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" LetterSpacing="0.8"/>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" Text="CONTENT PREVIEW" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" LetterSpacing="0.8" VerticalAlignment="Center"/>
+                                <Button Grid.Column="1"
+                                        Command="{Binding NormalizeArchivesCommand}"
+                                        Classes="icon-btn"
+                                        Padding="8,4"
+                                        IsVisible="{Binding HasInactiveArchives}"
+                                        ToolTip.Tip="Convert .ctr / .gib files to active .big format for direct modern GameClient launch">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="⚡" FontSize="11"/>
+                                        <TextBlock Text="Normalize to .big (Direct Launch)" FontSize="11" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
                         </Border>
 
                         <TreeView Grid.Row="1" ItemsSource="{Binding FileTree}" Background="Transparent" Foreground="{DynamicResource TextPrimary}" Margin="8" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -272,11 +285,41 @@
         </Grid>
 
         <!-- Loading Overlay -->
-        <Grid Background="#CC000000" IsVisible="{Binding ShowLoadingOverlay}">
-             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="15">
-                 <ProgressBar IsIndeterminate="True" Width="200" Height="4" Foreground="{DynamicResource AccentBrush}" Background="{DynamicResource SurfaceHoverBrush}"/>
-                 <TextBlock Text="Processing..." Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" FontSize="14" FontWeight="Light"/>
-             </StackPanel>
+        <Grid Background="Transparent" IsVisible="{Binding ShowLoadingOverlay}">
+            <Border Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="28,22"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    MinWidth="320"
+                    MaxWidth="420"
+                    BoxShadow="0 8 24 #60000000">
+                <StackPanel Spacing="14" HorizontalAlignment="Center">
+                    <TextBlock Text="{Binding StatusMessage}"
+                               Foreground="{DynamicResource TextPrimary}"
+                               HorizontalAlignment="Center"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center"/>
+                    <ProgressBar Value="{Binding ProgressPercentage}"
+                                 IsIndeterminate="{Binding IsProgressIndeterminate}"
+                                 Minimum="0"
+                                 Maximum="100"
+                                 Width="260"
+                                 Height="6"
+                                 CornerRadius="3"
+                                 Foreground="{DynamicResource AccentBrush}"
+                                 Background="{DynamicResource SurfaceElevatedBrush}"/>
+                    <TextBlock Text="{Binding ProgressDetailMessage}"
+                               Foreground="{DynamicResource TextSecondary}"
+                               HorizontalAlignment="Center"
+                               FontSize="11"
+                               IsVisible="{Binding ProgressDetailMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                </StackPanel>
+            </Border>
         </Grid>
 
     </Panel>

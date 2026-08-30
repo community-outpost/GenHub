@@ -97,6 +97,12 @@ public class GameLauncher(
         }
     }
 
+    private readonly record struct WorkspaceSetupContext(
+        string ActualInstallationPath,
+        string DynamicWorkspacePath,
+        bool IsSteamLaunch,
+        Dictionary<string, string> ManifestSourcePaths);
+
     /// <summary>
     /// Launches a game using the provided configuration.
     /// </summary>
@@ -732,57 +738,25 @@ public class GameLauncher(
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.ValidatingProfile, PercentComplete = 0 });
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.ResolvingContent, PercentComplete = 10 });
 
-            var resolutionResult = await ResolveContentManifestsAsync(profile, cancellationToken);
-            if (!resolutionResult.Success || resolutionResult.Data == null)
+            var prereqResult = await PrepareLaunchPrerequisitesAsync(profile, cancellationToken);
+            if (!prereqResult.Success || prereqResult.Data == null)
             {
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(resolutionResult.FirstError ?? "Failed to resolve content dependencies.", launchId, profile.Id);
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(prereqResult.FirstError ?? "Prerequisite check failed", launchId, profile.Id);
             }
 
-            var manifests = resolutionResult.Data;
-            logger.LogDebug("[GameLauncher] Applying profile settings to Options.ini before workspace preparation");
-            await ApplyProfileSettingsToIniOptionsAsync(profile);
-
+            var manifests = prereqResult.Data;
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingWorkspace, PercentComplete = 20 });
 
-            logger.LogDebug("[GameLauncher] Running CAS preflight check");
-            var casCheckResult = await PreflightCasCheckAsync(manifests, cancellationToken);
-            if (!casCheckResult.Success)
-            {
-                logger.LogError("[GameLauncher] CAS preflight check failed: {Error}", casCheckResult.FirstError);
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(casCheckResult.FirstError ?? "CAS preflight check failed", launchId, profile.Id);
-            }
-
-            logger.LogDebug("[GameLauncher] CAS preflight check passed");
-
-            var manifestSourcePaths = await BuildManifestSourcePathsAsync(manifests, profile, cancellationToken);
-            var installResult = await ResolveInstallationAndPathsAsync(profile, cancellationToken);
-            if (!installResult.Success)
+            var workspaceResult = await SetupWorkspaceAndAcquireLockAsync(profile, manifests, progress, cancellationToken);
+            if (!workspaceResult.Success)
             {
                 await launchRegistry.UnregisterLaunchAsync(launchId);
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(installResult.FirstError ?? "Installation not configured.", launchId, profile.Id);
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(workspaceResult.FirstError ?? "Workspace setup failed", launchId, profile.Id);
             }
 
-            var (installation, gameClient, actualInstallationPath, dynamicWorkspacePath, isSteamLaunch) = installResult.Data;
-
-            var workspaceSetupResult = await SetupAndAcquireWorkspaceAsync(
-                profile,
-                manifests,
-                gameClient,
-                actualInstallationPath,
-                dynamicWorkspacePath,
-                isSteamLaunch,
-                manifestSourcePaths,
-                progress,
-                cancellationToken);
-
-            if (!workspaceSetupResult.Success)
-            {
-                await launchRegistry.UnregisterLaunchAsync(launchId);
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(workspaceSetupResult.FirstError ?? "Workspace preparation failed", launchId, profile.Id);
-            }
-
-            var (workspaceInfo, acquiredLock) = workspaceSetupResult.Data;
+            var (installation, _, actualInstallationPath, workspaceInfo, acquiredLock) = workspaceResult.Data;
             steamInstallationLock = acquiredLock;
+            var isSteamLaunch = profile.UseSteamLaunch == true && installation.InstallationType == GameInstallationType.Steam;
 
             if (workspaceInfo == null)
             {
@@ -796,66 +770,44 @@ public class GameLauncher(
             TriggerBackgroundUserDataSwitch(profile, manifests, skipUserDataCleanup);
 
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.Starting, PercentComplete = 90 });
-            var executableResult = ResolveAndValidateExecutablePath(profile, workspaceInfo);
-            if (!executableResult.Success || executableResult.Data == null)
-            {
-                await launchRegistry.UnregisterLaunchAsync(launchId);
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(executableResult.FirstError ?? "No executable path available", launchId, profile.Id);
-            }
 
-            var finalExecutablePath = executableResult.Data;
-
-            var prepResult = await PrepareLaunchConfigurationAndProxyAsync(
+            var configResult = await PrepareLaunchConfigAndExecutableAsync(
                 profile,
                 installation,
                 manifests,
                 actualInstallationPath,
-                finalExecutablePath,
                 workspaceInfo,
                 isSteamLaunch,
                 cancellationToken);
 
-            if (!prepResult.Success || prepResult.Data.LaunchConfig == null)
+            if (!configResult.Success)
             {
                 await launchRegistry.UnregisterLaunchAsync(launchId);
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(prepResult.FirstError ?? "Launch configuration failed", launchId, profile.Id);
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(configResult.FirstError ?? "Launch config failed", launchId, profile.Id);
             }
 
-            var (launchConfig, steamPrep, steamAppId) = prepResult.Data;
-            var effectiveStrategy = profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy();
+            var (finalExecutablePath, launchConfig, steamPrep, steamAppId) = configResult.Data;
 
-            var processResult = await LaunchProcessAsync(
-                isSteamLaunch,
-                manifests,
-                finalExecutablePath,
-                effectiveStrategy,
-                launchConfig,
-                workspaceInfo,
-                steamPrep,
-                steamAppId,
+            var executionResult = await ExecuteAndRegisterProcessAsync(
+                new ProcessExecutionRequest(
+                    launchId,
+                    profile,
+                    manifests,
+                    workspaceInfo,
+                    finalExecutablePath,
+                    launchConfig,
+                    steamPrep,
+                    steamAppId,
+                    isSteamLaunch),
                 cancellationToken);
 
-            if (!processResult.Success || processResult.Data == null)
+            if (!executionResult.Success || executionResult.Data == null)
             {
-                logger.LogError("[GameLauncher] Process start/discovery failed: {Error}", processResult.FirstError);
                 await launchRegistry.UnregisterLaunchAsync(launchId);
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(processResult.FirstError ?? "Process start failed", launchId, profile.Id);
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(executionResult.FirstError ?? "Process launch failed", launchId, profile.Id);
             }
 
-            var processInfo = processResult.Data;
-            logger.LogInformation("[GameLauncher] Process started successfully - PID: {ProcessId}", processInfo.ProcessId);
-
-            var launchInfo = new GameLaunchInfo
-            {
-                LaunchId = launchId,
-                ProfileId = profile.Id,
-                WorkspaceId = workspaceInfo.Id,
-                ProcessInfo = processInfo,
-                LaunchedAt = DateTime.UtcNow,
-            };
-            logger.LogDebug("[GameLauncher] Updating launch registry with real process info");
-            await launchRegistry.RegisterLaunchAsync(launchInfo);
-
+            var launchInfo = executionResult.Data;
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.Running, PercentComplete = 100 });
             logger.LogInformation("[GameLauncher] === Launch completed successfully for profile {ProfileId} ===", profile.Id);
             return LaunchOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo, launchId, profile.Id);
@@ -878,36 +830,202 @@ public class GameLauncher(
         }
     }
 
-    private async Task<OperationResult<(WorkspaceInfo Workspace, IDisposable? SteamLock)>> SetupAndAcquireWorkspaceAsync(
+    private async Task<OperationResult<List<ContentManifest>>> PrepareLaunchPrerequisitesAsync(
+        GameProfile profile,
+        CancellationToken cancellationToken)
+    {
+        var resolutionResult = await ResolveContentManifestsAsync(profile, cancellationToken);
+        if (!resolutionResult.Success || resolutionResult.Data == null)
+        {
+            return OperationResult<List<ContentManifest>>.CreateFailure(
+                resolutionResult.FirstError ?? "Failed to resolve content dependencies.");
+        }
+
+        var manifests = resolutionResult.Data;
+        logger.LogInformation(
+            "[GameLauncher] Resolved {Count} manifests (from {EnabledCount} enabled IDs, including dependencies)",
+            manifests.Count,
+            profile.EnabledContentIds?.Count ?? 0);
+
+        foreach (var manifest in manifests)
+        {
+            logger.LogDebug(
+                "[GameLauncher] Manifest details - ID: {Id}, Name: {Name}, Type: {Type}, Files: {FileCount}",
+                manifest.Id.Value,
+                manifest.Name,
+                manifest.ContentType,
+                manifest.Files?.Count ?? 0);
+        }
+
+        logger.LogDebug("[GameLauncher] Applying profile settings to Options.ini before workspace preparation");
+        await ApplyProfileSettingsToIniOptionsAsync(profile);
+
+        logger.LogDebug("[GameLauncher] Running CAS preflight check");
+        var casCheckResult = await PreflightCasCheckAsync(manifests, cancellationToken);
+        if (!casCheckResult.Success)
+        {
+            logger.LogError("[GameLauncher] CAS preflight check failed: {Error}", casCheckResult.FirstError);
+            return OperationResult<List<ContentManifest>>.CreateFailure(
+                casCheckResult.FirstError ?? "CAS preflight check failed");
+        }
+
+        logger.LogDebug("[GameLauncher] CAS preflight check passed");
+        return OperationResult<List<ContentManifest>>.CreateSuccess(manifests);
+    }
+
+    private async Task<OperationResult<(GameInstallation Installation, GenHub.Core.Models.GameClients.GameClient GameClient, string ActualInstallationPath, WorkspaceInfo Workspace, IDisposable? Lock)>> SetupWorkspaceAndAcquireLockAsync(
+        GameProfile profile,
+        List<ContentManifest> manifests,
+        IProgress<LaunchProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var manifestSourcePaths = await BuildManifestSourcePathsAsync(manifests, profile, cancellationToken);
+        var installResult = await ResolveInstallationAndPathsAsync(profile, cancellationToken);
+        if (!installResult.Success)
+        {
+            return OperationResult<(GameInstallation, GenHub.Core.Models.GameClients.GameClient, string, WorkspaceInfo, IDisposable?)>.CreateFailure(
+                installResult.FirstError ?? "Installation not configured.");
+        }
+
+        var (installation, gameClient, actualInstallationPath, dynamicWorkspacePath, isSteamLaunch) = installResult.Data;
+        var setupContext = new WorkspaceSetupContext(actualInstallationPath, dynamicWorkspacePath, isSteamLaunch, manifestSourcePaths);
+
+        var workspaceSetupResult = await SetupAndAcquireWorkspaceAsync(
+            profile,
+            manifests,
+            gameClient,
+            setupContext,
+            progress,
+            cancellationToken);
+
+        if (!workspaceSetupResult.Success || workspaceSetupResult.Data.Workspace == null)
+        {
+            return OperationResult<(GameInstallation, GenHub.Core.Models.GameClients.GameClient, string, WorkspaceInfo, IDisposable?)>.CreateFailure(
+                workspaceSetupResult.FirstError ?? "Workspace preparation failed");
+        }
+
+        var (workspaceInfo, acquiredLock) = workspaceSetupResult.Data;
+        return OperationResult<(GameInstallation, GenHub.Core.Models.GameClients.GameClient, string, WorkspaceInfo, IDisposable?)>.CreateSuccess(
+            (installation, gameClient, actualInstallationPath, workspaceInfo, acquiredLock));
+    }
+
+    private async Task<OperationResult<(string FinalExecutablePath, GameLaunchConfiguration LaunchConfig, SteamLaunchPrepResult? SteamPrep, string? SteamAppId)>> PrepareLaunchConfigAndExecutableAsync(
+        GameProfile profile,
+        GameInstallation installation,
+        IReadOnlyList<ContentManifest> manifests,
+        string actualInstallationPath,
+        WorkspaceInfo workspaceInfo,
+        bool isSteamLaunch,
+        CancellationToken cancellationToken)
+    {
+        var executableResult = ResolveAndValidateExecutablePath(profile, workspaceInfo);
+        if (!executableResult.Success || executableResult.Data == null)
+        {
+            return OperationResult<(string, GameLaunchConfiguration, SteamLaunchPrepResult?, string?)>.CreateFailure(
+                executableResult.FirstError ?? "No executable path available");
+        }
+
+        var finalExecutablePath = executableResult.Data;
+
+        var prepResult = await PrepareLaunchConfigurationAndProxyAsync(
+            profile,
+            installation,
+            manifests,
+            actualInstallationPath,
+            finalExecutablePath,
+            workspaceInfo,
+            isSteamLaunch,
+            cancellationToken);
+
+        if (!prepResult.Success || prepResult.Data.LaunchConfig == null)
+        {
+            return OperationResult<(string, GameLaunchConfiguration, SteamLaunchPrepResult?, string?)>.CreateFailure(
+                prepResult.FirstError ?? "Launch configuration failed");
+        }
+
+        var (launchConfig, steamPrep, steamAppId) = prepResult.Data;
+        return OperationResult<(string, GameLaunchConfiguration, SteamLaunchPrepResult?, string?)>.CreateSuccess(
+            (finalExecutablePath, launchConfig, steamPrep, steamAppId));
+    }
+
+    private readonly record struct ProcessExecutionRequest(
+        string LaunchId,
+        GameProfile Profile,
+        List<ContentManifest> Manifests,
+        WorkspaceInfo WorkspaceInfo,
+        string FinalExecutablePath,
+        GameLaunchConfiguration LaunchConfig,
+        SteamLaunchPrepResult? SteamPrep,
+        string? SteamAppId,
+        bool IsSteamLaunch);
+
+    private async Task<OperationResult<GameLaunchInfo>> ExecuteAndRegisterProcessAsync(
+        ProcessExecutionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var effectiveStrategy = request.Profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy();
+
+        var processResult = await LaunchProcessAsync(
+            request.IsSteamLaunch,
+            request.Manifests,
+            request.FinalExecutablePath,
+            effectiveStrategy,
+            request.LaunchConfig,
+            request.WorkspaceInfo,
+            request.SteamPrep,
+            request.SteamAppId,
+            cancellationToken);
+
+        if (!processResult.Success || processResult.Data == null)
+        {
+            logger.LogError("[GameLauncher] Process start/discovery failed: {Error}", processResult.FirstError);
+            return OperationResult<GameLaunchInfo>.CreateFailure(processResult.FirstError ?? "Process start failed");
+        }
+
+        var processInfo = processResult.Data;
+        logger.LogInformation("[GameLauncher] Process started successfully - PID: {ProcessId}", processInfo.ProcessId);
+
+        var launchInfo = new GameLaunchInfo
+        {
+            LaunchId = request.LaunchId,
+            ProfileId = request.Profile.Id,
+            WorkspaceId = request.WorkspaceInfo.Id,
+            ProcessInfo = processInfo,
+            LaunchedAt = DateTime.UtcNow,
+        };
+
+        logger.LogDebug("[GameLauncher] Updating launch registry with real process info");
+        await launchRegistry.RegisterLaunchAsync(launchInfo);
+        return OperationResult<GameLaunchInfo>.CreateSuccess(launchInfo);
+    }
+
+    private async Task<OperationResult<(WorkspaceInfo Workspace, IDisposable? Lock)>> SetupAndAcquireWorkspaceAsync(
         GameProfile profile,
         List<ContentManifest> manifests,
         GenHub.Core.Models.GameClients.GameClient gameClient,
-        string actualInstallationPath,
-        string dynamicWorkspacePath,
-        bool isSteamLaunch,
-        Dictionary<string, string> manifestSourcePaths,
+        WorkspaceSetupContext context,
         IProgress<LaunchProgress>? progress,
         CancellationToken cancellationToken)
     {
         IDisposable? steamInstallationLock = null;
         try
         {
-            if (isSteamLaunch)
+            if (context.IsSteamLaunch)
             {
-                steamInstallationLock = await AcquireSteamInstallationLockAsync(actualInstallationPath, cancellationToken);
+                steamInstallationLock = await AcquireSteamInstallationLockAsync(context.ActualInstallationPath, cancellationToken);
                 logger.LogInformation("[GameLauncher] Steam launch detected - workspace will be adjacent to installation in .genhub-workspace directory");
             }
 
-            logger.LogDebug("[GameLauncher] Using dynamic workspace path: {WorkspacePath} (Installation: {InstallPath})", dynamicWorkspacePath, actualInstallationPath);
+            logger.LogDebug("[GameLauncher] Using dynamic workspace path: {WorkspacePath} (Installation: {InstallPath})", context.DynamicWorkspacePath, context.ActualInstallationPath);
 
             var workspaceResult = await PrepareWorkspaceForLaunchAsync(
                 profile,
                 manifests,
                 gameClient,
-                actualInstallationPath,
-                dynamicWorkspacePath,
-                isSteamLaunch,
-                manifestSourcePaths,
+                context.ActualInstallationPath,
+                context.DynamicWorkspacePath,
+                context.IsSteamLaunch,
+                context.ManifestSourcePaths,
                 progress,
                 cancellationToken);
 
@@ -971,7 +1089,7 @@ public class GameLauncher(
 
         var launchConfig = BuildGameLaunchConfiguration(finalExecutablePath, workspaceInfo, arguments, profile, installation);
 
-        var archiveRootError = ValidateRetailArchiveRoots(launchConfig.EnvironmentVariables, installation, profile.GameClient.GameType);
+        var archiveRootError = ValidateRetailArchiveRoots(launchConfig.EnvironmentVariables, installation, profile.GameClient?.GameType ?? GameType.ZeroHour);
         if (archiveRootError is not null)
         {
             logger.LogError("[GameLauncher] Retail archive root validation failed: {Error}", archiveRootError);
@@ -1000,7 +1118,7 @@ public class GameLauncher(
             Manifests = manifests,
             GameClient = gameClient,
             Strategy = effectiveStrategy,
-            ForceRecreate = isSteamLaunch,
+            ForceRecreate = false,
             WorkspaceRootPath = dynamicWorkspacePath,
             BaseInstallationPath = actualInstallationPath,
             ManifestSourcePaths = manifestSourcePaths,
@@ -1021,10 +1139,18 @@ public class GameLauncher(
             wp =>
             {
                 var percentComplete = 20 + (int)(wp.FilesProcessed / (double)Math.Max(1, wp.TotalFiles) * 60);
-                progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingWorkspace, PercentComplete = Math.Min(percentComplete, 80) });
+                progress?.Report(new LaunchProgress
+                {
+                    Phase = LaunchPhase.PreparingWorkspace,
+                    PercentComplete = Math.Min(percentComplete, 80),
+                    IsInitializingWorkspace = true,
+                    TotalFiles = wp.TotalFiles,
+                    FilesProcessed = wp.FilesProcessed,
+                    CurrentFile = wp.CurrentFile,
+                });
             });
 
-        var workspaceResult = await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, workspaceProgress, skipCleanup: isSteamLaunch, cancellationToken);
+        var workspaceResult = await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, workspaceProgress, skipCleanup: false, cancellationToken);
         if (!workspaceResult.Success || workspaceResult.Data == null)
         {
             logger.LogError("[GameLauncher] Workspace preparation failed: {Error}", workspaceResult.FirstError);
@@ -1110,6 +1236,19 @@ public class GameLauncher(
             {
                 logger.LogError("[GameLauncher] Security violation - executable outside workspace");
                 return OperationResult<string>.CreateFailure($"Security violation: Workspace executable path '{finalExecutablePath}' is outside workspace");
+            }
+        }
+        else if (profile.GameClient != null && !string.IsNullOrEmpty(profile.GameClient.WorkingDirectory))
+        {
+            var normalizedWorkingDir = NormalizePath(profile.GameClient.WorkingDirectory);
+            var normalizedWorkingDirPrefix = normalizedWorkingDir.TrimEnd('/') + '/';
+            var normalizedExecutablePath = NormalizePath(finalExecutablePath);
+            if (!normalizedExecutablePath.StartsWith(normalizedWorkingDirPrefix, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(normalizedExecutablePath, normalizedWorkingDir.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogError("[GameLauncher] Security violation - profile fallback executable outside working directory");
+                return OperationResult<string>.CreateFailure(
+                    $"Security violation: Fallback executable path '{finalExecutablePath}' is outside working directory");
             }
         }
 
@@ -1266,14 +1405,6 @@ public class GameLauncher(
                 continue;
             }
 
-            if (manifest.ContentType == ContentType.GameClient &&
-                !string.IsNullOrEmpty(profile.GameClient?.WorkingDirectory))
-            {
-                manifestSourcePaths[manifest.Id.Value] = profile.GameClient.WorkingDirectory;
-                logger.LogDebug("[GameLauncher] Source path for GameClient {ManifestId}: {SourcePath}", manifest.Id.Value, profile.GameClient.WorkingDirectory);
-                continue;
-            }
-
             var contentDirResult = await manifestPool.GetContentDirectoryAsync(manifest.Id, cancellationToken);
             if (contentDirResult.Success && !string.IsNullOrEmpty(contentDirResult.Data))
             {
@@ -1284,12 +1415,33 @@ public class GameLauncher(
                     manifest.ContentType,
                     contentDirResult.Data);
             }
+            else if (manifest.ContentType == ContentType.GameClient && !string.IsNullOrEmpty(profile.GameClient?.WorkingDirectory))
+            {
+                manifestSourcePaths[manifest.Id.Value] = profile.GameClient.WorkingDirectory;
+                logger.LogDebug(
+                    "[GameLauncher] Source path for GameClient {ManifestId} resolved from profile working directory: {SourcePath}",
+                    manifest.Id.Value,
+                    profile.GameClient.WorkingDirectory);
+            }
             else
             {
-                logger.LogWarning(
-                    "[GameLauncher] Could not resolve source path for manifest {ManifestId} ({ContentType})",
-                    manifest.Id.Value,
-                    manifest.ContentType);
+                bool isCasBacked = manifest.Files is { Count: > 0 } &&
+                    manifest.Files.All(f => f.SourceType == ContentSourceType.ContentAddressable || !string.IsNullOrEmpty(f.Hash));
+
+                if (isCasBacked)
+                {
+                    logger.LogDebug(
+                        "[GameLauncher] Source path for CAS-backed manifest {ManifestId} ({ContentType}) is managed by CAS pool",
+                        manifest.Id.Value,
+                        manifest.ContentType);
+                }
+                else
+                {
+                    logger.LogWarning(
+                        "[GameLauncher] Could not resolve source path for manifest {ManifestId} ({ContentType})",
+                        manifest.Id.Value,
+                        manifest.ContentType);
+                }
             }
         }
 
@@ -1361,10 +1513,10 @@ public class GameLauncher(
     {
         var possiblePaths = new[]
         {
-            Path.Combine(workspacePath, "Data", "Movies", "EA_LOGO.BIK"),
-            Path.Combine(workspacePath, "Data", "English", "Movies", "EA_LOGO.BIK"),
-            Path.Combine(workspacePath, "Movies", "EA_LOGO.BIK"),
-            Path.Combine(workspacePath, "data", "movies", "EA_LOGO.BIK"),
+            Path.Combine(workspacePath, DirectoryNames.Data, DirectoryNames.Movies, GameContentConstants.EaLogoBikFileName),
+            Path.Combine(workspacePath, DirectoryNames.Data, "English", DirectoryNames.Movies, GameContentConstants.EaLogoBikFileName),
+            Path.Combine(workspacePath, DirectoryNames.Movies, GameContentConstants.EaLogoBikFileName),
+            Path.Combine(workspacePath, "data", "movies", GameContentConstants.EaLogoBikFileName),
         };
 
         logger.LogInformation("[GameLauncher] Skip EA Logo enabled - checking workspace: {WorkspacePath}", workspacePath);
@@ -1383,14 +1535,14 @@ public class GameLauncher(
                 }
                 catch (Exception ex)
                 {
-                    logger.LogWarning(ex, "[GameLauncher] Failed to delete EA_LOGO.BIK at {LogoPath}", logoPath);
+                    logger.LogWarning(ex, "[GameLauncher] Failed to delete {LogoFileName} at {LogoPath}", GameContentConstants.EaLogoBikFileName, logoPath);
                 }
             }
         }
 
         if (!deleted)
         {
-            logger.LogWarning("[GameLauncher] Skip EA Logo enabled but EA_LOGO.BIK not found in workspace. Checked paths: {Paths}", string.Join(", ", possiblePaths));
+            logger.LogWarning("[GameLauncher] Skip EA Logo enabled but {LogoFileName} not found in workspace. Checked paths: {Paths}", GameContentConstants.EaLogoBikFileName, string.Join(", ", possiblePaths));
         }
     }
 
@@ -1535,6 +1687,125 @@ public class GameLauncher(
 
         logger.LogInformation("[GameLauncher] Monitoring for process: {ProcessName}", processName);
         return processName;
+    }
+
+    private async Task<OperationResult<(GameInstallation Installation, GameClient GameClient, string ActualInstallationPath, string DynamicWorkspacePath, bool IsSteamLaunch)>> ResolveLaunchInstallationAndPathsAsync(
+        GameProfile profile,
+        string launchId,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(profile.GameInstallationId))
+        {
+            logger.LogError("[GameLauncher] Profile {ProfileId} has no GameInstallationId set", profile.Id);
+            await launchRegistry.UnregisterLaunchAsync(launchId);
+            return OperationResult<(GameInstallation, GameClient, string, string, bool)>.CreateFailure("Game installation not configured for this profile.");
+        }
+
+        var installationResult = await gameInstallationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
+        if (!installationResult.Success || installationResult.Data == null)
+        {
+            logger.LogError("[GameLauncher] Failed to retrieve installation {InstallationId}: {Error}", profile.GameInstallationId, installationResult.FirstError);
+            await launchRegistry.UnregisterLaunchAsync(launchId);
+            return OperationResult<(GameInstallation, GameClient, string, string, bool)>.CreateFailure($"Failed to retrieve game installation: {installationResult.FirstError ?? "Installation not found"}");
+        }
+
+        var installation = installationResult.Data;
+        var gameClient = profile.GameClient;
+        if (gameClient == null)
+        {
+            logger.LogError("[GameLauncher] GameClient is not set for profile {ProfileId}", profile.Id);
+            await launchRegistry.UnregisterLaunchAsync(launchId);
+            return OperationResult<(GameInstallation, GameClient, string, string, bool)>.CreateFailure("GameClient not configured for profile.");
+        }
+
+        var actualInstallationPath = gameClient.GameType == GameType.Generals
+            ? installation.GeneralsPath ?? string.Empty
+            : installation.ZeroHourPath ?? string.Empty;
+
+        if (string.IsNullOrEmpty(actualInstallationPath))
+        {
+            logger.LogError("[GameLauncher] Installation path is not set for {GameType}", gameClient.GameType);
+            return OperationResult<(GameInstallation, GameClient, string, string, bool)>.CreateFailure("Installation path not found.");
+        }
+
+        var dynamicWorkspacePath = storageLocationService.GetWorkspacePath(installation);
+        var isSteamLaunch = profile.UseSteamLaunch == true && installation.InstallationType == GameInstallationType.Steam;
+
+        return OperationResult<(GameInstallation, GameClient, string, string, bool)>.CreateSuccess(
+            (installation, gameClient, actualInstallationPath, dynamicWorkspacePath, isSteamLaunch));
+    }
+
+    private void HandlePostWorkspacePreparation(
+        GameProfile profile,
+        WorkspaceInfo workspaceInfo,
+        List<ContentManifest> manifests,
+        bool skipUserDataCleanup,
+        IProgress<LaunchProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        if (profile.VideoSkipEALogo == true)
+        {
+            DeleteEaLogoIfExists(workspaceInfo.WorkspacePath);
+        }
+
+        progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingUserData, PercentComplete = 82 });
+        var previousActiveProfileId = profileContentLinker.GetActiveProfileId();
+        _ = Task.Run(
+            async () =>
+            {
+                try
+                {
+                    logger.LogDebug(
+                        "[GameLauncher] Background: Switching user data from profile {OldProfile} to {NewProfile}",
+                        previousActiveProfileId ?? "(none)",
+                        profile.Id);
+                    var userDataResult = await profileContentLinker.SwitchProfileUserDataAsync(
+                        previousActiveProfileId,
+                        profile.Id,
+                        manifests,
+                        profile.GameClient?.GameType ?? GameType.ZeroHour,
+                        skipUserDataCleanup,
+                        CancellationToken.None);
+                    if (!userDataResult.Success)
+                    {
+                        logger.LogWarning("[GameLauncher] Background user data preparation had issues: {Error}", userDataResult.FirstError);
+                    }
+                    else
+                    {
+                        logger.LogInformation("[GameLauncher] Background user data content prepared for profile {ProfileId}", profile.Id);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "[GameLauncher] Unexpected error in background user data linkage for profile {ProfileId}", profile.Id);
+                }
+            },
+            cancellationToken);
+    }
+
+    private void DeleteEaLogoIfExists(string workspacePath)
+    {
+        var possiblePaths = new[]
+        {
+            Path.Combine(workspacePath, "Data", "Movies", "EA_LOGO.BIK"),
+            Path.Combine(workspacePath, "Data", "English", "Movies", "EA_LOGO.BIK"),
+            Path.Combine(workspacePath, "Movies", "EA_LOGO.BIK"),
+            Path.Combine(workspacePath, "data", "movies", "EA_LOGO.BIK"),
+        };
+
+        foreach (var logoPath in possiblePaths.Where(File.Exists))
+        {
+            try
+            {
+                File.Delete(logoPath);
+                logger.LogInformation("[GameLauncher] Successfully deleted EA logo at: {LogoPath}", logoPath);
+                break;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "[GameLauncher] Failed to delete EA_LOGO.BIK at {LogoPath}", logoPath);
+            }
+        }
     }
 
     /// <summary>

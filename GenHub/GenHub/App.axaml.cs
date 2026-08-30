@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
@@ -13,6 +14,8 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
+using GenHub.Features.Content.ViewModels.Catalog;
+using GenHub.Features.Downloads.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -41,6 +44,11 @@ public partial class App : Application
         _profileLauncherFacade = _serviceProvider.GetRequiredService<IProfileLauncherFacade>();
         _themeService = _serviceProvider.GetService<IThemeService>();
     }
+
+    /// <summary>
+    /// Gets the application service provider.
+    /// </summary>
+    public IServiceProvider ServiceProvider => _serviceProvider;
 
     /// <summary>
     /// Initializes the Avalonia application and loads XAML resources.
@@ -78,6 +86,70 @@ public partial class App : Application
         base.OnFrameworkInitializationCompleted();
     }
 
+    /// <summary>
+    /// Handles a content-subscription request for the given URL.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Entry points: <c>genhub://subscribe?url=...</c> on cold start, IPC from a secondary
+    /// instance, or dragging a JSON file with a <c>catalogUrl</c> onto the main window.
+    /// </para>
+    /// <para>
+    /// <b>Current target (catalog-direct):</b> <paramref name="url"/> is expected to be a
+    /// hosted GenHub <c>catalog.json</c> (<see cref="GenHub.Core.Models.Providers.PublisherCatalog"/>).
+    /// Confirming saves a <see cref="GenHub.Core.Models.Providers.PublisherSubscription"/> and
+    /// refreshes Downloads so the publisher appears in the sidebar.
+    /// </para>
+    /// <para>
+    /// <b>Future (Publisher Studio):</b> the same protocol may point at a Provider Definition
+    /// (publisher metadata + catalog endpoint(s)). Detection/parsing of definitions will extend
+    /// this path without changing the URI scheme; catalog-direct subscribe remains supported.
+    /// </para>
+    /// </remarks>
+    /// <param name="url">
+    /// Absolute HTTP(S) URL of a GenHub catalog JSON today; later also a provider-definition URL.
+    /// </param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task HandleSubscribeCommandAsync(string url)
+    {
+        var logger = _serviceProvider.GetService<ILogger<App>>();
+        try
+        {
+            if (!IsValidSubscriptionUrl(url, out _))
+            {
+                logger?.LogWarning("Rejected invalid or non-HTTPS subscription URL: '{Url}'", url);
+                return;
+            }
+
+            logger?.LogInformation("Processing subscription for URL: {Url}", url);
+
+            // UI work (dialog + Downloads refresh) must run on the Avalonia UI thread.
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } window })
+                {
+                    await ProcessSubscriptionDialogAsync(window, url, logger);
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to handle subscription command for {Url}", url);
+        }
+    }
+
+    private static bool IsValidSubscriptionUrl(string url, out Uri? parsedUri)
+    {
+        if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out parsedUri))
+        {
+            parsedUri = null;
+            return false;
+        }
+
+        return parsedUri.Scheme == Uri.UriSchemeHttps
+            || (parsedUri.Scheme == Uri.UriSchemeHttp && parsedUri.IsLoopback);
+    }
+
     private static void UpdateViewModelAfterLaunch(MainWindow mainWindow, string profileId, int processId)
     {
         if (mainWindow?.DataContext is not MainViewModel mainViewModel || mainViewModel.GameProfilesViewModel == null)
@@ -109,6 +181,35 @@ public partial class App : Application
 
         mainViewModel.GameProfilesViewModel.StatusMessage = $"Launch failed: {error}";
         mainViewModel.GameProfilesViewModel.ErrorMessage = error;
+    }
+
+    private async Task ProcessSubscriptionDialogAsync(Window mainWindow, string url, ILogger<App>? logger)
+    {
+        logger?.LogInformation("Showing subscription confirmation dialog for: {Url}", url);
+
+        var viewModel = ActivatorUtilities.CreateInstance<SubscriptionConfirmationViewModel>(_serviceProvider, url);
+        var dialog = new SubscriptionConfirmationDialog
+        {
+            DataContext = viewModel,
+        };
+
+        var result = await dialog.ShowDialog<bool>(mainWindow);
+        if (result)
+        {
+            logger?.LogInformation("User confirmed subscription for: {Url}", url);
+
+            // Reload subscribed publishers into the Downloads sidebar without wiping
+            // the user's current browse/filter state for built-in publishers.
+            var mainVm = mainWindow.DataContext as MainViewModel;
+            if (mainVm?.DownloadsBrowserViewModel is { } downloadsVm)
+            {
+                await downloadsVm.InitializeAsync();
+            }
+        }
+        else
+        {
+            logger?.LogInformation("User cancelled subscription for: {Url}", url);
+        }
     }
 
     private void ApplyWindowSettings(MainWindow mainWindow)
@@ -182,7 +283,7 @@ public partial class App : Application
         }
 
         await HandleLaunchProfileArgsAsync(args, mainWindow);
-        await HandleSubscriptionArgsAsync(args, mainWindow);
+        await HandleSubscriptionArgsAsync(args);
     }
 
     private async Task HandleLaunchProfileArgsAsync(string[]? args, MainWindow mainWindow)
@@ -193,34 +294,29 @@ public partial class App : Application
         }
 
         var profileId = CommandLineParser.ExtractProfileId(args);
-        if (string.IsNullOrWhiteSpace(profileId))
+        if (!string.IsNullOrWhiteSpace(profileId))
         {
-            return;
+            var logger = _serviceProvider.GetService<ILogger<App>>();
+            logger?.LogInformation("Startup launch detected for profile: {ProfileId}", profileId);
+            await LaunchProfileByIdAsync(profileId, mainWindow);
         }
-
-        var logger = _serviceProvider.GetService<ILogger<App>>();
-        logger?.LogInformation("Startup launch detected for profile: {ProfileId}", profileId);
-
-        await LaunchProfileByIdAsync(profileId, mainWindow);
     }
 
-    private async Task HandleSubscriptionArgsAsync(string[]? args, MainWindow mainWindow)
+    private async Task HandleSubscriptionArgsAsync(string[]? args)
     {
         if (args == null || args.Length == 0)
         {
             return;
         }
 
+        // genhub://subscribe?url=<catalog-or-future-definition-url> on first launch
         var subscriptionUrl = CommandLineParser.ExtractSubscriptionUrl(args);
-        if (string.IsNullOrWhiteSpace(subscriptionUrl))
+        if (!string.IsNullOrWhiteSpace(subscriptionUrl))
         {
-            return;
+            var logger = _serviceProvider.GetService<ILogger<App>>();
+            logger?.LogInformation("Startup subscription detected: {Url}", subscriptionUrl);
+            await HandleSubscribeCommandAsync(subscriptionUrl);
         }
-
-        var logger = _serviceProvider.GetService<ILogger<App>>();
-        logger?.LogInformation("Startup subscription detected for URL: {Url}", subscriptionUrl);
-
-        await HandleSubscriptionUrlAsync(subscriptionUrl, mainWindow);
     }
 
     private void SubscribeToSingleInstanceCommands(MainWindow mainWindow)
@@ -253,11 +349,11 @@ public partial class App : Application
         }
         else if (command.StartsWith(IpcCommands.SubscribePrefix, StringComparison.OrdinalIgnoreCase))
         {
-            var subscriptionUrl = command[IpcCommands.SubscribePrefix.Length..];
-            logger?.LogInformation("Received IPC subscribe command for URL: {Url}", subscriptionUrl);
+            // Secondary instance forwarded genhub://subscribe?... while we were already running.
+            var url = command[IpcCommands.SubscribePrefix.Length..];
+            logger?.LogInformation("Received IPC subscribe command for URL: {Url}", url);
 
-            // Handle the subscription URL
-            SafeFireAndForget(HandleSubscriptionUrlAsync(subscriptionUrl, mainWindow), nameof(HandleSubscriptionUrlAsync));
+            SafeFireAndForget(HandleSubscribeCommandAsync(url), "HandleSubscribeCommandAsync");
         }
         else
         {
@@ -308,50 +404,6 @@ public partial class App : Application
         catch (Exception ex)
         {
             logger?.LogError(ex, "Exception while launching profile {ProfileId}", profileId);
-        }
-    }
-
-    private async Task HandleSubscriptionUrlAsync(string subscriptionUrl, MainWindow mainWindow)
-    {
-        var logger = _serviceProvider.GetService<ILogger<App>>();
-
-        try
-        {
-            var sanitizedUrl = subscriptionUrl.Replace("\r", string.Empty).Replace("\n", string.Empty).Trim('"', '\'', ' ', '\t');
-            if (!Uri.TryCreate(sanitizedUrl, UriKind.Absolute, out var uri) ||
-                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
-            {
-                logger?.LogWarning("Invalid or unsafe subscription URL: {Url}", subscriptionUrl);
-                return;
-            }
-
-            logger?.LogInformation("Handling subscription URL: {Url}", uri.AbsoluteUri);
-
-            var dialogService = _serviceProvider.GetService<IDialogService>();
-            if (dialogService != null)
-            {
-                var confirmed = await dialogService.ShowConfirmationAsync(
-                    "Subscribe to Catalog",
-                    $"Do you want to subscribe to content from:\n{uri.AbsoluteUri}",
-                    "Subscribe",
-                    "Cancel");
-
-                if (confirmed)
-                {
-                    if (mainWindow?.DataContext is MainViewModel mainViewModel)
-                    {
-                        mainViewModel.SelectTab(NavigationTab.Downloads);
-                    }
-
-                    logger?.LogInformation("User confirmed subscription to: {Url}", uri.AbsoluteUri);
-                    var notificationService = _serviceProvider.GetService<INotificationService>();
-                    notificationService?.ShowSuccess("Subscribed", $"Successfully subscribed to: {uri.AbsoluteUri}");
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            logger?.LogError(ex, "Exception while handling subscription URL {Url}", subscriptionUrl);
         }
     }
 }

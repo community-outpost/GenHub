@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
@@ -35,7 +36,10 @@ public class CNCLabsContentProvider(
         ?? throw new ArgumentException("HTTP deliverer not found", nameof(deliverers));
 
     /// <inheritdoc />
-    public override string SourceName => "CNC Labs";
+    /// <remarks>
+    /// Must match the ProviderName set by CNCLabsMapDiscoverer on search results.
+    /// </remarks>
+    public override string SourceName => CNCLabsConstants.SourceName;
 
     /// <inheritdoc />
     public override string Description => "Provides maps and content from CNC Labs";
@@ -70,7 +74,7 @@ public class CNCLabsContentProvider(
     }
 
     /// <inheritdoc />
-    protected override Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
+    protected override async Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
         ContentManifest manifest,
         string workingDirectory,
         IProgress<ContentAcquisitionProgress>? progress,
@@ -78,22 +82,26 @@ public class CNCLabsContentProvider(
     {
         try
         {
-            Logger.LogDebug("Preparing CNC Labs content for manifest {ManifestId}", manifest.Id);
+            Logger.LogInformation("Preparing CNC Labs content for manifest {ManifestId}", manifest.Id);
 
-            progress?.Report(new ContentAcquisitionProgress
+            if (!Deliverer.CanDeliver(manifest))
             {
-                Phase = ContentAcquisitionPhase.Downloading,
-                CurrentOperation = "Preparing CNC Labs content...",
-            });
+                return OperationResult<ContentManifest>.CreateFailure($"Cannot deliver content for manifest {manifest.Id}");
+            }
 
-            // For CNC Labs content, typically just return the manifest as content preparation
-            // is handled by the delivery pipeline
-            return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
+            // Use the deliverer to handle content acquisition
+            var deliveryResult = await Deliverer.DeliverContentAsync(manifest, workingDirectory, progress, cancellationToken);
+            if (!deliveryResult.Success)
+            {
+                return OperationResult<ContentManifest>.CreateFailure($"CNC Labs content delivery failed: {deliveryResult.FirstError}");
+            }
+
+            return OperationResult<ContentManifest>.CreateSuccess(deliveryResult.Data ?? manifest);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to prepare CNC Labs content for manifest {ManifestId}", manifest.Id);
-            return Task.FromResult(OperationResult<ContentManifest>.CreateFailure($"CNC Labs content preparation failed: {ex.Message}"));
+            return OperationResult<ContentManifest>.CreateFailure($"CNC Labs content preparation failed: {ex.Message}");
         }
     }
 }

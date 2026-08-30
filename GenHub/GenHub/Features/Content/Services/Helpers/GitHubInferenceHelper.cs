@@ -100,6 +100,10 @@ public static class GitHubInferenceHelper
     {
         var searchText = $"{repo} {releaseName ?? string.Empty}";
 
+        // Explicit check for TheSuperHackers GeneralsGameCode repository
+        if (searchText.Contains("GeneralsGameCode", StringComparison.OrdinalIgnoreCase))
+            return (ContentType.GameClient, false); // Not inferred, explicit detection
+
         if (searchText.Contains("patch", StringComparison.OrdinalIgnoreCase) || searchText.Contains("fix", StringComparison.OrdinalIgnoreCase))
             return (ContentType.Patch, true);
 

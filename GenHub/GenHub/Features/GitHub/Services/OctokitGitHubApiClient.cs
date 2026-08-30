@@ -29,7 +29,7 @@ public class OctokitGitHubApiClient(
     private const int MaxPerPage = 100;
     private static readonly TimeSpan DefaultCacheDuration = TimeSpan.FromHours(1);
     private static readonly TimeSpan SearchCacheDuration = TimeSpan.FromHours(4);
-    private SecureString? token;
+    private SecureString? _token;
 
     /// <summary>
     /// Gets a value indicating whether the client is authenticated.
@@ -42,7 +42,7 @@ public class OctokitGitHubApiClient(
     /// <param name="token">The GitHub token.</param>
     public void SetToken(SecureString token)
     {
-        this.token = token;
+        _token = token;
         if (gitHubClient is GitHubClient client)
         {
             var tokenString = new System.Net.NetworkCredential(string.Empty, token).Password;
@@ -54,7 +54,7 @@ public class OctokitGitHubApiClient(
     /// Gets the current GitHub token.
     /// </summary>
     /// <returns>The GitHub token.</returns>
-    public SecureString GetToken() => token!;
+    public SecureString? GetToken() => _token;
 
     /// <summary>
     /// Downloads a release asset to the specified path.

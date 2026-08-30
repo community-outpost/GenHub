@@ -1,4 +1,5 @@
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -22,6 +23,7 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
 {
     private readonly Mock<ILogger<CommunityOutpostManifestFactory>> _loggerMock;
     private readonly Mock<IFileHashProvider> _hashProviderMock;
+    private readonly Mock<IControlBarPackageProcessor> _controlBarProcessorMock;
     private readonly CommunityOutpostManifestFactory _factory;
     private readonly string _tempDir;
 
@@ -32,11 +34,12 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
     {
         _loggerMock = new Mock<ILogger<CommunityOutpostManifestFactory>>();
         _hashProviderMock = new Mock<IFileHashProvider>();
+        _controlBarProcessorMock = new Mock<IControlBarPackageProcessor>();
 
         _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("abc123hash");
 
-        _factory = new CommunityOutpostManifestFactory(_loggerMock.Object, _hashProviderMock.Object, null!);
+        _factory = new CommunityOutpostManifestFactory(_loggerMock.Object, _hashProviderMock.Object, _controlBarProcessorMock.Object);
         _tempDir = Path.Combine(Path.GetTempPath(), "GenHubTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDir);
     }

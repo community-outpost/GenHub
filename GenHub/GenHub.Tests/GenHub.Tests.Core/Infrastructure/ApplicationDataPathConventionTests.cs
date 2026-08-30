@@ -42,6 +42,9 @@ public class ApplicationDataPathConventionTests
 
         // Core-layer fallback, overridden at the composition root by ContentPipelineModule.
         ["ProviderDefinitionLoader.cs"] = "Default only; the DI registration supplies an override.",
+
+        // UI image cache service initialized outside DI container.
+        ["ImageCacheService.cs"] = "Static singleton image cache initialized outside DI.",
     };
 
     /// <summary>

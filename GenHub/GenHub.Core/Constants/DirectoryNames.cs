@@ -93,4 +93,19 @@ public static class DirectoryNames
     /// Directory for storing tool workspaces.
     /// </summary>
     public const string ToolWorkspaces = "ToolWorkspaces";
+
+    /// <summary>
+    /// Directory for persistent Playwright browser profiles (cookies/storage for bot-protected sites).
+    /// </summary>
+    public const string BrowserProfiles = "BrowserProfiles";
+
+    /// <summary>
+    /// Directory for the app-owned Playwright Chromium runtime (not the system Chrome/Edge install).
+    /// </summary>
+    public const string BrowserRuntime = "BrowserRuntime";
+
+    /// <summary>
+    /// Directory for game movie assets.
+    /// </summary>
+    public const string Movies = "Movies";
 }

@@ -11,6 +11,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -29,12 +30,13 @@ namespace GenHub.Features.GameInstallations;
 /// content manifests for detected installations and populate their AvailableClients.
 /// </remarks>
 public class GameInstallationService(
-IGameInstallationDetectionOrchestrator detectionOrchestrator,
-IGameClientDetectionOrchestrator clientOrchestrator,
-ILogger<GameInstallationService> logger,
-IManifestGenerationService? manifestGenerationService = null,
-IContentManifestPool? contentManifestPool = null,
-IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDisposable
+    IGameInstallationDetectionOrchestrator detectionOrchestrator,
+    IGameClientDetectionOrchestrator clientOrchestrator,
+    ILogger<GameInstallationService> logger,
+    IManifestGenerationService? manifestGenerationService = null,
+    IContentManifestPool? contentManifestPool = null,
+    IInstallationPathResolver? pathResolver = null,
+    IInstallationCasPoolService? installationCasPoolService = null) : IGameInstallationService, IDisposable
 {
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
     private ReadOnlyCollection<GameInstallation>? _cachedInstallations;
@@ -534,12 +536,24 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                     gameType == GameType.ZeroHour ? "zerohour" : "generals",
                     normalizedVersion);
 
+                var resolution = ManifestVariantResolver.ResolveEntryPoint(matchingManifest);
+                var executablePath = string.Empty;
+                if (resolution.Success && !string.IsNullOrEmpty(resolution.RelativePath))
+                {
+                    var pathResult = ContentPathPolicy.ResolveContainedFile(gamePath, resolution.RelativePath);
+                    if (pathResult.Success)
+                    {
+                        executablePath = pathResult.Data ?? string.Empty;
+                    }
+                }
+
                 // Create a game client from the manifest
                 var gameClient = new GameClient
                 {
                     Id = clientId, // Use the proper gameclient ID format
                     Name = matchingManifest.Name,
                     WorkingDirectory = gamePath,
+                    ExecutablePath = executablePath,
                     GameType = gameType,
                     InstallationId = installation.Id,
                     Version = matchingManifest.Version,
@@ -790,29 +804,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
             }
 
             var detectionResult = await detectionOrchestrator.DetectAllInstallationsAsync(cancellationToken);
-
-            // Start with auto-detected installations if successful, otherwise empty list
-            List<GameInstallation> installations = [];
-            bool detectionHadError = !detectionResult.Success;
-            if (detectionResult.Success)
-            {
-                installations = [.. detectionResult.Items];
-                logger.LogInformation(
-                    "[DIAGNOSTIC] Auto-detection found {Count} installations",
-                    installations.Count);
-            }
-            else
-            {
-                logger.LogWarning(
-                    "[DIAGNOSTIC] Auto-detection failed: {Errors}. Starting with empty list.",
-                    string.Join(", ", detectionResult.Errors));
-                installations = [];
-            }
-
-            // A failed live scan cannot produce a cacheable result. Return before
-            // loading persisted manifests or resolving their paths, since that work
-            // would be discarded and repeated on every retry.
-            if (detectionHadError)
+            if (!detectionResult.Success)
             {
                 logger.LogWarning(
                     "Detection failed; leaving the cache uninitialized so a retry rescans");
@@ -820,87 +812,20 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                     $"Failed to detect game installations: {string.Join(", ", detectionResult.Errors)}");
             }
 
-            // Load installations from persisted manifests
+            var installations = detectionResult.Items.ToList();
+            logger.LogInformation("[DIAGNOSTIC] Auto-detection found {Count} installations", installations.Count);
+
             var manifestInstallations = await LoadInstallationsFromManifestsAsync(cancellationToken);
-            if (manifestInstallations.Count > 0)
-            {
-                logger.LogInformation(
-                    "[DIAGNOSTIC] Loaded {Count} installations from manifests",
-                    manifestInstallations.Count);
+            MergeManifestInstallations(installations, manifestInstallations);
 
-                // Merge manifest installations, avoiding duplicates by path
-                foreach (var manifestInstall in manifestInstallations)
-                {
-                    var existingByPath = installations.FirstOrDefault(i =>
-                        PathHelper.AreSamePath(i.InstallationPath, manifestInstall.InstallationPath));
+            installations = await ValidateAndResolveInstallationsAsync(installations, cancellationToken);
 
-                    if (existingByPath == null)
-                    {
-                        installations.Add(manifestInstall);
-                        logger.LogInformation(
-                            "[DIAGNOSTIC] Merged manifest installation into cache: {Path}",
-                            manifestInstall.InstallationPath);
-                    }
-                    else
-                    {
-                        logger.LogDebug(
-                            "[DIAGNOSTIC] Skipping manifest installation - path already exists from auto-detection: {Path}",
-                            manifestInstall.InstallationPath);
-                    }
-                }
-            }
-
-            // Validate and resolve paths for all installations
-            if (pathResolver != null && installations.Count > 0)
-            {
-                var validInstallations = new List<GameInstallation>();
-                var resolvedCount = 0;
-
-                foreach (var installation in installations)
-                {
-                    var validationResult = await pathResolver.ValidateInstallationPathAsync(installation, cancellationToken);
-                    if (validationResult.Success && validationResult.Data)
-                    {
-                        // Path is valid, keep as-is
-                        validInstallations.Add(installation);
-                    }
-                    else
-                    {
-                        // Path is invalid, try to resolve
-                        logger.LogWarning(
-                            "Installation path is invalid: {Path}. Attempting to resolve...",
-                            installation.InstallationPath);
-
-                        var resolveResult = await pathResolver.ResolveInstallationPathAsync(installation, cancellationToken);
-                        if (resolveResult.Success && resolveResult.Data != null)
-                        {
-                            validInstallations.Add(resolveResult.Data);
-                            resolvedCount++;
-                            logger.LogInformation(
-                                "Successfully resolved installation path from {OldPath} to {NewPath}",
-                                installation.InstallationPath,
-                                resolveResult.Data.InstallationPath);
-                        }
-                        else
-                        {
-                            logger.LogWarning(
-                                "Could not resolve installation path for {Id}, removing from cache",
-                                installation.Id);
-                        }
-                    }
-                }
-
-                installations = validInstallations;
-                if (resolvedCount > 0)
-                {
-                    logger.LogInformation(
-                        "Resolved {ResolvedCount} installation paths",
-                        resolvedCount);
-                }
-            }
-
-            // Generate manifests and populate AvailableVersions for each installation
             await PopulateGameClientsAndManifestsAsync(installations, cancellationToken);
+
+            if (installationCasPoolService != null)
+            {
+                await installationCasPoolService.EnsurePoolPathAsync(installations, cancellationToken);
+            }
 
             _cachedInstallations = installations.AsReadOnly();
 
@@ -914,6 +839,74 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
         {
             _cacheLock.Release();
         }
+    }
+
+    private void MergeManifestInstallations(List<GameInstallation> installations, IReadOnlyList<GameInstallation> manifestInstallations)
+    {
+        if (manifestInstallations.Count == 0)
+        {
+            return;
+        }
+
+        logger.LogInformation("[DIAGNOSTIC] Loaded {Count} installations from manifests", manifestInstallations.Count);
+
+        foreach (var manifestInstall in manifestInstallations)
+        {
+            var existingByPath = installations.FirstOrDefault(i =>
+                PathHelper.AreSamePath(i.InstallationPath, manifestInstall.InstallationPath));
+
+            if (existingByPath == null)
+            {
+                installations.Add(manifestInstall);
+                logger.LogInformation("[DIAGNOSTIC] Merged manifest installation into cache: {Path}", manifestInstall.InstallationPath);
+            }
+            else
+            {
+                logger.LogDebug("[DIAGNOSTIC] Skipping manifest installation - path already exists from auto-detection: {Path}", manifestInstall.InstallationPath);
+            }
+        }
+    }
+
+    private async Task<List<GameInstallation>> ValidateAndResolveInstallationsAsync(List<GameInstallation> installations, CancellationToken cancellationToken)
+    {
+        if (pathResolver == null || installations.Count == 0)
+        {
+            return installations;
+        }
+
+        var validInstallations = new List<GameInstallation>();
+        var resolvedCount = 0;
+
+        foreach (var installation in installations)
+        {
+            var validationResult = await pathResolver.ValidateInstallationPathAsync(installation, cancellationToken);
+            if (validationResult.Success && validationResult.Data)
+            {
+                validInstallations.Add(installation);
+                continue;
+            }
+
+            logger.LogWarning("Installation path is invalid: {Path}. Attempting to resolve...", installation.InstallationPath);
+
+            var resolveResult = await pathResolver.ResolveInstallationPathAsync(installation, cancellationToken);
+            if (resolveResult.Success && resolveResult.Data != null)
+            {
+                validInstallations.Add(resolveResult.Data);
+                resolvedCount++;
+                logger.LogInformation("Successfully resolved installation path from {OldPath} to {NewPath}", installation.InstallationPath, resolveResult.Data.InstallationPath);
+            }
+            else
+            {
+                logger.LogWarning("Could not resolve installation path for {Id}, removing from cache", installation.Id);
+            }
+        }
+
+        if (resolvedCount > 0)
+        {
+            logger.LogInformation("Resolved {ResolvedCount} installation paths", resolvedCount);
+        }
+
+        return validInstallations;
     }
 
     /// <summary>

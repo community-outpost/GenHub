@@ -4,12 +4,15 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
+using SharpCompress.Archives;
+using SharpCompress.Common;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,7 +25,8 @@ namespace GenHub.Features.Content.Services.Publishers;
 /// </summary>
 public class SuperHackersManifestFactory(
     ILogger<SuperHackersManifestFactory> logger,
-    IFileHashProvider hashProvider)
+    IFileHashProvider hashProvider,
+    IArchivePayloadProcessor archivePayloadProcessor)
     : IPublisherManifestFactory
 {
     /// <summary>
@@ -45,8 +49,9 @@ public class SuperHackersManifestFactory(
     /// <inheritdoc />
     public bool CanHandle(ContentManifest manifest)
     {
-        // Only handle manifests with explicit thesuperhackers publisher type
-        var publisherMatches = manifest.Publisher?.PublisherType?.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true;
+        // Handle manifests with explicit thesuperhackers publisher type or original provider name
+        var publisherMatches = manifest.Publisher?.PublisherType?.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true ||
+            manifest.OriginalProviderName?.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true;
 
         // Only handle GameClient content type
         var isGameClient = manifest.ContentType == ContentType.GameClient;
@@ -55,14 +60,39 @@ public class SuperHackersManifestFactory(
     }
 
     /// <inheritdoc />
-    public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+    public Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
         CancellationToken cancellationToken = default)
     {
+        return CreateManifestsFromExtractedContentAsync(originalManifest, extractedDirectory, progress: null, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+        ContentManifest originalManifest,
+        string extractedDirectory,
+        IProgress<GenHub.Core.Models.Content.ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken = default)
+    {
         logger.LogInformation("Creating SuperHackers manifests from extracted content in: {Directory}", extractedDirectory);
 
-        var detectedExecutables = DetectGameExecutables(extractedDirectory);
+        if (!Directory.Exists(extractedDirectory))
+        {
+            logger.LogWarning("Extracted directory does not exist: {Directory}", extractedDirectory);
+            return [];
+        }
+
+        // Extract archives and normalize payload directory
+        await archivePayloadProcessor.ProcessPayloadAsync(
+            extractedDirectory,
+            originalManifest.ContentType,
+            originalManifest.TargetGame,
+            normalizeInactiveArchives: true,
+            progress: progress,
+            cancellationToken: cancellationToken);
+
+        var detectedExecutables = DetectGameExecutables(extractedDirectory, originalManifest.TargetGame);
 
         if (detectedExecutables.Count == 0)
         {
@@ -72,10 +102,26 @@ public class SuperHackersManifestFactory(
 
         logger.LogInformation("Detected {Count} game executables for SuperHackers release", detectedExecutables.Count);
 
+        // When the caller requested a specific game-client variant (the discoverer emits one card
+        // per game type), build only that variant. Otherwise (local-install detection, legacy
+        // single-card path) build every detected game type.
+        var requestedGame = originalManifest.TargetGame;
+        List<KeyValuePair<GameType, string>> buildGameTypes = (requestedGame == GameType.Generals || requestedGame == GameType.ZeroHour)
+            ? [.. detectedExecutables.Where(kv => kv.Key == requestedGame).OrderBy(kv => kv.Key)]
+            : [.. detectedExecutables.OrderBy(kv => kv.Key)];
+
+        if (buildGameTypes.Count == 0)
+        {
+            logger.LogWarning(
+                "Requested game type {GameType} not found among detected executables; falling back to all",
+                requestedGame);
+            buildGameTypes = [.. detectedExecutables.OrderBy(kv => kv.Key)];
+        }
+
         List<ContentManifest> manifests = [];
 
         // Sort by game type to ensure consistent ordering (Generals first, then Zero Hour)
-        foreach (var (gameType, executablePath) in detectedExecutables.OrderBy(kv => kv.Key))
+        foreach (var (gameType, executablePath) in buildGameTypes)
         {
             var manifest = await BuildManifestForGameTypeAsync(
                 originalManifest,
@@ -139,12 +185,14 @@ public class SuperHackersManifestFactory(
 
         List<ContentManifest> manifests = [];
 
-        // Create a synthetic manifest to drive the build process
-        // This acts as the "original manifest" template
+        // Create a synthetic manifest to drive the build process.
+        // This acts as the "original manifest" template; each variant will receive
+        // its own final deterministic ID from BuildManifestForGameTypeAsync.
+        // The template ID must be a valid 5-segment ID to pass ManifestIdValidator
         var templateManifest = new ContentManifest
         {
-            Id = ManifestId.Create(Guid.NewGuid().ToString()), // Temporary ID
-            ManifestVersion = ManifestConstants.DefaultManifestVersion,
+            Id = ManifestId.Create($"{ManifestConstants.DefaultManifestFormatVersion}.0.{PublisherTypeConstants.TheSuperHackers}.gameclient.localinstall"),
+            SchemaVersion = ManifestConstants.DefaultManifestVersion,
             Name = SuperHackersConstants.LocalInstallDisplayName,
             Version = GameClientConstants.UnknownVersion,
             ContentType = ContentType.GameClient,
@@ -185,7 +233,7 @@ public class SuperHackersManifestFactory(
     /// <summary>
     /// Detects SuperHackers game executables in the extracted directory.
     /// </summary>
-    private Dictionary<GameType, string> DetectGameExecutables(string directory)
+    private Dictionary<GameType, string> DetectGameExecutables(string directory, GameType targetGame = GameType.Unknown)
     {
         var result = new Dictionary<GameType, string>();
 
@@ -194,11 +242,22 @@ public class SuperHackersManifestFactory(
 
         var allFiles = Directory.GetFiles(directory, "*.exe", SearchOption.AllDirectories);
 
+        DetectNamedExecutables(allFiles, result);
+
+        if (result.Count == 0)
+        {
+            DetectFallbackExecutables(allFiles, targetGame, result);
+        }
+
+        return result;
+    }
+
+    private void DetectNamedExecutables(IReadOnlyList<string> allFiles, Dictionary<GameType, string> result)
+    {
         foreach (var filePath in allFiles)
         {
-            var fileName = Path.GetFileName(filePath).ToLowerInvariant();
+            var fileName = Path.GetFileName(filePath);
 
-            // Check for SuperHackers executables
             if (string.Equals(fileName, GameClientConstants.SuperHackersGeneralsExecutable, StringComparison.OrdinalIgnoreCase))
             {
                 result[GameType.Generals] = filePath;
@@ -210,8 +269,26 @@ public class SuperHackersManifestFactory(
                 logger.LogInformation("Detected SuperHackers Zero Hour executable: {Path}", filePath);
             }
         }
+    }
 
-        return result;
+    private void DetectFallbackExecutables(IReadOnlyList<string> allFiles, GameType targetGame, Dictionary<GameType, string> result)
+    {
+        foreach (var filePath in allFiles)
+        {
+            var fileName = Path.GetFileName(filePath);
+
+            if (string.Equals(fileName, GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(fileName, GameClientConstants.GameExecutable, StringComparison.OrdinalIgnoreCase))
+            {
+                var fallbackGameType = (targetGame == GameType.Generals || targetGame == GameType.ZeroHour)
+                    ? targetGame
+                    : GameType.ZeroHour;
+
+                result[fallbackGameType] = filePath;
+                logger.LogInformation("Detected fallback game executable '{Executable}' for SuperHackers {GameType}: {Path}", fileName, fallbackGameType, filePath);
+                break;
+            }
+        }
     }
 
     /// <summary>
@@ -364,9 +441,36 @@ public class SuperHackersManifestFactory(
         // Get proper dependencies based on game type
         var dependencies = SuperHackersDependencyBuilder.GetDependenciesForGameType(gameType);
 
+        var variantGroupId = $"{PublisherTypeConstants.TheSuperHackers}.{ContentType.GameClient.ToString().ToLowerInvariant()}.{userVersion}";
+        var variantFamilyName = "SuperHackers";
+
+        var variants = new List<ContentVariant>
+        {
+            new()
+            {
+                Id = SuperHackersConstants.GeneralsSuffix,
+                Name = SuperHackersConstants.GeneralsDisplayName,
+                VariantType = "game-type",
+                Value = GameType.Generals.ToString().ToLowerInvariant(),
+                IsDefault = false,
+                TargetGame = GameType.Generals,
+            },
+            new()
+            {
+                Id = SuperHackersConstants.ZeroHourSuffix,
+                Name = SuperHackersConstants.ZeroHourDisplayName,
+                VariantType = "game-type",
+                Value = GameType.ZeroHour.ToString().ToLowerInvariant(),
+                IsDefault = true,
+                TargetGame = GameType.ZeroHour,
+            },
+        };
+
+        var variantId = gameType == GameType.Generals ? SuperHackersConstants.GeneralsSuffix : SuperHackersConstants.ZeroHourSuffix;
+
         var manifest = new ContentManifest
         {
-            ManifestVersion = originalManifest.ManifestVersion,
+            SchemaVersion = originalManifest.SchemaVersion,
             Id = ManifestId.Create(manifestId),
             Name = $"SuperHackers - {gameTypeName}",
             Version = originalManifest.Version,
@@ -383,7 +487,20 @@ public class SuperHackersManifestFactory(
                 ScreenshotUrls = originalManifest.Metadata.ScreenshotUrls,
                 Tags = originalManifest.Metadata.Tags,
                 ChangelogUrl = originalManifest.Metadata.ChangelogUrl,
+
+                // Every sibling variant carries the full variant list so the UI can render
+                // the whole family from any one manifest, and declares that selection is
+                // required (a user must pick a game type). SelectedVariantId marks which
+                // sibling this manifest physically represents.
+                Variants = variants,
+                RequiresVariantSelection = true,
+                SelectedVariantId = variantId,
+                VariantGroupId = variantGroupId,
+                VariantFamilyName = variantFamilyName,
             },
+            OriginalProviderName = originalManifest.OriginalProviderName,
+            OriginalContentId = originalManifest.OriginalContentId,
+            SourcePath = originalManifest.SourcePath,
             Dependencies = dependencies,
             ContentReferences = originalManifest.ContentReferences,
             KnownAddons = originalManifest.KnownAddons,

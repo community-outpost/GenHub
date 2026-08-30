@@ -30,6 +30,11 @@ public static class ContentTypeExtensions
             ContentType.ContentReferral => "Content Referral",
             ContentType.ModdingTool => "Tool",
             ContentType.Executable => "Executable",
+            ContentType.Skin => "Skin",
+            ContentType.Video => "Video",
+            ContentType.Replay => "Replay",
+            ContentType.Screensaver => "Screensaver",
+            ContentType.UnknownContentType => "Unknown",
             _ => contentType.ToString(),
         };
     }
@@ -56,6 +61,10 @@ public static class ContentTypeExtensions
             ContentType.ContentReferral => "contentreferral",
             ContentType.Mission => "mission",
             ContentType.Map => "map",
+            ContentType.Skin => "skin",
+            ContentType.Video => "video",
+            ContentType.Replay => "replay",
+            ContentType.Screensaver => "screensaver",
             ContentType.ModdingTool => "moddingtool",
             ContentType.Executable => "executable",
             ContentType.UnknownContentType => "unknown",

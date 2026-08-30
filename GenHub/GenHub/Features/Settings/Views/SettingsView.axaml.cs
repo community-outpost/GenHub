@@ -39,6 +39,7 @@ public partial class SettingsView : UserControl
         if (DataContext is SettingsViewModel vm)
         {
             vm.IsViewVisible = true;
+            vm.LoadSubscriptionsCommand.Execute(null);
             HookViewModel(vm);
             if (vm.SelectedSection != null)
             {
@@ -126,6 +127,7 @@ public partial class SettingsView : UserControl
             SettingsConstants.SectionLocalContent => "Expander_LocalContent",
             SettingsConstants.SectionGitHubDiscovery => "Expander_GitHubDiscovery",
             SettingsConstants.SectionUpdates => "Expander_Updates",
+            SettingsConstants.SectionSubscriptions => "Expander_Subscriptions",
             SettingsConstants.SectionDangerZone => "Expander_DangerZone",
             _ => null,
         };
@@ -135,7 +137,7 @@ public partial class SettingsView : UserControl
             return;
         }
 
-        var expander = this.FindControl<Expander>(expanderName);
+        var expander = ControlExtensions.FindControl<Expander>(this, expanderName);
         if (expander != null)
         {
             expander.IsExpanded = true;

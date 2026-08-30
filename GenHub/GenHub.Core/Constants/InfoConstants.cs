@@ -20,6 +20,11 @@ public static class InfoConstants
     public const string FaqDefaultLanguage = "en";
 
     /// <summary>
+    /// Section ID for the quickstart guide.
+    /// </summary>
+    public const string QuickstartSectionId = "quickstart";
+
+    /// <summary>
     /// Module name for GenHub Guide.
     /// </summary>
     public const string ModuleGuide = "GenHub Guide";
@@ -47,8 +52,8 @@ public static class InfoConstants
     /// <summary>
     /// The list of supported languages for the FAQ.
     /// </summary>
-    public static readonly IReadOnlyList<string> SupportedFaqLanguages = new[]
-    {
+    public static readonly IReadOnlyList<string> SupportedFaqLanguages =
+    [
         "en", "de", "ph", "ar",
-    };
+    ];
 }

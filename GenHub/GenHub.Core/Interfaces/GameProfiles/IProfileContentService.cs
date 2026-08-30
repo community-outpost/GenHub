@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Results;
 
@@ -22,6 +23,18 @@ public interface IProfileContentService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Adds multiple acquired content items to a profile, resolving the combined dependency graph.
+    /// </summary>
+    /// <param name="profileId">The profile ID to add content to.</param>
+    /// <param name="manifestIds">The manifest IDs of the content to add.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>An operation result indicating success with details about any swapped content.</returns>
+    Task<AddToProfileResult> AddContentToProfileAsync(
+        string profileId,
+        IReadOnlyList<string> manifestIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Checks for content conflicts without making changes.
     /// </summary>
     /// <param name="profileId">The profile ID to check against.</param>
@@ -43,6 +56,18 @@ public interface IProfileContentService
     Task<ProfileOperationResult<GameProfile>> CreateProfileWithContentAsync(
         string profileName,
         string manifestId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Creates a new profile with multiple acquired content items pre-enabled.
+    /// </summary>
+    /// <param name="profileName">Name for the new profile.</param>
+    /// <param name="manifestIds">The manifest IDs of the content to enable.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>An operation result containing the created profile.</returns>
+    Task<ProfileOperationResult<GameProfile>> CreateProfileWithContentAsync(
+        string profileName,
+        IReadOnlyList<string> manifestIds,
         CancellationToken cancellationToken = default);
 
     /// <summary>

@@ -20,15 +20,18 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Theming;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Settings.Models;
+using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Settings.ViewModels;
@@ -70,6 +73,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         new(SettingsConstants.SectionLocalContent, "Local Content", "M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21L4,8V18L6.14,10H23.21L20.93,18.5C20.7,19.37 19.92,20 19,20Z"),
         new(SettingsConstants.SectionGitHubDiscovery, "GitHub Discovery", "M12,2A10,10 0 0,0 2,12C2,16.42 4.87,20.17 8.84,21.5C9.34,21.58 9.5,21.27 9.5,21C9.5,20.77 9.5,20.14 9.5,19.31C6.73,19.91 6.14,17.97 6.14,17.97C5.68,16.81 5.03,16.5 5.03,16.5C4.12,15.88 5.1,15.9 5.1,15.9C6.1,15.97 6.63,16.93 6.63,16.93C7.5,18.45 8.97,18 9.54,17.76C9.63,17.11 9.89,16.67 10.17,16.42C7.95,16.17 5.62,15.31 5.62,11.5C5.62,10.39 6,9.5 6.65,8.79C6.55,8.54 6.2,7.5 6.75,6.15C6.75,6.15 7.59,5.88 9.5,7.17C10.29,6.95 11.15,6.84 12,6.84C12.85,6.84 13.71,6.95 14.5,7.17C16.41,5.88 17.25,6.15 17.25,6.15C17.8,7.5 17.45,8.54 17.35,8.79C18,9.5 18.38,10.39 18.38,11.5C18.38,15.32 16.04,16.16 13.81,16.41C14.17,16.72 14.5,17.33 14.5,18.26C14.5,19.6 14.5,20.68 14.5,21C14.5,21.27 14.66,21.59 15.17,21.5C19.14,20.16 22,16.42 22,12A10,10 0 0,0 12,2Z"),
         new(SettingsConstants.SectionUpdates, "Updates", "M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.86,17.45 19.71,14H17.58C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"),
+        new(SettingsConstants.SectionSubscriptions, "Catalog Subscriptions", "M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5M12,4.15L6.04,7.5L12,10.85L17.96,7.5L12,4.15M5,15.91L11,19.29V12.58L5,9.21V15.91M19,15.91V9.21L13,12.58V19.29L19,15.91Z"),
         new(SettingsConstants.SectionDangerZone, "Danger Zone", "M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"),
     ];
 
@@ -79,6 +83,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IWorkspaceManager _workspaceManager;
     private readonly IContentManifestPool _manifestPool;
     private readonly IVelopackUpdateManager _updateManager;
+    private readonly IPublisherSubscriptionStore _subscriptionStore;
+    private readonly IPublisherCatalogRefreshService _catalogRefreshService;
     private readonly INotificationService _notificationService;
     private readonly ILogger<SettingsViewModel> _logger;
     private readonly IGitHubTokenStorage? _gitHubTokenStorage;
@@ -229,6 +235,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _patStatusMessage = string.Empty;
 
+    [ObservableProperty]
+    private ObservableCollection<PublisherSubscription> _subscriptions = [];
+
+    [ObservableProperty]
+    private bool _isLoadingSubscriptions;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsViewModel"/> class.
     /// </summary>
@@ -239,6 +251,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="workspaceManager">The workspace manager.</param>
     /// <param name="manifestPool">The content manifest pool.</param>
     /// <param name="updateManager">The update manager service.</param>
+    /// <param name="subscriptionStore">The publisher subscription store.</param>
+    /// <param name="catalogRefreshService">The publisher catalog refresh service.</param>
+    /// <param name="githubClient">The GitHub API client.</param>
     /// <param name="notificationService">Notification service.</param>
     /// <param name="configurationProvider">Configuration provider.</param>
     /// <param name="installationService">Game installation service.</param>
@@ -255,6 +270,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IWorkspaceManager workspaceManager,
         IContentManifestPool manifestPool,
         IVelopackUpdateManager updateManager,
+        IPublisherSubscriptionStore subscriptionStore,
+        IPublisherCatalogRefreshService catalogRefreshService,
+        IGitHubApiClient githubClient,
         INotificationService notificationService,
         IConfigurationProviderService configurationProvider,
         IGameInstallationService installationService,
@@ -271,6 +289,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _workspaceManager = workspaceManager ?? throw new ArgumentNullException(nameof(workspaceManager));
         _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
         _updateManager = updateManager ?? throw new ArgumentNullException(nameof(updateManager));
+        _subscriptionStore = subscriptionStore ?? throw new ArgumentNullException(nameof(subscriptionStore));
+        _catalogRefreshService = catalogRefreshService ?? throw new ArgumentNullException(nameof(catalogRefreshService));
+        ArgumentNullException.ThrowIfNull(githubClient);
         _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
         _configurationProvider = configurationProvider ?? throw new ArgumentNullException(nameof(configurationProvider));
         _installationService = installationService ?? throw new ArgumentNullException(nameof(installationService));
@@ -403,6 +424,98 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
             _disposed = true;
         }
+    }
+
+    private static (int DeletedCount, int LockedCount, long FreedBytes) ClearLogFiles(
+        string logsPath,
+        ILogger logger)
+    {
+        var files = Directory.GetFiles(logsPath, "*.log", SearchOption.TopDirectoryOnly);
+        var activeLogPath = LoggingModule.ActiveLogFilePath;
+        var activeLogFileName = Path.GetFileName(activeLogPath);
+        var todayUtcLogFileName = $"{AppConstants.AppName.ToLowerInvariant()}-{DateTime.UtcNow:yyyy-MM-dd}.log";
+
+        var deleted = 0;
+        var locked = 0;
+        long freed = 0;
+
+        foreach (var file in files)
+        {
+            var (fileDeleted, fileLocked, fileFreed) = ProcessSingleLogFile(file, activeLogPath, activeLogFileName, todayUtcLogFileName, logger);
+            if (fileDeleted)
+            {
+                deleted++;
+                freed += fileFreed;
+            }
+            else if (fileLocked)
+            {
+                locked++;
+            }
+        }
+
+        return (deleted, locked, freed);
+    }
+
+    private static (bool Deleted, bool Locked, long FreedBytes) ProcessSingleLogFile(
+        string file,
+        string activeLogPath,
+        string activeLogFileName,
+        string todayUtcLogFileName,
+        ILogger logger)
+    {
+        try
+        {
+            var fileName = Path.GetFileName(file);
+            var length = new FileInfo(file).Length;
+
+            var isActiveLog = string.Equals(fileName, activeLogFileName, StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(fileName, todayUtcLogFileName, StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(Path.GetFullPath(file), Path.GetFullPath(activeLogPath), StringComparison.OrdinalIgnoreCase);
+
+            if (isActiveLog)
+            {
+                TruncateFileInPlace(file);
+            }
+            else
+            {
+                DeleteOrTruncateFile(file);
+            }
+
+            return (true, false, length);
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Could not clear log file: {File}", file);
+            return (false, true, 0);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Could not clear log file: {File}", file);
+            return (false, true, 0);
+        }
+    }
+
+    private static void DeleteOrTruncateFile(string file)
+    {
+        try
+        {
+            File.Delete(file);
+        }
+        catch (IOException)
+        {
+            TruncateFileInPlace(file);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            TruncateFileInPlace(file);
+        }
+    }
+
+    private static void TruncateFileInPlace(string file)
+    {
+        using var stream = new FileStream(file, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite);
+        stream.SetLength(0);
+        stream.Flush();
     }
 
     // Handle text property changes with validation
@@ -1207,12 +1320,29 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (manifestsResult.Success && manifestsResult.Data != null)
             {
                 var count = manifestsResult.Data.Count();
-                foreach (var manifest in manifestsResult.Data)
+                var allRemoved = true;
+                foreach (var manifestId in manifestsResult.Data.Select(manifest => manifest.Id))
                 {
-                    await _manifestPool.RemoveManifestAsync(manifest.Id);
+                    var removeResult = await _manifestPool.RemoveManifestAsync(manifestId);
+                    if (!removeResult.Success)
+                    {
+                        allRemoved = false;
+                        _logger.LogWarning(
+                            "Failed to delete manifest {ManifestId}: {Error}",
+                            manifestId,
+                            removeResult.FirstError);
+                    }
                 }
 
-                _notificationService.ShowSuccess("Manifests Deleted", $"Deleted {count} manifest(s) successfully.", (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
+                if (allRemoved)
+                {
+                    WeakReferenceMessenger.Default.Send(new ContentLibraryClearedMessage());
+                    _notificationService.ShowSuccess("Manifests Deleted", $"Deleted {count} manifest(s) successfully.", (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
+                }
+                else
+                {
+                    _notificationService.ShowError("Deletion Incomplete", "Some manifests could not be deleted. Download state was left unchanged.", 5000);
+                }
             }
 
             await UpdateDangerZoneDataAsync();
@@ -1406,7 +1536,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         if (Math.Abs(DownloadBufferSizeKB - message.BufferSizeKB) > 0.01)
             DownloadBufferSizeKB = message.BufferSizeKB;
 
-        DownloadTimeoutSeconds = message.TimeoutSeconds;
+        if (DownloadTimeoutSeconds != message.TimeoutSeconds)
+            DownloadTimeoutSeconds = message.TimeoutSeconds;
         DownloadUserAgent = message.UserAgent;
     }
 
@@ -1788,6 +1919,151 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             _logger.LogError(ex, "Failed to copy latest log file");
             _notificationService.ShowError("Error", "Failed to copy latest log.", 3000);
+        }
+    }
+
+    [RelayCommand]
+    private async Task ClearLogs()
+    {
+        try
+        {
+            var logsPath = _configurationProvider.GetLogsPath();
+            _logger.LogInformation("Clearing logs from: {Path}", logsPath);
+
+            if (string.IsNullOrWhiteSpace(logsPath) || !Directory.Exists(logsPath))
+            {
+                _notificationService.ShowInfo("Logs Empty", "No logs directory found.", 3000);
+                return;
+            }
+
+            var (deletedCount, lockedCount, freedBytes) = await Task.Run(() => ClearLogFiles(logsPath, _logger));
+
+            if (deletedCount == 0 && lockedCount == 0)
+            {
+                _notificationService.ShowInfo("Logs Empty", "No log files found to clear.", 3000);
+            }
+            else if (deletedCount == 0)
+            {
+                _notificationService.ShowError("Error", "Could not clear active log files (files in use).", 3000);
+            }
+            else
+            {
+                var freedMb = freedBytes / (1024.0 * 1024.0);
+                var sizeText = freedMb >= 0.1 ? $" ({freedMb:F1} MB freed)" : string.Empty;
+                _notificationService.ShowSuccess("Logs Cleared", $"Successfully cleared {deletedCount} log file(s){sizeText}.", 3000);
+                _logger.LogInformation("Cleared {Count} log files ({Bytes} bytes freed)", deletedCount, freedBytes);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to clear logs");
+            _notificationService.ShowError("Error", $"Failed to clear logs: {ex.Message}", 5000);
+        }
+    }
+
+    [RelayCommand]
+    private async Task LoadSubscriptionsAsync()
+    {
+        try
+        {
+            IsLoadingSubscriptions = true;
+            var result = await _subscriptionStore.GetSubscriptionsAsync();
+            if (result.Success && result.Data != null)
+            {
+                Subscriptions.Clear();
+                foreach (var sub in result.Data.OrderBy(s => s.PublisherName))
+                {
+                    Subscriptions.Add(sub);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load subscriptions");
+        }
+        finally
+        {
+            IsLoadingSubscriptions = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task RemoveSubscriptionAsync(GenHub.Core.Models.Providers.PublisherSubscription subscription)
+    {
+        if (subscription == null) return;
+
+        try
+        {
+            var result = await _subscriptionStore.RemoveSubscriptionAsync(subscription.PublisherId);
+            if (result.Success)
+            {
+                Subscriptions.Remove(subscription);
+                _notificationService.ShowSuccess("Subscription Removed", $"Unsubscribed from {subscription.PublisherName}");
+            }
+            else
+            {
+                _notificationService.ShowError("Error", $"Failed to remove subscription: {result.FirstError}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to remove subscription");
+            _notificationService.ShowError("Error", "Failed to remove subscription");
+        }
+    }
+
+    [RelayCommand]
+    private async Task ToggleSubscriptionTrustAsync(PublisherSubscription subscription)
+    {
+        if (subscription == null) return;
+
+        try
+        {
+            var newTrust = subscription.TrustLevel == TrustLevel.Trusted
+                ? TrustLevel.Untrusted
+                : TrustLevel.Trusted;
+
+            var result = await _subscriptionStore.UpdateTrustLevelAsync(subscription.PublisherId, newTrust);
+            if (result.Success)
+            {
+                subscription.TrustLevel = newTrust;
+
+                // Force UI update if needed (PublisherSubscription should implement INotifyPropertyChanged)
+                // If it doesn't, we might need a wrapper VM or manual notification
+                OnPropertyChanged(nameof(Subscriptions));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update trust level");
+        }
+    }
+
+    [RelayCommand]
+    private async Task RefreshAllCatalogsAsync()
+    {
+        try
+        {
+            IsLoadingSubscriptions = true;
+            var result = await _catalogRefreshService.RefreshAllAsync();
+            if (result.Success)
+            {
+                await LoadSubscriptionsAsync();
+                _notificationService.ShowSuccess("Catalogs Refreshed", "Successfully updated all subscribed catalogs.");
+            }
+            else
+            {
+                _notificationService.ShowError("Refresh Failed", result.FirstError ?? "Unknown error");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to refresh catalogs");
+            _notificationService.ShowError("Error", "An unexpected error occurred during refresh.");
+        }
+        finally
+        {
+            IsLoadingSubscriptions = false;
         }
     }
 }

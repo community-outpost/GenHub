@@ -374,7 +374,7 @@ public class ConfigurationProviderService(
         return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             AppConstants.AppName,
-            DirectoryNames.Logs.ToLowerInvariant());
+            DirectoryNames.Logs);
     }
 
     /// <inheritdoc />

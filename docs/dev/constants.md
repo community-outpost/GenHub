@@ -62,10 +62,10 @@ Application-wide constants for GenHub.
 | `PullRequestNumber`       | Dynamic             | PR number if PR build                            |
 | `BuildChannel`            | Dynamic             | Build channel (Dev, PR, CI, Release)             |
 | `IsCiBuild`               | bool                | Whether this is a CI/CD build                    |
-| `FullDisplayVersion`      | string              | Full display version with hash                   |
-| `GitHubRepositoryUrl`     | `"https://github.com/community-outpost/GenHub"` | GitHub repository URL                            |
-| `GitHubRepositoryOwner`   | `"community-outpost"`                           | GitHub repository owner                          |
-| `GitHubRepositoryName`    | `"GenHub"`                                      | GitHub repository name                           |
+| `FullDisplayVersion`    | string              | Full display version with hash                   |
+| `GitHubRepositoryUrl`   | `"https://github.com/community-outpost/GenHub"` | GitHub repository URL                            |
+| `GitHubRepositoryOwner` | `"community-outpost"`                           | GitHub repository owner                          |
+| `GitHubRepositoryName`  | `"GenHub"`                                      | GitHub repository name                           |
 | `DefaultTheme`            | `Theme.Dark`        | Default UI theme                                 |
 | `DefaultThemeName`        | `"Dark"`            | Default theme name as string                     |
 | `TokenFileName`           | `".ghtoken"`        | Default GitHub token file name                   |
@@ -293,11 +293,11 @@ File and directory name constants to prevent typos and ensure consistency.
 
 | Constant                | Value               | Description                       |
 | ----------------------- | ------------------- | --------------------------------- |
-| `ManifestsDirectory`    | `"Manifests"`       | Directory for manifest files      |
-| `ManifestFilePattern`   | `"*.manifest.json"` | File pattern for manifest files   |
-| `ManifestFileExtension` | `".manifest.json"`  | File extension for manifest files |
-| `UserDataManifestExtension` | `".userdata.json"` | File extension for user data manifest files |
-| `BackupExtension`       | `".ghbak"`          | File extension for backup files   |
+| `ManifestsDirectory`        | `"Manifests"`       | Directory for manifest files      |
+| `ManifestFilePattern`       | `"*.manifest.json"` | File pattern for manifest files   |
+| `ManifestFileExtension`     | `".manifest.json"`  | File extension for manifest files |
+| `UserDataManifestExtension` | `".userdata.json"`  | File extension for user data manifest files |
+| `BackupExtension`           | `".ghbak"`          | File extension for backup files   |
 
 ### JSON Files
 
@@ -946,17 +946,27 @@ Storage and CAS (Content-Addressable Storage) related constants.
 
 ---
 
+## UiConstants Class
+
+User interface sizing and theming constants.
+
+### Window and Layout Sizing
+
+- `DefaultWindowWidth`: 1200
+- `DefaultWindowHeight`: 800
+- `DefaultProfileSettingsWidth`: 750
+- `DefaultProfileSettingsHeight`: 700
+- `DefaultProfileSettingsSidebarWidth`: 190
+- `MinProfileSettingsSidebarWidth`: 68
+- `MaxProfileSettingsSidebarWidth`: 300
+
 ### Status Colors
 
 - `StatusSuccessColor`: Color used to indicate success or positive status (`"#4CAF50"`)
 - `StatusErrorColor`: Color used to indicate error or negative status (`"#F44336"`)
-
-### ValidationLimits
-
-- `DefaultWindowWidth`: 1200
-- `DefaultWindowHeight`: 800
-
----
+- `StatusDownloadedColor`: Color used for downloaded status indicator (`"#4CAF50"`)
+- `StatusNotDownloadedColor`: Color used for not downloaded status indicator (`"#B388FF"`)
+- `StatusUpdateAvailableColor`: Color used for update available status indicator (`"#FFB74D"`)
 
 ## ValidationLimits Class
 
@@ -1509,10 +1519,19 @@ Constants for various community content publishers and manifest generation.
 
 Constants related to the Community Outpost (GenPatcher) catalog and metadata.
 
-- `CatalogFilename`: Default filename for the GenPatcher catalog (`"GenPatcher.dat"`)
-- `VersionKey`: Metadata key for version information (`"Version"`)
-- `DescriptionKey`: Metadata key for description information (`"Description"`)
-- `DownloadUrlKey`: Metadata key for download URLs (`"DownloadUrl"`)
+- `CatalogFormat`: Catalog format identifier (`"genpatcher-dat"`)
+- `UnknownVersion`: Default version string when unknown (`"unknown"`)
+- `DefaultBaseUrl`: Default base URL for making relative URLs absolute (`"https://legi.cc/patch"`)
+- `DefaultFilesBaseUrl`: Default base URL for downloading GenPatcher content .dat packages (`"https://legi.cc/gp2/f"`)
+- `ContentCodeKey`: Metadata key for content code (`"contentCode"`)
+- `CatalogVersionKey`: Metadata key for catalog version (`"catalogVersion"`)
+- `FileSizeKey`: Metadata key for file size (`"fileSize"`)
+- `CategoryKey`: Metadata key for content category (`"category"`)
+- `InstallTargetKey`: Metadata key for install target (`"installTarget"`)
+- `MirrorUrlsKey`: Metadata key for mirror URLs (`"mirrorUrls"`)
+- `MirrorsKey`: Metadata key for mirror names display string (`"mirrors"`)
+- `PatchPageUrlEndpoint`: Endpoint key for patch page URL (`"patchPageUrl"`)
+- `DefaultMetadataVersion`: Default version for content metadata (`"1.0"`)
 
 ### GeneralsOnlineConstants Class
 
@@ -1683,6 +1702,139 @@ Constants specifically for the Map Manager feature.
 | `ToolId`                       | `"map-manager"`                            | Unique identifier for Map Manager                                                     |
 | `ToolName`                     | `"Map Manager"`                            | Display name for Map Manager                                                          |
 | `ToolDescription`              | `"Manage, import, and share custom maps. Create MapPacks for easy profile switching."` | Description of the tool |
+
+## Content Publisher Constants
+
+Constants for various community content publishers and manifest generation.
+
+### CommunityOutpostCatalogConstants Class
+
+Constants related to the Community Outpost (GenPatcher) catalog and metadata.
+
+- `CatalogFormat`: Catalog format identifier (`"genpatcher-dat"`)
+- `UnknownVersion`: Default version string when unknown (`"unknown"`)
+- `DefaultBaseUrl`: Default base URL for making relative URLs absolute (`"https://legi.cc/patch"`)
+- `DefaultFilesBaseUrl`: Default base URL for downloading GenPatcher content .dat packages (`"https://legi.cc/gp2/f"`)
+- `ContentCodeKey`: Metadata key for content code (`"contentCode"`)
+- `CatalogVersionKey`: Metadata key for catalog version (`"catalogVersion"`)
+- `FileSizeKey`: Metadata key for file size (`"fileSize"`)
+- `CategoryKey`: Metadata key for content category (`"category"`)
+- `InstallTargetKey`: Metadata key for install target (`"installTarget"`)
+- `MirrorUrlsKey`: Metadata key for mirror URLs (`"mirrorUrls"`)
+- `MirrorsKey`: Metadata key for mirror names display string (`"mirrors"`)
+- `PatchPageUrlEndpoint`: Endpoint key for patch page URL (`"patchPageUrl"`)
+- `DefaultMetadataVersion`: Default version for content metadata (`"1.0"`)
+
+### GeneralsOnlineConstants Class
+
+Constants for Generals Online content discovery and manifest creation.
+
+- `PublisherPrefix`: Publisher prefix string (`"generalsonline"`)
+- `PublisherId`: Publisher identifier (`"generals-online"`)
+- `PublisherDisplayName`: Display name for the publisher (`"Generals Online"`)
+- `QfeMarkerPrefix`: Prefix used for QFE (Quick Fix Engineering) versions (`"qfe-"`)
+- `MapPackTags`: Default tags for MapPack manifests (`["mappack", "generalsonline"]`)
+- `UnknownVersion`: Default version string when unknown (`"unknown"`)
+- `CoverSource`: Default path for cover images (`"/Assets/Covers/zerohour-cover.png"`)
+
+### CNCLabsConstants Class
+
+Constants for CNC Labs (CNC Maps) content discovery and manifest creation.
+
+- `PublisherPrefix`: Publisher prefix string (`"cnclabs"`)
+- `PublisherId`: Publisher identifier (`"cnc-labs"`)
+- `PublisherName`: Display name for the publisher (`"CNC Labs"`)
+- `PublisherWebsite`: Main website URL (`"https://www.cnclabs.com"`)
+- `DefaultTags`: Default tags for CNC Labs manifests (`["cnclabs"]`)
+- `DefaultDownloadFilename`: Default filename for downloads when parsing fails (`"download.zip"`)
+
+### ModDBConstants Class
+
+Constants for ModDB content discovery and manifest creation.
+
+- `PublisherPrefix`: Publisher prefix string (`"moddb"`)
+- `PublisherDisplayName`: Display name for the publisher (`"ModDB"`)
+- `PublisherWebsite`: Main website URL (`"https://www.moddb.com"`)
+- `ReleaseDateFormat`: Date format used in ModDB metadata (`"MMMM dd, yyyy"`)
+- `PublisherNameFormat`: Format string for including the author with the publisher name (`"ModDB ({0})"`)
+- `DefaultDownloadFilename`: Default filename for downloads when parsing fails (`"download.zip"`)
+
+### SuperHackersConstants Class
+
+Constants for The Super Hackers content discovery and manifest creation.
+
+- `PublisherPrefix`: Publisher prefix string (`"thesuperhackers"`)
+- `PublisherDisplayName`: Display name for the publisher (`"The Super Hackers"`)
+- `VersionDelimiter`: Character used to separate components in version strings (`':'`)
+---
+
+## AODMapsConstants Class
+
+Constants for AODMaps (Art of Defense Maps) provider.
+
+### Publisher & Source Information
+
+| Constant                 | Value        | Description                              |
+| ------------------------ | ------------ | ---------------------------------------- |
+| `PublisherType`          | `"aodmaps"`  | Publisher type identifier                |
+| `DiscovererSourceName`   | `"AODMaps"`  | Source name for discoverer               |
+| `DiscovererDescription`  | `"Art of Defense Maps"` | Display description          |
+| `ResolverId`             | `"AODMaps"`  | Resolver identifier                      |
+
+### URLs & Page Patterns
+
+| Constant                 | Value                                               |
+| ------------------------ | --------------------------------------------------- |
+| `BaseUrl`                | `"https://aodmaps.com"`                             |
+| `PlayerPagePattern`      | `"https://aodmaps.com/Players/{0}_players{1}.html"` |
+| `AoaMapsUrl`             | `"https://aodmaps.com/AOA/aoamaps.html"`            |
+| `RaceMapsUrl`            | `"https://aodmaps.com/race/racemaps.html"`          |
+| `AirMapsUrl`             | `"https://aodmaps.com/air/airmaps.html"`            |
+| `ContraAodUrl`           | `"https://aodmaps.com/ContraAOD/ContraAOD.html"`    |
+
+### CSS Selectors
+
+| Constant                         | Selector/Value                  |
+| -------------------------------- | ------------------------------- |
+| `GallerySelector`                | `"#gallery ul.nospace.clear"`   |
+| `DetailsPageDescriptionSelector` | `"#description"`                |
+| `NameSelector`                   | `".resource-header h1"`         |
+
+---
+
+## CommunityOutpostConstants Class
+
+Constants for the Community Outpost content provider.
+
+| Constant               | Value                                                 |
+| ---------------------- | ----------------------------------------------------- |
+| `PublisherId`          | `"community-outpost"`                                 |
+| `PublisherType`        | `"communityoutpost"`                                  |
+| `PublisherName`        | `"Community Outpost"`                                 |
+| `LogoSource`           | `"avares://GenHub/Assets/Logos/communityoutpost-logo.png"` |
+| `ProviderDescription`  | `"Official patches, tools, and addons from GenPatcher"` |
+
+---
+
+## ModDBParserConstants Class
+
+CSS selectors for the `ModDBPageParser`.
+
+### Page Type Detection
+
+| Constant                 | Selector             |
+| ------------------------ | -------------------- |
+| `ArticlesBrowseSelector` | `"#articlesbrowse"`  |
+| `DownloadsInfoSelector`  | `"#downloadsinfo"`   |
+| `TableSelector`          | `".table"`           |
+
+### Global Context
+
+| Constant              | Selector                                      |
+| --------------------- | --------------------------------------------- |
+| `HeaderBoxSelector`   | `".headerbox"`                                |
+| `TitleSelector`       | `"h1, h2, .title"`                            |
+| `DeveloperSelector`   | `"a[href*='/members/'], a[href*='/company/']"` |
 
 ---
 

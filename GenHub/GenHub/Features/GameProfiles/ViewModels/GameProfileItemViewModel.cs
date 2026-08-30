@@ -15,6 +15,7 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// <summary>
 /// ViewModel for a single game profile item.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel instance methods access CommunityToolkit MVVM generated properties.")]
 public partial class GameProfileItemViewModel : ViewModelBase
 {
     /// <summary>
@@ -113,7 +114,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Stops profile using the injected action.
+    /// Stops the profile using the injected action.
     /// </summary>
     [RelayCommand]
     private async Task StopProfile()
@@ -137,7 +138,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Toggles edit mode for this specific profile.
+    /// Toggles the edit mode for this specific profile.
     /// </summary>
     [RelayCommand]
     private void ToggleEditMode()
@@ -468,6 +469,21 @@ public partial class GameProfileItemViewModel : ViewModelBase
             UpdateDescription(gameProfile);
         }
 
+        // If icon path is generic or default, upgrade to publisher logo if available
+        if (string.IsNullOrEmpty(_iconPath) ||
+            _iconPath.EndsWith("zerohour-icon.png", StringComparison.OrdinalIgnoreCase) ||
+            _iconPath.EndsWith("generals-icon.png", StringComparison.OrdinalIgnoreCase) ||
+            _iconPath.EndsWith("generalshub-icon.png", StringComparison.OrdinalIgnoreCase))
+        {
+            var logo = PublisherInfoConstants.GetPublisherLogo(
+                _publisher,
+                $"{profile.Name} {string.Join(" ", (profile as GameProfile)?.EnabledContentIds ?? [])}");
+            if (!string.IsNullOrEmpty(logo))
+            {
+                _iconPath = logo;
+            }
+        }
+
         // Set color value with game type defaults or profile theme
         if (profile is GameProfile gp && !string.IsNullOrEmpty(gp.ThemeColor))
         {
@@ -580,49 +596,20 @@ public partial class GameProfileItemViewModel : ViewModelBase
         // Re-extract version and publisher info from updated profile
         if (updatedProfile is GameProfile gameProfile)
         {
-            // Reset version info before re-extracting
-            GameVersion = string.Empty;
-            Publisher = string.Empty;
-
-            // First try to get info from enabled GameInstallation manifests
-            var installationManifestId = gameProfile.EnabledContentIds?.FirstOrDefault(id => id.Contains("-installation"));
-            if (!string.IsNullOrEmpty(installationManifestId))
-            {
-                ExtractManifestInfo(installationManifestId);
-            }
-
-            // Fallback to GameClient manifest
-            else if (gameProfile.GameClient != null)
-            {
-                ExtractManifestInfo(gameProfile.GameClient.Id);
-
-                // Fallback: use GameClient.Version directly
-                // But SKIP if the publisher is "Local"
-                if (string.IsNullOrEmpty(GameVersion) &&
-                    !string.IsNullOrEmpty(gameProfile.GameClient.Version) &&
-                    !string.Equals(Publisher, "Local", StringComparison.OrdinalIgnoreCase))
-                {
-                    var version = gameProfile.GameClient.Version;
-                    GameVersion = IsZeroOrPlaceholderVersion(version) ? string.Empty : version;
-                }
-            }
-
-            // Update description
-            // Update description layout
+            UpdateManifestAndVersionInfo(gameProfile);
             UpdateDescription(gameProfile);
+
+            ActiveWorkspaceId = gameProfile.ActiveWorkspaceId;
+            UseSteamLaunch = gameProfile.UseSteamLaunch ?? true;
+
+            UpdateVisuals(gameProfile);
+            CommandLineArguments = gameProfile.CommandLineArguments;
         }
 
-        // Notify UI of all property changes
-        OnPropertyChanged(nameof(Name));
-        OnPropertyChanged(nameof(Version));
-        OnPropertyChanged(nameof(GameVersion));
-        OnPropertyChanged(nameof(Publisher));
-        OnPropertyChanged(nameof(Description));
-        OnPropertyChanged(nameof(ColorValue));
-        OnPropertyChanged(nameof(IconPath));
-        OnPropertyChanged(nameof(CoverPath));
-        OnPropertyChanged(nameof(CoverImagePath));
-        OnPropertyChanged(nameof(CommandLineArguments));
+        NotifyProfilePropertiesChanged();
+
+        OnPropertyChanged(nameof(IsWorkspacePrepared));
+        OnPropertyChanged(nameof(WorkspaceStatus));
     }
 
     private static string GetPublisherNameFromId(string manifestId)
@@ -654,25 +641,15 @@ public partial class GameProfileItemViewModel : ViewModelBase
         };
     }
 
-    /// <summary>
-    /// Gets a user-friendly name for the game type.
-    /// </summary>
-    /// <param name="gameType">The game type.</param>
-    /// <returns>A user-friendly display name.</returns>
     private static string GetFriendlyGameTypeName(GameType? gameType)
     {
         return gameType switch
         {
             GameType.Generals => GameClientConstants.GeneralsFullName,
-            _ => GameClientConstants.ZeroHourFullName, // Default to Zero Hour as it's the most commonly played
+            _ => GameClientConstants.ZeroHourFullName,
         };
     }
 
-    /// <summary>
-    /// Gets a user-friendly name for the installation type.
-    /// </summary>
-    /// <param name="installationType">The installation type.</param>
-    /// <returns>A user-friendly display name.</returns>
     private static string GetFriendlyInstallationTypeName(GameInstallationType? installationType)
     {
         return installationType switch
@@ -687,27 +664,16 @@ public partial class GameProfileItemViewModel : ViewModelBase
         };
     }
 
-    /// <summary>
-    /// Gets the default color for a game type.
-    /// </summary>
-    /// <param name="gameType">The game type.</param>
-    /// <returns>A hex color code.</returns>
     private static string GetDefaultColorForGameType(GameType? gameType)
     {
         return gameType switch
         {
-            GameType.Generals => "#BD5A0F", // Orange/yellow for Generals
-            GameType.ZeroHour => "#1B6575", // Teal/blue for Zero Hour
-            _ => "#2A2A2A", // Default dark gray
+            GameType.Generals => "#BD5A0F",
+            GameType.ZeroHour => "#1B6575",
+            _ => "#2A2A2A",
         };
     }
 
-    /// <summary>
-    /// Normalizes old cover paths to new paths for backward compatibility.
-    /// Handles migration from Assets/Images/*.png to Assets/Covers/*.png.
-    /// </summary>
-    /// <param name="coverPath">The cover path to normalize.</param>
-    /// <returns>The normalized cover path.</returns>
     private static string NormalizeCoverPath(string coverPath)
     {
         if (string.IsNullOrEmpty(coverPath))
@@ -715,8 +681,6 @@ public partial class GameProfileItemViewModel : ViewModelBase
             return coverPath;
         }
 
-        // Map old paths to new paths for backward compatibility
-        // Images were renamed/moved: Assets/Images/china-poster.png → Assets/Covers/china-cover.png
         return coverPath switch
         {
             var p when p.Contains("china-poster.png", StringComparison.OrdinalIgnoreCase) =>
@@ -728,13 +692,167 @@ public partial class GameProfileItemViewModel : ViewModelBase
             var p when p.Contains("gla-poster.png", StringComparison.OrdinalIgnoreCase) =>
                 p.Replace("gla-poster.png", "gla-cover.png", StringComparison.OrdinalIgnoreCase)
                  .Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase),
-
-            // Also handle just the directory change for any other files in Images/ that might reference covers
             var p when p.Contains("/Assets/Images/", StringComparison.OrdinalIgnoreCase) &&
                        (p.Contains("cover", StringComparison.OrdinalIgnoreCase) || p.Contains("poster", StringComparison.OrdinalIgnoreCase)) =>
                 p.Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase),
             _ => coverPath,
         };
+    }
+
+    private static string FormatManifestGameVersion(string publisherSegment, string versionSegment)
+    {
+        if (publisherSegment == "local")
+        {
+            return string.Empty;
+        }
+
+        if (!int.TryParse(versionSegment, out var versionNumber) || versionNumber <= 0)
+        {
+            return string.Empty;
+        }
+
+        if (publisherSegment == PublisherTypeConstants.GeneralsOnline)
+        {
+            return versionNumber.ToString("D6");
+        }
+
+        if (publisherSegment == PublisherTypeConstants.TheSuperHackers || (versionSegment.Length == 8 && versionNumber >= 20000000))
+        {
+            var year = versionNumber / 10000;
+            var month = (versionNumber % 10000) / 100;
+            var day = versionNumber % 100;
+            return $"v{year}.{month:D2}.{day:D2}";
+        }
+
+        return versionNumber >= 100
+            ? $"v{versionNumber / 100}.{versionNumber % 100:D2}"
+            : $"v{versionNumber}";
+    }
+
+    private static string FormatManifestContentType(string gameTypeSegment)
+    {
+        if (!gameTypeSegment.Contains('-'))
+        {
+            return string.Empty;
+        }
+
+        var parts = gameTypeSegment.Split('-');
+        return parts[1] switch
+        {
+            "gameinstallation" => "Game Installation",
+            "gameclient" => "Game Client",
+            "mod" => "Mod",
+            "patch" => "Patch",
+            "addon" => "Add-on",
+            "map" => "Map",
+            "mappack" => "Map Pack",
+            "executable" => "Executable",
+            "moddingtool" => "Modding Tool",
+            "mission" => "Mission",
+            _ => parts[1].ToUpperInvariant(),
+        };
+    }
+
+    private static (string Publisher, string? ColorValue, string? CoverImagePath) ResolvePublisherAndBranding(string publisherSegment, string fallbackRaw)
+    {
+        var publisher = publisherSegment switch
+        {
+            PublisherTypeConstants.Steam => "Steam",
+            PublisherTypeConstants.EaApp => "EA App",
+            "thefirstdecade" => "The First Decade",
+            PublisherTypeConstants.Retail => "Retail",
+            "cdiso" => "CD/ISO",
+            "wine" => "Wine",
+            PublisherTypeConstants.GeneralsOnline => "Generals Online",
+            PublisherTypeConstants.TheSuperHackers => "The Super Hackers",
+            CommunityOutpostConstants.PublisherType => "Community Outpost",
+            "local" => "Local",
+            _ => fallbackRaw.ToUpperInvariant(),
+        };
+
+        string? colorValue = null;
+        string? coverImagePath = null;
+
+        if (publisherSegment == PublisherTypeConstants.TheSuperHackers)
+        {
+            colorValue = SuperHackersConstants.ZeroHourThemeColor;
+            coverImagePath = SuperHackersConstants.ZeroHourCoverSource;
+        }
+        else if (publisherSegment == PublisherTypeConstants.GeneralsOnline)
+        {
+            colorValue = GeneralsOnlineConstants.ThemeColor;
+            coverImagePath = GeneralsOnlineConstants.CoverSource;
+        }
+        else if (publisherSegment == CommunityOutpostConstants.PublisherType)
+        {
+            colorValue = CommunityOutpostConstants.ThemeColor;
+            coverImagePath = CommunityOutpostConstants.CoverSource;
+        }
+
+        return (publisher, colorValue, coverImagePath);
+    }
+
+    private void UpdateManifestAndVersionInfo(GameProfile gameProfile)
+    {
+        // Reset version info before re-extracting
+        GameVersion = string.Empty;
+        Publisher = string.Empty;
+
+        // First try to get info from enabled GameInstallation manifests
+        var installationManifestId = gameProfile.EnabledContentIds?.FirstOrDefault(id => id.Contains("-installation"));
+        if (!string.IsNullOrEmpty(installationManifestId))
+        {
+            ExtractManifestInfo(installationManifestId);
+        }
+        else if (gameProfile.GameClient != null)
+        {
+            ExtractManifestInfo(gameProfile.GameClient.Id);
+
+            // Fallback: use GameClient.Version directly
+            // But SKIP if the publisher is "Local"
+            if (string.IsNullOrEmpty(GameVersion) &&
+                !string.IsNullOrEmpty(gameProfile.GameClient.Version) &&
+                !string.Equals(Publisher, "Local", StringComparison.OrdinalIgnoreCase))
+            {
+                var version = gameProfile.GameClient.Version;
+                GameVersion = IsZeroOrPlaceholderVersion(version) ? string.Empty : version;
+            }
+        }
+    }
+
+    private void UpdateVisuals(GameProfile gameProfile)
+    {
+        if (!string.IsNullOrEmpty(gameProfile.ThemeColor))
+        {
+            ColorValue = gameProfile.ThemeColor;
+        }
+
+        if (!string.IsNullOrEmpty(gameProfile.IconPath))
+        {
+            IconPath = gameProfile.IconPath;
+        }
+
+        if (!string.IsNullOrEmpty(gameProfile.CoverPath))
+        {
+            var normalizedCoverPath = NormalizeCoverPath(gameProfile.CoverPath);
+            CoverPath = normalizedCoverPath;
+            CoverImagePath = normalizedCoverPath;
+        }
+    }
+
+    private void NotifyProfilePropertiesChanged()
+    {
+        OnPropertyChanged(nameof(Name));
+        OnPropertyChanged(nameof(Version));
+        OnPropertyChanged(nameof(GameVersion));
+        OnPropertyChanged(nameof(Publisher));
+        OnPropertyChanged(nameof(Description));
+        OnPropertyChanged(nameof(ColorValue));
+        OnPropertyChanged(nameof(IconPath));
+        OnPropertyChanged(nameof(CoverPath));
+        OnPropertyChanged(nameof(CoverImagePath));
+        OnPropertyChanged(nameof(ExecutablePath));
+        OnPropertyChanged(nameof(CommandLineArguments));
     }
 
     private void UpdateDescription(GameProfile gameProfile)
@@ -839,95 +957,24 @@ public partial class GameProfileItemViewModel : ViewModelBase
         try
         {
             var publisherSegment = segments[2].ToLowerInvariant();
-            Publisher = ParsePublisherName(publisherSegment, segments[2]);
-            ApplyPublisherBranding(publisherSegment);
-            GameVersion = ParseManifestVersion(publisherSegment, segments[1]);
-            ContentType = ParseContentType(segments[3]);
+            var (resolvedPublisher, resolvedColor, resolvedCover) = ResolvePublisherAndBranding(publisherSegment, segments[2]);
+            Publisher = resolvedPublisher;
+            if (!string.IsNullOrEmpty(resolvedColor))
+            {
+                ColorValue = resolvedColor;
+            }
+
+            if (!string.IsNullOrEmpty(resolvedCover))
+            {
+                CoverImagePath = resolvedCover;
+            }
+
+            GameVersion = FormatManifestGameVersion(publisherSegment, segments[1]);
+            ContentType = FormatManifestContentType(segments[3]);
         }
         catch
         {
             // If parsing fails, leave the fields empty
         }
-    }
-
-    private string ParsePublisherName(string publisherSegment, string originalSegment) =>
-        publisherSegment switch
-        {
-            PublisherTypeConstants.Steam => "Steam",
-            PublisherTypeConstants.EaApp => "EA App",
-            "thefirstdecade" => "The First Decade",
-            PublisherTypeConstants.Retail => "Retail",
-            "cdiso" => "CD/ISO",
-            "wine" => "Wine",
-            PublisherTypeConstants.GeneralsOnline => "Generals Online",
-            PublisherTypeConstants.TheSuperHackers => "The Super Hackers",
-            CommunityOutpostConstants.PublisherType => "Community Outpost",
-            "local" => "Local",
-            _ => originalSegment.ToUpperInvariant(),
-        };
-
-    private void ApplyPublisherBranding(string publisherSegment)
-    {
-        if (publisherSegment == PublisherTypeConstants.TheSuperHackers)
-        {
-            ColorValue = SuperHackersConstants.ZeroHourThemeColor;
-            CoverImagePath = SuperHackersConstants.ZeroHourCoverSource;
-        }
-        else if (publisherSegment == PublisherTypeConstants.GeneralsOnline)
-        {
-            ColorValue = GeneralsOnlineConstants.ThemeColor;
-            CoverImagePath = GeneralsOnlineConstants.CoverSource;
-        }
-        else if (publisherSegment == CommunityOutpostConstants.PublisherType)
-        {
-            ColorValue = CommunityOutpostConstants.ThemeColor;
-            CoverImagePath = CommunityOutpostConstants.CoverSource;
-        }
-    }
-
-    private string ParseManifestVersion(string publisherSegment, string versionSegment)
-    {
-        if (publisherSegment == "local")
-        {
-            return string.Empty;
-        }
-
-        if (int.TryParse(versionSegment, out var versionNumber) && versionNumber > 0)
-        {
-            if (publisherSegment == PublisherTypeConstants.GeneralsOnline)
-            {
-                return versionNumber.ToString("D6");
-            }
-
-            return versionNumber >= 100
-                ? $"v{versionNumber / 100}.{versionNumber % 100:D2}"
-                : $"v{versionNumber}";
-        }
-
-        return string.Empty;
-    }
-
-    private string ParseContentType(string gameTypeSegment)
-    {
-        if (!gameTypeSegment.Contains('-'))
-        {
-            return string.Empty;
-        }
-
-        var parts = gameTypeSegment.Split('-');
-        return parts[1] switch
-        {
-            "gameinstallation" => "Game Installation",
-            "gameclient" => "Game Client",
-            "mod" => "Mod",
-            "patch" => "Patch",
-            "addon" => "Add-on",
-            "map" => "Map",
-            "mappack" => "Map Pack",
-            "executable" => "Executable",
-            "moddingtool" => "Modding Tool",
-            "mission" => "Mission",
-            _ => parts[1].ToUpperInvariant(),
-        };
     }
 }

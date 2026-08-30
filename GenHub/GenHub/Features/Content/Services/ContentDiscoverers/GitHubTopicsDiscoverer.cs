@@ -79,6 +79,23 @@ public partial class GitHubTopicsDiscoverer(
         };
 
         /// <summary>
+        /// Common language patterns and their display names.
+        /// </summary>
+        public static readonly Dictionary<string, string> LanguageDisplayNames = new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "english", "English" },
+            { "russian", "Russian" },
+            { "spanish", "Spanish" },
+            { "french", "French" },
+            { "german", "German" },
+            { "chinese", "Chinese" },
+            { "japanese", "Japanese" },
+            { "korean", "Korean" },
+            { "italian", "Italian" },
+            { "portuguese", "Portuguese" },
+        };
+
+        /// <summary>
         /// File extensions that are archives and should be checked for variants.
         /// </summary>
         public static readonly string[] ArchiveExtensions =
@@ -330,7 +347,7 @@ public partial class GitHubTopicsDiscoverer(
             return true;
 
         // Check for source-related patterns
-        if (VariantPatterns.ExcludedPatterns.Any(p => lowerName.Contains(p)))
+        if (VariantPatterns.ExcludedPatterns.Any(lowerName.Contains))
             return true;
 
         return false;
@@ -342,7 +359,7 @@ public partial class GitHubTopicsDiscoverer(
     private static bool IsArchiveAsset(string assetName)
     {
         var lowerName = assetName.ToLowerInvariant();
-        return VariantPatterns.ArchiveExtensions.Any(ext => lowerName.EndsWith(ext));
+        return VariantPatterns.ArchiveExtensions.Any(lowerName.EndsWith);
     }
 
     /// <summary>
@@ -369,60 +386,204 @@ public partial class GitHubTopicsDiscoverer(
 
     /// <summary>
     /// Extracts a variant name from an asset filename.
-    /// Detects resolutions (1920x1080 → "1080p"), languages, and other patterns.
+    /// Detects resolutions (1920x1080 → "1080p"), languages, and version numbers (v1.03).
     /// </summary>
     private static string ExtractAssetVariant(string assetName)
     {
         var nameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(assetName);
 
-        // Handle double extensions like .tar.gz
         if (nameWithoutExt.EndsWith(".tar", StringComparison.OrdinalIgnoreCase))
+        {
             nameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(nameWithoutExt);
-
-        // Check for resolution pattern first (most specific)
-        var resolutionMatch = VariantPatterns.ResolutionPattern().Match(nameWithoutExt);
-        if (resolutionMatch.Success)
-        {
-            var resolution = resolutionMatch.Value;
-
-            // Return friendly name if available, otherwise raw resolution
-            return VariantPatterns.ResolutionDisplayNames.TryGetValue(resolution, out var displayName)
-                ? displayName
-                : resolution;
         }
 
-        // Check for language patterns
-        var languagePatterns = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        if (TryExtractResolutionVariant(nameWithoutExt, out var resolution))
         {
-            { "english", "English" },
-            { "russian", "Russian" },
-            { "spanish", "Spanish" },
-            { "french", "French" },
-            { "german", "German" },
-            { "chinese", "Chinese" },
-            { "japanese", "Japanese" },
-            { "korean", "Korean" },
-            { "italian", "Italian" },
-            { "portuguese", "Portuguese" },
-        };
-
-        // Check if filename contains a resolution (e.g., 1920x1080)
-        // Note: Resolution matching is already handled by VariantPatterns.ResolutionPattern() above.
-        foreach (var (pattern, displayName) in languagePatterns)
-        {
-            if (nameWithoutExt.Contains(pattern, StringComparison.OrdinalIgnoreCase))
-                return displayName;
+            return resolution;
         }
 
-        // Fallback: extract meaningful suffix
-        var parts = nameWithoutExt.Split(new[] { '_', '-', '.' }, StringSplitOptions.RemoveEmptyEntries);
+        if (TryExtractLanguageVariant(nameWithoutExt, out var language))
+        {
+            return language;
+        }
+
+        var parts = nameWithoutExt.Split(['_', '-', '.'], StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length > 1)
         {
-            // Return last meaningful part (often the variant)
-            return parts[^1];
+            return ExtractVersionOrTokenVariant(parts, nameWithoutExt);
         }
 
         return nameWithoutExt;
+    }
+
+    private static bool TryExtractResolutionVariant(string nameWithoutExt, out string resolution)
+    {
+        var resolutionMatch = VariantPatterns.ResolutionPattern().Match(nameWithoutExt);
+        if (resolutionMatch.Success)
+        {
+            var raw = resolutionMatch.Value;
+            resolution = VariantPatterns.ResolutionDisplayNames.TryGetValue(raw, out var displayName)
+                ? displayName
+                : raw;
+            return true;
+        }
+
+        resolution = string.Empty;
+        return false;
+    }
+
+    private static bool TryExtractLanguageVariant(string nameWithoutExt, out string language)
+    {
+        foreach (var (pattern, displayName) in VariantPatterns.LanguageDisplayNames)
+        {
+            if (nameWithoutExt.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+            {
+                language = displayName;
+                return true;
+            }
+        }
+
+        language = string.Empty;
+        return false;
+    }
+
+    private static string ExtractVersionOrTokenVariant(string[] parts, string fallback)
+    {
+        if (TryExtractVersionToken(parts, out var versionToken) && versionToken != null)
+        {
+            return versionToken;
+        }
+
+        for (var i = parts.Length - 1; i >= 0; i--)
+        {
+            if (VariantPatterns.NonDigitPattern().IsMatch(parts[i]))
+            {
+                return parts[i];
+            }
+        }
+
+        return fallback;
+    }
+
+    private static bool TryExtractVersionToken(string[] parts, out string? versionToken)
+    {
+        for (var i = parts.Length - 1; i >= 0; i--)
+        {
+            var part = parts[i];
+            if (part.Length >= 2 &&
+                (part[0] == 'v' || part[0] == 'V') &&
+                char.IsDigit(part[1]))
+            {
+                if (i + 1 < parts.Length && !VariantPatterns.NonDigitPattern().IsMatch(parts[i + 1]))
+                {
+                    versionToken = $"{part}.{parts[i + 1]}";
+                    return true;
+                }
+
+                versionToken = part;
+                return true;
+            }
+
+            if (i > 0 &&
+                !VariantPatterns.NonDigitPattern().IsMatch(part) &&
+                parts[i - 1].Length >= 2 &&
+                (parts[i - 1][0] == 'v' || parts[i - 1][0] == 'V') &&
+                char.IsDigit(parts[i - 1][1]))
+            {
+                versionToken = $"{parts[i - 1]}.{part}";
+                return true;
+            }
+        }
+
+        versionToken = null;
+        return false;
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when the variant string looks like a version
+    /// token (e.g. "v1.03", "v2") that carries no meaningful semantic beyond ordering
+    /// and therefore should not be promoted to a visible tag chip on the card.
+    /// </summary>
+    private static bool IsVersionLikeVariant(string variant)
+    {
+        if (string.IsNullOrWhiteSpace(variant))
+            return false;
+
+        // Matches "v1", "v1.03", "v2.0", "V3", etc.
+        if (variant.Length >= 2 &&
+            (variant[0] == 'v' || variant[0] == 'V') &&
+            char.IsDigit(variant[1]))
+            return true;
+
+        // Matches purely numeric tokens like "03", "1", "20"
+        return !VariantPatterns.NonDigitPattern().IsMatch(variant);
+    }
+
+    /// <summary>
+    /// Marks exactly one variant in <paramref name="variants"/> as <see cref="ContentVariantInfo.IsDefault"/>.
+    /// Selection priority (highest wins):
+    /// <list type="number">
+    ///   <item>1080p resolution variant — the widely-accepted standard HD target.</item>
+    ///   <item>Any other resolution variant where the display name contains "1080".</item>
+    ///   <item>English language variant.</item>
+    ///   <item>Last variant in list — typically the most recently published or highest version.</item>
+    /// </list>
+    /// </summary>
+    private static void MarkDefaultVariant(List<ContentVariantInfo> variants)
+    {
+        if (variants.Count == 0)
+            return;
+
+        // Priority 1: prefer 1080p (standard HD) for resolution-typed variants
+        var chosen = variants.FirstOrDefault(v =>
+            v.Name.Contains("1080p", StringComparison.OrdinalIgnoreCase) ||
+            v.Name.Contains("1920x1080", StringComparison.OrdinalIgnoreCase));
+
+        // Priority 2: any other resolution variant (prefer higher resolution before lower)
+        if (chosen == null && variants.Any(v => v.VariantType == "resolution"))
+        {
+            // Resolution display names sort lexicographically in a useful order (720p < 900p < 1080p ...)
+            // so picking the last resolution variant gives the highest resolution available.
+            chosen = variants.LastOrDefault(v => v.VariantType == "resolution");
+        }
+
+        // Priority 3: English for language packs
+        chosen ??= variants.FirstOrDefault(v =>
+            v.Name.Contains("English", StringComparison.OrdinalIgnoreCase));
+
+        // Priority 4: last variant — newest version / most recently added asset
+        chosen ??= variants[^1];
+
+        chosen.IsDefault = true;
+    }
+
+    /// <summary>
+    /// Infers the variant discriminator type from a search result's name or asset metadata.
+    /// Returns "resolution" for numeric patterns like 1080p, "language" for known language
+    /// names, and "variant" as a fallback.
+    /// </summary>
+    private static string InferVariantType(ContentSearchResult result)
+    {
+        var name = result.Name ?? string.Empty;
+        var lower = name.ToLowerInvariant();
+
+        if (VariantPatterns.ResolutionPattern().IsMatch(lower))
+        {
+            return "resolution";
+        }
+
+        var languagePatterns = new[]
+        {
+            "english", "russian", "spanish", "french", "german",
+            "chinese", "japanese", "korean", "italian", "portuguese",
+        };
+
+        if (languagePatterns.Any(lang => lower.Contains(lang)))
+        {
+            return "language";
+        }
+
+        return "variant";
     }
 
     /// <summary>
@@ -454,6 +615,33 @@ public partial class GitHubTopicsDiscoverer(
             {
                 var assetResult = CreateSearchResultForAsset(repo, latestRelease, asset, sourceTopic);
                 results.Add(assetResult);
+            }
+
+            // Stamp variant group info on all sibling cards so the downloads browser
+            // collapses them into a single card with a variant picker.
+            var variantGroupId = $"github.{repo.Owner.Login}.{repo.Name}.{latestRelease.TagName}";
+            var variantFamilyName = repo.Name;
+            var variantList = results
+                .Select(r => new ContentVariantInfo
+                {
+                    Id = r.ResolverMetadata.TryGetValue(GitHubTopicsConstants.AssetNameMetadataKey, out var an) ? an : r.Id,
+                    Name = r.Name,
+                    ManifestId = r.Id,
+                    VariantType = InferVariantType(r),
+                    IsDefault = false,
+                })
+                .ToList();
+
+            // Mark the best default variant so the downloads browser pre-selects it.
+            // Priority: preferred resolution (1080p) > English language > last variant
+            // (most recently published / highest version when assets are listed in order).
+            MarkDefaultVariant(variantList);
+
+            foreach (var r in results)
+            {
+                r.VariantGroupId = variantGroupId;
+                r.VariantFamilyName = variantFamilyName;
+                r.Variants = variantList;
             }
         }
         else
@@ -510,7 +698,7 @@ public partial class GitHubTopicsDiscoverer(
         var result = new ContentSearchResult
         {
             Id = manifestId,
-            Name = $"{repo.Name} ({assetVariant})", // Show variant in name
+            Name = $"{repo.Name} ({assetVariant})",
             Description = repo.Description ?? $"Community content from {repo.Owner.Login}/{repo.Name}",
             Version = version,
             AuthorName = repo.Owner.Login,
@@ -521,6 +709,7 @@ public partial class GitHubTopicsDiscoverer(
             RequiresResolution = true,
             ResolverId = GitHubConstants.GitHubReleaseResolverId,
             SourceUrl = repo.HtmlUrl,
+            IconUrl = repo.Owner.AvatarUrl,
             LastUpdated = release.PublishedAt?.DateTime ?? repo.UpdatedAt,
             DownloadSize = asset.Size,
         };
@@ -531,8 +720,13 @@ public partial class GitHubTopicsDiscoverer(
             result.Tags.Add(topic);
         }
 
-        // Add variant tag
-        result.Tags.Add(assetVariant.ToLowerInvariant());
+        // Only add the variant as a tag when it carries meaningful semantic information
+        // (resolution, language). Version-like tokens such as "v1.03" or bare numbers
+        // like "03" are internal discriminators and must not appear as badge chips.
+        if (!IsVersionLikeVariant(assetVariant))
+        {
+            result.Tags.Add(assetVariant.ToLowerInvariant());
+        }
 
         // Add resolver metadata
         result.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = repo.Owner.Login;
@@ -541,7 +735,7 @@ public partial class GitHubTopicsDiscoverer(
         result.ResolverMetadata[GitHubTopicsConstants.SourceTopicMetadataKey] = sourceTopic;
         result.ResolverMetadata[GitHubTopicsConstants.StarCountMetadataKey] = repo.StargazersCount.ToString();
         result.ResolverMetadata[GitHubTopicsConstants.ForkCountMetadataKey] = repo.ForksCount.ToString();
-        result.ResolverMetadata["asset-name"] = asset.Name; // Store asset name for resolution
+        result.ResolverMetadata["asset-name"] = asset.Name;
         if (!string.IsNullOrEmpty(repo.Language))
         {
             result.ResolverMetadata[GitHubTopicsConstants.LanguageMetadataKey] = repo.Language;
@@ -605,6 +799,7 @@ public partial class GitHubTopicsDiscoverer(
             RequiresResolution = true,
             ResolverId = GitHubConstants.GitHubReleaseResolverId, // Use existing GitHub resolver
             SourceUrl = repo.HtmlUrl,
+            IconUrl = repo.Owner.AvatarUrl, // Use repository owner's avatar as icon
             LastUpdated = latestRelease?.PublishedAt?.DateTime ?? repo.UpdatedAt,
             DownloadSize = latestRelease?.Assets.Sum(a => a.Size) ?? 0,
         };

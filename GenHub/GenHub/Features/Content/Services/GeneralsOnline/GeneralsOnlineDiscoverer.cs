@@ -54,7 +54,7 @@ public class GeneralsOnlineDiscoverer(
     /// <param name="query">The search query.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Operation result containing discovered content.</returns>
-    public Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
+    public virtual Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
     {
@@ -62,7 +62,7 @@ public class GeneralsOnlineDiscoverer(
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
+    public virtual async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ProviderDefinition? provider,
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
@@ -119,12 +119,10 @@ public class GeneralsOnlineDiscoverer(
                     r.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true);
             }
 
-            var list = results.ToList();
             return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
             {
-                Items = list,
-                TotalItems = list.Count,
-                HasMoreItems = false,
+                Items = [.. results],
+                HasMoreItems = false, // API returns all items at once
             });
         }
         catch (Exception ex)

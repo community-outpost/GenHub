@@ -150,13 +150,13 @@ public abstract class WorkspaceStrategyBase<T>(
         }
 
         // Essential directories - always copy content from these
-        if (EssentialDirectories.Any(dir => directory.Contains(dir)))
+        if (EssentialDirectories.Any(directory.Contains))
         {
             return true;
         }
 
         // Essential file patterns
-        if (EssentialPatterns.Any(pattern => fileName.Contains(pattern)))
+        if (EssentialPatterns.Any(fileName.Contains))
         {
             return true;
         }
@@ -253,67 +253,7 @@ public abstract class WorkspaceStrategyBase<T>(
         workspaceInfo.TotalSizeBytes = totalSize;
         workspaceInfo.WorkingDirectory = workspaceInfo.WorkspacePath;
 
-        var gameClientManifest = configuration.Manifests
-            .FirstOrDefault(m => m.ContentType == ContentType.GameClient);
-
-        if (gameClientManifest != null)
-        {
-            // Resolution order and failure behaviour live in ManifestVariantResolver.
-            // The previous inline logic took the first file marked IsExecutable, which is
-            // enumeration-order dependent as soon as more than one file qualifies — and
-            // several do, once dynamic libraries and native extensionless binaries are in
-            // the same manifest.
-            var resolution = ManifestVariantResolver.ResolveEntryPoint(gameClientManifest);
-
-            if (resolution.Success)
-            {
-                workspaceInfo.ExecutablePath = Path.Combine(
-                    workspaceInfo.WorkspacePath,
-                    resolution.RelativePath!.Replace('/', Path.DirectorySeparatorChar));
-
-                logger.LogInformation(
-                    "Executable resolved from GameClient manifest: {ExecutablePath} ({Reason})",
-                    workspaceInfo.ExecutablePath,
-                    resolution.Reason);
-            }
-            else
-            {
-                // Left unset deliberately rather than guessed. Launching the wrong binary
-                // fails somewhere far less diagnosable than here.
-                logger.LogWarning(
-                    "Could not determine the executable for GameClient manifest '{ManifestId}': {Resolution}",
-                    gameClientManifest.Id,
-                    resolution);
-            }
-        }
-        else if (!string.IsNullOrEmpty(configuration.GameClient.ExecutablePath))
-        {
-            // Fallback: Search for executable by filename in any manifest
-            // This supports legacy scenarios and simple workspaces
-            var executableFileName = Path.GetFileName(configuration.GameClient.ExecutablePath);
-
-            var executableExistsInManifest = configuration.Manifests
-                .SelectMany(m => m.Files ?? Enumerable.Empty<ManifestFile>())
-                .Any(f => Path.GetFileName(f.RelativePath).Equals(executableFileName, StringComparison.OrdinalIgnoreCase));
-
-            if (executableExistsInManifest)
-            {
-                workspaceInfo.ExecutablePath = Path.Combine(workspaceInfo.WorkspacePath, executableFileName);
-                logger.LogDebug(
-                    "Executable path resolved by filename search: {ExecutablePath}",
-                    workspaceInfo.ExecutablePath);
-            }
-            else
-            {
-                logger.LogDebug(
-                    "No executable found in manifests for filename: {ExecutableFileName}",
-                    executableFileName);
-            }
-        }
-        else
-        {
-            logger.LogDebug("No GameClient configuration or manifest available - executable path not set");
-        }
+        ResolveExecutablePath(workspaceInfo, configuration);
     }
 
     /// <summary>
@@ -551,21 +491,21 @@ public abstract class WorkspaceStrategyBase<T>(
     }
 
     /// <summary>
-    /// Stub for processing game installation files. Should be implemented in concrete strategies as needed.
+    /// Processes a game installation file in the strategy.
     /// </summary>
     /// <param name="file">The manifest file representing the game installation content.</param>
     /// <param name="targetPath">The target path for the file in the workspace.</param>
     /// <param name="configuration">The workspace configuration.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    protected virtual Task ProcessGameInstallationFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
-    {
-        // Default: throw if not implemented
-        throw new NotImplementedException("ProcessGameInstallationFileAsync must be implemented in the strategy if used.");
-    }
+    protected abstract Task ProcessGameInstallationFileAsync(
+        ManifestFile file,
+        string targetPath,
+        WorkspaceConfiguration configuration,
+        CancellationToken cancellationToken);
 
     /// <summary>
-    /// Stub for processing local files. Should be implemented in concrete strategies as needed.
+    /// Processes a local file in the strategy.
     /// </summary>
     /// <param name="file">The manifest file representing the local file content.</param>
     /// <param name="manifest">The manifest containing the file.</param>
@@ -573,11 +513,12 @@ public abstract class WorkspaceStrategyBase<T>(
     /// <param name="configuration">The workspace configuration.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    protected virtual Task ProcessLocalFileAsync(ManifestFile file, ContentManifest manifest, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
-    {
-        // Default: throw if not implemented
-        throw new NotImplementedException("ProcessLocalFileAsync must be implemented in the strategy if used.");
-    }
+    protected abstract Task ProcessLocalFileAsync(
+        ManifestFile file,
+        ContentManifest manifest,
+        string targetPath,
+        WorkspaceConfiguration configuration,
+        CancellationToken cancellationToken);
 
     /// <summary>
     /// Processes a file from an extracted package (e.g., downloaded and extracted from Community Outpost).
@@ -683,5 +624,140 @@ public abstract class WorkspaceStrategyBase<T>(
         }
 
         return path;
+    }
+
+    private void ResolveExecutablePath(WorkspaceInfo workspaceInfo, WorkspaceConfiguration configuration)
+    {
+        var gameClientManifest = configuration.Manifests
+            .FirstOrDefault(m => m.ContentType == ContentType.GameClient);
+
+        if (gameClientManifest != null)
+        {
+            ResolveGameClientExecutable(workspaceInfo, gameClientManifest);
+        }
+        else
+        {
+            ResolveCustomOrFallbackExecutable(workspaceInfo, configuration);
+        }
+
+        if (string.IsNullOrEmpty(workspaceInfo.ExecutablePath) && !string.IsNullOrEmpty(configuration.GameClient.ExecutablePath))
+        {
+            ResolveExecutableByFilenameFallback(workspaceInfo, configuration);
+        }
+        else if (string.IsNullOrEmpty(workspaceInfo.ExecutablePath))
+        {
+            logger.LogDebug("No GameClient configuration or manifest available - executable path not set");
+        }
+    }
+
+    private void ResolveGameClientExecutable(WorkspaceInfo workspaceInfo, ContentManifest gameClientManifest)
+    {
+        var resolution = ManifestVariantResolver.ResolveEntryPoint(gameClientManifest);
+        if (resolution.Success && !string.IsNullOrEmpty(resolution.RelativePath))
+        {
+            var resolvedRelativePath = resolution.RelativePath.Replace('/', Path.DirectorySeparatorChar);
+            var resolvedFullPath = Path.Combine(workspaceInfo.WorkspacePath, resolvedRelativePath);
+            var resolvedFileName = Path.GetFileName(resolvedRelativePath);
+
+            resolvedFullPath = EnsureGeneralsAlias(workspaceInfo.WorkspacePath, resolvedFullPath, resolvedFileName, true);
+            workspaceInfo.ExecutablePath = resolvedFullPath;
+
+            logger.LogInformation(
+                "Executable resolved from GameClient manifest: {ExecutablePath} ({Reason})",
+                workspaceInfo.ExecutablePath,
+                resolution.Reason);
+        }
+        else
+        {
+            logger.LogWarning(
+                "Could not determine the executable for GameClient manifest '{ManifestId}': {Resolution}",
+                gameClientManifest.Id,
+                resolution);
+        }
+    }
+
+    private void ResolveCustomOrFallbackExecutable(WorkspaceInfo workspaceInfo, WorkspaceConfiguration configuration)
+    {
+        var executableManifest = configuration.Manifests
+            .FirstOrDefault(m => m.ContentType == ContentType.Executable || !string.IsNullOrWhiteSpace(m.EntryPoint));
+
+        if (executableManifest == null)
+        {
+            return;
+        }
+
+        var resolution = ManifestVariantResolver.ResolveEntryPoint(executableManifest);
+        if (!resolution.Success || string.IsNullOrEmpty(resolution.RelativePath))
+        {
+            return;
+        }
+
+        var resolvedRelativePath = resolution.RelativePath.Replace('/', Path.DirectorySeparatorChar);
+        var resolvedFullPath = Path.Combine(workspaceInfo.WorkspacePath, resolvedRelativePath);
+        var resolvedFileName = Path.GetFileName(resolvedRelativePath);
+
+        resolvedFullPath = EnsureGeneralsAlias(workspaceInfo.WorkspacePath, resolvedFullPath, resolvedFileName, false);
+        workspaceInfo.ExecutablePath = resolvedFullPath;
+
+        logger.LogInformation(
+            "Executable resolved from {ContentType} manifest '{ManifestId}': {ExecutablePath} ({Reason})",
+            executableManifest.ContentType,
+            executableManifest.Id,
+            workspaceInfo.ExecutablePath,
+            resolution.Reason);
+    }
+
+    private string EnsureGeneralsAlias(string workspacePath, string resolvedFullPath, string resolvedFileName, bool isGameClient)
+    {
+        var shouldAlias = isGameClient
+            ? !resolvedFileName.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase)
+            : !resolvedFileName.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase) && !resolvedFileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
+
+        if (!shouldAlias)
+        {
+            return resolvedFullPath;
+        }
+
+        var aliasPath = Path.Combine(workspacePath, GameClientConstants.GeneralsExecutable);
+        if (File.Exists(resolvedFullPath) && !File.Exists(aliasPath))
+        {
+            try
+            {
+                File.Copy(resolvedFullPath, aliasPath, overwrite: true);
+                logger.LogInformation("Created '{Alias}' alias for entry point '{Target}' in workspace", GameClientConstants.GeneralsExecutable, resolvedFullPath);
+                if (!resolvedFileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    return aliasPath;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to create generals.exe alias for {Target}", resolvedFullPath);
+            }
+        }
+
+        return resolvedFullPath;
+    }
+
+    private void ResolveExecutableByFilenameFallback(WorkspaceInfo workspaceInfo, WorkspaceConfiguration configuration)
+    {
+        var executableFileName = Path.GetFileName(configuration.GameClient.ExecutablePath);
+        var executableExistsInManifest = configuration.Manifests
+            .SelectMany(m => m.Files ?? Enumerable.Empty<ManifestFile>())
+            .Any(f => Path.GetFileName(f.RelativePath).Equals(executableFileName, StringComparison.OrdinalIgnoreCase));
+
+        if (executableExistsInManifest)
+        {
+            workspaceInfo.ExecutablePath = Path.Combine(workspaceInfo.WorkspacePath, executableFileName);
+            logger.LogDebug(
+                "Executable path resolved by filename search: {ExecutablePath}",
+                workspaceInfo.ExecutablePath);
+        }
+        else
+        {
+            logger.LogDebug(
+                "No executable found in manifests for filename: {ExecutableFileName}",
+                executableFileName);
+        }
     }
 }

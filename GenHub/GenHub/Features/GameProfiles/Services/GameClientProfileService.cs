@@ -89,7 +89,10 @@ public class GameClientProfileService(
                 WorkspaceStrategy = preferredStrategy,
                 EnabledContentIds = enabledContentIds,
                 ThemeColor = themeColor ?? GetThemeColorForGameType(gameClient.GameType, gameClient),
-                IconPath = !string.IsNullOrEmpty(iconPath) ? iconPath : GetIconPathForGame(gameClient.GameType),
+                IconPath = !string.IsNullOrEmpty(iconPath)
+                    ? iconPath
+                    : PublisherInfoConstants.GetPublisherLogo(gameClient.PublisherType, $"{gameClient.Id} {gameClient.Name}")
+                      ?? GetIconPathForGame(gameClient.GameType),
                 CoverPath = !string.IsNullOrEmpty(coverPath) ? coverPath : GetCoverPathForGame(gameClient.GameType, gameClient),
                 UseSteamLaunch = installation.InstallationType == GameInstallationType.Steam,
             };
@@ -226,7 +229,7 @@ public class GameClientProfileService(
             // Create a GameClient object from the manifest
             // Extract executable path from manifest files
             var executableFile = manifest.Files?.FirstOrDefault(f =>
-                f.RelativePath != null && f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
+                f.RelativePath?.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) == true);
 
             if (executableFile == null)
             {
@@ -460,7 +463,7 @@ public class GameClientProfileService(
         }
 
         // Process each dependency from the manifest
-        if (manifest.Dependencies != null && manifest.Dependencies.Count > 0)
+        if (manifest.Dependencies is { Count: > 0 })
         {
             foreach (var dependency in manifest.Dependencies)
             {
@@ -544,11 +547,9 @@ public class GameClientProfileService(
                 dependency.Name);
             return null;
         }
-        else
-        {
-            // For non-installation dependencies (MapPack, etc.), use the dependency ID directly
-            return dependency.Id.Value;
-        }
+
+        // For non-installation dependencies (MapPack, etc.), use the dependency ID directly
+        return dependency.Id.Value;
     }
 
     private async Task<bool> ProfileExistsAsync(

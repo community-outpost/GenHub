@@ -97,12 +97,12 @@ public class StringToImageConverterTests
     }
 
     /// <summary>
-    /// Tests that <see cref="StringToImageConverter.ConvertBack"/> throws <see cref="NotImplementedException"/>.
+    /// Tests that <see cref="StringToImageConverter.ConvertBack"/> throws <see cref="NotSupportedException"/>.
     /// </summary>
     [Fact]
-    public void ConvertBack_ThrowsNotImplementedException()
+    public void ConvertBack_ThrowsNotSupportedException()
     {
-        Assert.Throws<NotImplementedException>(() =>
+        Assert.Throws<NotSupportedException>(() =>
             _converter.ConvertBack(null, typeof(string), null, _culture));
     }
 }

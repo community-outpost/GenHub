@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using GenHub.Core.Constants;
+
 namespace GenHub.Core.Models.ModDB;
 
 /// <summary>
@@ -21,7 +25,7 @@ public class ModDBFilter
     public string? Licence { get; set; }
 
     /// <summary>Gets or sets the sort parameter.</summary>
-    public string? Sort { get; set; }
+    public string? Sort { get; set; } = ModDBConstants.DefaultSort;
 
     /// <summary>Gets or sets the page number (1-based).</summary>
     public int Page { get; set; } = 1;

@@ -104,7 +104,6 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
         ArgumentNullException.ThrowIfNull(manifest);
 
         var issues = new List<ValidationIssue>();
-        var totalFiles = manifest.Files.Count;
 
         // Performance: Use parallel processing for large file sets
         var semaphore = new SemaphoreSlim(Environment.ProcessorCount);
@@ -116,11 +115,25 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
                 cancellationToken.ThrowIfCancellationRequested();
                 var fileIssues = new List<ValidationIssue>();
 
-                // Check file existence based on source type
-                bool fileExists;
-                if (file.SourceType == ContentSourceType.ContentAddressable)
+                var fullContentRoot = Path.GetFullPath(contentPath);
+                var resolvedFilePath = Path.GetFullPath(Path.Combine(fullContentRoot, file.RelativePath));
+                if (!resolvedFilePath.StartsWith(fullContentRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(resolvedFilePath, fullContentRoot, StringComparison.OrdinalIgnoreCase))
                 {
-                    // For CAS files, check if the hash exists in CAS
+                    fileIssues.Add(new ValidationIssue($"Invalid file path (outside content directory): {file.RelativePath}", ValidationSeverity.Error));
+                    return fileIssues;
+                }
+
+                // Check file existence based on source type
+                bool isMaterializedLocally = File.Exists(resolvedFilePath);
+                bool fileExists;
+
+                if (isMaterializedLocally)
+                {
+                    fileExists = true;
+                }
+                else if (file.SourceType == ContentSourceType.ContentAddressable)
+                {
                     if (string.IsNullOrWhiteSpace(file.Hash))
                     {
                         fileIssues.Add(new ValidationIssue($"ContentAddressable file missing hash: {file.RelativePath}", ValidationSeverity.Error));
@@ -130,7 +143,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
                     var casExistsResult = await _casService.ExistsAsync(file.Hash, cancellationToken);
                     if (!casExistsResult.Success)
                     {
-                        fileIssues.Add(new ValidationIssue($"Failed to check CAS existence for file: {file.RelativePath} - {casExistsResult.FirstError}", ValidationSeverity.Error));
+                        fileIssues.Add(new ValidationIssue($"CAS check failed for hash {file.Hash}: {casExistsResult.FirstError}", ValidationSeverity.Error));
                         return fileIssues;
                     }
 
@@ -138,9 +151,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
                 }
                 else
                 {
-                    // For other source types, check filesystem existence
-                    var filePath = Path.Combine(contentPath, file.RelativePath);
-                    fileExists = File.Exists(filePath);
+                    fileExists = false;
                 }
 
                 if (!fileExists)
@@ -149,14 +160,13 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
                     return fileIssues;
                 }
 
-                // For filesystem files, also verify hash if present
-                if (file.SourceType != ContentSourceType.ContentAddressable && !string.IsNullOrWhiteSpace(file.Hash))
+                // If file is materialized on disk, verify hash if hash is declared
+                if (isMaterializedLocally && !string.IsNullOrWhiteSpace(file.Hash))
                 {
-                    var filePath = Path.Combine(contentPath, file.RelativePath);
-                    var isHashValid = await _fileOperations.VerifyFileHashAsync(filePath, file.Hash, cancellationToken);
+                    var isHashValid = await _fileOperations.VerifyFileHashAsync(resolvedFilePath, file.Hash, cancellationToken);
                     if (!isHashValid)
                     {
-                        fileIssues.Add(new ValidationIssue($"Hash mismatch for file: {file.RelativePath}", ValidationSeverity.Warning)); // xezon:' File validation is probably fine by just names, and just warn if hash is mismatching.' - on discord 22:20 01/08/2025
+                        fileIssues.Add(new ValidationIssue($"Hash mismatch for file: {file.RelativePath}", ValidationSeverity.Warning));
                     }
                 }
 

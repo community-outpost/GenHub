@@ -5,6 +5,8 @@
 .*
 !.github/
 !.gitignore
+!.gitattributes
+!**/.gitattributes
 !.agents/
 !.claude/
 

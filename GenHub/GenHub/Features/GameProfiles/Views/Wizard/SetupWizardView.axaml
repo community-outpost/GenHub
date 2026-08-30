@@ -7,6 +7,7 @@
         x:Class="GenHub.Features.GameProfiles.Views.Wizard.SetupWizardView"
         x:DataType="vm:SetupWizardViewModel"
         Title="Setup Wizard"
+        Icon="avares://GenHub/Assets/Icons/generalshub-icon.png"
         Width="700" Height="500"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
@@ -59,7 +60,7 @@
         </Style>
         <Style Selector="Button.wizard-item-card:disabled">
             <Setter Property="Opacity" Value="0.65"/>
-            <Setter Property="Cursor" Value="Default"/>
+            <Setter Property="Cursor" Value="Arrow"/>
         </Style>
         
         <Style Selector="CheckBox">
