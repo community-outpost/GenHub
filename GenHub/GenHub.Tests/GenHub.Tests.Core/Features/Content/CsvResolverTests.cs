@@ -292,6 +292,55 @@ public class CsvResolverTests
     }
 
     /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> filters out traversal and rooted paths.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithTraversingRelativePaths_RejectsUnsafePathsAsync()
+    {
+        var maliciousCsv = string.Join(
+            Environment.NewLine,
+            SampleCsvHeader,
+            "../../escape.dll,100,md5,sha256,Generals,All,True,\"{}\",https://example.com/escape.dll",
+            "C:\\root.dll,100,md5,sha256,Generals,All,True,\"{}\",https://example.com/root.dll",
+            "valid.dll,100,md5,sha256,Generals,All,True,\"{}\",https://example.com/valid.dll");
+
+        using var tempCsv = new TempCsvFile(maliciousCsv);
+        var resolver = CreateResolver();
+        var item = CreateDiscoveredItem(tempCsv.FilePath, GameType.Generals, CsvConstants.AllLanguagesFilter);
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeTrue();
+        result.Data!.Files.Should().HaveCount(1);
+        result.Data.Files.Single().RelativePath.Should().Be("valid.dll");
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> sets SourceType to GameInstallation when remote entry has no valid URL.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenRemoteFileHasNoDownloadUrl_SetsSourceTypeToGameInstallationAsync()
+    {
+        var csvNoUrl = string.Join(
+            Environment.NewLine,
+            SampleCsvHeader,
+            "local_only.dat,100,md5,sha256,Generals,All,True,\"{}\",");
+
+        var remoteUrl = "https://example.com/nourl.csv";
+        var httpHandler = new StubHttpMessageHandler(expectedUrl: remoteUrl, content: csvNoUrl, statusCode: HttpStatusCode.OK);
+        var resolver = CreateResolver(httpHandler);
+        var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.AllLanguagesFilter);
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeTrue();
+        result.Data!.Files.Single().SourceType.Should().Be(ContentSourceType.GameInstallation);
+        result.Data.Files.Single().DownloadUrl.Should().BeNull();
+    }
+
+    /// <summary>
     /// Verifies that the ProviderDefinition overload delegates to the main ResolveAsync method.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>

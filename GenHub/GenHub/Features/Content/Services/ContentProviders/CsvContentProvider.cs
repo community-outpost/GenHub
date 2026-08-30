@@ -36,7 +36,6 @@ public class CsvContentProvider(
 
     private readonly IContentDeliverer _deliverer = deliverers.FirstOrDefault(d =>
         string.Equals(d.SourceName, ContentSourceNames.HttpDeliverer, StringComparison.OrdinalIgnoreCase))
-        ?? deliverers.FirstOrDefault()
         ?? throw new InvalidOperationException("HTTP deliverer not found");
 
     /// <inheritdoc />
@@ -73,8 +72,13 @@ public class CsvContentProvider(
                 $"Content not found for ID '{contentId}': {searchResult.FirstError ?? "No matching results"}");
         }
 
-        var result = searchResult.Data.FirstOrDefault(r => string.Equals(r.Id, contentId, StringComparison.OrdinalIgnoreCase))
-            ?? searchResult.Data.First();
+        var result = searchResult.Data.FirstOrDefault(r => string.Equals(r.Id, contentId, StringComparison.OrdinalIgnoreCase));
+        if (result == null)
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Content not found for ID '{contentId}'.");
+        }
+
         var manifest = result.GetData<ContentManifest>();
 
         return manifest != null

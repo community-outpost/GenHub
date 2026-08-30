@@ -260,6 +260,67 @@ public class CsvContentProviderTests
     }
 
     /// <summary>
+    /// Verifies that <see cref="CsvContentProvider.GetValidatedContentAsync"/> returns failure when no items match exact content ID.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task GetValidatedContentAsync_WithNonMatchingContentId_ReturnsFailureAsync()
+    {
+        var manifestId = ManifestIdGenerator.GeneratePublisherContentId(PublisherTypeConstants.CsvRegistry, ContentType.GameInstallation, "generals-1.08-en");
+        var manifest = new ContentManifest
+        {
+            Id = new ManifestId(manifestId),
+            Name = "Generals 1.08 (EN)",
+            Version = "1.08",
+            ContentType = ContentType.GameInstallation,
+            TargetGame = GameType.Generals,
+            Files = [new ManifestFile { RelativePath = "game.dat", Size = 12345 }],
+        };
+
+        var discoveredItem = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Generals 1.08 (EN)",
+            RequiresResolution = true,
+            ResolverId = CsvConstants.ResolverId,
+        };
+
+        var mockDiscoverer = new Mock<IContentDiscoverer>();
+        mockDiscoverer.Setup(d => d.SourceName).Returns(CsvConstants.SourceName);
+        mockDiscoverer.Setup(d => d.DiscoverAsync(It.IsAny<ProviderDefinition?>(), It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items = [discoveredItem],
+                TotalItems = 1,
+            }));
+
+        var mockResolver = new Mock<IContentResolver>();
+        mockResolver.Setup(r => r.ResolverId).Returns(CsvConstants.ResolverId);
+        mockResolver.Setup(r => r.ResolveAsync(It.IsAny<ProviderDefinition?>(), It.IsAny<ContentSearchResult>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+
+        var mockDeliverer = new Mock<IContentDeliverer>();
+        mockDeliverer.Setup(d => d.SourceName).Returns(ContentSourceNames.HttpDeliverer);
+
+        var mockValidator = new Mock<IContentValidator>();
+        mockValidator.Setup(v => v.ValidateManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifestId, []));
+
+        var provider = new CsvContentProvider(
+            [mockDiscoverer.Object],
+            [mockResolver.Object],
+            [mockDeliverer.Object],
+            Mock.Of<ILogger<CsvContentProvider>>(),
+            mockValidator.Object,
+            CreateMockInstallationService());
+
+        var result = await provider.GetValidatedContentAsync("non-matching-id");
+
+        result.Success.Should().BeFalse();
+        result.Errors.Should().NotBeEmpty();
+    }
+
+    /// <summary>
     /// Verifies that <see cref="BaseContentProvider.PrepareContentAsync"/> completes preparation.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>

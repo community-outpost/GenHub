@@ -157,7 +157,9 @@ public class CsvResolver(
 
         foreach (var record in records)
         {
-            if (string.IsNullOrWhiteSpace(record.RelativePath))
+            if (string.IsNullOrWhiteSpace(record.RelativePath) ||
+                Path.IsPathRooted(record.RelativePath) ||
+                record.RelativePath.Contains("..", StringComparison.Ordinal))
             {
                 continue;
             }
@@ -196,19 +198,44 @@ public class CsvResolver(
 
     private static ManifestFile CreateManifestFile(CsvCatalogEntry entry, bool isRemote)
     {
-        var hash = !string.IsNullOrWhiteSpace(entry.Sha256) ? entry.Sha256 : entry.Md5;
+        var hasSha256 = !string.IsNullOrWhiteSpace(entry.Sha256);
+        var hash = hasSha256 ? entry.Sha256 : string.Empty;
+
+        var hasValidDownloadUrl = isRemote &&
+            !string.IsNullOrWhiteSpace(entry.DownloadUrl) &&
+            Uri.TryCreate(entry.DownloadUrl, UriKind.Absolute, out var url) &&
+            (url.Scheme == Uri.UriSchemeHttp || url.Scheme == Uri.UriSchemeHttps);
+
+        var sourceType = isRemote
+            ? (hasValidDownloadUrl ? ContentSourceType.RemoteDownload : ContentSourceType.GameInstallation)
+            : ContentSourceType.LocalFile;
 
         return new ManifestFile
         {
             RelativePath = entry.RelativePath,
             Size = entry.Size,
             Hash = hash,
-            SourceType = isRemote ? ContentSourceType.RemoteDownload : ContentSourceType.LocalFile,
+            SourceType = sourceType,
             InstallTarget = ContentInstallTarget.Workspace,
             IsRequired = entry.IsRequired,
-            DownloadUrl = !string.IsNullOrWhiteSpace(entry.DownloadUrl) ? entry.DownloadUrl : null,
+            DownloadUrl = hasValidDownloadUrl ? entry.DownloadUrl : null,
             IsExecutable = entry.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase),
         };
+    }
+
+    private static GameType ResolveTargetGame(ContentSearchResult discoveredItem, string gameTypeStr)
+    {
+        if (discoveredItem.TargetGame != GameType.Unknown)
+        {
+            return discoveredItem.TargetGame;
+        }
+
+        if (Enum.TryParse<GameType>(gameTypeStr, true, out var gt))
+        {
+            return gt;
+        }
+
+        return GameType.Unknown;
     }
 
     private static ContentManifest BuildManifest(
@@ -218,9 +245,7 @@ public class CsvResolver(
         string languageStr,
         IReadOnlyList<ManifestFile> files)
     {
-        var targetGame = discoveredItem.TargetGame != GameType.Unknown
-            ? discoveredItem.TargetGame
-            : (Enum.TryParse<GameType>(gameTypeStr, true, out var gt) ? gt : GameType.Unknown);
+        var targetGame = ResolveTargetGame(discoveredItem, gameTypeStr);
 
         var contentName = $"{gameTypeStr}-{version}-{languageStr}";
         var manifestId = !string.IsNullOrWhiteSpace(discoveredItem.Id)
