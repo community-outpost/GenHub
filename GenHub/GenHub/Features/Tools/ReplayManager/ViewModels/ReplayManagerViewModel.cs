@@ -1005,10 +1005,13 @@ public partial class ReplayManagerViewModel(
             var result = await directoryService.LaunchReplayAsync(replay);
             if (result.Success)
             {
+                var profileName = !string.IsNullOrEmpty(replay.MatchingProfileName)
+                    ? replay.MatchingProfileName
+                    : (replay.MatchedClient?.Description ?? "Matching Profile");
                 notificationService.ShowSuccess(
                     "Game Launched",
-                    $"Game launched with profile for replay '{replay.FileName}'.");
-                StatusMessage = "Game launched successfully.";
+                    $"Launched profile '{profileName}' for replay '{replay.FileName}'.");
+                StatusMessage = $"Launched profile '{profileName}'.";
             }
             else
             {
