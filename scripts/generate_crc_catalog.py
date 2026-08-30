@@ -363,6 +363,34 @@ def merge_catalogs(existing: list[dict], crawled: list[dict]) -> list[dict]:
     return list(by_manifest.values())
 
 
+def _validate_mapping_entry(idx: int, entry: dict, seen_manifest_ids: set) -> bool:
+    """Validates a single mapping entry in the CRC catalog."""
+    valid = True
+    m_id = entry.get("manifestId")
+    if not m_id:
+        print(f"Validation error at mapping index {idx}: missing manifestId", file=sys.stderr)
+        valid = False
+    elif m_id in seen_manifest_ids:
+        print(f"Validation warning: duplicate manifestId {m_id}", file=sys.stderr)
+    seen_manifest_ids.add(m_id)
+
+    if not entry.get("publisher"):
+        print(f"Validation error at {m_id}: missing publisher", file=sys.stderr)
+        valid = False
+
+    if not entry.get("gameType") or entry["gameType"] not in ("Generals", "ZeroHour"):
+        print(f"Validation error at {m_id}: invalid gameType {entry.get('gameType')}", file=sys.stderr)
+        valid = False
+
+    for crc_name in ("exeCrc", "iniCrc"):
+        crc_val = entry.get(crc_name)
+        if crc_val and not re.match(r"^0x[0-9A-Fa-f]{8}$", crc_val):
+            print(f"Validation error at {m_id}: invalid {crc_name} format '{crc_val}'", file=sys.stderr)
+            valid = False
+
+    return valid
+
+
 def validate_catalog(catalog: dict) -> bool:
     """Validates the structure and entries of the CRC mapping catalog."""
     if not isinstance(catalog, dict):
@@ -376,27 +404,8 @@ def validate_catalog(catalog: dict) -> bool:
     valid = True
     seen_manifest_ids = set()
     for idx, entry in enumerate(catalog["mappings"]):
-        m_id = entry.get("manifestId")
-        if not m_id:
-            print(f"Validation error at mapping index {idx}: missing manifestId", file=sys.stderr)
+        if not _validate_mapping_entry(idx, entry, seen_manifest_ids):
             valid = False
-        elif m_id in seen_manifest_ids:
-            print(f"Validation warning: duplicate manifestId {m_id}", file=sys.stderr)
-        seen_manifest_ids.add(m_id)
-
-        if not entry.get("publisher"):
-            print(f"Validation error at {m_id}: missing publisher", file=sys.stderr)
-            valid = False
-
-        if not entry.get("gameType") or entry["gameType"] not in ("Generals", "ZeroHour"):
-            print(f"Validation error at {m_id}: invalid gameType {entry.get('gameType')}", file=sys.stderr)
-            valid = False
-
-        for crc_name in ("exeCrc", "iniCrc"):
-            crc_val = entry.get(crc_name)
-            if crc_val and not re.match(r"^0x[0-9A-Fa-f]{8}$", crc_val):
-                print(f"Validation error at {m_id}: invalid {crc_name} format '{crc_val}'", file=sys.stderr)
-                valid = False
 
     return valid
 

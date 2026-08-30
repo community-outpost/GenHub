@@ -322,7 +322,7 @@ public static class GameSettingsMapper
 
         profile.GameSpyIPAddress = request.GameSpyIPAddress ?? profile.GameSpyIPAddress;
         profile.VideoSkipEALogo = request.VideoSkipEALogo ?? profile.VideoSkipEALogo;
-        profile.UseSteamLaunch = request.UseSteamLaunch;
+        profile.UseSteamLaunch = request.UseSteamLaunch ?? profile.UseSteamLaunch;
     }
 
     /// <summary>

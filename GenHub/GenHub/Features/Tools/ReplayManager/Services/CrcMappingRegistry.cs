@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Tools.ReplayManager;
 using Microsoft.Extensions.Logging;
@@ -158,19 +159,17 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
         {
             var pairKey = CreateCrcPairKey(entry.ExeCrc, entry.IniCrc);
             if (!pairBuilder.TryGetValue(pairKey, out _) ||
-                string.Equals(entry.Publisher, "steam", StringComparison.OrdinalIgnoreCase))
+                string.Equals(entry.Publisher, PublisherTypeConstants.Steam, StringComparison.OrdinalIgnoreCase))
             {
                 pairBuilder[pairKey] = entry;
             }
 
             var normalizedExe = NormalizeHex(entry.ExeCrc);
-            if (!string.IsNullOrEmpty(normalizedExe))
+            if (!string.IsNullOrEmpty(normalizedExe) &&
+                (!exeBuilder.TryGetValue(normalizedExe, out _) ||
+                 string.Equals(entry.Publisher, PublisherTypeConstants.Steam, StringComparison.OrdinalIgnoreCase)))
             {
-                if (!exeBuilder.TryGetValue(normalizedExe, out _) ||
-                    string.Equals(entry.Publisher, "steam", StringComparison.OrdinalIgnoreCase))
-                {
-                    exeBuilder[normalizedExe] = entry;
-                }
+                exeBuilder[normalizedExe] = entry;
             }
 
             if (!string.IsNullOrWhiteSpace(entry.Sha256))
