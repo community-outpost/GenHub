@@ -178,15 +178,9 @@ public class GameInstallationValidator(
         var stopwatch = Stopwatch.StartNew();
         var issues = new List<ValidationIssue>();
 
-        string detectedLanguage;
-        if (string.IsNullOrWhiteSpace(language))
-        {
-            detectedLanguage = await _languageDetector.DetectAsync(installationPath, cancellationToken);
-        }
-        else
-        {
-            detectedLanguage = language;
-        }
+        var detectedLanguage = string.IsNullOrWhiteSpace(language)
+            ? await _languageDetector.DetectAsync(installationPath, cancellationToken)
+            : language;
 
         var normalizedLanguage = ContentSearchQuery.NormalizeLanguage(detectedLanguage);
         logger.LogInformation(

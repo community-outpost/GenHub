@@ -406,7 +406,7 @@ public class GameInstallationValidatorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidateAsync_WithCsvContentProvider_ValidatesMultiLanguageInstallationSuccessfully()
+    public async Task ValidateAsync_WithCsvContentProvider_ValidatesMultiLanguageInstallationSuccessfullyAsync()
     {
         var tempDir = Directory.CreateTempSubdirectory();
         try
@@ -481,7 +481,7 @@ public class GameInstallationValidatorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidateAsync_WithExplicitLanguage_OverridesAutoDetection()
+    public async Task ValidateAsync_WithExplicitLanguage_OverridesAutoDetectionAsync()
     {
         var tempDir = Directory.CreateTempSubdirectory();
         try
@@ -545,7 +545,7 @@ public class GameInstallationValidatorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidateInstallationAsync_DirectPathAndGameType_ResolvesAndValidates()
+    public async Task ValidateInstallationAsync_DirectPathAndGameType_ResolvesAndValidatesAsync()
     {
         var tempDir = Directory.CreateTempSubdirectory();
         try
@@ -597,7 +597,7 @@ public class GameInstallationValidatorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidateAsync_DetailedCounts_ReportsCorrectMissingCorruptedAndExtraCounts()
+    public async Task ValidateAsync_DetailedCounts_ReportsCorrectMissingCorruptedAndExtraCountsAsync()
     {
         var tempDir = Directory.CreateTempSubdirectory();
         try
@@ -679,7 +679,7 @@ public class GameInstallationValidatorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidateAsync_WithCsvProviderFailure_ReturnsLanguageSpecificErrorMessage()
+    public async Task ValidateAsync_WithCsvProviderFailure_ReturnsLanguageSpecificErrorMessageAsync()
     {
         var tempDir = Directory.CreateTempSubdirectory();
         try
@@ -733,7 +733,7 @@ public class GameInstallationValidatorTests
     [InlineData("pt-br", CsvConstants.LanguagePtBr)]
     [InlineData("zh-cn", CsvConstants.LanguageZhCn)]
     [InlineData("zh-tw", CsvConstants.LanguageZhTw)]
-    public async Task ValidateAsync_MultiLanguageSupport_NormalizesLanguageAndValidates(string inputLanguage, string expectedNormalized)
+    public async Task ValidateAsync_MultiLanguageSupport_NormalizesLanguageAndValidatesAsync(string inputLanguage, string expectedNormalized)
     {
         var tempDir = Directory.CreateTempSubdirectory();
         try
@@ -786,7 +786,7 @@ public class GameInstallationValidatorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidateAsync_NullInstallation_ThrowsArgumentNullException()
+    public async Task ValidateAsync_NullInstallation_ThrowsArgumentNullExceptionAsync()
     {
         await Assert.ThrowsAsync<ArgumentNullException>(() => _validator.ValidateAsync(null!, CancellationToken.None));
     }
