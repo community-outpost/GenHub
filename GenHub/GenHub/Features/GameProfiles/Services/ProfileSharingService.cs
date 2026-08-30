@@ -313,14 +313,17 @@ public class ProfileSharingService(
 
     private static HttpClient CreateSafeHttpClient()
     {
-        var client = new HttpClient(new SocketsHttpHandler
+        var handler = new SocketsHttpHandler
         {
             ConnectCallback = (context, token) =>
                 ConnectToValidatedAddressAsync(ValidatedHostAddresses, context, token),
             AllowAutoRedirect = false,
-        })
+            AutomaticDecompression = DecompressionMethods.All,
+        };
+
+        var client = new HttpClient(handler)
         {
-            Timeout = TimeSpan.FromSeconds(30),
+            Timeout = TimeSpan.FromSeconds(60),
         };
 
         client.DefaultRequestHeaders.UserAgent.ParseAdd(ApiConstants.DefaultUserAgent);
@@ -1113,6 +1116,7 @@ public class ProfileSharingService(
         }
     }
 
+    [SuppressMessage("Major Code Smell", "S6966:Await async method instead of sync counterpart", Justification = "ZipArchiveEntry.Open has no asynchronous OpenAsync method in .NET 8 BCL.")]
     private async Task<string?> CreateLocalManifestArchiveAsync(
         string tempZipPath,
         ContentManifest manifest,
@@ -1428,12 +1432,19 @@ public class ProfileSharingService(
         return OperationResult<bool>.CreateSuccess(true);
     }
 
+    [SuppressMessage("Major Code Smell", "S6966:Await async method instead of sync counterpart", Justification = "ZipFile.OpenRead and ZipArchiveEntry.Open have no asynchronous OpenReadAsync/OpenAsync methods in .NET 8 BCL.")]
     private static async Task<OperationResult<bool>> ExtractAndVerifyPackageFilesAsync(
         string tempZipPath,
         string stagingDir,
         SharedManifestDependency dependency,
         CancellationToken cancellationToken)
     {
+        string canonicalStagingDir = Path.GetFullPath(stagingDir);
+        if (!canonicalStagingDir.EndsWith(Path.DirectorySeparatorChar))
+        {
+            canonicalStagingDir += Path.DirectorySeparatorChar;
+        }
+
         using (var archive = ZipFile.OpenRead(tempZipPath))
         {
             foreach (var entry in archive.Entries)
@@ -1444,7 +1455,7 @@ public class ProfileSharingService(
                 }
 
                 var destinationPath = Path.GetFullPath(Path.Combine(stagingDir, entry.FullName));
-                if (!destinationPath.StartsWith(Path.GetFullPath(stagingDir), StringComparison.Ordinal))
+                if (!destinationPath.StartsWith(canonicalStagingDir, StringComparison.Ordinal))
                 {
                     continue;
                 }
@@ -1463,7 +1474,17 @@ public class ProfileSharingService(
 
         foreach (var file in dependency.Files)
         {
-            var filePath = Path.Combine(stagingDir, file.RelativePath);
+            if (Path.IsPathRooted(file.RelativePath) || file.RelativePath.Contains("..", StringComparison.Ordinal))
+            {
+                return OperationResult<bool>.CreateFailure($"Package contains invalid relative path: {file.RelativePath}");
+            }
+
+            var filePath = Path.GetFullPath(Path.Combine(stagingDir, file.RelativePath));
+            if (!filePath.StartsWith(canonicalStagingDir, StringComparison.Ordinal))
+            {
+                return OperationResult<bool>.CreateFailure($"Package path escapes staging directory: {file.RelativePath}");
+            }
+
             if (!File.Exists(filePath))
             {
                 return OperationResult<bool>.CreateFailure($"Package is missing expected file: {file.RelativePath}");

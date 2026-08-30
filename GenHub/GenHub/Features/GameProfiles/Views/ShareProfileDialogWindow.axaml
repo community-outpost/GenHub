@@ -8,7 +8,10 @@
         x:Class="GenHub.Features.GameProfiles.Views.ShareProfileDialogWindow"
         x:DataType="vm:ShareProfileDialogViewModel"
         Title="Share Game Profile"
-        Width="560" Height="440"
+        Width="580"
+        SizeToContent="Height"
+        MinHeight="480"
+        MaxHeight="720"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
         SystemDecorations="Full"
@@ -67,7 +70,7 @@
                         IsHitTestVisible="False" />
 
                 <!-- Layout -->
-                <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+                <Grid RowDefinitions="Auto,Auto,Auto" Margin="24">
 
                     <!-- Header -->
                     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">

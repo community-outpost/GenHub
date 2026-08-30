@@ -133,17 +133,20 @@
                             Padding="14,10"
                             Margin="0,0,0,12"
                             IsVisible="{Binding HasError}">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <PathIcon Data="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
+                        <Grid ColumnDefinitions="Auto,*" Margin="0">
+                            <PathIcon Grid.Column="0"
+                                      Data="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
                                       Width="16" Height="16"
                                       Foreground="{DynamicResource ErrorBrush}"
-                                      VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding ErrorMessage}"
+                                      VerticalAlignment="Top"
+                                      Margin="0,2,8,0" />
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding ErrorMessage}"
                                        Foreground="{DynamicResource ErrorBrush}"
                                        FontSize="12"
                                        FontWeight="SemiBold"
                                        TextWrapping="Wrap" />
-                        </StackPanel>
+                        </Grid>
                     </Border>
 
                     <!-- Body Content -->
@@ -693,77 +696,77 @@
                         </Button>
                     </Grid>
 
-                    <!-- Acquisition Progress Overlay (Frosted Glass Card) -->
-                    <Border Grid.RowSpan="4"
-                            Background="#99000000"
-                            CornerRadius="16"
-                            IsVisible="{Binding IsImporting}"
-                            ZIndex="1000">
-                        <Border Background="{DynamicResource DetailsBackground}"
-                                BorderBrush="{DynamicResource BorderHighlightBrush}"
-                                BorderThickness="1"
-                                CornerRadius="14"
-                                Padding="28,24"
-                                Width="400"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                BoxShadow="0 16 48 0 #B0000000">
-                            <StackPanel Spacing="16">
-                                <!-- Header -->
-                                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
-                                    <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
-                                              Width="20" Height="20"
-                                              Foreground="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}"
-                                              VerticalAlignment="Center" />
-                                    <TextBlock Text="Importing Profile &amp; Content..."
-                                               FontSize="15"
-                                               FontWeight="Bold"
-                                               Foreground="{DynamicResource TextPrimary}"
-                                               VerticalAlignment="Center" />
-                                </StackPanel>
-
-                                <!-- Progress Bar -->
-                                <ProgressBar Value="{Binding ImportProgressPercentage}"
-                                             Minimum="0" Maximum="100"
-                                             Height="8"
-                                             CornerRadius="4"
-                                             Foreground="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}" />
-
-                                <!-- Progress Text -->
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock Grid.Column="0"
-                                               Text="{Binding CurrentOperationName}"
-                                               Foreground="{DynamicResource TextSecondary}"
-                                               FontSize="12"
-                                               TextTrimming="CharacterEllipsis"
-                                               VerticalAlignment="Center" />
-                                    <TextBlock Grid.Column="1"
-                                               Text="{Binding ImportProgressPercentage, StringFormat='{}{0}%'}"
-                                               Foreground="{DynamicResource TextPrimary}"
-                                               FontWeight="Bold"
-                                               FontSize="12"
-                                               Margin="8,0,0,0"
-                                               VerticalAlignment="Center" />
-                                </Grid>
-
-                                <!-- Cancel -->
-                                <Button Command="{Binding CancelCommand}"
-                                        Content="Cancel Import"
-                                        Height="32"
-                                        Padding="16,0"
-                                        HorizontalAlignment="Center"
-                                        Background="{StaticResource FillWhite08}"
-                                        BorderBrush="{StaticResource BorderWhite19}"
-                                        BorderThickness="1"
-                                        CornerRadius="6"
-                                        Foreground="{DynamicResource TextSecondary}"
-                                        FontSize="11"
-                                        Cursor="Hand" />
-                            </StackPanel>
-                        </Border>
-                    </Border>
-
                 </Grid>
+
+                <!-- Acquisition Progress Overlay (Full Window Frosted Acrylic Backdrop) -->
+                <Border Background="#E60D1117"
+                        CornerRadius="16"
+                        IsVisible="{Binding IsImporting}"
+                        ZIndex="1000">
+                    <Border Background="{DynamicResource DetailsBackground}"
+                            BorderBrush="{DynamicResource BorderHighlightBrush}"
+                            BorderThickness="1"
+                            CornerRadius="14"
+                            Padding="28,24"
+                            Width="420"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            BoxShadow="0 16 48 0 #B0000000">
+                        <StackPanel Spacing="16">
+                            <!-- Header -->
+                            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                                <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
+                                          Width="20" Height="20"
+                                          Foreground="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}"
+                                          VerticalAlignment="Center" />
+                                <TextBlock Text="Importing Profile &amp; Content..."
+                                           FontSize="15"
+                                           FontWeight="Bold"
+                                           Foreground="{DynamicResource TextPrimary}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <!-- Progress Bar -->
+                            <ProgressBar Value="{Binding ImportProgressPercentage}"
+                                         Minimum="0" Maximum="100"
+                                         Height="8"
+                                         CornerRadius="4"
+                                         Foreground="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}" />
+
+                            <!-- Progress Text -->
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0"
+                                           Text="{Binding CurrentOperationName}"
+                                           Foreground="{DynamicResource TextSecondary}"
+                                           FontSize="12"
+                                           TextTrimming="CharacterEllipsis"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding ImportProgressPercentage, StringFormat='{}{0}%'}"
+                                           Foreground="{DynamicResource TextPrimary}"
+                                           FontWeight="Bold"
+                                           FontSize="12"
+                                           Margin="8,0,0,0"
+                                           VerticalAlignment="Center" />
+                            </Grid>
+
+                            <!-- Cancel -->
+                            <Button Command="{Binding CancelCommand}"
+                                    Content="Cancel Import"
+                                    Height="32"
+                                    Padding="16,0"
+                                    HorizontalAlignment="Center"
+                                    Background="{StaticResource FillWhite08}"
+                                    BorderBrush="{StaticResource BorderWhite19}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Foreground="{DynamicResource TextSecondary}"
+                                    FontSize="11"
+                                    Cursor="Hand" />
+                        </StackPanel>
+                    </Border>
+                </Border>
+
             </Panel>
         </Border>
     </Grid>
