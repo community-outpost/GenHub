@@ -1053,7 +1053,7 @@ public class ProfileSharingService(
                     Hash = f.Hash,
                     Size = f.Size,
                     DownloadUrl = uploadedUrl,
-                    Executable = f.Executable,
+                    IsExecutable = f.IsExecutable,
                     Permissions = f.Permissions,
                 }).ToList();
             }
@@ -1069,7 +1069,7 @@ public class ProfileSharingService(
             PublisherType = manifest.Publisher?.PublisherType,
             DownloadSize = dependencyFiles.Sum(f => f.Size),
             IsCachedLocally = true,
-            Hash = manifest.Hash,
+            Hash = packageHash ?? dependencyFiles.FirstOrDefault()?.Hash,
             PackageUrl = packageUrl,
             PackageHash = packageHash,
             Files = dependencyFiles,

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
@@ -148,6 +149,23 @@ public partial class SharedManifestItemViewModel(SharedManifestDependency depend
         IsExpanded = !IsExpanded;
     }
 
+    private static bool IsExecutableFile(ManifestFile file)
+    {
+        if (string.IsNullOrWhiteSpace(file.RelativePath))
+        {
+            return false;
+        }
+
+        var ext = Path.GetExtension(file.RelativePath);
+        return ext.Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".dll", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".asi", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".bat", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".cmd", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".ps1", StringComparison.OrdinalIgnoreCase) ||
+               ext.Equals(".vbs", StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>
     /// Copies the full SHA-256 hash to the clipboard.
     /// </summary>
@@ -190,74 +208,5 @@ public partial class SharedManifestItemViewModel(SharedManifestDependency depend
                 await topLevel.Clipboard.SetTextAsync(DownloadUrl);
             }
         }
-    }
-
-    private static bool IsExecutableFile(ManifestFile file)
-    {
-        if (string.IsNullOrWhiteSpace(file.RelativePath))
-        {
-            return false;
-        }
-
-        var ext = Path.GetExtension(file.RelativePath);
-        return ext.Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
-               ext.Equals(".dll", StringComparison.OrdinalIgnoreCase) ||
-               ext.Equals(".asi", StringComparison.OrdinalIgnoreCase) ||
-               ext.Equals(".bat", StringComparison.OrdinalIgnoreCase) ||
-               ext.Equals(".cmd", StringComparison.OrdinalIgnoreCase) ||
-               ext.Equals(".ps1", StringComparison.OrdinalIgnoreCase) ||
-               ext.Equals(".vbs", StringComparison.OrdinalIgnoreCase);
-    }
-}
-
-/// <summary>
-/// ViewModel representing an individual file entry inside a manifest for security inspection.
-/// </summary>
-/// <param name="file">The manifest file.</param>
-public sealed class ManifestFileItemViewModel(ManifestFile file)
-{
-    /// <summary>
-    /// Gets the relative path of the file within the package.
-    /// </summary>
-    public string RelativePath => file.RelativePath;
-
-    /// <summary>
-    /// Gets the file name.
-    /// </summary>
-    public string FileName => Path.GetFileName(file.RelativePath);
-
-    /// <summary>
-    /// Gets the size in bytes.
-    /// </summary>
-    public long Size => file.Size;
-
-    /// <summary>
-    /// Gets the formatted file size string.
-    /// </summary>
-    public string FormattedSize => FormatBytes(file.Size);
-
-    /// <summary>
-    /// Gets the SHA-256 hash string.
-    /// </summary>
-    public string? Hash => file.Hash;
-
-    /// <summary>
-    /// Gets a value indicating whether this file is an executable binary or script.
-    /// </summary>
-    public bool IsExecutable =>
-        file.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
-        file.RelativePath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ||
-        file.RelativePath.EndsWith(".asi", StringComparison.OrdinalIgnoreCase) ||
-        file.RelativePath.EndsWith(".bat", StringComparison.OrdinalIgnoreCase) ||
-        file.RelativePath.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase) ||
-        file.RelativePath.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase) ||
-        file.RelativePath.EndsWith(".vbs", StringComparison.OrdinalIgnoreCase);
-
-    private static string FormatBytes(long bytes)
-    {
-        if (bytes <= 0) return "0 B";
-        if (bytes < 1024) return $"{bytes} B";
-        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
-        return $"{bytes / (1024.0 * 1024.0):F1} MB";
     }
 }
