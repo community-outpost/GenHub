@@ -30,6 +30,8 @@ namespace GenHub.Features.AppUpdate.Services;
 /// </summary>
 public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 {
+    private const string UnknownValue = "unknown";
+
     /// <summary>
     /// Regex for extracting version from nupkg filename.
     /// </summary>
@@ -539,11 +541,11 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                     var prNumber = prJson.TryGetProperty("number", out var numProp) && numProp.TryGetInt32(out var n) ? n : 0;
                     var title = prJson.TryGetProperty("title", out var titleProp) ? titleProp.GetString() ?? GameClientConstants.UnknownVersion : GameClientConstants.UnknownVersion;
                     var branchName = prJson.TryGetProperty("head", out var head) && head.ValueKind == JsonValueKind.Object && head.TryGetProperty("ref", out var headRef)
-                        ? headRef.GetString() ?? "unknown"
-                        : "unknown";
+                        ? headRef.GetString() ?? UnknownValue
+                        : UnknownValue;
                     var author = prJson.TryGetProperty("user", out var user) && user.ValueKind == JsonValueKind.Object && user.TryGetProperty("login", out var userLogin)
-                        ? userLogin.GetString() ?? "unknown"
-                        : "unknown";
+                        ? userLogin.GetString() ?? UnknownValue
+                        : UnknownValue;
                     var state = prJson.TryGetProperty("state", out var stateProp) ? stateProp.GetString() ?? "open" : "open";
                     var updatedAt = prJson.TryGetProperty("updated_at", out var updatedAtProp) && updatedAtProp.ValueKind == JsonValueKind.String
                         ? updatedAtProp.GetDateTimeOffset()
@@ -1561,8 +1563,8 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
     private static bool IsMatchingBranchRun(JsonElement run, string? branch, out string actualBranch, out string eventType)
     {
-        eventType = run.TryGetProperty("event", out var e) ? e.GetString() ?? "unknown" : "unknown";
-        actualBranch = run.TryGetProperty("head_branch", out var b) ? b.GetString() ?? branch ?? "unknown" : branch ?? "unknown";
+        eventType = run.TryGetProperty("event", out var e) ? e.GetString() ?? UnknownValue : UnknownValue;
+        actualBranch = run.TryGetProperty("head_branch", out var b) ? b.GetString() ?? branch ?? UnknownValue : branch ?? UnknownValue;
 
         if (!string.IsNullOrEmpty(branch) && !string.Equals(actualBranch, branch, StringComparison.Ordinal))
         {
@@ -1650,8 +1652,8 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
     private bool IsMatchingWorkflowRun(JsonElement run, string? branchName, int? prNumber)
     {
-        var actualBranch = run.TryGetProperty("head_branch", out var b) ? b.GetString() : branchName ?? "unknown";
-        var eventType = run.TryGetProperty("event", out var e) ? e.GetString() : "unknown";
+        var actualBranch = run.TryGetProperty("head_branch", out var b) ? b.GetString() : branchName ?? UnknownValue;
+        var eventType = run.TryGetProperty("event", out var e) ? e.GetString() : UnknownValue;
 
         if (prNumber.HasValue)
         {

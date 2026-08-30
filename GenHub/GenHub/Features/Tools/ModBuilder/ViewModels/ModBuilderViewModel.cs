@@ -315,7 +315,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// Gets or sets the build status text.
     /// </summary>
     [ObservableProperty]
-    private string _buildStatus = "Ready";
+    private string _buildStatus = ReadyStatusLiteral;
 
     /// <summary>
     /// Gets the current build stage (alias for BuildStage).
@@ -380,13 +380,13 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// Gets or sets the status message.
     /// </summary>
     [ObservableProperty]
-    private string _statusMessage = "Ready";
+    private string _statusMessage = ReadyStatusLiteral;
 
     /// <summary>
     /// Gets or sets the status text for the status bar.
     /// </summary>
     [ObservableProperty]
-    private string _statusText = "Ready";
+    private string _statusText = ReadyStatusLiteral;
 
     /// <summary>
     /// Gets or sets the status color for the status bar.
@@ -606,7 +606,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 }
                 else
                 {
-                    _notificationService.ShowError("Creation Failed", result.FirstError ?? "Unknown error");
+                    _notificationService.ShowError("Creation Failed", result.FirstError ?? UnknownErrorLiteral);
                     _logger.LogWarning("Project creation failed: {Error}", result.FirstError);
                 }
             }
@@ -1080,7 +1080,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             }
             else
             {
-                _notificationService.ShowError("Save Failed", result.FirstError ?? "Unknown error");
+                _notificationService.ShowError("Save Failed", result.FirstError ?? UnknownErrorLiteral);
                 _logger.LogWarning("Failed to save project: {Error}", result.FirstError);
             }
         }
@@ -1099,24 +1099,21 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanOpenConfigEditor))]
     private async Task OpenConfigEditorAsync()
     {
-        _logger.LogInformation("OpenConfigEditorAsync requested");
         if (CurrentProject == null)
         {
+            _notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
             return;
         }
 
         try
         {
-            // Create the ConfigEditorViewModel
             var configEditorViewModel = new ConfigEditorViewModel(
                 _configurationLoaderService,
                 _notificationService,
                 _loggerFactory.CreateLogger<ConfigEditorViewModel>());
 
-            // Initialize with current project
             await configEditorViewModel.InitializeAsync(CurrentProject).ConfigureAwait(false);
 
-            // Show the dialog
             await InvokeOnUIThreadAsync(async () =>
             {
                 var dialog = new Views.ConfigEditorDialog(configEditorViewModel);
@@ -1130,18 +1127,17 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                     dialog.Show();
                 }
 
-                // Reload bundles after dialog closes
                 await LoadBundlesAsync().ConfigureAwait(false);
             });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open configuration editor");
-            _notificationService.ShowError("Configuration Editor Error", ex.Message);
+            _notificationService.ShowError("Configuration Editor", $"Failed to open configuration editor: {ex.Message}");
         }
     }
 
-    private bool CanOpenConfigEditor() => CurrentProject != null && !IsBuildRunning;
+    private bool CanOpenConfigEditor() => IsProjectLoaded && !IsBuildRunning;
 
     /// <summary>
     /// Loads bundles from the current project configuration.
@@ -1194,7 +1190,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         IsProjectLoaded = false;
         Bundles.Clear();
         BuildLog.Clear();
-        StatusMessage = "Ready";
+        StatusMessage = ReadyStatusLiteral;
 
         _logger.LogInformation("Project closed successfully");
         await Task.CompletedTask;
@@ -1944,7 +1940,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     partial void OnBuildStageChanged(string value)
     {
         OnPropertyChanged(nameof(CurrentStage));
-        BuildStatus = string.IsNullOrEmpty(value) ? "Ready" : value;
+        BuildStatus = string.IsNullOrEmpty(value) ? ReadyStatusLiteral : value;
     }
 
     partial void OnProjectPathChanged(string value)
