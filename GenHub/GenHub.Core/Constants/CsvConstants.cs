@@ -147,4 +147,39 @@ public static class CsvConstants
     /// Canonical language code for Traditional Chinese.
     /// </summary>
     public const string LanguageZhTw = "ZH-TW";
+
+    /// <summary>
+    /// File name for Generals 1.08 authoritative CSV registry.
+    /// </summary>
+    public const string GeneralsCsvFileName = "Generals-1.08.csv";
+
+    /// <summary>
+    /// File name for Zero Hour 1.04 authoritative CSV registry.
+    /// </summary>
+    public const string ZeroHourCsvFileName = "ZeroHour-1.04.csv";
+
+    /// <summary>
+    /// File name for game installation files index JSON.
+    /// </summary>
+    public const string RegistryIndexFileName = "index.json";
+
+    /// <summary>
+    /// Documentation folder containing game installation files registry.
+    /// </summary>
+    public const string RegistryDocsFolder = "GameInstallationFilesRegistry";
+
+    /// <summary>
+    /// Embedded resource namespace in GenHub.Core containing authoritative registries.
+    /// </summary>
+    public const string EmbeddedResourceNamespace = "GenHub.Core.Assets.Registries";
+
+    /// <summary>
+    /// Default remote URL for Generals 1.08 CSV.
+    /// </summary>
+    public const string DefaultGeneralsCsvUrl = "https://raw.githubusercontent.com/community-outpost/GenHub/main/docs/GameInstallationFilesRegistry/Generals-1.08.csv";
+
+    /// <summary>
+    /// Default remote URL for Zero Hour 1.04 CSV.
+    /// </summary>
+    public const string DefaultZeroHourCsvUrl = "https://raw.githubusercontent.com/community-outpost/GenHub/main/docs/GameInstallationFilesRegistry/ZeroHour-1.04.csv";
 }

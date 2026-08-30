@@ -301,12 +301,12 @@ public class ManifestGenerationServiceTests : IDisposable
         Assert.NotNull(exeFile);
         Assert.True(exeFile.IsExecutable);
         Assert.Equal(GenHub.Core.Models.Enums.ContentSourceType.GameInstallation, exeFile.SourceType);
-        Assert.Equal("hash_generals.exe", exeFile.Hash);
+        Assert.Equal("e253361f457f2ec3290ccf4088aa5c4022fc4772a769fff5fb2fa8b9e5df842d", exeFile.Hash);
 
         var dllFile = manifest.Files.FirstOrDefault(f => f.RelativePath.Equals("binkw32.dll", StringComparison.OrdinalIgnoreCase));
         Assert.NotNull(dllFile);
         Assert.False(dllFile.IsExecutable);
-        Assert.Equal("hash_binkw32.dll", dllFile.Hash);
+        Assert.Equal("892a51c4056efcb22297a3b44a3491e3f5888f28b08ed1b17030f24acffedb44", dllFile.Hash);
     }
 
     /// <summary>
