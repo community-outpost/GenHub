@@ -32,6 +32,7 @@ public partial class App : Application
     private readonly IConfigurationProviderService _configurationProvider;
     private readonly IProfileLauncherFacade _profileLauncherFacade;
     private readonly IThemeService? _themeService;
+    private bool _startupArgsHandled;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="App"/> class with the specified service provider.
@@ -181,11 +182,12 @@ public partial class App : Application
 
     private async Task HandleStartupArgsAsync(string[]? args, MainWindow mainWindow)
     {
-        if (args == null || args.Length == 0)
+        if (_startupArgsHandled || args == null || args.Length == 0)
         {
             return;
         }
 
+        _startupArgsHandled = true;
         await HandleLaunchProfileArgsAsync(args, mainWindow);
         await HandleSubscriptionArgsAsync(args, mainWindow);
         await HandleImportProfileArgsAsync(args, mainWindow);
@@ -250,7 +252,7 @@ public partial class App : Application
 
     private void SubscribeToSingleInstanceCommands(MainWindow mainWindow)
     {
-        // Get the SingleInstanceManager from AppLocator (set by Windows Program.cs)
+        // Get the SingleInstanceManager from AppLocator (set by platform hosts)
         var singleInstanceManager = AppLocator.SingleInstanceManager;
         if (singleInstanceManager is null)
         {

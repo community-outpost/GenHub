@@ -98,12 +98,14 @@ public sealed class LinuxSingleInstanceManager : ISingleInstanceCommandReceiver,
                 logger.LogInformation("Forwarding launch-profile command to primary instance: {ProfileId}", profileId);
                 writer.WriteLine($"{IpcCommands.LaunchProfilePrefix}{profileId}");
             }
-            else if (!string.IsNullOrEmpty(subscriptionUrl))
+
+            if (!string.IsNullOrEmpty(subscriptionUrl))
             {
                 logger.LogInformation("Forwarding subscribe command to primary instance: {Url}", subscriptionUrl);
                 writer.WriteLine($"{IpcCommands.SubscribePrefix}{subscriptionUrl}");
             }
-            else if (!string.IsNullOrEmpty(profileShareUri))
+
+            if (!string.IsNullOrEmpty(profileShareUri))
             {
                 logger.LogInformation("Forwarding import-profile command to primary instance");
                 writer.WriteLine($"{IpcCommands.ImportProfilePrefix}{profileShareUri}");
@@ -185,6 +187,14 @@ public sealed class LinuxSingleInstanceManager : ISingleInstanceCommandReceiver,
                     catch (Exception ex)
                     {
                         _logger.LogWarning(ex, "Error in Linux pipe server loop");
+                        try
+                        {
+                            await Task.Delay(500, _pipeServerCts.Token);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            break;
+                        }
                     }
                     finally
                     {

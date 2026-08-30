@@ -32,11 +32,6 @@ public static class ProfileSharingConstants
     public const string ProfileFilePattern = "*.ghprofile";
 
     /// <summary>
-    /// Default Discord markdown template format for shared profiles.
-    /// </summary>
-    public const string DiscordMarkdownTemplate = "🎮 **{0}** ({1})\n{2}\n👉 [Import into GenHub]({3})";
-
-    /// <summary>
     /// Suffix appended to profile names when an imported profile has a naming conflict.
     /// </summary>
     public const string NameConflictSuffix = " (Imported)";

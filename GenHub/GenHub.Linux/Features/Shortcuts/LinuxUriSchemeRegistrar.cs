@@ -30,11 +30,8 @@ public static class LinuxUriSchemeRegistrar
 
         try
         {
-            var appsDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".local",
-                "share",
-                "applications");
+            var dataHome = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var appsDir = Path.Combine(dataHome, "applications");
 
             Directory.CreateDirectory(appsDir);
             var desktopFilePath = Path.Combine(appsDir, "genhub.desktop");

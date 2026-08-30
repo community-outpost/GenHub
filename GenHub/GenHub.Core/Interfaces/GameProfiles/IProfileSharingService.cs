@@ -56,12 +56,4 @@ public interface IProfileSharingService
         SharedProfileImportRequest request,
         IProgress<ContentAcquisitionProgress>? progress = null,
         CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Generates a formatted Discord markdown message invite for a profile.
-    /// </summary>
-    /// <param name="profile">The profile being shared.</param>
-    /// <param name="shareUri">The generated share URI.</param>
-    /// <returns>The formatted markdown string.</returns>
-    string GenerateDiscordMarkdown(GameProfile profile, string shareUri);
 }

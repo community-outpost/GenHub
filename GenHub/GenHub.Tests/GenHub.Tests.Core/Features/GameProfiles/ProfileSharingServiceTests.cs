@@ -300,32 +300,6 @@ public class ProfileSharingServiceTests
     }
 
     /// <summary>
-    /// Verifies Discord markdown template generation with title and URI.
-    /// </summary>
-    [Fact]
-    public void GenerateDiscordMarkdown_Should_ProduceFormattedMarkdown()
-    {
-        // Arrange
-        var profile = new GameProfile
-        {
-            Id = "p-1",
-            Name = "Generals Pro Match",
-            Description = "Play with 144Hz limit and widescreen support",
-            GameClient = new GameClient { Name = "Generals", Version = "1.08", GameType = GameType.Generals },
-        };
-        var shareUri = $"{CommandLineConstants.ProfileImportUriPrefix}?{CommandLineConstants.DataQueryParam}TEST_PAYLOAD";
-
-        // Act
-        var markdown = _service.GenerateDiscordMarkdown(profile, shareUri);
-
-        // Assert
-        Assert.Contains("Generals Pro Match", markdown);
-        Assert.Contains("Generals 1.08", markdown);
-        Assert.Contains("Play with 144Hz limit", markdown);
-        Assert.Contains(shareUri, markdown);
-    }
-
-    /// <summary>
     /// Verifies that inspecting a package with unsupported schema version returns failure.
     /// </summary>
     /// <returns>A task representing the test.</returns>

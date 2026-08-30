@@ -21,10 +21,7 @@
     <Window.Resources>
         <conv:ColorToBrushConverter x:Key="ColorToBrushConverter" />
         <conv:ThemeBackgroundConverter x:Key="ThemeBackgroundConverter" />
-        <conv:ThemeBorderConverter x:Key="ThemeBorderConverter" />
         <SolidColorBrush x:Key="SuccessGreenFill" Color="#2500E676" />
-        <SolidColorBrush x:Key="BlurpleFillSoft" Color="#185865F2" />
-        <SolidColorBrush x:Key="BlurpleFillMedium" Color="#305865F2" />
         <Color x:Key="OverlayWhite50Color">#80FFFFFF</Color>
         <Color x:Key="OverlayWhite12Color">#20FFFFFF</Color>
         <Color x:Key="OverlayWhite02Color">#05FFFFFF</Color>
@@ -33,8 +30,6 @@
         <SolidColorBrush x:Key="BorderWhite19" Color="#30FFFFFF" />
         <SolidColorBrush x:Key="BorderWhite31" Color="#50FFFFFF" />
         <SolidColorBrush x:Key="SuccessGreen" Color="#00E676" />
-        <SolidColorBrush x:Key="DiscordBlurple" Color="#5865F2" />
-        <SolidColorBrush x:Key="DiscordBlurpleLight" Color="#7289DA" />
         <Color x:Key="DialogSurfaceColor">#0D0D0D</Color>
     </Window.Resources>
 

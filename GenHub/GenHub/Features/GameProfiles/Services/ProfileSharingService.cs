@@ -283,25 +283,6 @@ public class ProfileSharingService(
     }
 
     /// <inheritdoc/>
-    public string GenerateDiscordMarkdown(GameProfile profile, string shareUri)
-    {
-        ArgumentNullException.ThrowIfNull(profile);
-        ArgumentNullException.ThrowIfNull(shareUri);
-
-        string gameTypeName = profile.GameClient?.GameType.ToString() ?? "Game";
-        string version = string.IsNullOrWhiteSpace(profile.GameClient?.Version) ? profile.Version : profile.GameClient.Version;
-        string headerInfo = $"{gameTypeName} {version}".Trim();
-        string desc = string.IsNullOrWhiteSpace(profile.Description) ? "Custom game configuration for GenHub" : profile.Description;
-
-        return string.Format(
-            ProfileSharingConstants.DiscordMarkdownTemplate,
-            profile.Name,
-            headerInfo,
-            desc,
-            shareUri);
-    }
-
-    /// <inheritdoc/>
     public void Dispose()
     {
         Dispose(true);
