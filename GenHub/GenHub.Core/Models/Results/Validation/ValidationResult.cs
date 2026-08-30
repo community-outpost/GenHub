@@ -5,7 +5,7 @@ using System.Linq;
 using GenHub.Core.Models.Validation;
 
 /// <summary>Encapsulates the result of a validation operation for a game version or installation.</summary>
-public class ValidationResult(string validatedTargetId, List<ValidationIssue>? issues, TimeSpan elapsed = default)
+public class ValidationResult(string validatedTargetId, List<ValidationIssue>? issues, TimeSpan elapsed = default, int totalFilesValidated = 0)
     : ResultBase(DetermineSuccess(issues), ExtractErrorMessages(issues), elapsed)
 {
     /// <summary>Gets the unique ID of the target that was validated (e.g., a GameClient ID or a GameInstallation ID).</summary>
@@ -16,6 +16,18 @@ public class ValidationResult(string validatedTargetId, List<ValidationIssue>? i
 
     /// <summary>Gets a value indicating whether the target is considered valid.</summary>
     public bool IsValid => Success;
+
+    /// <summary>Gets the total number of files validated.</summary>
+    public int TotalFilesValidated { get; init; } = totalFilesValidated;
+
+    /// <summary>Gets the count of missing files.</summary>
+    public int MissingFilesCount => Issues.Count(i => i.IssueType == ValidationIssueType.MissingFile);
+
+    /// <summary>Gets the count of corrupted or size-mismatched files.</summary>
+    public int CorruptedFilesCount => Issues.Count(i => i.IssueType == ValidationIssueType.CorruptedFile || i.IssueType == ValidationIssueType.MismatchedFileSize);
+
+    /// <summary>Gets the count of extra or unexpected files.</summary>
+    public int ExtraFilesCount => Issues.Count(i => i.IssueType == ValidationIssueType.UnexpectedFile);
 
     /// <summary>Gets the count of critical issues that prevent the target from being considered valid.</summary>
     public int CriticalIssueCount => Issues.Count(i => i.Severity == ValidationSeverity.Error || i.Severity == ValidationSeverity.Critical);

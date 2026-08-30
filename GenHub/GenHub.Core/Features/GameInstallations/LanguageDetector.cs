@@ -3,6 +3,8 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
+using GenHub.Core.Models.Content;
 
 namespace GenHub.Core.Features.GameInstallations;
 
@@ -19,125 +21,148 @@ public class LanguageDetector : ILanguageDetector
     /// <returns>The detected language code in uppercase (e.g., "EN", "DE"), or "EN" as fallback.</returns>
     public Task<string> DetectAsync(string installationPath, CancellationToken cancellationToken = default)
     {
-        if (!Directory.Exists(installationPath))
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(installationPath) || !Directory.Exists(installationPath))
         {
-            return Task.FromResult("EN"); // Fallback
+            return Task.FromResult(CsvConstants.LanguageEn);
         }
 
-        // Check for language-specific directories and files
-        var languageMappings = new[]
+        // Check for language-specific directories
+        var directoryMappings = new (string RelativeDir, string Language)[]
         {
-            new { Pattern = "Data\\english", Language = "EN" },
-            new { Pattern = "Data\\English", Language = "EN" },
-            new { Pattern = "Data\\german", Language = "DE" },
-            new { Pattern = "Data\\deutsch", Language = "DE" },
-            new { Pattern = "Data\\french", Language = "FR" },
-            new { Pattern = "Data\\spanish", Language = "ES" },
-            new { Pattern = "Data\\italian", Language = "IT" },
-            new { Pattern = "Data\\korean", Language = "KO" },
-            new { Pattern = "Data\\polish", Language = "PL" },
-            new { Pattern = "Data\\portuguese", Language = "PT-BR" },
-            new { Pattern = "Data\\chinese", Language = "ZH-CN" },
-            new { Pattern = "Data\\chinese-traditional", Language = "ZH-TW" },
+            (LanguageDirectoryNames.DataEnglish, CsvConstants.LanguageEn),
+            (LanguageDirectoryNames.DataEnglishUppercase, CsvConstants.LanguageEn),
+            (LanguageDirectoryNames.DataGerman, CsvConstants.LanguageDe),
+            (LanguageDirectoryNames.DataDeutsch, CsvConstants.LanguageDe),
+            (LanguageDirectoryNames.DataFrench, CsvConstants.LanguageFr),
+            (LanguageDirectoryNames.DataSpanish, CsvConstants.LanguageEs),
+            (LanguageDirectoryNames.DataItalian, CsvConstants.LanguageIt),
+            (LanguageDirectoryNames.DataKorean, CsvConstants.LanguageKo),
+            (LanguageDirectoryNames.DataPolish, CsvConstants.LanguagePl),
+            (LanguageDirectoryNames.DataPortuguese, CsvConstants.LanguagePtBr),
+            (LanguageDirectoryNames.DataChinese, CsvConstants.LanguageZhCn),
+            (LanguageDirectoryNames.DataChineseTraditional, CsvConstants.LanguageZhTw),
         };
 
-        foreach (var mapping in languageMappings)
+        foreach (var (relativeDir, language) in directoryMappings)
         {
-            if (Directory.Exists(Path.Combine(installationPath, mapping.Pattern)))
+            var dirPath = CombineRelativePath(installationPath, relativeDir);
+            if (Directory.Exists(dirPath))
             {
-                return Task.FromResult(mapping.Language);
+                return Task.FromResult(ContentSearchQuery.NormalizeLanguage(language));
             }
         }
 
         // Check for language-specific files
-        var fileMappings = new[]
+        var fileMappings = new (string FileName, string Language)[]
         {
             // English
-            new { Pattern = "English.big", Language = "EN" },
-            new { Pattern = "AudioEnglish.big", Language = "EN" },
-            new { Pattern = "SpeechEnglish.big", Language = "EN" },
+            (LanguageFilePatterns.EnglishBig, CsvConstants.LanguageEn),
+            (LanguageFilePatterns.AudioEnglishBig, CsvConstants.LanguageEn),
+            (LanguageFilePatterns.SpeechEnglishBig, CsvConstants.LanguageEn),
 
             // German
-            new { Pattern = "German.big", Language = "DE" },
-            new { Pattern = "AudioGerman.big", Language = "DE" },
+            (LanguageFilePatterns.GermanBig, CsvConstants.LanguageDe),
+            (LanguageFilePatterns.AudioGermanBig, CsvConstants.LanguageDe),
 
             // French
-            new { Pattern = "French.big", Language = "FR" },
-            new { Pattern = "AudioFrench.big", Language = "FR" },
+            (LanguageFilePatterns.FrenchBig, CsvConstants.LanguageFr),
+            (LanguageFilePatterns.AudioFrenchBig, CsvConstants.LanguageFr),
 
             // Spanish
-            new { Pattern = "Spanish.big", Language = "ES" },
-            new { Pattern = "AudioSpanish.big", Language = "ES" },
+            (LanguageFilePatterns.SpanishBig, CsvConstants.LanguageEs),
+            (LanguageFilePatterns.AudioSpanishBig, CsvConstants.LanguageEs),
 
             // Italian
-            new { Pattern = "Italian.big", Language = "IT" },
-            new { Pattern = "AudioItalian.big", Language = "IT" },
+            (LanguageFilePatterns.ItalianBig, CsvConstants.LanguageIt),
+            (LanguageFilePatterns.AudioItalianBig, CsvConstants.LanguageIt),
 
             // Korean
-            new { Pattern = "Korean.big", Language = "KO" },
-            new { Pattern = "AudioKorean.big", Language = "KO" },
+            (LanguageFilePatterns.KoreanBig, CsvConstants.LanguageKo),
+            (LanguageFilePatterns.AudioKoreanBig, CsvConstants.LanguageKo),
 
             // Polish
-            new { Pattern = "Polish.big", Language = "PL" },
-            new { Pattern = "AudioPolish.big", Language = "PL" },
+            (LanguageFilePatterns.PolishBig, CsvConstants.LanguagePl),
+            (LanguageFilePatterns.AudioPolishBig, CsvConstants.LanguagePl),
 
             // Portuguese-Brazil
-            new { Pattern = "PortugueseBrazil.big", Language = "PT-BR" },
-            new { Pattern = "AudioPortugueseBrazil.big", Language = "PT-BR" },
+            (LanguageFilePatterns.PortugueseBrazilBig, CsvConstants.LanguagePtBr),
+            (LanguageFilePatterns.AudioPortugueseBrazilBig, CsvConstants.LanguagePtBr),
 
             // Chinese Simplified
-            new { Pattern = "Chinese.big", Language = "ZH-CN" },
-            new { Pattern = "AudioChinese.big", Language = "ZH-CN" },
+            (LanguageFilePatterns.ChineseBig, CsvConstants.LanguageZhCn),
+            (LanguageFilePatterns.AudioChineseBig, CsvConstants.LanguageZhCn),
 
             // Chinese Traditional
-            new { Pattern = "ChineseTraditional.big", Language = "ZH-TW" },
-            new { Pattern = "AudioChineseTraditional.big", Language = "ZH-TW" },
+            (LanguageFilePatterns.ChineseTraditionalBig, CsvConstants.LanguageZhTw),
+            (LanguageFilePatterns.AudioChineseTraditionalBig, CsvConstants.LanguageZhTw),
         };
 
-        foreach (var mapping in fileMappings)
+        foreach (var (fileName, language) in fileMappings)
         {
-            if (File.Exists(Path.Combine(installationPath, mapping.Pattern)))
+            var filePath = Path.Combine(installationPath, fileName);
+            if (File.Exists(filePath))
             {
-                return Task.FromResult(mapping.Language);
+                return Task.FromResult(ContentSearchQuery.NormalizeLanguage(language));
             }
         }
 
         // Check for Zero Hour specific patterns
-        var zhPatterns = new[]
+        var zhPatterns = new (string Pattern, string Language)[]
         {
-            new { Pattern = "EnglishZH.big", Language = "EN" },
-            new { Pattern = "AudioZH.big", Language = "EN" },
-            new { Pattern = "INIZH.big", Language = "EN" },
-            new { Pattern = "*ZH.big", Language = "EN" }, // Generic ZH files
-            new { Pattern = "GeneralsOnlineZH", Language = "EN" }, // Executables
-            new { Pattern = "GermanZH.big", Language = "DE" },
-            new { Pattern = "FrenchZH.big", Language = "FR" },
-            new { Pattern = "SpanishZH.big", Language = "ES" },
-            new { Pattern = "ItalianZH.big", Language = "IT" },
-            new { Pattern = "KoreanZH.big", Language = "KO" },
-            new { Pattern = "PolishZH.big", Language = "PL" },
-            new { Pattern = "PortugueseZH.big", Language = "PT-BR" },
-            new { Pattern = "ChineseZH.big", Language = "ZH-CN" },
+            (LanguageFilePatterns.EnglishZHBig, CsvConstants.LanguageEn),
+            ("AudioZH.big", CsvConstants.LanguageEn),
+            ("INIZH.big", CsvConstants.LanguageEn),
+            (LanguageFilePatterns.GermanZHBig, CsvConstants.LanguageDe),
+            (LanguageFilePatterns.FrenchZHBig, CsvConstants.LanguageFr),
+            (LanguageFilePatterns.SpanishZHBig, CsvConstants.LanguageEs),
+            (LanguageFilePatterns.ItalianZHBig, CsvConstants.LanguageIt),
+            (LanguageFilePatterns.KoreanZHBig, CsvConstants.LanguageKo),
+            (LanguageFilePatterns.PolishZHBig, CsvConstants.LanguagePl),
+            (LanguageFilePatterns.PortugueseZHBig, CsvConstants.LanguagePtBr),
+            (LanguageFilePatterns.ChineseZHBig, CsvConstants.LanguageZhCn),
+            ("*ZH.big", CsvConstants.LanguageEn),
         };
 
-        foreach (var mapping in zhPatterns)
+        foreach (var (pattern, language) in zhPatterns)
         {
-            if (mapping.Pattern.Contains("*"))
+            if (pattern.Contains('*'))
             {
-                // Handle wildcard
-                var files = Directory.GetFiles(installationPath, mapping.Pattern, SearchOption.AllDirectories);
-                if (files.Length > 0)
+                try
                 {
-                    return Task.FromResult(mapping.Language);
+                    var files = Directory.GetFiles(installationPath, pattern, SearchOption.AllDirectories);
+                    if (files.Length > 0)
+                    {
+                        return Task.FromResult(ContentSearchQuery.NormalizeLanguage(language));
+                    }
+                }
+                catch (IOException)
+                {
+                    // Fall through on IO issues
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    // Fall through on permission issues
                 }
             }
-            else if (File.Exists(Path.Combine(installationPath, mapping.Pattern)))
+            else
             {
-                return Task.FromResult(mapping.Language);
+                var filePath = Path.Combine(installationPath, pattern);
+                if (File.Exists(filePath))
+                {
+                    return Task.FromResult(ContentSearchQuery.NormalizeLanguage(language));
+                }
             }
         }
 
         // Fallback to English
-        return Task.FromResult("EN");
+        return Task.FromResult(CsvConstants.LanguageEn);
+    }
+
+    private static string CombineRelativePath(string basePath, string relativePath)
+    {
+        var segments = relativePath.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries);
+        return Path.Combine(segments.Prepend(basePath).ToArray());
     }
 }

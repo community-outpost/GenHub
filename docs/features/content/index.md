@@ -9,6 +9,7 @@ The GenHub content system provides a flexible, extensible architecture for disco
 
 ## Core Documentation
 
+- [CSV Validation Pipeline](./csv-validation.md) - Multi-language game installation validation via unified CSV catalogs
 - [Publisher Configuration](./publisher-configuration.md) - Data-driven publisher configuration for flexible content pipeline customization
 - [Publisher Infrastructure](./publisher-infrastructure.md) - Extensible architecture for publisher-specific content handling
 

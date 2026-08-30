@@ -351,7 +351,8 @@ public static class ContentPipelineModule
     private static void AddCsvPipeline(IServiceCollection services)
     {
         // Register CSV content provider
-        services.AddTransient<IContentProvider, CsvContentProvider>();
+        services.AddTransient<CsvContentProvider>();
+        services.AddTransient<IContentProvider>(sp => sp.GetRequiredService<CsvContentProvider>());
 
         // Register CSV discoverer (concrete and interface)
         services.AddTransient<CsvDiscoverer>();
