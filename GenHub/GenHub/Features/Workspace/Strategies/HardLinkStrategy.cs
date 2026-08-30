@@ -249,7 +249,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                         "Both hard link and symlink creation failed for {RelativePath}, copying file to workspace",
                         file.RelativePath);
 
-                    await FileOperations.CopyFileAsync(sourcePath, targetPath, overwrite: true, cancellationToken);
+                    await FileOperations.CopyFileAsync(sourcePath, targetPath, cancellationToken);
                 }
             }
         }
@@ -267,7 +267,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                     "Cross-volume symlink creation failed for {RelativePath}, copying file to workspace",
                     file.RelativePath);
 
-                await FileOperations.CopyFileAsync(sourcePath, targetPath, overwrite: true, cancellationToken);
+                await FileOperations.CopyFileAsync(sourcePath, targetPath, cancellationToken);
             }
         }
     }
@@ -365,17 +365,18 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
 
             try
             {
-                await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, allowFallback: false, cancellationToken);
+                await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, allowFallback: true, cancellationToken);
                 return (false, true, LinkOverheadBytes);
             }
             catch (Exception symlinkEx) when (symlinkEx is not OperationCanceledException)
             {
-                Logger.LogError(
+                Logger.LogWarning(
                     symlinkEx,
-                    "Both hard link and symlink creation failed for {RelativePath}. Refusing to copy to prevent disk overhead.",
+                    "Both hard link and symlink creation failed for {RelativePath}, copying file to workspace",
                     file.RelativePath);
 
-                throw WrapLinkException(file.RelativePath, symlinkEx);
+                await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
+                return (false, false, file.Size);
             }
         }
     }
@@ -394,17 +395,18 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
 
         try
         {
-            await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, allowFallback: false, cancellationToken);
+            await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, allowFallback: true, cancellationToken);
             return (false, true, LinkOverheadBytes);
         }
         catch (Exception symlinkEx) when (symlinkEx is not OperationCanceledException)
         {
-            Logger.LogError(
+            Logger.LogWarning(
                 symlinkEx,
-                "Cross-volume symlink creation failed for {RelativePath}. Refusing to copy to prevent disk overhead.",
+                "Cross-volume symlink creation failed for {RelativePath}, copying file to workspace",
                 file.RelativePath);
 
-            throw WrapLinkException(file.RelativePath, symlinkEx, isCrossVolume: true);
+            await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
+            return (false, false, file.Size);
         }
     }
 }
