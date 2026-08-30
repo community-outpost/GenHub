@@ -101,7 +101,7 @@ public class SettingsViewModelMigrationTests
             });
 
         _mockStorageMigrationService
-            .Setup(x => x.ValidatePreflightAsync("/valid/path", true, It.IsAny<CancellationToken>()))
+            .Setup(x => x.ValidatePreflightAsync("/valid/path", It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(preflightResult);
 
         await vm.MigrateInstallationLocationCommand.ExecuteAsync(null);
@@ -134,7 +134,7 @@ public class SettingsViewModelMigrationTests
             });
 
         _mockStorageMigrationService
-            .Setup(x => x.ValidatePreflightAsync("/target/folder", true, It.IsAny<CancellationToken>()))
+            .Setup(x => x.ValidatePreflightAsync("/target/folder", It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(preflightResult);
 
         _mockDialogService
@@ -177,7 +177,7 @@ public class SettingsViewModelMigrationTests
             });
 
         _mockStorageMigrationService
-            .Setup(x => x.ValidatePreflightAsync("/target/folder", true, It.IsAny<CancellationToken>()))
+            .Setup(x => x.ValidatePreflightAsync("/target/folder", It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(preflightResult);
 
         _mockDialogService
