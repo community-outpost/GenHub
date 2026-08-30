@@ -1401,7 +1401,7 @@ public class ProfileSharingServiceTests
         // Assert
         Assert.True(inspectResult.Success);
         Assert.NotNull(inspectResult.Data);
-        var dependency = Assert.Single(inspectResult.Data.Dependencies);
+        var dependency = Assert.Single(inspectResult.Data.Manifests);
         Assert.Equal(GameType.ZeroHour, dependency.TargetGame);
     }
 
