@@ -59,7 +59,12 @@ public class StorageMigrationService(
             var availableBytes = GetAvailableFreeSpace(normalizedTarget);
             var hasSufficientSpace = availableBytes >= requiredBytes;
 
-            var errorMessage = DeterminePreflightErrorMessage(hasWritePermission, hasActiveProcesses, hasSufficientSpace, requiredBytes, availableBytes);
+            var errorMessage = DeterminePreflightErrorMessage(
+                hasWritePermission,
+                hasActiveProcesses,
+                hasSufficientSpace,
+                requiredBytes,
+                availableBytes);
             var isValid = hasWritePermission && !hasActiveProcesses && hasSufficientSpace;
 
             var result = new StorageMigrationPreflightResult
@@ -92,101 +97,103 @@ public class StorageMigrationService(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        return await Task.Run(async () =>
-        {
-            try
+        return await Task.Run(
+            async () =>
             {
-                logger.LogInformation(
-                    "Starting installation migration to {TargetPath} (RelocateStorage: {RelocateStorage})",
-                    request.TargetPath,
-                    request.RelocateCasAndWorkspace);
-
-                // Phase 1: Pre-flight validation
-                progress?.Report(new StorageMigrationProgress
+                try
                 {
-                    Stage = StorageMigrationConstants.StagePreflight,
-                    Percentage = 10,
-                    Message = "Validating target directory and pre-flight constraints...",
-                });
+                    logger.LogInformation(
+                        "Starting installation migration to {TargetPath} (RelocateStorage: {RelocateStorage})",
+                        request.TargetPath,
+                        request.RelocateCasAndWorkspace);
 
-                var preflight = await ValidatePreflightAsync(request.TargetPath, request.RelocateCasAndWorkspace, cancellationToken);
-                if (!preflight.Success || preflight.Data?.IsValid != true)
-                {
-                    var error = preflight.Data?.ErrorMessage ?? preflight.FirstError ?? "Pre-flight validation failed.";
-                    logger.LogError("Migration pre-flight validation failed: {Error}", error);
-                    return OperationResult<bool>.CreateFailure(error);
-                }
-
-                var targetRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(request.TargetPath));
-                var sourceRoot = GetSourceRootDirectory();
-
-                // Phase 2: Relocate CAS and Workspaces if requested
-                if (request.RelocateCasAndWorkspace)
-                {
+                    // Phase 1: Pre-flight validation
                     progress?.Report(new StorageMigrationProgress
                     {
-                        Stage = StorageMigrationConstants.StageRelocatingStorage,
-                        Percentage = 30,
-                        Message = "Relocating CAS storage pool and game workspaces...",
+                        Stage = StorageMigrationConstants.StagePreflight,
+                        Percentage = 10,
+                        Message = "Validating target directory and pre-flight constraints...",
                     });
 
-                    var relocated = await RelocateStorageAsync(targetRoot, sourceRoot);
-                    if (!relocated)
+                    var preflight = await ValidatePreflightAsync(request.TargetPath, request.RelocateCasAndWorkspace, cancellationToken);
+                    if (!preflight.Success || preflight.Data?.IsValid != true)
                     {
-                        return OperationResult<bool>.CreateFailure("Failed to update and persist storage configuration during relocation.");
+                        var error = preflight.Data?.ErrorMessage ?? preflight.FirstError ?? "Pre-flight validation failed.";
+                        logger.LogError("Migration pre-flight validation failed: {Error}", error);
+                        return OperationResult<bool>.CreateFailure(error);
                     }
+
+                    var targetRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(request.TargetPath));
+                    var sourceRoot = GetSourceRootDirectory();
+
+                    // Phase 2: Relocate CAS and Workspaces if requested
+                    if (request.RelocateCasAndWorkspace)
+                    {
+                        progress?.Report(new StorageMigrationProgress
+                        {
+                            Stage = StorageMigrationConstants.StageRelocatingStorage,
+                            Percentage = 30,
+                            Message = "Relocating CAS storage pool and game workspaces...",
+                        });
+
+                        var relocated = await RelocateStorageAsync(targetRoot, sourceRoot);
+                        if (!relocated)
+                        {
+                            return OperationResult<bool>.CreateFailure("Failed to update and persist storage configuration during relocation.");
+                        }
+                    }
+
+                    // Phase 3: Prepare binary migration helper script
+                    progress?.Report(new StorageMigrationProgress
+                    {
+                        Stage = StorageMigrationConstants.StagePreparingBinaries,
+                        Percentage = 65,
+                        Message = "Staging binary migration helper script...",
+                    });
+
+                    var tempDir = Path.Combine(Path.GetTempPath(), $"genhub_migrate_{Guid.NewGuid():N}");
+                    Directory.CreateDirectory(tempDir);
+                    var logFile = Path.Combine(tempDir, "migration.log");
+                    var backupDir = Path.Combine(tempDir, "backup");
+                    var relativeExe = GetRelativeExecutablePath(sourceRoot);
+
+                    var scriptPath = PrepareMigrationScript(tempDir);
+
+                    // Phase 4: Launch helper process
+                    progress?.Report(new StorageMigrationProgress
+                    {
+                        Stage = StorageMigrationConstants.StageLaunchingAssistant,
+                        Percentage = 85,
+                        Message = "Launching migration assistant process...",
+                    });
+
+                    if (request.LaunchHelperProcess)
+                    {
+                        LaunchHelperProcess(scriptPath, sourceRoot, targetRoot, relativeExe, logFile, backupDir);
+                    }
+
+                    // Phase 5: Finalize and exit application
+                    progress?.Report(new StorageMigrationProgress
+                    {
+                        Stage = StorageMigrationConstants.StageFinalizing,
+                        Percentage = 100,
+                        Message = "Migration staged successfully. GenHub will now restart from the new location.",
+                    });
+
+                    if (request.ExitApplicationOnSuccess)
+                    {
+                        ExitApplication();
+                    }
+
+                    return OperationResult<bool>.CreateSuccess(true);
                 }
-
-                // Phase 3: Prepare binary migration helper script
-                progress?.Report(new StorageMigrationProgress
+                catch (Exception ex)
                 {
-                    Stage = StorageMigrationConstants.StagePreparingBinaries,
-                    Percentage = 65,
-                    Message = "Staging binary migration helper script...",
-                });
-
-                var tempDir = Path.Combine(Path.GetTempPath(), $"genhub_migrate_{Guid.NewGuid():N}");
-                Directory.CreateDirectory(tempDir);
-                var logFile = Path.Combine(tempDir, "migration.log");
-                var backupDir = Path.Combine(tempDir, "backup");
-                var relativeExe = GetRelativeExecutablePath(sourceRoot);
-
-                var scriptPath = PrepareMigrationScript(tempDir);
-
-                // Phase 4: Launch helper process
-                progress?.Report(new StorageMigrationProgress
-                {
-                    Stage = StorageMigrationConstants.StageLaunchingAssistant,
-                    Percentage = 85,
-                    Message = "Launching migration assistant process...",
-                });
-
-                if (request.LaunchHelperProcess)
-                {
-                    LaunchHelperProcess(scriptPath, sourceRoot, targetRoot, relativeExe, logFile, backupDir);
+                    logger.LogError(ex, "Installation migration failed unexpectedly for target {TargetPath}", request.TargetPath);
+                    return OperationResult<bool>.CreateFailure($"Migration failed: {ex.Message}");
                 }
-
-                // Phase 5: Finalize and exit application
-                progress?.Report(new StorageMigrationProgress
-                {
-                    Stage = StorageMigrationConstants.StageFinalizing,
-                    Percentage = 100,
-                    Message = "Migration staged successfully. GenHub will now restart from the new location.",
-                });
-
-                if (request.ExitApplicationOnSuccess)
-                {
-                    ExitApplication();
-                }
-
-                return OperationResult<bool>.CreateSuccess(true);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Installation migration failed unexpectedly for target {TargetPath}", request.TargetPath);
-                return OperationResult<bool>.CreateFailure($"Migration failed: {ex.Message}");
-            }
-        }, cancellationToken);
+            },
+            cancellationToken);
     }
 
     /// <summary>
@@ -584,7 +591,7 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
 
     private async Task<(bool HasActiveProcesses, List<string> ProcessNames)> CheckActiveProcessesAsync(CancellationToken cancellationToken)
     {
-        var activeLaunches = (await launchRegistry.GetAllActiveLaunchesAsync(cancellationToken)).ToList();
+        var activeLaunches = (await launchRegistry.GetAllActiveLaunchesAsync()).ToList();
         var activeProcessesResult = await gameProcessManager.GetActiveProcessesAsync(cancellationToken);
         var activeProcesses = activeProcessesResult.Success && activeProcessesResult.Data != null
             ? activeProcessesResult.Data

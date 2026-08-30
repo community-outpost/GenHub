@@ -10,6 +10,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -72,7 +73,7 @@ public class StorageMigrationServiceTests : IDisposable
 
         _mockLaunchRegistry = new Mock<ILaunchRegistry>();
         _mockLaunchRegistry
-            .Setup(x => x.GetAllActiveLaunchesAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetAllActiveLaunchesAsync())
             .ReturnsAsync([]);
 
         _mockGameProcessManager = new Mock<IGameProcessManager>();
@@ -154,8 +155,14 @@ public class StorageMigrationServiceTests : IDisposable
         var targetPath = Path.Combine(_tempRoot, "NewInstallDir");
 
         _mockLaunchRegistry
-            .Setup(x => x.GetAllActiveLaunchesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new ActiveLaunchEntry { ProfileId = "profile-1", ProcessId = 1234 }]);
+            .Setup(x => x.GetAllActiveLaunchesAsync())
+            .ReturnsAsync([new GameLaunchInfo
+            {
+                LaunchId = "launch-1",
+                ProfileId = "profile-1",
+                WorkspaceId = "ws-1",
+                ProcessInfo = new GameProcessInfo { ProcessId = 1234, ExecutablePath = "game.dat" },
+            }]);
 
         var result = await service.ValidatePreflightAsync(targetPath);
 
