@@ -25,7 +25,8 @@ public class GitHubContentProvider(
     IEnumerable<IContentDeliverer> deliverers,
     ILogger<GitHubContentProvider> logger,
     IContentValidator contentValidator,
-    IInstallationInstructionsService installationInstructionsService)
+    IInstallationInstructionsService installationInstructionsService,
+    IArchivePayloadProcessor archiveProcessor)
     : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
     /// <inheritdoc />
@@ -105,6 +106,13 @@ public class GitHubContentProvider(
 
             // Ensure we have valid data before validation
             var resultManifest = deliveryResult.Data ?? manifest;
+
+            // Process payload archives and normalize directory structure safely
+            await archiveProcessor.ProcessPayloadAsync(
+                workingDirectory,
+                resultManifest.ContentType,
+                resultManifest.TargetGame,
+                cancellationToken);
 
             // Validate the delivered content (full validation)
             // Forward the provider progress reporter to the validator for user-visible progress

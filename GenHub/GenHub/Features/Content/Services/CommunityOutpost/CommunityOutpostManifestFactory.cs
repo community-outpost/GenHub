@@ -24,9 +24,8 @@ namespace GenHub.Features.Content.Services.CommunityOutpost;
 public class CommunityOutpostManifestFactory(
     ILogger<CommunityOutpostManifestFactory> logger,
     IFileHashProvider hashProvider,
-    CompressedImageToTgaConverter avifConverter) : IPublisherManifestFactory
+    IControlBarPackageProcessor controlBarProcessor) : IPublisherManifestFactory
 {
-    private const string ControlBarMetadataBigBase64 = "QklHRngBAAAAAAACAAAAUwAAAFMAAAEkQ29udHJvbEJhclByby50eHQAAAABdwAAAAFHZW5Ub29sXGZ1bGx2aWV3cG9ydC5kYXQAAAAAAAAAAABDb250cm9sIEJhciBQcm8gZm9yIENPTU1BTkQgQU5EIENPTlFVRVIgR0VORVJBTFM6IFpFUk8gSE9VUg0KDQpBVVRIT1I6DQpFQSBHYW1lcywgRkFTLCB4ZXpvbg0KDQpPUklHSU5BTCBET1dOTE9BRCBVUkw6DQpodHRwOi8vZ2VudG9vbC5uZXQvZG93bmxvYWQvY29udHJvbGJhcnBybw0KDQpTT1VSQ0UgQ09ERSAmIEFTU0VUUzoNCmh0dHBzOi8vZ2l0aHViLmNvbS9UaGVTdXBlckhhY2tlcnMvR2VuZXJhbHNDb250cm9sQmFyDQoNCkRPTkFUSU9OIExJTks6DQpodHRwczovL3d3dy5wYXlwYWwubWUvZ2VudG9vbA0KMQ==";
     private static readonly ConcurrentDictionary<string, Regex> RegexCache = new();
 
     private static Regex GetCachedRegex(string pattern)
@@ -244,136 +243,6 @@ public class CommunityOutpostManifestFactory(
         return defaultTarget;
     }
 
-    private static string? FindControlBarVariantBigRoot(string extractedDirectory, string variantId)
-    {
-        var candidates = new[]
-        {
-            Path.Combine(extractedDirectory, "ZH", variantId, "BIG EN"),
-            Path.Combine(extractedDirectory, "ZH", variantId, "BIG"),
-            Path.Combine(extractedDirectory, "CCG", variantId, "BIG EN"),
-            Path.Combine(extractedDirectory, "CCG", variantId, "BIG"),
-        };
-
-        foreach (var candidate in candidates)
-        {
-            if (Directory.Exists(candidate))
-            {
-                return candidate;
-            }
-        }
-
-        return null;
-    }
-
-    private static string GetControlBarVariantSuffix(string variantId)
-    {
-        return variantId.EndsWith("p", StringComparison.OrdinalIgnoreCase)
-            ? variantId[..^1]
-            : variantId;
-    }
-
-    private static bool IsAllowedControlBarBig(string fileName, string variantSuffix)
-    {
-        return fileName.Equals($"340_ControlBarProArt{variantSuffix}ZH.big", StringComparison.OrdinalIgnoreCase)
-            || fileName.Equals($"340_ControlBarProData{variantSuffix}ZH.big", StringComparison.OrdinalIgnoreCase)
-            || fileName.Equals($"340_ControlBarPro{variantSuffix}ZH.big", StringComparison.OrdinalIgnoreCase)
-            || fileName.Equals($"340_ControlBarPro-Fix{variantSuffix}ZH.big", StringComparison.OrdinalIgnoreCase)
-            || fileName.Equals("340_ControlBarProZH.big", StringComparison.OrdinalIgnoreCase)
-            || fileName.Equals("400_ControlBarHDEnglishZH.big", StringComparison.OrdinalIgnoreCase)
-            || fileName.Equals("400_ControlBarProCoreZH.big", StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>
-    /// Attempts to copy a file with retry logic for transient file lock issues.
-    /// </summary>
-    private static async Task TryCopyFileWithRetryAsync(string source, string destination, ILogger logger, int maxRetries = 3, int delayMs = 100)
-    {
-        for (var attempt = 1; attempt <= maxRetries; attempt++)
-        {
-            try
-            {
-                File.Copy(source, destination, overwrite: true);
-                return;
-            }
-            catch (IOException ex) when (attempt < maxRetries)
-            {
-                logger.LogWarning(
-                    "File copy attempt {Attempt}/{MaxRetries} failed for {Source}: {Message}. Retrying...",
-                    attempt,
-                    maxRetries,
-                    Path.GetFileName(source),
-                    ex.Message);
-                await Task.Delay(delayMs * attempt);
-            }
-        }
-
-        // Final attempt without catch - let it throw if it fails
-        File.Copy(source, destination, overwrite: true);
-    }
-
-    private static void CopyDirectory(string sourceDir, string destinationDir)
-    {
-        // Recursion guard
-        var sourceInfo = new DirectoryInfo(sourceDir);
-        var destInfo = new DirectoryInfo(destinationDir);
-        if (destInfo.FullName.StartsWith(sourceInfo.FullName, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException($"Cannot copy directory into itself: Source={sourceDir}, Dest={destinationDir}");
-        }
-
-        Directory.CreateDirectory(destinationDir);
-
-        foreach (var file in Directory.GetFiles(sourceDir))
-        {
-            try
-            {
-                var targetFile = Path.Combine(destinationDir, Path.GetFileName(file));
-                File.Copy(file, targetFile, overwrite: true);
-            }
-            catch (IOException)
-            {
-                throw;
-            }
-            catch (UnauthorizedAccessException)
-            {
-                throw;
-            }
-        }
-
-        foreach (var dir in Directory.GetDirectories(sourceDir))
-        {
-             var targetDir = Path.Combine(destinationDir, Path.GetFileName(dir));
-             CopyDirectory(dir, targetDir);
-        }
-    }
-
-    private static HashSet<string> CollectDependencyBigFiles(GenPatcherContentMetadata contentMetadata, GameType targetGame)
-    {
-        var dependencyBigFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var dependency in contentMetadata.GetDependencies()
-                     .Where(d => d.InstallBehavior == DependencyInstallBehavior.AutoInstall))
-        {
-            var depId = dependency.Id.Value;
-            var lastDot = depId.LastIndexOf('.');
-            if (lastDot > -1 && lastDot < depId.Length - 1)
-            {
-                var depCode = depId[(lastDot + 1)..];
-                var depMetadata = GenPatcherContentRegistry.GetMetadata(depCode);
-                if (depMetadata.TargetGame != GameType.Unknown && depMetadata.TargetGame != targetGame)
-                {
-                    continue;
-                }
-
-                if (!string.IsNullOrEmpty(depMetadata.OutputFilename))
-                {
-                    dependencyBigFiles.Add(depMetadata.OutputFilename);
-                }
-            }
-        }
-
-        return dependencyBigFiles;
-    }
-
     /// <summary>
     /// Builds a manifest with all files from the extracted directory.
     /// If variant is provided, filters files based on variant's IncludePatterns and ExcludePatterns.
@@ -415,9 +284,20 @@ public class CommunityOutpostManifestFactory(
                                       contentMetadata.SupportsVariants &&
                                       variant != null;
 
-            var controlBarRepackedOutputs = isControlBarVariant
-                ? await PrepareControlBarVariantAsync(extractedDirectory, contentMetadata, variant!, cancellationToken)
-                : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> controlBarRepackedOutputs;
+            if (isControlBarVariant)
+            {
+                var outputs = await controlBarProcessor.ProcessAndRepackControlBarAsync(
+                    extractedDirectory,
+                    originalManifest,
+                    variant?.Id,
+                    cancellationToken);
+                controlBarRepackedOutputs = new HashSet<string>(outputs, StringComparer.OrdinalIgnoreCase);
+            }
+            else
+            {
+                controlBarRepackedOutputs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            }
 
             if (controlBarRepackedOutputs.Count > 0)
             {
@@ -573,218 +453,31 @@ public class CommunityOutpostManifestFactory(
         }
     }
 
-    private async Task<HashSet<string>> PrepareControlBarVariantAsync(
-        string extractedDirectory,
-        GenPatcherContentMetadata contentMetadata,
-        ContentVariant variant,
-        CancellationToken cancellationToken)
+    private static HashSet<string> CollectDependencyBigFiles(GenPatcherContentMetadata contentMetadata, GameType targetGame)
     {
-        var controlBarRepackedOutputs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var variantSuffix = GetControlBarVariantSuffix(variant.Id);
-        var variantBigRoot = FindControlBarVariantBigRoot(extractedDirectory, variant.Id);
-
-        if (!string.IsNullOrEmpty(variantBigRoot))
+        var dependencyBigFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var dependency in contentMetadata.GetDependencies()
+                     .Where(d => d.InstallBehavior == DependencyInstallBehavior.AutoInstall))
         {
-            var prebuiltBigs = Directory.GetFiles(variantBigRoot, "*.big", SearchOption.TopDirectoryOnly)
-                .Where(path => IsAllowedControlBarBig(Path.GetFileName(path), variantSuffix))
-                .ToArray();
-
-            if (prebuiltBigs.Length > 0)
+            var depId = dependency.Id.Value;
+            var lastDot = depId.LastIndexOf('.');
+            if (lastDot > -1 && lastDot < depId.Length - 1)
             {
-                logger.LogInformation("Using prebuilt control bar BIG files from {VariantRoot}", variantBigRoot);
-                foreach (var prebuiltBig in prebuiltBigs)
+                var depCode = depId[(lastDot + 1)..];
+                var depMetadata = GenPatcherContentRegistry.GetMetadata(depCode);
+                if (depMetadata.TargetGame != GameType.Unknown && depMetadata.TargetGame != targetGame)
                 {
-                    var bigName = Path.GetFileName(prebuiltBig);
-                    var targetPath = Path.Combine(extractedDirectory, bigName);
-
-                    if (!string.Equals(Path.GetFullPath(prebuiltBig), Path.GetFullPath(targetPath), StringComparison.OrdinalIgnoreCase))
-                    {
-                        await TryCopyFileWithRetryAsync(prebuiltBig, targetPath, logger);
-                    }
-
-                    controlBarRepackedOutputs.Add(bigName);
-                }
-            }
-            else
-            {
-                var artBigName = $"340_ControlBarProArt{variantSuffix}ZH.big";
-                var dataBigName = $"340_ControlBarProData{variantSuffix}ZH.big";
-                var artBigPath = Path.Combine(extractedDirectory, artBigName);
-                var dataBigPath = Path.Combine(extractedDirectory, dataBigName);
-
-                if (!File.Exists(artBigPath) || !File.Exists(dataBigPath))
-                {
-                    logger.LogInformation("Repacking control bar variant {Variant} into Art/Data BIG files", variant.Name);
-                    var artSource = Path.Combine(variantBigRoot, "Art");
-                    var dataSource = Path.Combine(variantBigRoot, "Data");
-                    var windowSource = Path.Combine(variantBigRoot, "Window");
-                    var genToolSource = Path.Combine(variantBigRoot, "GenTool");
-
-                    var tempRoot = Path.Combine(extractedDirectory, $"cbpro-pack-{variant.Id}");
-                    var artPackRoot = Path.Combine(tempRoot, "ArtPack");
-                    var dataPackRoot = Path.Combine(tempRoot, "DataPack");
-
-                    if (Directory.Exists(tempRoot))
-                    {
-                        Directory.Delete(tempRoot, recursive: true);
-                    }
-
-                    Directory.CreateDirectory(artPackRoot);
-                    Directory.CreateDirectory(dataPackRoot);
-
-                    if (Directory.Exists(artSource))
-                    {
-                        CopyDirectory(artSource, Path.Combine(artPackRoot, "Art"));
-                    }
-
-                    if (Directory.Exists(dataSource))
-                    {
-                        CopyDirectory(dataSource, Path.Combine(dataPackRoot, "Data"));
-                    }
-
-                    if (Directory.Exists(windowSource))
-                    {
-                        CopyDirectory(windowSource, Path.Combine(dataPackRoot, "Window"));
-                    }
-
-                    if (Directory.Exists(genToolSource))
-                    {
-                        CopyDirectory(genToolSource, Path.Combine(dataPackRoot, "GenTool"));
-                    }
-
-                    try
-                    {
-                        await avifConverter.ConvertDirectoryAsync(artPackRoot, cancellationToken);
-                        await avifConverter.ConvertDirectoryAsync(dataPackRoot, cancellationToken);
-
-                        await BigFilePacker.PackAsync(artPackRoot, artBigPath);
-                        await BigFilePacker.PackAsync(dataPackRoot, dataBigPath);
-                    }
-                    finally
-                    {
-                        try
-                        {
-                            if (Directory.Exists(tempRoot))
-                            {
-                                Directory.Delete(tempRoot, recursive: true);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogWarning(ex, "Failed to cleanup temp root {TempRoot}", tempRoot);
-                        }
-                    }
+                    continue;
                 }
 
-                if (File.Exists(artBigPath))
+                if (!string.IsNullOrEmpty(depMetadata.OutputFilename))
                 {
-                    controlBarRepackedOutputs.Add(artBigName);
-                }
-
-                if (File.Exists(dataBigPath))
-                {
-                    controlBarRepackedOutputs.Add(dataBigName);
-                }
-            }
-        }
-        else
-        {
-            logger.LogInformation("Control bar has flat structure (cbpx-style), searching for prebuilt BIG files in root");
-            var prebuiltCandidates = Directory.GetFiles(extractedDirectory, "*ControlBarPro*ZH.big", SearchOption.TopDirectoryOnly)
-                .Where(path => IsAllowedControlBarBig(Path.GetFileName(path), variantSuffix))
-                .ToArray();
-
-            var hasArtDataSplit = prebuiltCandidates.Any(p =>
-                Path.GetFileName(p).StartsWith("340_ControlBarProArt", StringComparison.OrdinalIgnoreCase) ||
-                Path.GetFileName(p).StartsWith("340_ControlBarProData", StringComparison.OrdinalIgnoreCase));
-
-            if (hasArtDataSplit)
-            {
-                prebuiltCandidates = [.. prebuiltCandidates
-                    .Where(p =>
-                    {
-                        var name = Path.GetFileName(p);
-                        if (name.StartsWith("340_ControlBarProArt", StringComparison.OrdinalIgnoreCase) ||
-                            name.StartsWith("340_ControlBarProData", StringComparison.OrdinalIgnoreCase) ||
-                            name.Contains("-Fix", StringComparison.OrdinalIgnoreCase) ||
-                            name.Equals("340_ControlBarProZH.big", StringComparison.OrdinalIgnoreCase))
-                        {
-                            return true;
-                        }
-
-                        logger.LogDebug("Excluding monolithic BIG {Name} in favor of Art/Data split files", name);
-                        return false;
-                    })];
-            }
-
-            if (prebuiltCandidates.Length > 0)
-            {
-                logger.LogInformation(
-                    "Using {Count} prebuilt control bar BIG files from flat structure: {Files}",
-                    prebuiltCandidates.Length,
-                    string.Join(", ", prebuiltCandidates.Select(Path.GetFileName)));
-
-                foreach (var candidate in prebuiltCandidates)
-                {
-                    controlBarRepackedOutputs.Add(Path.GetFileName(candidate));
-                }
-            }
-            else
-            {
-                logger.LogWarning("No prebuilt control bar BIG files found for variant {Variant} in flat structure", variant.Name);
-            }
-        }
-
-        var metadataFileName = "340_ControlBarProZH.big";
-        var metadataTargetPath = Path.Combine(extractedDirectory, metadataFileName);
-
-        if (!File.Exists(metadataTargetPath))
-        {
-            var metadataSearchPaths = new[]
-            {
-                Path.Combine(extractedDirectory, "ZH", metadataFileName),
-                Path.Combine(extractedDirectory, "CCG", metadataFileName),
-                Path.Combine(extractedDirectory, "ZH", variant.Id, metadataFileName),
-                Path.Combine(extractedDirectory, "CCG", variant.Id, metadataFileName),
-                Path.Combine(extractedDirectory, "ZH", variant.Id, "BIG EN", metadataFileName),
-                Path.Combine(extractedDirectory, "ZH", variant.Id, "BIG", metadataFileName),
-                Path.Combine(extractedDirectory, "CCG", variant.Id, "BIG EN", metadataFileName),
-                Path.Combine(extractedDirectory, "CCG", variant.Id, "BIG", metadataFileName),
-            };
-
-            foreach (var searchPath in metadataSearchPaths)
-            {
-                if (File.Exists(searchPath))
-                {
-                    logger.LogInformation("Found Control Bar metadata file at {SourcePath}, copying to root", searchPath);
-                    await TryCopyFileWithRetryAsync(searchPath, metadataTargetPath, logger);
-                    break;
+                    dependencyBigFiles.Add(depMetadata.OutputFilename);
                 }
             }
         }
 
-        if (File.Exists(metadataTargetPath))
-        {
-            controlBarRepackedOutputs.Add(metadataFileName);
-            logger.LogInformation("Including Control Bar metadata file {FileName} in manifest", metadataFileName);
-        }
-        else
-        {
-            logger.LogWarning("Control Bar metadata file {FileName} not found in extracted content - creating fallback version", metadataFileName);
-            try
-            {
-                var metadataBytes = Convert.FromBase64String(ControlBarMetadataBigBase64);
-                await File.WriteAllBytesAsync(metadataTargetPath, metadataBytes, cancellationToken);
-                controlBarRepackedOutputs.Add(metadataFileName);
-                logger.LogInformation("Created Control Bar metadata file {FileName} from embedded fallback", metadataFileName);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to create Control Bar metadata file - manifest will be incomplete");
-            }
-        }
-
-        return controlBarRepackedOutputs;
+        return dependencyBigFiles;
     }
 
     private bool HasVariantBigFiles(

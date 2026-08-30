@@ -10,6 +10,7 @@ using GenHub.Core.Services.Content;
 using GenHub.Core.Services.Providers;
 using GenHub.Core.Services.Providers.VersionSchemes;
 using GenHub.Features.Content.Services;
+using GenHub.Features.Content.Services.Common;
 using GenHub.Features.Content.Services.CommunityOutpost;
 using GenHub.Features.Content.Services.ContentDeliverers;
 using GenHub.Features.Content.Services.ContentDiscoverers;
@@ -385,5 +386,13 @@ public static class ContentPipelineModule
 
         // Register installation instructions execution service
         services.AddSingleton<IInstallationInstructionsService, InstallationInstructionsService>();
+
+        // Register archive payload processor
+        services.AddSingleton<ArchivePayloadProcessor>();
+        services.AddSingleton<IArchivePayloadProcessor>(sp => sp.GetRequiredService<ArchivePayloadProcessor>());
+
+        // Register control bar packaging processor
+        services.AddSingleton<ControlBarPackageProcessor>();
+        services.AddSingleton<IControlBarPackageProcessor>(sp => sp.GetRequiredService<ControlBarPackageProcessor>());
     }
 }
