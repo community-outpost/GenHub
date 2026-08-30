@@ -4,8 +4,10 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Parsers;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Services.Content;
 using GenHub.Core.Services.Providers;
 using GenHub.Core.Services.Providers.VersionSchemes;
@@ -18,9 +20,11 @@ using GenHub.Features.Content.Services.ContentResolvers;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Content.Services.GitHub;
 using GenHub.Features.Content.Services.LocalContent;
+using GenHub.Features.Content.Services.Parsers;
 using GenHub.Features.Content.Services.Publishers;
 using GenHub.Features.Content.Services.Reconciliation;
 using GenHub.Features.Content.Services.SuperHackers;
+using GenHub.Features.Content.Services.Tools;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GitHub.Services;
 using GenHub.Features.Manifest;
@@ -308,6 +312,14 @@ public static class ContentPipelineModule
             httpClient.Timeout = TimeSpan.FromSeconds(45); // ModDB can be slower
             httpClient.DefaultRequestHeaders.Add("User-Agent", ApiConstants.DefaultUserAgent);
         });
+
+        // Register Playwright service for web page parsing (singleton for shared browser instance)
+        services.AddSingleton<IPlaywrightService, PlaywrightService>();
+
+        // Register ModDB page parser (concrete and interface)
+        // Note: Multiple IWebPageParser implementations are registered for IEnumerable<IWebPageParser> injection
+        services.AddSingleton<ModDBPageParser>();
+        services.AddSingleton<IWebPageParser>(sp => sp.GetRequiredService<ModDBPageParser>());
 
         // Register ModDB discoverer (concrete and interface) with named HttpClient
         services.AddTransient<ModDBDiscoverer>(sp =>
