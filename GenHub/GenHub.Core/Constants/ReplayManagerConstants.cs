@@ -120,6 +120,11 @@ public static class ReplayManagerConstants
     public const string CrcCatalogLocalFileName = "crc-mapping.json";
 
     /// <summary>
+    /// Manifest segment indicating official retail distribution.
+    /// </summary>
+    public const string RetailManifestSegment = ".retail.";
+
+    /// <summary>
     /// Default update polling interval for checking new CRC catalog releases (24 hours).
     /// </summary>
     public static readonly TimeSpan DefaultCatalogUpdateInterval = TimeSpan.FromHours(24);

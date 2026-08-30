@@ -311,8 +311,8 @@ public sealed class ReplayDirectoryService(
 
             var clientMatches = string.Equals(p.GameClient?.Id, clientManifestId, StringComparison.OrdinalIgnoreCase) ||
                                 p.EnabledContentIds?.Any(id => string.Equals(id, clientManifestId, StringComparison.OrdinalIgnoreCase)) == true ||
-                                (clientManifestId.Contains(".retail.") && p.GameClient?.Id != null &&
-                                 (p.GameClient.Id.Contains(".steam.") || p.GameClient.Id.Contains(".eaapp.") || p.GameClient.Id.Contains(".retail.")));
+                                (clientManifestId.Contains(ReplayManagerConstants.RetailManifestSegment) && p.GameClient?.Id != null &&
+                                 (p.GameClient.Id.Contains(".steam.") || p.GameClient.Id.Contains(".eaapp.") || p.GameClient.Id.Contains(ReplayManagerConstants.RetailManifestSegment)));
 
             if (!clientMatches)
             {
@@ -359,7 +359,7 @@ public sealed class ReplayDirectoryService(
 
         var isRetail = string.IsNullOrWhiteSpace(match.Publisher) ||
                        string.Equals(match.Publisher, "ea", StringComparison.OrdinalIgnoreCase) ||
-                       match.ManifestId.Contains(".retail.");
+                       match.ManifestId.Contains(ReplayManagerConstants.RetailManifestSegment);
 
         if (!isRetail)
         {
@@ -379,7 +379,7 @@ public sealed class ReplayDirectoryService(
 
         var isRetail = string.IsNullOrWhiteSpace(match.Publisher) ||
                        string.Equals(match.Publisher, "ea", StringComparison.OrdinalIgnoreCase) ||
-                       match.ManifestId.Contains(".retail.");
+                       match.ManifestId.Contains(ReplayManagerConstants.RetailManifestSegment);
 
         if (!string.IsNullOrWhiteSpace(match.CdnUrl) || !isRetail)
         {
