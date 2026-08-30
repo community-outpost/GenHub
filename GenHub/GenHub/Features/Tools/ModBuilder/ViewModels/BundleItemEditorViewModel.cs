@@ -11,18 +11,21 @@ public partial class BundleItemEditorViewModel : ObservableObject
     /// Gets or sets the name of the bundle item.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayName))]
     private string _name = string.Empty;
 
     /// <summary>
     /// Gets or sets the name prefix.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayName))]
     private string _namePrefix = string.Empty;
 
     /// <summary>
     /// Gets or sets the name suffix.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayName))]
     private string _nameSuffix = string.Empty;
 
     /// <summary>
@@ -59,10 +62,4 @@ public partial class BundleItemEditorViewModel : ObservableObject
     /// Gets the display name for the bundle item.
     /// </summary>
     public string DisplayName => $"{NamePrefix}{Name}{NameSuffix}";
-
-    partial void OnNameChanged(string value) => OnPropertyChanged(nameof(DisplayName));
-
-    partial void OnNamePrefixChanged(string value) => OnPropertyChanged(nameof(DisplayName));
-
-    partial void OnNameSuffixChanged(string value) => OnPropertyChanged(nameof(DisplayName));
 }

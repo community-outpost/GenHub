@@ -54,9 +54,9 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
                 _ => await ConvertGenericAsync(sourcePath, targetPath, parameters, cancellationToken),
             };
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("Image conversion cancelled: {SourcePath}", sourcePath);
+            logger.LogInformation(ex, "Image conversion cancelled: {SourcePath}", sourcePath);
             return false;
         }
         catch (Exception ex)
@@ -287,10 +287,10 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
     {
         try
         {
-            byte[] rawData = [];
-            int width = 0;
-            int height = 0;
-            bool hasAlpha = false;
+            byte[] rawData;
+            int width;
+            int height;
+            bool hasAlpha;
 
             if (sourcePath.EndsWith(".dds", StringComparison.OrdinalIgnoreCase))
             {
@@ -304,12 +304,14 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
             else
             {
                 using var image = await Image.LoadAsync<Rgba32>(sourcePath, cancellationToken).ConfigureAwait(false);
-                width = image.Width;
-                height = image.Height;
+                using var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
+                using var rgbaImage = resizedImage is Image<Rgba32> exact ? exact : resizedImage.CloneAs<Rgba32>();
+                width = rgbaImage.Width;
+                height = rgbaImage.Height;
                 hasAlpha = await HasAlphaChannelAsync(sourcePath, cancellationToken).ConfigureAwait(false);
 
                 rawData = new byte[width * height * 4];
-                image.CopyPixelDataTo(rawData);
+                rgbaImage.CopyPixelDataTo(rawData);
             }
 
             var encoder = new BcEncoder();
@@ -341,7 +343,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
         }
     }
 
-    private async Task<bool> ConvertGenericAsync(
+    private static async Task<bool> ConvertGenericAsync(
         string sourcePath,
         string targetPath,
         IDictionary<string, object>? parameters,
@@ -354,7 +356,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
             if (sourcePath.EndsWith(".dds", StringComparison.OrdinalIgnoreCase))
             {
                 using var magickImage = new MagickImage(sourcePath);
-                magickImage.Write(targetPath);
+                await magickImage.WriteAsync(targetPath, cancellationToken).ConfigureAwait(false);
                 return true;
             }
 

@@ -20,6 +20,12 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 /// </summary>
 public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logger) : IConfigurationLoaderService
 {
+    private const string ConfigDirLower = "config";
+    private const string ConfigsDirLower = "configs";
+    private const string ModFoldersFileName = "ModFolders.json";
+    private const string ModJsonFilesFileName = "ModJsonFiles.json";
+    private const string BundlesConfigFileName = "bundles.json";
+
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -41,100 +47,26 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                 throw new FileNotFoundException($"Configuration file not found: {configPath}");
             }
 
-            // read json file
             var json = await File.ReadAllTextAsync(configPath, cancellationToken).ConfigureAwait(false);
 
-            BuildConfiguration config;
-
-            // try simplified format first (sample projects)
-            if (json.Contains("\"BundleItems\"", StringComparison.OrdinalIgnoreCase) ||
-                json.Contains("\"BundlePacks\"", StringComparison.OrdinalIgnoreCase))
+            if (TryLoadSimplifiedConfig(json, configPath, out var simplifiedConfig) && simplifiedConfig != null)
             {
-                try
-                {
-                    var simplified = JsonSerializer.Deserialize<SimplifiedConfigRoot>(json, _jsonOptions);
-                    if ((simplified?.BundleItems != null && simplified.BundleItems.Count > 0) ||
-                        (simplified?.BundlePacks != null && simplified.BundlePacks.Count > 0))
-                    {
-                        logger.LogInformation("Detected simplified config format, converting...");
-                        var configDir = Path.GetDirectoryName(configPath) ?? string.Empty;
-                        var projectDir = configDir;
-                        var folderName = Path.GetFileName(configDir);
-                        if (!string.IsNullOrEmpty(configDir) &&
-                            (folderName.Equals(ModBuilderConstants.ConfigDir, StringComparison.OrdinalIgnoreCase) ||
-                             folderName.Equals("config", StringComparison.OrdinalIgnoreCase) ||
-                             folderName.Equals("configs", StringComparison.OrdinalIgnoreCase)))
-                        {
-                            projectDir = Path.GetDirectoryName(configDir) ?? configDir;
-                        }
-
-                        config = ConvertSimplifiedConfig(simplified, projectDir);
-                        config.LoadedConfigFiles.Add(configPath);
-                        logger.LogInformation("Loaded {ItemCount} bundle items and {PackCount} bundle packs from simplified format", config.Items.Count, config.Packs.Count);
-                        return config;
-                    }
-                }
-                catch (JsonException)
-                {
-                    logger.LogDebug("Failed to parse as simplified format, falling back to direct format");
-                }
+                return simplifiedConfig;
             }
 
-            // try python format (with "bundles" wrapper)
-            if (json.Contains("\"bundles\"", StringComparison.OrdinalIgnoreCase))
+            if (TryLoadPythonConfig(json, configPath, out var pythonConfig) && pythonConfig != null)
             {
-                try
-                {
-                    var pythonConfig = JsonSerializer.Deserialize<PythonConfigRoot>(json, _jsonOptions);
-                    if (pythonConfig?.Bundles != null)
-                    {
-                        logger.LogInformation("Detected Python ModBuilder config format");
-                        var configDir = Path.GetDirectoryName(configPath) ?? string.Empty;
-                        var projectDir = configDir;
-                        var folderName = Path.GetFileName(configDir);
-                        if (!string.IsNullOrEmpty(configDir) &&
-                            (folderName.Equals(ModBuilderConstants.ConfigDir, StringComparison.OrdinalIgnoreCase) ||
-                             folderName.Equals("config", StringComparison.OrdinalIgnoreCase) ||
-                             folderName.Equals("configs", StringComparison.OrdinalIgnoreCase)))
-                        {
-                            projectDir = Path.GetDirectoryName(configDir) ?? configDir;
-                        }
-
-                        config = ConvertPythonConfig(pythonConfig.Bundles, projectDir);
-                        config.LoadedConfigFiles.Add(configPath);
-                        return config;
-                    }
-                }
-                catch (JsonException)
-                {
-                    logger.LogDebug("Failed to parse as Python format, falling back to direct format");
-                }
+                return pythonConfig;
             }
 
-            // try direct c# format
-            var directConfig = JsonSerializer.Deserialize<BuildConfiguration>(json, _jsonOptions);
-            if (directConfig == null)
-            {
-                logger.LogError("Failed to deserialize configuration from: {ConfigPath}", configPath);
-                throw new InvalidOperationException($"Failed to deserialize configuration from: {configPath}");
-            }
-
-            config = directConfig;
-
-            // track loaded file
-            config.LoadedConfigFiles.Add(configPath);
-
-            logger.LogInformation("Successfully loaded configuration with {ItemCount} items and {PackCount} packs",
-                config.Items.Count, config.Packs.Count);
-
-            return config;
+            return LoadDirectConfig(json, configPath);
         }
         catch (JsonException ex)
         {
             logger.LogError(ex, "JSON parsing error in configuration file: {ConfigPath}", configPath);
             throw new InvalidOperationException($"Invalid JSON in configuration file: {configPath}", ex);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not InvalidOperationException && ex is not FileNotFoundException)
         {
             logger.LogError(ex, "Failed to load configuration: {ConfigPath}", configPath);
             throw;
@@ -152,10 +84,8 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             return new BuildConfiguration();
         }
 
-        // load first configuration as base
         var mergedConfig = await LoadConfigurationAsync(configPaths[0], cancellationToken).ConfigureAwait(false);
 
-        // merge remaining configurations
         for (int i = 1; i < configPaths.Count; i++)
         {
             var config = await LoadConfigurationAsync(configPaths[i], cancellationToken).ConfigureAwait(false);
@@ -174,94 +104,16 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         cancellationToken.ThrowIfCancellationRequested();
         logger.LogInformation("Resolving wildcards in configuration");
 
-        int totalFilesResolved = 0;
-
-        // get project directory from loaded config files
-        string projectDir = string.Empty;
-        if (configuration.LoadedConfigFiles.Count > 0)
-        {
-            var firstConfigFile = configuration.LoadedConfigFiles[0];
-            projectDir = Path.GetDirectoryName(firstConfigFile) ?? string.Empty;
-            if (!string.IsNullOrEmpty(projectDir))
-            {
-                var folderName = Path.GetFileName(projectDir);
-                // go up one level if config is in a subdirectory (e.g. config/ or Configs/)
-                var parentDir = Path.GetDirectoryName(projectDir);
-                if (!string.IsNullOrEmpty(parentDir) &&
-                    (folderName.Equals(ModBuilderConstants.ConfigDir, StringComparison.OrdinalIgnoreCase) ||
-                     folderName.Equals("config", StringComparison.OrdinalIgnoreCase) ||
-                     folderName.Equals("configs", StringComparison.OrdinalIgnoreCase)))
-                {
-                    projectDir = parentDir;
-                }
-            }
-        }
-
+        var projectDir = ResolveProjectDirForWildcards(configuration);
         logger.LogInformation("Project directory for wildcard resolution: {ProjectDir}", projectDir);
 
+        int totalFilesResolved = 0;
         foreach (var item in configuration.Items)
         {
-            var resolvedFiles = new List<BundleFile>();
-
-            foreach (var file in item.Files)
-            {
-                // check if source contains wildcard patterns
-                if (ContainsWildcard(file.AbsSourceFile))
-                {
-                    // determine base path for wildcard resolution
-                    string basePath = file.AbsSourceParent;
-                    string pattern = file.AbsSourceFile;
-
-                    // if AbsSourceParent is empty, use project directory and treat AbsSourceFile as relative pattern
-                    if (string.IsNullOrEmpty(basePath))
-                    {
-                        basePath = projectDir;
-                        logger.LogDebug("Using project directory as base path: {BasePath}", basePath);
-                    }
-                    else if (!Path.IsPathRooted(basePath))
-                    {
-                        // make relative base path absolute
-                        basePath = Path.Combine(projectDir, basePath);
-                        logger.LogDebug("Made base path absolute: {BasePath}", basePath);
-                    }
-
-                    logger.LogDebug("Resolving wildcard pattern: {Pattern} in {Parent}", pattern, basePath);
-
-                    var matchedFiles = await ResolveWildcardPatternAsync(
-                        pattern,
-                        basePath,
-                        cancellationToken).ConfigureAwait(false);
-
-                    logger.LogDebug("Resolved {Count} files from pattern: {Pattern}", matchedFiles.Count, pattern);
-
-                    // create BundleFile entry for each matched file
-                    foreach (var matchedFile in matchedFiles)
-                    {
-                        var resolvedFile = new BundleFile
-                        {
-                            AbsSourceParent = basePath,
-                            AbsSourceFile = matchedFile,
-                            RelTargetFile = DetermineTargetPath(matchedFile, basePath, file.RelTargetFile),
-                            Params = file.Params,
-                            RegistryDef = file.RegistryDef,
-                        };
-                        resolvedFiles.Add(resolvedFile);
-                        totalFilesResolved++;
-                    }
-                }
-                else
-                {
-                    // no wildcard, keep as-is
-                    resolvedFiles.Add(file);
-                }
-            }
-
-            // replace files list with resolved files
-            item.Files = resolvedFiles;
+            totalFilesResolved += await ResolveItemFilesAsync(item, projectDir, cancellationToken).ConfigureAwait(false);
         }
 
         logger.LogInformation("Resolved {Count} files from wildcard patterns", totalFilesResolved);
-
         return configuration;
     }
 
@@ -269,71 +121,17 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
     public IReadOnlyList<string> ValidateConfiguration(BuildConfiguration configuration)
     {
         var errors = new List<string>();
-
         logger.LogInformation("Validating configuration");
 
-        // validate bundle items
         if (configuration.Items.Count == 0)
         {
             errors.Add("Configuration must contain at least one bundle item");
         }
 
         var itemNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var item in configuration.Items)
-        {
-            if (string.IsNullOrWhiteSpace(item.Name))
-            {
-                errors.Add("Bundle item has empty name");
-            }
-            else if (!itemNames.Add(item.Name))
-            {
-                errors.Add($"Duplicate bundle item name: {item.Name}");
-            }
-
-            if (item.Files.Count == 0)
-            {
-                errors.Add($"Bundle item '{item.Name}' has no files");
-            }
-        }
-
-        // validate bundle packs reference valid items
-        foreach (var pack in configuration.Packs)
-        {
-            if (string.IsNullOrWhiteSpace(pack.Name))
-            {
-                errors.Add("Bundle pack has empty name");
-            }
-
-            foreach (var itemName in pack.ItemNames)
-            {
-                if (!itemNames.Contains(itemName))
-                {
-                    errors.Add($"Bundle pack '{pack.Name}' references unknown item: {itemName}");
-                }
-            }
-        }
-
-        // validate folder paths exist (warnings only)
-        if (!string.IsNullOrEmpty(configuration.Folders.AbsBuildDir) &&
-            !Directory.Exists(configuration.Folders.AbsBuildDir))
-        {
-            logger.LogWarning("Build directory does not exist: {Path}", configuration.Folders.AbsBuildDir);
-        }
-
-        if (!string.IsNullOrEmpty(configuration.Folders.AbsGameDir) &&
-            !Directory.Exists(configuration.Folders.AbsGameDir))
-        {
-            logger.LogWarning("Game directory does not exist: {Path}", configuration.Folders.AbsGameDir);
-        }
-
-        // validate tools
-        foreach (var tool in configuration.Tools)
-        {
-            if (!string.IsNullOrEmpty(tool.Value.AbsExe) && !File.Exists(tool.Value.AbsExe))
-            {
-                logger.LogWarning("Tool executable not found: {Tool} at {Path}", tool.Key, tool.Value.AbsExe);
-            }
-        }
+        ValidateBundleItems(configuration.Items, itemNames, errors);
+        ValidateBundlePacks(configuration.Packs, itemNames, errors);
+        ValidateDirectoriesAndTools(configuration);
 
         if (errors.Count > 0)
         {
@@ -350,9 +148,9 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
     /// <inheritdoc />
     public async Task<BuildConfiguration> LoadDefaultConfigurationAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         logger.LogInformation("Loading default configuration");
 
-        // return minimal default configuration
         var config = new BuildConfiguration
         {
             Folders = new FolderConfiguration
@@ -363,7 +161,6 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         };
 
         logger.LogInformation("Default configuration created");
-
         return await Task.FromResult(config).ConfigureAwait(false);
     }
 
@@ -374,87 +171,23 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
 
         var merged = new BuildConfiguration
         {
-            // merge items (append)
             Items = new List<BundleItem>(baseConfig.Items),
-
-            // merge packs (append)
             Packs = new List<BundlePack>(baseConfig.Packs),
-
-            // override folders
-            Folders = new FolderConfiguration
-            {
-                AbsBuildDir = string.IsNullOrEmpty(overrideConfig.Folders.AbsBuildDir)
-                    ? baseConfig.Folders.AbsBuildDir
-                    : overrideConfig.Folders.AbsBuildDir,
-                AbsReleaseDir = string.IsNullOrEmpty(overrideConfig.Folders.AbsReleaseDir)
-                    ? baseConfig.Folders.AbsReleaseDir
-                    : overrideConfig.Folders.AbsReleaseDir,
-                AbsGameDir = string.IsNullOrEmpty(overrideConfig.Folders.AbsGameDir)
-                    ? baseConfig.Folders.AbsGameDir
-                    : overrideConfig.Folders.AbsGameDir
-            },
-
-            // override runner
-            Runner = new RunnerConfiguration
-            {
-                AbsExe = string.IsNullOrEmpty(overrideConfig.Runner.AbsExe)
-                    ? baseConfig.Runner.AbsExe
-                    : overrideConfig.Runner.AbsExe,
-                Args = string.IsNullOrEmpty(overrideConfig.Runner.Args)
-                    ? baseConfig.Runner.Args
-                    : overrideConfig.Runner.Args,
-                WorkingDir = string.IsNullOrEmpty(overrideConfig.Runner.WorkingDir)
-                    ? baseConfig.Runner.WorkingDir
-                    : overrideConfig.Runner.WorkingDir,
-                ModFolder = string.IsNullOrEmpty(overrideConfig.Runner.ModFolder)
-                    ? baseConfig.Runner.ModFolder
-                    : overrideConfig.Runner.ModFolder,
-            },
-
-            // merge tools (override by key)
+            Folders = MergeFolderConfig(baseConfig.Folders, overrideConfig.Folders),
+            Runner = MergeRunnerConfig(baseConfig.Runner, overrideConfig.Runner),
             Tools = new Dictionary<string, ToolConfiguration>(baseConfig.Tools),
-
-            // merge loaded config files
             LoadedConfigFiles = new List<string>(baseConfig.LoadedConfigFiles)
         };
 
-        // add override items (check for duplicates by name)
-        var existingItemNames = new HashSet<string>(merged.Items.Select(i => i.Name), StringComparer.OrdinalIgnoreCase);
-        foreach (var item in overrideConfig.Items)
-        {
-            if (!existingItemNames.Contains(item.Name))
-            {
-                merged.Items.Add(item);
-            }
-            else
-            {
-                logger.LogWarning("Skipping duplicate item during merge: {ItemName}", item.Name);
-            }
-        }
+        MergeItems(merged, overrideConfig.Items);
+        MergePacks(merged, overrideConfig.Packs);
 
-        // add override packs (check for duplicates by name)
-        var existingPackNames = new HashSet<string>(merged.Packs.Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
-        foreach (var pack in overrideConfig.Packs)
-        {
-            if (!existingPackNames.Contains(pack.Name))
-            {
-                merged.Packs.Add(pack);
-            }
-            else
-            {
-                logger.LogWarning("Skipping duplicate pack during merge: {PackName}", pack.Name);
-            }
-        }
-
-        // merge tools (override existing)
         foreach (var tool in overrideConfig.Tools)
         {
             merged.Tools[tool.Key] = tool.Value;
         }
 
-        // merge loaded config files
         merged.LoadedConfigFiles.AddRange(overrideConfig.LoadedConfigFiles);
-
         return merged;
     }
 
@@ -463,31 +196,24 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
     {
         logger.LogDebug("Normalizing paths in configuration");
 
-        // normalize folder paths
         configuration.Folders.AbsBuildDir = NormalizePath(configuration.Folders.AbsBuildDir);
         configuration.Folders.AbsReleaseDir = NormalizePath(configuration.Folders.AbsReleaseDir);
         configuration.Folders.AbsGameDir = NormalizePath(configuration.Folders.AbsGameDir);
 
-        // normalize runner paths
         configuration.Runner.AbsExe = NormalizePath(configuration.Runner.AbsExe);
         configuration.Runner.WorkingDir = NormalizePath(configuration.Runner.WorkingDir);
         configuration.Runner.ModFolder = NormalizePath(configuration.Runner.ModFolder);
 
-        // normalize tool paths
         foreach (var tool in configuration.Tools.Values)
         {
             tool.AbsExe = NormalizePath(tool.AbsExe);
         }
 
-        // normalize bundle file paths
-        foreach (var item in configuration.Items)
+        foreach (var file in configuration.Items.SelectMany(item => item.Files))
         {
-            foreach (var file in item.Files)
-            {
-                file.AbsSourceParent = NormalizePath(file.AbsSourceParent);
-                file.AbsSourceFile = NormalizePath(file.AbsSourceFile);
-                file.RelTargetFile = NormalizePath(file.RelTargetFile);
-            }
+            file.AbsSourceParent = NormalizePath(file.AbsSourceParent);
+            file.AbsSourceFile = NormalizePath(file.AbsSourceFile);
+            file.RelTargetFile = NormalizePath(file.RelTargetFile);
         }
 
         logger.LogDebug("Path normalization complete");
@@ -516,121 +242,396 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         return config;
     }
 
+    private static string ResolveProjectDirFromConfig(string configPath)
+    {
+        var configDir = Path.GetDirectoryName(configPath) ?? string.Empty;
+        var folderName = Path.GetFileName(configDir);
+        if (!string.IsNullOrEmpty(configDir) && IsConfigDirectoryName(folderName))
+        {
+            return Path.GetDirectoryName(configDir) ?? configDir;
+        }
+
+        return configDir;
+    }
+
+    private static bool IsConfigDirectoryName(string folderName)
+    {
+        return folderName.Equals(ModBuilderConstants.ConfigDir, StringComparison.OrdinalIgnoreCase) ||
+               folderName.Equals(ConfigDirLower, StringComparison.OrdinalIgnoreCase) ||
+               folderName.Equals(ConfigsDirLower, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool TryLoadSimplifiedConfig(string json, string configPath, out BuildConfiguration? config)
+    {
+        config = null;
+        if (!json.Contains("\"BundleItems\"", StringComparison.OrdinalIgnoreCase) &&
+            !json.Contains("\"BundlePacks\"", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        try
+        {
+            var simplified = JsonSerializer.Deserialize<SimplifiedConfigRoot>(json, _jsonOptions);
+            if ((simplified?.BundleItems != null && simplified.BundleItems.Count > 0) ||
+                (simplified?.BundlePacks != null && simplified.BundlePacks.Count > 0))
+            {
+                logger.LogInformation("Detected simplified config format, converting...");
+                var projectDir = ResolveProjectDirFromConfig(configPath);
+                config = ConvertSimplifiedConfig(simplified, projectDir);
+                config.LoadedConfigFiles.Add(configPath);
+                logger.LogInformation("Loaded {ItemCount} bundle items and {PackCount} bundle packs from simplified format",
+                    config.Items.Count, config.Packs.Count);
+                return true;
+            }
+        }
+        catch (JsonException ex)
+        {
+            logger.LogDebug(ex, "Failed to parse as simplified format, falling back to direct format");
+        }
+
+        return false;
+    }
+
+    private bool TryLoadPythonConfig(string json, string configPath, out BuildConfiguration? config)
+    {
+        config = null;
+        if (!json.Contains("\"bundles\"", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        try
+        {
+            var pythonConfig = JsonSerializer.Deserialize<PythonConfigRoot>(json, _jsonOptions);
+            if (pythonConfig?.Bundles != null)
+            {
+                logger.LogInformation("Detected Python ModBuilder config format");
+                var projectDir = ResolveProjectDirFromConfig(configPath);
+                config = ConvertPythonConfig(pythonConfig.Bundles, projectDir);
+                config.LoadedConfigFiles.Add(configPath);
+                return true;
+            }
+        }
+        catch (JsonException ex)
+        {
+            logger.LogDebug(ex, "Failed to parse as Python format, falling back to direct format");
+        }
+
+        return false;
+    }
+
+    private BuildConfiguration LoadDirectConfig(string json, string configPath)
+    {
+        var directConfig = JsonSerializer.Deserialize<BuildConfiguration>(json, _jsonOptions);
+        if (directConfig == null)
+        {
+            logger.LogError("Failed to deserialize configuration from: {ConfigPath}", configPath);
+            throw new InvalidOperationException($"Failed to deserialize configuration from: {configPath}");
+        }
+
+        directConfig.LoadedConfigFiles.Add(configPath);
+        logger.LogInformation("Successfully loaded configuration with {ItemCount} items and {PackCount} packs",
+            directConfig.Items.Count, directConfig.Packs.Count);
+        return directConfig;
+    }
+
+    private static string ResolveProjectDirForWildcards(BuildConfiguration configuration)
+    {
+        if (configuration.LoadedConfigFiles.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var firstConfigFile = configuration.LoadedConfigFiles[0];
+        return ResolveProjectDirFromConfig(firstConfigFile);
+    }
+
+    private async Task<int> ResolveItemFilesAsync(BundleItem item, string projectDir, CancellationToken cancellationToken)
+    {
+        var resolvedFiles = new List<BundleFile>();
+        int filesResolved = 0;
+
+        foreach (var file in item.Files)
+        {
+            if (ContainsWildcard(file.AbsSourceFile))
+            {
+                var basePath = DetermineBasePath(file.AbsSourceParent, projectDir);
+                var pattern = file.AbsSourceFile;
+
+                logger.LogDebug("Resolving wildcard pattern: {Pattern} in {Parent}", pattern, basePath);
+                var matchedFiles = await ResolveWildcardPatternAsync(pattern, basePath).ConfigureAwait(false);
+
+                foreach (var matchedFile in matchedFiles)
+                {
+                    resolvedFiles.Add(new BundleFile
+                    {
+                        AbsSourceParent = basePath,
+                        AbsSourceFile = matchedFile,
+                        RelTargetFile = DetermineTargetPath(matchedFile, basePath, file.RelTargetFile),
+                        Params = file.Params,
+                        RegistryDef = file.RegistryDef,
+                    });
+                    filesResolved++;
+                }
+            }
+            else
+            {
+                resolvedFiles.Add(file);
+            }
+        }
+
+        item.Files = resolvedFiles;
+        return filesResolved;
+    }
+
+    private static string DetermineBasePath(string sourceParent, string projectDir)
+    {
+        if (string.IsNullOrEmpty(sourceParent))
+        {
+            return projectDir;
+        }
+
+        return Path.IsPathRooted(sourceParent) ? sourceParent : Path.Combine(projectDir, sourceParent);
+    }
+
+    private static void ValidateBundleItems(IEnumerable<BundleItem> items, HashSet<string> itemNames, List<string> errors)
+    {
+        foreach (var item in items)
+        {
+            if (string.IsNullOrWhiteSpace(item.Name))
+            {
+                errors.Add("Bundle item has empty name");
+            }
+            else if (!itemNames.Add(item.Name))
+            {
+                errors.Add($"Duplicate bundle item name: {item.Name}");
+            }
+
+            if (item.Files.Count == 0)
+            {
+                errors.Add($"Bundle item '{item.Name}' has no files");
+            }
+        }
+    }
+
+    private static void ValidateBundlePacks(IEnumerable<BundlePack> packs, HashSet<string> itemNames, List<string> errors)
+    {
+        foreach (var pack in packs)
+        {
+            if (string.IsNullOrWhiteSpace(pack.Name))
+            {
+                errors.Add("Bundle pack has empty name");
+            }
+
+            foreach (var itemName in pack.ItemNames.Where(itemName => !itemNames.Contains(itemName)))
+            {
+                errors.Add($"Bundle pack '{pack.Name}' references unknown item: {itemName}");
+            }
+        }
+    }
+
+    private void ValidateDirectoriesAndTools(BuildConfiguration configuration)
+    {
+        if (!string.IsNullOrEmpty(configuration.Folders.AbsBuildDir) && !Directory.Exists(configuration.Folders.AbsBuildDir))
+        {
+            logger.LogWarning("Build directory does not exist: {Path}", configuration.Folders.AbsBuildDir);
+        }
+
+        if (!string.IsNullOrEmpty(configuration.Folders.AbsGameDir) && !Directory.Exists(configuration.Folders.AbsGameDir))
+        {
+            logger.LogWarning("Game directory does not exist: {Path}", configuration.Folders.AbsGameDir);
+        }
+
+        foreach (var tool in configuration.Tools.Where(tool => !string.IsNullOrEmpty(tool.Value.AbsExe) && !File.Exists(tool.Value.AbsExe)))
+        {
+            logger.LogWarning("Tool executable not found: {Tool} at {Path}", tool.Key, tool.Value.AbsExe);
+        }
+    }
+
+    private static FolderConfiguration MergeFolderConfig(FolderConfiguration baseFolders, FolderConfiguration overrideFolders)
+    {
+        return new FolderConfiguration
+        {
+            AbsBuildDir = string.IsNullOrEmpty(overrideFolders.AbsBuildDir) ? baseFolders.AbsBuildDir : overrideFolders.AbsBuildDir,
+            AbsReleaseDir = string.IsNullOrEmpty(overrideFolders.AbsReleaseDir) ? baseFolders.AbsReleaseDir : overrideFolders.AbsReleaseDir,
+            AbsGameDir = string.IsNullOrEmpty(overrideFolders.AbsGameDir) ? baseFolders.AbsGameDir : overrideFolders.AbsGameDir
+        };
+    }
+
+    private static RunnerConfiguration MergeRunnerConfig(RunnerConfiguration baseRunner, RunnerConfiguration overrideRunner)
+    {
+        return new RunnerConfiguration
+        {
+            AbsExe = string.IsNullOrEmpty(overrideRunner.AbsExe) ? baseRunner.AbsExe : overrideRunner.AbsExe,
+            Args = string.IsNullOrEmpty(overrideRunner.Args) ? baseRunner.Args : overrideRunner.Args,
+            WorkingDir = string.IsNullOrEmpty(overrideRunner.WorkingDir) ? baseRunner.WorkingDir : overrideRunner.WorkingDir,
+            ModFolder = string.IsNullOrEmpty(overrideRunner.ModFolder) ? baseRunner.ModFolder : overrideRunner.ModFolder,
+        };
+    }
+
+    private void MergeItems(BuildConfiguration merged, IEnumerable<BundleItem> overrideItems)
+    {
+        var existingNames = new HashSet<string>(merged.Items.Select(i => i.Name), StringComparer.OrdinalIgnoreCase);
+        foreach (var item in overrideItems)
+        {
+            if (existingNames.Add(item.Name))
+            {
+                merged.Items.Add(item);
+            }
+            else
+            {
+                logger.LogWarning("Skipping duplicate item during merge: {ItemName}", item.Name);
+            }
+        }
+    }
+
+    private void MergePacks(BuildConfiguration merged, IEnumerable<BundlePack> overridePacks)
+    {
+        var existingNames = new HashSet<string>(merged.Packs.Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
+        foreach (var pack in overridePacks)
+        {
+            if (existingNames.Add(pack.Name))
+            {
+                merged.Packs.Add(pack);
+            }
+            else
+            {
+                logger.LogWarning("Skipping duplicate pack during merge: {PackName}", pack.Name);
+            }
+        }
+    }
+
     private async Task<List<string>> DiscoverProjectConfigFilesAsync(string projectDir, CancellationToken cancellationToken)
     {
-        var configFiles = new List<string>();
+        var configFiles = await TryDiscoverFromModJsonFilesAsync(projectDir, cancellationToken).ConfigureAwait(false);
+        if (configFiles.Count > 0)
+        {
+            return configFiles;
+        }
 
-        // 1. Check ModJsonFiles.json master list
-        var modJsonFilesPath = Path.Combine(projectDir, "ModJsonFiles.json");
+        DiscoverFromCandidateDirs(projectDir, configFiles);
+        if (configFiles.Count > 0)
+        {
+            return configFiles;
+        }
+
+        DiscoverFromDirectoryFallback(projectDir, configFiles);
+        return configFiles;
+    }
+
+    private async Task<List<string>> TryDiscoverFromModJsonFilesAsync(string projectDir, CancellationToken cancellationToken)
+    {
+        var result = new List<string>();
+        var modJsonFilesPath = Path.Combine(projectDir, ModJsonFilesFileName);
         if (!File.Exists(modJsonFilesPath))
         {
-            modJsonFilesPath = Path.Combine(projectDir, ModBuilderConstants.ConfigDir, "ModJsonFiles.json");
+            modJsonFilesPath = Path.Combine(projectDir, ModBuilderConstants.ConfigDir, ModJsonFilesFileName);
         }
 
-        if (File.Exists(modJsonFilesPath))
+        if (!File.Exists(modJsonFilesPath))
         {
-            try
-            {
-                var jsonContent = await File.ReadAllTextAsync(modJsonFilesPath, cancellationToken).ConfigureAwait(false);
-                var masterList = JsonSerializer.Deserialize<PythonModJsonFilesConfig>(jsonContent, _jsonOptions);
-                if (masterList?.Build?.Files != null)
-                {
-                    var fullProjectDir = Path.GetFullPath(projectDir);
-                    var projectDirPrefix = fullProjectDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
-                    foreach (var file in masterList.Build.Files)
-                    {
-                        var resolvedPath = Path.GetFullPath(Path.IsPathRooted(file) ? file : Path.Combine(projectDir, file));
-                        if (resolvedPath.StartsWith(projectDirPrefix, StringComparison.OrdinalIgnoreCase) && File.Exists(resolvedPath))
-                        {
-                            configFiles.Add(resolvedPath);
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to parse ModJsonFiles.json at {Path}", modJsonFilesPath);
-            }
+            return result;
         }
 
-        // 2. Direct folder inspection
-        if (configFiles.Count == 0)
+        try
         {
-            var candidateDirs = new[]
+            var jsonContent = await File.ReadAllTextAsync(modJsonFilesPath, cancellationToken).ConfigureAwait(false);
+            var masterList = JsonSerializer.Deserialize<PythonModJsonFilesConfig>(jsonContent, _jsonOptions);
+            if (masterList?.Build?.Files != null)
             {
-                Path.Combine(projectDir, ModBuilderConstants.ConfigDir),
-                Path.Combine(projectDir, "Configs"),
-                Path.Combine(projectDir, "config"),
-                Path.Combine(projectDir, "configs"),
-            };
-
-            foreach (var configDir in candidateDirs.Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase))
-            {
-                var bundleItemsPath = Path.Combine(configDir, ModBuilderConstants.BundleItemsConfigFileName);
-                var bundlePacksPath = Path.Combine(configDir, ModBuilderConstants.BundlePacksConfigFileName);
-
-                if (File.Exists(bundleItemsPath) && !configFiles.Contains(bundleItemsPath, StringComparer.OrdinalIgnoreCase))
+                var fullProjectDir = Path.GetFullPath(projectDir);
+                var prefix = fullProjectDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                foreach (var file in masterList.Build.Files)
                 {
-                    configFiles.Add(bundleItemsPath);
-                }
-
-                if (File.Exists(bundlePacksPath) && !configFiles.Contains(bundlePacksPath, StringComparer.OrdinalIgnoreCase))
-                {
-                    configFiles.Add(bundlePacksPath);
-                }
-
-                if (configFiles.Count == 0)
-                {
-                    var legacyBundlesPath = Path.Combine(configDir, "bundles.json");
-                    if (File.Exists(legacyBundlesPath) && !configFiles.Contains(legacyBundlesPath, StringComparer.OrdinalIgnoreCase))
+                    var resolved = Path.GetFullPath(Path.IsPathRooted(file) ? file : Path.Combine(projectDir, file));
+                    if (resolved.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && File.Exists(resolved))
                     {
-                        configFiles.Add(legacyBundlesPath);
+                        result.Add(resolved);
                     }
-                }
-
-                if (configFiles.Count > 0)
-                {
-                    break;
                 }
             }
         }
-
-        // 3. Fallback recursive discovery
-        if (configFiles.Count == 0)
+        catch (Exception ex)
         {
-            try
-            {
-                foreach (var file in Directory.EnumerateFiles(projectDir, "*.json", SearchOption.AllDirectories))
-                {
-                    var fileName = Path.GetFileName(file).ToLowerInvariant();
-                    if (fileName.StartsWith('.') || fileName.StartsWith('$'))
-                    {
-                        continue;
-                    }
-
-                    if (fileName.Contains("bundle") && (fileName.Contains("items") || fileName.Contains("packs")))
-                    {
-                        configFiles.Add(file);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogDebug(ex, "Recursive config discovery completed with non-fatal warnings");
-            }
+            logger.LogWarning(ex, "Failed to parse ModJsonFiles.json at {Path}", modJsonFilesPath);
         }
 
-        return configFiles;
+        return result;
+    }
+
+    private static void DiscoverFromCandidateDirs(string projectDir, List<string> configFiles)
+    {
+        var candidateDirs = new[]
+        {
+            Path.Combine(projectDir, ModBuilderConstants.ConfigDir),
+            Path.Combine(projectDir, ConfigsDirLower),
+            Path.Combine(projectDir, ConfigDirLower),
+        };
+
+        foreach (var configDir in candidateDirs.Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var bundleItemsPath = Path.Combine(configDir, ModBuilderConstants.BundleItemsConfigFileName);
+            var bundlePacksPath = Path.Combine(configDir, ModBuilderConstants.BundlePacksConfigFileName);
+
+            if (File.Exists(bundleItemsPath) && !configFiles.Contains(bundleItemsPath, StringComparer.OrdinalIgnoreCase))
+            {
+                configFiles.Add(bundleItemsPath);
+            }
+
+            if (File.Exists(bundlePacksPath) && !configFiles.Contains(bundlePacksPath, StringComparer.OrdinalIgnoreCase))
+            {
+                configFiles.Add(bundlePacksPath);
+            }
+
+            if (configFiles.Count == 0)
+            {
+                var legacyBundlesPath = Path.Combine(configDir, BundlesConfigFileName);
+                if (File.Exists(legacyBundlesPath) && !configFiles.Contains(legacyBundlesPath, StringComparer.OrdinalIgnoreCase))
+                {
+                    configFiles.Add(legacyBundlesPath);
+                }
+            }
+
+            if (configFiles.Count > 0)
+            {
+                break;
+            }
+        }
+    }
+
+    private void DiscoverFromDirectoryFallback(string projectDir, List<string> configFiles)
+    {
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(projectDir, "*.json", SearchOption.AllDirectories))
+            {
+                var fileName = Path.GetFileName(file).ToLowerInvariant();
+                if (fileName.StartsWith('.') || fileName.StartsWith('$'))
+                {
+                    continue;
+                }
+
+                if (fileName.Contains("bundle") && (fileName.Contains("items") || fileName.Contains("packs")))
+                {
+                    configFiles.Add(file);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Recursive config discovery completed with non-fatal warnings");
+        }
     }
 
     private async Task ApplyModFoldersOverrideAsync(BuildConfiguration config, string projectDir, CancellationToken cancellationToken)
     {
         var candidatePaths = new[]
         {
-            Path.Combine(projectDir, "ModFolders.json"),
-            Path.Combine(projectDir, ModBuilderConstants.ConfigDir, "ModFolders.json"),
-            Path.Combine(projectDir, "Configs", "ModFolders.json"),
-            Path.Combine(projectDir, "config", "ModFolders.json"),
+            Path.Combine(projectDir, ModFoldersFileName),
+            Path.Combine(projectDir, ModBuilderConstants.ConfigDir, ModFoldersFileName),
+            Path.Combine(projectDir, ConfigsDirLower, ModFoldersFileName),
+            Path.Combine(projectDir, ConfigDirLower, ModFoldersFileName),
         };
 
         var modFoldersPath = candidatePaths.FirstOrDefault(File.Exists);
@@ -673,21 +674,12 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         }
     }
 
-    /// <summary>
-    /// Checks if a path contains wildcard characters.
-    /// </summary>
     private static bool ContainsWildcard(string path)
     {
         return path.Contains('*') || path.Contains('?');
     }
 
-    /// <summary>
-    /// Resolves a wildcard pattern to a list of matching file paths.
-    /// </summary>
-    private async Task<List<string>> ResolveWildcardPatternAsync(
-        string pattern,
-        string basePath,
-        CancellationToken cancellationToken)
+    private async Task<List<string>> ResolveWildcardPatternAsync(string pattern, string basePath)
     {
         var matchedFiles = new List<string>();
 
@@ -711,7 +703,6 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             normalizedPattern = normalizedPattern.TrimStart('/', '\\').Replace('\\', '/');
             matcher.AddInclude(normalizedPattern);
 
-            // If the pattern doesn't already start with GameFilesEdited and GameFilesEdited dir exists, also match inside GameFilesEdited
             var gameFilesDir = Path.Combine(basePath, ModBuilderConstants.GameFilesEditedDir);
             if (!normalizedPattern.StartsWith($"{ModBuilderConstants.GameFilesEditedDir}/", StringComparison.OrdinalIgnoreCase) &&
                 !normalizedPattern.Equals(ModBuilderConstants.GameFilesEditedDir, StringComparison.OrdinalIgnoreCase) &&
@@ -741,81 +732,67 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         }
     }
 
-    /// <summary>
-    /// Determines the target path for a resolved file.
-    /// </summary>
     private static string DetermineTargetPath(string sourceFile, string sourceParent, string targetTemplate)
     {
         var relativePath = Path.GetRelativePath(sourceParent, sourceFile);
-        var normalizedRel = relativePath.Replace('\\', '/');
+        var normalizedRel = StripGameFilesEditedPrefix(relativePath.Replace('\\', '/'));
 
-        // Strip GameFilesEdited/ prefix so the target relative path maps to the game folder structure
-        if (normalizedRel.StartsWith($"{ModBuilderConstants.GameFilesEditedDir}/", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrEmpty(targetTemplate))
         {
-            normalizedRel = normalizedRel.Substring(ModBuilderConstants.GameFilesEditedDir.Length + 1);
-        }
-        else if (normalizedRel.Equals(ModBuilderConstants.GameFilesEditedDir, StringComparison.OrdinalIgnoreCase))
-        {
-            normalizedRel = string.Empty;
+            return normalizedRel;
         }
 
-        if (!string.IsNullOrEmpty(targetTemplate) && ContainsWildcard(targetTemplate))
+        var targetNormalized = StripGameFilesEditedPrefix(targetTemplate.Replace('\\', '/'));
+        if (!ContainsWildcard(targetNormalized))
         {
-            var targetNormalized = targetTemplate.Replace('\\', '/');
-            if (targetNormalized.StartsWith($"{ModBuilderConstants.GameFilesEditedDir}/", StringComparison.OrdinalIgnoreCase))
-            {
-                targetNormalized = targetNormalized.Substring(ModBuilderConstants.GameFilesEditedDir.Length + 1);
-            }
-
-            if (targetNormalized.Contains("**"))
-            {
-                return normalizedRel;
-            }
-
-            if (targetNormalized.Contains('*'))
-            {
-                var targetFileName = Path.GetFileName(targetNormalized);
-
-                if (targetFileName.Contains('*'))
-                {
-                    var sourceExt = Path.GetExtension(sourceFile);
-                    var targetExt = Path.GetExtension(targetNormalized);
-
-                    if (!string.IsNullOrEmpty(targetExt) && targetExt != ".*" && targetExt != sourceExt)
-                    {
-                        var sourceNameWithoutExt = Path.GetFileNameWithoutExtension(sourceFile);
-                        var relativeDir = Path.GetDirectoryName(normalizedRel)?.Replace('\\', '/') ?? string.Empty;
-
-                        if (!string.IsNullOrEmpty(relativeDir))
-                        {
-                            return $"{relativeDir}/{sourceNameWithoutExt}{targetExt}";
-                        }
-
-                        return $"{sourceNameWithoutExt}{targetExt}";
-                    }
-                }
-
-                return normalizedRel;
-            }
-        }
-
-        if (!string.IsNullOrEmpty(targetTemplate))
-        {
-            var targetNormalized = targetTemplate.Replace('\\', '/');
-            if (targetNormalized.StartsWith($"{ModBuilderConstants.GameFilesEditedDir}/", StringComparison.OrdinalIgnoreCase))
-            {
-                targetNormalized = targetNormalized.Substring(ModBuilderConstants.GameFilesEditedDir.Length + 1);
-            }
-
             return targetNormalized;
         }
 
-        return normalizedRel;
+        if (targetNormalized.Contains("**"))
+        {
+            return normalizedRel;
+        }
+
+        return ResolveTargetExtension(sourceFile, normalizedRel, targetNormalized);
     }
 
-    /// <summary>
-    /// Normalizes a path to use forward slashes and removes redundant separators.
-    /// </summary>
+    private static string StripGameFilesEditedPrefix(string path)
+    {
+        if (path.StartsWith($"{ModBuilderConstants.GameFilesEditedDir}/", StringComparison.OrdinalIgnoreCase))
+        {
+            return path.Substring(ModBuilderConstants.GameFilesEditedDir.Length + 1);
+        }
+
+        if (path.Equals(ModBuilderConstants.GameFilesEditedDir, StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Empty;
+        }
+
+        return path;
+    }
+
+    private static string ResolveTargetExtension(string sourceFile, string normalizedRel, string targetNormalized)
+    {
+        var targetFileName = Path.GetFileName(targetNormalized);
+        if (!targetFileName.Contains('*'))
+        {
+            return normalizedRel;
+        }
+
+        var sourceExt = Path.GetExtension(sourceFile);
+        var targetExt = Path.GetExtension(targetNormalized);
+
+        if (string.IsNullOrEmpty(targetExt) || targetExt == ".*" || targetExt == sourceExt)
+        {
+            return normalizedRel;
+        }
+
+        var sourceNameWithoutExt = Path.GetFileNameWithoutExtension(sourceFile);
+        var relativeDir = Path.GetDirectoryName(normalizedRel)?.Replace('\\', '/') ?? string.Empty;
+
+        return string.IsNullOrEmpty(relativeDir) ? $"{sourceNameWithoutExt}{targetExt}" : $"{relativeDir}/{sourceNameWithoutExt}{targetExt}";
+    }
+
     private static string NormalizePath(string path)
     {
         if (string.IsNullOrEmpty(path))
@@ -824,7 +801,6 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         }
 
         var normalized = path.Replace('\\', '/');
-
         while (normalized.Contains("//"))
         {
             normalized = normalized.Replace("//", "/");
@@ -833,13 +809,9 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         return normalized;
     }
 
-    /// <summary>
-    /// Converts Python ModBuilder config format to C# BuildConfiguration.
-    /// </summary>
     private BuildConfiguration ConvertPythonConfig(PythonBundlesConfig pythonConfig, string projectDir)
     {
         logger.LogInformation("Converting Python config format to C# format");
-
         var config = new BuildConfiguration();
 
         if (pythonConfig.Items != null)
@@ -856,7 +828,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         {
             foreach (var pythonPack in pythonConfig.Packs)
             {
-                var pack = new BundlePack
+                config.Packs.Add(new BundlePack
                 {
                     Name = pythonPack.Name,
                     NamePrefix = string.IsNullOrEmpty(pythonPack.NamePrefix) ? pythonConfig.PacksPrefix : pythonPack.NamePrefix,
@@ -865,9 +837,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                     AllowInstall = pythonPack.AllowInstall,
                     SetGameLanguageOnInstall = pythonPack.SetGameLanguageOnInstall,
                     ItemNames = pythonPack.ItemNames ?? new List<string>(),
-                };
-
-                config.Packs.Add(pack);
+                });
             }
         }
 
@@ -906,8 +876,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
     {
         if (registryList is { Count: > 0 })
         {
-            var registryPaths = registryList.Select(r =>
-                Path.IsPathRooted(r) ? r : Path.Combine(projectDir, r)).ToList();
+            var registryPaths = registryList.Select(r => Path.IsPathRooted(r) ? r : Path.Combine(projectDir, r)).ToList();
             bundleFile.RegistryDef = new BundleRegistryDefinition(registryPaths);
         }
 
@@ -920,15 +889,14 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         {
             foreach (var pair in fileGroup.SourceTargetList)
             {
-                var bundleFile = new BundleFile
+                AddBundleFileWithRegistry(item, new BundleFile
                 {
                     AbsSourceParent = sourceParent,
                     AbsSourceFile = pair.Source,
                     RelTargetFile = pair.Target,
                     Params = fileGroup.Params,
                     ExcludeMarkersList = fileGroup.ExcludeMarkersList,
-                };
-                AddBundleFileWithRegistry(item, bundleFile, fileGroup.RegistryList, projectDir);
+                }, fileGroup.RegistryList, projectDir);
             }
         }
 
@@ -936,29 +904,27 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         {
             foreach (var source in fileGroup.SourceList)
             {
-                var bundleFile = new BundleFile
+                AddBundleFileWithRegistry(item, new BundleFile
                 {
                     AbsSourceParent = sourceParent,
                     AbsSourceFile = source,
                     RelTargetFile = source,
                     Params = fileGroup.Params,
                     ExcludeMarkersList = fileGroup.ExcludeMarkersList,
-                };
-                AddBundleFileWithRegistry(item, bundleFile, fileGroup.RegistryList, projectDir);
+                }, fileGroup.RegistryList, projectDir);
             }
         }
 
         if (!string.IsNullOrEmpty(fileGroup.Source) && !string.IsNullOrEmpty(fileGroup.Target))
         {
-            var bundleFile = new BundleFile
+            AddBundleFileWithRegistry(item, new BundleFile
             {
                 AbsSourceParent = sourceParent,
                 AbsSourceFile = fileGroup.Source,
                 RelTargetFile = fileGroup.Target,
                 Params = fileGroup.Params,
                 ExcludeMarkersList = fileGroup.ExcludeMarkersList,
-            };
-            AddBundleFileWithRegistry(item, bundleFile, fileGroup.RegistryList, projectDir);
+            }, fileGroup.RegistryList, projectDir);
         }
     }
 
@@ -966,62 +932,44 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
     {
         if (pythonItem.OnPreBuild != null)
         {
-            var scriptPath = Path.IsPathRooted(pythonItem.OnPreBuild.Script)
-                ? pythonItem.OnPreBuild.Script
-                : Path.Combine(projectDir, pythonItem.OnPreBuild.Script);
             item.Events[BundleEventType.OnPreBuild] = new BundleEvent
             {
                 Type = BundleEventType.OnPreBuild,
-                AbsScript = scriptPath,
+                AbsScript = Path.IsPathRooted(pythonItem.OnPreBuild.Script) ? pythonItem.OnPreBuild.Script : Path.Combine(projectDir, pythonItem.OnPreBuild.Script),
                 FuncName = "OnEvent"
             };
         }
 
         if (pythonItem.OnBuild != null)
         {
-            var scriptPath = Path.IsPathRooted(pythonItem.OnBuild.Script)
-                ? pythonItem.OnBuild.Script
-                : Path.Combine(projectDir, pythonItem.OnBuild.Script);
             item.Events[BundleEventType.OnBuild] = new BundleEvent
             {
                 Type = BundleEventType.OnBuild,
-                AbsScript = scriptPath,
+                AbsScript = Path.IsPathRooted(pythonItem.OnBuild.Script) ? pythonItem.OnBuild.Script : Path.Combine(projectDir, pythonItem.OnBuild.Script),
                 FuncName = "OnEvent"
             };
         }
 
         if (pythonItem.OnPostBuild != null)
         {
-            var scriptPath = Path.IsPathRooted(pythonItem.OnPostBuild.Script)
-                ? pythonItem.OnPostBuild.Script
-                : Path.Combine(projectDir, pythonItem.OnPostBuild.Script);
             item.Events[BundleEventType.OnPostBuild] = new BundleEvent
             {
                 Type = BundleEventType.OnPostBuild,
-                AbsScript = scriptPath,
+                AbsScript = Path.IsPathRooted(pythonItem.OnPostBuild.Script) ? pythonItem.OnPostBuild.Script : Path.Combine(projectDir, pythonItem.OnPostBuild.Script),
                 FuncName = "OnEvent"
             };
         }
     }
 
-    /// <summary>
-    /// Converts simplified config format to C# BuildConfiguration.
-    /// </summary>
     private BuildConfiguration ConvertSimplifiedConfig(SimplifiedConfigRoot simplifiedConfig, string projectDir)
     {
         logger.LogInformation("Converting simplified config format to C# format");
-
         var config = new BuildConfiguration();
 
         if (simplifiedConfig.BundleItems != null)
         {
-            foreach (var simpItem in simplifiedConfig.BundleItems)
+            foreach (var simpItem in simplifiedConfig.BundleItems.Where(i => !string.IsNullOrWhiteSpace(i.Name)))
             {
-                if (string.IsNullOrWhiteSpace(simpItem.Name))
-                {
-                    continue;
-                }
-
                 var item = new BundleItem
                 {
                     Name = simpItem.Name,
@@ -1032,14 +980,12 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                 {
                     foreach (var pattern in simpItem.SourceFiles)
                     {
-                        var bundleFile = new BundleFile
+                        item.Files.Add(new BundleFile
                         {
                             AbsSourceParent = projectDir,
                             AbsSourceFile = pattern,
                             RelTargetFile = string.Empty,
-                        };
-
-                        item.Files.Add(bundleFile);
+                        });
                     }
                 }
 
@@ -1047,25 +993,17 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             }
         }
 
-        var packsList = simplifiedConfig.BundlePacks;
-        if (packsList != null)
+        if (simplifiedConfig.BundlePacks != null)
         {
-            foreach (var simpPack in packsList)
+            foreach (var simpPack in simplifiedConfig.BundlePacks.Where(p => !string.IsNullOrWhiteSpace(p.Name)))
             {
-                if (string.IsNullOrWhiteSpace(simpPack.Name))
-                {
-                    continue;
-                }
-
-                var pack = new BundlePack
+                config.Packs.Add(new BundlePack
                 {
                     Name = simpPack.Name,
                     ItemNames = simpPack.ItemNames ?? simpPack.Items ?? new List<string>(),
                     AllowBuild = simpPack.AllowBuild ?? true,
                     AllowInstall = simpPack.AllowInstall ?? true,
-                };
-
-                config.Packs.Add(pack);
+                });
             }
         }
 
