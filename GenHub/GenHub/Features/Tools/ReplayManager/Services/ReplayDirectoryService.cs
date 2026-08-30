@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
@@ -191,6 +192,11 @@ public sealed class ReplayDirectoryService(
 
             // Ensure base GameInstallation and GameClient manifests are registered in the manifest pool
             await installationService.CreateAndRegisterInstallationManifestsAsync(installation, ct);
+            var clientDetector = scope.ServiceProvider.GetService<IGameClientDetector>();
+            if (clientDetector != null)
+            {
+                await clientDetector.DetectGameClientsFromInstallationsAsync([installation], ct);
+            }
 
             var defaultVersion = replay.GameVersion == GameType.ZeroHour
                 ? ManifestConstants.ZeroHourManifestVersion
@@ -216,6 +222,11 @@ public sealed class ReplayDirectoryService(
                 installationManifestId,
                 clientManifestId,
             };
+
+            if (!isRetailClient)
+            {
+                await AddThirdPartyCompanionManifestsAsync(manifestPool, replay.MatchedClient.Publisher, enabledContentIds, ct);
+            }
 
             if (!string.IsNullOrEmpty(replay.MatchedClient.DataPatchManifestId) &&
                 !enabledContentIds.Contains(replay.MatchedClient.DataPatchManifestId))
@@ -302,6 +313,10 @@ public sealed class ReplayDirectoryService(
 
     private static GameProfile? FindMatchingProfile(IEnumerable<GameProfile> profiles, GameType gameVersion, string clientManifestId, string? dataPatchManifestId)
     {
+        var isRetailClient = clientManifestId.Contains(ReplayManagerConstants.RetailManifestSegment) ||
+                             clientManifestId.Contains(".steam.") ||
+                             clientManifestId.Contains(".eaapp.");
+
         return profiles.FirstOrDefault(p =>
         {
             if (p.GameClient?.GameType != gameVersion)
@@ -309,23 +324,77 @@ public sealed class ReplayDirectoryService(
                 return false;
             }
 
-            var clientMatches = string.Equals(p.GameClient?.Id, clientManifestId, StringComparison.OrdinalIgnoreCase) ||
-                                p.EnabledContentIds?.Any(id => string.Equals(id, clientManifestId, StringComparison.OrdinalIgnoreCase)) == true ||
-                                (clientManifestId.Contains(ReplayManagerConstants.RetailManifestSegment) && p.GameClient?.Id != null &&
-                                 (p.GameClient.Id.Contains(".steam.") || p.GameClient.Id.Contains(".eaapp.") || p.GameClient.Id.Contains(ReplayManagerConstants.RetailManifestSegment)));
-
-            if (!clientMatches)
-            {
-                return false;
-            }
-
-            if (!string.IsNullOrEmpty(dataPatchManifestId))
-            {
-                return p.EnabledContentIds?.Any(id => string.Equals(id, dataPatchManifestId, StringComparison.OrdinalIgnoreCase)) == true;
-            }
-
-            return true;
+            return isRetailClient
+                ? IsProfileMatchingRetail(p, dataPatchManifestId)
+                : IsProfileMatchingThirdParty(p, clientManifestId, dataPatchManifestId);
         });
+    }
+
+    private static bool IsProfileMatchingRetail(GameProfile profile, string? dataPatchManifestId)
+    {
+        var isProfileThirdParty = string.Equals(profile.GameClient?.PublisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                                  string.Equals(profile.GameClient?.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+                                  (profile.GameClient?.Id != null && (profile.GameClient.Id.Contains(".superhackers.") || profile.GameClient.Id.Contains(".generalsonline."))) ||
+                                  (profile.EnabledContentIds != null && profile.EnabledContentIds.Any(id => id.Contains(".superhackers.") || id.Contains(".generalsonline.")));
+
+        if (isProfileThirdParty)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(dataPatchManifestId))
+        {
+            return profile.EnabledContentIds != null && profile.EnabledContentIds.Any(id => string.Equals(id, dataPatchManifestId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var hasCustomDataPatch = profile.EnabledContentIds != null && profile.EnabledContentIds.Any(id =>
+            id.Contains(".gamedata.") || id.Contains(".datapatch.") || id.Contains(".community.") || id.Contains(".mod."));
+
+        return !hasCustomDataPatch;
+    }
+
+    private static bool IsProfileMatchingThirdParty(GameProfile profile, string clientManifestId, string? dataPatchManifestId)
+    {
+        var clientMatches = string.Equals(profile.GameClient?.Id, clientManifestId, StringComparison.OrdinalIgnoreCase) ||
+                            profile.EnabledContentIds?.Any(id => string.Equals(id, clientManifestId, StringComparison.OrdinalIgnoreCase)) == true;
+
+        if (!clientMatches)
+        {
+            var publisher = ExtractPublisherFromManifestId(clientManifestId);
+            if (!string.IsNullOrEmpty(publisher) &&
+                (string.Equals(profile.GameClient?.PublisherType, publisher, StringComparison.OrdinalIgnoreCase) ||
+                 (profile.EnabledContentIds != null && profile.EnabledContentIds.Any(id => id.Contains("." + publisher + ".")))))
+            {
+                clientMatches = true;
+            }
+        }
+
+        if (!clientMatches)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(dataPatchManifestId))
+        {
+            return profile.EnabledContentIds?.Any(id => string.Equals(id, dataPatchManifestId, StringComparison.OrdinalIgnoreCase)) == true;
+        }
+
+        return true;
+    }
+
+    private static string ExtractPublisherFromManifestId(string manifestId)
+    {
+        if (manifestId.Contains(".generalsonline.", StringComparison.OrdinalIgnoreCase))
+        {
+            return PublisherTypeConstants.GeneralsOnline;
+        }
+
+        if (manifestId.Contains(".superhackers.", StringComparison.OrdinalIgnoreCase))
+        {
+            return PublisherTypeConstants.TheSuperHackers;
+        }
+
+        return string.Empty;
     }
 
     private static GameInstallation? ResolveInstallation(IReadOnlyList<GameInstallation> installations, GameType gameVersion)
@@ -410,6 +479,75 @@ public sealed class ReplayDirectoryService(
         replay.CompatibilityStatus = DetermineUnconfiguredStatus(match, isInstalled);
     }
 
+    private static async Task<string> ResolveThirdPartyClientManifestIdAsync(
+        IContentManifestPool manifestPool,
+        string manifestId,
+        string? publisher,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(manifestId))
+        {
+            return string.Empty;
+        }
+
+        var exactCheck = await manifestPool.GetManifestAsync(ManifestId.Create(manifestId), ct);
+        if (exactCheck != null && exactCheck.Success && exactCheck.Data != null)
+        {
+            return exactCheck.Data.Id.Value;
+        }
+
+        if (string.IsNullOrEmpty(publisher))
+        {
+            return manifestId;
+        }
+
+        var allManifests = await manifestPool.GetAllManifestsAsync(ct);
+        if (allManifests != null && allManifests.Success && allManifests.Data != null)
+        {
+            var providerClient = allManifests.Data.FirstOrDefault(m =>
+                m.ContentType == ContentType.GameClient &&
+                (string.Equals(m.Publisher?.PublisherType, publisher, StringComparison.OrdinalIgnoreCase) ||
+                 m.Id.Value.Contains("." + publisher + ".")));
+            if (providerClient != null)
+            {
+                return providerClient.Id.Value;
+            }
+        }
+
+        return manifestId;
+    }
+
+    private static async Task AddThirdPartyCompanionManifestsAsync(
+        IContentManifestPool manifestPool,
+        string? publisher,
+        List<string> enabledContentIds,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(publisher))
+        {
+            return;
+        }
+
+        var allManifests = await manifestPool.GetAllManifestsAsync(ct);
+        if (allManifests == null || !allManifests.Success || allManifests.Data == null)
+        {
+            return;
+        }
+
+        var companionManifests = allManifests.Data.Where(m =>
+            (m.ContentType == ContentType.Patch || m.ContentType == ContentType.MapPack) &&
+            (string.Equals(m.Publisher?.PublisherType, publisher, StringComparison.OrdinalIgnoreCase) ||
+             m.Id.Value.Contains("." + publisher + ".")));
+
+        foreach (var companion in companionManifests)
+        {
+            if (!enabledContentIds.Contains(companion.Id.Value))
+            {
+                enabledContentIds.Add(companion.Id.Value);
+            }
+        }
+    }
+
     private static async Task AcquireGeneralsOnlineMapPacksAsync(IContentOrchestrator contentOrchestrator, CancellationToken ct)
     {
         var mapPackQuery = new ContentSearchQuery
@@ -419,11 +557,50 @@ public sealed class ReplayDirectoryService(
             TargetGame = GameType.ZeroHour,
         };
         var mapPackResult = await contentOrchestrator.SearchAsync(mapPackQuery, ct);
-        if (mapPackResult.Success && mapPackResult.Data != null)
+        if (mapPackResult != null && mapPackResult.Success && mapPackResult.Data != null)
         {
             foreach (var item in mapPackResult.Data)
             {
                 await contentOrchestrator.AcquireContentAsync(item, null, ct);
+            }
+        }
+    }
+
+    private static async Task AcquireDataPatchIfMissingAsync(
+        IContentOrchestrator? contentOrchestrator,
+        IContentManifestPool manifestPool,
+        string dataPatchManifestId,
+        string? publisher,
+        GameType gameVersion,
+        CancellationToken ct)
+    {
+        if (contentOrchestrator == null || string.IsNullOrEmpty(dataPatchManifestId))
+        {
+            return;
+        }
+
+        var dataPatchManifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(dataPatchManifestId), ct);
+        if (dataPatchManifestResult != null && dataPatchManifestResult.Success && dataPatchManifestResult.Data != null)
+        {
+            return;
+        }
+
+        var dataPatchQuery = new ContentSearchQuery
+        {
+            ProviderName = publisher,
+            ContentType = ContentType.Patch,
+            TargetGame = gameVersion,
+        };
+        var dataPatchSearch = await contentOrchestrator.SearchAsync(dataPatchQuery, ct);
+        if (dataPatchSearch != null && dataPatchSearch.Success && dataPatchSearch.Data != null)
+        {
+            var patchMatch = dataPatchSearch.Data.FirstOrDefault(c =>
+                string.Equals(c.Id, dataPatchManifestId, StringComparison.OrdinalIgnoreCase))
+                ?? dataPatchSearch.Data.FirstOrDefault();
+
+            if (patchMatch != null)
+            {
+                await contentOrchestrator.AcquireContentAsync(patchMatch, null, ct);
             }
         }
     }
@@ -482,6 +659,7 @@ public sealed class ReplayDirectoryService(
         if (replay.MatchedClient != null)
         {
             await AcquireThirdPartyClientAndDependenciesAsync(contentOrchestrator, manifestPool, replay.MatchedClient, replay.GameVersion, ct);
+            thirdPartyManifestId = await ResolveThirdPartyClientManifestIdAsync(manifestPool, thirdPartyManifestId, replay.MatchedClient.Publisher, ct);
         }
 
         var thirdPartyClientName = replay.MatchedClient?.Description ?? $"{replay.MatchedClient?.Publisher} {replay.MatchedClient?.Version}";
@@ -513,7 +691,7 @@ public sealed class ReplayDirectoryService(
         }
 
         var clientManifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(matchedClient.ManifestId), ct);
-        if (clientManifestResult.Success && clientManifestResult.Data != null)
+        if (clientManifestResult != null && clientManifestResult.Success && clientManifestResult.Data != null)
         {
             return;
         }
@@ -526,7 +704,7 @@ public sealed class ReplayDirectoryService(
             TargetGame = gameVersion,
         };
         var searchResult = await contentOrchestrator.SearchAsync(searchQuery, ct);
-        if (searchResult.Success && searchResult.Data != null)
+        if (searchResult != null && searchResult.Success && searchResult.Data != null)
         {
             var match = searchResult.Data.FirstOrDefault(c =>
                 string.Equals(c.Id, matchedClient.ManifestId, StringComparison.OrdinalIgnoreCase) ||
@@ -536,7 +714,7 @@ public sealed class ReplayDirectoryService(
             if (match != null)
             {
                 var acquireResult = await contentOrchestrator.AcquireContentAsync(match, null, ct);
-                if (!acquireResult.Success)
+                if (acquireResult != null && !acquireResult.Success)
                 {
                     logger.LogWarning("Failed to acquire client manifest {ManifestId}: {Error}", matchedClient.ManifestId, acquireResult.FirstError);
                 }
@@ -547,45 +725,6 @@ public sealed class ReplayDirectoryService(
         if (string.Equals(matchedClient.Publisher, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
         {
             await AcquireGeneralsOnlineMapPacksAsync(contentOrchestrator, ct);
-        }
-    }
-
-    private async Task AcquireDataPatchIfMissingAsync(
-        IContentOrchestrator? contentOrchestrator,
-        IContentManifestPool manifestPool,
-        string dataPatchManifestId,
-        string? publisher,
-        GameType gameVersion,
-        CancellationToken ct)
-    {
-        if (contentOrchestrator == null || string.IsNullOrEmpty(dataPatchManifestId))
-        {
-            return;
-        }
-
-        var dataPatchManifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(dataPatchManifestId), ct);
-        if (dataPatchManifestResult.Success && dataPatchManifestResult.Data != null)
-        {
-            return;
-        }
-
-        var dataPatchQuery = new ContentSearchQuery
-        {
-            ProviderName = publisher,
-            ContentType = ContentType.Patch,
-            TargetGame = gameVersion,
-        };
-        var dataPatchSearch = await contentOrchestrator.SearchAsync(dataPatchQuery, ct);
-        if (dataPatchSearch.Success && dataPatchSearch.Data != null)
-        {
-            var patchMatch = dataPatchSearch.Data.FirstOrDefault(c =>
-                string.Equals(c.Id, dataPatchManifestId, StringComparison.OrdinalIgnoreCase))
-                ?? dataPatchSearch.Data.FirstOrDefault();
-
-            if (patchMatch != null)
-            {
-                await contentOrchestrator.AcquireContentAsync(patchMatch, null, ct);
-            }
         }
     }
 
