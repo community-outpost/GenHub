@@ -495,60 +495,15 @@ public abstract class BasePackageDeploymentFix(
         var hasRollbackError = false;
         foreach (var (destPath, existedBefore, backupPath) in backupEntries)
         {
-            try
-            {
-                if (existedBefore)
-                {
-                    if (!string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
-                    {
-                        File.Copy(backupPath, destPath, overwrite: true);
-                        DeleteFileSafely(backupPath);
-                    }
-                    else
-                    {
-                        hasRollbackError = true;
-                        Logger.LogWarning("Original backup missing for {DestPath} during rollback", destPath);
-                    }
-                }
-                else if (File.Exists(destPath))
-                {
-                    DeleteFileSafely(destPath);
-                    if (File.Exists(destPath))
-                    {
-                        hasRollbackError = true;
-                    }
-                }
-            }
-            catch (IOException ex)
+            if (!RollbackEntry(destPath, existedBefore, backupPath))
             {
                 hasRollbackError = true;
-                Logger.LogWarning(ex, "Failed to restore or remove file during rollback: {Path}", destPath);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                hasRollbackError = true;
-                Logger.LogWarning(ex, "Permission denied restoring or removing file during rollback: {Path}", destPath);
             }
         }
 
         if (!hasRollbackError)
         {
-            try
-            {
-                if (Directory.Exists(backupDir) && !Directory.EnumerateFileSystemEntries(backupDir).Any())
-                {
-                    DeleteDirectorySafely(backupDir);
-                }
-            }
-            catch (IOException ex)
-            {
-                Logger.LogWarning(ex, "Failed to inspect or delete empty backup directory {BackupDir} during rollback", backupDir);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                Logger.LogWarning(ex, "Permission denied inspecting or deleting empty backup directory {BackupDir} during rollback", backupDir);
-            }
-
+            CleanupEmptyBackupDirectory(backupDir);
             details.Add("✓ Rollback completed.");
         }
         else
@@ -814,6 +769,65 @@ public abstract class BasePackageDeploymentFix(
             Logger.LogWarning(ex, "Permission denied creating marker file for {Name}", PackageDisplayName);
             DeleteFileSafely(tempMarker);
             return false;
+        }
+    }
+
+    private bool RollbackEntry(string destPath, bool existedBefore, string? backupPath)
+    {
+        try
+        {
+            if (existedBefore)
+            {
+                if (!string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
+                {
+                    File.Copy(backupPath, destPath, overwrite: true);
+                    DeleteFileSafely(backupPath);
+                    return true;
+                }
+
+                Logger.LogWarning("Original backup missing for {DestPath} during rollback", destPath);
+                return false;
+            }
+
+            if (File.Exists(destPath))
+            {
+                DeleteFileSafely(destPath);
+                if (File.Exists(destPath))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        catch (IOException ex)
+        {
+            Logger.LogWarning(ex, "Failed to restore or remove file during rollback: {Path}", destPath);
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Logger.LogWarning(ex, "Permission denied restoring or removing file during rollback: {Path}", destPath);
+            return false;
+        }
+    }
+
+    private void CleanupEmptyBackupDirectory(string backupDir)
+    {
+        try
+        {
+            if (Directory.Exists(backupDir) && !Directory.EnumerateFileSystemEntries(backupDir).Any())
+            {
+                DeleteDirectorySafely(backupDir);
+            }
+        }
+        catch (IOException ex)
+        {
+            Logger.LogWarning(ex, "Failed to inspect or delete empty backup directory {BackupDir} during rollback", backupDir);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Logger.LogWarning(ex, "Permission denied inspecting or deleting empty backup directory {BackupDir} during rollback", backupDir);
         }
     }
 }
