@@ -265,7 +265,7 @@ public class CsvGenerator(ILogger logger)
         using var sha256 = SHA256.Create();
 
         var buffer = new byte[IoConstants.DefaultFileBufferSize];
-        int bytesRead;
+        var bytesRead = 0;
 
         while ((bytesRead = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
         {
@@ -273,8 +273,8 @@ public class CsvGenerator(ILogger logger)
             sha256.TransformBlock(buffer, 0, bytesRead, null, 0);
         }
 
-        md5.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
-        sha256.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+        md5.TransformFinalBlock([], 0, 0);
+        sha256.TransformFinalBlock([], 0, 0);
 
         return (
             Convert.ToHexString(md5.Hash!).ToLowerInvariant(),
