@@ -137,7 +137,7 @@ public sealed class LinuxSingleInstanceManager : ISingleInstanceCommandReceiver,
 
         try
         {
-            _pipeListenerTask?.Wait(TimeSpan.FromSeconds(1));
+            _pipeListenerTask?.Wait(TimeSpan.FromSeconds(1), CancellationToken.None);
         }
         catch
         {
