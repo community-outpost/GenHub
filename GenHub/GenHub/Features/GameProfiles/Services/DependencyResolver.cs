@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
@@ -20,9 +21,6 @@ public class DependencyResolver(
     IContentManifestPool manifestPool,
     ILogger<DependencyResolver> logger) : IDependencyResolver
 {
-    private readonly IContentManifestPool _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
-    private readonly ILogger<DependencyResolver> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
     /// <summary>
     /// Matches a declared catalog ID to an acquired manifest ID allowing version and variant differences.
     /// </summary>
@@ -86,7 +84,19 @@ public class DependencyResolver(
             return true;
         }
 
-        return acquiredName.StartsWith(declaredName + ManifestConstants.VariantSeparator, StringComparison.OrdinalIgnoreCase);
+        if (acquiredName.StartsWith(declaredName + ManifestConstants.VariantSeparator, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // Allow publisher client or installation variants (e.g. 60hz, unlocked, eac-zerohour)
+        if (declaredParts[3].Equals(ContentType.GameClient.ToManifestIdString(), StringComparison.OrdinalIgnoreCase) ||
+            declaredParts[3].Equals(ContentType.GameInstallation.ToManifestIdString(), StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return false;
     }
 
     /// <inheritdoc/>
@@ -101,16 +111,17 @@ public class DependencyResolver(
         {
             var contentId = toProcess.Dequeue();
             if (!visited.Add(contentId))
+            {
                 continue;
+            }
 
             resolvedIds.Add(contentId);
 
             try
             {
-                var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(contentId), cancellationToken);
-                if (manifestResult.Success && manifestResult.Data != null)
+                var manifest = await ResolveManifestWithFallbackAsync(contentId, cancellationToken);
+                if (manifest != null)
                 {
-                    var manifest = manifestResult.Data;
                     if (manifest.Dependencies != null)
                     {
                         var relevantDeps = manifest.Dependencies.Where(d => d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall);
@@ -119,7 +130,7 @@ public class DependencyResolver(
                             // Skip default/placeholder IDs - these are generic type-based constraints validated separately
                             if (dep.Id.ToString() == ManifestConstants.DefaultContentDependencyId)
                             {
-                                _logger.LogDebug("Skipping generic dependency {DependencyName} (type-based constraint, not specific manifest)", dep.Name);
+                                logger.LogDebug("Skipping generic dependency {DependencyName} (type-based constraint, not specific manifest)", dep.Name);
                                 continue;
                             }
 
@@ -127,12 +138,10 @@ public class DependencyResolver(
                             // These use semantic IDs like "1.104.any.gameinstallation.zerohour" and are validated separately
                             if (!dep.StrictPublisher)
                             {
-                                _logger.LogDebug("Skipping type-based dependency {DependencyName} (StrictPublisher=false, validated by type matching)", dep.Name);
+                                logger.LogDebug("Skipping type-based dependency {DependencyName} (StrictPublisher=false, validated by type matching)", dep.Name);
                                 continue;
                             }
 
-                            // TODO: AutoInstall dependencies are resolved here but not automatically installed.
-                            // Future PR should implement IAutoInstallService to acquire missing AutoInstall content.
                             if (!resolvedIds.Contains(dep.Id))
                             {
                                 toProcess.Enqueue(dep.Id);
@@ -142,16 +151,14 @@ public class DependencyResolver(
                 }
                 else
                 {
-                    // Manifest not found - log and collect missing IDs
                     missingContentIds.Add(contentId);
-                    _logger.LogWarning("Manifest not found for content ID: {ContentId}", contentId);
+                    await LogMissingManifestDiagnosticAsync(contentId, cancellationToken);
                 }
             }
             catch (ArgumentException ex)
             {
-                // Invalid ID - log and collect as missing
                 missingContentIds.Add(contentId);
-                _logger.LogWarning(ex, "Invalid manifest ID during dependency resolution: {ContentId}", contentId);
+                logger.LogWarning(ex, "Invalid manifest ID during dependency resolution: {ContentId}", contentId);
             }
         }
 
@@ -183,22 +190,23 @@ public class DependencyResolver(
             {
                 var circularWarning = $"Circular dependency detected: '{contentId}' is already in the resolution path";
                 warnings.Add(circularWarning);
-                _logger.LogWarning("Circular dependency detected: {ContentId} is already in the resolution path", contentId);
+                logger.LogWarning("Circular dependency detected: {ContentId} is already in the resolution path", contentId);
                 continue;
             }
 
             if (!visited.Add(contentId))
+            {
                 continue;
+            }
 
             processingStack.Add(contentId);
             resolvedIds.Add(contentId);
 
             try
             {
-                var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(contentId), cancellationToken);
-                if (manifestResult.Success && manifestResult.Data != null)
+                var manifest = await ResolveManifestWithFallbackAsync(contentId, cancellationToken);
+                if (manifest != null)
                 {
-                    var manifest = manifestResult.Data;
                     resolvedManifests.Add(manifest);
 
                     if (manifest.Dependencies != null)
@@ -209,7 +217,7 @@ public class DependencyResolver(
                             // Skip default/placeholder IDs - these are generic type-based constraints validated separately
                             if (dep.Id.ToString() == ManifestConstants.DefaultContentDependencyId)
                             {
-                                _logger.LogDebug("Skipping generic dependency {DependencyName} (type-based constraint, not specific manifest)", dep.Name);
+                                logger.LogDebug("Skipping generic dependency {DependencyName} (type-based constraint, not specific manifest)", dep.Name);
                                 continue;
                             }
 
@@ -217,11 +225,17 @@ public class DependencyResolver(
                             // These use semantic IDs like "1.104.any.gameinstallation.zerohour" and are validated separately
                             if (!dep.StrictPublisher)
                             {
-                                _logger.LogDebug("Skipping type-based dependency {DependencyName} (StrictPublisher=false, validated by type matching)", dep.Name);
+                                logger.LogDebug("Skipping type-based dependency {DependencyName} (StrictPublisher=false, validated by type matching)", dep.Name);
                                 continue;
                             }
 
-                            if (!resolvedIds.Contains(dep.Id))
+                            if (visited.Contains(dep.Id))
+                            {
+                                var circularWarning = $"Circular dependency detected: '{dep.Id}' is already in the resolution path";
+                                warnings.Add(circularWarning);
+                                logger.LogWarning("Circular dependency detected: {ContentId} is already in the resolution path", dep.Id);
+                            }
+                            else if (!resolvedIds.Contains(dep.Id))
                             {
                                 toProcess.Enqueue(dep.Id);
                             }
@@ -230,16 +244,14 @@ public class DependencyResolver(
                 }
                 else
                 {
-                    // Manifest not found
                     missingContentIds.Add(contentId);
-                    _logger.LogWarning("Manifest not found for content ID: {ContentId}", contentId);
+                    await LogMissingManifestDiagnosticAsync(contentId, cancellationToken);
                 }
             }
             catch (ArgumentException ex)
             {
-                // Invalid ID
                 missingContentIds.Add(contentId);
-                _logger.LogWarning(ex, "Invalid manifest ID during dependency resolution: {ContentId}", contentId);
+                logger.LogWarning(ex, "Invalid manifest ID during dependency resolution: {ContentId}", contentId);
             }
             finally
             {
@@ -258,5 +270,54 @@ public class DependencyResolver(
         }
 
         return DependencyResolutionResult.CreateSuccess([..resolvedIds], resolvedManifests, missingContentIds);
+    }
+
+    private async Task<ContentManifest?> ResolveManifestWithFallbackAsync(string contentId, CancellationToken cancellationToken)
+    {
+        if (ManifestId.TryCreate(contentId, out var manifestId))
+        {
+            var exactResult = await manifestPool.GetManifestAsync(manifestId, cancellationToken);
+            if (exactResult.Success && exactResult.Data != null)
+            {
+                return exactResult.Data;
+            }
+        }
+
+        // Fallback: Check manifest pool for compatible catalog identity
+        var allManifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
+        if (allManifestsResult.Success && allManifestsResult.Data != null)
+        {
+            var declaredParts = contentId.Split(ManifestConstants.ManifestIdSegmentSeparator);
+            ContentManifest? compatibleManifest = allManifestsResult.Data.FirstOrDefault(m =>
+            {
+                var acquiredParts = m.Id.Value.Split(ManifestConstants.ManifestIdSegmentSeparator);
+                return HasCompatibleCatalogIdentity(declaredParts, acquiredParts);
+            });
+
+            if (compatibleManifest != null)
+            {
+                logger.LogInformation(
+                    "[DependencyResolver] Resolved declared content ID '{DeclaredId}' to compatible pool manifest '{AcquiredId}' ({ManifestName})",
+                    contentId,
+                    compatibleManifest.Id.Value,
+                    compatibleManifest.Name);
+                return compatibleManifest;
+            }
+        }
+
+        return null;
+    }
+
+    private async Task LogMissingManifestDiagnosticAsync(string contentId, CancellationToken cancellationToken)
+    {
+        var allManifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
+        var availableIds = allManifestsResult.Success && allManifestsResult.Data != null
+            ? string.Join(", ", allManifestsResult.Data.Select(m => m.Id.Value))
+            : "none";
+
+        logger.LogWarning(
+            "[DependencyResolver] Manifest not found for content ID: {ContentId}. Available manifests in pool: [{AvailableIds}]",
+            contentId,
+            availableIds);
     }
 }

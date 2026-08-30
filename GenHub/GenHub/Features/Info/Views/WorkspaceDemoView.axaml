@@ -66,7 +66,7 @@
             <!-- Footer / Progress -->
             <StackPanel Grid.Row="2" Margin="0,15,0,0" Spacing="8">
                 <ProgressBar Value="{Binding Progress}" Height="4" Background="{DynamicResource SurfaceHoverBrush}" Foreground="{DynamicResource AccentBrush}"/>
-                <TextBlock Text="💡 This process creates a full 'virtual' game installation in milliseconds using almost zero disk space."
+                <TextBlock Text="This process creates a full 'virtual' game installation in milliseconds using almost zero disk space."
                            FontSize="11" Foreground="#666" HorizontalAlignment="Center" FontStyle="Italic"/>
             </StackPanel>
         </Grid>

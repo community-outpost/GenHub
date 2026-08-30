@@ -1,3 +1,5 @@
+using System;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -6,9 +8,9 @@ namespace GenHub.Core.Constants;
 public static class ReplayManagerConstants
 {
     /// <summary>
-    /// Maximum size for a single replay file in bytes (1 MB).
+    /// Maximum size for a single replay file in bytes (10 MB).
     /// </summary>
-    public const long MaxReplaySizeBytes = 1024 * 1024;
+    public const long MaxReplaySizeBytes = 10 * 1024 * 1024;
 
     /// <summary>
     /// Maximum allowed entries in a replay ZIP archive.
@@ -74,4 +76,56 @@ public static class ReplayManagerConstants
     /// Mock path separator indicator for demo environments on Unix.
     /// </summary>
     public const string UnixMockPathSegment = ToolConstants.UnixMockPathSegment;
+
+    /// <summary>
+    /// Replay file magic header bytes ("GENREP").
+    /// </summary>
+    public const string ReplayHeaderMagic = "GENREP";
+
+    /// <summary>
+    /// Initial buffer size in bytes for reading replay headers (16 KB).
+    /// </summary>
+    public const int ReplayHeaderBufferSize = 16384;
+
+    /// <summary>
+    /// Minimum size in bytes required for a valid replay header (28 bytes).
+    /// </summary>
+    public const int MinReplayHeaderSizeBytes = 28;
+
+    /// <summary>
+    /// Fixed offset in bytes to skip the replay magic header and initial fixed metadata fields.
+    /// </summary>
+    public const int ReplayHeaderInitialOffsetBytes = 28;
+
+    /// <summary>
+    /// Default GitHub URL providing the authoritative community CRC mapping catalog.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official GenHub endpoint for community gameclient CRC catalog.")]
+    public const string DefaultCrcCatalogUrl = "https://raw.githubusercontent.com/community-outpost/GenHub/development/GenHub/GenHub/Resources/crc-mapping.json";
+
+    /// <summary>
+    /// Fallback alias for backward compatibility.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official GenHub endpoint for community gameclient CRC catalog.")]
+    public const string DefaultCrcCatalogGistUrl = DefaultCrcCatalogUrl;
+
+    /// <summary>
+    /// Cache key for storing the parsed CRC catalog in the dynamic content cache.
+    /// </summary>
+    public const string CrcCatalogCacheKey = "ReplayManager:CrcCatalog";
+
+    /// <summary>
+    /// Local offline fallback file name for storing cached CRC mappings in app data directory.
+    /// </summary>
+    public const string CrcCatalogLocalFileName = "crc-mapping.json";
+
+    /// <summary>
+    /// Manifest segment indicating official retail distribution.
+    /// </summary>
+    public const string RetailManifestSegment = ".retail.";
+
+    /// <summary>
+    /// Default update polling interval for checking new CRC catalog releases (24 hours).
+    /// </summary>
+    public static readonly TimeSpan DefaultCatalogUpdateInterval = TimeSpan.FromHours(24);
 }

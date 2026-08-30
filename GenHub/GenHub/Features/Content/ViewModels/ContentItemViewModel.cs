@@ -203,10 +203,10 @@ public partial class ContentItemViewModel : ObservableObject
 
             if (RequiredDependencyNames.Count == 1)
             {
-                return $"⚠️ Requires: {RequiredDependencyNames[0]}";
+                return $"Requires: {RequiredDependencyNames[0]}";
             }
 
-            return $"⚠️ Requires: {string.Join(", ", RequiredDependencyNames)}";
+            return $"Requires: {string.Join(", ", RequiredDependencyNames)}";
         }
     }
 }

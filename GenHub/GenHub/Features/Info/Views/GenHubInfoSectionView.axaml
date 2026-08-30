@@ -454,7 +454,7 @@
 
             <Border Classes="demo-container">
                <StackPanel Spacing="20">
-                  <TextBlock Text="💡 TIP: You can resize this demo window by dragging the right or bottom edge!"
+                  <TextBlock Text="TIP: You can resize this demo window by dragging the right or bottom edge!"
                              FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"/>
 
                   <Grid HorizontalAlignment="Center">
@@ -535,7 +535,7 @@
 
             <Border Classes="demo-container">
                <StackPanel Spacing="20">
-                  <TextBlock Text="💡 TIP: You can resize this demo window by dragging the right or bottom edge!"
+                  <TextBlock Text="TIP: You can resize this demo window by dragging the right or bottom edge!"
                              FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"/>
 
                   <Grid HorizontalAlignment="Center">

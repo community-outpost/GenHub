@@ -25,7 +25,7 @@ public sealed class MapManagerToolPlugin : IToolPlugin
         Version = "1.0.0",
         Author = AppConstants.AppName,
         Description = MapManagerConstants.ToolDescription,
-        IconPath = "🗺️",
+        IconPath = MapManagerConstants.IconPath,
         IsBundled = true,
         Tags = ["Content Management"],
     };

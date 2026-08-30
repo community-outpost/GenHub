@@ -83,6 +83,7 @@ and additional project-specific preferences.
 - **Comments**: Use XML documentation comments for all public and protected classes, interfaces, properties and methods.
 - **File Structure**: One top-level type per file.
 - **Error Handling**: Use exceptions appropriately; avoid empty catch blocks.
+- **No Unicode Emojis**: Never use emojis in code, comments, log messages, UI strings, dialogs, or documentation. Use clean semantic text or vector icons.
 
 ---
 

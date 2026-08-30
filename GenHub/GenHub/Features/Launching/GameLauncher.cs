@@ -1219,11 +1219,20 @@ public class GameLauncher(
         CancellationToken cancellationToken)
     {
         var enabledIds = profile.EnabledContentIds ?? Enumerable.Empty<string>();
-        logger.LogDebug("[GameLauncher] Resolving {Count} enabled content manifests with dependencies", profile.EnabledContentIds?.Count ?? 0);
+        logger.LogInformation(
+            "[GameLauncher] Resolving {Count} enabled content IDs for profile '{ProfileName}': [{ContentIds}]",
+            enabledIds.Count(),
+            profile.Name,
+            string.Join(", ", enabledIds));
+
         var resolutionResult = await dependencyResolver.ResolveDependenciesWithManifestsAsync(enabledIds, cancellationToken);
         if (!resolutionResult.Success)
         {
-            logger.LogError("[GameLauncher] Failed to resolve content dependencies: {Error}", resolutionResult.FirstError);
+            logger.LogError(
+                "[GameLauncher] Failed to resolve content dependencies for profile '{ProfileName}' (ID: {ProfileId}): {Error}",
+                profile.Name,
+                profile.Id,
+                resolutionResult.FirstError);
             return OperationResult<List<ContentManifest>>.CreateFailure($"Failed to resolve content dependencies: {resolutionResult.FirstError}");
         }
 
@@ -1237,7 +1246,7 @@ public class GameLauncher(
 
         var manifests = resolutionResult.ResolvedManifests.ToList();
         logger.LogInformation(
-            "[GameLauncher] Resolved {Count} manifests (from {EnabledCount} enabled IDs, including dependencies)",
+            "[GameLauncher] Successfully resolved {Count} manifests (from {EnabledCount} enabled IDs, including dependencies)",
             manifests.Count,
             enabledIds.Count());
         foreach (var manifest in manifests)

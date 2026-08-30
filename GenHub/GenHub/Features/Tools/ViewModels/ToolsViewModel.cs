@@ -101,13 +101,13 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
             }
             else
             {
-                ShowStatusMessage($"⚠ Failed to load tools: {string.Join(", ", result.Errors)}", error: true);
+                ShowStatusMessage($"Failed to load tools: {string.Join(", ", result.Errors)}", error: true);
                 logger.LogWarning("Failed to load tools: {Errors}", string.Join(", ", result.Errors));
             }
         }
         catch (Exception ex)
         {
-            ShowStatusMessage($"⚠ An error occurred while loading tools: {ex.Message}", error: true);
+            ShowStatusMessage($"An error occurred while loading tools: {ex.Message}", error: true);
             logger.LogError(ex, "Error initializing ToolsViewModel");
         }
         finally
@@ -333,13 +333,13 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
             }
             else
             {
-                ShowStatusMessage($"⚠ Failed to refresh tools: {string.Join(", ", result.Errors)}", error: true);
+                ShowStatusMessage($"Failed to refresh tools: {string.Join(", ", result.Errors)}", error: true);
                 logger.LogWarning("Failed to refresh tools: {Errors}", string.Join(", ", result.Errors));
             }
         }
         catch (Exception ex)
         {
-            ShowStatusMessage($"⚠ An error occurred while refreshing tools: {ex.Message}", error: true);
+            ShowStatusMessage($"An error occurred while refreshing tools: {ex.Message}", error: true);
             logger.LogError(ex, "Error refreshing tools");
         }
         finally

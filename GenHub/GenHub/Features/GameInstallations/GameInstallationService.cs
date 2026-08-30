@@ -534,12 +534,17 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                     gameType == GameType.ZeroHour ? "zerohour" : "generals",
                     normalizedVersion);
 
+                var defaultExe = gameType == GameType.ZeroHour ? GameClientConstants.ZeroHourExecutable : GameClientConstants.GeneralsExecutable;
+                var exePath = Path.Combine(gamePath, defaultExe);
+
                 // Create a game client from the manifest
                 var gameClient = new GameClient
                 {
                     Id = clientId, // Use the proper gameclient ID format
                     Name = matchingManifest.Name,
                     WorkingDirectory = gamePath,
+                    ExecutablePath = exePath,
+                    PublisherType = installType,
                     GameType = gameType,
                     InstallationId = installation.Id,
                     Version = matchingManifest.Version,
