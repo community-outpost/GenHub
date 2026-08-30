@@ -1722,6 +1722,9 @@ public class ProfileSharingService(
                 PublisherType = reqManifest.PublisherType,
                 DownloadSize = reqManifest.DownloadSize,
                 IsCachedLocally = isCached,
+                Hash = reqManifest.Hash,
+                PackageUrl = reqManifest.PackageUrl,
+                PackageHash = reqManifest.PackageHash,
                 Files = reqManifest.Files,
             });
         }
