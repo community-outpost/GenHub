@@ -120,8 +120,8 @@ BASELINE_ENTRIES = [
         "exeCrc": "0xB9DB8815",
         "iniCrc": "0x81FB5632",
         "sha256": "7156faf170b7c1415b7886e20cc3e0b7d8045721de983415bac952f3c3f069ab",
-        "manifestId": "1.0828261.generalsonline.gameclient.zerohour",
-        "dataPatchManifestId": "1.0828261.generalsonline.gamedata.zerohour",
+        "manifestId": "1.828261.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": "1.828261.generalsonline.patch.gamedata",
         "dataPatchName": "CommunityPatch Core INI (81FB5632)",
         "publisher": "generalsonline",
         "gameType": "ZeroHour",
@@ -135,8 +135,8 @@ BASELINE_ENTRIES = [
         "exeCrc": "0x64344E83",
         "iniCrc": "0xFEAAE3F3",
         "sha256": None,
-        "manifestId": "1.0605260.generalsonline.gameclient.zerohour",
-        "dataPatchManifestId": "1.0605260.generalsonline.gamedata.zerohour",
+        "manifestId": "1.605260.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": "1.605260.generalsonline.patch.gamedata",
         "dataPatchName": "GeneralsOnline Game Data",
         "publisher": "generalsonline",
         "gameType": "ZeroHour",
@@ -361,7 +361,8 @@ def _build_variant_candidate(date_code: str, qfe: int | None, is_eac: bool) -> t
     url = f"{GENERALSONLINE_CDN}/{zip_name}"
     manifest_type = "eac-zerohour" if is_eac else "zerohour"
     qfe_digit = str(qfe) if qfe is not None else "0"
-    manifest_id = f"1.{date_code}{qfe_digit}.generalsonline.gameclient.{manifest_type}"
+    date_code_norm = str(int(date_code)) if date_code.isdigit() else date_code
+    manifest_id = f"1.{date_code_norm}{qfe_digit}.generalsonline.gameclient.{manifest_type}"
     version_str = f"{date_code}{suffix}"
     return (date_code, version_str, manifest_id, url)
 
