@@ -32,14 +32,6 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
 
     private RegistryState _state = InitializeRegistryState(logger);
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="CrcMappingRegistry"/> class with no logger.
-    /// </summary>
-    public CrcMappingRegistry()
-        : this(null)
-    {
-    }
-
     /// <inheritdoc />
     public bool TryGetEntry(string exeCrc, string iniCrc, out CrcMappingEntry? entry)
     {
@@ -107,37 +99,7 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
     public void LoadCatalog(CrcCatalog catalog)
     {
         ArgumentNullException.ThrowIfNull(catalog);
-
-        var pairBuilder = ImmutableDictionary.CreateBuilder<string, CrcMappingEntry>(StringComparer.OrdinalIgnoreCase);
-        var exeBuilder = ImmutableDictionary.CreateBuilder<string, CrcMappingEntry>(StringComparer.OrdinalIgnoreCase);
-        var shaBuilder = ImmutableDictionary.CreateBuilder<string, CrcMappingEntry>(StringComparer.OrdinalIgnoreCase);
-        var allList = new List<CrcMappingEntry>();
-
-        foreach (var entry in catalog.Mappings)
-        {
-            var pairKey = CreateCrcPairKey(entry.ExeCrc, entry.IniCrc);
-            pairBuilder[pairKey] = entry;
-
-            var normalizedExe = NormalizeHex(entry.ExeCrc);
-            if (!string.IsNullOrEmpty(normalizedExe))
-            {
-                exeBuilder[normalizedExe] = entry;
-            }
-
-            if (!string.IsNullOrWhiteSpace(entry.Sha256))
-            {
-                shaBuilder[entry.Sha256.Trim()] = entry;
-            }
-
-            allList.Add(entry);
-        }
-
-        var newState = new RegistryState(
-            pairBuilder.ToImmutable(),
-            exeBuilder.ToImmutable(),
-            shaBuilder.ToImmutable(),
-            allList.ToImmutableList());
-
+        var newState = BuildState(catalog.Mappings);
         Interlocked.Exchange(ref _state, newState);
     }
 
@@ -193,52 +155,30 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
         return trimmed.ToUpperInvariant();
     }
 
-    private static RegistryState InitializeRegistryState(ILogger<CrcMappingRegistry>? logger)
+    private static RegistryState BuildState(IEnumerable<CrcMappingEntry> mappings)
     {
         var pairBuilder = ImmutableDictionary.CreateBuilder<string, CrcMappingEntry>(StringComparer.OrdinalIgnoreCase);
         var exeBuilder = ImmutableDictionary.CreateBuilder<string, CrcMappingEntry>(StringComparer.OrdinalIgnoreCase);
         var shaBuilder = ImmutableDictionary.CreateBuilder<string, CrcMappingEntry>(StringComparer.OrdinalIgnoreCase);
         var allList = new List<CrcMappingEntry>();
 
-        try
+        foreach (var entry in mappings)
         {
-            var assembly = typeof(CrcMappingRegistry).Assembly;
-            var resourceName = assembly.GetManifestResourceNames()
-                .FirstOrDefault(n => n.EndsWith("crc-mapping.json", StringComparison.OrdinalIgnoreCase));
+            var pairKey = CreateCrcPairKey(entry.ExeCrc, entry.IniCrc);
+            pairBuilder[pairKey] = entry;
 
-            if (resourceName != null)
+            var normalizedExe = NormalizeHex(entry.ExeCrc);
+            if (!string.IsNullOrEmpty(normalizedExe))
             {
-                using var stream = assembly.GetManifestResourceStream(resourceName);
-                if (stream != null)
-                {
-                    var catalog = JsonSerializer.Deserialize<CrcCatalog>(stream, JsonOptions);
-                    if (catalog != null)
-                    {
-                        foreach (var entry in catalog.Mappings)
-                        {
-                            var pairKey = CreateCrcPairKey(entry.ExeCrc, entry.IniCrc);
-                            pairBuilder[pairKey] = entry;
-
-                            var normalizedExe = NormalizeHex(entry.ExeCrc);
-                            if (!string.IsNullOrEmpty(normalizedExe))
-                            {
-                                exeBuilder[normalizedExe] = entry;
-                            }
-
-                            if (!string.IsNullOrWhiteSpace(entry.Sha256))
-                            {
-                                shaBuilder[entry.Sha256.Trim()] = entry;
-                            }
-
-                            allList.Add(entry);
-                        }
-                    }
-                }
+                exeBuilder[normalizedExe] = entry;
             }
-        }
-        catch (Exception ex) when (ex is JsonException or InvalidOperationException or IOException)
-        {
-            logger?.LogWarning(ex, "Failed to preload embedded CRC mapping catalog.");
+
+            if (!string.IsNullOrWhiteSpace(entry.Sha256))
+            {
+                shaBuilder[entry.Sha256.Trim()] = entry;
+            }
+
+            allList.Add(entry);
         }
 
         return new RegistryState(
@@ -246,5 +186,45 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
             exeBuilder.ToImmutable(),
             shaBuilder.ToImmutable(),
             allList.ToImmutableList());
+    }
+
+    private static RegistryState CreateEmptyState() => new(
+        ImmutableDictionary<string, CrcMappingEntry>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
+        ImmutableDictionary<string, CrcMappingEntry>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
+        ImmutableDictionary<string, CrcMappingEntry>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
+        ImmutableList<CrcMappingEntry>.Empty);
+
+    private static CrcCatalog? TryLoadEmbeddedCatalog(ILogger<CrcMappingRegistry>? logger)
+    {
+        try
+        {
+            var assembly = typeof(CrcMappingRegistry).Assembly;
+            var resourceName = assembly.GetManifestResourceNames()
+                .FirstOrDefault(n => n.EndsWith("crc-mapping.json", StringComparison.OrdinalIgnoreCase));
+
+            if (resourceName == null)
+            {
+                return null;
+            }
+
+            using var stream = assembly.GetManifestResourceStream(resourceName);
+            if (stream == null)
+            {
+                return null;
+            }
+
+            return JsonSerializer.Deserialize<CrcCatalog>(stream, JsonOptions);
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or IOException)
+        {
+            logger?.LogWarning(ex, "Failed to preload embedded CRC mapping catalog.");
+            return null;
+        }
+    }
+
+    private static RegistryState InitializeRegistryState(ILogger<CrcMappingRegistry>? logger)
+    {
+        var catalog = TryLoadEmbeddedCatalog(logger);
+        return catalog?.Mappings != null ? BuildState(catalog.Mappings) : CreateEmptyState();
     }
 }
