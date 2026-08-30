@@ -377,12 +377,9 @@ public class CommunityOutpostDeliverer(
             {
                 await ExtractArchiveAsync(archivePath, extractPath, cancellationToken);
             }
-            catch (OperationCanceledException ex)
+            catch (OperationCanceledException)
             {
-                logger.LogInformation(
-                    ex,
-                    "Extraction of {Path} was cancelled; the downloaded archive is left in place",
-                    archivePath);
+                // Downloaded archive is intentionally preserved on cancellation to allow resume.
                 throw;
             }
             catch (Exception ex)
@@ -509,17 +506,14 @@ public class CommunityOutpostDeliverer(
 
             return OperationResult<ContentManifest>.CreateSuccess(primaryManifest);
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException)
         {
             if (registeredManifestIds.Count > 0)
             {
                 await RollbackManifestsAsync(registeredManifestIds);
             }
 
-            logger.LogInformation(
-                ex,
-                "Delivery of {ManifestId} was cancelled; downloaded archive is preserved for resume",
-                packageManifest.Id);
+            // Downloaded archive is intentionally preserved on cancellation to allow resume.
             throw;
         }
         catch (Exception ex)
