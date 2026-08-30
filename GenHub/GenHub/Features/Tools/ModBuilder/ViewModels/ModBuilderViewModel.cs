@@ -890,7 +890,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var projectDir = GetEffectiveProjectDir();
             if (!string.IsNullOrEmpty(projectDir))
             {
-                await FileManager.InitializeAsync(projectDir).ConfigureAwait(false);
+                await FileManager.InitializeAsync(projectDir, CancellationToken.None).ConfigureAwait(false);
             }
 
             await InvokeOnUIThreadAsync(async () =>
@@ -1846,7 +1846,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             // Initialize file manager with project path
             if (!string.IsNullOrEmpty(projectDir))
             {
-                await FileManager.InitializeAsync(projectDir).ConfigureAwait(false);
+                await FileManager.InitializeAsync(projectDir, CancellationToken.None).ConfigureAwait(false);
 
                 if (string.IsNullOrEmpty(CurrentProject.GameDir))
                 {
