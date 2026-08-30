@@ -1430,7 +1430,7 @@ public class ProfileSharingServiceTests
         Assert.NotNull(result.Data);
 
         var dataParam = result.Data.Substring(result.Data.IndexOf("data=", StringComparison.Ordinal) + 5);
-        var json = ProfileSharingCompressionHelper.DecompressAndDecode(dataParam);
+        var json = ProfileSharingCompressionHelper.DecodeAndDecompress(dataParam);
         var package = JsonSerializer.Deserialize<SharedGameProfilePackage>(json, TestJsonOptions);
         Assert.NotNull(package);
         Assert.Equal("/Assets/Icons/zerohour-icon.png", package.Profile.IconPath);
