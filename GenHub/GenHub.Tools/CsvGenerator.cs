@@ -507,37 +507,40 @@ public class CsvGenerator(ILogger logger)
                 logger.LogInformation("Processed {Current}/{Total} files", i, totalFiles);
             }
 
-            await ProcessInstallationFileAsync(
+            var (entry, failure) = await ProcessInstallationFileAsync(
                 file,
                 installationPath,
                 gameType,
                 languageCode,
                 downloadUrlOverride,
-                entries,
-                failures,
                 cancellationToken);
+
+            if (entry != null)
+            {
+                entries.Add(entry);
+            }
+
+            if (failure != null)
+            {
+                failures.Add(failure);
+            }
         }
 
         return (entries.OrderBy(e => e.RelativePath, StringComparer.OrdinalIgnoreCase).ToList(), totalFiles, failures);
     }
 
-    private async Task ProcessInstallationFileAsync(
+    private async Task<(CsvCatalogEntry? Entry, string? Failure)> ProcessInstallationFileAsync(
         string file,
         string installationPath,
         string gameType,
         string languageCode,
         string? downloadUrlOverride,
-        List<CsvCatalogEntry> entries,
-        List<string> failures,
         CancellationToken cancellationToken)
     {
         try
         {
             var entry = await CreateCsvEntryAsync(file, installationPath, gameType, languageCode, downloadUrlOverride, cancellationToken);
-            if (entry != null)
-            {
-                entries.Add(entry);
-            }
+            return (entry, null);
         }
         catch (OperationCanceledException)
         {
@@ -546,7 +549,7 @@ public class CsvGenerator(ILogger logger)
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to process file: {Path}", file);
-            failures.Add($"{file}: {ex.Message}");
+            return (null, $"{file}: {ex.Message}");
         }
     }
 

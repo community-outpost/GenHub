@@ -177,16 +177,13 @@ public class PublisherProfileOrchestrator(
 
                     // For Community Outpost, exclude base game content (10gn, 10zh)
                     // Base games should only be created as fallback when user explicitly declines Community Patch
-                    if (string.Equals(publisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(publisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) &&
+                        m.Metadata?.Tags?.Any(t => t.Equals("basegame", StringComparison.OrdinalIgnoreCase)) == true)
                     {
-                        // Check for 'basegame' tag in metadata (added by CommunityOutpostResolver)
-                        if (m.Metadata?.Tags?.Any(t => t.Equals("basegame", StringComparison.OrdinalIgnoreCase)) == true)
-                        {
-                            logger.LogDebug(
-                                "Skipping base game manifest {ManifestId} - base games should only be created when user declines Community Patch",
-                                m.Id);
-                            return false;
-                        }
+                        logger.LogDebug(
+                            "Skipping base game manifest {ManifestId} - base games should only be created when user declines Community Patch",
+                            m.Id);
+                        return false;
                     }
 
                     return true;
