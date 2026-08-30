@@ -68,10 +68,16 @@ public static class ReplayManagerConstants
     public const int ReplayHeaderInitialOffsetBytes = 28;
 
     /// <summary>
-    /// Default GitHub Gist URL providing the live CRC mapping catalog.
+    /// Default GitHub URL providing the authoritative community CRC mapping catalog.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official GenHub Gist endpoint for community gameclient CRC catalog.")]
-    public const string DefaultCrcCatalogGistUrl = "https://gist.githubusercontent.com/undead2146/99bda56e85a579204dd7cad277547779/raw/crc-mapping.json";
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official GenHub endpoint for community gameclient CRC catalog.")]
+    public const string DefaultCrcCatalogUrl = "https://raw.githubusercontent.com/community-outpost/GenHub/development/GenHub/GenHub/Resources/crc-mapping.json";
+
+    /// <summary>
+    /// Fallback alias for backward compatibility.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official GenHub endpoint for community gameclient CRC catalog.")]
+    public const string DefaultCrcCatalogGistUrl = DefaultCrcCatalogUrl;
 
     /// <summary>
     /// Cache key for storing the parsed CRC catalog in the dynamic content cache.

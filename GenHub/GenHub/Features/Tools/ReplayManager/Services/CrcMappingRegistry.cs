@@ -111,22 +111,14 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
         while (true)
         {
             var current = _state;
-            var pairKey = CreateCrcPairKey(entry.ExeCrc, entry.IniCrc);
-            var normalizedExe = NormalizeHex(entry.ExeCrc);
-
-            var pairMap = current.PairMap.SetItem(pairKey, entry);
-            var exeMap = !string.IsNullOrEmpty(normalizedExe) ? current.ExeMap.SetItem(normalizedExe, entry) : current.ExeMap;
-            var shaMap = !string.IsNullOrWhiteSpace(entry.Sha256) ? current.ShaMap.SetItem(entry.Sha256.Trim(), entry) : current.ShaMap;
-
             var existingIndex = current.AllEntries.FindIndex(e =>
-                string.Equals(e.ManifestId, entry.ManifestId, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(CreateCrcPairKey(e.ExeCrc, e.IniCrc), pairKey, StringComparison.OrdinalIgnoreCase));
+                string.Equals(e.ManifestId, entry.ManifestId, StringComparison.OrdinalIgnoreCase));
 
             var allEntries = existingIndex >= 0
                 ? current.AllEntries.SetItem(existingIndex, entry)
                 : current.AllEntries.Add(entry);
 
-            var next = new RegistryState(pairMap, exeMap, shaMap, allEntries);
+            var next = BuildState(allEntries);
             if (Interlocked.CompareExchange(ref _state, next, current) == current)
             {
                 break;
@@ -165,12 +157,20 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
         foreach (var entry in mappings)
         {
             var pairKey = CreateCrcPairKey(entry.ExeCrc, entry.IniCrc);
-            pairBuilder[pairKey] = entry;
+            if (!pairBuilder.TryGetValue(pairKey, out _) ||
+                string.Equals(entry.Publisher, "steam", StringComparison.OrdinalIgnoreCase))
+            {
+                pairBuilder[pairKey] = entry;
+            }
 
             var normalizedExe = NormalizeHex(entry.ExeCrc);
             if (!string.IsNullOrEmpty(normalizedExe))
             {
-                exeBuilder[normalizedExe] = entry;
+                if (!exeBuilder.TryGetValue(normalizedExe, out _) ||
+                    string.Equals(entry.Publisher, "steam", StringComparison.OrdinalIgnoreCase))
+                {
+                    exeBuilder[normalizedExe] = entry;
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(entry.Sha256))

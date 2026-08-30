@@ -206,6 +206,7 @@ public static class GameSettingsMapper
 
         profile.GameSpyIPAddress = request.GameSpyIPAddress;
         profile.VideoSkipEALogo = request.VideoSkipEALogo;
+        profile.UseSteamLaunch = request.UseSteamLaunch;
     }
 
     /// <summary>
@@ -237,6 +238,10 @@ public static class GameSettingsMapper
         profile.VideoAntiAliasing = request.VideoAntiAliasing;
         profile.VideoUseLightMap = request.VideoUseLightMap;
         profile.VideoSkipEALogo = request.VideoSkipEALogo;
+        if (request.UseSteamLaunch.HasValue)
+        {
+            profile.UseSteamLaunch = request.UseSteamLaunch.Value;
+        }
 
         // Audio settings
         profile.AudioSoundVolume = request.AudioSoundVolume;
@@ -317,6 +322,7 @@ public static class GameSettingsMapper
 
         profile.GameSpyIPAddress = request.GameSpyIPAddress ?? profile.GameSpyIPAddress;
         profile.VideoSkipEALogo = request.VideoSkipEALogo ?? profile.VideoSkipEALogo;
+        profile.UseSteamLaunch = request.UseSteamLaunch;
     }
 
     /// <summary>

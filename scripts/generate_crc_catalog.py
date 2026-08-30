@@ -161,7 +161,7 @@ def parse_superhackers_asset(date_str: str, version_num: str, asset: dict, inspe
 
     game_type = "ZeroHour" if "zh" in name.lower() else "Generals"
     manifest_type = "zerohour" if game_type == "ZeroHour" else "generals"
-    manifest_id = f"1.{version_num}.superhackers.gameclient.{manifest_type}"
+    manifest_id = f"1.{version_num}.thesuperhackers.gameclient.{manifest_type}"
     default_ini = "0x76B251A3" if game_type == "ZeroHour" else "0x323577BD"
 
     exe_crc = ""
@@ -183,7 +183,7 @@ def parse_superhackers_asset(date_str: str, version_num: str, asset: dict, inspe
         "iniCrc": ini_crc,
         "sha256": sha256,
         "manifestId": manifest_id,
-        "publisher": "superhackers",
+        "publisher": "thesuperhackers",
         "gameType": game_type,
         "version": date_str,
         "buildDate": date_str,
@@ -194,7 +194,8 @@ def parse_superhackers_asset(date_str: str, version_num: str, asset: dict, inspe
 
 def crawl_superhackers_releases(token: str | None = None, inspect_binaries: bool = False) -> list[dict]:
     """Fetches and maps releases from TheSuperHackers repository on GitHub across all pages (2025, 2026, etc.)."""
-    releases = fetch_github_releases(SUPERHACKERS_REPO, token)
+    effective_token = token or os.environ.get("GITHUB_TOKEN")
+    releases = fetch_github_releases(SUPERHACKERS_REPO, effective_token)
     if not releases:
         return []
 
@@ -243,7 +244,7 @@ def _build_variant_candidate(date_code: str, qfe: int | None, is_eac: bool) -> t
     suffix = f"{qfe_part}{eac_part}"
     zip_name = f"GeneralsOnline_portable_{date_code}{suffix}.zip"
     url = f"{GENERALSONLINE_CDN}/{zip_name}"
-    manifest_type = "eac.zerohour" if is_eac else "zerohour"
+    manifest_type = "eac-zerohour" if is_eac else "zerohour"
     qfe_digit = str(qfe) if qfe is not None else "0"
     manifest_id = f"1.{date_code}{qfe_digit}.generalsonline.gameclient.{manifest_type}"
     version_str = f"{date_code}{suffix}"

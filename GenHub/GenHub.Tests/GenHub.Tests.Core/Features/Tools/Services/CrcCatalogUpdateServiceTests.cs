@@ -59,8 +59,8 @@ public sealed class CrcCatalogUpdateServiceTests : IDisposable
                 {
                     ExeCrc = "0x27533BB0",
                     IniCrc = "0x76B251A3",
-                    ManifestId = "1.20260821.superhackers.gameclient.zerohour",
-                    Publisher = "superhackers",
+                    ManifestId = "1.20260821.thesuperhackers.gameclient.zerohour",
+                    Publisher = "thesuperhackers",
                     GameType = "ZeroHour",
                     Version = "2026-08-21",
                 },
@@ -99,7 +99,7 @@ public sealed class CrcCatalogUpdateServiceTests : IDisposable
         Assert.True(result.Success);
         Assert.True(registry.TryGetEntry("0x27533BB0", "0x76B251A3", out var found));
         Assert.NotNull(found);
-        Assert.Equal("1.20260821.superhackers.gameclient.zerohour", found.ManifestId);
+        Assert.Equal("1.20260821.thesuperhackers.gameclient.zerohour", found.ManifestId);
 
         // Verify local fallback file was written
         var fallbackPath = Path.Combine(_tempAppDataPath, ReplayManagerConstants.CrcCatalogLocalFileName);

@@ -53,8 +53,8 @@ public sealed class CrcCatalogUpdateService(
                 return ContentUpdateCheckResult.CreateNoUpdateAvailable(cached.LastUpdated?.ToString("O") ?? "cached");
             }
 
-            // 2. Fetch fresh catalog from remote Gist
-            var response = await httpClient.GetAsync(ReplayManagerConstants.DefaultCrcCatalogGistUrl, cancellationToken);
+            // 2. Fetch fresh catalog from remote repository
+            var response = await httpClient.GetAsync(ReplayManagerConstants.DefaultCrcCatalogUrl, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("Remote CRC catalog fetch returned status {StatusCode}. Attempting local fallback.", response.StatusCode);
@@ -84,9 +84,11 @@ public sealed class CrcCatalogUpdateService(
             await SaveLocalFallbackAsync(catalog, cancellationToken);
 
             logger.LogInformation("Successfully updated CRC mapping catalog with {Count} entries", catalog.Mappings.Count);
-            return ContentUpdateCheckResult.CreateNoUpdateAvailable(catalog.LastUpdated?.ToString("O") ?? "1");
+            return ContentUpdateCheckResult.CreateContentAvailable(
+                catalog.LastUpdated?.ToString("O") ?? "1",
+                $"Updated {catalog.Mappings.Count} CRC mapping entries.");
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is IOException or HttpRequestException or JsonException)
         {
             logger.LogError(ex, "Failed to update CRC mapping catalog from remote. Attempting local fallback.");
             return await LoadLocalFallbackAsync(cancellationToken);
@@ -118,7 +120,7 @@ public sealed class CrcCatalogUpdateService(
             logger.LogInformation("Loaded {Count} CRC mappings from offline local storage", catalog.Mappings.Count);
             return ContentUpdateCheckResult.CreateNoUpdateAvailable(catalog.LastUpdated?.ToString("O") ?? "local");
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
             logger.LogError(ex, "Failed to load offline CRC catalog fallback");
             return ContentUpdateCheckResult.CreateFailure($"Failed to load offline CRC catalog: {ex.Message}");
@@ -143,7 +145,7 @@ public sealed class CrcCatalogUpdateService(
 
             File.Move(tempFilePath, finalFilePath, overwrite: true);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(ex, "Failed to atomically save offline CRC catalog fallback");
             try

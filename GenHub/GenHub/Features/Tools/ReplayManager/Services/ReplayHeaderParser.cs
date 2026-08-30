@@ -35,11 +35,6 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             return OperationResult<ReplayMetadata>.CreateFailure($"Replay file not found: {filePath}");
         }
 
-        if (fileInfo.Length > ReplayManagerConstants.MaxReplaySizeBytes)
-        {
-            return OperationResult<ReplayMetadata>.CreateFailure($"Replay file exceeds maximum allowed size of {ReplayManagerConstants.MaxReplaySizeBytes} bytes.");
-        }
-
         try
         {
             await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true);
@@ -90,24 +85,33 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
 
             var offset = ReplayManagerConstants.ReplayHeaderInitialOffsetBytes;
 
-            // 3. Read VersionString (null-terminated UTF-16LE)
-            var versionString = ReadNullTerminatedUtf16String(buffer, ref offset, bytesRead);
+            // 2. Read Replay Title / Name (null-terminated UTF-16LE, written first by engine)
+            if (!TryReadNullTerminatedUtf16String(buffer, ref offset, bytesRead, out var titleString))
+            {
+                return OperationResult<ReplayMetadata>.CreateFailure("Unterminated UTF-16 replay title string in replay header.");
+            }
 
-            // 4. Skip 16 bytes (timestamp structure)
+            // 3. Skip 16 bytes (SYSTEMTIME timestamp structure)
             if (offset + 16 > bytesRead)
             {
-                return OperationResult<ReplayMetadata>.CreateFailure("Truncated replay header before build time string.");
+                return OperationResult<ReplayMetadata>.CreateFailure("Truncated replay header before version string.");
             }
 
             offset += 16;
 
-            // 5. Read VersionTimeString / BuildTimeString (null-terminated UTF-16LE)
-            var buildTimeString = ReadNullTerminatedUtf16String(buffer, ref offset, bytesRead);
+            // 4. Read VersionString (null-terminated UTF-16LE, e.g. "Version 1.04")
+            if (!TryReadNullTerminatedUtf16String(buffer, ref offset, bytesRead, out var versionString))
+            {
+                return OperationResult<ReplayMetadata>.CreateFailure("Unterminated UTF-16 version string in replay header.");
+            }
 
-            // 6. Read Title/Description (null-terminated UTF-16LE)
-            var titleString = ReadNullTerminatedUtf16String(buffer, ref offset, bytesRead);
+            // 5. Read VersionTimeString / BuildTimeString (null-terminated UTF-16LE, e.g. "Sep 16 2003")
+            if (!TryReadNullTerminatedUtf16String(buffer, ref offset, bytesRead, out var buildTimeString))
+            {
+                return OperationResult<ReplayMetadata>.CreateFailure("Unterminated UTF-16 build time string in replay header.");
+            }
 
-            // 7. Read numeric version, exeCRC, iniCRC (each 4 bytes uint32 LE)
+            // 6. Read numeric version, exeCRC, iniCRC (each 4 bytes uint32 LE)
             if (offset + 12 > bytesRead)
             {
                 return OperationResult<ReplayMetadata>.CreateFailure("Truncated replay header before CRC values.");
@@ -122,10 +126,13 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             var iniCrc = BitConverter.ToUInt32(buffer, offset);
             offset += 4;
 
-            // 8. Read Init/Match AsciiString (null-terminated ASCII)
-            var initString = ReadNullTerminatedAsciiString(buffer, ref offset, bytesRead);
+            // 7. Read Init/Match AsciiString (null-terminated ASCII)
+            if (!TryReadNullTerminatedAsciiString(buffer, ref offset, bytesRead, out var initString))
+            {
+                return OperationResult<ReplayMetadata>.CreateFailure("Unterminated ASCII game options string in replay header.");
+            }
 
-            // 9. Extract map name and players from init string if present
+            // 8. Extract map name and players from init string if present
             var (mapName, players) = ParseMatchMetadata(initString);
 
             var metadata = new ReplayMetadata
@@ -149,7 +156,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         }
     }
 
-    private static string? ReadNullTerminatedUtf16String(byte[] buffer, ref int offset, int maxBytes)
+    private static bool TryReadNullTerminatedUtf16String(byte[] buffer, ref int offset, int maxBytes, out string? value)
     {
         var start = offset;
         while (offset + 1 < maxBytes)
@@ -158,16 +165,18 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             {
                 var length = offset - start;
                 offset += 2;
-                return length == 0 ? null : Encoding.Unicode.GetString(buffer, start, length);
+                value = length == 0 ? null : Encoding.Unicode.GetString(buffer, start, length);
+                return true;
             }
 
             offset += 2;
         }
 
-        return null;
+        value = null;
+        return false;
     }
 
-    private static string? ReadNullTerminatedAsciiString(byte[] buffer, ref int offset, int maxBytes)
+    private static bool TryReadNullTerminatedAsciiString(byte[] buffer, ref int offset, int maxBytes, out string? value)
     {
         var start = offset;
         while (offset < maxBytes)
@@ -176,13 +185,15 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             {
                 var length = offset - start;
                 offset += 1;
-                return length == 0 ? null : Encoding.ASCII.GetString(buffer, start, length);
+                value = length == 0 ? null : Encoding.ASCII.GetString(buffer, start, length);
+                return true;
             }
 
             offset += 1;
         }
 
-        return null;
+        value = null;
+        return false;
     }
 
     private static (string? MapName, IReadOnlyList<string>? Players) ParseMatchMetadata(string? initString)
@@ -206,16 +217,20 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             else if (token.StartsWith("S=", StringComparison.OrdinalIgnoreCase) || token.StartsWith("H=", StringComparison.OrdinalIgnoreCase))
             {
                 var slotData = token[2..];
-                var parts = slotData.Split(',', StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length > 0)
+                var slots = slotData.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                foreach (var slot in slots)
                 {
-                    var rawName = parts[0];
-                    var playerName = rawName.Length > 0 && (rawName[0] is 'H' or 'C' or 'X' or 'O' or 'h' or 'c' or 'x' or 'o')
-                        ? rawName[1..]
-                        : rawName;
-                    if (!string.IsNullOrWhiteSpace(playerName) && players.All(p => !string.Equals(p, playerName, StringComparison.OrdinalIgnoreCase)))
+                    var parts = slot.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    if (parts.Length > 0)
                     {
-                        players.Add(playerName);
+                        var rawName = parts[0];
+                        var playerName = rawName.Length > 0 && (rawName[0] is 'H' or 'C' or 'X' or 'O' or 'h' or 'c' or 'x' or 'o')
+                            ? rawName[1..]
+                            : rawName;
+                        if (!string.IsNullOrWhiteSpace(playerName) && players.All(p => !string.Equals(p, playerName, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            players.Add(playerName);
+                        }
                     }
                 }
             }

@@ -22,7 +22,7 @@ public sealed class CrcMappingRegistryTests
         Assert.NotEmpty(all);
         Assert.Contains(all, e => e.ManifestId == "1.104.steam.gameclient.zerohour");
         Assert.Contains(all, e => e.Publisher == "generalsonline");
-        Assert.Contains(all, e => e.Publisher == "superhackers");
+        Assert.Contains(all, e => e.Publisher == "thesuperhackers");
     }
 
     /// <summary>
@@ -37,11 +37,11 @@ public sealed class CrcMappingRegistryTests
             ExeCrc = "0x27533BB0",
             IniCrc = "0x76B251A3",
             Sha256 = "c83190642cb1da042873f40d5a2a30aca1b475a1163f90b18ffa07adf7dfe556",
-            ManifestId = "1.20260821.superhackers.gameclient.zerohour",
-            Publisher = "superhackers",
+            ManifestId = "1.20260821.thesuperhackers.gameclient.zerohour",
+            Publisher = "thesuperhackers",
             GameType = "ZeroHour",
             Version = "2026-08-21",
-            Description = "SuperHackers 2026-08-21",
+            Description = "TheSuperHackers 2026-08-21",
             CdnUrl = "https://example.com/zh.zip",
         };
 
@@ -50,7 +50,7 @@ public sealed class CrcMappingRegistryTests
         // Exact match with prefix
         Assert.True(registry.TryGetEntry("0x27533BB0", "0x76B251A3", out var found1));
         Assert.NotNull(found1);
-        Assert.Equal("1.20260821.superhackers.gameclient.zerohour", found1.ManifestId);
+        Assert.Equal("1.20260821.thesuperhackers.gameclient.zerohour", found1.ManifestId);
 
         // Without 0x prefix and lowercase
         Assert.True(registry.TryGetEntry("27533bb0", "76b251a3", out var found2));
