@@ -117,6 +117,16 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
         }
     }
 
+    private static TopLevel? GetMainWindowTopLevel()
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } mainWindow })
+        {
+            return TopLevel.GetTopLevel(mainWindow);
+        }
+
+        return null;
+    }
+
     private async Task LoadUploadQuotaAsync()
     {
         if (_uploadHistoryService == null)
@@ -146,16 +156,6 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
         {
             _logger.LogWarning(ex, "Failed to load upload quota information.");
         }
-    }
-
-    private static TopLevel? GetMainWindowTopLevel()
-    {
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } mainWindow })
-        {
-            return TopLevel.GetTopLevel(mainWindow);
-        }
-
-        return null;
     }
 
     [RelayCommand]

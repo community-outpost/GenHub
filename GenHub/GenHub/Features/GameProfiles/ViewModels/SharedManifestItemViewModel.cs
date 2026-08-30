@@ -143,15 +143,6 @@ public partial class SharedManifestItemViewModel(SharedManifestDependency depend
     /// </summary>
     public bool HasDetails => !string.IsNullOrWhiteSpace(DownloadUrl) || !string.IsNullOrWhiteSpace(Hash) || FilesCount > 0;
 
-    /// <summary>
-    /// Toggles the expanded view state of the manifest card.
-    /// </summary>
-    [RelayCommand]
-    private void ToggleExpand()
-    {
-        IsExpanded = !IsExpanded;
-    }
-
     private static bool IsExecutableFile(ManifestFile file)
     {
         if (string.IsNullOrWhiteSpace(file.RelativePath))
@@ -167,6 +158,15 @@ public partial class SharedManifestItemViewModel(SharedManifestDependency depend
                ext.Equals(".cmd", StringComparison.OrdinalIgnoreCase) ||
                ext.Equals(".ps1", StringComparison.OrdinalIgnoreCase) ||
                ext.Equals(".vbs", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Toggles the expanded view state of the manifest card.
+    /// </summary>
+    [RelayCommand]
+    private void ToggleExpand()
+    {
+        IsExpanded = !IsExpanded;
     }
 
     /// <summary>
