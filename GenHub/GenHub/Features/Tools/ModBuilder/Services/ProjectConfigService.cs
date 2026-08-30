@@ -724,13 +724,10 @@ public sealed class ProjectConfigService : IProjectConfigService
                 Path.Combine(projectDir, directories.Release),
             };
 
-            foreach (var dir in dirsToCreate)
+            foreach (var dir in dirsToCreate.Where(dir => !Directory.Exists(dir)))
             {
-                if (!Directory.Exists(dir))
-                {
-                    Directory.CreateDirectory(dir);
-                    _logger.LogDebug("Created directory: {Directory}", dir);
-                }
+                Directory.CreateDirectory(dir);
+                _logger.LogDebug("Created directory: {Directory}", dir);
             }
 
             return ProjectOperationResult<bool>.CreateSuccess(true);

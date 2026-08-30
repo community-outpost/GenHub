@@ -27,8 +27,19 @@ namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 /// <summary>
 /// ViewModel for ModBuilder tool with complete build pipeline integration.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("SonarCloud", "S107:Methods should not have too many parameters", Justification = "ViewModel requires multiple injected services")]
+[System.Diagnostics.CodeAnalysis.SuppressMessage("SonarCloud", "S2325:Methods and properties that don't access instance data should be static", Justification = "RelayCommand and XAML bindings require instance members")]
 public partial class ModBuilderViewModel : ObservableObject, IDisposable
 {
+    private const string ModBuilderLiteral = "ModBuilder";
+    private const string BasicModLiteral = "BasicMod";
+    private const string BasicModProjectFileLiteral = "BasicMod.mbproj";
+    private const string SampleProjectsDirLiteral = "SampleProjects";
+    private const string NoProjectTitle = "No Project";
+    private const string NoProjectMessage = "Please load or create a project first";
+    private const string ReadyStatusLiteral = "Ready";
+    private const string UnknownErrorLiteral = "Unknown error";
+
     private readonly IBuildEngineService _buildEngineService;
     private readonly IProjectConfigService _projectConfigService;
     private readonly IConfigurationLoaderService _configurationLoaderService;
@@ -735,7 +746,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         _logger.LogInformation("OpenFileManagerAsync requested");
         if (CurrentProject == null)
         {
-            _notificationService.ShowWarning("No Project", "Please load or create a project first");
+            _notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
             return;
         }
 
@@ -1126,7 +1137,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     {
         if (CurrentProject == null)
         {
-            _notificationService.ShowWarning("No Project", "Please load or create a project first");
+            _notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
             return;
         }
 
@@ -1473,7 +1484,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         var projectDir = !string.IsNullOrEmpty(ProjectPath) ? Path.GetDirectoryName(ProjectPath) : CurrentProject?.ProjectDir;
         if (string.IsNullOrEmpty(projectDir))
         {
-            _notificationService.ShowWarning("No Project", "Please load or create a project first");
+            _notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
             return;
         }
 
@@ -1507,7 +1518,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         var projectDir = !string.IsNullOrEmpty(ProjectPath) ? Path.GetDirectoryName(ProjectPath) : CurrentProject?.ProjectDir;
         if (string.IsNullOrEmpty(projectDir))
         {
-            _notificationService.ShowWarning("No Project", "Please load or create a project first");
+            _notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
             return;
         }
 
@@ -1541,7 +1552,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         _logger.LogInformation("OpenBuildFolder requested for: {Path}", ProjectPath);
         if (CurrentProject == null || string.IsNullOrEmpty(ProjectPath))
         {
-            _notificationService.ShowWarning("No Project", "Please load or create a project first");
+            _notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
             return;
         }
 

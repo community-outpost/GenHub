@@ -5,6 +5,7 @@ namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 /// <summary>
 /// ViewModel for editing a bundle item.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("SonarCloud", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound in XAML data templates")]
 public partial class BundleItemEditorViewModel : ObservableObject
 {
     /// <summary>

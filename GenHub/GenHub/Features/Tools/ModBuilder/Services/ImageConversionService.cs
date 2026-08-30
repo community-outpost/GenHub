@@ -47,7 +47,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
 
             return ext switch
             {
-                ".psd" => await ConvertPsdAsync(sourcePath, targetPath, parameters, cancellationToken),
+                ".psd" => await ConvertPsdAsync(sourcePath, targetPath, cancellationToken),
                 ".tga" => await ConvertTgaAsync(sourcePath, targetPath, parameters, cancellationToken),
                 ".tif" or ".tiff" => await ConvertTiffAsync(sourcePath, targetPath, parameters, cancellationToken),
                 ".dds" => await ConvertDdsAsync(sourcePath, targetPath, parameters, cancellationToken),
@@ -93,7 +93,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to detect alpha channel in {ImagePath}", imagePath);
+            logger.LogError(ex, "Failed to check alpha channel for: {ImagePath}", imagePath);
             return false;
         }
     }
@@ -111,7 +111,6 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
     private async Task<bool> ConvertPsdAsync(
         string sourcePath,
         string targetPath,
-        IDictionary<string, object>? parameters,
         CancellationToken cancellationToken)
     {
         try

@@ -118,41 +118,46 @@ internal static class ImageProcessingHelper
 
         if (image is Image<Rgba32> rgbaImage)
         {
-            if (rgbaImage.DangerousTryGetSinglePixelMemory(out Memory<Rgba32> memory))
-            {
-                var span = memory.Span;
-                for (var i = 0; i < span.Length; i++)
-                {
-                    if (span[i].A < 255)
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
-            }
-
-            var hasAlpha = false;
-            rgbaImage.ProcessPixelRows(accessor =>
-            {
-                for (var y = 0; y < accessor.Height; y++)
-                {
-                    var pixelRow = accessor.GetRowSpan(y);
-                    for (var x = 0; x < pixelRow.Length; x++)
-                    {
-                        if (pixelRow[x].A < 255)
-                        {
-                            hasAlpha = true;
-                            return;
-                        }
-                    }
-                }
-            });
-
-            return hasAlpha;
+            return DetectAlphaInRgba32(rgbaImage);
         }
 
         return true;
+    }
+
+    private static bool DetectAlphaInRgba32(Image<Rgba32> rgbaImage)
+    {
+        if (rgbaImage.DangerousTryGetSinglePixelMemory(out Memory<Rgba32> memory))
+        {
+            var span = memory.Span;
+            for (var i = 0; i < span.Length; i++)
+            {
+                if (span[i].A < 255)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        var hasAlpha = false;
+        rgbaImage.ProcessPixelRows(accessor =>
+        {
+            for (var y = 0; y < accessor.Height; y++)
+            {
+                var pixelRow = accessor.GetRowSpan(y);
+                for (var x = 0; x < pixelRow.Length; x++)
+                {
+                    if (pixelRow[x].A < 255)
+                    {
+                        hasAlpha = true;
+                        return;
+                    }
+                }
+            }
+        });
+
+        return hasAlpha;
     }
 
     /// <summary>

@@ -8,6 +8,7 @@ namespace GenHub.Features.Tools.ModBuilder.Models;
 /// <summary>
 /// Represents a file or directory node in the file tree.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("SonarCloud", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound in XAML data templates")]
 public partial class FileTreeNode : ObservableObject
 {
     /// <summary>

@@ -34,9 +34,4 @@ public class FileIconConverter : IMultiValueConverter
             _ => "📄"
         };
     }
-
-    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
-    {
-        throw new NotSupportedException("ConvertBack is not supported.");
-    }
 }

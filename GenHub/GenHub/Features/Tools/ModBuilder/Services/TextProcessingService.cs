@@ -72,35 +72,41 @@ public sealed class TextProcessingService(
                 continue;
             }
 
-            var startMarker = pair[0];
-            var endMarker = pair[1];
-            if (string.IsNullOrEmpty(startMarker) || string.IsNullOrEmpty(endMarker))
-            {
-                continue;
-            }
-
-            while (true)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var sIdx = result.IndexOf(startMarker, StringComparison.Ordinal);
-                if (sIdx < 0)
-                {
-                    break;
-                }
-
-                var afterStart = sIdx + startMarker.Length;
-                var eIdx = result.IndexOf(endMarker, afterStart, StringComparison.Ordinal);
-                if (eIdx < 0)
-                {
-                    break;
-                }
-
-                var afterEnd = eIdx + endMarker.Length;
-                result = string.Concat(result.AsSpan(0, sIdx), result.AsSpan(afterEnd));
-            }
+            result = RemoveMarkerPair(result, pair[0], pair[1], cancellationToken);
         }
 
         return Task.FromResult(result);
+    }
+
+    private static string RemoveMarkerPair(string content, string startMarker, string endMarker, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(startMarker) || string.IsNullOrEmpty(endMarker))
+        {
+            return content;
+        }
+
+        var result = content;
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var sIdx = result.IndexOf(startMarker, StringComparison.Ordinal);
+            if (sIdx < 0)
+            {
+                break;
+            }
+
+            var afterStart = sIdx + startMarker.Length;
+            var eIdx = result.IndexOf(endMarker, afterStart, StringComparison.Ordinal);
+            if (eIdx < 0)
+            {
+                break;
+            }
+
+            var afterEnd = eIdx + endMarker.Length;
+            result = string.Concat(result.AsSpan(0, sIdx), result.AsSpan(afterEnd));
+        }
+
+        return result;
     }
 
     /// <inheritdoc />

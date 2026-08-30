@@ -4,6 +4,7 @@ namespace GenHub.Core.Models.Tools.ModBuilder;
 /// Represents build steps as flags.
 /// </summary>
 [System.Flags]
+[System.Diagnostics.CodeAnalysis.SuppressMessage("SonarCloud", "S2342:Enumeration types should comply with a naming convention", Justification = "Preserved public domain model enum name")]
 public enum BuildStep
 {
     /// <summary>
