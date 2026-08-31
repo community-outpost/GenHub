@@ -1,3 +1,7 @@
+using Avalonia.Data;
+using Avalonia.Headless.XUnit;
+using GenHub.Common.Markup;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using Microsoft.Extensions.DependencyInjection;
@@ -62,5 +66,21 @@ public class AppLifecycleTests
         var appType = Type.GetType("GenHub.App, GenHub")!;
         var app = Activator.CreateInstance(appType, serviceProvider);
         Assert.NotNull(app);
+    }
+
+    /// <summary>
+    /// Verifies that application XAML loading exposes localization to markup extensions afterward.
+    /// </summary>
+    [AvaloniaFact]
+    public void App_Initialize_ExposesLocalizationServiceToMarkupExtensions()
+    {
+        var app = Assert.IsType<global::GenHub.App>(Avalonia.Application.Current);
+        Assert.Same(
+            TestAppBuilder.LocalizationService,
+            app.Resources[LocalizationConstants.ResourceServiceKey]);
+
+        var extension = new LocalizeExtension("App.Name");
+        var binding = Assert.IsType<Binding>(extension.ProvideValue(Mock.Of<IServiceProvider>()));
+        Assert.Same(TestAppBuilder.LocalizationService, binding.Source);
     }
 }

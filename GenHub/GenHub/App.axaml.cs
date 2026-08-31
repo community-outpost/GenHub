@@ -49,8 +49,11 @@ public partial class App : Application
     /// </summary>
     public override void Initialize()
     {
+        // Make localization available while application XAML resources are loading.
         Resources[LocalizationConstants.ResourceServiceKey] = _localizationService;
         AvaloniaXamlLoader.Load(this);
+
+        // App XAML replaces the resource dictionary, so restore the service for views loaded afterward.
         Resources[LocalizationConstants.ResourceServiceKey] = _localizationService;
     }
 
