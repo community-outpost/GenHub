@@ -180,12 +180,11 @@ public static class DownloadSecurityValidator
         }
 
         // Check SHA-256 hash if specified
-        bool hashMatched = false;
         if (allowedSha256Hashes is { Count: > 0 })
         {
             var actualHash = await ComputeSha256Async(filePath, ct);
-            hashMatched = allowedSha256Hashes.Any(h => string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase));
-            if (!hashMatched && !hasPublisherCheck)
+            bool hashMatched = allowedSha256Hashes.Any(h => string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase));
+            if (!hashMatched)
             {
                 return OperationResult<bool>.CreateFailure(
                     $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedSha256Hashes)}].");
@@ -198,12 +197,6 @@ public static class DownloadSecurityValidator
             var authResult = ValidateAuthenticodeSignature(filePath, expectedAuthenticodePublisher, allowExpiredCertificates);
             if (!authResult.Success)
             {
-                // If hash check was also specified and matched, allow fallback to known pinned hash
-                if (hasHashCheck && hashMatched)
-                {
-                    return OperationResult<bool>.CreateSuccess(true);
-                }
-
                 return authResult;
             }
         }
@@ -313,13 +306,12 @@ public static class DownloadSecurityValidator
             return OperationResult<bool>.CreateFailure("No validation criteria (hash or publisher) specified.");
         }
 
-        bool hashMatched = false;
         if (allowedSha256Hashes is { Count: > 0 })
         {
             var actualHash = await ComputeSha256Async(stream, ct);
             stream.Position = 0;
-            hashMatched = allowedSha256Hashes.Any(h => string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase));
-            if (!hashMatched && !hasPublisherCheck)
+            bool hashMatched = allowedSha256Hashes.Any(h => string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase));
+            if (!hashMatched)
             {
                 return OperationResult<bool>.CreateFailure(
                     $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedSha256Hashes)}].");
@@ -331,11 +323,6 @@ public static class DownloadSecurityValidator
             var authResult = ValidateAuthenticodeSignature(filePath, expectedAuthenticodePublisher, allowExpiredCertificates);
             if (!authResult.Success)
             {
-                if (hasHashCheck && hashMatched)
-                {
-                    return OperationResult<bool>.CreateSuccess(true);
-                }
-
                 return authResult;
             }
         }
