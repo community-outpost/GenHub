@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reactive.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -355,6 +356,59 @@ public class BackgroundUpdateCoordinatorTests
     }
 
     /// <summary>
+    /// Verifies that a persistent update notification cannot start installation after the coordinator is disposed.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task UpdateNotificationAction_WhenCoordinatorDisposed_DoesNotInstallArtifactAsync()
+    {
+        var notificationShownTcs = new TaskCompletionSource<NotificationMessage>();
+        var settings = new UserSettings { SubscribedPrNumber = 100 };
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(settings);
+
+        var artifactInfo = new ArtifactUpdateInfo(
+            Version: "0.0.99999-pr100",
+            GitHash: "abc1234",
+            PullRequestNumber: 100,
+            WorkflowRunId: 12345,
+            WorkflowRunUrl: "https://example.com/runs/1",
+            ArtifactId: 67890,
+            ArtifactName: "genhub-velopack-linux-0.0.99999",
+            CreatedAt: DateTime.UtcNow,
+            DownloadUrl: "https://example.com/artifact.zip",
+            Size: 1024);
+
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        mockVelopack.SetupProperty(x => x.SubscribedPrNumber, 100);
+        mockVelopack.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(artifactInfo);
+
+        var mockNotificationService = CreateNotificationServiceMock();
+        mockNotificationService.Setup(x => x.Show(It.IsAny<NotificationMessage>()))
+            .Callback<NotificationMessage>(message => notificationShownTcs.TrySetResult(message));
+
+        var coordinator = new BackgroundUpdateCoordinator(
+            mockVelopack.Object,
+            mockUserSettings.Object,
+            mockNotificationService.Object,
+            new Mock<ILogger<BackgroundUpdateCoordinator>>().Object);
+
+        await coordinator.CheckForUpdatesAsync();
+        var updateNotification = await notificationShownTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        coordinator.Dispose();
+
+        updateNotification.Actions[0].Callback?.Invoke();
+
+        mockVelopack.Verify(
+            x => x.InstallArtifactAsync(It.IsAny<ArtifactUpdateInfo>(), It.IsAny<IProgress<UpdateProgress>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        mockNotificationService.Verify(
+            x => x.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
     /// Verifies that checking updates repeatedly with the same version deduplicates notifications.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -632,6 +686,35 @@ public class BackgroundUpdateCoordinatorTests
         });
 
         Assert.Null(exception);
+    }
+
+    /// <summary>
+    /// Verifies that a timer callback carrying a cancelled lifetime token does not start an update check.
+    /// </summary>
+    [Fact]
+    public void OnPeriodicUpdateTimerCallback_WhenLifetimeCancelled_DoesNotCheckForUpdates()
+    {
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
+
+        using var coordinator = new BackgroundUpdateCoordinator(
+            mockVelopack.Object,
+            mockUserSettings.Object,
+            CreateNotificationServiceMock().Object,
+            new Mock<ILogger<BackgroundUpdateCoordinator>>().Object);
+        using var lifetimeCts = new CancellationTokenSource();
+        lifetimeCts.Cancel();
+
+        var callback = typeof(BackgroundUpdateCoordinator).GetMethod(
+            "OnPeriodicUpdateTimerCallback",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+
+        Assert.NotNull(callback);
+        callback.Invoke(coordinator, [lifetimeCts.Token]);
+
+        mockVelopack.Verify(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        mockVelopack.Verify(x => x.CheckForArtifactUpdatesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private static Mock<INotificationService> CreateNotificationServiceMock()

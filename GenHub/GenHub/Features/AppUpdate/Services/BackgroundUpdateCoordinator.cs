@@ -37,6 +37,7 @@ public class BackgroundUpdateCoordinator(
     IGitHubTokenStorage? gitHubTokenStorage = null) : IBackgroundUpdateCoordinator, IRecipient<UpdateSettingsChangedMessage>
 {
     private readonly CancellationTokenSource _cts = new();
+    private readonly object _lifecycleLock = new();
     private readonly SemaphoreSlim _checkLock = new(1, 1);
     private Timer? _periodicUpdateTimer;
     private string? _lastNotifiedUpdateIdentity;
@@ -48,9 +49,9 @@ public class BackgroundUpdateCoordinator(
         RegisterMessages();
 
         var settings = userSettingsService.Get();
-        if (settings.AutoCheckForUpdatesOnStartup)
+        if (settings.AutoCheckForUpdatesOnStartup && TryGetLifetimeToken(out var lifetimeToken))
         {
-            _ = CheckForUpdatesOnStartupAsync(cancellationToken);
+            _ = CheckForUpdatesOnStartupAsync(lifetimeToken, cancellationToken);
         }
 
         RestartPeriodicUpdateTimer(settings.AutoCheckForUpdatesPeriodically, settings.PeriodicUpdateCheckIntervalMinutes);
@@ -136,9 +137,17 @@ public class BackgroundUpdateCoordinator(
     /// <param name="disposing">True if disposing managed resources; false if finalizing.</param>
     protected virtual void Dispose(bool disposing)
     {
-        if (_disposed)
+        Timer? timerToDispose = null;
+        lock (_lifecycleLock)
         {
-            return;
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            timerToDispose = _periodicUpdateTimer;
+            _periodicUpdateTimer = null;
         }
 
         if (disposing)
@@ -147,6 +156,7 @@ public class BackgroundUpdateCoordinator(
 
             try
             {
+                // Cancel first so callbacks already holding the token observe shutdown before the source is disposed.
                 _cts.Cancel();
             }
             catch (ObjectDisposedException)
@@ -154,12 +164,9 @@ public class BackgroundUpdateCoordinator(
                 // Ignore if already disposed
             }
 
-            _periodicUpdateTimer?.Dispose();
-            _periodicUpdateTimer = null;
+            timerToDispose?.Dispose();
             _cts.Dispose();
         }
-
-        _disposed = true;
     }
 
     private void RegisterMessages()
@@ -688,6 +695,12 @@ public class BackgroundUpdateCoordinator(
         int? clearedPrNumber = null,
         string? clearedBranch = null)
     {
+        if (!TryGetLifetimeToken(out var lifetimeToken))
+        {
+            logger?.LogDebug("Skipping update installation because the coordinator is disposed");
+            return;
+        }
+
         var progressNotificationId = Guid.NewGuid();
 
         try
@@ -729,8 +742,8 @@ public class BackgroundUpdateCoordinator(
             if (artifactUpdate != null)
             {
                 logger?.LogInformation("Starting one-click artifact install: {Version}", artifactUpdate.DisplayVersion);
-                await velopackUpdateManager.InstallArtifactAsync(artifactUpdate, progress, _cts.Token);
-                await ClearStaleSubscriptionAsync(clearedPrNumber, clearedBranch);
+                await velopackUpdateManager.InstallArtifactAsync(artifactUpdate, progress, lifetimeToken);
+                await ClearStaleSubscriptionAsync(clearedPrNumber, clearedBranch, lifetimeToken);
                 notificationService.Update(
                     progressNotificationId,
                     AppUpdateConstants.UpdateCompleteRestartingMessage,
@@ -739,8 +752,8 @@ public class BackgroundUpdateCoordinator(
             else if (updateInfo != null)
             {
                 logger?.LogInformation("Starting one-click release update: {Version}", updateInfo.TargetFullRelease.Version);
-                await velopackUpdateManager.DownloadUpdatesAsync(updateInfo, progress, _cts.Token);
-                await ClearStaleSubscriptionAsync(clearedPrNumber, clearedBranch);
+                await velopackUpdateManager.DownloadUpdatesAsync(updateInfo, progress, lifetimeToken);
+                await ClearStaleSubscriptionAsync(clearedPrNumber, clearedBranch, lifetimeToken);
                 notificationService.Update(
                     progressNotificationId,
                     AppUpdateConstants.UpdateDownloadedRestartingMessage,
@@ -765,7 +778,10 @@ public class BackgroundUpdateCoordinator(
         }
     }
 
-    private async Task ClearStaleSubscriptionAsync(int? clearedPrNumber, string? clearedBranch)
+    private async Task ClearStaleSubscriptionAsync(
+        int? clearedPrNumber,
+        string? clearedBranch,
+        CancellationToken cancellationToken)
     {
         if (!clearedPrNumber.HasValue && string.IsNullOrEmpty(clearedBranch))
         {
@@ -787,7 +803,7 @@ public class BackgroundUpdateCoordinator(
                     settings.SubscribedBranch = null;
                 }
             });
-            await userSettingsService.SaveAsync(_cts.Token);
+            await userSettingsService.SaveAsync(cancellationToken);
             logger?.LogInformation(
                 "Cleared stale subscription (PR: {PrNumber}, Branch: {Branch}) after applying fallback update",
                 clearedPrNumber,
@@ -816,9 +832,9 @@ public class BackgroundUpdateCoordinator(
         });
     }
 
-    private async Task CheckForUpdatesOnStartupAsync(CancellationToken cancellationToken)
+    private async Task CheckForUpdatesOnStartupAsync(CancellationToken lifetimeToken, CancellationToken cancellationToken)
     {
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, cancellationToken);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(lifetimeToken, cancellationToken);
         await CheckForUpdatesInBackgroundAsync(linkedCts.Token);
     }
 
@@ -840,37 +856,61 @@ public class BackgroundUpdateCoordinator(
 
     private void RestartPeriodicUpdateTimer(bool enabled, int intervalMinutes)
     {
-        _periodicUpdateTimer?.Dispose();
-        _periodicUpdateTimer = null;
-
-        if (!enabled || intervalMinutes <= 0)
+        Timer? timerToDispose = null;
+        lock (_lifecycleLock)
         {
-            return;
+            if (_disposed)
+            {
+                return;
+            }
+
+            timerToDispose = _periodicUpdateTimer;
+            _periodicUpdateTimer = null;
+
+            if (enabled && intervalMinutes > 0)
+            {
+                var clampedInterval = Math.Clamp(
+                    intervalMinutes,
+                    AppUpdateConstants.MinPeriodicUpdateCheckIntervalMinutes,
+                    AppUpdateConstants.MaxPeriodicUpdateCheckIntervalMinutes);
+
+                var interval = TimeSpan.FromMinutes(clampedInterval);
+                logger?.LogDebug("Starting periodic update check timer with interval: {Interval}", interval);
+
+                _periodicUpdateTimer = new Timer(
+                    OnPeriodicUpdateTimerCallback,
+                    _cts.Token,
+                    interval,
+                    interval);
+            }
         }
 
-        var clampedInterval = Math.Clamp(
-            intervalMinutes,
-            AppUpdateConstants.MinPeriodicUpdateCheckIntervalMinutes,
-            AppUpdateConstants.MaxPeriodicUpdateCheckIntervalMinutes);
-
-        var interval = TimeSpan.FromMinutes(clampedInterval);
-        logger?.LogDebug("Starting periodic update check timer with interval: {Interval}", interval);
-
-        _periodicUpdateTimer = new Timer(
-            OnPeriodicUpdateTimerCallback,
-            null,
-            interval,
-            interval);
+        timerToDispose?.Dispose();
     }
 
     private void OnPeriodicUpdateTimerCallback(object? state)
     {
-        if (_disposed || _cts.IsCancellationRequested)
+        if (state is not CancellationToken lifetimeToken || lifetimeToken.IsCancellationRequested)
         {
             return;
         }
 
         logger?.LogDebug("Periodic update check timer triggered");
-        _ = CheckForUpdatesInBackgroundAsync(_cts.Token);
+        _ = CheckForUpdatesInBackgroundAsync(lifetimeToken);
+    }
+
+    private bool TryGetLifetimeToken(out CancellationToken lifetimeToken)
+    {
+        lock (_lifecycleLock)
+        {
+            if (_disposed)
+            {
+                lifetimeToken = default;
+                return false;
+            }
+
+            lifetimeToken = _cts.Token;
+            return true;
+        }
     }
 }
