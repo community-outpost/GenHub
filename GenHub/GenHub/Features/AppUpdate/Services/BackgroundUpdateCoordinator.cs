@@ -439,6 +439,13 @@ public class BackgroundUpdateCoordinator(
             !string.Equals(branch, AppUpdateConstants.MainBranch, StringComparison.OrdinalIgnoreCase))
         {
             await CheckStaleBranchFallbackUpdateAsync(branch, settings, cancellationToken);
+            return;
+        }
+
+        if (string.Equals(branch, AppUpdateConstants.MainBranch, StringComparison.OrdinalIgnoreCase))
+        {
+            logger?.LogDebug("Main branch has no artifact update; checking standard releases instead");
+            await CheckStandardReleaseUpdateAsync(settings, cancellationToken);
         }
     }
 
