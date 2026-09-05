@@ -75,16 +75,19 @@ if [ -f "$CURRENT_EXE" ]; then
     
     nohup "./$EXE_NAME" > /dev/null 2>&1 &
     APP_PID=$!
-    sleep 2
-    if ! kill -0 "$APP_PID" 2>/dev/null; then
-        write_log "Error: Application exited prematurely after launch"
-        if [ -d "$BACKUP_DIR" ] && [ "$(ls -A "$BACKUP_DIR" 2>/dev/null)" ]; then
-            write_log "Attempting to restore backup..."
-            rm -rf "${TARGET_DIR:?}"/* "${TARGET_DIR:?}"/.[!.]* 2>/dev/null || true
-            cp -a "${BACKUP_DIR:?}/." "$TARGET_DIR/" 2>/dev/null || true
+    for i in $(seq 1 5); do
+        sleep 1
+        if ! kill -0 "$APP_PID" 2>/dev/null; then
+            write_log "Error: Application exited prematurely after launch"
+            if [ -d "$BACKUP_DIR" ] && [ "$(ls -A "$BACKUP_DIR" 2>/dev/null)" ]; then
+                write_log "Attempting to restore backup..."
+                rm -rf "${TARGET_DIR:?}"/* "${TARGET_DIR:?}"/.[!.]* 2>/dev/null || true
+                cp -a "${BACKUP_DIR:?}/." "$TARGET_DIR/" 2>/dev/null || true
+                write_log "Backup restored."
+            fi
+            exit 1
         fi
-        exit 1
-    fi
+    done
     write_log "Application started and verified running (PID: $APP_PID)"
 
     # Cleanup source directory only after verified launch

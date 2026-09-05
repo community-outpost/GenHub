@@ -505,6 +505,7 @@ if ($process) {
 Get-Process -Name ""GenHub*"" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
 
+$updateSuccess = $false
 try {
     New-Item -ItemType Directory -Path $BackupDir -Force | Out-Null
     if (Test-Path $TargetDir) {
@@ -516,14 +517,21 @@ try {
         throw ""Updated executable not found: $CurrentExe""
     }
     $exeDir = Split-Path -Path $CurrentExe -Parent
-    $proc = Start-Process -FilePath $CurrentExe -WorkingDirectory $exeDir -PassThru
-    Start-Sleep -Seconds 2
-    if ($proc.HasExited) {
-        throw ""Application exited prematurely after launch with exit code $($proc.ExitCode)""
+    $proc = Start-Process -FilePath $CurrentExe -WorkingDirectory $exeDir -PassThru -ErrorAction Stop
+    if ($null -eq $proc) {
+        throw ""Failed to start updated application: process could not be launched""
+    }
+    Start-Sleep -Seconds 1
+    for ($i = 0; $i -lt 5; $i++) {
+        if ($proc.HasExited) {
+            throw ""Application exited prematurely after launch with exit code $($proc.ExitCode)""
+        }
+        Start-Sleep -Seconds 1
     }
     if (Test-Path $SourceDir) {
         Remove-Item -Path $SourceDir -Recurse -Force -ErrorAction SilentlyContinue
     }
+    $updateSuccess = $true
 }
 catch {
     Write-Log ""Migration failed: $($_.Exception.Message)""
@@ -534,9 +542,13 @@ catch {
 }
 finally {
     $updaterDir = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
-    Start-Sleep -Seconds 2
-    if (Test-Path $updaterDir) {
-        Remove-Item -Path $updaterDir -Recurse -Force -ErrorAction SilentlyContinue
+    if ($updateSuccess) {
+        Start-Sleep -Seconds 2
+        if (Test-Path $updaterDir) {
+            Remove-Item -Path $updaterDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    } else {
+        Write-Log ""Preserving backup and temporary updater directory for recovery: $updaterDir""
     }
 }
 ";
@@ -595,15 +607,17 @@ if [ -f ""$CURRENT_EXE"" ]; then
     fi
     nohup ""./$EXE_NAME"" > /dev/null 2>&1 &
     APP_PID=$!
-    sleep 2
-    if ! kill -0 ""$APP_PID"" 2>/dev/null; then
-        write_log ""Error: Application exited prematurely after launch""
-        if [ -d ""$BACKUP_DIR"" ] && [ ""$(ls -A ""$BACKUP_DIR"" 2>/dev/null)"" ]; then
-            rm -rf ""${TARGET_DIR:?}""/* ""${TARGET_DIR:?}""/.[!.]* 2>/dev/null || true
-            cp -a ""${BACKUP_DIR:?}/."" ""$TARGET_DIR/"" 2>/dev/null || true
+    for i in $(seq 1 5); do
+        sleep 1
+        if ! kill -0 ""$APP_PID"" 2>/dev/null; then
+            write_log ""Error: Application exited prematurely after launch""
+            if [ -d ""$BACKUP_DIR"" ] && [ ""$(ls -A ""$BACKUP_DIR"" 2>/dev/null)"" ]; then
+                rm -rf ""${TARGET_DIR:?}""/* ""${TARGET_DIR:?}""/.[!.]* 2>/dev/null || true
+                cp -a ""${BACKUP_DIR:?}/."" ""$TARGET_DIR/"" 2>/dev/null || true
+            fi
+            exit 1
         fi
-        exit 1
-    fi
+    done
     rm -rf ""${SOURCE_DIR:?}"" 2>/dev/null || true
 else
     write_log ""Error: Updated executable not found: $CURRENT_EXE""
@@ -667,24 +681,27 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
         return defaultTarget;
     }
 
-    private static void RollbackDirectoryMove(bool moved, string? sourceDir, string targetDir, ILogger logger)
+    private static bool RollbackDirectoryMove(bool moved, string? sourceDir, string targetDir, ILogger logger)
     {
         if (!moved || string.IsNullOrWhiteSpace(sourceDir))
         {
-            return;
+            return true;
         }
 
         try
         {
             MigrateDirectorySafely(targetDir, sourceDir);
+            return true;
         }
         catch (IOException ex)
         {
             logger.LogError(ex, "I/O error rolling back directory move from {Target} to {Source}", targetDir, sourceDir);
+            return false;
         }
         catch (UnauthorizedAccessException ex)
         {
             logger.LogError(ex, "Unauthorized access rolling back directory move from {Target} to {Source}", targetDir, sourceDir);
+            return false;
         }
     }
 
@@ -753,7 +770,15 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
 
         if (!TryMoveDirectoryIfExternal(currentWorkspaceRoot, targetWorkspaceRoot, sourceRoot, out var workspaceMoved))
         {
-            RollbackDirectoryMove(casMoved, currentCasRoot, targetCasRoot, logger);
+            var casRolledBack = RollbackDirectoryMove(casMoved, currentCasRoot, targetCasRoot, logger);
+            if (!casRolledBack && currentCasRoot != null)
+            {
+                userSettingsService.Update(liveSettings =>
+                {
+                    liveSettings.CasConfiguration.CasRootPath = finalCasRoot;
+                });
+            }
+
             return false;
         }
 
@@ -769,21 +794,22 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
         {
             logger.LogError("Failed to persist relocated storage settings. Rolling back storage relocation.");
 
+            var casRolledBack = RollbackDirectoryMove(casMoved, currentCasRoot, targetCasRoot, logger);
+            var workspaceRolledBack = RollbackDirectoryMove(workspaceMoved, currentWorkspaceRoot, targetWorkspaceRoot, logger);
+
             userSettingsService.Update(liveSettings =>
             {
-                if (currentCasRoot != null)
+                if (casRolledBack && currentCasRoot != null)
                 {
                     liveSettings.CasConfiguration.CasRootPath = currentCasRoot;
                 }
 
-                if (currentWorkspaceRoot != null)
+                if (workspaceRolledBack && currentWorkspaceRoot != null)
                 {
                     liveSettings.WorkspacePath = currentWorkspaceRoot;
                 }
             });
 
-            RollbackDirectoryMove(casMoved, currentCasRoot, targetCasRoot, logger);
-            RollbackDirectoryMove(workspaceMoved, currentWorkspaceRoot, targetWorkspaceRoot, logger);
             return false;
         }
 
