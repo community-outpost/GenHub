@@ -18,6 +18,7 @@ using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Storage;
+using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Common.Services;
@@ -355,7 +356,15 @@ public class StorageMigrationService(
         }
 
         CopyDirectoryRecursive(sourceDir, destDir);
-        TryDeleteDirectory(sourceDir);
+        try
+        {
+            FileOperationsService.DeleteDirectoryIfExists(sourceDir);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            TryDeleteDirectory(destDir);
+            throw;
+        }
     }
 
     private static StorageMigrationPreflightResult ValidatePathSanity(string targetPath)
@@ -503,12 +512,13 @@ try {
     }
     Copy-Item -Path ""$SourceDir\*"" -Destination $TargetDir -Recurse -Force -ErrorAction Stop
     Write-Log ""Migration completed successfully""
+    if (-not (Test-Path $CurrentExe)) {
+        throw ""Updated executable not found: $CurrentExe""
+    }
+    $exeDir = Split-Path -Path $CurrentExe -Parent
+    Start-Process -FilePath $CurrentExe -WorkingDirectory $exeDir
     if (Test-Path $SourceDir) {
         Remove-Item -Path $SourceDir -Recurse -Force -ErrorAction SilentlyContinue
-    }
-    if (Test-Path $CurrentExe) {
-        $exeDir = Split-Path -Path $CurrentExe -Parent
-        Start-Process -FilePath $CurrentExe -WorkingDirectory $exeDir
     }
 }
 catch {
@@ -580,9 +590,15 @@ if [ -f ""$CURRENT_EXE"" ]; then
         chmod +x ""$EXE_NAME""
     fi
     nohup ""./$EXE_NAME"" > /dev/null 2>&1 &
+    rm -rf ""${SOURCE_DIR:?}"" 2>/dev/null || true
+else
+    write_log ""Error: Updated executable not found: $CURRENT_EXE""
+    if [ -d ""$BACKUP_DIR"" ]; then
+        rm -rf ""${TARGET_DIR:?}""/* ""${TARGET_DIR:?}""/.[!.]* 2>/dev/null || true
+        cp -a ""${BACKUP_DIR:?}/."" ""$TARGET_DIR/"" 2>/dev/null || true
+    fi
+    exit 1
 fi
-
-rm -rf ""${SOURCE_DIR:?}"" 2>/dev/null || true
 UPDATER_DIR=$(dirname ""$0"")
 sleep 2
 rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
@@ -637,11 +653,24 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
         return defaultTarget;
     }
 
-    private static void RollbackDirectoryMove(bool moved, string? sourceDir, string targetDir)
+    private static void RollbackDirectoryMove(bool moved, string? sourceDir, string targetDir, ILogger logger)
     {
-        if (moved && !string.IsNullOrWhiteSpace(sourceDir))
+        if (!moved || string.IsNullOrWhiteSpace(sourceDir))
+        {
+            return;
+        }
+
+        try
         {
             MigrateDirectorySafely(targetDir, sourceDir);
+        }
+        catch (IOException ex)
+        {
+            logger.LogError(ex, "I/O error rolling back directory move from {Target} to {Source}", targetDir, sourceDir);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogError(ex, "Unauthorized access rolling back directory move from {Target} to {Source}", targetDir, sourceDir);
         }
     }
 
@@ -710,7 +739,7 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
 
         if (!TryMoveDirectoryIfExternal(currentWorkspaceRoot, targetWorkspaceRoot, sourceRoot, out var workspaceMoved))
         {
-            RollbackDirectoryMove(casMoved, currentCasRoot, targetCasRoot);
+            RollbackDirectoryMove(casMoved, currentCasRoot, targetCasRoot, logger);
             return false;
         }
 
@@ -725,8 +754,20 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
         if (!saved)
         {
             logger.LogError("Failed to persist relocated storage settings. Rolling back storage relocation.");
-            RollbackDirectoryMove(casMoved, currentCasRoot, targetCasRoot);
-            RollbackDirectoryMove(workspaceMoved, currentWorkspaceRoot, targetWorkspaceRoot);
+
+            var liveSettings = userSettingsService.Get();
+            if (currentCasRoot != null)
+            {
+                liveSettings.CasConfiguration.CasRootPath = currentCasRoot;
+            }
+
+            if (currentWorkspaceRoot != null)
+            {
+                liveSettings.WorkspacePath = currentWorkspaceRoot;
+            }
+
+            RollbackDirectoryMove(casMoved, currentCasRoot, targetCasRoot, logger);
+            RollbackDirectoryMove(workspaceMoved, currentWorkspaceRoot, targetWorkspaceRoot, logger);
             return false;
         }
 
@@ -749,9 +790,14 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
             moved = true;
             return true;
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
-            logger.LogError(ex, "Failed while moving storage directory from {Source} to {Target}", currentPath, targetPath);
+            logger.LogError(ex, "I/O error while moving storage directory from {Source} to {Target}", currentPath, targetPath);
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogError(ex, "Unauthorized access while moving storage directory from {Source} to {Target}", currentPath, targetPath);
             return false;
         }
     }

@@ -49,19 +49,19 @@ try {
     
     Write-Log "Update completed successfully"
     
-    # Only delete source directory on verified success
-    if (Test-Path $SourceDir) {
-        Remove-Item -Path $SourceDir -Recurse -Force -ErrorAction SilentlyContinue
+    Write-Log "Starting updated application: $CurrentExe"
+    if (-not (Test-Path $CurrentExe)) {
+        throw "Updated executable not found: $CurrentExe"
     }
 
-    Write-Log "Starting updated application: $CurrentExe"
-    if (Test-Path $CurrentExe) {
-        # Set working directory to the application's directory before starting
-        $exeDir = Split-Path -Path $CurrentExe -Parent
-        Start-Process -FilePath $CurrentExe -WorkingDirectory $exeDir
-        Write-Log "Application started successfully"
-    } else {
-        Write-Log "Warning: Updated executable not found: $CurrentExe"
+    # Set working directory to the application's directory before starting
+    $exeDir = Split-Path -Path $CurrentExe -Parent
+    Start-Process -FilePath $CurrentExe -WorkingDirectory $exeDir
+    Write-Log "Application started successfully"
+
+    # Only delete source directory on verified success after launch
+    if (Test-Path $SourceDir) {
+        Remove-Item -Path $SourceDir -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 catch {

@@ -75,13 +75,19 @@ if [ -f "$CURRENT_EXE" ]; then
     
     nohup "./$EXE_NAME" > /dev/null 2>&1 &
     write_log "Application started successfully"
-else
-    write_log "Warning: Updated executable not found: $CURRENT_EXE"
-fi
 
-# Cleanup source directory only after verified successful copy
-write_log "Cleaning up source directory..."
-rm -rf "${SOURCE_DIR:?}" 2>/dev/null || true
+    # Cleanup source directory only after verified launch
+    write_log "Cleaning up source directory..."
+    rm -rf "${SOURCE_DIR:?}" 2>/dev/null || true
+else
+    write_log "Error: Updated executable not found: $CURRENT_EXE"
+    if [ -d "$BACKUP_DIR" ]; then
+        write_log "Attempting to restore backup..."
+        rm -rf "${TARGET_DIR:?}"/* "${TARGET_DIR:?}"/.[!.]* 2>/dev/null || true
+        cp -a "${BACKUP_DIR:?}/." "$TARGET_DIR/" 2>/dev/null || true
+    fi
+    exit 1
+fi
 
 # Self-destruct the updater script's parent directory
 UPDATER_DIR=$(dirname "$0")
