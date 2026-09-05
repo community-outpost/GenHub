@@ -97,6 +97,16 @@ public static class FileTypes
     public const string BackupExtension = ".ghbak";
 
     /// <summary>
+    /// Legacy file extension for backup files.
+    /// </summary>
+    public const string LegacyBackupExtension = ".bak";
+
+    /// <summary>
+    /// Directory name for Git repository metadata.
+    /// </summary>
+    public const string GitDirectoryName = ".git";
+
+    /// <summary>
     /// File extension for user data manifest files.
     /// </summary>
     public const string UserDataManifestExtension = ".userdata.json";

@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Tools;
@@ -496,6 +497,9 @@ public class ManifestGenerationServiceTests : IDisposable
         await File.WriteAllTextAsync(Path.Combine(backupDir, "backup.exe"), "backup exe");
         await File.WriteAllTextAsync(Path.Combine(installationPath, "game.ini.bak"), "backup ini");
         await File.WriteAllTextAsync(Path.Combine(installationPath, "debug.log"), "log file");
+        var gitDir = Path.Combine(installationPath, FileTypes.GitDirectoryName);
+        Directory.CreateDirectory(gitDir);
+        await File.WriteAllTextAsync(Path.Combine(gitDir, "config"), "git config");
 
         // Act - version "1.02" has no authoritative CSV catalog
         var builder = await _service.CreateGameInstallationManifestAsync(
@@ -510,8 +514,45 @@ public class ManifestGenerationServiceTests : IDisposable
         Assert.Contains(manifest.Files, f => f.RelativePath == "MSS/mssa3d.m3d");
         Assert.Contains(manifest.Files, f => f.RelativePath == "intro.bik");
         Assert.DoesNotContain(manifest.Files, f => f.RelativePath.Contains("backup"));
-        Assert.DoesNotContain(manifest.Files, f => f.RelativePath.EndsWith(".bak", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(manifest.Files, f => f.RelativePath.StartsWith(FileTypes.GitDirectoryName + "/", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(manifest.Files, f => f.RelativePath.EndsWith(FileTypes.LegacyBackupExtension, StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(manifest.Files, f => f.RelativePath.EndsWith(".log", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Tests that an IOException on a single file during fallback scan does not abort remaining files.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_FallbackScan_SingleFileLocked_ContinuesRemainingFilesAsync()
+    {
+        // Arrange
+        var installationPath = Path.Combine(_tempDirectory, "LockedFallbackInstall");
+        Directory.CreateDirectory(installationPath);
+
+        var exePath = Path.Combine(installationPath, "generals.exe");
+        await File.WriteAllTextAsync(exePath, "legacy exe");
+
+        var lockedFile = Path.Combine(installationPath, "locked.ini");
+        await File.WriteAllTextAsync(lockedFile, "locked content");
+
+        var goodFile = Path.Combine(installationPath, "good.ini");
+        await File.WriteAllTextAsync(goodFile, "good content");
+
+        _hashProviderMock
+            .Setup(x => x.ComputeFileHashAsync(It.Is<string>(p => p.EndsWith("locked.ini", StringComparison.OrdinalIgnoreCase)), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("File is locked by another process"));
+
+        // Act - version "1.02" has no authoritative CSV catalog
+        var builder = await _service.CreateGameInstallationManifestAsync(
+            installationPath, GameType.Generals, GameInstallationType.Retail, "1.02");
+        var manifest = builder.Build();
+
+        // Assert - locked file skipped, but other files still added
+        Assert.NotNull(manifest);
+        Assert.Contains(manifest.Files, f => f.RelativePath == "generals.exe");
+        Assert.Contains(manifest.Files, f => f.RelativePath == "good.ini");
+        Assert.DoesNotContain(manifest.Files, f => f.RelativePath == "locked.ini");
     }
 
     /// <summary>
