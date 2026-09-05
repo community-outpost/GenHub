@@ -53,7 +53,8 @@ public class CsvDiscovererTests
     private sealed class StubHttpMessageHandler(
         string? expectedUrl = null,
         string content = "",
-        HttpStatusCode statusCode = HttpStatusCode.NotFound) : HttpMessageHandler
+        HttpStatusCode statusCode = HttpStatusCode.NotFound,
+        string? responseUrl = null) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
@@ -63,7 +64,7 @@ public class CsvDiscovererTests
             var responseContent = code == HttpStatusCode.OK ? content : string.Empty;
             var response = new HttpResponseMessage(code)
             {
-                RequestMessage = request,
+                RequestMessage = responseUrl == null ? request : new HttpRequestMessage(HttpMethod.Get, responseUrl),
                 Content = new StringContent(responseContent),
             };
 
@@ -321,6 +322,42 @@ public class CsvDiscovererTests
             var offlineResult = await offlineDiscoverer.DiscoverAsync(new ContentSearchQuery());
 
             offlineResult.Data!.Items.Should().ContainSingle();
+        }
+        finally
+        {
+            cacheDirectory.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that HTTP sources and HTTPS-to-HTTP redirects are rejected without being cached.
+    /// </summary>
+    /// <param name="sourceUrl">Configured index URL.</param>
+    /// <param name="responseUrl">Final response URL after redirects.</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Theory]
+    [InlineData("http://example.com/index.json", "http://example.com/index.json")]
+    [InlineData("https://example.com/index.json", "http://example.com/index.json")]
+    public async Task DiscoverAsync_WhenTransportIsInsecure_DoesNotCacheAsync(string sourceUrl, string responseUrl)
+    {
+        var cacheDirectory = Directory.CreateTempSubdirectory();
+        try
+        {
+            var indexJson = JsonSerializer.Serialize(new CsvCatalogRegistryIndex
+            {
+                Entries = [CreateEntry(TestGeneralsCsvUrl, CsvConstants.GeneralsGameType, GeneralsVersion, CsvConstants.LanguageEn)],
+            });
+            var discoverer = CreateDiscoverer(
+                new CsvCatalogConfiguration { IndexFilePath = sourceUrl },
+                new StubHttpMessageHandler(sourceUrl, indexJson, HttpStatusCode.OK, responseUrl),
+                cacheDirectory.FullName);
+
+            var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
+
+            result.Data!.Items.Should().BeEmpty();
+            Directory
+                .EnumerateFiles(cacheDirectory.FullName, $"*{CsvConstants.CacheFileExtension}", SearchOption.AllDirectories)
+                .Should().BeEmpty();
         }
         finally
         {

@@ -151,6 +151,12 @@ public class CsvDiscoverer(
         }
     }
 
+    private static bool IsRecoverableRemoteFailure(Exception exception, CancellationToken cancellationToken)
+    {
+        return exception is HttpRequestException or IOException ||
+            (exception is OperationCanceledException && !cancellationToken.IsCancellationRequested);
+    }
+
     private static List<CsvCatalogRegistryEntry> GetValidCatalogEntries(IEnumerable<CsvCatalogRegistryEntry>? entries)
     {
         return entries?
@@ -357,6 +363,11 @@ public class CsvDiscoverer(
         if (Uri.TryCreate(indexPath, UriKind.Absolute, out var indexUri) &&
             (indexUri.Scheme == Uri.UriSchemeHttp || indexUri.Scheme == Uri.UriSchemeHttps))
         {
+            if (indexUri.Scheme != Uri.UriSchemeHttps)
+            {
+                throw new HttpRequestException($"CSV index must use HTTPS: {indexUri}");
+            }
+
             var cached = catalogCache == null
                 ? null
                 : await catalogCache.ReadAsync(indexPath, cancellationToken);
@@ -368,7 +379,15 @@ public class CsvDiscoverer(
             try
             {
                 var httpClient = httpClientFactory.CreateClient(string.Empty);
-                var content = await httpClient.GetStringAsync(indexUri, cancellationToken);
+                using var response = await httpClient.GetAsync(indexUri, cancellationToken);
+                response.EnsureSuccessStatusCode();
+                var responseUri = response.RequestMessage?.RequestUri;
+                if (responseUri?.Scheme != Uri.UriSchemeHttps)
+                {
+                    throw new HttpRequestException($"CSV index redirect must use HTTPS: {responseUri}");
+                }
+
+                var content = await response.Content.ReadAsStringAsync(cancellationToken);
                 return new CsvIndexContent(content, true);
             }
             catch (Exception ex) when (cached != null && IsRecoverableRemoteFailure(ex, cancellationToken))
@@ -384,12 +403,6 @@ public class CsvDiscoverer(
 
         var localContent = await File.ReadAllTextAsync(resolvedPath, cancellationToken);
         return new CsvIndexContent(localContent, false);
-    }
-
-    private bool IsRecoverableRemoteFailure(Exception exception, CancellationToken cancellationToken)
-    {
-        return exception is HttpRequestException or IOException ||
-            (exception is OperationCanceledException && !cancellationToken.IsCancellationRequested);
     }
 
     private ContentSearchResult? CreateSearchResult(CsvCatalogRegistryEntry entry, string language)

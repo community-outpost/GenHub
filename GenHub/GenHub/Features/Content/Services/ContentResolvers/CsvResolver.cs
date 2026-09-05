@@ -121,6 +121,12 @@ public class CsvResolver(
         return ResolveAsync(discoveredItem, cancellationToken);
     }
 
+    private static bool IsRecoverableRemoteFailure(Exception exception, CancellationToken cancellationToken)
+    {
+        return exception is HttpRequestException or IOException ||
+            (exception is OperationCanceledException && !cancellationToken.IsCancellationRequested);
+    }
+
     private static string GetGameTypeString(ContentSearchResult item)
     {
         if (item.ResolverMetadata.TryGetValue(CsvConstants.GameTypeMetadataKey, out var gameType) && !string.IsNullOrWhiteSpace(gameType))
@@ -323,6 +329,11 @@ public class CsvResolver(
         if (Uri.TryCreate(sourceUrl, UriKind.Absolute, out var uri) &&
             (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
         {
+            if (uri.Scheme != Uri.UriSchemeHttps)
+            {
+                return OperationResult<CsvContentLoadResult>.CreateFailure($"CSV catalog must use HTTPS: {uri}");
+            }
+
             var cached = catalogCache == null
                 ? null
                 : await catalogCache.ReadAsync(sourceUrl, cancellationToken);
@@ -334,7 +345,15 @@ public class CsvResolver(
             try
             {
                 var httpClient = httpClientFactory.CreateClient(string.Empty);
-                var content = await httpClient.GetStringAsync(uri, cancellationToken);
+                using var response = await httpClient.GetAsync(uri, cancellationToken);
+                response.EnsureSuccessStatusCode();
+                var responseUri = response.RequestMessage?.RequestUri;
+                if (responseUri?.Scheme != Uri.UriSchemeHttps)
+                {
+                    throw new HttpRequestException($"CSV catalog redirect must use HTTPS: {responseUri}");
+                }
+
+                var content = await response.Content.ReadAsStringAsync(cancellationToken);
                 return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(content, true));
             }
             catch (Exception ex) when (cached != null && IsRecoverableRemoteFailure(ex, cancellationToken))
@@ -355,11 +374,5 @@ public class CsvResolver(
 
         var fileContent = await File.ReadAllTextAsync(resolvedPath, cancellationToken);
         return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(fileContent, false));
-    }
-
-    private bool IsRecoverableRemoteFailure(Exception exception, CancellationToken cancellationToken)
-    {
-        return exception is HttpRequestException or IOException ||
-            (exception is OperationCanceledException && !cancellationToken.IsCancellationRequested);
     }
 }

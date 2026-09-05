@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -148,15 +149,14 @@ public sealed class CsvCatalogCache
             }
 
             var expirationThreshold = DateTime.UtcNow - Retention;
-            foreach (var cacheFile in Directory.EnumerateFiles(
-                _cacheDirectory,
-                $"*{CsvConstants.CacheFileExtension}",
-                SearchOption.TopDirectoryOnly))
+            foreach (var cacheFile in Directory
+                .EnumerateFiles(
+                    _cacheDirectory,
+                    $"*{CsvConstants.CacheFileExtension}",
+                    SearchOption.TopDirectoryOnly)
+                .Where(cacheFile => File.GetLastWriteTimeUtc(cacheFile) < expirationThreshold))
             {
-                if (File.GetLastWriteTimeUtc(cacheFile) < expirationThreshold)
-                {
-                    File.Delete(cacheFile);
-                }
+                File.Delete(cacheFile);
             }
         }
         catch (IOException ex)
