@@ -526,7 +526,7 @@ public class ManifestGenerationService(
             return version switch
             {
                 "1.08" or "1.8" => CsvConstants.GeneralsCsvFileName,
-                _ => CsvConstants.GeneralsCsvFileName,
+                _ => null,
             };
         }
 
@@ -535,7 +535,7 @@ public class ManifestGenerationService(
             return version switch
             {
                 "1.04" or "1.4" or "1.05" or "1.5" => CsvConstants.ZeroHourCsvFileName,
-                _ => CsvConstants.ZeroHourCsvFileName,
+                _ => null,
             };
         }
 
@@ -698,7 +698,7 @@ public class ManifestGenerationService(
 
     private static string ResolveManifestVersion(GameType gameType, string? manifestVersion)
     {
-        if (!string.IsNullOrWhiteSpace(manifestVersion) && manifestVersion != "0")
+        if (!string.IsNullOrWhiteSpace(manifestVersion) && !int.TryParse(manifestVersion, out _))
         {
             return manifestVersion;
         }
