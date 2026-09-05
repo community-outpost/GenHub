@@ -276,10 +276,19 @@ public class BackgroundUpdateCoordinatorTests
         mockVelopack.SetupProperty(x => x.SubscribedBranch, AppUpdateConstants.MainBranch);
         mockVelopack.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync((ArtifactUpdateInfo?)null);
+        var stableRelease = new Velopack.VelopackAsset
+        {
+            PackageId = "GenHub",
+            Version = NuGet.Versioning.NuGetVersion.Parse("1.5.0"),
+            Type = Velopack.VelopackAssetType.Full,
+            FileName = "GenHub-1.5.0-full.nupkg",
+            SHA1 = "0000000000000000000000000000000000000000",
+            Size = 1024,
+        };
+        var stableUpdate = new Velopack.UpdateInfo(stableRelease, false, null, []);
         mockVelopack.Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Velopack.UpdateInfo?)null);
-        mockVelopack.SetupGet(x => x.HasUpdateAvailableFromGitHub).Returns(true);
-        mockVelopack.SetupGet(x => x.LatestVersionFromGitHub).Returns("1.5.0");
+            .ReturnsAsync(stableUpdate);
+        mockVelopack.SetupGet(x => x.HasUpdateAvailableFromGitHub).Returns(false);
 
         var mockTokenStorage = new Mock<IGitHubTokenStorage>();
         mockTokenStorage.Setup(x => x.HasToken()).Returns(true);
