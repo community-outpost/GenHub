@@ -3,7 +3,6 @@ using CsvHelper.Configuration;
 using GenHub.Core.Constants;
 using GenHub.Core.Features.GameInstallations;
 using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Content;
@@ -20,7 +19,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -54,6 +52,36 @@ public class ManifestGenerationService(
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+
+    private static readonly HashSet<string> FallbackFileExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".016",
+        ".256",
+        ".ani",
+        ".asi",
+        ".big",
+        ".bik",
+        ".bmp",
+        ".cfg",
+        ".csf",
+        ".dat",
+        ".dll",
+        ".exe",
+        ".flt",
+        ".ico",
+        ".ini",
+        ".lcf",
+        ".m3d",
+        ".map",
+        ".scb",
+        ".str",
+        ".sys",
+        ".tga",
+        ".txt",
+        ".vp6",
+        ".w3d",
+        ".wav",
     };
 
     private readonly ILanguageDetector _languageDetector = languageDetector ?? new LanguageDetector();
@@ -517,8 +545,13 @@ public class ManifestGenerationService(
     /// </summary>
     private static bool ShouldSkipFile(string relativePath)
     {
-        return relativePath.EndsWith(SteamConstants.BackupExtension, StringComparison.OrdinalIgnoreCase) ||
-               relativePath.EndsWith(SteamConstants.ProxyLauncherFileName, StringComparison.OrdinalIgnoreCase);
+        var normalized = relativePath.Replace('\\', '/');
+        return normalized.StartsWith(SteamConstants.BackupDirName + "/", StringComparison.OrdinalIgnoreCase) ||
+               normalized.StartsWith(".git/", StringComparison.OrdinalIgnoreCase) ||
+               normalized.EndsWith(SteamConstants.BackupExtension, StringComparison.OrdinalIgnoreCase) ||
+               normalized.EndsWith(".bak", StringComparison.OrdinalIgnoreCase) ||
+               normalized.EndsWith(SteamConstants.ProxyLauncherFileName, StringComparison.OrdinalIgnoreCase) ||
+               normalized.EndsWith(SteamConstants.TrackingFileName, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? GetCatalogFileName(GameType gameType, string version)
@@ -794,45 +827,42 @@ public class ManifestGenerationService(
             await builder.AddGameInstallationFileAsync(executableName, sourcePath, isExecutable: true);
         }
 
-        var commonFiles = new[]
+        try
         {
-            "*.exe",
-            "*.dll",
-            "*.dat",
-            "*.ini",
-            "*.cfg",
-            "*.big",
-            "*.txt",
-        };
-
-        foreach (var pattern in commonFiles)
-        {
-            try
+            var options = new EnumerationOptions
             {
-                var files = Directory.GetFiles(installationPath, pattern, SearchOption.TopDirectoryOnly);
-                foreach (var file in files)
+                IgnoreInaccessible = true,
+                RecurseSubdirectories = true,
+            };
+
+            foreach (var file in Directory.EnumerateFiles(installationPath, "*", options))
+            {
+                var relativePath = Path.GetRelativePath(installationPath, file).Replace('\\', '/');
+
+                if (ShouldSkipFile(relativePath))
                 {
-                    var relativePath = Path.GetFileName(file);
-
-                    if (ShouldSkipFile(relativePath))
-                    {
-                        continue;
-                    }
-
-                    if (relativePath.Equals(executableName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    var sourcePath = ResolveSourcePathWithBackup(file, relativePath);
-                    var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(relativePath, sourcePath);
-                    await builder.AddGameInstallationFileAsync(relativePath, sourcePath, isExecutable);
+                    continue;
                 }
+
+                if (relativePath.Equals(executableName, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var extension = Path.GetExtension(file);
+                if (!FallbackFileExtensions.Contains(extension))
+                {
+                    continue;
+                }
+
+                var sourcePath = ResolveSourcePathWithBackup(file, relativePath);
+                var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(relativePath, sourcePath);
+                await builder.AddGameInstallationFileAsync(relativePath, sourcePath, isExecutable);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                logger.LogWarning(ex, "Failed to enumerate files with pattern {Pattern} at {InstallationPath}", pattern, installationPath);
-            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to enumerate files during directory scan at {InstallationPath}", installationPath);
         }
     }
 
