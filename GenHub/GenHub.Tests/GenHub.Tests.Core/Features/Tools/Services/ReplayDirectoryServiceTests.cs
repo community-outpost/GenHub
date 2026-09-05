@@ -565,11 +565,11 @@ public sealed class ReplayDirectoryServiceTests
             {
                 ExeCrc = "0x12345678",
                 IniCrc = "0x87654321",
-                ManifestId = "1.0605260.generalsonline.gameclient.zerohour",
+                ManifestId = "1.82826.generalsonline.gameclient.60hz",
                 Publisher = "generalsonline",
                 GameType = "ZeroHour",
-                Version = "060526",
-                Description = "GeneralsOnline 060526",
+                Version = "082826",
+                Description = "GeneralsOnline 082826",
             },
         };
 
@@ -618,8 +618,8 @@ public sealed class ReplayDirectoryServiceTests
         };
 
         _mockManifestPool
-            .Setup(m => m.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(null));
+            .Setup(m => m.GetManifestAsync(It.Is<ManifestId>(id => id.Value == "1.82826.generalsonline.gameclient.60hz"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(acquiredGameClient));
 
         _mockManifestPool
             .Setup(m => m.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
