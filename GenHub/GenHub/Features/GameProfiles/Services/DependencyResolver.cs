@@ -23,6 +23,9 @@ public class DependencyResolver(
 {
     private const string GameDataName = "gamedata";
     private const string ZeroHourName = "zerohour";
+    private const string GeneralsName = "generals";
+    private const string ZeroHourShortName = "zh";
+    private const string GeneralsZeroHourName = "generalszh";
     private const string GameClientType = "gameclient";
 
     /// <summary>
@@ -82,7 +85,7 @@ public class DependencyResolver(
             return false;
         }
 
-        return IsContentNameCompatible(declaredParts[4], acquiredParts[4], declaredType, acquiredType);
+        return IsContentNameCompatible(declaredParts[4], acquiredParts[4], declaredType);
     }
 
     /// <inheritdoc/>
@@ -255,8 +258,7 @@ public class DependencyResolver(
     private static bool IsContentNameCompatible(
         string declaredName,
         string acquiredName,
-        string declaredType,
-        string acquiredType)
+        string declaredType)
     {
         if (declaredName.Equals(acquiredName, StringComparison.OrdinalIgnoreCase))
         {
@@ -282,12 +284,44 @@ public class DependencyResolver(
         return false;
     }
 
+    private static bool IsZeroHourIdentifier(string name)
+    {
+        if (string.Equals(name, ZeroHourName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, ZeroHourShortName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, GeneralsZeroHourName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var tokens = name.Split(ManifestConstants.VariantSeparator);
+        return tokens.Any(t =>
+            string.Equals(t, ZeroHourName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(t, ZeroHourShortName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(t, GeneralsZeroHourName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsGeneralsIdentifier(string name)
+    {
+        if (IsZeroHourIdentifier(name))
+        {
+            return false;
+        }
+
+        if (string.Equals(name, GeneralsName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var tokens = name.Split(ManifestConstants.VariantSeparator);
+        return tokens.Any(t => string.Equals(t, GeneralsName, StringComparison.OrdinalIgnoreCase));
+    }
+
     private static bool AreGameVariantsCompatible(string declaredName, string acquiredName)
     {
-        var isDeclaredZeroHour = declaredName.Contains("zerohour", StringComparison.OrdinalIgnoreCase) || declaredName.Contains("zh", StringComparison.OrdinalIgnoreCase);
-        var isAcquiredZeroHour = acquiredName.Contains("zerohour", StringComparison.OrdinalIgnoreCase) || acquiredName.Contains("zh", StringComparison.OrdinalIgnoreCase);
-        var isDeclaredGenerals = declaredName.Contains("generals", StringComparison.OrdinalIgnoreCase) && !isDeclaredZeroHour;
-        var isAcquiredGenerals = acquiredName.Contains("generals", StringComparison.OrdinalIgnoreCase) && !isAcquiredZeroHour;
+        var isDeclaredZeroHour = IsZeroHourIdentifier(declaredName);
+        var isAcquiredZeroHour = IsZeroHourIdentifier(acquiredName);
+        var isDeclaredGenerals = IsGeneralsIdentifier(declaredName);
+        var isAcquiredGenerals = IsGeneralsIdentifier(acquiredName);
 
         if ((isDeclaredZeroHour && isAcquiredGenerals) || (isDeclaredGenerals && isAcquiredZeroHour))
         {

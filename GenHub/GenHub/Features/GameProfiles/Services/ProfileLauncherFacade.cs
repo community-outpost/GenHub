@@ -1123,7 +1123,7 @@ public class ProfileLauncherFacade(
 
         foreach (var contentId in profile.EnabledContentIds)
         {
-            var manifest = await ResolveManifestForValidationAsync(contentId, pooledManifests, cancellationToken);
+            var (manifest, isValid) = await ResolveManifestForValidationAsync(contentId, pooledManifests, cancellationToken);
             if (manifest != null)
             {
                 manifests.Add(manifest);
@@ -1137,7 +1137,7 @@ public class ProfileLauncherFacade(
                     hasGameClientManifest = true;
                 }
             }
-            else
+            else if (isValid)
             {
                 logger.LogWarning("Manifest for content ID '{ContentId}' not found in pool during launch validation", contentId);
             }
@@ -1146,7 +1146,7 @@ public class ProfileLauncherFacade(
         return (manifests, hasGameInstallationManifest, hasGameClientManifest);
     }
 
-    private async Task<ContentManifest?> ResolveManifestForValidationAsync(
+    private async Task<(ContentManifest? Manifest, bool IsValid)> ResolveManifestForValidationAsync(
         string contentId,
         IReadOnlyList<ContentManifest> pooledManifests,
         CancellationToken cancellationToken)
@@ -1158,21 +1158,22 @@ public class ProfileLauncherFacade(
                 var manifestResult = await manifestPool.GetManifestAsync(manifestId, cancellationToken);
                 if (manifestResult.Success && manifestResult.Data != null)
                 {
-                    return manifestResult.Data;
+                    return (manifestResult.Data, true);
                 }
             }
 
             var declaredParts = contentId.Split(ManifestConstants.ManifestIdSegmentSeparator);
-            return pooledManifests.FirstOrDefault(m =>
+            var match = pooledManifests.FirstOrDefault(m =>
             {
                 var acquiredParts = m.Id.Value.Split(ManifestConstants.ManifestIdSegmentSeparator);
                 return DependencyResolver.HasCompatibleCatalogIdentity(declaredParts, acquiredParts);
             });
+            return (match, true);
         }
         catch (ArgumentException ex)
         {
             logger.LogWarning(ex, "Skipping invalid manifest ID during validation: {ContentId}", contentId);
-            return null;
+            return (null, false);
         }
     }
 

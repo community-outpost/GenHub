@@ -350,12 +350,19 @@ public partial class GameProfileLauncherViewModel(
 
         RunOnUi(() =>
         {
-            var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p => p.ProfileId.Equals(message.ProfileId, StringComparison.OrdinalIgnoreCase));
-            if (profile != null)
+            try
             {
-                profile.IsProcessRunning = true;
-                profile.ProcessId = message.ProcessId;
-                profile.NotifyCanLaunchChanged();
+                var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p => p.ProfileId.Equals(message.ProfileId, StringComparison.OrdinalIgnoreCase));
+                if (profile != null)
+                {
+                    profile.IsProcessRunning = true;
+                    profile.ProcessId = message.ProcessId;
+                    profile.NotifyCanLaunchChanged();
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error handling profile launched notification for {ProfileId}", message.ProfileId);
             }
         });
     }
@@ -370,14 +377,21 @@ public partial class GameProfileLauncherViewModel(
 
         RunOnUi(() =>
         {
-            var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p =>
-                (!string.IsNullOrEmpty(message.ProfileId) && p.ProfileId.Equals(message.ProfileId, StringComparison.OrdinalIgnoreCase)) ||
-                (message.ProcessId > 0 && p.ProcessId == message.ProcessId));
-            if (profile != null)
+            try
             {
-                profile.IsProcessRunning = false;
-                profile.ProcessId = 0;
-                profile.NotifyCanLaunchChanged();
+                var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p =>
+                    (!string.IsNullOrEmpty(message.ProfileId) && p.ProfileId.Equals(message.ProfileId, StringComparison.OrdinalIgnoreCase)) ||
+                    (message.ProcessId > 0 && p.ProcessId == message.ProcessId));
+                if (profile != null)
+                {
+                    profile.IsProcessRunning = false;
+                    profile.ProcessId = 0;
+                    profile.NotifyCanLaunchChanged();
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error handling profile stopped notification for {ProfileId}", message.ProfileId);
             }
         });
     }
@@ -392,10 +406,17 @@ public partial class GameProfileLauncherViewModel(
 
         RunOnUi(() =>
         {
-            var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p => p.ProfileId.Equals(message.ProfileId, StringComparison.OrdinalIgnoreCase));
-            if (profile != null)
+            try
             {
-                Profiles.Remove(profile);
+                var profile = Profiles.OfType<GameProfileItemViewModel>().FirstOrDefault(p => p.ProfileId.Equals(message.ProfileId, StringComparison.OrdinalIgnoreCase));
+                if (profile != null)
+                {
+                    Profiles.Remove(profile);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error handling profile deleted notification for {ProfileId}", message.ProfileId);
             }
         });
     }

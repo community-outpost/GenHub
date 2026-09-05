@@ -807,9 +807,7 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
                     Name = matchingManifest.Name,
                     WorkingDirectory = gamePath,
                     ExecutablePath = exePath,
-                    PublisherType = installation.InstallationType == GameInstallationType.Retail
-                        ? PublisherInfoConstants.Retail.Name
-                        : installType,
+                    PublisherType = installType,
                     GameType = gameType,
                     InstallationId = installation.Id,
                     Version = matchingManifest.Version,

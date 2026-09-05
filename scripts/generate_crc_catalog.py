@@ -465,18 +465,32 @@ def _update_existing_entry(existing: dict, incoming: dict) -> None:
 
 def merge_catalogs(existing: list[dict], crawled: list[dict]) -> list[dict]:
     """Merges new crawled entries into existing catalog, preserving known CRCs and hashes."""
-    by_manifest = {entry["manifestId"]: dict(entry) for entry in existing if "manifestId" in entry}
+    def entry_key(entry: dict) -> tuple[str, str, str]:
+        return (
+            entry.get("manifestId", ""),
+            normalize_hex(entry.get("exeCrc", "")),
+            normalize_hex(entry.get("iniCrc", "")),
+        )
+
+    merged = {entry_key(entry): dict(entry) for entry in existing if "manifestId" in entry}
 
     for item in crawled:
         m_id = item.get("manifestId")
         if not m_id:
             continue
-        if m_id in by_manifest:
-            _update_existing_entry(by_manifest[m_id], item)
+        key = entry_key(item)
+        if key in merged:
+            _update_existing_entry(merged[key], item)
         elif item.get("exeCrc"):
-            by_manifest[m_id] = dict(item)
+            empty_crc_key = (m_id, "", "")
+            if empty_crc_key in merged:
+                existing_entry = merged.pop(empty_crc_key)
+                _update_existing_entry(existing_entry, item)
+                merged[entry_key(existing_entry)] = existing_entry
+            else:
+                merged[key] = dict(item)
 
-    return list(by_manifest.values())
+    return list(merged.values())
 
 
 def _validate_mapping_entry(idx: int, entry: dict, seen_manifest_ids: set) -> bool:
