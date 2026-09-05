@@ -74,14 +74,25 @@ if [ -f "$CURRENT_EXE" ]; then
     fi
     
     nohup "./$EXE_NAME" > /dev/null 2>&1 &
-    write_log "Application started successfully"
+    APP_PID=$!
+    sleep 2
+    if ! kill -0 "$APP_PID" 2>/dev/null; then
+        write_log "Error: Application exited prematurely after launch"
+        if [ -d "$BACKUP_DIR" ] && [ "$(ls -A "$BACKUP_DIR" 2>/dev/null)" ]; then
+            write_log "Attempting to restore backup..."
+            rm -rf "${TARGET_DIR:?}"/* "${TARGET_DIR:?}"/.[!.]* 2>/dev/null || true
+            cp -a "${BACKUP_DIR:?}/." "$TARGET_DIR/" 2>/dev/null || true
+        fi
+        exit 1
+    fi
+    write_log "Application started and verified running (PID: $APP_PID)"
 
     # Cleanup source directory only after verified launch
     write_log "Cleaning up source directory..."
     rm -rf "${SOURCE_DIR:?}" 2>/dev/null || true
 else
     write_log "Error: Updated executable not found: $CURRENT_EXE"
-    if [ -d "$BACKUP_DIR" ]; then
+    if [ -d "$BACKUP_DIR" ] && [ "$(ls -A "$BACKUP_DIR" 2>/dev/null)" ]; then
         write_log "Attempting to restore backup..."
         rm -rf "${TARGET_DIR:?}"/* "${TARGET_DIR:?}"/.[!.]* 2>/dev/null || true
         cp -a "${BACKUP_DIR:?}/." "$TARGET_DIR/" 2>/dev/null || true

@@ -65,9 +65,13 @@ public class StorageMigrationServiceTests : IDisposable
             WorkspacePath = _workspaceDir,
         };
         _mockUserSettingsService = new Mock<IUserSettingsService>();
-        _mockUserSettingsService.Setup(x => x.Get()).Returns(_userSettings);
+        _mockUserSettingsService.Setup(x => x.Get()).Returns(() => _userSettings);
+        _mockUserSettingsService
+            .Setup(x => x.Update(It.IsAny<Action<UserSettings>>()))
+            .Callback<Action<UserSettings>>(action => action(_userSettings));
         _mockUserSettingsService
             .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .Callback<Func<UserSettings, bool>>(func => func(_userSettings))
             .ReturnsAsync(true);
 
         _mockCasPoolManager = new Mock<ICasPoolManager>();
@@ -333,6 +337,7 @@ public class StorageMigrationServiceTests : IDisposable
 
         _mockUserSettingsService
             .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .Callback<Func<UserSettings, bool>>(func => func(_userSettings))
             .ReturnsAsync(false);
 
         var request = new StorageMigrationRequest
@@ -366,39 +371,55 @@ public class StorageMigrationServiceTests : IDisposable
     [Fact]
     public async Task MigrateAsync_PreservesRelativePath_WhenStorageInsideSourceRootAsync()
     {
-        var nestedCas = Path.Combine(_appDataDir, "NestedCas");
-        var nestedWs = Path.Combine(_appDataDir, "NestedWs");
+        var sourceRoot = StorageMigrationService.GetSourceRootDirectory();
+        var nestedCas = Path.Combine(sourceRoot, "TestNestedCas_" + Guid.NewGuid().ToString("N"));
+        var nestedWs = Path.Combine(sourceRoot, "TestNestedWs_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(nestedCas);
         Directory.CreateDirectory(nestedWs);
 
-        _mockConfigProvider.Setup(x => x.GetCasConfiguration()).Returns(new CasConfiguration { CasRootPath = nestedCas });
-        _userSettings.CasConfiguration.CasRootPath = nestedCas;
-        _userSettings.WorkspacePath = nestedWs;
-
-        var service = CreateService();
-        var targetPath = Path.Combine(_tempRoot, "NewInstallDirNested");
-        Directory.CreateDirectory(targetPath);
-
-        var request = new StorageMigrationRequest
+        try
         {
-            TargetPath = targetPath,
-            RelocateCasAndWorkspace = true,
-            ExitApplicationOnSuccess = false,
-            LaunchHelperProcess = false,
-        };
+            _mockConfigProvider.Setup(x => x.GetCasConfiguration()).Returns(new CasConfiguration { CasRootPath = nestedCas });
+            _userSettings.CasConfiguration.CasRootPath = nestedCas;
+            _userSettings.WorkspacePath = nestedWs;
 
-        var result = await service.MigrateAsync(request);
+            var service = CreateService();
+            var targetPath = Path.Combine(_tempRoot, "NewInstallDirNested");
+            Directory.CreateDirectory(targetPath);
 
-        Assert.True(result.Success);
+            var request = new StorageMigrationRequest
+            {
+                TargetPath = targetPath,
+                RelocateCasAndWorkspace = true,
+                ExitApplicationOnSuccess = false,
+                LaunchHelperProcess = false,
+            };
 
-        var expectedRelativeCas = Path.GetRelativePath(_appDataDir, nestedCas);
-        var expectedRelativeWs = Path.GetRelativePath(_appDataDir, nestedWs);
+            var result = await service.MigrateAsync(request);
 
-        var expectedNewCas = Path.Combine(targetPath, expectedRelativeCas);
-        var expectedNewWs = Path.Combine(targetPath, expectedRelativeWs);
+            Assert.True(result.Success);
 
-        Assert.Equal(expectedNewCas, _userSettings.CasConfiguration.CasRootPath);
-        Assert.Equal(expectedNewWs, _userSettings.WorkspacePath);
+            var expectedRelativeCas = Path.GetRelativePath(sourceRoot, nestedCas);
+            var expectedRelativeWs = Path.GetRelativePath(sourceRoot, nestedWs);
+
+            var expectedNewCas = Path.Combine(targetPath, expectedRelativeCas);
+            var expectedNewWs = Path.Combine(targetPath, expectedRelativeWs);
+
+            Assert.Equal(expectedNewCas, _userSettings.CasConfiguration.CasRootPath);
+            Assert.Equal(expectedNewWs, _userSettings.WorkspacePath);
+        }
+        finally
+        {
+            if (Directory.Exists(nestedCas))
+            {
+                Directory.Delete(nestedCas, recursive: true);
+            }
+
+            if (Directory.Exists(nestedWs))
+            {
+                Directory.Delete(nestedWs, recursive: true);
+            }
+        }
     }
 
     /// <summary>

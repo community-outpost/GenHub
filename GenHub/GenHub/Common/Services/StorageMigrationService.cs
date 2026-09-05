@@ -355,9 +355,9 @@ public class StorageMigrationService(
             }
         }
 
-        CopyDirectoryRecursive(sourceDir, destDir);
         try
         {
+            CopyDirectoryRecursive(sourceDir, destDir);
             FileOperationsService.DeleteDirectoryIfExists(sourceDir);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -516,7 +516,11 @@ try {
         throw ""Updated executable not found: $CurrentExe""
     }
     $exeDir = Split-Path -Path $CurrentExe -Parent
-    Start-Process -FilePath $CurrentExe -WorkingDirectory $exeDir
+    $proc = Start-Process -FilePath $CurrentExe -WorkingDirectory $exeDir -PassThru
+    Start-Sleep -Seconds 2
+    if ($proc.HasExited) {
+        throw ""Application exited prematurely after launch with exit code $($proc.ExitCode)""
+    }
     if (Test-Path $SourceDir) {
         Remove-Item -Path $SourceDir -Recurse -Force -ErrorAction SilentlyContinue
     }
@@ -590,10 +594,20 @@ if [ -f ""$CURRENT_EXE"" ]; then
         chmod +x ""$EXE_NAME""
     fi
     nohup ""./$EXE_NAME"" > /dev/null 2>&1 &
+    APP_PID=$!
+    sleep 2
+    if ! kill -0 ""$APP_PID"" 2>/dev/null; then
+        write_log ""Error: Application exited prematurely after launch""
+        if [ -d ""$BACKUP_DIR"" ] && [ ""$(ls -A ""$BACKUP_DIR"" 2>/dev/null)"" ]; then
+            rm -rf ""${TARGET_DIR:?}""/* ""${TARGET_DIR:?}""/.[!.]* 2>/dev/null || true
+            cp -a ""${BACKUP_DIR:?}/."" ""$TARGET_DIR/"" 2>/dev/null || true
+        fi
+        exit 1
+    fi
     rm -rf ""${SOURCE_DIR:?}"" 2>/dev/null || true
 else
     write_log ""Error: Updated executable not found: $CURRENT_EXE""
-    if [ -d ""$BACKUP_DIR"" ]; then
+    if [ -d ""$BACKUP_DIR"" ] && [ ""$(ls -A ""$BACKUP_DIR"" 2>/dev/null)"" ]; then
         rm -rf ""${TARGET_DIR:?}""/* ""${TARGET_DIR:?}""/.[!.]* 2>/dev/null || true
         cp -a ""${BACKUP_DIR:?}/."" ""$TARGET_DIR/"" 2>/dev/null || true
     fi
@@ -755,16 +769,18 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
         {
             logger.LogError("Failed to persist relocated storage settings. Rolling back storage relocation.");
 
-            var liveSettings = userSettingsService.Get();
-            if (currentCasRoot != null)
+            userSettingsService.Update(liveSettings =>
             {
-                liveSettings.CasConfiguration.CasRootPath = currentCasRoot;
-            }
+                if (currentCasRoot != null)
+                {
+                    liveSettings.CasConfiguration.CasRootPath = currentCasRoot;
+                }
 
-            if (currentWorkspaceRoot != null)
-            {
-                liveSettings.WorkspacePath = currentWorkspaceRoot;
-            }
+                if (currentWorkspaceRoot != null)
+                {
+                    liveSettings.WorkspacePath = currentWorkspaceRoot;
+                }
+            });
 
             RollbackDirectoryMove(casMoved, currentCasRoot, targetCasRoot, logger);
             RollbackDirectoryMove(workspaceMoved, currentWorkspaceRoot, targetWorkspaceRoot, logger);
