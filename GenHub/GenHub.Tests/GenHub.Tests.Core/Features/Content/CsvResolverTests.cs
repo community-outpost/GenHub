@@ -152,6 +152,7 @@ public class CsvResolverTests
 
             var onlineResult = await onlineResolver.ResolveAsync(item);
             onlineResult.Success.Should().BeTrue();
+            CsvCacheTestHelpers.MakeEntriesStale(cacheDirectory.FullName);
 
             var offlineResolver = CreateResolver(
                 new StubHttpMessageHandler(remoteUrl, statusCode: HttpStatusCode.ServiceUnavailable),
@@ -183,7 +184,7 @@ public class CsvResolverTests
                 new StubHttpMessageHandler(remoteUrl, FullSampleCsv, HttpStatusCode.OK),
                 cacheDirectory.FullName);
             (await onlineResolver.ResolveAsync(item)).Success.Should().BeTrue();
-            MakeCacheEntriesStale(cacheDirectory.FullName);
+            CsvCacheTestHelpers.MakeEntriesStale(cacheDirectory.FullName);
 
             var invalidResolver = CreateResolver(
                 new StubHttpMessageHandler(remoteUrl, SampleCsvHeader, HttpStatusCode.OK),
@@ -475,13 +476,5 @@ public class CsvResolverTests
         item.ResolverMetadata[CsvConstants.VersionMetadataKey] = "1.0";
 
         return item;
-    }
-
-    private static void MakeCacheEntriesStale(string applicationDataPath)
-    {
-        foreach (var cacheFile in Directory.EnumerateFiles(applicationDataPath, $"*{CsvConstants.CacheFileExtension}", SearchOption.AllDirectories))
-        {
-            File.SetLastWriteTimeUtc(cacheFile, DateTime.UtcNow.AddDays(-2));
-        }
     }
 }

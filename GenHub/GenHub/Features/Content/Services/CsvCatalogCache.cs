@@ -23,6 +23,7 @@ public sealed class CsvCatalogCache
     internal sealed record CsvCatalogCacheEntry(string Content, bool IsFresh);
 
     private static readonly TimeSpan Freshness = TimeSpan.FromHours(CatalogConstants.DefaultCatalogCacheExpirationHours);
+    private static readonly TimeSpan Retention = TimeSpan.FromDays(CsvConstants.CacheRetentionDays);
     private readonly string _cacheDirectory;
 
     /// <summary>
@@ -39,6 +40,7 @@ public sealed class CsvCatalogCache
             DirectoryNames.Cache,
             CsvConstants.CacheDirectoryName);
         Logger = logger;
+        PruneExpiredEntries();
     }
 
     private ILogger<CsvCatalogCache> Logger { get; }
@@ -65,10 +67,6 @@ public sealed class CsvCatalogCache
             var content = await File.ReadAllTextAsync(cachePath, cancellationToken);
             var isFresh = DateTime.UtcNow - fileInfo.LastWriteTimeUtc <= Freshness;
             return new CsvCatalogCacheEntry(content, isFresh);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
         }
         catch (IOException ex)
         {
@@ -107,10 +105,7 @@ public sealed class CsvCatalogCache
             Directory.CreateDirectory(_cacheDirectory);
             await File.WriteAllTextAsync(tempPath, content, cancellationToken);
             File.Move(tempPath, cachePath, true);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
+            PruneExpiredEntries();
         }
         catch (IOException ex)
         {
@@ -141,5 +136,36 @@ public sealed class CsvCatalogCache
     {
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(sourceUrl));
         return Path.Combine(_cacheDirectory, $"{Convert.ToHexString(hash)}{CsvConstants.CacheFileExtension}");
+    }
+
+    private void PruneExpiredEntries()
+    {
+        try
+        {
+            if (!Directory.Exists(_cacheDirectory))
+            {
+                return;
+            }
+
+            var expirationThreshold = DateTime.UtcNow - Retention;
+            foreach (var cacheFile in Directory.EnumerateFiles(
+                _cacheDirectory,
+                $"*{CsvConstants.CacheFileExtension}",
+                SearchOption.TopDirectoryOnly))
+            {
+                if (File.GetLastWriteTimeUtc(cacheFile) < expirationThreshold)
+                {
+                    File.Delete(cacheFile);
+                }
+            }
+        }
+        catch (IOException ex)
+        {
+            Logger.LogDebug(ex, "Failed to prune expired CSV catalog cache entries");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Logger.LogDebug(ex, "Access denied pruning expired CSV catalog cache entries");
+        }
     }
 }

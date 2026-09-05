@@ -371,19 +371,9 @@ public class CsvDiscoverer(
                 var content = await httpClient.GetStringAsync(indexUri, cancellationToken);
                 return new CsvIndexContent(content, true);
             }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && cached != null)
+            catch (Exception ex) when (cached != null && IsRecoverableRemoteFailure(ex, cancellationToken))
             {
-                logger.LogWarning("Remote CSV index {IndexPath} timed out; using stale cached content", indexPath);
-                return new CsvIndexContent(cached.Content, false);
-            }
-            catch (HttpRequestException) when (cached != null)
-            {
-                logger.LogWarning("Remote CSV index {IndexPath} is unavailable; using stale cached content", indexPath);
-                return new CsvIndexContent(cached.Content, false);
-            }
-            catch (IOException) when (cached != null)
-            {
-                logger.LogWarning("Remote CSV index {IndexPath} could not be read; using stale cached content", indexPath);
+                logger.LogWarning(ex, "Remote CSV index {IndexPath} is unavailable; using stale cached content", indexPath);
                 return new CsvIndexContent(cached.Content, false);
             }
         }
@@ -394,6 +384,12 @@ public class CsvDiscoverer(
 
         var localContent = await File.ReadAllTextAsync(resolvedPath, cancellationToken);
         return new CsvIndexContent(localContent, false);
+    }
+
+    private bool IsRecoverableRemoteFailure(Exception exception, CancellationToken cancellationToken)
+    {
+        return exception is HttpRequestException or IOException ||
+            (exception is OperationCanceledException && !cancellationToken.IsCancellationRequested);
     }
 
     private ContentSearchResult? CreateSearchResult(CsvCatalogRegistryEntry entry, string language)

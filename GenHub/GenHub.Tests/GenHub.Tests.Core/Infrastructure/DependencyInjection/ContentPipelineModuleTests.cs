@@ -1,12 +1,8 @@
-using System.IO;
 using System.Linq;
-using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Models.Content;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
-using Moq;
 using Xunit;
 
 namespace GenHub.Tests.Infrastructure.DependencyInjection;
@@ -17,31 +13,18 @@ namespace GenHub.Tests.Infrastructure.DependencyInjection;
 public class ContentPipelineModuleTests
 {
     /// <summary>
-    /// Verifies that CSV catalog entries remain cached across provider resolutions.
+    /// Verifies that CSV discovery remains transient while remote data is cached on disk.
     /// </summary>
     [Fact]
-    public void AddContentPipelineServices_RegistersSharedCsvDiscoverer()
+    public void AddContentPipelineServices_RegistersTransientCsvDiscoverer()
     {
-        var configProvider = new Mock<IConfigurationProviderService>();
-        configProvider
-            .Setup(provider => provider.GetCsvCatalogConfiguration())
-            .Returns(new CsvCatalogConfiguration());
-        configProvider
-            .Setup(provider => provider.GetApplicationDataPath())
-            .Returns(Path.GetTempPath());
-
         var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddSingleton(configProvider.Object);
         services.AddContentPipelineServices();
 
-        using var serviceProvider = services.BuildServiceProvider();
-        var concreteDiscoverer = serviceProvider.GetRequiredService<CsvDiscoverer>();
-        var interfaceDescriptor = services.Single(descriptor =>
-            descriptor.ServiceType == typeof(IContentDiscoverer) &&
-            descriptor.Lifetime == ServiceLifetime.Singleton);
-        var interfaceDiscoverer = interfaceDescriptor.ImplementationFactory!(serviceProvider);
+        var concreteDescriptor = services.Single(descriptor => descriptor.ServiceType == typeof(CsvDiscoverer));
+        var interfaceDescriptor = services.Last(descriptor => descriptor.ServiceType == typeof(IContentDiscoverer));
 
-        Assert.Same(concreteDiscoverer, interfaceDiscoverer);
+        Assert.Equal(ServiceLifetime.Transient, concreteDescriptor.Lifetime);
+        Assert.Equal(ServiceLifetime.Transient, interfaceDescriptor.Lifetime);
     }
 }

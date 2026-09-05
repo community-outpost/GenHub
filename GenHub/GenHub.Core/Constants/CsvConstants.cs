@@ -49,6 +49,11 @@ public static class CsvConstants
     public const string TemporaryCacheFileExtension = ".tmp";
 
     /// <summary>
+    /// Number of days stale CSV catalog data is retained for offline fallback.
+    /// </summary>
+    public const int CacheRetentionDays = 30;
+
+    /// <summary>
     /// Resolver ID for CSV catalog content.
     /// </summary>
     public const string ResolverId = "CSVResolver";

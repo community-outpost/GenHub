@@ -356,10 +356,9 @@ public static class ContentPipelineModule
         services.AddTransient<CsvContentProvider>();
         services.AddTransient<IContentProvider>(sp => sp.GetRequiredService<CsvContentProvider>());
 
-        // Share one CSV discoverer so successfully loaded catalog entries remain cached
-        // across validation requests for the lifetime of the application.
-        services.AddSingleton<CsvDiscoverer>();
-        services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<CsvDiscoverer>());
+        // Register CSV discoverer (concrete and interface). Remote content is cached on disk.
+        services.AddTransient<CsvDiscoverer>();
+        services.AddTransient<IContentDiscoverer>(sp => sp.GetRequiredService<CsvDiscoverer>());
 
         // Register CSV resolver (concrete and interface)
         services.AddTransient<CsvResolver>();

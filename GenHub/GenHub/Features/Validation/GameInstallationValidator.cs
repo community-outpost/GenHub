@@ -384,6 +384,15 @@ public class GameInstallationValidator(
 
             return manifest;
         }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger.LogError(ex, "CSV validation catalog request timed out for {GameType} ({Language})", gameType, language);
+            AddValidationUnavailableIssue(
+                issues,
+                installationPath,
+                $"Validation catalog unavailable for {gameType} ({language}): the request timed out.");
+            return null;
+        }
         catch (OperationCanceledException)
         {
             throw;

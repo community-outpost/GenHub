@@ -268,6 +268,7 @@ public class CsvDiscovererTests
 
             var onlineResult = await onlineDiscoverer.DiscoverAsync(new ContentSearchQuery());
             onlineResult.Data!.Items.Should().ContainSingle();
+            CsvCacheTestHelpers.MakeEntriesStale(cacheDirectory.FullName);
 
             var offlineDiscoverer = CreateDiscoverer(
                 configuration,
@@ -305,7 +306,7 @@ public class CsvDiscovererTests
                 new StubHttpMessageHandler(indexUrl, indexJson, HttpStatusCode.OK),
                 cacheDirectory.FullName);
             (await onlineDiscoverer.DiscoverAsync(new ContentSearchQuery())).Data!.Items.Should().ContainSingle();
-            MakeCacheEntriesStale(cacheDirectory.FullName);
+            CsvCacheTestHelpers.MakeEntriesStale(cacheDirectory.FullName);
 
             var invalidDiscoverer = CreateDiscoverer(
                 configuration,
@@ -593,14 +594,6 @@ public class CsvDiscovererTests
     private static TempIndexFile CreateIndexFile(params CsvCatalogRegistryEntry[] entries)
     {
         return new TempIndexFile(entries);
-    }
-
-    private static void MakeCacheEntriesStale(string applicationDataPath)
-    {
-        foreach (var cacheFile in Directory.EnumerateFiles(applicationDataPath, $"*{CsvConstants.CacheFileExtension}", SearchOption.AllDirectories))
-        {
-            File.SetLastWriteTimeUtc(cacheFile, DateTime.UtcNow.AddDays(-2));
-        }
     }
 
     private static CsvCatalogRegistryEntry CreateEntry(string url, string gameType, string version, params string[] languages)

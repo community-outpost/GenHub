@@ -337,19 +337,9 @@ public class CsvResolver(
                 var content = await httpClient.GetStringAsync(uri, cancellationToken);
                 return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(content, true));
             }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && cached != null)
+            catch (Exception ex) when (cached != null && IsRecoverableRemoteFailure(ex, cancellationToken))
             {
-                logger.LogWarning("Remote CSV catalog {SourceUrl} timed out; using stale cached content", sourceUrl);
-                return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(cached.Content, false));
-            }
-            catch (HttpRequestException) when (cached != null)
-            {
-                logger.LogWarning("Remote CSV catalog {SourceUrl} is unavailable; using stale cached content", sourceUrl);
-                return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(cached.Content, false));
-            }
-            catch (IOException) when (cached != null)
-            {
-                logger.LogWarning("Remote CSV catalog {SourceUrl} could not be read; using stale cached content", sourceUrl);
+                logger.LogWarning(ex, "Remote CSV catalog {SourceUrl} is unavailable; using stale cached content", sourceUrl);
                 return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(cached.Content, false));
             }
         }
@@ -365,5 +355,11 @@ public class CsvResolver(
 
         var fileContent = await File.ReadAllTextAsync(resolvedPath, cancellationToken);
         return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(fileContent, false));
+    }
+
+    private bool IsRecoverableRemoteFailure(Exception exception, CancellationToken cancellationToken)
+    {
+        return exception is HttpRequestException or IOException ||
+            (exception is OperationCanceledException && !cancellationToken.IsCancellationRequested);
     }
 }

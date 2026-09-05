@@ -766,6 +766,50 @@ public class GameInstallationValidatorTests
     }
 
     /// <summary>
+    /// Tests that an HTTP timeout is reported as unavailable validation data rather than cancellation.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateAsync_WithCsvProviderTimeout_ReportsValidationUnavailableAsync()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var mockContentProvider = new Mock<IContentProvider>();
+            mockContentProvider.Setup(p => p.SourceName).Returns(PublisherTypeConstants.CsvRegistry);
+            mockContentProvider
+                .Setup(p => p.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new TaskCanceledException("HTTP request timed out"));
+
+            var validator = new GameInstallationValidator(
+                _loggerMock.Object,
+                null,
+                _contentValidatorMock.Object,
+                _hashProviderMock.Object,
+                null,
+                null,
+                [mockContentProvider.Object]);
+
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Steam,
+                new Mock<ILogger<GameInstallation>>().Object);
+            installation.SetPaths(tempDir.FullName, null);
+
+            var result = await validator.ValidateAsync(installation, "EN");
+
+            Assert.False(result.IsValid);
+            var issue = Assert.Single(result.Issues);
+            Assert.Equal(ValidationIssueType.ValidationUnavailable, issue.IssueType);
+            Assert.Contains("timed out", issue.Message);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
     /// Tests multi-language normalization and support for all supported language codes.
     /// </summary>
     /// <param name="inputLanguage">The raw input language code.</param>
