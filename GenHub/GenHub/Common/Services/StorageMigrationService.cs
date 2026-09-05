@@ -773,9 +773,10 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
             var casRolledBack = RollbackDirectoryMove(casMoved, currentCasRoot, targetCasRoot, logger);
             if (!casRolledBack && currentCasRoot != null)
             {
-                userSettingsService.Update(liveSettings =>
+                await userSettingsService.TryUpdateAndSaveAsync(liveSettings =>
                 {
                     liveSettings.CasConfiguration.CasRootPath = finalCasRoot;
+                    return true;
                 });
             }
 
@@ -797,17 +798,27 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
             var casRolledBack = RollbackDirectoryMove(casMoved, currentCasRoot, targetCasRoot, logger);
             var workspaceRolledBack = RollbackDirectoryMove(workspaceMoved, currentWorkspaceRoot, targetWorkspaceRoot, logger);
 
-            userSettingsService.Update(liveSettings =>
+            await userSettingsService.TryUpdateAndSaveAsync(liveSettings =>
             {
                 if (casRolledBack && currentCasRoot != null)
                 {
                     liveSettings.CasConfiguration.CasRootPath = currentCasRoot;
+                }
+                else if (!casRolledBack)
+                {
+                    liveSettings.CasConfiguration.CasRootPath = finalCasRoot;
                 }
 
                 if (workspaceRolledBack && currentWorkspaceRoot != null)
                 {
                     liveSettings.WorkspacePath = currentWorkspaceRoot;
                 }
+                else if (!workspaceRolledBack)
+                {
+                    liveSettings.WorkspacePath = finalWorkspaceRoot;
+                }
+
+                return true;
             });
 
             return false;
