@@ -320,6 +320,121 @@ public class StorageMigrationServiceTests : IDisposable
         _mockCasPoolManager.Verify(x => x.ReinitializeInstallationPool(), Times.Once);
     }
 
+    /// <summary>
+    /// Tests that MigrateAsync rolls back CAS and workspaces and restores in-memory settings when persisting settings fails.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
+    [Fact]
+    public async Task MigrateAsync_RollsBackCasAndRestoresSettings_WhenSettingsSaveFailsAsync()
+    {
+        var service = CreateService();
+        var targetPath = Path.Combine(_tempRoot, "NewInstallDirFail");
+        Directory.CreateDirectory(targetPath);
+
+        _mockUserSettingsService
+            .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .ReturnsAsync(false);
+
+        var request = new StorageMigrationRequest
+        {
+            TargetPath = targetPath,
+            RelocateCasAndWorkspace = true,
+            ExitApplicationOnSuccess = false,
+            LaunchHelperProcess = false,
+        };
+
+        var result = await service.MigrateAsync(request);
+
+        Assert.False(result.Success);
+
+        // Verify data exists back at original locations
+        Assert.True(Directory.Exists(_casDir));
+        Assert.True(File.Exists(Path.Combine(_casDir, "sample_cas.bin")));
+        Assert.True(Directory.Exists(_workspaceDir));
+        Assert.True(File.Exists(Path.Combine(_workspaceDir, "sample_ws.bin")));
+
+        // Verify in-memory settings are restored to original paths
+        var liveSettings = _mockUserSettingsService.Object.Get();
+        Assert.Equal(_casDir, liveSettings.CasConfiguration.CasRootPath);
+        Assert.Equal(_workspaceDir, liveSettings.WorkspacePath);
+    }
+
+    /// <summary>
+    /// Tests that MigrateAsync preserves relative path when storage is configured inside the source root.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
+    [Fact]
+    public async Task MigrateAsync_PreservesRelativePath_WhenStorageInsideSourceRootAsync()
+    {
+        var nestedCas = Path.Combine(_appDataDir, "NestedCas");
+        var nestedWs = Path.Combine(_appDataDir, "NestedWs");
+        Directory.CreateDirectory(nestedCas);
+        Directory.CreateDirectory(nestedWs);
+
+        _mockConfigProvider.Setup(x => x.GetCasConfiguration()).Returns(new CasConfiguration { CasRootPath = nestedCas });
+        _userSettings.CasConfiguration.CasRootPath = nestedCas;
+        _userSettings.WorkspacePath = nestedWs;
+
+        var service = CreateService();
+        var targetPath = Path.Combine(_tempRoot, "NewInstallDirNested");
+        Directory.CreateDirectory(targetPath);
+
+        var request = new StorageMigrationRequest
+        {
+            TargetPath = targetPath,
+            RelocateCasAndWorkspace = true,
+            ExitApplicationOnSuccess = false,
+            LaunchHelperProcess = false,
+        };
+
+        var result = await service.MigrateAsync(request);
+
+        Assert.True(result.Success);
+
+        var expectedRelativeCas = Path.GetRelativePath(_appDataDir, nestedCas);
+        var expectedRelativeWs = Path.GetRelativePath(_appDataDir, nestedWs);
+
+        var expectedNewCas = Path.Combine(targetPath, expectedRelativeCas);
+        var expectedNewWs = Path.Combine(targetPath, expectedRelativeWs);
+
+        Assert.Equal(expectedNewCas, _userSettings.CasConfiguration.CasRootPath);
+        Assert.Equal(expectedNewWs, _userSettings.WorkspacePath);
+    }
+
+    /// <summary>
+    /// Tests that MigrateAsync rolls back CAS when moving the workspace directory fails.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
+    [Fact]
+    public async Task MigrateAsync_RollsBackCas_WhenWorkspaceMoveFailsAsync()
+    {
+        var service = CreateService();
+        var targetPath = Path.Combine(_tempRoot, "NewInstallDirWsFail");
+        Directory.CreateDirectory(targetPath);
+
+        // Create a blocking file where target workspace directory should go to trigger IOException
+        var targetDataDir = Path.Combine(targetPath, DirectoryNames.Data);
+        Directory.CreateDirectory(targetDataDir);
+        var blockingFile = Path.Combine(targetDataDir, DirectoryNames.Workspaces);
+        await File.WriteAllTextAsync(blockingFile, "blocker");
+
+        var request = new StorageMigrationRequest
+        {
+            TargetPath = targetPath,
+            RelocateCasAndWorkspace = true,
+            ExitApplicationOnSuccess = false,
+            LaunchHelperProcess = false,
+        };
+
+        var result = await service.MigrateAsync(request);
+
+        Assert.False(result.Success);
+
+        // Verify CAS was rolled back to original location
+        Assert.True(Directory.Exists(_casDir));
+        Assert.True(File.Exists(Path.Combine(_casDir, "sample_cas.bin")));
+    }
+
     private StorageMigrationService CreateService()
     {
         return new StorageMigrationService(
