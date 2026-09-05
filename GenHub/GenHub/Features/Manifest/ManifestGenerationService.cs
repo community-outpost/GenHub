@@ -547,9 +547,9 @@ public class ManifestGenerationService(
     {
         var normalized = relativePath.Replace('\\', '/');
         return normalized.StartsWith(SteamConstants.BackupDirName + "/", StringComparison.OrdinalIgnoreCase) ||
-               normalized.StartsWith(".git/", StringComparison.OrdinalIgnoreCase) ||
+               normalized.StartsWith(FileTypes.GitDirectoryName + "/", StringComparison.OrdinalIgnoreCase) ||
                normalized.EndsWith(SteamConstants.BackupExtension, StringComparison.OrdinalIgnoreCase) ||
-               normalized.EndsWith(".bak", StringComparison.OrdinalIgnoreCase) ||
+               normalized.EndsWith(FileTypes.LegacyBackupExtension, StringComparison.OrdinalIgnoreCase) ||
                normalized.EndsWith(SteamConstants.ProxyLauncherFileName, StringComparison.OrdinalIgnoreCase) ||
                normalized.EndsWith(SteamConstants.TrackingFileName, StringComparison.OrdinalIgnoreCase);
     }
@@ -702,6 +702,7 @@ public class ManifestGenerationService(
             {
                 IgnoreInaccessible = true,
                 RecurseSubdirectories = true,
+                AttributesToSkip = FileAttributes.None,
             };
 
             int extraCount = 0;
@@ -833,6 +834,7 @@ public class ManifestGenerationService(
             {
                 IgnoreInaccessible = true,
                 RecurseSubdirectories = true,
+                AttributesToSkip = FileAttributes.None,
             };
 
             foreach (var file in Directory.EnumerateFiles(installationPath, "*", options))
@@ -857,7 +859,15 @@ public class ManifestGenerationService(
 
                 var sourcePath = ResolveSourcePathWithBackup(file, relativePath);
                 var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(relativePath, sourcePath);
-                await builder.AddGameInstallationFileAsync(relativePath, sourcePath, isExecutable);
+
+                try
+                {
+                    await builder.AddGameInstallationFileAsync(relativePath, sourcePath, isExecutable);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    logger.LogWarning(ex, "Failed to add fallback file {RelativePath} to manifest", relativePath);
+                }
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -1367,7 +1377,7 @@ public class ManifestGenerationService(
             return backupPath;
         }
 
-        var legacyBackupPath = filePath + ".bak";
+        var legacyBackupPath = filePath + FileTypes.LegacyBackupExtension;
         if (File.Exists(legacyBackupPath))
         {
             logger.LogInformation("Using backup file {Backup} as source for {File} in manifest", Path.GetFileName(legacyBackupPath), manifestFileName);
