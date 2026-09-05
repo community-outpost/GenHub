@@ -61,11 +61,19 @@ public class BackgroundUpdateCoordinator(
     /// <inheritdoc/>
     public async Task CheckForUpdatesAsync(CancellationToken cancellationToken = default)
     {
+        if (!TryGetLifetimeToken(out var lifetimeToken))
+        {
+            return;
+        }
+
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(lifetimeToken, cancellationToken);
+        var effectiveToken = linkedCts.Token;
+
         logger?.LogDebug("Starting background update check");
 
         try
         {
-            await _checkLock.WaitAsync(cancellationToken);
+            await _checkLock.WaitAsync(effectiveToken);
         }
         catch (ObjectDisposedException)
         {
@@ -79,19 +87,19 @@ public class BackgroundUpdateCoordinator(
             // 1. check for subscribed pr artifacts
             if (settings.SubscribedPrNumber.HasValue)
             {
-                await CheckSubscribedPrUpdateAsync(settings.SubscribedPrNumber.Value, settings, cancellationToken);
+                await CheckSubscribedPrUpdateAsync(settings.SubscribedPrNumber.Value, settings, effectiveToken);
                 return;
             }
 
             // 2. check for subscribed branch artifacts
             if (!string.IsNullOrWhiteSpace(settings.SubscribedBranch))
             {
-                await CheckSubscribedBranchUpdateAsync(settings.SubscribedBranch, settings, cancellationToken);
+                await CheckSubscribedBranchUpdateAsync(settings.SubscribedBranch, settings, effectiveToken);
                 return;
             }
 
             // 3. check for standard github releases
-            await CheckStandardReleaseUpdateAsync(settings, cancellationToken);
+            await CheckStandardReleaseUpdateAsync(settings, effectiveToken);
         }
         catch (OperationCanceledException)
         {
@@ -137,6 +145,19 @@ public class BackgroundUpdateCoordinator(
     /// <param name="disposing">True if disposing managed resources; false if finalizing.</param>
     protected virtual void Dispose(bool disposing)
     {
+        if (disposing)
+        {
+            try
+            {
+                // Cancel before publishing the disposed state so every observer of shutdown sees a cancelled token.
+                _cts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Ignore if another Dispose call already completed.
+            }
+        }
+
         Timer? timerToDispose = null;
         lock (_lifecycleLock)
         {
@@ -153,17 +174,6 @@ public class BackgroundUpdateCoordinator(
         if (disposing)
         {
             WeakReferenceMessenger.Default.UnregisterAll(this);
-
-            try
-            {
-                // Cancel first so callbacks already holding the token observe shutdown before the source is disposed.
-                _cts.Cancel();
-            }
-            catch (ObjectDisposedException)
-            {
-                // Ignore if already disposed
-            }
-
             timerToDispose?.Dispose();
             _cts.Dispose();
         }
@@ -767,6 +777,10 @@ public class BackgroundUpdateCoordinator(
                 OpenUpdateSettings();
             }
         }
+        catch (OperationCanceledException) when (lifetimeToken.IsCancellationRequested)
+        {
+            notificationService.Dismiss(progressNotificationId);
+        }
         catch (Exception ex)
         {
             logger?.LogError(ex, "Failed to install update");
@@ -808,6 +822,10 @@ public class BackgroundUpdateCoordinator(
                 "Cleared stale subscription (PR: {PrNumber}, Branch: {Branch}) after applying fallback update",
                 clearedPrNumber,
                 clearedBranch);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
