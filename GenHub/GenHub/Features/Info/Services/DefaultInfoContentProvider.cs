@@ -11,34 +11,22 @@ namespace GenHub.Features.Info.Services;
 /// <summary>
 /// Provides default information sections, guides, and documentation for GenHub.
 /// </summary>
-public class DefaultInfoContentProvider : IInfoContentProvider
+public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNotesService) : IInfoContentProvider
 {
-    private readonly IGeneralsOnlinePatchNotesService _patchNotesService;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="DefaultInfoContentProvider"/> class.
-    /// </summary>
-    /// <param name="patchNotesService">The patch notes service for dynamic content.</param>
-    public DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNotesService)
-    {
-        _patchNotesService = patchNotesService;
-    }
+    private readonly List<InfoSection> _sections = CreateContent();
+    private readonly IGeneralsOnlinePatchNotesService _patchNotesService = patchNotesService;
 
     /// <inheritdoc/>
     public Task<IEnumerable<InfoSection>> GetAllSectionsAsync()
     {
-        var sections = CreateContent();
-        return Task.FromResult(sections.OrderBy(s => s.Order).AsEnumerable());
+        return Task.FromResult(_sections.OrderBy(s => s.Order).AsEnumerable());
     }
 
     /// <inheritdoc/>
     public Task<InfoSection?> GetSectionAsync(string sectionId)
     {
-        var sections = CreateContent();
-        var section = sections.FirstOrDefault(s => s.Id == sectionId);
-        return Task.FromResult(section);
+        return Task.FromResult(_sections.FirstOrDefault(s => s.Id.Equals(sectionId, System.StringComparison.OrdinalIgnoreCase)));
     }
-
     private static List<InfoSection> CreateContent()
     {
         return
