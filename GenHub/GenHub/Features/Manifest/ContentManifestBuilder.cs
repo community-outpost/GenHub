@@ -890,6 +890,16 @@ public partial class ContentManifestBuilder(
     /// <returns>The builder instance.</returns>
     private async Task<IContentManifestBuilder> AddFileAsync(FileEntryOptions options)
     {
+        // Check for duplicate relative paths before computing hashes or reading file metadata
+        if (_manifest.Files.Any(f => f.RelativePath.Equals(options.RelativePath, StringComparison.OrdinalIgnoreCase)))
+        {
+            logger.LogWarning(
+                "Skipping duplicate file: {RelativePath} (Source: {SourceType}). File already exists in manifest.",
+                options.RelativePath,
+                options.SourceType);
+            return this;
+        }
+
         var installTarget = DetermineInstallTarget(options.RelativePath);
 
         var manifestFile = new ManifestFile
@@ -926,16 +936,6 @@ public partial class ContentManifestBuilder(
             {
                 manifestFile.Hash = await _hashProvider.ComputeFileHashAsync(options.SourcePath);
             }
-        }
-
-        // Check for duplicate relative paths before adding
-        if (_manifest.Files.Any(f => f.RelativePath.Equals(options.RelativePath, StringComparison.OrdinalIgnoreCase)))
-        {
-            logger.LogWarning(
-                "Skipping duplicate file: {RelativePath} (Source: {SourceType}). File already exists in manifest.",
-                options.RelativePath,
-                options.SourceType);
-            return this;
         }
 
         _manifest.Files.Add(manifestFile);
