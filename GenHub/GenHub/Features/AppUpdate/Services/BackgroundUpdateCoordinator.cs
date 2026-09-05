@@ -444,7 +444,7 @@ public class BackgroundUpdateCoordinator(
 
         if (string.Equals(branch, AppUpdateConstants.MainBranch, StringComparison.OrdinalIgnoreCase))
         {
-            logger?.LogDebug("Main branch has no artifact update; checking standard releases instead");
+            logger?.LogDebug(AppUpdateConstants.MainBranchReleaseFallbackLogMessage);
             await CheckStandardReleaseUpdateAsync(settings, cancellationToken);
         }
     }

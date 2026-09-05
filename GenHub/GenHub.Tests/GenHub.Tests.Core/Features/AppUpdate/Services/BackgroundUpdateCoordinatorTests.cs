@@ -260,12 +260,13 @@ public class BackgroundUpdateCoordinatorTests
     }
 
     /// <summary>
-    /// Verifies that a token-authenticated main subscription falls back to standard releases when no branch artifact exists.
+    /// Verifies that a token-authenticated main subscription notifies from the release fallback when no branch artifact exists.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckForUpdatesAsync_WhenMainBranchHasNoArtifact_FallsBackToStandardReleaseAsync()
+    public async Task CheckForUpdatesAsync_WhenMainBranchHasNoArtifact_NotifiesFromStandardReleaseFallbackAsync()
     {
+        var notificationShown = new TaskCompletionSource<NotificationMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
         var settings = new UserSettings { SubscribedBranch = AppUpdateConstants.MainBranch };
         var mockUserSettings = new Mock<IUserSettingsService>();
         mockUserSettings.Setup(x => x.Get()).Returns(settings);
@@ -277,21 +278,32 @@ public class BackgroundUpdateCoordinatorTests
             .ReturnsAsync((ArtifactUpdateInfo?)null);
         mockVelopack.Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync((Velopack.UpdateInfo?)null);
+        mockVelopack.SetupGet(x => x.HasUpdateAvailableFromGitHub).Returns(true);
+        mockVelopack.SetupGet(x => x.LatestVersionFromGitHub).Returns("1.5.0");
 
         var mockTokenStorage = new Mock<IGitHubTokenStorage>();
         mockTokenStorage.Setup(x => x.HasToken()).Returns(true);
+        var mockNotificationService = CreateNotificationServiceMock();
+        mockNotificationService.Setup(x => x.Show(It.IsAny<NotificationMessage>()))
+            .Callback<NotificationMessage>(message => notificationShown.TrySetResult(message));
 
         using var coordinator = new BackgroundUpdateCoordinator(
             mockVelopack.Object,
             mockUserSettings.Object,
-            CreateNotificationServiceMock().Object,
+            mockNotificationService.Object,
             new Mock<ILogger<BackgroundUpdateCoordinator>>().Object,
             mockTokenStorage.Object);
 
         await coordinator.CheckForUpdatesAsync();
+        var notification = await notificationShown.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         mockVelopack.Verify(x => x.CheckForArtifactUpdatesAsync(It.IsAny<CancellationToken>()), Times.Once);
         mockVelopack.Verify(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Equal(AppUpdateConstants.UpdateAvailableNotificationTitle, notification.Title);
+        Assert.Contains("1.5.0", notification.Message);
+        Assert.Single(notification.Actions);
+        Assert.True(notification.IsPersistent);
+        Assert.True(notification.ShowInBadge);
     }
 
     /// <summary>

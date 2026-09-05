@@ -244,6 +244,11 @@ public static class AppUpdateConstants
     public const string MainBranch = "main";
 
     /// <summary>
+    /// Log message used when a main-branch artifact check falls back to standard releases.
+    /// </summary>
+    public const string MainBranchReleaseFallbackLogMessage = "Main branch has no artifact update; checking standard releases instead";
+
+    /// <summary>
     /// Update available notification title when a subscribed PR has been merged or closed.
     /// </summary>
     public const string PrMergedUpdateAvailableNotificationTitle = "PR Merged — Update Available";
