@@ -367,6 +367,6 @@ jobs:
             ${{ steps.info.outputs.CHANGELOG }}
 
             ### 🔧 Assets
-            - **Installer:** [GenHub-win-Setup.exe](https://github.com/${{ github.repository }}/releases/download/v${{ steps.info.outputs.VERSION }}/GenHub-win-Setup.exe)
+            - **Installer:** [GenHub-win-Setup.exe](https://github.com/${{ github.repository }}/releases/download/v${{ steps.info.outputs.VERSION }}/GenHub-win-Setup.exe) *(supports custom install directory via `--installto <path>` / `-t <path>`)*
             - **Portable:** [GenHub-${{ steps.info.outputs.VERSION }}-win-portable.zip](https://github.com/${{ github.repository }}/releases/download/v${{ steps.info.outputs.VERSION }}/GenHub-${{ steps.info.outputs.VERSION }}-win-portable.zip)
           files: final-assets/*

@@ -120,6 +120,7 @@ public partial class SettingsView : UserControl
             SettingsConstants.SectionDownloads => "Expander_Downloads",
             SettingsConstants.SectionAppearance => "Expander_Appearance",
             SettingsConstants.SectionDataDirectories => "Expander_DataDirectories",
+            SettingsConstants.SectionMigrateInstallation => "Expander_MigrateInstallation",
             SettingsConstants.SectionLogs => "Expander_Logs",
             SettingsConstants.SectionPerformance => "Expander_Performance",
             SettingsConstants.SectionCas => "Expander_Cas",
