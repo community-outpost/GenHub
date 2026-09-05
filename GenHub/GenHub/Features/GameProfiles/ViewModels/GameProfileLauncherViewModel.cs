@@ -728,7 +728,7 @@ public partial class GameProfileLauncherViewModel(
         if (!anyPatchHandled && !anyPatchSelectedGlobally)
         {
             logger.LogInformation("No patches selected or found for {InstallationId}, creating base game profiles", installation.Id);
-            foreach (var client in installation.AvailableGameClients!.Where(c => !c.IsPublisherClient).ToList())
+            foreach (var client in installation.AvailableGameClients.Where(c => !c.IsPublisherClient).ToList())
             {
                 if (await TryCreateProfileForGameClientAsync(installation, client))
                 {

@@ -937,15 +937,14 @@ public sealed class ReplayDirectoryService(
 
         return isRetailClient
             ? CreateRetailGameClient(installation, replay, defaultVersion, exePath, workingDir, targetClient)
-            : await ResolveThirdPartyGameClientAsync(installation, replay, defaultVersion, exePath, workingDir, manifestPool, contentOrchestrator, ct);
+            : await ResolveThirdPartyGameClientAsync(installation, replay, defaultVersion, (exePath, workingDir), manifestPool, contentOrchestrator, ct);
     }
 
     private async Task<(string ClientManifestId, GameClient GameClient)> ResolveThirdPartyGameClientAsync(
         GameInstallation installation,
         ReplayFile replay,
         string defaultVersion,
-        string exePath,
-        string workingDir,
+        (string ExePath, string WorkingDir) launchPaths,
         IContentManifestPool manifestPool,
         IContentOrchestrator? contentOrchestrator,
         CancellationToken ct)
@@ -966,8 +965,8 @@ public sealed class ReplayDirectoryService(
             GameType = replay.GameVersion,
             PublisherType = replay.MatchedClient?.Publisher ?? string.Empty,
             InstallationId = installation.Id,
-            ExecutablePath = exePath,
-            WorkingDirectory = workingDir,
+            ExecutablePath = launchPaths.ExePath,
+            WorkingDirectory = launchPaths.WorkingDir,
         };
 
         return (thirdPartyManifestId, thirdPartyGameClient);

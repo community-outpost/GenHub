@@ -301,7 +301,7 @@ public class ProfileLauncherFacade(
             {
                 Id = profileId,
                 Manifests = manifests,
-                GameClient = profile.GameClient!,
+                GameClient = profile.GameClient,
                 Strategy = ResolveSupportedWorkspaceStrategy(
                     profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy()),
                 ForceRecreate = false,
@@ -1867,7 +1867,7 @@ public class ProfileLauncherFacade(
             }
 
             var manifestResult = await manifestPool.GetManifestAsync(id, cancellationToken);
-            if (manifestResult.Success && manifestResult.Data!.ContentType.IsStandalone())
+            if (manifestResult.Success && manifestResult.Data.ContentType.IsStandalone())
             {
                 return idString;
             }
