@@ -1123,53 +1123,57 @@ public class ProfileLauncherFacade(
 
         foreach (var contentId in profile.EnabledContentIds)
         {
-            try
+            var manifest = await ResolveManifestForValidationAsync(contentId, pooledManifests, cancellationToken);
+            if (manifest != null)
             {
-                ContentManifest? manifest = null;
-                if (ManifestId.TryCreate(contentId, out var manifestId))
-                {
-                    var manifestResult = await manifestPool.GetManifestAsync(manifestId, cancellationToken);
-                    if (manifestResult.Success && manifestResult.Data != null)
-                    {
-                        manifest = manifestResult.Data;
-                    }
-                }
+                manifests.Add(manifest);
 
-                if (manifest == null)
+                if (manifest.ContentType == Core.Models.Enums.ContentType.GameInstallation)
                 {
-                    var declaredParts = contentId.Split(ManifestConstants.ManifestIdSegmentSeparator);
-                    manifest = pooledManifests.FirstOrDefault(m =>
-                    {
-                        var acquiredParts = m.Id.Value.Split(ManifestConstants.ManifestIdSegmentSeparator);
-                        return DependencyResolver.HasCompatibleCatalogIdentity(declaredParts, acquiredParts);
-                    });
+                    hasGameInstallationManifest = true;
                 }
-
-                if (manifest != null)
+                else if (manifest.ContentType == Core.Models.Enums.ContentType.GameClient)
                 {
-                    manifests.Add(manifest);
-
-                    if (manifest.ContentType == Core.Models.Enums.ContentType.GameInstallation)
-                    {
-                        hasGameInstallationManifest = true;
-                    }
-                    else if (manifest.ContentType == Core.Models.Enums.ContentType.GameClient)
-                    {
-                        hasGameClientManifest = true;
-                    }
-                }
-                else
-                {
-                    logger.LogWarning("Manifest for content ID '{ContentId}' not found in pool during launch validation", contentId);
+                    hasGameClientManifest = true;
                 }
             }
-            catch (ArgumentException ex)
+            else
             {
-                logger.LogWarning(ex, "Skipping invalid manifest ID during validation: {ContentId}", contentId);
+                logger.LogWarning("Manifest for content ID '{ContentId}' not found in pool during launch validation", contentId);
             }
         }
 
         return (manifests, hasGameInstallationManifest, hasGameClientManifest);
+    }
+
+    private async Task<ContentManifest?> ResolveManifestForValidationAsync(
+        string contentId,
+        IReadOnlyList<ContentManifest> pooledManifests,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (ManifestId.TryCreate(contentId, out var manifestId))
+            {
+                var manifestResult = await manifestPool.GetManifestAsync(manifestId, cancellationToken);
+                if (manifestResult.Success && manifestResult.Data != null)
+                {
+                    return manifestResult.Data;
+                }
+            }
+
+            var declaredParts = contentId.Split(ManifestConstants.ManifestIdSegmentSeparator);
+            return pooledManifests.FirstOrDefault(m =>
+            {
+                var acquiredParts = m.Id.Value.Split(ManifestConstants.ManifestIdSegmentSeparator);
+                return DependencyResolver.HasCompatibleCatalogIdentity(declaredParts, acquiredParts);
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            logger.LogWarning(ex, "Skipping invalid manifest ID during validation: {ContentId}", contentId);
+            return null;
+        }
     }
 
     private async Task<Dictionary<string, string>> ResolveManifestSourcePathsAsync(
@@ -1649,7 +1653,7 @@ public class ProfileLauncherFacade(
 
                 if (exactPathMatches.Count == 1)
                 {
-                    var matchingInstallation = exactPathMatches.First();
+                    var matchingInstallation = exactPathMatches[0];
                     await installationService.CreateAndRegisterInstallationManifestsAsync(matchingInstallation, cancellationToken);
                     logger.LogInformation(
                         "Rebound profile {ProfileId} from stale installation {OldId} to current installation {NewId} by path match ({Path})",
@@ -1663,7 +1667,7 @@ public class ProfileLauncherFacade(
                 if (exactPathMatches.Count > 1)
                 {
                     // This should never happen - multiple installations with same path
-                    var firstMatch = exactPathMatches.First();
+                    var firstMatch = exactPathMatches[0];
                     await installationService.CreateAndRegisterInstallationManifestsAsync(firstMatch, cancellationToken);
                     logger.LogWarning(
                         "Profile {ProfileId} has {Count} installations with matching path {Path}, using first match",
@@ -1682,7 +1686,7 @@ public class ProfileLauncherFacade(
 
                 if (gameTypeMatches.Count == 1)
                 {
-                    var matchingInstallation = gameTypeMatches.First();
+                    var matchingInstallation = gameTypeMatches[0];
                     await installationService.CreateAndRegisterInstallationManifestsAsync(matchingInstallation, cancellationToken);
                     logger.LogInformation(
                         "Rebound profile {ProfileId} from stale installation {OldId} to current installation {NewId} by game type match (no path match found)",
