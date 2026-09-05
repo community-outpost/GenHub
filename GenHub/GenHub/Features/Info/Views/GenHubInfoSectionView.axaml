@@ -172,8 +172,6 @@
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
-
-
     <!-- Content container inside expandable sections -->
     <Style Selector="StackPanel.info-section-content">
         <Setter Property="Spacing" Value="12"/>
@@ -194,8 +192,6 @@
         <Setter Property="Foreground" Value="#888888"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
-
-
 
     <!-- Feature item title -->
     <Style Selector="TextBlock.info-feature-title">
@@ -221,8 +217,8 @@
 
   </UserControl.Styles>
 
-  <ScrollViewer Padding="60,40,60,40" ClipToBounds="False">
-      <StackPanel Spacing="10" MaxWidth="1000" HorizontalAlignment="Center" ClipToBounds="False">
+  <ScrollViewer Padding="32,24,32,40" ClipToBounds="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="10" MaxWidth="1000" HorizontalAlignment="Stretch" ClipToBounds="False">
 
         <!-- Main Section Header -->
         <StackPanel Margin="0,0,0,50">
@@ -268,6 +264,7 @@
                 <TextBlock Text="Shortcut creation process." Classes="demo-subtitle"/>
 
                 <Border Classes="demo-container">
+                  <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="40" VerticalAlignment="Center">
 
                          <!-- 1. The Source: Profile Card -->
@@ -305,6 +302,7 @@
                         </StackPanel>
 
                     </StackPanel>
+                  </Viewbox>
                 </Border>
             </StackPanel>
         </Border>
@@ -334,8 +332,6 @@
                 </Border>
             </StackPanel>
         </Border>
-
-
 
         <!-- ============================================== -->
         <!-- DEMO: APP UPDATE                               -->
@@ -457,7 +453,8 @@
                   <TextBlock Text="TIP: You can resize this demo window by dragging the right or bottom edge!"
                              FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"/>
 
-                  <Grid HorizontalAlignment="Center">
+                  <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
+                    <Grid HorizontalAlignment="Center">
                       <Grid.ColumnDefinitions>
                           <ColumnDefinition Width="800" MinWidth="400" />
                           <ColumnDefinition Width="Auto"/>
@@ -505,7 +502,8 @@
 
                       <!-- Corner Resize Handle (Visual Only) -->
                       <material:MaterialIcon Grid.Row="1" Grid.Column="1" Kind="Resize" Foreground="#666" Width="12" Height="12" Margin="2" VerticalAlignment="Top" HorizontalAlignment="Left"/>
-                  </Grid>
+                    </Grid>
+                  </Viewbox>
 
                   <TextBlock Text="Try adjusting the resolution or enabling experimental features in the Game Settings tab!"
                              FontSize="13" Foreground="#666" HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="700" TextWrapping="Wrap"/>
@@ -538,7 +536,8 @@
                   <TextBlock Text="TIP: You can resize this demo window by dragging the right or bottom edge!"
                              FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"/>
 
-                  <Grid HorizontalAlignment="Center">
+                  <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
+                    <Grid HorizontalAlignment="Center">
                       <Grid.ColumnDefinitions>
                           <ColumnDefinition Width="800" MinWidth="400" />
                           <ColumnDefinition Width="Auto"/>
@@ -586,17 +585,18 @@
 
                       <!-- Corner Resize Handle (Visual Only) -->
                       <material:MaterialIcon Grid.Row="1" Grid.Column="1" Kind="Resize" Foreground="#666" Width="12" Height="12" Margin="2" VerticalAlignment="Top" HorizontalAlignment="Left"/>
-                  </Grid>
+                    </Grid>
+                  </Viewbox>
 
-                  <TextBlock Text="Try clicking the filter buttons (Executable, Maps, Mods) and items to see them move between Enabled and Available!"
-                             FontSize="13" Foreground="#666" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="700"/>
+                  <TextBlock Text="Try toggling mods, reordering content, or clicking Add Local!"
+                             FontSize="13" Foreground="#666" HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="700" TextWrapping="Wrap"/>
                </StackPanel>
             </Border>
           </StackPanel>
         </Border>
 
         <!-- ============================================== -->
-        <!-- DEMO: TOOLS (Replay & Map)                     -->
+        <!-- DEMO: TOOLS                                    -->
         <!-- ============================================== -->
         <Border IsVisible="{Binding IsToolsSelected}" Margin="0,0,0,50">
             <StackPanel Spacing="60">
@@ -611,11 +611,13 @@
 
                     <!-- Interactive Demo -->
                     <Border Classes="demo-container">
-                        <Grid Width="800" MaxHeight="600" HorizontalAlignment="Center">
-                            <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
-                                <toolsRep:ReplayManagerView DataContext="{Binding DemoReplayManager}"/>
-                            </Border>
-                        </Grid>
+                        <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
+                            <Grid Width="800" MaxHeight="600" HorizontalAlignment="Center">
+                                <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                                    <toolsRep:ReplayManagerView DataContext="{Binding DemoReplayManager}"/>
+                                </Border>
+                            </Grid>
+                        </Viewbox>
                     </Border>
                 </StackPanel>
 
@@ -629,11 +631,13 @@
 
                     <!-- Interactive Demo -->
                     <Border Classes="demo-container">
-                        <Grid Width="800" MaxHeight="600" HorizontalAlignment="Center">
-                            <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
-                                <toolsMap:MapManagerView DataContext="{Binding DemoMapManager}"/>
-                            </Border>
-                        </Grid>
+                        <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
+                            <Grid Width="800" MaxHeight="600" HorizontalAlignment="Center">
+                                <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                                    <toolsMap:MapManagerView DataContext="{Binding DemoMapManager}"/>
+                                </Border>
+                            </Grid>
+                        </Viewbox>
                     </Border>
                 </StackPanel>
 
@@ -814,12 +818,13 @@
                     <ItemsControl Grid.Row="1" ItemsSource="{Binding Actions}" IsVisible="{Binding Actions.Count}">
                       <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                          <StackPanel Orientation="Horizontal" Spacing="10"/>
+                          <WrapPanel Orientation="Horizontal" />
                         </ItemsPanelTemplate>
                       </ItemsControl.ItemsPanel>
                       <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="models:InfoAction">
                           <Button Classes="action-btn"
+                                  Margin="0,0,10,8"
                                   Classes.primary="{Binding IsPrimary}"
                                   Command="{Binding ((vm:GenHubInfoSectionViewModel)DataContext).HandleActionCommand, RelativeSource={RelativeSource AncestorType=views:GenHubInfoSectionView}}"
                                   CommandParameter="{Binding}">
@@ -921,7 +926,7 @@
             </ItemsControl>
         </Grid>
 
-        <Border Height="120"/> <!-- Bottom padding increased to fix clipping -->
+        <Border Height="80"/> <!-- Bottom spacer to avoid overlap with bottom-docked status indicators -->
       </StackPanel>
   </ScrollViewer>
 </UserControl>
