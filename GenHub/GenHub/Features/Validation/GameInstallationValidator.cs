@@ -18,6 +18,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -299,6 +301,20 @@ public class GameInstallationValidator(
         return new ValidationResult(installationPath, issues, stopwatch.Elapsed, totalFiles);
     }
 
+    private void AddValidationUnavailableIssue(
+        ICollection<ValidationIssue> issues,
+        string installationPath,
+        string message)
+    {
+        issues.Add(new ValidationIssue
+        {
+            IssueType = ValidationIssueType.ValidationUnavailable,
+            Path = installationPath,
+            Message = message,
+            Severity = ValidationSeverity.Error,
+        });
+    }
+
     private async Task<ContentManifest?> ResolveManifestFromCsvProviderAsync(
         string installationPath,
         GameType gameType,
@@ -321,21 +337,32 @@ public class GameInstallationValidator(
             };
 
             var searchResult = await _resolvedCsvProvider.SearchAsync(query, cancellationToken);
-            if (!searchResult.Success || searchResult.Data == null || !searchResult.Data.Any())
+            if (!searchResult.Success)
             {
                 logger.LogWarning(
-                    "CSV provider search returned no results for {GameType} ({Language}): {Error}",
+                    "CSV validation catalog is unavailable for {GameType} ({Language}): {Error}",
                     gameType,
                     language,
-                    searchResult.FirstError ?? "No matching items");
+                    searchResult.FirstError ?? "Unknown catalog error");
 
-                issues.Add(new ValidationIssue
-                {
-                    IssueType = ValidationIssueType.MissingFile,
-                    Path = installationPath,
-                    Message = $"No CSV manifest found for {gameType} ({language}): {searchResult.FirstError ?? "No matching catalog entries"}",
-                    Severity = ValidationSeverity.Error,
-                });
+                AddValidationUnavailableIssue(
+                    issues,
+                    installationPath,
+                    $"Validation catalog unavailable for {gameType} ({language}): {searchResult.FirstError ?? "Unknown catalog error"}");
+                return null;
+            }
+
+            if (searchResult.Data == null || !searchResult.Data.Any())
+            {
+                logger.LogWarning(
+                    "CSV validation catalog contains no matching manifest for {GameType} ({Language})",
+                    gameType,
+                    language);
+
+                AddValidationUnavailableIssue(
+                    issues,
+                    installationPath,
+                    $"No validation manifest is available for {gameType} ({language}).");
                 return null;
             }
 
@@ -348,13 +375,10 @@ public class GameInstallationValidator(
                     gameType,
                     language);
 
-                issues.Add(new ValidationIssue
-                {
-                    IssueType = ValidationIssueType.MissingFile,
-                    Path = installationPath,
-                    Message = $"Failed to parse CSV manifest for {gameType} ({language}).",
-                    Severity = ValidationSeverity.Error,
-                });
+                AddValidationUnavailableIssue(
+                    issues,
+                    installationPath,
+                    $"The validation manifest for {gameType} ({language}) could not be read.");
                 return null;
             }
 
@@ -364,16 +388,13 @@ public class GameInstallationValidator(
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is HttpRequestException or IOException or JsonException)
         {
             logger.LogError(ex, "Failed to resolve CSV manifest for {GameType} ({Language})", gameType, language);
-            issues.Add(new ValidationIssue
-            {
-                IssueType = ValidationIssueType.MissingFile,
-                Path = installationPath,
-                Message = $"Error retrieving CSV manifest for {gameType} ({language}): {ex.Message}",
-                Severity = ValidationSeverity.Error,
-            });
+            AddValidationUnavailableIssue(
+                issues,
+                installationPath,
+                $"Validation catalog unavailable for {gameType} ({language}): {ex.Message}");
             return null;
         }
     }

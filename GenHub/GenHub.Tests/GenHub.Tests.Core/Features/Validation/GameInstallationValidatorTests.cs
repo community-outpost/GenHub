@@ -675,7 +675,51 @@ public class GameInstallationValidatorTests
     }
 
     /// <summary>
-    /// Tests that ValidateAsync returns a language-specific error message when CSV provider search fails.
+    /// Tests that ValidateAsync reports validation unavailability when the CSV catalog has no manifest.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateAsync_WithNoCsvManifest_ReportsValidationUnavailableAsync()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var mockContentProvider = new Mock<IContentProvider>();
+            mockContentProvider.Setup(p => p.SourceName).Returns(PublisherTypeConstants.CsvRegistry);
+            mockContentProvider
+                .Setup(p => p.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([]));
+
+            var validator = new GameInstallationValidator(
+                _loggerMock.Object,
+                null,
+                _contentValidatorMock.Object,
+                _hashProviderMock.Object,
+                null,
+                null,
+                [mockContentProvider.Object]);
+
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Steam,
+                new Mock<ILogger<GameInstallation>>().Object);
+            installation.SetPaths(tempDir.FullName, null);
+
+            var result = await validator.ValidateAsync(installation, "EN");
+
+            Assert.False(result.IsValid);
+            var issue = Assert.Single(result.Issues);
+            Assert.Equal(ValidationIssueType.ValidationUnavailable, issue.IssueType);
+            Assert.Equal(0, result.MissingFilesCount);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Tests that ValidateAsync reports catalog unavailability instead of a missing installation file when CSV provider search fails.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
@@ -708,7 +752,12 @@ public class GameInstallationValidatorTests
             var result = await validator.ValidateAsync(installation, "PL");
 
             Assert.False(result.IsValid);
-            Assert.Contains(result.Issues, i => i.Message.Contains("PL") && i.Message.Contains("Network timeout"));
+            var issue = Assert.Single(result.Issues);
+            Assert.Equal(ValidationIssueType.ValidationUnavailable, issue.IssueType);
+            Assert.Equal(ValidationSeverity.Error, issue.Severity);
+            Assert.Contains("PL", issue.Message);
+            Assert.Contains("Network timeout", issue.Message);
+            Assert.Equal(0, result.MissingFilesCount);
         }
         finally
         {

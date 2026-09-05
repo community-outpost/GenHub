@@ -16,6 +16,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentResolvers;
@@ -25,7 +26,8 @@ namespace GenHub.Features.Content.Services.ContentResolvers;
 /// </summary>
 public class CsvResolver(
     IHttpClientFactory httpClientFactory,
-    ILogger<CsvResolver> logger) : IContentResolver
+    ILogger<CsvResolver> logger,
+    CsvCatalogCache? catalogCache = null) : IContentResolver
 {
     private static readonly CsvConfiguration CsvConfig = new(CultureInfo.InvariantCulture)
     {
@@ -314,9 +316,40 @@ public class CsvResolver(
         if (Uri.TryCreate(sourceUrl, UriKind.Absolute, out var uri) &&
             (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
         {
-            var httpClient = httpClientFactory.CreateClient(string.Empty);
-            var content = await httpClient.GetStringAsync(uri, cancellationToken);
-            return OperationResult<string>.CreateSuccess(content);
+            var cached = catalogCache == null
+                ? null
+                : await catalogCache.ReadAsync(sourceUrl, cancellationToken);
+            if (cached?.IsFresh == true)
+            {
+                return OperationResult<string>.CreateSuccess(cached.Content);
+            }
+
+            try
+            {
+                var httpClient = httpClientFactory.CreateClient(string.Empty);
+                var content = await httpClient.GetStringAsync(uri, cancellationToken);
+                if (catalogCache != null)
+                {
+                    await catalogCache.StoreAsync(sourceUrl, content, cancellationToken);
+                }
+
+                return OperationResult<string>.CreateSuccess(content);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && cached != null)
+            {
+                logger.LogWarning("Remote CSV catalog {SourceUrl} timed out; using stale cached content", sourceUrl);
+                return OperationResult<string>.CreateSuccess(cached.Content);
+            }
+            catch (HttpRequestException) when (cached != null)
+            {
+                logger.LogWarning("Remote CSV catalog {SourceUrl} is unavailable; using stale cached content", sourceUrl);
+                return OperationResult<string>.CreateSuccess(cached.Content);
+            }
+            catch (IOException) when (cached != null)
+            {
+                logger.LogWarning("Remote CSV catalog {SourceUrl} could not be read; using stale cached content", sourceUrl);
+                return OperationResult<string>.CreateSuccess(cached.Content);
+            }
         }
 
         var resolvedPath = Path.IsPathRooted(sourceUrl)

@@ -14,6 +14,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentDiscoverers;
@@ -25,7 +26,8 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 public class CsvDiscoverer(
     ILogger<CsvDiscoverer> logger,
     IConfigurationProviderService configProvider,
-    IHttpClientFactory httpClientFactory) : IContentDiscoverer, IDisposable
+    IHttpClientFactory httpClientFactory,
+    CsvCatalogCache? catalogCache = null) : IContentDiscoverer, IDisposable
 {
     private enum CsvCatalogSourceKind
     {
@@ -347,8 +349,40 @@ public class CsvDiscoverer(
         if (Uri.TryCreate(indexPath, UriKind.Absolute, out var indexUri) &&
             (indexUri.Scheme == Uri.UriSchemeHttp || indexUri.Scheme == Uri.UriSchemeHttps))
         {
-            var httpClient = httpClientFactory.CreateClient(string.Empty);
-            return await httpClient.GetStringAsync(indexUri, cancellationToken);
+            var cached = catalogCache == null
+                ? null
+                : await catalogCache.ReadAsync(indexPath, cancellationToken);
+            if (cached?.IsFresh == true)
+            {
+                return cached.Content;
+            }
+
+            try
+            {
+                var httpClient = httpClientFactory.CreateClient(string.Empty);
+                var content = await httpClient.GetStringAsync(indexUri, cancellationToken);
+                if (catalogCache != null)
+                {
+                    await catalogCache.StoreAsync(indexPath, content, cancellationToken);
+                }
+
+                return content;
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && cached != null)
+            {
+                logger.LogWarning("Remote CSV index {IndexPath} timed out; using stale cached content", indexPath);
+                return cached.Content;
+            }
+            catch (HttpRequestException) when (cached != null)
+            {
+                logger.LogWarning("Remote CSV index {IndexPath} is unavailable; using stale cached content", indexPath);
+                return cached.Content;
+            }
+            catch (IOException) when (cached != null)
+            {
+                logger.LogWarning("Remote CSV index {IndexPath} could not be read; using stale cached content", indexPath);
+                return cached.Content;
+            }
         }
 
         var resolvedPath = Path.IsPathRooted(indexPath)

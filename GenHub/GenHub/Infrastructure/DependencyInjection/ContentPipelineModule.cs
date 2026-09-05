@@ -350,13 +350,16 @@ public static class ContentPipelineModule
     /// </summary>
     private static void AddCsvPipeline(IServiceCollection services)
     {
+        services.AddSingleton<CsvCatalogCache>();
+
         // Register CSV content provider
         services.AddTransient<CsvContentProvider>();
         services.AddTransient<IContentProvider>(sp => sp.GetRequiredService<CsvContentProvider>());
 
-        // Register CSV discoverer (concrete and interface)
-        services.AddTransient<CsvDiscoverer>();
-        services.AddTransient<IContentDiscoverer, CsvDiscoverer>();
+        // Share one CSV discoverer so successfully loaded catalog entries remain cached
+        // across validation requests for the lifetime of the application.
+        services.AddSingleton<CsvDiscoverer>();
+        services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<CsvDiscoverer>());
 
         // Register CSV resolver (concrete and interface)
         services.AddTransient<CsvResolver>();
