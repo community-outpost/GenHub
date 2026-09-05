@@ -534,7 +534,7 @@ public class ManifestGenerationService(
         {
             return version switch
             {
-                "1.04" or "1.4" => CsvConstants.ZeroHourCsvFileName,
+                "1.04" or "1.4" or "1.05" or "1.5" => CsvConstants.ZeroHourCsvFileName,
                 _ => null,
             };
         }

@@ -337,6 +337,31 @@ public class ManifestGenerationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync generates authoritative manifest for Zero Hour 1.05 (Steam).
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_ZeroHour105_ResolvesAuthoritativeFilesAsync()
+    {
+        // Arrange
+        var installationPath = Path.Combine(_tempDirectory, "ZeroHour105Install");
+        Directory.CreateDirectory(installationPath);
+
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "generals.exe"), "zh exe");
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "AudioZH.big"), "zh audio");
+
+        // Act
+        var builder = await _service.CreateGameInstallationManifestAsync(
+            installationPath, GameType.ZeroHour, GameInstallationType.Steam, "1.05", "EN");
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        Assert.Contains(manifest.Files, f => f.RelativePath == "generals.exe");
+        Assert.Contains(manifest.Files, f => f.RelativePath == "AudioZH.big");
+    }
+
+    /// <summary>
     /// Tests that CreateGameInstallationManifestAsync filters language files according to requested language.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
