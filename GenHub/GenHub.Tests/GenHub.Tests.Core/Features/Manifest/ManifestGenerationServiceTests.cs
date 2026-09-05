@@ -338,11 +338,11 @@ public class ManifestGenerationServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that CreateGameInstallationManifestAsync generates authoritative manifest for Zero Hour 1.05 (Steam).
+    /// Tests that CreateGameInstallationManifestAsync generates manifest for Zero Hour 1.05 via fallback directory scan.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task CreateGameInstallationManifestAsync_ZeroHour105_ResolvesAuthoritativeFilesAsync()
+    public async Task CreateGameInstallationManifestAsync_ZeroHour105_FallbackScan_ResolvesFilesAsync()
     {
         // Arrange
         var installationPath = Path.Combine(_tempDirectory, "ZeroHour105Install");
