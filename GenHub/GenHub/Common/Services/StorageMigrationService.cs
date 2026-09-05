@@ -137,10 +137,10 @@ public class StorageMigrationService(
                             Message = "Relocating CAS storage pool and game workspaces...",
                         });
 
-                        var relocated = await RelocateStorageAsync(targetRoot, sourceRoot);
-                        if (!relocated)
+                        var relocateResult = await RelocateStorageAsync(targetRoot, sourceRoot);
+                        if (!relocateResult.Success)
                         {
-                            return OperationResult<bool>.CreateFailure("Failed to update and persist storage configuration during relocation.");
+                            return relocateResult;
                         }
                     }
 
@@ -756,7 +756,7 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
         return requiredBytes + StorageMigrationConstants.DiskSpaceSafetyMarginBytes;
     }
 
-    private async Task<bool> RelocateStorageAsync(string targetRoot, string sourceRoot)
+    private async Task<OperationResult<bool>> RelocateStorageAsync(string targetRoot, string sourceRoot)
     {
         var currentCasRoot = configurationProvider.GetCasConfiguration().CasRootPath;
         var currentWorkspaceRoot = userSettingsService.Get().WorkspacePath;
@@ -770,7 +770,7 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
 
         if (!TryMoveDirectoryIfExternal(currentCasRoot, targetCasRoot, sourceRoot, out var casMoved))
         {
-            return false;
+            return OperationResult<bool>.CreateFailure("Failed to relocate CAS storage pool.");
         }
 
         if (!TryMoveDirectoryIfExternal(currentWorkspaceRoot, targetWorkspaceRoot, sourceRoot, out var workspaceMoved))
@@ -797,10 +797,11 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
                 if (!casSaved)
                 {
                     logger.LogCritical("Failed to persist CAS storage path to {Target} after rollback failure.", finalCasRoot);
+                    return OperationResult<bool>.CreateFailure($"Critical: CAS storage rollback failed, and settings could not be saved to target path {finalCasRoot}.");
                 }
             }
 
-            return false;
+            return OperationResult<bool>.CreateFailure("Failed to relocate game workspaces directory.");
         }
 
         var saved = await userSettingsService.TryUpdateAndSaveAsync(settings =>
@@ -871,13 +872,14 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
             if (!rollbackSaved)
             {
                 logger.LogCritical("Failed to persist storage paths during rollback. Settings on disk may be out of sync with physical storage.");
+                return OperationResult<bool>.CreateFailure("Critical: Failed to persist storage configuration during rollback. Configuration on disk may be unrecovered and out of sync with physical storage.");
             }
 
-            return false;
+            return OperationResult<bool>.CreateFailure("Failed to persist relocated storage settings. Storage locations have been rolled back.");
         }
 
         casPoolManager.ReinitializeInstallationPool();
-        return true;
+        return OperationResult<bool>.CreateSuccess(true);
     }
 
     private bool TryMoveDirectoryIfExternal(string? currentPath, string targetPath, string sourceRoot, out bool moved)
