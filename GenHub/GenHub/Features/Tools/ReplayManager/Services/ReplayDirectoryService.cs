@@ -363,7 +363,7 @@ public sealed class ReplayDirectoryService(
             enabledContentIds.Add(clientManifestId);
         }
 
-        if (!isRetailClient && replay.MatchedClient != null)
+        if (!isRetailClient && replay.MatchedClient != null && string.IsNullOrEmpty(replay.MatchedClient.DataPatchManifestId))
         {
             await AddThirdPartyCompanionManifestsAsync(
                 manifestPool, replay.MatchedClient.Publisher, replay.GameVersion, replay.MatchedClient.Version, enabledContentIds, ct);
@@ -798,14 +798,19 @@ public sealed class ReplayDirectoryService(
 
     private static string GetReplayClientDisplayName(CrcMappingEntry? matchedClient, string defaultName)
     {
-        if (!string.IsNullOrWhiteSpace(matchedClient?.Description))
+        if (matchedClient == null)
+        {
+            return defaultName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(matchedClient.Description))
         {
             return matchedClient.Description;
         }
 
-        if (!string.IsNullOrWhiteSpace(matchedClient?.Publisher) || !string.IsNullOrWhiteSpace(matchedClient?.Version))
+        if (!string.IsNullOrWhiteSpace(matchedClient.Publisher) || !string.IsNullOrWhiteSpace(matchedClient.Version))
         {
-            return $"{matchedClient?.Publisher} {matchedClient?.Version}".Trim();
+            return $"{matchedClient.Publisher} {matchedClient.Version}".Trim();
         }
 
         return defaultName;
