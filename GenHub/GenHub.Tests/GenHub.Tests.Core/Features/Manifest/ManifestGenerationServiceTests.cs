@@ -462,6 +462,57 @@ public class ManifestGenerationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync falls back to directory scan when no authoritative CSV catalog is found.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_UnsupportedVersion_FallsBackToDirectoryScanAsync()
+    {
+        // Arrange
+        var installationPath = Path.Combine(_tempDirectory, "UnsupportedVersionInstall");
+        Directory.CreateDirectory(installationPath);
+
+        var exePath = Path.Combine(installationPath, "generals.exe");
+        await File.WriteAllTextAsync(exePath, "legacy exe");
+        var iniPath = Path.Combine(installationPath, "game.ini");
+        await File.WriteAllTextAsync(iniPath, "config ini");
+
+        // Act - version "1.02" has no authoritative CSV catalog
+        var builder = await _service.CreateGameInstallationManifestAsync(
+            installationPath, GameType.Generals, GameInstallationType.Retail, "1.02");
+        var manifest = builder.Build();
+
+        // Assert - Should successfully fall back to directory scan rather than throwing
+        Assert.NotNull(manifest);
+        Assert.Contains(manifest.Files, f => f.RelativePath == "generals.exe");
+        Assert.Contains(manifest.Files, f => f.RelativePath == "game.ini");
+    }
+
+    /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync resolves int-like versions consistently between basic info and catalog.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_IntLikeVersion_ResolvesVersionConsistentlyAsync()
+    {
+        // Arrange
+        var installationPath = Path.Combine(_tempDirectory, "IntVersionInstall");
+        Directory.CreateDirectory(installationPath);
+
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "generals.exe"), "exe");
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "AudioEnglish.big"), "audio");
+
+        // Act - pass version "0" (int default)
+        var builder = await _service.CreateGameInstallationManifestAsync(
+            installationPath, GameType.Generals, GameInstallationType.Steam, "0", "EN");
+        var manifest = builder.Build();
+
+        // Assert - version in manifest should be resolved to 1.08
+        Assert.NotNull(manifest);
+        Assert.Equal("1.08", manifest.Version);
+    }
+
+    /// <summary>
     /// Cleans up temporary test files.
     /// </summary>
     public void Dispose()

@@ -78,6 +78,8 @@ public class ManifestGenerationService(
     {
         try
         {
+            var resolvedVersion = ResolveManifestVersion(gameType, manifestVersion);
+
             logger.LogDebug(
                 "Creating GameInstallation manifest for {GameType} at {GameInstallationPath}",
                 gameType,
@@ -85,7 +87,7 @@ public class ManifestGenerationService(
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
             var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, downloadService, configurationProvider)
-                .WithBasicInfo(installationType, gameType, manifestVersion)
+                .WithBasicInfo(installationType, gameType, resolvedVersion)
                 .WithContentType(ContentType.GameInstallation, gameType);
 
             // Add publisher info with user-friendly display names matching InstallationTypeDisplayConverter
@@ -100,7 +102,7 @@ public class ManifestGenerationService(
             builder.WithPublisher(publisher.Name, publisher.Website, publisher.SupportUrl, string.Empty, publisher.PublisherType);
 
             // Add essential game files
-            await AddGameFilesToManifest(builder, gameInstallationPath, gameType, manifestVersion, language);
+            await AddGameFilesToManifest(builder, gameInstallationPath, gameType, resolvedVersion, language);
 
             logger.LogInformation(
                 "Created GameInstallation manifest for {InstallationType} {GameType} (Publisher: {PublisherName})",
@@ -742,9 +744,14 @@ public class ManifestGenerationService(
 
         if (authoritativeEntries.Count == 0)
         {
-            var message = $"No authoritative CSV entries found for {gameType} v{version} ({normalizedLanguage})";
-            logger.LogError(message);
-            throw new InvalidOperationException(message);
+            logger.LogWarning(
+                "No authoritative CSV entries found for {GameType} v{Version} ({Language}). Falling back to directory scan manifest generation.",
+                gameType,
+                version,
+                normalizedLanguage);
+
+            await AddGameFilesFromDirectoryScanAsync(builder, installationPath, gameType);
+            return;
         }
 
         var authoritativePathSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -765,6 +772,68 @@ public class ManifestGenerationService(
             gameType,
             fileCount,
             extraFileCount);
+    }
+
+    /// <summary>
+    /// Fallback method that scans the game installation directory and adds common files to the manifest
+    /// when no authoritative CSV catalog is available (e.g., unpatched, custom, or legacy versions).
+    /// </summary>
+    private async Task AddGameFilesFromDirectoryScanAsync(
+        IContentManifestBuilder builder,
+        string installationPath,
+        GameType gameType)
+    {
+        logger.LogInformation("Starting fallback directory scan manifest generation for {GameType} at {InstallationPath}", gameType, installationPath);
+
+        var executableName = gameType == GameType.Generals ? GameClientConstants.GeneralsExecutable : GameClientConstants.ZeroHourExecutable;
+        var executablePath = Path.Combine(installationPath, executableName);
+
+        if (File.Exists(executablePath))
+        {
+            var sourcePath = ResolveSourcePathWithBackup(executablePath, executableName);
+            await builder.AddGameInstallationFileAsync(executableName, sourcePath, isExecutable: true);
+        }
+
+        var commonFiles = new[]
+        {
+            "*.exe",
+            "*.dll",
+            "*.dat",
+            "*.ini",
+            "*.cfg",
+            "*.big",
+            "*.txt",
+        };
+
+        foreach (var pattern in commonFiles)
+        {
+            try
+            {
+                var files = Directory.GetFiles(installationPath, pattern, SearchOption.TopDirectoryOnly);
+                foreach (var file in files)
+                {
+                    var relativePath = Path.GetFileName(file);
+
+                    if (ShouldSkipFile(relativePath))
+                    {
+                        continue;
+                    }
+
+                    if (relativePath.Equals(executableName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    var sourcePath = ResolveSourcePathWithBackup(file, relativePath);
+                    var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(relativePath, sourcePath);
+                    await builder.AddGameInstallationFileAsync(relativePath, sourcePath, isExecutable);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "Failed to enumerate files with pattern {Pattern} at {InstallationPath}", pattern, installationPath);
+            }
+        }
     }
 
     private async Task<bool> TryAddAuthoritativeEntryAsync(
@@ -1132,6 +1201,10 @@ public class ManifestGenerationService(
             catch (HttpRequestException ex)
             {
                 logger.LogWarning(ex, "Failed to resolve CSV catalog via HTTP for {GameType} ({Language}), falling back to local/embedded registry", gameType, language);
+            }
+            catch (TaskCanceledException ex)
+            {
+                logger.LogWarning(ex, "Timeout resolving CSV catalog via HTTP for {GameType} ({Language}), falling back to local/embedded registry", gameType, language);
             }
             catch (IOException ex)
             {
