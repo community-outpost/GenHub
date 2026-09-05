@@ -35,6 +35,7 @@ Get-Process -Name "GenHub*" -ErrorAction SilentlyContinue | Stop-Process -Force 
 Start-Sleep -Seconds 2
 
 Write-Log "Starting file replacement..."
+$updateSuccess = $false
 try {
     Write-Log "Creating backup directory: $BackupDir"
     New-Item -ItemType Directory -Path $BackupDir -Force | Out-Null
@@ -56,10 +57,16 @@ try {
 
     # Set working directory to the application's directory before starting
     $exeDir = Split-Path -Path $CurrentExe -Parent
-    $proc = Start-Process -FilePath $CurrentExe -WorkingDirectory $exeDir -PassThru
-    Start-Sleep -Seconds 2
-    if ($proc.HasExited) {
-        throw "Application exited prematurely after launch with exit code $($proc.ExitCode)"
+    $proc = Start-Process -FilePath $CurrentExe -WorkingDirectory $exeDir -PassThru -ErrorAction Stop
+    if ($null -eq $proc) {
+        throw "Failed to start updated application: process could not be launched"
+    }
+    Start-Sleep -Seconds 1
+    for ($i = 0; $i -lt 5; $i++) {
+        if ($proc.HasExited) {
+            throw "Application exited prematurely after launch with exit code $($proc.ExitCode)"
+        }
+        Start-Sleep -Seconds 1
     }
     Write-Log "Application started and verified running (PID: $($proc.Id))"
 
@@ -67,6 +74,7 @@ try {
     if (Test-Path $SourceDir) {
         Remove-Item -Path $SourceDir -Recurse -Force -ErrorAction SilentlyContinue
     }
+    $updateSuccess = $true
 }
 catch {
     Write-Log "Update failed: $($_.Exception.Message)"
@@ -78,11 +86,15 @@ catch {
     }
 }
 finally {
-    # Self-destruct the updater script's parent directory
+    # Self-destruct the updater script's parent directory only on verified success
     $updaterDir = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
-    Start-Sleep -Seconds 2
-    if (Test-Path $updaterDir) {
-        Remove-Item -Path $updaterDir -Recurse -Force -ErrorAction SilentlyContinue
+    if ($updateSuccess) {
+        Start-Sleep -Seconds 2
+        if (Test-Path $updaterDir) {
+            Remove-Item -Path $updaterDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    } else {
+        Write-Log "Preserving backup and temporary updater directory for recovery: $updaterDir"
     }
 }
 
