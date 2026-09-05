@@ -379,7 +379,7 @@ public sealed class ReplayDirectoryService(
                 contentOrchestrator, manifestPool, rawDataPatchId, replay.MatchedClient.Publisher, replay.GameVersion, ct);
 
             // Verify if data patch exists in manifest pool (exact ID or compatible identity)
-            var resolvedDataPatchId = await ResolveExistingPatchManifestIdAsync(manifestPool, rawDataPatchId, replay.MatchedClient.Publisher, replay.GameVersion, replay.MatchedClient.Version, ct);
+            var resolvedDataPatchId = await ResolveExistingPatchManifestIdAsync(manifestPool, rawDataPatchId, replay.GameVersion, ct);
             if (!string.IsNullOrEmpty(resolvedDataPatchId) && !enabledContentIds.Contains(resolvedDataPatchId, StringComparer.OrdinalIgnoreCase))
             {
                 enabledContentIds.Add(resolvedDataPatchId);
@@ -392,9 +392,7 @@ public sealed class ReplayDirectoryService(
     private static async Task<string?> ResolveExistingPatchManifestIdAsync(
         IContentManifestPool manifestPool,
         string dataPatchManifestId,
-        string? publisher,
         GameType gameVersion,
-        string? clientVersion,
         CancellationToken ct)
     {
         if (string.IsNullOrEmpty(dataPatchManifestId))
@@ -798,6 +796,21 @@ public sealed class ReplayDirectoryService(
         }
     }
 
+    private static string GetReplayClientDisplayName(CrcMappingEntry? matchedClient, string defaultName)
+    {
+        if (!string.IsNullOrWhiteSpace(matchedClient?.Description))
+        {
+            return matchedClient.Description;
+        }
+
+        if (!string.IsNullOrWhiteSpace(matchedClient?.Publisher) || !string.IsNullOrWhiteSpace(matchedClient?.Version))
+        {
+            return $"{matchedClient?.Publisher} {matchedClient?.Version}".Trim();
+        }
+
+        return defaultName;
+    }
+
     private static (string ClientManifestId, GameClient GameClient) CreateRetailGameClient(
         GameInstallation installation,
         ReplayFile replay,
@@ -814,11 +827,7 @@ public sealed class ReplayDirectoryService(
             gameTypeName,
             defaultVersionInt);
 
-        var clientName = !string.IsNullOrWhiteSpace(replay.MatchedClient?.Description)
-            ? replay.MatchedClient.Description
-            : (!string.IsNullOrWhiteSpace(replay.MatchedClient?.Publisher) || !string.IsNullOrWhiteSpace(replay.MatchedClient?.Version)
-                ? $"{replay.MatchedClient?.Publisher} {replay.MatchedClient?.Version}".Trim()
-                : "Retail Client");
+        var clientName = GetReplayClientDisplayName(replay.MatchedClient, "Retail Client");
         var gameClient = targetClient ?? new GameClient
         {
             Id = clientManifestId,
@@ -919,11 +928,7 @@ public sealed class ReplayDirectoryService(
             thirdPartyManifestId = await ResolveThirdPartyClientManifestIdAsync(manifestPool, thirdPartyManifestId, ct);
         }
 
-        var thirdPartyClientName = !string.IsNullOrWhiteSpace(replay.MatchedClient?.Description)
-            ? replay.MatchedClient.Description
-            : (!string.IsNullOrWhiteSpace(replay.MatchedClient?.Publisher) || !string.IsNullOrWhiteSpace(replay.MatchedClient?.Version)
-                ? $"{replay.MatchedClient?.Publisher} {replay.MatchedClient?.Version}".Trim()
-                : "Third-Party Client");
+        var thirdPartyClientName = GetReplayClientDisplayName(replay.MatchedClient, "Third-Party Client");
         var thirdPartyGameClient = new GameClient
         {
             Id = thirdPartyManifestId,
