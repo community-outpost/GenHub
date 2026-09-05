@@ -569,7 +569,7 @@ public class ManifestGenerationService(
         {
             return version switch
             {
-                "1.04" or "1.4" or "1.05" or "1.5" => CsvConstants.ZeroHourCsvFileName,
+                "1.04" or "1.4" => CsvConstants.ZeroHourCsvFileName,
                 _ => null,
             };
         }
@@ -691,47 +691,6 @@ public class ManifestGenerationService(
             .FirstOrDefault(f => string.Equals(Path.GetFileName(f), targetFileName, StringComparison.OrdinalIgnoreCase));
     }
 
-    /// <summary>
-    /// Counts extra non-vanilla files in the installation directory that are excluded from the manifest.
-    /// </summary>
-    private static int CountExtraNonVanillaFiles(string installationPath, ISet<string> authoritativePaths)
-    {
-        try
-        {
-            var options = new EnumerationOptions
-            {
-                IgnoreInaccessible = true,
-                RecurseSubdirectories = true,
-                AttributesToSkip = FileAttributes.None,
-            };
-
-            int extraCount = 0;
-            foreach (var localFile in Directory.EnumerateFiles(installationPath, "*", options))
-            {
-                var relPath = Path.GetRelativePath(installationPath, localFile).Replace('\\', '/');
-                if (ShouldSkipFile(relPath))
-                {
-                    continue;
-                }
-
-                if (!authoritativePaths.Contains(relPath))
-                {
-                    extraCount++;
-                }
-            }
-
-            return extraCount;
-        }
-        catch (IOException)
-        {
-            return 0;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return 0;
-        }
-    }
-
     private static string ResolveManifestVersion(GameType gameType, string? manifestVersion)
     {
         if (!string.IsNullOrWhiteSpace(manifestVersion) && !int.TryParse(manifestVersion, out _))
@@ -799,13 +758,10 @@ public class ManifestGenerationService(
             }
         }
 
-        // Exclude extra/non-vanilla files from the core manifest to keep it completely pristine
-        var extraFileCount = CountExtraNonVanillaFiles(installationPath, authoritativePathSet);
         logger.LogInformation(
-            "Completed authoritative manifest generation for {GameType}: {TotalFiles} vanilla files added, {ExtraCount} extra non-vanilla files excluded",
+            "Completed authoritative manifest generation for {GameType}: {TotalFiles} vanilla files added",
             gameType,
-            fileCount,
-            extraFileCount);
+            fileCount);
     }
 
     /// <summary>
@@ -825,7 +781,14 @@ public class ManifestGenerationService(
         if (File.Exists(executablePath))
         {
             var sourcePath = ResolveSourcePathWithBackup(executablePath, executableName);
-            await builder.AddGameInstallationFileAsync(executableName, sourcePath, isExecutable: true);
+            try
+            {
+                await builder.AddGameInstallationFileAsync(executableName, sourcePath, isExecutable: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "Failed to add primary executable {ExecutableName} to manifest from {SourcePath}", executableName, sourcePath);
+            }
         }
 
         try
