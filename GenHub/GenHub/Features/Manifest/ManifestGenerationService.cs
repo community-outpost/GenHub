@@ -526,7 +526,7 @@ public class ManifestGenerationService(
             return version switch
             {
                 "1.08" or "1.8" => CsvConstants.GeneralsCsvFileName,
-                _ => null,
+                _ => CsvConstants.GeneralsCsvFileName,
             };
         }
 
@@ -535,7 +535,7 @@ public class ManifestGenerationService(
             return version switch
             {
                 "1.04" or "1.4" or "1.05" or "1.5" => CsvConstants.ZeroHourCsvFileName,
-                _ => null,
+                _ => CsvConstants.ZeroHourCsvFileName,
             };
         }
 
@@ -608,7 +608,8 @@ public class ManifestGenerationService(
         var exactPath = Path.GetFullPath(Path.Combine(fullInstallationPath, normalizedRelative));
 
         // Ensure target is strictly within the installation directory
-        if (!exactPath.StartsWith(fullInstallationPath, StringComparison.OrdinalIgnoreCase))
+        var rootWithSeparator = Path.TrimEndingDirectorySeparator(fullInstallationPath) + Path.DirectorySeparatorChar;
+        if (!exactPath.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
@@ -662,10 +663,14 @@ public class ManifestGenerationService(
     {
         try
         {
-            var localFiles = Directory.GetFiles(installationPath, "*", SearchOption.AllDirectories);
-            int extraCount = 0;
+            var options = new EnumerationOptions
+            {
+                IgnoreInaccessible = true,
+                RecurseSubdirectories = true,
+            };
 
-            foreach (var localFile in localFiles)
+            int extraCount = 0;
+            foreach (var localFile in Directory.EnumerateFiles(installationPath, "*", options))
             {
                 var relPath = Path.GetRelativePath(installationPath, localFile).Replace('\\', '/');
                 if (ShouldSkipFile(relPath))
@@ -737,12 +742,9 @@ public class ManifestGenerationService(
 
         if (authoritativeEntries.Count == 0)
         {
-            logger.LogWarning(
-                "No authoritative CSV entries found for {GameType} v{Version} ({Language})",
-                gameType,
-                version,
-                normalizedLanguage);
-            return;
+            var message = $"No authoritative CSV entries found for {gameType} v{version} ({normalizedLanguage})";
+            logger.LogError(message);
+            throw new InvalidOperationException(message);
         }
 
         var authoritativePathSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -1089,7 +1091,7 @@ public class ManifestGenerationService(
             {
                 var searchResult = new ContentSearchResult
                 {
-                    Id = $"csvregistry.gameinstallation.{gameTypeStr.ToLowerInvariant()}{version.Replace(".", string.Empty)}{language.ToLowerInvariant()}",
+                    Id = string.Empty,
                     Name = $"{gameTypeStr} {version} ({language})",
                     Version = version,
                     TargetGame = gameType,
