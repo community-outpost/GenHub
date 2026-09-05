@@ -15,6 +15,13 @@ namespace GenHub.Features.Content.Services;
 /// </summary>
 public sealed class CsvCatalogCache
 {
+    /// <summary>
+    /// Cached catalog content and whether it remains within the normal refresh interval.
+    /// </summary>
+    /// <param name="Content">Cached text content.</param>
+    /// <param name="IsFresh">Whether the cache entry is fresh enough to use without a network request.</param>
+    internal sealed record CsvCatalogCacheEntry(string Content, bool IsFresh);
+
     private static readonly TimeSpan Freshness = TimeSpan.FromHours(CatalogConstants.DefaultCatalogCacheExpirationHours);
     private readonly string _cacheDirectory;
 
@@ -135,11 +142,4 @@ public sealed class CsvCatalogCache
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(sourceUrl));
         return Path.Combine(_cacheDirectory, $"{Convert.ToHexString(hash)}{CsvConstants.CacheFileExtension}");
     }
-
-    /// <summary>
-    /// Cached catalog content and whether it remains within the normal refresh interval.
-    /// </summary>
-    /// <param name="Content">Cached text content.</param>
-    /// <param name="IsFresh">Whether the cache entry is fresh enough to use without a network request.</param>
-    internal sealed record CsvCatalogCacheEntry(string Content, bool IsFresh);
 }
