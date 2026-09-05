@@ -475,7 +475,13 @@ public partial class ContentManifestBuilder(
         bool isExecutable = false,
         FilePermissions? permissions = null)
     {
-        return await AddFileAsync(relativePath, sourcePath, sourceType, string.Empty, isExecutable, permissions);
+        return await AddFileAsync(new FileEntryOptions(
+            relativePath,
+            sourcePath,
+            sourceType,
+            string.Empty,
+            isExecutable,
+            permissions));
     }
 
     /// <summary>
@@ -494,7 +500,13 @@ public partial class ContentManifestBuilder(
         bool isExecutable = false,
         FilePermissions? permissions = null)
     {
-        return await AddFileAsync(relativePath, string.Empty, sourceType, downloadUrl, isExecutable, permissions);
+        return await AddFileAsync(new FileEntryOptions(
+            relativePath,
+            string.Empty,
+            sourceType,
+            downloadUrl,
+            isExecutable,
+            permissions));
     }
 
     /// <summary>
@@ -522,7 +534,7 @@ public partial class ContentManifestBuilder(
             throw new ArgumentException("sourcePath cannot be null or empty for game installation files.", nameof(sourcePath));
         }
 
-        return await AddFileAsync(
+        return await AddFileAsync(new FileEntryOptions(
             relativePath,
             sourcePath,
             ContentSourceType.GameInstallation,
@@ -531,7 +543,7 @@ public partial class ContentManifestBuilder(
             permissions,
             hash,
             size,
-            isRequired);
+            isRequired));
     }
 
     /// <summary>
@@ -872,79 +884,73 @@ public partial class ContentManifestBuilder(
     }
 
     /// <summary>
-    /// Adds a file to the manifest.
+    /// Adds a file to the manifest with deduplication.
     /// </summary>
-    /// <param name="relativePath">Relative path in workspace.</param>
-    /// <param name="sourcePath">Source path for hash computation.</param>
-    /// <param name="sourceType">Source type.</param>
-    /// <param name="downloadUrl">Download URL.</param>
-    /// <param name="isExecutable">Is executable.</param>
-    /// <param name="permissions">File permissions.</param>
-    /// <param name="hash">Optional pre-computed SHA256 content hash.</param>
-    /// <param name="size">Optional file size in bytes.</param>
-    /// <param name="isRequired">Whether the file is required.</param>
+    /// <param name="options">File entry configuration options.</param>
     /// <returns>The builder instance.</returns>
-    private async Task<IContentManifestBuilder> AddFileAsync(
-        string relativePath,
-        string sourcePath = "",
-        ContentSourceType sourceType = ContentSourceType.ContentAddressable,
-        string downloadUrl = "",
-        bool isExecutable = false,
-        FilePermissions? permissions = null,
-        string? hash = null,
-        long? size = null,
-        bool isRequired = true)
+    private async Task<IContentManifestBuilder> AddFileAsync(FileEntryOptions options)
     {
-        var installTarget = DetermineInstallTarget(relativePath);
+        var installTarget = DetermineInstallTarget(options.RelativePath);
 
         var manifestFile = new ManifestFile
         {
-            RelativePath = relativePath,
-            SourcePath = !string.IsNullOrEmpty(sourcePath) ? sourcePath : null,
-            SourceType = sourceType,
-            IsExecutable = isExecutable,
-            DownloadUrl = downloadUrl,
+            RelativePath = options.RelativePath,
+            SourcePath = !string.IsNullOrEmpty(options.SourcePath) ? options.SourcePath : null,
+            SourceType = options.SourceType,
+            IsExecutable = options.IsExecutable,
+            DownloadUrl = options.DownloadUrl,
             InstallTarget = installTarget,
-            IsRequired = isRequired,
-            Permissions = permissions ?? new FilePermissions { UnixPermissions = isExecutable ? "755" : "644", },
+            IsRequired = options.IsRequired,
+            Permissions = options.Permissions ?? new FilePermissions { UnixPermissions = options.IsExecutable ? "755" : "644", },
         };
 
-        if (size.HasValue)
+        if (options.Size.HasValue)
         {
-            manifestFile.Size = size.Value;
+            manifestFile.Size = options.Size.Value;
         }
 
-        if (!string.IsNullOrEmpty(hash))
+        if (!string.IsNullOrEmpty(options.Hash))
         {
-            manifestFile.Hash = hash;
+            manifestFile.Hash = options.Hash;
         }
 
-        if (!string.IsNullOrEmpty(sourcePath) && File.Exists(sourcePath))
+        if (!string.IsNullOrEmpty(options.SourcePath) && File.Exists(options.SourcePath))
         {
-            var fileInfo = new FileInfo(sourcePath);
-            if (!size.HasValue)
+            var fileInfo = new FileInfo(options.SourcePath);
+            if (!options.Size.HasValue)
             {
                 manifestFile.Size = fileInfo.Length;
             }
 
             if (string.IsNullOrEmpty(manifestFile.Hash))
             {
-                manifestFile.Hash = await _hashProvider.ComputeFileHashAsync(sourcePath);
+                manifestFile.Hash = await _hashProvider.ComputeFileHashAsync(options.SourcePath);
             }
         }
 
         // Check for duplicate relative paths before adding
-        if (_manifest.Files.Any(f => f.RelativePath.Equals(relativePath, StringComparison.OrdinalIgnoreCase)))
+        if (_manifest.Files.Any(f => f.RelativePath.Equals(options.RelativePath, StringComparison.OrdinalIgnoreCase)))
         {
             logger.LogWarning(
                 "Skipping duplicate file: {RelativePath} (Source: {SourceType}). File already exists in manifest.",
-                relativePath,
-                sourceType);
+                options.RelativePath,
+                options.SourceType);
             return this;
         }
 
         _manifest.Files.Add(manifestFile);
-        logger.LogDebug("Added file: {RelativePath} (Source: {SourceType}, Hash: {Hash})", relativePath, sourceType, manifestFile.Hash);
+        logger.LogDebug("Added file: {RelativePath} (Source: {SourceType}, Hash: {Hash})", options.RelativePath, options.SourceType, manifestFile.Hash);
         return this;
     }
+
+    private sealed record FileEntryOptions(
+        string RelativePath,
+        string SourcePath = "",
+        ContentSourceType SourceType = ContentSourceType.ContentAddressable,
+        string DownloadUrl = "",
+        bool IsExecutable = false,
+        FilePermissions? Permissions = null,
+        string? Hash = null,
+        long? Size = null,
+        bool IsRequired = true);
 }
