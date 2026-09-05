@@ -462,7 +462,8 @@ public class ManifestGenerationServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that CreateGameInstallationManifestAsync falls back to directory scan when no authoritative CSV catalog is found.
+    /// Tests that CreateGameInstallationManifestAsync falls back to directory scan when no authoritative CSV catalog is found,
+    /// recursing into subdirectories and including broadened game file extensions while skipping backups.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
@@ -477,15 +478,40 @@ public class ManifestGenerationServiceTests : IDisposable
         var iniPath = Path.Combine(installationPath, "game.ini");
         await File.WriteAllTextAsync(iniPath, "config ini");
 
+        // Subdirectory files matching broadened catalog extensions
+        var dataCursorsDir = Path.Combine(installationPath, "Data", "Cursors");
+        Directory.CreateDirectory(dataCursorsDir);
+        await File.WriteAllTextAsync(Path.Combine(dataCursorsDir, "cursor.ani"), "cursor data");
+
+        var mssDir = Path.Combine(installationPath, "MSS");
+        Directory.CreateDirectory(mssDir);
+        await File.WriteAllTextAsync(Path.Combine(mssDir, "mssa3d.m3d"), "sound driver");
+
+        // Broadened game file extension in root
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "intro.bik"), "movie");
+
+        // Files that should be skipped during scan
+        var backupDir = Path.Combine(installationPath, ".genhub-backup");
+        Directory.CreateDirectory(backupDir);
+        await File.WriteAllTextAsync(Path.Combine(backupDir, "backup.exe"), "backup exe");
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "game.ini.bak"), "backup ini");
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "debug.log"), "log file");
+
         // Act - version "1.02" has no authoritative CSV catalog
         var builder = await _service.CreateGameInstallationManifestAsync(
             installationPath, GameType.Generals, GameInstallationType.Retail, "1.02");
         var manifest = builder.Build();
 
-        // Assert - Should successfully fall back to directory scan rather than throwing
+        // Assert - Should successfully fall back to directory scan, capturing nested files and ignoring skipped ones
         Assert.NotNull(manifest);
         Assert.Contains(manifest.Files, f => f.RelativePath == "generals.exe");
         Assert.Contains(manifest.Files, f => f.RelativePath == "game.ini");
+        Assert.Contains(manifest.Files, f => f.RelativePath == "Data/Cursors/cursor.ani");
+        Assert.Contains(manifest.Files, f => f.RelativePath == "MSS/mssa3d.m3d");
+        Assert.Contains(manifest.Files, f => f.RelativePath == "intro.bik");
+        Assert.DoesNotContain(manifest.Files, f => f.RelativePath.Contains("backup"));
+        Assert.DoesNotContain(manifest.Files, f => f.RelativePath.EndsWith(".bak", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(manifest.Files, f => f.RelativePath.EndsWith(".log", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
