@@ -364,7 +364,7 @@ public class StorageMigrationServiceTests : IDisposable
         Assert.Equal(_workspaceDir, liveSettings.WorkspacePath);
 
         // Verify TryUpdateAndSaveAsync was invoked both for migration and for rollback persistence
-        _mockUserSettingsService.Verify(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()), Times.Exactly(2));
+        _mockUserSettingsService.Verify(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()), Times.AtLeast(2));
     }
 
     /// <summary>

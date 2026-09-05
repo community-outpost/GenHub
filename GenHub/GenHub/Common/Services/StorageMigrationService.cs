@@ -688,21 +688,26 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
             return true;
         }
 
-        try
+        for (var attempt = 1; attempt <= 2; attempt++)
         {
-            MigrateDirectorySafely(targetDir, sourceDir);
-            return true;
+            try
+            {
+                MigrateDirectorySafely(targetDir, sourceDir);
+                return true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (attempt == 1)
+                {
+                    Thread.Sleep(500);
+                    continue;
+                }
+
+                logger.LogError(ex, "Error rolling back directory move from {Target} to {Source} after {Attempts} attempts", targetDir, sourceDir, attempt);
+            }
         }
-        catch (IOException ex)
-        {
-            logger.LogError(ex, "I/O error rolling back directory move from {Target} to {Source}", targetDir, sourceDir);
-            return false;
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            logger.LogError(ex, "Unauthorized access rolling back directory move from {Target} to {Source}", targetDir, sourceDir);
-            return false;
-        }
+
+        return false;
     }
 
     private async Task<(bool HasActiveProcesses, List<string> ProcessNames)> CheckActiveProcessesAsync(CancellationToken cancellationToken)
@@ -773,11 +778,26 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
             var casRolledBack = RollbackDirectoryMove(casMoved, currentCasRoot, targetCasRoot, logger);
             if (!casRolledBack && currentCasRoot != null)
             {
-                await userSettingsService.TryUpdateAndSaveAsync(liveSettings =>
+                var casSaved = await userSettingsService.TryUpdateAndSaveAsync(liveSettings =>
                 {
                     liveSettings.CasConfiguration.CasRootPath = finalCasRoot;
                     return true;
                 });
+
+                if (!casSaved)
+                {
+                    await Task.Delay(500);
+                    casSaved = await userSettingsService.TryUpdateAndSaveAsync(liveSettings =>
+                    {
+                        liveSettings.CasConfiguration.CasRootPath = finalCasRoot;
+                        return true;
+                    });
+                }
+
+                if (!casSaved)
+                {
+                    logger.LogCritical("Failed to persist CAS storage path to {Target} after rollback failure.", finalCasRoot);
+                }
             }
 
             return false;
@@ -798,7 +818,7 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
             var casRolledBack = RollbackDirectoryMove(casMoved, currentCasRoot, targetCasRoot, logger);
             var workspaceRolledBack = RollbackDirectoryMove(workspaceMoved, currentWorkspaceRoot, targetWorkspaceRoot, logger);
 
-            await userSettingsService.TryUpdateAndSaveAsync(liveSettings =>
+            var rollbackSaved = await userSettingsService.TryUpdateAndSaveAsync(liveSettings =>
             {
                 if (casRolledBack && currentCasRoot != null)
                 {
@@ -820,6 +840,38 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
 
                 return true;
             });
+
+            if (!rollbackSaved)
+            {
+                await Task.Delay(500);
+                rollbackSaved = await userSettingsService.TryUpdateAndSaveAsync(liveSettings =>
+                {
+                    if (casRolledBack && currentCasRoot != null)
+                    {
+                        liveSettings.CasConfiguration.CasRootPath = currentCasRoot;
+                    }
+                    else if (!casRolledBack)
+                    {
+                        liveSettings.CasConfiguration.CasRootPath = finalCasRoot;
+                    }
+
+                    if (workspaceRolledBack && currentWorkspaceRoot != null)
+                    {
+                        liveSettings.WorkspacePath = currentWorkspaceRoot;
+                    }
+                    else if (!workspaceRolledBack)
+                    {
+                        liveSettings.WorkspacePath = finalWorkspaceRoot;
+                    }
+
+                    return true;
+                });
+            }
+
+            if (!rollbackSaved)
+            {
+                logger.LogCritical("Failed to persist storage paths during rollback. Settings on disk may be out of sync with physical storage.");
+            }
 
             return false;
         }
