@@ -368,7 +368,7 @@ public class GameLauncher(
                 return LaunchOperationResult<GameProcessInfo>.CreateFailure(result.FirstError!, launchId, launchInfo.ProfileId);
             }
 
-            return LaunchOperationResult<GameProcessInfo>.CreateSuccess(result.Data!, launchId, launchInfo.ProfileId);
+            return LaunchOperationResult<GameProcessInfo>.CreateSuccess(result.Data, launchId, launchInfo.ProfileId);
         }
         catch (Exception ex)
         {
