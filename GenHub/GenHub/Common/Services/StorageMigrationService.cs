@@ -627,6 +627,24 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
         return File.Exists(systemPowerShell) ? systemPowerShell : "powershell.exe";
     }
 
+    private static string ResolveFinalDirectoryPath(string? currentPath, string defaultTarget, string sourceRoot, string targetRoot)
+    {
+        if (!string.IsNullOrWhiteSpace(currentPath) && IsInsideDirectory(currentPath, sourceRoot))
+        {
+            return Path.Combine(targetRoot, Path.GetRelativePath(sourceRoot, currentPath));
+        }
+
+        return defaultTarget;
+    }
+
+    private static void RollbackDirectoryMove(bool moved, string? sourceDir, string targetDir)
+    {
+        if (moved && !string.IsNullOrWhiteSpace(sourceDir))
+        {
+            MigrateDirectorySafely(targetDir, sourceDir);
+        }
+    }
+
     private async Task<(bool HasActiveProcesses, List<string> ProcessNames)> CheckActiveProcessesAsync(CancellationToken cancellationToken)
     {
         var activeLaunches = (await launchRegistry.GetAllActiveLaunchesAsync()).ToList();
@@ -682,55 +700,20 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
         var targetCasRoot = Path.Combine(targetDataDir, DirectoryNames.CasPool);
         var targetWorkspaceRoot = Path.Combine(targetDataDir, DirectoryNames.Workspaces);
 
-        var isCasNested = !string.IsNullOrWhiteSpace(currentCasRoot) && IsInsideDirectory(currentCasRoot, sourceRoot);
-        var isWorkspaceNested = !string.IsNullOrWhiteSpace(currentWorkspaceRoot) && IsInsideDirectory(currentWorkspaceRoot, sourceRoot);
+        var finalCasRoot = ResolveFinalDirectoryPath(currentCasRoot, targetCasRoot, sourceRoot, targetRoot);
+        var finalWorkspaceRoot = ResolveFinalDirectoryPath(currentWorkspaceRoot, targetWorkspaceRoot, sourceRoot, targetRoot);
 
-        var finalCasRoot = isCasNested
-            ? Path.Combine(targetRoot, Path.GetRelativePath(sourceRoot, currentCasRoot!))
-            : targetCasRoot;
-
-        var finalWorkspaceRoot = isWorkspaceNested
-            ? Path.Combine(targetRoot, Path.GetRelativePath(sourceRoot, currentWorkspaceRoot!))
-            : targetWorkspaceRoot;
-
-        var casMoved = false;
-        var workspaceMoved = false;
-
-        try
+        if (!TryMoveDirectoryIfExternal(currentCasRoot, targetCasRoot, sourceRoot, out var casMoved))
         {
-            // Move CAS pool if existing and not already inside source root
-            if (!string.IsNullOrWhiteSpace(currentCasRoot) && Directory.Exists(currentCasRoot) && !isCasNested)
-            {
-                logger.LogInformation("Moving CAS storage pool from {Source} to {Target}", currentCasRoot, targetCasRoot);
-                MigrateDirectorySafely(currentCasRoot, targetCasRoot);
-                casMoved = true;
-            }
-
-            // Move workspaces if existing and not already inside source root
-            if (!string.IsNullOrWhiteSpace(currentWorkspaceRoot) && Directory.Exists(currentWorkspaceRoot) && !isWorkspaceNested)
-            {
-                logger.LogInformation("Moving workspaces from {Source} to {Target}", currentWorkspaceRoot, targetWorkspaceRoot);
-                MigrateDirectorySafely(currentWorkspaceRoot, targetWorkspaceRoot);
-                workspaceMoved = true;
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed while moving storage directories. Rolling back partial moves.");
-            if (casMoved && !string.IsNullOrWhiteSpace(currentCasRoot))
-            {
-                MigrateDirectorySafely(targetCasRoot, currentCasRoot);
-            }
-
-            if (workspaceMoved && !string.IsNullOrWhiteSpace(currentWorkspaceRoot))
-            {
-                MigrateDirectorySafely(targetWorkspaceRoot, currentWorkspaceRoot);
-            }
-
             return false;
         }
 
-        // Update and persist settings
+        if (!TryMoveDirectoryIfExternal(currentWorkspaceRoot, targetWorkspaceRoot, sourceRoot, out var workspaceMoved))
+        {
+            RollbackDirectoryMove(casMoved, currentCasRoot, targetCasRoot);
+            return false;
+        }
+
         var saved = await userSettingsService.TryUpdateAndSaveAsync(settings =>
         {
             settings.CasConfiguration.CasRootPath = finalCasRoot;
@@ -742,22 +725,35 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
         if (!saved)
         {
             logger.LogError("Failed to persist relocated storage settings. Rolling back storage relocation.");
-            if (casMoved && !string.IsNullOrWhiteSpace(currentCasRoot))
-            {
-                MigrateDirectorySafely(targetCasRoot, currentCasRoot);
-            }
-
-            if (workspaceMoved && !string.IsNullOrWhiteSpace(currentWorkspaceRoot))
-            {
-                MigrateDirectorySafely(targetWorkspaceRoot, currentWorkspaceRoot);
-            }
-
+            RollbackDirectoryMove(casMoved, currentCasRoot, targetCasRoot);
+            RollbackDirectoryMove(workspaceMoved, currentWorkspaceRoot, targetWorkspaceRoot);
             return false;
         }
 
-        // Reinitialize CAS pool with the new path
         casPoolManager.ReinitializeInstallationPool();
         return true;
+    }
+
+    private bool TryMoveDirectoryIfExternal(string? currentPath, string targetPath, string sourceRoot, out bool moved)
+    {
+        moved = false;
+        if (string.IsNullOrWhiteSpace(currentPath) || !Directory.Exists(currentPath) || IsInsideDirectory(currentPath, sourceRoot))
+        {
+            return true;
+        }
+
+        try
+        {
+            logger.LogInformation("Moving storage directory from {Source} to {Target}", currentPath, targetPath);
+            MigrateDirectorySafely(currentPath, targetPath);
+            moved = true;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed while moving storage directory from {Source} to {Target}", currentPath, targetPath);
+            return false;
+        }
     }
 
     private string PrepareMigrationScript(string targetDirectory)
