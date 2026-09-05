@@ -90,29 +90,7 @@ public class DependencyResolver(
         }
 
         // Allow publisher client or installation variants (e.g. 60hz, unlocked, eac-zerohour) for compatible games
-        if (declaredParts[3].Equals(ContentType.GameClient.ToManifestIdString(), StringComparison.OrdinalIgnoreCase) ||
-            declaredParts[3].Equals(ContentType.GameInstallation.ToManifestIdString(), StringComparison.OrdinalIgnoreCase))
-        {
-            var isDeclaredZeroHour = declaredName.Contains("zerohour", StringComparison.OrdinalIgnoreCase) || declaredName.Contains("zh", StringComparison.OrdinalIgnoreCase);
-            var isAcquiredZeroHour = acquiredName.Contains("zerohour", StringComparison.OrdinalIgnoreCase) || acquiredName.Contains("zh", StringComparison.OrdinalIgnoreCase);
-            var isDeclaredGenerals = declaredName.Contains("generals", StringComparison.OrdinalIgnoreCase) && !isDeclaredZeroHour;
-            var isAcquiredGenerals = acquiredName.Contains("generals", StringComparison.OrdinalIgnoreCase) && !isAcquiredZeroHour;
-
-            // Reject cross-game mismatches (Generals client matching Zero Hour, or vice versa)
-            if (isDeclaredZeroHour && isAcquiredGenerals)
-            {
-                return false;
-            }
-
-            if (isDeclaredGenerals && isAcquiredZeroHour)
-            {
-                return false;
-            }
-
-            return true;
-        }
-
-        return false;
+        return AreGameVariantsCompatible(declaredParts[3], declaredName, acquiredName);
     }
 
     /// <inheritdoc/>
@@ -284,6 +262,40 @@ public class DependencyResolver(
 
         return DependencyResolutionResult.CreateSuccess([..resolvedIds], resolvedManifests, missingContentIds);
     }
+
+    private static bool AreGameVariantsCompatible(string contentType, string declaredName, string acquiredName)
+    {
+        if (!contentType.Equals(ContentType.GameClient.ToManifestIdString(), StringComparison.OrdinalIgnoreCase) &&
+            !contentType.Equals(ContentType.GameInstallation.ToManifestIdString(), StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var isDeclaredZeroHour = IsZeroHourContent(declaredName);
+        var isAcquiredZeroHour = IsZeroHourContent(acquiredName);
+        var isDeclaredGenerals = IsGeneralsContent(declaredName);
+        var isAcquiredGenerals = IsGeneralsContent(acquiredName);
+
+        // Reject cross-game mismatches (Generals client matching Zero Hour, or vice versa)
+        if (isDeclaredZeroHour && isAcquiredGenerals)
+        {
+            return false;
+        }
+
+        if (isDeclaredGenerals && isAcquiredZeroHour)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool IsZeroHourContent(string name) =>
+        name.Contains("zerohour", StringComparison.OrdinalIgnoreCase) ||
+        name.Contains("zh", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsGeneralsContent(string name) =>
+        name.Contains("generals", StringComparison.OrdinalIgnoreCase) && !IsZeroHourContent(name);
 
     private async Task<ContentManifest?> ResolveManifestWithFallbackAsync(string contentId, CancellationToken cancellationToken)
     {

@@ -22,6 +22,7 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Core.Models.Tools.ReplayManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -839,6 +840,77 @@ public sealed class ReplayDirectoryService(
         }
     }
 
+    private static (string ClientManifestId, GameClient GameClient) CreateRetailGameClient(
+        GameInstallation installation,
+        ReplayFile replay,
+        string defaultVersion,
+        string exePath,
+        string workingDir,
+        GameClient? targetClient)
+    {
+        var defaultVersionInt = replay.GameVersion == GameType.ZeroHour ? 104 : 108;
+        var gameTypeName = replay.GameVersion == GameType.ZeroHour ? "zerohour" : "generals";
+        var clientManifestId = targetClient?.Id ?? ManifestIdGenerator.GeneratePublisherContentId(
+            installation.InstallationType.ToIdentifierString(),
+            ContentType.GameClient,
+            gameTypeName,
+            defaultVersionInt);
+
+        var clientName = replay.MatchedClient?.Description ?? $"{replay.MatchedClient?.Publisher} {replay.MatchedClient?.Version}";
+        var gameClient = targetClient ?? new GameClient
+        {
+            Id = clientManifestId,
+            Name = clientName,
+            Version = defaultVersion,
+            GameType = replay.GameVersion,
+            PublisherType = installation.InstallationType.ToIdentifierString(),
+            InstallationId = installation.Id,
+            ExecutablePath = exePath,
+            WorkingDirectory = workingDir,
+        };
+
+        if (string.IsNullOrWhiteSpace(gameClient.ExecutablePath))
+        {
+            gameClient.ExecutablePath = exePath;
+        }
+
+        if (string.IsNullOrWhiteSpace(gameClient.WorkingDirectory))
+        {
+            gameClient.WorkingDirectory = workingDir;
+        }
+
+        if (string.IsNullOrWhiteSpace(gameClient.PublisherType))
+        {
+            gameClient.PublisherType = installation.InstallationType.ToIdentifierString();
+        }
+
+        return (clientManifestId, gameClient);
+    }
+
+    private static bool IsClientAlreadyAcquired(
+        IEnumerable<ContentManifest> existingManifests,
+        CrcMappingEntry matchedClient,
+        GameType gameVersion)
+    {
+        return existingManifests.Any(m =>
+            string.Equals(m.Id.Value, matchedClient.ManifestId, StringComparison.OrdinalIgnoreCase) ||
+            (!string.IsNullOrEmpty(matchedClient.Publisher) &&
+             m.ContentType == ContentType.GameClient &&
+             m.TargetGame == gameVersion &&
+             string.Equals(m.Publisher?.PublisherType, matchedClient.Publisher, StringComparison.OrdinalIgnoreCase) &&
+             (!string.IsNullOrEmpty(matchedClient.Version) && string.Equals(m.Version?.ToString(), matchedClient.Version, StringComparison.OrdinalIgnoreCase))));
+    }
+
+    private static ContentSearchResult? FindBestMatchingContentSearchResult(
+        IEnumerable<ContentSearchResult> items,
+        CrcMappingEntry matchedClient)
+    {
+        return items.FirstOrDefault(c =>
+            string.Equals(c.Id, matchedClient.ManifestId, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(c.Version, matchedClient.Version, StringComparison.OrdinalIgnoreCase))
+            ?? items.FirstOrDefault();
+    }
+
     private async Task<(string ClientManifestId, GameClient? GameClient)> ResolveReplayGameClientAsync(
         GameInstallation installation,
         ReplayFile replay,
@@ -863,47 +935,21 @@ public sealed class ReplayDirectoryService(
             return (string.Empty, null);
         }
 
-        if (isRetailClient)
-        {
-            var defaultVersionInt = replay.GameVersion == GameType.ZeroHour ? 104 : 108;
-            var gameTypeName = replay.GameVersion == GameType.ZeroHour ? "zerohour" : "generals";
-            var clientManifestId = targetClient?.Id ?? ManifestIdGenerator.GeneratePublisherContentId(
-                installation.InstallationType.ToIdentifierString(),
-                ContentType.GameClient,
-                gameTypeName,
-                defaultVersionInt);
+        return isRetailClient
+            ? CreateRetailGameClient(installation, replay, defaultVersion, exePath, workingDir, targetClient)
+            : await ResolveThirdPartyGameClientAsync(installation, replay, defaultVersion, exePath, workingDir, manifestPool, contentOrchestrator, ct);
+    }
 
-            var clientName = replay.MatchedClient?.Description ?? $"{replay.MatchedClient?.Publisher} {replay.MatchedClient?.Version}";
-            var gameClient = targetClient ?? new GameClient
-            {
-                Id = clientManifestId,
-                Name = clientName,
-                Version = defaultVersion,
-                GameType = replay.GameVersion,
-                PublisherType = installation.InstallationType.ToIdentifierString(),
-                InstallationId = installation.Id,
-                ExecutablePath = exePath,
-                WorkingDirectory = workingDir,
-            };
-
-            if (string.IsNullOrWhiteSpace(gameClient.ExecutablePath))
-            {
-                gameClient.ExecutablePath = exePath;
-            }
-
-            if (string.IsNullOrWhiteSpace(gameClient.WorkingDirectory))
-            {
-                gameClient.WorkingDirectory = workingDir;
-            }
-
-            if (string.IsNullOrWhiteSpace(gameClient.PublisherType))
-            {
-                gameClient.PublisherType = installation.InstallationType.ToIdentifierString();
-            }
-
-            return (clientManifestId, gameClient);
-        }
-
+    private async Task<(string ClientManifestId, GameClient GameClient)> ResolveThirdPartyGameClientAsync(
+        GameInstallation installation,
+        ReplayFile replay,
+        string defaultVersion,
+        string exePath,
+        string workingDir,
+        IContentManifestPool manifestPool,
+        IContentOrchestrator? contentOrchestrator,
+        CancellationToken ct)
+    {
         var thirdPartyManifestId = replay.MatchedClient?.ManifestId ?? string.Empty;
         if (replay.MatchedClient != null)
         {
@@ -942,15 +988,7 @@ public sealed class ReplayDirectoryService(
         var allManifests = await manifestPool.GetAllManifestsAsync(ct);
         var existingManifests = allManifests.Success && allManifests.Data != null ? allManifests.Data : [];
 
-        var isAlreadyAcquired = existingManifests.Any(m =>
-            string.Equals(m.Id.Value, matchedClient.ManifestId, StringComparison.OrdinalIgnoreCase) ||
-            (!string.IsNullOrEmpty(matchedClient.Publisher) &&
-             m.ContentType == ContentType.GameClient &&
-             m.TargetGame == gameVersion &&
-             string.Equals(m.Publisher?.PublisherType, matchedClient.Publisher, StringComparison.OrdinalIgnoreCase) &&
-             (!string.IsNullOrEmpty(matchedClient.Version) && string.Equals(m.Version?.ToString(), matchedClient.Version, StringComparison.OrdinalIgnoreCase))));
-
-        if (isAlreadyAcquired)
+        if (IsClientAlreadyAcquired(existingManifests, matchedClient, gameVersion))
         {
             logger.LogDebug("[ReplayManager] Client for publisher '{Publisher}' already acquired in manifest pool, skipping download.", matchedClient.Publisher);
             return;
@@ -964,13 +1002,9 @@ public sealed class ReplayDirectoryService(
             TargetGame = gameVersion,
         };
         var searchResult = await contentOrchestrator.SearchAsync(searchQuery, ct);
-        if (searchResult != null && searchResult.Success && searchResult.Data != null)
+        if (searchResult?.Success == true && searchResult.Data != null)
         {
-            var match = searchResult.Data.FirstOrDefault(c =>
-                string.Equals(c.Id, matchedClient.ManifestId, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(c.Version, matchedClient.Version, StringComparison.OrdinalIgnoreCase))
-                ?? searchResult.Data.FirstOrDefault();
-
+            var match = FindBestMatchingContentSearchResult(searchResult.Data, matchedClient);
             if (match != null)
             {
                 var acquireResult = await contentOrchestrator.AcquireContentAsync(match, null, ct);
