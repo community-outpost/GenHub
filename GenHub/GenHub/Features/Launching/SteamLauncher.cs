@@ -31,6 +31,8 @@ namespace GenHub.Features.Launching;
 public class SteamLauncher : ISteamLauncher
 {
     private const string ProxyConfigFileName = "proxy_config.json";
+    private const string ProxyLauncherName = "GenHub.ProxyLauncher";
+    private const string ProxyLauncherExeName = "GenHub.ProxyLauncher.exe";
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private static readonly StringComparer PathComparer = OperatingSystem.IsWindows()
         ? StringComparer.OrdinalIgnoreCase
@@ -115,7 +117,7 @@ public class SteamLauncher : ISteamLauncher
             if (!File.Exists(proxySourcePath))
             {
                 return OperationResult<SteamLaunchPrepResult>.CreateFailure(
-                    $"Proxy Launcher binary not found at {proxySourcePath}. Please build GenHub.ProxyLauncher project.");
+                    $"Proxy Launcher binary not found at {proxySourcePath}. Please build {ProxyLauncherName} project.");
             }
 
             if (!Directory.Exists(gameInstallPath))
@@ -315,59 +317,10 @@ public class SteamLauncher : ISteamLauncher
             var backupPath = targetExePath + SteamConstants.BackupExtension;
             var proxyConfigPath = Path.Combine(gameInstallPath, ProxyConfigFileName);
 
-            if (File.Exists(backupPath))
+            var restoreResult = RestoreOriginalExecutable(targetExePath, backupPath, executableName);
+            if (!restoreResult.Success)
             {
-                var proxySourcePath = ResolveProxySourcePath();
-                if (File.Exists(targetExePath))
-                {
-                    if (FilesAreEqual(targetExePath, backupPath))
-                    {
-                        _logger.LogInformation(
-                            "[SteamLauncher] Game executable is already identical to backup; removing duplicate backup {Backup}",
-                            backupPath);
-                        File.Delete(backupPath);
-                    }
-                    else if (IsProxyLauncher(targetExePath, proxySourcePath))
-                    {
-                        _logger.LogInformation(
-                            "[SteamLauncher] Restoring original {Exe} from backup",
-                            executableName);
-                        File.Move(backupPath, targetExePath, overwrite: true);
-                        _logger.LogInformation(
-                            "[SteamLauncher] Successfully restored original {Exe}",
-                            executableName);
-                    }
-                    else
-                    {
-                        _logger.LogInformation(
-                            "[SteamLauncher] Target executable {Exe} is already genuine; removing stale backup {Backup}",
-                            executableName,
-                            backupPath);
-                        File.Delete(backupPath);
-                    }
-                }
-                else
-                {
-                    _logger.LogInformation(
-                        "[SteamLauncher] Restoring original {Exe} from backup into empty target slot",
-                        executableName);
-                    File.Move(backupPath, targetExePath, overwrite: true);
-                }
-            }
-            else
-            {
-                var proxySourcePath = ResolveProxySourcePath();
-                if (File.Exists(targetExePath) && IsProxyLauncher(targetExePath, proxySourcePath))
-                {
-                    var error =
-                        $"Cannot restore '{targetExePath}' because its original backup is missing.";
-                    _logger.LogError("[SteamLauncher] {Error}", error);
-                    return OperationResult<bool>.CreateFailure(error);
-                }
-
-                _logger.LogDebug(
-                    "[SteamLauncher] No backup found for {Exe}, skipping restoration",
-                    executableName);
+                return restoreResult;
             }
 
             if (File.Exists(proxyConfigPath))
@@ -428,9 +381,9 @@ public class SteamLauncher : ISteamLauncher
         try
         {
             var versionInfo = FileVersionInfo.GetVersionInfo(exePath);
-            if (string.Equals(versionInfo.ProductName, "GenHub.ProxyLauncher", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(versionInfo.InternalName, "GenHub.ProxyLauncher", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(versionInfo.OriginalFilename, "GenHub.ProxyLauncher.exe", StringComparison.OrdinalIgnoreCase) ||
+            if (string.Equals(versionInfo.ProductName, ProxyLauncherName, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(versionInfo.InternalName, ProxyLauncherName, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(versionInfo.OriginalFilename, ProxyLauncherExeName, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(versionInfo.OriginalFilename, "GenHub.ProxyLauncher.dll", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
@@ -450,6 +403,68 @@ public class SteamLauncher : ISteamLauncher
         }
 
         return false;
+    }
+
+    private OperationResult<bool> RestoreOriginalExecutable(
+        string targetExePath,
+        string backupPath,
+        string executableName)
+    {
+        var proxySourcePath = ResolveProxySourcePath();
+
+        if (File.Exists(backupPath))
+        {
+            if (File.Exists(targetExePath))
+            {
+                if (FilesAreEqual(targetExePath, backupPath))
+                {
+                    _logger.LogInformation(
+                        "[SteamLauncher] Game executable is already identical to backup; removing duplicate backup {Backup}",
+                        backupPath);
+                    File.Delete(backupPath);
+                }
+                else if (IsProxyLauncher(targetExePath, proxySourcePath))
+                {
+                    _logger.LogInformation(
+                        "[SteamLauncher] Restoring original {Exe} from backup",
+                        executableName);
+                    File.Move(backupPath, targetExePath, overwrite: true);
+                    _logger.LogInformation(
+                        "[SteamLauncher] Successfully restored original {Exe}",
+                        executableName);
+                }
+                else
+                {
+                    _logger.LogInformation(
+                        "[SteamLauncher] Target executable {Exe} is already genuine; removing stale backup {Backup}",
+                        executableName,
+                        backupPath);
+                    File.Delete(backupPath);
+                }
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "[SteamLauncher] Restoring original {Exe} from backup into empty target slot",
+                    executableName);
+                File.Move(backupPath, targetExePath, overwrite: true);
+            }
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+
+        if (File.Exists(targetExePath) && IsProxyLauncher(targetExePath, proxySourcePath))
+        {
+            var error =
+                $"Cannot restore '{targetExePath}' because its original backup is missing.";
+            _logger.LogError("[SteamLauncher] {Error}", error);
+            return OperationResult<bool>.CreateFailure(error);
+        }
+
+        _logger.LogDebug(
+            "[SteamLauncher] No backup found for {Exe}, skipping restoration",
+            executableName);
+        return OperationResult<bool>.CreateSuccess(true);
     }
 
     private async Task<IDisposable> AcquireInstallationMutationLockAsync(
@@ -517,9 +532,9 @@ public class SteamLauncher : ISteamLauncher
 
         var developmentPaths = new[]
         {
-            Path.GetFullPath(Path.Combine(currentBaseDir, "..", "..", "..", "..", "GenHub.ProxyLauncher", "bin", "Debug", "net8.0-windows", "win-x64", "GenHub.ProxyLauncher.exe")),
-            Path.GetFullPath(Path.Combine(currentBaseDir, "..", "..", "..", "..", "GenHub.ProxyLauncher", "bin", "Release", "net8.0-windows", "win-x64", "GenHub.ProxyLauncher.exe")),
-            Path.GetFullPath(Path.Combine(currentBaseDir, "net8.0-windows", "GenHub.ProxyLauncher.exe")),
+            Path.GetFullPath(Path.Combine(currentBaseDir, "..", "..", "..", "..", ProxyLauncherName, "bin", "Debug", "net8.0-windows", "win-x64", ProxyLauncherExeName)),
+            Path.GetFullPath(Path.Combine(currentBaseDir, "..", "..", "..", "..", ProxyLauncherName, "bin", "Release", "net8.0-windows", "win-x64", ProxyLauncherExeName)),
+            Path.GetFullPath(Path.Combine(currentBaseDir, "net8.0-windows", ProxyLauncherExeName)),
         };
 
         return developmentPaths.FirstOrDefault(File.Exists) ?? defaultPath;
