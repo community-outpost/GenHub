@@ -138,16 +138,16 @@
                   <Border Padding="6,2" CornerRadius="6" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0"
                           ToolTip.Tip="{Binding CompatibilityTooltip}">
                     <StackPanel Orientation="Horizontal" Spacing="5">
-                      <TextBlock Text="●" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource SuccessBrush}"
-                                 IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Compatible}}"/>
-                      <TextBlock Text="●" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"
-                                 IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.RequiresProfile}}"/>
-                      <TextBlock Text="●" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource WarningBrush}"
-                                 IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Downloadable}}"/>
-                      <TextBlock Text="●" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource WarningBrush}"
-                                 IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Orphaned}}"/>
-                      <TextBlock Text="●" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"
-                                 IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Unknown}}"/>
+                      <Ellipse Width="7" Height="7" VerticalAlignment="Center" Fill="{DynamicResource SuccessBrush}"
+                               IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Compatible}}"/>
+                      <Ellipse Width="7" Height="7" VerticalAlignment="Center" Fill="{DynamicResource AccentBrush}"
+                               IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.RequiresProfile}}"/>
+                      <Ellipse Width="7" Height="7" VerticalAlignment="Center" Fill="{DynamicResource WarningBrush}"
+                               IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Downloadable}}"/>
+                      <Ellipse Width="7" Height="7" VerticalAlignment="Center" Fill="{DynamicResource WarningBrush}"
+                               IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Orphaned}}"/>
+                      <Ellipse Width="7" Height="7" VerticalAlignment="Center" Fill="{DynamicResource TextMutedBrush}"
+                               IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Unknown}}"/>
                       <TextBlock Text="{Binding CompatibilityBadgeText}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Border>

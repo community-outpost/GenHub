@@ -77,7 +77,7 @@ public sealed class ReplayFile : IExportableFile
             {
                 if (!string.IsNullOrWhiteSpace(MatchedClient.DataPatchName))
                 {
-                    return $"{MatchedClient.Description} • {MatchedClient.DataPatchName}";
+                    return $"{MatchedClient.Description} / {MatchedClient.DataPatchName}";
                 }
 
                 return MatchedClient.Description;
