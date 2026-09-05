@@ -691,6 +691,18 @@ public class ManifestGenerationService(
         }
     }
 
+    private static string ResolveManifestVersion(GameType gameType, string? manifestVersion)
+    {
+        if (!string.IsNullOrWhiteSpace(manifestVersion) && manifestVersion != "0")
+        {
+            return manifestVersion;
+        }
+
+        return gameType == GameType.Generals
+            ? ManifestConstants.GeneralsManifestVersion
+            : ManifestConstants.ZeroHourManifestVersion;
+    }
+
     /// <summary>
     /// Adds authoritative vanilla game files to a manifest builder using the CSV catalog authority.
     /// </summary>
@@ -751,18 +763,6 @@ public class ManifestGenerationService(
             gameType,
             fileCount,
             extraFileCount);
-    }
-
-    private string ResolveManifestVersion(GameType gameType, string? manifestVersion)
-    {
-        if (!string.IsNullOrWhiteSpace(manifestVersion) && manifestVersion != "0")
-        {
-            return manifestVersion;
-        }
-
-        return gameType == GameType.Generals
-            ? ManifestConstants.GeneralsManifestVersion
-            : ManifestConstants.ZeroHourManifestVersion;
     }
 
     private async Task<bool> TryAddAuthoritativeEntryAsync(
