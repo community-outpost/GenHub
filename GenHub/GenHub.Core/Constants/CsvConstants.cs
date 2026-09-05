@@ -39,6 +39,16 @@ public static class CsvConstants
     public const string CacheDirectoryName = "CsvCatalogs";
 
     /// <summary>
+    /// File extension for cached CSV catalog content.
+    /// </summary>
+    public const string CacheFileExtension = ".cache";
+
+    /// <summary>
+    /// File extension for temporary CSV cache writes.
+    /// </summary>
+    public const string TemporaryCacheFileExtension = ".tmp";
+
+    /// <summary>
     /// Resolver ID for CSV catalog content.
     /// </summary>
     public const string ResolverId = "CSVResolver";

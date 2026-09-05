@@ -51,6 +51,8 @@ public class CsvDiscoverer(
         }
     }
 
+    private sealed record CsvIndexContent(string Content, bool ShouldCache);
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -332,8 +334,8 @@ public class CsvDiscoverer(
 
     private async Task<List<CsvCatalogRegistryEntry>> LoadEntriesFromIndexAsync(string indexSource, CancellationToken cancellationToken)
     {
-        var json = await LoadIndexJsonAsync(indexSource, cancellationToken);
-        var index = JsonSerializer.Deserialize<CsvCatalogRegistryIndex>(json, JsonOptions);
+        var indexContent = await LoadIndexJsonAsync(indexSource, cancellationToken);
+        var index = JsonSerializer.Deserialize<CsvCatalogRegistryIndex>(indexContent.Content, JsonOptions);
 
         if (index?.Entries == null || index.Entries.Count == 0)
         {
@@ -341,10 +343,16 @@ public class CsvDiscoverer(
             return [];
         }
 
-        return GetValidCatalogEntries(index.Entries);
+        var entries = GetValidCatalogEntries(index.Entries);
+        if (entries.Count > 0 && indexContent.ShouldCache && catalogCache != null)
+        {
+            await catalogCache.StoreAsync(indexSource, indexContent.Content, cancellationToken);
+        }
+
+        return entries;
     }
 
-    private async Task<string> LoadIndexJsonAsync(string indexPath, CancellationToken cancellationToken)
+    private async Task<CsvIndexContent> LoadIndexJsonAsync(string indexPath, CancellationToken cancellationToken)
     {
         if (Uri.TryCreate(indexPath, UriKind.Absolute, out var indexUri) &&
             (indexUri.Scheme == Uri.UriSchemeHttp || indexUri.Scheme == Uri.UriSchemeHttps))
@@ -354,34 +362,29 @@ public class CsvDiscoverer(
                 : await catalogCache.ReadAsync(indexPath, cancellationToken);
             if (cached?.IsFresh == true)
             {
-                return cached.Content;
+                return new CsvIndexContent(cached.Content, false);
             }
 
             try
             {
                 var httpClient = httpClientFactory.CreateClient(string.Empty);
                 var content = await httpClient.GetStringAsync(indexUri, cancellationToken);
-                if (catalogCache != null)
-                {
-                    await catalogCache.StoreAsync(indexPath, content, cancellationToken);
-                }
-
-                return content;
+                return new CsvIndexContent(content, true);
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && cached != null)
             {
                 logger.LogWarning("Remote CSV index {IndexPath} timed out; using stale cached content", indexPath);
-                return cached.Content;
+                return new CsvIndexContent(cached.Content, false);
             }
             catch (HttpRequestException) when (cached != null)
             {
                 logger.LogWarning("Remote CSV index {IndexPath} is unavailable; using stale cached content", indexPath);
-                return cached.Content;
+                return new CsvIndexContent(cached.Content, false);
             }
             catch (IOException) when (cached != null)
             {
                 logger.LogWarning("Remote CSV index {IndexPath} could not be read; using stale cached content", indexPath);
-                return cached.Content;
+                return new CsvIndexContent(cached.Content, false);
             }
         }
 
@@ -389,7 +392,8 @@ public class CsvDiscoverer(
             ? indexPath
             : Path.GetFullPath(indexPath);
 
-        return await File.ReadAllTextAsync(resolvedPath, cancellationToken);
+        var localContent = await File.ReadAllTextAsync(resolvedPath, cancellationToken);
+        return new CsvIndexContent(localContent, false);
     }
 
     private ContentSearchResult? CreateSearchResult(CsvCatalogRegistryEntry entry, string language)

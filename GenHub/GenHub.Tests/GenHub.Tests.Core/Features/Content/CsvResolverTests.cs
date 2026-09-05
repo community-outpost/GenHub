@@ -168,6 +168,43 @@ public class CsvResolverTests
     }
 
     /// <summary>
+    /// Verifies that a remote response with no usable records does not replace a stale valid CSV.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenRemoteCsvHasNoMatches_PreservesCachedCsvAsync()
+    {
+        var cacheDirectory = Directory.CreateTempSubdirectory();
+        try
+        {
+            const string remoteUrl = "https://example.com/catalog.csv";
+            var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
+            var onlineResolver = CreateResolver(
+                new StubHttpMessageHandler(remoteUrl, FullSampleCsv, HttpStatusCode.OK),
+                cacheDirectory.FullName);
+            (await onlineResolver.ResolveAsync(item)).Success.Should().BeTrue();
+            MakeCacheEntriesStale(cacheDirectory.FullName);
+
+            var invalidResolver = CreateResolver(
+                new StubHttpMessageHandler(remoteUrl, SampleCsvHeader, HttpStatusCode.OK),
+                cacheDirectory.FullName);
+            (await invalidResolver.ResolveAsync(item)).Success.Should().BeFalse();
+
+            var offlineResolver = CreateResolver(
+                new StubHttpMessageHandler(remoteUrl, statusCode: HttpStatusCode.ServiceUnavailable),
+                cacheDirectory.FullName);
+            var offlineResult = await offlineResolver.ResolveAsync(item);
+
+            offlineResult.Success.Should().BeTrue();
+            offlineResult.Data!.Files.Should().HaveCount(2);
+        }
+        finally
+        {
+            cacheDirectory.Delete(true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> successfully resolves a manifest from a local file.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
@@ -438,5 +475,13 @@ public class CsvResolverTests
         item.ResolverMetadata[CsvConstants.VersionMetadataKey] = "1.0";
 
         return item;
+    }
+
+    private static void MakeCacheEntriesStale(string applicationDataPath)
+    {
+        foreach (var cacheFile in Directory.EnumerateFiles(applicationDataPath, $"*{CsvConstants.CacheFileExtension}", SearchOption.AllDirectories))
+        {
+            File.SetLastWriteTimeUtc(cacheFile, DateTime.UtcNow.AddDays(-2));
+        }
     }
 }

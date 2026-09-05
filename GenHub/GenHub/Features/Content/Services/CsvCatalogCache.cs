@@ -94,7 +94,7 @@ public sealed class CsvCatalogCache
         }
 
         var cachePath = GetCachePath(sourceUrl);
-        var tempPath = $"{cachePath}.{Guid.NewGuid():N}.tmp";
+        var tempPath = $"{cachePath}.{Guid.NewGuid():N}{CsvConstants.TemporaryCacheFileExtension}";
         try
         {
             Directory.CreateDirectory(_cacheDirectory);
@@ -133,7 +133,7 @@ public sealed class CsvCatalogCache
     private string GetCachePath(string sourceUrl)
     {
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(sourceUrl));
-        return Path.Combine(_cacheDirectory, $"{Convert.ToHexString(hash)}.cache");
+        return Path.Combine(_cacheDirectory, $"{Convert.ToHexString(hash)}{CsvConstants.CacheFileExtension}");
     }
 
     /// <summary>

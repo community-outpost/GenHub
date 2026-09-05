@@ -285,6 +285,49 @@ public class CsvDiscovererTests
     }
 
     /// <summary>
+    /// Verifies that an invalid remote response does not replace a stale valid index.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DiscoverAsync_WhenRemoteIndexIsInvalid_PreservesCachedIndexAsync()
+    {
+        var cacheDirectory = Directory.CreateTempSubdirectory();
+        try
+        {
+            const string indexUrl = "https://example.com/index.json";
+            var indexJson = JsonSerializer.Serialize(new CsvCatalogRegistryIndex
+            {
+                Entries = [CreateEntry(TestGeneralsCsvUrl, CsvConstants.GeneralsGameType, GeneralsVersion, CsvConstants.LanguageEn)],
+            });
+            var configuration = new CsvCatalogConfiguration { IndexFilePath = indexUrl };
+            var onlineDiscoverer = CreateDiscoverer(
+                configuration,
+                new StubHttpMessageHandler(indexUrl, indexJson, HttpStatusCode.OK),
+                cacheDirectory.FullName);
+            (await onlineDiscoverer.DiscoverAsync(new ContentSearchQuery())).Data!.Items.Should().ContainSingle();
+            MakeCacheEntriesStale(cacheDirectory.FullName);
+
+            var invalidDiscoverer = CreateDiscoverer(
+                configuration,
+                new StubHttpMessageHandler(indexUrl, "not json", HttpStatusCode.OK),
+                cacheDirectory.FullName);
+            (await invalidDiscoverer.DiscoverAsync(new ContentSearchQuery())).Data!.Items.Should().BeEmpty();
+
+            var offlineDiscoverer = CreateDiscoverer(
+                configuration,
+                new StubHttpMessageHandler(statusCode: HttpStatusCode.ServiceUnavailable),
+                cacheDirectory.FullName);
+            var offlineResult = await offlineDiscoverer.DiscoverAsync(new ContentSearchQuery());
+
+            offlineResult.Data!.Items.Should().ContainSingle();
+        }
+        finally
+        {
+            cacheDirectory.Delete(true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that <see cref="CsvDiscoverer.DiscoverAsync"/> propagates cancellation tokens.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
@@ -550,6 +593,14 @@ public class CsvDiscovererTests
     private static TempIndexFile CreateIndexFile(params CsvCatalogRegistryEntry[] entries)
     {
         return new TempIndexFile(entries);
+    }
+
+    private static void MakeCacheEntriesStale(string applicationDataPath)
+    {
+        foreach (var cacheFile in Directory.EnumerateFiles(applicationDataPath, $"*{CsvConstants.CacheFileExtension}", SearchOption.AllDirectories))
+        {
+            File.SetLastWriteTimeUtc(cacheFile, DateTime.UtcNow.AddDays(-2));
+        }
     }
 
     private static CsvCatalogRegistryEntry CreateEntry(string url, string gameType, string version, params string[] languages)

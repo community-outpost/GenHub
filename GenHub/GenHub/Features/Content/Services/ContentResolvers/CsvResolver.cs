@@ -29,6 +29,8 @@ public class CsvResolver(
     ILogger<CsvResolver> logger,
     CsvCatalogCache? catalogCache = null) : IContentResolver
 {
+    private sealed record CsvContentLoadResult(string Content, bool ShouldCache);
+
     private static readonly CsvConfiguration CsvConfig = new(CultureInfo.InvariantCulture)
     {
         HasHeaderRecord = true,
@@ -69,7 +71,7 @@ public class CsvResolver(
             var languageStr = GetLanguageString(discoveredItem);
             var version = GetVersionString(discoveredItem);
 
-            var matchingEntries = ParseAndFilterCsv(loadResult.Data, gameTypeStr, languageStr);
+            var matchingEntries = ParseAndFilterCsv(loadResult.Data.Content, gameTypeStr, languageStr);
             if (matchingEntries.Count == 0)
             {
                 logger.LogWarning(
@@ -79,6 +81,11 @@ public class CsvResolver(
                     languageStr);
                 return OperationResult<ContentManifest>.CreateFailure(
                     $"No matching files found in CSV catalog for {gameTypeStr} ({languageStr}).");
+            }
+
+            if (loadResult.Data.ShouldCache && catalogCache != null)
+            {
+                await catalogCache.StoreAsync(discoveredItem.SourceUrl, loadResult.Data.Content, cancellationToken);
             }
 
             var isRemote = Uri.TryCreate(discoveredItem.SourceUrl, UriKind.Absolute, out var uri) &&
@@ -311,7 +318,7 @@ public class CsvResolver(
         return manifest;
     }
 
-    private async Task<OperationResult<string>> LoadCsvContentAsync(string sourceUrl, CancellationToken cancellationToken)
+    private async Task<OperationResult<CsvContentLoadResult>> LoadCsvContentAsync(string sourceUrl, CancellationToken cancellationToken)
     {
         if (Uri.TryCreate(sourceUrl, UriKind.Absolute, out var uri) &&
             (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
@@ -321,34 +328,29 @@ public class CsvResolver(
                 : await catalogCache.ReadAsync(sourceUrl, cancellationToken);
             if (cached?.IsFresh == true)
             {
-                return OperationResult<string>.CreateSuccess(cached.Content);
+                return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(cached.Content, false));
             }
 
             try
             {
                 var httpClient = httpClientFactory.CreateClient(string.Empty);
                 var content = await httpClient.GetStringAsync(uri, cancellationToken);
-                if (catalogCache != null)
-                {
-                    await catalogCache.StoreAsync(sourceUrl, content, cancellationToken);
-                }
-
-                return OperationResult<string>.CreateSuccess(content);
+                return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(content, true));
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && cached != null)
             {
                 logger.LogWarning("Remote CSV catalog {SourceUrl} timed out; using stale cached content", sourceUrl);
-                return OperationResult<string>.CreateSuccess(cached.Content);
+                return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(cached.Content, false));
             }
             catch (HttpRequestException) when (cached != null)
             {
                 logger.LogWarning("Remote CSV catalog {SourceUrl} is unavailable; using stale cached content", sourceUrl);
-                return OperationResult<string>.CreateSuccess(cached.Content);
+                return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(cached.Content, false));
             }
             catch (IOException) when (cached != null)
             {
                 logger.LogWarning("Remote CSV catalog {SourceUrl} could not be read; using stale cached content", sourceUrl);
-                return OperationResult<string>.CreateSuccess(cached.Content);
+                return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(cached.Content, false));
             }
         }
 
@@ -358,10 +360,10 @@ public class CsvResolver(
 
         if (!File.Exists(resolvedPath))
         {
-            return OperationResult<string>.CreateFailure($"CSV file not found at: {resolvedPath}");
+            return OperationResult<CsvContentLoadResult>.CreateFailure($"CSV file not found at: {resolvedPath}");
         }
 
         var fileContent = await File.ReadAllTextAsync(resolvedPath, cancellationToken);
-        return OperationResult<string>.CreateSuccess(fileContent);
+        return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(fileContent, false));
     }
 }
