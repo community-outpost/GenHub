@@ -56,8 +56,12 @@ try {
 
     # Set working directory to the application's directory before starting
     $exeDir = Split-Path -Path $CurrentExe -Parent
-    Start-Process -FilePath $CurrentExe -WorkingDirectory $exeDir
-    Write-Log "Application started successfully"
+    $proc = Start-Process -FilePath $CurrentExe -WorkingDirectory $exeDir -PassThru
+    Start-Sleep -Seconds 2
+    if ($proc.HasExited) {
+        throw "Application exited prematurely after launch with exit code $($proc.ExitCode)"
+    }
+    Write-Log "Application started and verified running (PID: $($proc.Id))"
 
     # Only delete source directory on verified success after launch
     if (Test-Path $SourceDir) {
