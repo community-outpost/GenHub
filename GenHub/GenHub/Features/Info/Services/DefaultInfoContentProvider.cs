@@ -155,7 +155,7 @@ public class DefaultInfoContentProvider : IInfoContentProvider
                     If you already have mod files, standalone maps, or map packs on your PC, you can attach them directly to specific profiles:
 
                     1.  Go to the **Game Profiles** tab.
-                    2.  Click the **Edit Content** button (pencil icon) on any profile card.
+                    2.  Click the **Edit Profile** button (pencil icon) on any profile card.
                     3.  Click **Add Local Content**.
                     4.  Select your mod folder, map archive, or map pack.
 
@@ -258,10 +258,10 @@ public class DefaultInfoContentProvider : IInfoContentProvider
                     DetailedContent = """
                     **Profile Card Controls:**
                     1.  **Play:** Launches the game with this profile's active mods, settings, and workspace.
-                    2.  **Edit Content (Pencil):** Select which mods, maps, and patches are active in this profile.
+                    2.  **Edit Profile (Pencil):** Opens the profile editor to select mods, maps, and adjust game settings.
                     3.  **Copy Profile (Duplicate):** Clones the profile, including all settings and enabled content, into a new profile.
                     4.  **Desktop Shortcut:** Creates a desktop shortcut to launch this profile directly.
-                    5.  **Settings (Gear):** Configure game resolution, audio, and graphics options for this profile.
+                    5.  **Delete Profile:** Removes the profile and its dedicated workspace configuration.
 
                     **Copy Profile Feature:**
                     Cloning creates a complete, independent copy of the profile:
