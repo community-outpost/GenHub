@@ -855,7 +855,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 MigrationTargetPath,
                 RelocateCasAndWorkspacesWithMigration);
 
-            if (!preflight.Success || preflight.Data?.IsValid != true)
+            if (!preflight.Success || preflight.Data is null || !preflight.Data.IsValid)
             {
                 var errorMessage = preflight.Data?.ErrorMessage ?? preflight.FirstError ?? "Pre-flight validation failed.";
                 _logger.LogWarning("Migration pre-flight checks failed: {ErrorMessage}", errorMessage);

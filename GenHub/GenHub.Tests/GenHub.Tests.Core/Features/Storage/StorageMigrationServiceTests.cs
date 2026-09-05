@@ -119,7 +119,7 @@ public class StorageMigrationServiceTests : IDisposable
     {
         var service = CreateService();
 
-        var result = await service.ValidatePreflightAsync(invalidPath!);
+        var result = await service.ValidatePreflightAsync(invalidPath!, false);
 
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
@@ -138,7 +138,7 @@ public class StorageMigrationServiceTests : IDisposable
         var currentAppDir = AppContext.BaseDirectory;
         var subDirInsideApp = Path.Combine(currentAppDir, "subfolder");
 
-        var result = await service.ValidatePreflightAsync(subDirInsideApp);
+        var result = await service.ValidatePreflightAsync(subDirInsideApp, false);
 
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
@@ -159,7 +159,7 @@ public class StorageMigrationServiceTests : IDisposable
 
         _mockWritabilityProbe.Setup(x => x.CanCreateStorageAt(targetPath)).Returns(false);
 
-        var result = await service.ValidatePreflightAsync(targetPath);
+        var result = await service.ValidatePreflightAsync(targetPath, false);
 
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
@@ -190,7 +190,7 @@ public class StorageMigrationServiceTests : IDisposable
                 },
             ]);
 
-        var result = await service.ValidatePreflightAsync(targetPath);
+        var result = await service.ValidatePreflightAsync(targetPath, false);
 
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
@@ -215,7 +215,7 @@ public class StorageMigrationServiceTests : IDisposable
                 new GameProcessInfo { ProcessId = 5678, ExecutablePath = "game.dat" },
             ]));
 
-        var result = await service.ValidatePreflightAsync(targetPath);
+        var result = await service.ValidatePreflightAsync(targetPath, false);
 
         Assert.True(result.Success);
         Assert.NotNull(result.Data);

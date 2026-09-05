@@ -38,7 +38,7 @@ public class StorageMigrationService(
     /// <inheritdoc />
     public async Task<OperationResult<StorageMigrationPreflightResult>> ValidatePreflightAsync(
         string targetPath,
-        bool relocateCasAndWorkspace = false,
+        bool relocateCasAndWorkspace,
         CancellationToken cancellationToken = default)
     {
         try
@@ -116,7 +116,7 @@ public class StorageMigrationService(
                     });
 
                     var preflight = await ValidatePreflightAsync(request.TargetPath, request.RelocateCasAndWorkspace, cancellationToken);
-                    if (!preflight.Success || preflight.Data?.IsValid != true)
+                    if (!preflight.Success || preflight.Data is null || !preflight.Data.IsValid)
                     {
                         var error = preflight.Data?.ErrorMessage ?? preflight.FirstError ?? "Pre-flight validation failed.";
                         logger.LogError("Migration pre-flight validation failed: {Error}", error);
@@ -209,7 +209,7 @@ public class StorageMigrationService(
             var appBundleIndex = appBaseDir.IndexOf(".app", StringComparison.OrdinalIgnoreCase);
             if (appBundleIndex > 0)
             {
-                return appBaseDir.Substring(0, appBundleIndex + 4);
+                return appBaseDir[..(appBundleIndex + 4)];
             }
         }
 
@@ -589,6 +589,45 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
 ";
     }
 
+    private static string? GetScriptResource(string scriptName)
+    {
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            try
+            {
+                var resourceNames = assembly.GetManifestResourceNames();
+                var match = resourceNames.FirstOrDefault(n => n.EndsWith(scriptName, StringComparison.OrdinalIgnoreCase));
+                if (match != null)
+                {
+                    using var stream = assembly.GetManifestResourceStream(match);
+                    if (stream != null)
+                    {
+                        using var reader = new StreamReader(stream);
+                        return reader.ReadToEnd();
+                    }
+                }
+            }
+            catch
+            {
+                // Continue searching other assemblies
+            }
+        }
+
+        return null;
+    }
+
+    private static string GetPowerShellPath()
+    {
+        var systemPowerShell = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell",
+            "v1.0",
+            "powershell.exe");
+
+        return File.Exists(systemPowerShell) ? systemPowerShell : "powershell.exe";
+    }
+
+
     private async Task<(bool HasActiveProcesses, List<string> ProcessNames)> CheckActiveProcessesAsync(CancellationToken cancellationToken)
     {
         var activeLaunches = (await launchRegistry.GetAllActiveLaunchesAsync()).ToList();
@@ -718,32 +757,6 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
         return scriptFilePath;
     }
 
-    private string? GetScriptResource(string scriptName)
-    {
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-        {
-            try
-            {
-                var resourceNames = assembly.GetManifestResourceNames();
-                var match = resourceNames.FirstOrDefault(n => n.EndsWith(scriptName, StringComparison.OrdinalIgnoreCase));
-                if (match != null)
-                {
-                    using var stream = assembly.GetManifestResourceStream(match);
-                    if (stream != null)
-                    {
-                        using var reader = new StreamReader(stream);
-                        return reader.ReadToEnd();
-                    }
-                }
-            }
-            catch
-            {
-                // Continue searching other assemblies
-            }
-        }
-
-        return null;
-    }
 
     private void LaunchHelperProcess(
         string scriptPath,
@@ -760,7 +773,7 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
 
             var startInfo = new ProcessStartInfo
             {
-                FileName = OperatingSystem.IsWindows() ? "powershell.exe" : "/bin/bash",
+                FileName = OperatingSystem.IsWindows() ? GetPowerShellPath() : "/bin/bash",
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
@@ -786,8 +799,7 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to start helper migration process for {ScriptPath}", scriptPath);
-            throw;
+            throw new InvalidOperationException($"Failed to start helper migration process for '{scriptPath}'.", ex);
         }
     }
 
