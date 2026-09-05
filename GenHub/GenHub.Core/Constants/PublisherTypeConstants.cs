@@ -52,6 +52,9 @@ public static class PublisherTypeConstants
     /// <summary>The Super Hackers community publisher.</summary>
     public const string TheSuperHackers = "thesuperhackers";
 
+    /// <summary>Legacy alias for The Super Hackers community publisher.</summary>
+    public const string LegacySuperHackers = "superhackers";
+
     /// <summary>CNC Labs community site.</summary>
     public const string CncLabs = "cnclabs";
 

@@ -31,8 +31,9 @@ namespace GenHub.Features.Launching;
 public class SteamLauncher : ISteamLauncher
 {
     private const string ProxyConfigFileName = "proxy_config.json";
-    private const string ProxyLauncherName = "GenHub.ProxyLauncher";
-    private const string ProxyLauncherExeName = "GenHub.ProxyLauncher.exe";
+    private const string ProxyLauncherName = SteamConstants.ProxyLauncherName;
+    private const string ProxyLauncherExeName = SteamConstants.ProxyLauncherFileName;
+    private const string ProxyLauncherDllName = SteamConstants.ProxyLauncherDllFileName;
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private static readonly StringComparer PathComparer = OperatingSystem.IsWindows()
         ? StringComparer.OrdinalIgnoreCase
@@ -384,7 +385,7 @@ public class SteamLauncher : ISteamLauncher
             if (string.Equals(versionInfo.ProductName, ProxyLauncherName, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(versionInfo.InternalName, ProxyLauncherName, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(versionInfo.OriginalFilename, ProxyLauncherExeName, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(versionInfo.OriginalFilename, "GenHub.ProxyLauncher.dll", StringComparison.OrdinalIgnoreCase))
+                string.Equals(versionInfo.OriginalFilename, ProxyLauncherDllName, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
