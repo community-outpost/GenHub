@@ -171,37 +171,18 @@ public static class DownloadSecurityValidator
             return OperationResult<bool>.CreateFailure($"File '{filePath}' does not exist for validation.");
         }
 
-        bool hasHashCheck = allowedSha256Hashes is { Count: > 0 };
-        bool hasPublisherCheck = !string.IsNullOrWhiteSpace(expectedAuthenticodePublisher);
-
-        if (!hasHashCheck && !hasPublisherCheck)
-        {
-            return OperationResult<bool>.CreateFailure("No validation criteria (hash or publisher) specified.");
-        }
-
-        // Check SHA-256 hash if specified
+        string? actualHash = null;
         if (allowedSha256Hashes is { Count: > 0 })
         {
-            var actualHash = await ComputeSha256Async(filePath, ct);
-            bool hashMatched = allowedSha256Hashes.Any(h => string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase));
-            if (!hashMatched)
-            {
-                return OperationResult<bool>.CreateFailure(
-                    $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedSha256Hashes)}].");
-            }
+            actualHash = await ComputeSha256Async(filePath, ct);
         }
 
-        // Check Authenticode publisher if specified
-        if (hasPublisherCheck)
-        {
-            var authResult = ValidateAuthenticodeSignature(filePath, expectedAuthenticodePublisher, allowExpiredCertificates);
-            if (!authResult.Success)
-            {
-                return authResult;
-            }
-        }
-
-        return OperationResult<bool>.CreateSuccess(true);
+        return ValidateComputedHashAndSignature(
+            filePath,
+            actualHash,
+            allowedSha256Hashes,
+            expectedAuthenticodePublisher,
+            allowExpiredCertificates);
     }
 
     /// <summary>
@@ -298,6 +279,28 @@ public static class DownloadSecurityValidator
         bool allowExpiredCertificates,
         CancellationToken ct)
     {
+        string? actualHash = null;
+        if (allowedSha256Hashes is { Count: > 0 })
+        {
+            actualHash = await ComputeSha256Async(stream, ct);
+            stream.Position = 0;
+        }
+
+        return ValidateComputedHashAndSignature(
+            filePath,
+            actualHash,
+            allowedSha256Hashes,
+            expectedAuthenticodePublisher,
+            allowExpiredCertificates);
+    }
+
+    private static OperationResult<bool> ValidateComputedHashAndSignature(
+        string filePath,
+        string? actualHash,
+        IReadOnlyList<string>? allowedSha256Hashes,
+        string? expectedAuthenticodePublisher,
+        bool allowExpiredCertificates)
+    {
         bool hasHashCheck = allowedSha256Hashes is { Count: > 0 };
         bool hasPublisherCheck = !string.IsNullOrWhiteSpace(expectedAuthenticodePublisher);
 
@@ -306,15 +309,13 @@ public static class DownloadSecurityValidator
             return OperationResult<bool>.CreateFailure("No validation criteria (hash or publisher) specified.");
         }
 
-        if (allowedSha256Hashes is { Count: > 0 })
+        if (hasHashCheck)
         {
-            var actualHash = await ComputeSha256Async(stream, ct);
-            stream.Position = 0;
-            bool hashMatched = allowedSha256Hashes.Any(h => string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase));
-            if (!hashMatched)
+            var allowedHashes = allowedSha256Hashes!;
+            if (!allowedHashes.Any(h => string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase)))
             {
                 return OperationResult<bool>.CreateFailure(
-                    $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedSha256Hashes)}].");
+                    $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedHashes)}].");
             }
         }
 

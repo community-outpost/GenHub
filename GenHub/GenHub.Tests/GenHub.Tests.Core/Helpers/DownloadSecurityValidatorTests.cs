@@ -77,56 +77,42 @@ public class DownloadSecurityValidatorTests
     }
 
     /// <summary>
-    /// Verifies that a publisher criterion cannot override a pinned SHA-256 mismatch in either validation path.
+    /// Verifies that both SHA-256 and publisher criteria are required in either validation path.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the test.</returns>
+    /// <param name="hashMatches">Whether the supplied SHA-256 hash matches the file.</param>
     /// <param name="lockFile">Whether to validate through the locked-file path.</param>
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ValidateCombinedCriteriaAsync_WhenSha256Mismatches_ReturnsHashFailureAsync(bool lockFile)
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task ValidateCombinedCriteriaAsync_RequiresEveryCriterionAsync(bool hashMatches, bool lockFile)
     {
-        var (tempFile, _) = await CreateTempFileWithHashAsync("Hash mismatch must fail before publisher validation.");
+        var (tempFile, expectedHash) = await CreateTempFileWithHashAsync("Every validation criterion must pass.");
         try
         {
+            var hashToValidate = hashMatches
+                ? expectedHash
+                : "0000000000000000000000000000000000000000000000000000000000000000";
             var result = await ValidateWithCombinedCriteriaAsync(
                 tempFile,
-                "0000000000000000000000000000000000000000000000000000000000000000",
+                hashToValidate,
                 lockFile);
 
             Assert.False(result.Success);
-            Assert.Contains(result.Errors, e => e.Contains("SHA-256 hash mismatch"));
-        }
-        finally
-        {
-            File.Delete(tempFile);
-        }
-    }
-
-    /// <summary>
-    /// Verifies that a matching SHA-256 hash cannot override a failed publisher check in either validation path.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the test.</returns>
-    /// <param name="lockFile">Whether to validate through the locked-file path.</param>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ValidateCombinedCriteriaAsync_WhenSha256MatchesAndPublisherFails_ReturnsPublisherFailureAsync(bool lockFile)
-    {
-        var (tempFile, expectedHash) = await CreateTempFileWithHashAsync("A matching hash must not bypass publisher validation.");
-        try
-        {
-            var result = await ValidateWithCombinedCriteriaAsync(
-                tempFile,
-                expectedHash,
-                lockFile);
-
-            Assert.False(result.Success);
-            Assert.DoesNotContain(result.Errors, e => e.Contains("SHA-256 hash mismatch"));
-            Assert.Contains(
-                result.Errors,
-                e => e.Contains("Authenticode", StringComparison.OrdinalIgnoreCase) ||
-                     e.Contains("publisher", StringComparison.OrdinalIgnoreCase));
+            if (hashMatches)
+            {
+                Assert.DoesNotContain(result.Errors, e => e.Contains("SHA-256 hash mismatch"));
+                Assert.Contains(
+                    result.Errors,
+                    e => e.Contains("Authenticode", StringComparison.OrdinalIgnoreCase) ||
+                         e.Contains("publisher", StringComparison.OrdinalIgnoreCase));
+            }
+            else
+            {
+                Assert.Contains(result.Errors, e => e.Contains("SHA-256 hash mismatch"));
+            }
         }
         finally
         {
