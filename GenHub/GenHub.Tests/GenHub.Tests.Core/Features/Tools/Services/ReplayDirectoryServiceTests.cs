@@ -1055,11 +1055,70 @@ public sealed class ReplayDirectoryServiceTests
     }
 
     /// <summary>
-    /// Verifies that an existing profile with a different client version is not matched, avoiding desyncs.
+    /// Verifies that an existing profile with a different client version is not matched by IsProfileMatchingThirdParty, avoiding desyncs.
     /// </summary>
-    /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateProfileForReplayAsync_WhenExistingProfileHasDifferentClientVersion_DoesNotMatchExistingProfileAsync()
+    public void IsProfileMatchingThirdParty_WhenExistingProfileHasDifferentClientVersion_ReturnsFalse()
+    {
+        var olderProfile = new GameProfile
+        {
+            Id = "older-go-profile-060526",
+            Name = "GeneralsOnline 060526 Profile",
+            GameClient = new GameClient
+            {
+                Id = "1.605260.generalsonline.gameclient.zerohour",
+                Name = "GeneralsOnline 060526",
+                Version = "060526",
+                GameType = GameType.ZeroHour,
+                PublisherType = "generalsonline",
+            },
+            EnabledContentIds =
+            [
+                "1.104.retail.gameinstallation.zerohour",
+                "1.605260.generalsonline.gameclient.zerohour",
+            ],
+        };
+
+        var matchingProfile = new GameProfile
+        {
+            Id = "matching-go-profile-082826",
+            Name = "GeneralsOnline 082826 Profile",
+            GameClient = new GameClient
+            {
+                Id = "1.828261.generalsonline.gameclient.zerohour",
+                Name = "GeneralsOnline 082826",
+                Version = "082826",
+                GameType = GameType.ZeroHour,
+                PublisherType = "generalsonline",
+            },
+            EnabledContentIds =
+            [
+                "1.104.retail.gameinstallation.zerohour",
+                "1.828261.generalsonline.gameclient.zerohour",
+            ],
+        };
+
+        // When version differs: returns false
+        var matchesOlder = ReplayDirectoryService.IsProfileMatchingThirdParty(
+            olderProfile, "1.828261.generalsonline.gameclient.zerohour", null, "082826");
+        Assert.False(matchesOlder);
+
+        // When version has zero segment and target does not: returns false
+        var matchesZero = ReplayDirectoryService.IsProfileMatchingThirdParty(
+            olderProfile, "1.0.generalsonline.gameclient.zerohour", null, null);
+        Assert.False(matchesZero);
+
+        // When version matches: returns true
+        var matchesCurrent = ReplayDirectoryService.IsProfileMatchingThirdParty(
+            matchingProfile, "1.828261.generalsonline.gameclient.zerohour", null, "082826");
+        Assert.True(matchesCurrent);
+    }
+
+    /// <summary>
+    /// Verifies that ResolveCompatibility does not assign an existing profile when its client version differs.
+    /// </summary>
+    [Fact]
+    public void ResolveCompatibility_WhenExistingProfileHasDifferentClientVersion_DoesNotMatchOlderProfile()
     {
         var replay = new ReplayFile
         {
@@ -1073,17 +1132,23 @@ public sealed class ReplayDirectoryServiceTests
                 ExeCrc = 0x6DBF4405,
                 IniCrc = 0x51ACED23,
             },
-            MatchedClient = new CrcMappingEntry
-            {
-                ExeCrc = "0x6DBF4405",
-                IniCrc = "0x51ACED23",
-                ManifestId = "1.828261.generalsonline.gameclient.zerohour",
-                Publisher = "generalsonline",
-                GameType = "ZeroHour",
-                Version = "082826",
-                Description = "GeneralsOnline 082826",
-            },
         };
+
+        var entry = new CrcMappingEntry
+        {
+            ExeCrc = "0x6DBF4405",
+            IniCrc = "0x51ACED23",
+            ManifestId = "1.828261.generalsonline.gameclient.zerohour",
+            Publisher = "generalsonline",
+            GameType = "ZeroHour",
+            Version = "082826",
+            Description = "GeneralsOnline 082826",
+        };
+
+        CrcMappingEntry? outEntry = entry;
+        _mockCrcRegistry
+            .Setup(r => r.TryGetEntry("0x6DBF4405", "0x51ACED23", out outEntry))
+            .Returns(true);
 
         var olderProfile = new GameProfile
         {
@@ -1104,57 +1169,53 @@ public sealed class ReplayDirectoryServiceTests
             ],
         };
 
-        var installation = new GameInstallation("/games/ZeroHour", GameInstallationType.Retail)
-        {
-            HasZeroHour = true,
-            ZeroHourPath = "/games/ZeroHour",
-        };
-
-        _mockInstallationService
-            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
-
-        _mockProfileManager
-            .Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([olderProfile]));
-
-        var newClient = new ContentManifest
-        {
-            Id = ManifestId.Create("1.828261.generalsonline.gameclient.zerohour"),
-            Name = "GeneralsOnline 082826",
-            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
-            TargetGame = GameType.ZeroHour,
-            Version = "082826",
-            Publisher = new PublisherInfo { PublisherType = "generalsonline" },
-        };
-
-        _mockManifestPool
-            .Setup(m => m.GetManifestAsync(ManifestId.Create("1.828261.generalsonline.gameclient.zerohour"), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(newClient));
-
-        _mockManifestPool
-            .Setup(m => m.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([newClient]));
-
-        CreateProfileRequest? capturedRequest = null;
-        _mockProfileManager
-            .Setup(p => p.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
-            .Callback<CreateProfileRequest, CancellationToken>((req, _) => capturedRequest = req)
-            .ReturnsAsync((CreateProfileRequest req, CancellationToken _) =>
-                ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "created-new-profile-082826", Name = req.Name }));
-
         var service = new ReplayDirectoryService(
             _mockHeaderParser.Object,
             _mockCrcRegistry.Object,
             _mockScopeFactory.Object,
             NullLogger<ReplayDirectoryService>.Instance);
 
-        var result = await service.CreateProfileForReplayAsync(replay);
-
-        Assert.True(result.Success);
-        Assert.NotNull(capturedRequest);
+        // With only older profile in list, should not match
+        service.ResolveCompatibility(replay, new HashSet<string>(), [olderProfile]);
         Assert.NotEqual("older-go-profile-060526", replay.MatchingProfileId);
-        Assert.Equal("created-new-profile-082826", replay.MatchingProfileId);
-        Assert.Equal("1.828261.generalsonline.gameclient.zerohour", capturedRequest.GameClientId);
+        Assert.NotEqual(ReplayCompatibilityStatus.Compatible, replay.CompatibilityStatus);
+
+        // With matching profile in list, should match
+        var matchingProfile = new GameProfile
+        {
+            Id = "matching-go-profile-082826",
+            Name = "GeneralsOnline 082826 Profile",
+            GameClient = new GameClient
+            {
+                Id = "1.828261.generalsonline.gameclient.zerohour",
+                Name = "GeneralsOnline 082826",
+                Version = "082826",
+                GameType = GameType.ZeroHour,
+                PublisherType = "generalsonline",
+            },
+            EnabledContentIds =
+            [
+                "1.104.retail.gameinstallation.zerohour",
+                "1.828261.generalsonline.gameclient.zerohour",
+            ],
+        };
+
+        var replay2 = new ReplayFile
+        {
+            FileName = "match_082826.rep",
+            FullPath = "/replays/match_082826.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0x6DBF4405,
+                IniCrc = 0x51ACED23,
+            },
+        };
+
+        service.ResolveCompatibility(replay2, new HashSet<string>(), [matchingProfile]);
+        Assert.Equal("matching-go-profile-082826", replay2.MatchingProfileId);
+        Assert.Equal(ReplayCompatibilityStatus.Compatible, replay2.CompatibilityStatus);
     }
 }

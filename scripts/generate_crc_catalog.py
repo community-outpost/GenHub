@@ -496,8 +496,14 @@ def merge_catalogs(existing: list[dict], crawled: list[dict]) -> list[dict]:
                                 matched_key = existing_key
                                 break
                         elif not merged[existing_key].get("sha256") and item.get("sha256") and merged[existing_key].get("cdnUrl") == item.get("cdnUrl"):
-                            matched_key = existing_key
-                            break
+                            if exe_compatible and ini_compatible:
+                                matched_key = existing_key
+                                break
+                            else:
+                                print(
+                                    f"Validation error: refusing to merge {m_id} due to conflicting CRCs ({item_exe}/{item_ini} vs {ex_exe}/{ex_ini}) for same cdnUrl",
+                                    file=sys.stderr,
+                                )
 
             if matched_key:
                 existing_entry = merged.pop(matched_key)
