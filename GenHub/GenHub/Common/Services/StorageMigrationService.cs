@@ -36,6 +36,14 @@ public class StorageMigrationService(
     IStorageWritabilityProbe writabilityProbe,
     ILogger<StorageMigrationService> logger) : IStorageMigrationService
 {
+    private readonly record struct StorageRelocationPaths(
+        string? CurrentCasRoot,
+        string? CurrentWorkspaceRoot,
+        string TargetCasRoot,
+        string TargetWorkspaceRoot,
+        string FinalCasRoot,
+        string FinalWorkspaceRoot);
+
     /// <inheritdoc />
     public async Task<OperationResult<StorageMigrationPreflightResult>> ValidatePreflightAsync(
         string targetPath,
@@ -788,6 +796,14 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
         var finalCasRoot = ResolveFinalDirectoryPath(currentCasRoot, targetCasRoot, sourceRoot, targetRoot);
         var finalWorkspaceRoot = ResolveFinalDirectoryPath(currentWorkspaceRoot, targetWorkspaceRoot, sourceRoot, targetRoot);
 
+        var paths = new StorageRelocationPaths(
+            currentCasRoot,
+            currentWorkspaceRoot,
+            targetCasRoot,
+            targetWorkspaceRoot,
+            finalCasRoot,
+            finalWorkspaceRoot);
+
         if (!TryMoveDirectoryIfExternal(currentCasRoot, targetCasRoot, sourceRoot, out var casMoved))
         {
             return OperationResult<bool>.CreateFailure("Failed to relocate CAS storage pool.");
@@ -795,13 +811,7 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
 
         if (!TryMoveDirectoryIfExternal(currentWorkspaceRoot, targetWorkspaceRoot, sourceRoot, out var workspaceMoved))
         {
-            return await HandleWorkspaceMoveFailureAsync(
-                casMoved,
-                currentCasRoot,
-                targetCasRoot,
-                finalCasRoot,
-                currentWorkspaceRoot,
-                finalWorkspaceRoot);
+            return await HandleWorkspaceMoveFailureAsync(casMoved, paths);
         }
 
         var saved = await userSettingsService.TryUpdateAndSaveAsync(settings =>
@@ -814,15 +824,7 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
 
         if (!saved)
         {
-            return await HandleSettingsPersistFailureAsync(
-                casMoved,
-                workspaceMoved,
-                currentCasRoot,
-                currentWorkspaceRoot,
-                targetCasRoot,
-                targetWorkspaceRoot,
-                finalCasRoot,
-                finalWorkspaceRoot);
+            return await HandleSettingsPersistFailureAsync(casMoved, workspaceMoved, paths);
         }
 
         casPoolManager.ReinitializeInstallationPool();
@@ -831,27 +833,20 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
 
     private async Task<OperationResult<bool>> HandleWorkspaceMoveFailureAsync(
         bool casMoved,
-        string? currentCasRoot,
-        string targetCasRoot,
-        string finalCasRoot,
-        string? currentWorkspaceRoot,
-        string finalWorkspaceRoot)
+        StorageRelocationPaths paths)
     {
-        var casRolledBack = RollbackDirectoryMove(casMoved, currentCasRoot, targetCasRoot, logger);
-        if (!casRolledBack && currentCasRoot != null)
+        var casRolledBack = RollbackDirectoryMove(casMoved, paths.CurrentCasRoot, paths.TargetCasRoot, logger);
+        if (!casRolledBack && paths.CurrentCasRoot != null)
         {
             var casSaved = await PersistRollbackPathsAsync(
                 casRolledBack: false,
                 workspaceRolledBack: true,
-                currentCasRoot,
-                currentWorkspaceRoot,
-                finalCasRoot,
-                finalWorkspaceRoot);
+                paths);
 
             if (!casSaved)
             {
-                logger.LogCritical("Failed to persist CAS storage path to {Target} after rollback failure.", finalCasRoot);
-                return OperationResult<bool>.CreateFailure($"Critical: CAS storage rollback failed, and settings could not be saved to target path {finalCasRoot}.");
+                logger.LogCritical("Failed to persist CAS storage path to {Target} after rollback failure.", paths.FinalCasRoot);
+                return OperationResult<bool>.CreateFailure($"Critical: CAS storage rollback failed, and settings could not be saved to target path {paths.FinalCasRoot}.");
             }
         }
 
@@ -861,25 +856,17 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
     private async Task<OperationResult<bool>> HandleSettingsPersistFailureAsync(
         bool casMoved,
         bool workspaceMoved,
-        string? currentCasRoot,
-        string? currentWorkspaceRoot,
-        string targetCasRoot,
-        string targetWorkspaceRoot,
-        string finalCasRoot,
-        string finalWorkspaceRoot)
+        StorageRelocationPaths paths)
     {
         logger.LogError("Failed to persist relocated storage settings. Rolling back storage relocation.");
 
-        var casRolledBack = RollbackDirectoryMove(casMoved, currentCasRoot, targetCasRoot, logger);
-        var workspaceRolledBack = RollbackDirectoryMove(workspaceMoved, currentWorkspaceRoot, targetWorkspaceRoot, logger);
+        var casRolledBack = RollbackDirectoryMove(casMoved, paths.CurrentCasRoot, paths.TargetCasRoot, logger);
+        var workspaceRolledBack = RollbackDirectoryMove(workspaceMoved, paths.CurrentWorkspaceRoot, paths.TargetWorkspaceRoot, logger);
 
         var rollbackSaved = await PersistRollbackPathsAsync(
             casRolledBack,
             workspaceRolledBack,
-            currentCasRoot,
-            currentWorkspaceRoot,
-            finalCasRoot,
-            finalWorkspaceRoot);
+            paths);
 
         if (!rollbackSaved)
         {
@@ -893,29 +880,14 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
     private async Task<bool> PersistRollbackPathsAsync(
         bool casRolledBack,
         bool workspaceRolledBack,
-        string? currentCasRoot,
-        string? currentWorkspaceRoot,
-        string finalCasRoot,
-        string finalWorkspaceRoot)
+        StorageRelocationPaths paths)
     {
-        var saved = await TrySaveRollbackPathsAsync(
-            casRolledBack,
-            workspaceRolledBack,
-            currentCasRoot,
-            currentWorkspaceRoot,
-            finalCasRoot,
-            finalWorkspaceRoot);
+        var saved = await TrySaveRollbackPathsAsync(casRolledBack, workspaceRolledBack, paths);
 
         if (!saved)
         {
             await Task.Delay(500);
-            saved = await TrySaveRollbackPathsAsync(
-                casRolledBack,
-                workspaceRolledBack,
-                currentCasRoot,
-                currentWorkspaceRoot,
-                finalCasRoot,
-                finalWorkspaceRoot);
+            saved = await TrySaveRollbackPathsAsync(casRolledBack, workspaceRolledBack, paths);
         }
 
         if (saved && !casRolledBack)
@@ -929,20 +901,17 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
     private Task<bool> TrySaveRollbackPathsAsync(
         bool casRolledBack,
         bool workspaceRolledBack,
-        string? currentCasRoot,
-        string? currentWorkspaceRoot,
-        string finalCasRoot,
-        string finalWorkspaceRoot)
+        StorageRelocationPaths paths)
     {
         return userSettingsService.TryUpdateAndSaveAsync(liveSettings =>
         {
-            var casPath = DetermineRollbackPath(casRolledBack, currentCasRoot, finalCasRoot);
+            var casPath = DetermineRollbackPath(casRolledBack, paths.CurrentCasRoot, paths.FinalCasRoot);
             if (casPath != null)
             {
                 liveSettings.CasConfiguration.CasRootPath = casPath;
             }
 
-            var workspacePath = DetermineRollbackPath(workspaceRolledBack, currentWorkspaceRoot, finalWorkspaceRoot);
+            var workspacePath = DetermineRollbackPath(workspaceRolledBack, paths.CurrentWorkspaceRoot, paths.FinalWorkspaceRoot);
             if (workspacePath != null)
             {
                 liveSettings.WorkspacePath = workspacePath;
