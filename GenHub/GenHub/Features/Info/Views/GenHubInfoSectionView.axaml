@@ -397,9 +397,9 @@
                                      </StackPanel>
 
                                      <!-- PAT Status -->
-                                     <Border Background="#25FFFFFF" CornerRadius="6" Padding="12,8" HorizontalAlignment="Left">
+                                     <Border Background="{DynamicResource AccentTintBackgroundBrush}" CornerRadius="6" Padding="12,8" HorizontalAlignment="Left">
                                          <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <Ellipse Width="10" Height="10" VerticalAlignment="Center" Fill="{Binding PatStatusColor}" />
+                                            <Ellipse Width="10" Height="10" VerticalAlignment="Center" Fill="{Binding PatStatusColor, Converter={StaticResource ColorToBrushConverter}}" />
                                             <TextBlock Text="{Binding PatStatusMessage}" Foreground="{DynamicResource TextPrimary}" FontSize="13" FontWeight="Medium" />
                                          </StackPanel>
                                      </Border>
