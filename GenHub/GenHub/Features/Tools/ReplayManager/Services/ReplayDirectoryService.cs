@@ -381,7 +381,7 @@ public sealed class ReplayDirectoryService(
 
         if (crcMappingRegistry.TryGetEntry(exeCrcStr, iniCrcStr, out var match) && match != null)
         {
-            ResolveMatchedClientCompatibility(replay, match, acquiredIds, profiles);
+            ResolveMatchedClientCompatibility(replay, match, acquiredIds, profiles, logger);
         }
         else
         {
@@ -389,7 +389,7 @@ public sealed class ReplayDirectoryService(
             var unmappedProfile = profiles.FirstOrDefault(p =>
                 p.GameClient?.GameType == replay.GameVersion &&
                 ((!string.IsNullOrEmpty(replay.MatchingProfileId) && string.Equals(p.Id, replay.MatchingProfileId, StringComparison.OrdinalIgnoreCase)) ||
-                 MatchesReplayFileName(p.Description, replay.FileName)));
+                 MatchesReplayFileName(p.Description, replay.FileName, logger)));
 
             if (unmappedProfile != null)
             {
@@ -554,7 +554,8 @@ public sealed class ReplayDirectoryService(
         GameType gameVersion,
         string clientManifestId,
         string? dataPatchManifestId,
-        ReplayFile? replay = null)
+        ReplayFile? replay = null,
+        ILogger? logger = null)
     {
         var profileList = profiles.ToList();
 
@@ -564,7 +565,7 @@ public sealed class ReplayDirectoryService(
             var byIdOrName = profileList.FirstOrDefault(p =>
                 p.GameClient?.GameType == gameVersion &&
                 ((!string.IsNullOrEmpty(replay.MatchingProfileId) && string.Equals(p.Id, replay.MatchingProfileId, StringComparison.OrdinalIgnoreCase)) ||
-                 MatchesReplayFileName(p.Description, replay.FileName)));
+                 MatchesReplayFileName(p.Description, replay.FileName, logger)));
 
             if (byIdOrName != null)
             {
@@ -728,7 +729,7 @@ public sealed class ReplayDirectoryService(
         return ReplayCompatibilityStatus.Orphaned;
     }
 
-    private static bool MatchesReplayFileName(string? description, string fileName)
+    private static bool MatchesReplayFileName(string? description, string fileName, ILogger? logger = null)
     {
         if (string.IsNullOrWhiteSpace(description) || string.IsNullOrWhiteSpace(fileName))
         {
@@ -746,8 +747,11 @@ public sealed class ReplayDirectoryService(
         {
             return Regex.IsMatch(description, pattern, RegexOptions.IgnoreCase, ReplayFileNameRegexTimeout);
         }
-        catch (RegexMatchTimeoutException)
+        catch (RegexMatchTimeoutException ex)
         {
+            // A regex timeout indicates pathological description text; intentionally treat as a
+            // non-match to degrade gracefully without failing or blocking the replay scan.
+            logger?.LogDebug(ex, "Regex matching timed out for replay file '{FileName}' against profile description", fileName);
             return false;
         }
     }
@@ -756,11 +760,12 @@ public sealed class ReplayDirectoryService(
         ReplayFile replay,
         CrcMappingEntry match,
         HashSet<string> acquiredIds,
-        IReadOnlyList<GameProfile> profiles)
+        IReadOnlyList<GameProfile> profiles,
+        ILogger? logger = null)
     {
         replay.MatchedClient = match;
 
-        var matchingProfile = FindMatchingProfile(profiles, replay.GameVersion, match.ManifestId, match.DataPatchManifestId, replay);
+        var matchingProfile = FindMatchingProfile(profiles, replay.GameVersion, match.ManifestId, match.DataPatchManifestId, replay, logger);
         if (matchingProfile != null)
         {
             replay.MatchingProfileId = matchingProfile.Id;

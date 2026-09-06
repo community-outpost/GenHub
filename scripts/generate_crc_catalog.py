@@ -28,7 +28,7 @@ DEFAULT_OUTPUT_PATH = os.path.join(
 
 class CatalogConflictError(Exception):
     """Raised when conflicting CRCs are encountered for the same manifest/cdnUrl."""
-    pass
+
 
 BASELINE_ENTRIES = [
     {
@@ -656,7 +656,7 @@ def validate_catalog(catalog: dict) -> bool:
     return valid
 
 
-def _load_existing_mappings(output_path: str, base_mappings: list) -> list:
+def _load_existing_mappings(output_path: str, base_mappings: list[dict]) -> list[dict]:
     """Loads and merges existing mappings from disk if present."""
     if not os.path.exists(output_path):
         return base_mappings
@@ -675,7 +675,7 @@ def _load_existing_mappings(output_path: str, base_mappings: list) -> list:
     return base_mappings
 
 
-def _crawl_and_merge(existing_mappings: list, inspect_binaries: bool) -> list:
+def _crawl_and_merge(existing_mappings: list[dict], inspect_binaries: bool) -> list[dict]:
     """Crawls upstream release feeds and merges into existing mappings."""
     try:
         sh_crawled = crawl_superhackers_releases(inspect_binaries=inspect_binaries)
