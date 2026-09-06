@@ -9,7 +9,9 @@ using GenHub.Core.Constants;
 namespace GenHub.Infrastructure.Converters;
 
 /// <summary>
-/// Converts a string file path to a Bitmap for use as an image source.
+/// Converts a string file path or asset URI to a <see cref="Bitmap"/> for use as an image source.
+/// Note: For asynchronous loading and caching of remote HTTP/HTTPS images, use
+/// <see cref="Controls.ImageLoader.SourceProperty"/> rather than this synchronous converter.
 /// </summary>
 public class StringToImageConverter : IValueConverter
 {
@@ -33,34 +35,32 @@ public class StringToImageConverter : IValueConverter
                 return new Bitmap(asset);
             }
 
-            // Handle relative asset paths (e.g., "/Assets/Logos/logo.png")
-            if (path.StartsWith("/", StringComparison.Ordinal))
+            // Handle relative asset paths (e.g., "/Assets/Logos/logo.png" or "Assets/Logos/logo.png")
+            if (path.StartsWith("/Assets/", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
             {
-                var uri = new Uri($"avares://GenHub{path}");
+                var cleanPath = path.TrimStart('/');
+                var uri = new Uri($"avares://GenHub/{cleanPath}");
                 var asset = AssetLoader.Open(uri);
                 return new Bitmap(asset);
             }
 
-            // Handle asset paths starting with 'Assets/'
-            if (path.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
-            {
-                var uri = new Uri($"avares://GenHub/{path}");
-                var asset = AssetLoader.Open(uri);
-                return new Bitmap(asset);
-            }
-
-            // Handle web URLs
+            // Handle web URLs: return cached bitmap if available in memory.
+            // Full asynchronous loading and caching should be done via ImageLoader.Source.
             if (path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
-                // TODO: For web URLs, implement caching/downloading if needed
-                return null;
+                return Services.ImageCacheService.Instance.GetBitmapFromMemory(path);
             }
 
-            // Handle local file paths
-            if (Path.IsPathRooted(path) && File.Exists(path))
+            // Handle local file paths (reject UNC shares). Decode from a memory stream to avoid locking the file.
+            if (Path.IsPathRooted(path) && !path.StartsWith(@"\\", StringComparison.Ordinal) && !path.StartsWith("//", StringComparison.Ordinal) && File.Exists(path))
             {
-                return new Bitmap(path);
+                using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var ms = new MemoryStream();
+                fs.CopyTo(ms);
+                ms.Position = 0;
+                return new Bitmap(ms);
             }
 
             return null;
@@ -73,13 +73,13 @@ public class StringToImageConverter : IValueConverter
     }
 
     /// <summary>
-    /// Not implemented. Converts a Bitmap back to a string file path.
+    /// Not supported. Converts a Bitmap back to a string file path.
     /// </summary>
     /// <inheritdoc/>
-    /// <returns>This method does not return a value; it always throws <see cref="NotImplementedException"/>.</returns>
-    /// <exception cref="NotImplementedException">Always thrown as this converter only supports one-way conversion.</exception>
+    /// <returns>This method does not return a value; it always throws <see cref="NotSupportedException"/>.</returns>
+    /// <exception cref="NotSupportedException">Always thrown as this converter only supports one-way conversion.</exception>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        throw new NotImplementedException();
+        throw new NotSupportedException();
     }
 }

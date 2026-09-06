@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Text.RegularExpressions;
+using GenHub.Core.Constants;
 
 namespace GenHub.Core.Helpers;
 
@@ -12,9 +13,11 @@ public static partial class HtmlTextHelper
 {
     /// <summary>
     /// Converts an HTML snippet or formatted description into clean, normalized plain text:
+    /// - Strips script and style blocks (including unclosed tags).
     /// - Replaces &lt;br&gt; and block element closures (&lt;/p&gt;, &lt;/div&gt;, etc.) with line breaks.
     /// - Strips all remaining HTML tags.
     /// - Decodes HTML entities (e.g., &amp;amp;, &amp;quot;, &amp;gt;, &amp;nbsp;).
+    /// - Strips dangerous active tags (script, style, iframe, etc.) that may have been encoded as entities to prevent downstream injection.
     /// - Normalizes whitespace and excessive blank lines.
     /// - Uses the platform newline format.
     /// </summary>
@@ -27,9 +30,21 @@ public static partial class HtmlTextHelper
             return string.Empty;
         }
 
-        // 0. Remove script and style elements along with their contents
+        if (html.Length > UiConstants.MaxHtmlInputLength)
+        {
+            var length = UiConstants.MaxHtmlInputLength;
+            if (char.IsHighSurrogate(html[length - 1]))
+            {
+                length--;
+            }
+
+            html = html[..length];
+        }
+
+        // 0. Remove script, style, comments, and doctype declarations along with their contents
         var text = ScriptTagRegex().Replace(html, string.Empty);
         text = StyleTagRegex().Replace(text, string.Empty);
+        text = HtmlCommentAndDocTypeRegex().Replace(text, string.Empty);
 
         // 1. Convert <br> tags to newline
         text = BrTagRegex().Replace(text, "\n");
@@ -46,16 +61,21 @@ public static partial class HtmlTextHelper
         // 5. Decode HTML entities (&nbsp;, &gt;, &quot;, &#39;, numeric entities, etc.)
         text = WebUtility.HtmlDecode(text);
 
-        // 6. Normalize non-breaking spaces and line endings
+        // 6. Security pass: Strip dangerous active script/style/iframe tags that may have been formed by decoded entities
+        text = ScriptTagRegex().Replace(text, string.Empty);
+        text = StyleTagRegex().Replace(text, string.Empty);
+        text = DangerousTagRegex().Replace(text, string.Empty);
+
+        // 7. Normalize non-breaking spaces and line endings
         text = text.Replace('\u00A0', ' ')
                    .Replace("\r\n", "\n")
                    .Replace('\r', '\n');
 
-        // 7. Clean trailing whitespace on lines and collapse excess blank lines
+        // 8. Clean trailing whitespace on lines and collapse excess blank lines
         text = TrailingWhitespaceBeforeNewlineRegex().Replace(text, "\n");
         text = ExcessBlankLinesRegex().Replace(text, "\n\n");
 
-        // 8. Trim and unify with environment newline
+        // 9. Trim and unify with environment newline
         text = text.Trim();
         text = text.Replace("\n", Environment.NewLine);
 
@@ -110,36 +130,54 @@ public static partial class HtmlTextHelper
 
         if (maxLength <= 3)
         {
-            return text[..maxLength];
+            var len = maxLength;
+            if (char.IsHighSurrogate(text[len - 1]))
+            {
+                len--;
+            }
+
+            return text[..len];
         }
 
-        return string.Concat(text.AsSpan(0, maxLength - 3), "...");
+        var prefixLength = maxLength - 3;
+        if (char.IsHighSurrogate(text[prefixLength - 1]))
+        {
+            prefixLength--;
+        }
+
+        return string.Concat(text.AsSpan(0, prefixLength), "...");
     }
 
-    [GeneratedRegex(@"<script\b[^>]*>(?:[\s\S]*?</script\s*>|[\s\S]*$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"<script\b[^>]*>(?:[\s\S]*?</script\s*>|[\s\S]*$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex ScriptTagRegex();
 
-    [GeneratedRegex(@"<style\b[^>]*>(?:[\s\S]*?</style\s*>|[\s\S]*$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"<style\b[^>]*>(?:[\s\S]*?</style\s*>|[\s\S]*$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex StyleTagRegex();
 
-    [GeneratedRegex(@"<br\s*/?>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"<!--[\s\S]*?(?:-->|$)|<!DOCTYPE[^>]*>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
+    private static partial Regex HtmlCommentAndDocTypeRegex();
+
+    [GeneratedRegex(@"</?(?:script|style|iframe|object|embed|applet)\b[^>]*>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
+    private static partial Regex DangerousTagRegex();
+
+    [GeneratedRegex(@"<br\s*/?>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex BrTagRegex();
 
-    [GeneratedRegex(@"</p\s*>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"</p\s*>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex ParagraphCloseTagRegex();
 
-    [GeneratedRegex(@"</?(?:div|li|h[1-6]|tr|section|article|blockquote|header|footer|hr)\b[^>]*>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"</?(?:div|li|h[1-6]|tr|section|article|blockquote|header|footer|hr)\b[^>]*>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex BlockCloseTagRegex();
 
-    [GeneratedRegex(@"</?[A-Za-z][^>]*>", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"</?[A-Za-z][^>]*>", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex HtmlTagRegex();
 
-    [GeneratedRegex(@"[ \t]+\n", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"[ \t]+\n", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex TrailingWhitespaceBeforeNewlineRegex();
 
-    [GeneratedRegex(@"(?:\n){3,}", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"(?:\n){3,}", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex ExcessBlankLinesRegex();
 
-    [GeneratedRegex(@"\s+", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\s+", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex MultiWhitespaceRegex();
 }

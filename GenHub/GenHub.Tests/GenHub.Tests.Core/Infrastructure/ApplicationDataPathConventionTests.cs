@@ -2,20 +2,18 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace GenHub.Tests.Core.Infrastructure;
 
 /// <summary>
-/// Guards the convention that application data paths are resolved through
-/// <c>IConfigurationProviderService</c> rather than read directly from the OS.
+/// Architecture test enforcing that code reads the application data root from
+/// <see cref="GenHub.Core.Interfaces.Common.IConfigurationProviderService.GetApplicationDataPath"/>
+/// rather than reading <see cref="Environment.SpecialFolder.ApplicationData"/> directly.
 /// <para>
-/// <c>ConfigurationProviderService.GetApplicationDataPath()</c> honours a user-configured
-/// <c>UserSettings.ApplicationDataPath</c>. Five separate runtime call sites bypassed it
-/// with a raw <c>Environment.GetFolderPath(SpecialFolder.ApplicationData)</c>, so
-/// relocating the data directory moved profiles, workspaces and CAS but silently left
-/// manifest discovery, provider loading, the Steam patcher and tool workspaces behind in
-/// the default tree.
+/// Reading the OS folder directly bypasses the user-configured data directory
+/// override and the portable-mode folder.
 /// </para>
 /// <para>
 /// The pattern recurred five times independently, which is evidence that code review does
@@ -29,19 +27,23 @@ public class ApplicationDataPathConventionTests
 
     /// <summary>
     /// Files permitted to read the OS application-data folder directly, with the reason.
+    /// Uses repository-relative paths with forward slashes.
     /// </summary>
     private static readonly Dictionary<string, string> Allowed = new(StringComparer.OrdinalIgnoreCase)
     {
         // The implementation of the convention itself has to start somewhere.
-        ["ConfigurationProviderService.cs"] = "Defines the canonical path.",
-        ["AppConfiguration.cs"] = "Resolves the legacy roaming root the upgrade migration reads from.",
-        ["UserSettingsService.cs"] = "Loads the settings file that stores the override; cannot depend on it.",
+        ["GenHub/GenHub/Common/Services/ConfigurationProviderService.cs"] = "Defines the canonical path.",
+        ["GenHub/GenHub/Common/Services/AppConfiguration.cs"] = "Resolves the legacy roaming root the upgrade migration reads from.",
+        ["GenHub/GenHub/Common/Services/UserSettingsService.cs"] = "Loads the settings file that stores the override; cannot depend on it.",
 
         // Displays the built-in default next to the user's override in the UI.
-        ["SettingsViewModel.cs"] = "Computes the factory-default path to show on reset.",
+        ["GenHub/GenHub/Features/Settings/ViewModels/SettingsViewModel.cs"] = "Computes the factory-default path to show on reset.",
 
         // Core-layer fallback, overridden at the composition root by ContentPipelineModule.
-        ["ProviderDefinitionLoader.cs"] = "Default only; the DI registration supplies an override.",
+        ["GenHub/GenHub.Core/Services/Providers/ProviderDefinitionLoader.cs"] = "Default only; the DI registration supplies an override.",
+
+        // UI image cache service fallback when used outside DI.
+        ["GenHub/GenHub/Infrastructure/Services/ImageCacheService.cs"] = "Fallback default path when used outside DI; DI registration injects IConfigurationProviderService.",
     };
 
     /// <summary>
@@ -57,45 +59,54 @@ public class ApplicationDataPathConventionTests
             Path.Combine(repoRoot, "GenHub", "GenHub.Core"),
         };
 
-        var offenders = searchRoots
-            .Where(Directory.Exists)
-            .SelectMany(root => Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories))
-            .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")
-                        && !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}"))
-            .Where(path => !Allowed.ContainsKey(Path.GetFileName(path)))
-            .Where(path => File.ReadAllText(path).Contains(ForbiddenPattern, StringComparison.Ordinal))
-            .Select(path => Path.GetRelativePath(repoRoot, path))
-            .OrderBy(p => p, StringComparer.Ordinal)
-            .ToList();
+        var violations = new List<string>();
 
-        var message =
-            $"These files read the OS application-data folder directly:{Environment.NewLine}"
-            + string.Join(Environment.NewLine, offenders.Select(o => "  " + o))
-            + $"{Environment.NewLine}Use IConfigurationProviderService.GetApplicationDataPath() so a user-relocated "
-            + "data directory is honoured, or add the file to the allowlist in this test with a reason.";
-
-        Assert.True(offenders.Count == 0, message);
-    }
-
-    /// <summary>
-    /// Walks up from the test assembly to the directory containing the solution.
-    /// </summary>
-    /// <returns>The repository root path.</returns>
-    private static string FindRepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-
-        while (directory is not null)
+        foreach (var root in searchRoots)
         {
-            if (Directory.Exists(Path.Combine(directory.FullName, "GenHub", "GenHub.Core")))
-            {
-                return directory.FullName;
-            }
+            Assert.True(Directory.Exists(root), $"Search root not found: {root}");
 
-            directory = directory.Parent;
+            var csFiles = Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)
+                .Where(f => !f.Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar) &&
+                            !f.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar));
+
+            foreach (var file in csFiles)
+            {
+                var relativePath = Path.GetRelativePath(repoRoot, file).Replace('\\', '/');
+                if (Allowed.ContainsKey(relativePath))
+                {
+                    continue;
+                }
+
+                var content = File.ReadAllText(file);
+                if (content.Contains(ForbiddenPattern, StringComparison.Ordinal))
+                {
+                    violations.Add(relativePath);
+                }
+            }
         }
 
-        throw new InvalidOperationException(
-            $"Could not locate the repository root above {AppContext.BaseDirectory}.");
+        var message =
+            $"The following files read Environment.SpecialFolder.ApplicationData directly instead of " +
+            $"using IConfigurationProviderService.GetApplicationDataPath():\n{string.Join('\n', violations)}\n\n" +
+            "If this is intentional (e.g. bootstrapping, or defining the default for the UI), " +
+            "add the file to the allowlist in ApplicationDataPathConventionTests with an explanation.";
+
+        Assert.True(violations.Count == 0, message);
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        var current = AppContext.BaseDirectory;
+        while (!string.IsNullOrEmpty(current))
+        {
+            if (Directory.Exists(Path.Combine(current, "GenHub", "GenHub.Core")))
+            {
+                return current;
+            }
+
+            current = Path.GetDirectoryName(current);
+        }
+
+        throw new InvalidOperationException("Could not locate repository root.");
     }
 }

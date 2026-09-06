@@ -1,6 +1,7 @@
 using System;
 using GenHub.Common.Services;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -58,6 +59,14 @@ public static class ConfigurationModule
         services.TryAddSingleton<IStorageWritabilityProbe, StorageWritabilityProbe>();
         services.AddSingleton<IStorageLocationService, StorageLocationService>();
         services.AddSingleton<IThemeService, ThemeService>();
+
+        // Register image cache service with resolved configuration provider and logger
+        services.AddSingleton<IImageCacheService>(provider =>
+        {
+            var config = provider.GetRequiredService<IConfigurationProviderService>();
+            var logger = provider.GetService<ILogger<ImageCacheService>>();
+            return new ImageCacheService(config, logger);
+        });
 
         return services;
     }
