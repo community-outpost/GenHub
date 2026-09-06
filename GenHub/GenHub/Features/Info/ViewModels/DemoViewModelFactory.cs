@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
@@ -498,9 +499,14 @@ public static class DemoViewModelFactory
     /// Creates a demo ScanWizardDemoViewModel with mock detected games.
     /// </summary>
     /// <param name="notificationService">Optional notification service for demo actions.</param>
+    /// <param name="scanDelayMs">Simulated scan delay in milliseconds.</param>
+    /// <param name="delayProvider">Optional custom delay provider for deterministic testing.</param>
     /// <returns>A configured demo scan wizard view model.</returns>
-    public static ScanWizardDemoViewModel CreateDemoScanWizard(INotificationService? notificationService = null)
+    public static ScanWizardDemoViewModel CreateDemoScanWizard(
+        INotificationService? notificationService = null,
+        int scanDelayMs = 1000,
+        Func<CancellationToken, Task>? delayProvider = null)
     {
-        return new ScanWizardDemoViewModel(notificationService);
+        return new ScanWizardDemoViewModel(notificationService, scanDelayMs, delayProvider);
     }
 }

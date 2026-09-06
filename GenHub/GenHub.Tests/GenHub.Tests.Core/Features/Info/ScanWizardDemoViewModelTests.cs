@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -105,8 +106,19 @@ public class ScanWizardDemoViewModelTests
     [Fact]
     public async Task CancelCommand_DuringRescan_CancelsActiveScan()
     {
-        var vm = CreateVm();
+        var scanStartedTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cancellationTriggeredTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var vm = CreateVm(delayProvider: async ct =>
+        {
+            scanStartedTcs.SetResult();
+            using var reg = ct.Register(() => cancellationTriggeredTcs.SetResult());
+            await cancellationTriggeredTcs.Task;
+            ct.ThrowIfCancellationRequested();
+        });
+
         var scanTask = vm.RescanAsync();
+        await scanStartedTcs.Task;
 
         // Cancel while scanning
         vm.CancelCommand.Execute(null);
@@ -169,6 +181,8 @@ public class ScanWizardDemoViewModelTests
             Times.Once);
     }
 
-    private ScanWizardDemoViewModel CreateVm() =>
-        DemoViewModelFactory.CreateDemoScanWizard(_notificationServiceMock.Object);
+    private ScanWizardDemoViewModel CreateVm(
+        int scanDelayMs = 1,
+        Func<CancellationToken, Task>? delayProvider = null) =>
+        DemoViewModelFactory.CreateDemoScanWizard(_notificationServiceMock.Object, scanDelayMs, delayProvider);
 }

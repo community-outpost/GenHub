@@ -19,6 +19,8 @@ namespace GenHub.Features.Info.ViewModels;
 public partial class ScanWizardDemoViewModel : ObservableObject
 {
     private readonly INotificationService? _notificationService;
+    private readonly int _scanDelayMs;
+    private readonly Func<CancellationToken, Task>? _delayProvider;
     private CancellationTokenSource? _scanCts;
 
     [ObservableProperty]
@@ -37,9 +39,16 @@ public partial class ScanWizardDemoViewModel : ObservableObject
     /// Initializes a new instance of the <see cref="ScanWizardDemoViewModel"/> class.
     /// </summary>
     /// <param name="notificationService">Optional notification service.</param>
-    public ScanWizardDemoViewModel(INotificationService? notificationService = null)
+    /// <param name="scanDelayMs">Simulated scan delay in milliseconds.</param>
+    /// <param name="delayProvider">Optional custom delay provider for deterministic testing.</param>
+    public ScanWizardDemoViewModel(
+        INotificationService? notificationService = null,
+        int scanDelayMs = 1000,
+        Func<CancellationToken, Task>? delayProvider = null)
     {
         _notificationService = notificationService;
+        _scanDelayMs = scanDelayMs;
+        _delayProvider = delayProvider;
         PopulateDefaultItems();
         UpdateState();
     }
@@ -60,7 +69,7 @@ public partial class ScanWizardDemoViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Simulates a scan for installed games.
+    /// Rescans for game installations.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the operation.</returns>
@@ -80,7 +89,14 @@ public partial class ScanWizardDemoViewModel : ObservableObject
         {
             Status = "Scanning registry, Steam, and EA App directories...";
 
-            await Task.Delay(1000, _scanCts.Token);
+            if (_delayProvider != null)
+            {
+                await _delayProvider(_scanCts.Token);
+            }
+            else
+            {
+                await Task.Delay(_scanDelayMs, _scanCts.Token);
+            }
 
             PopulateDefaultItems();
             UpdateState();
@@ -99,7 +115,6 @@ public partial class ScanWizardDemoViewModel : ObservableObject
         finally
         {
             IsScanning = false;
-            _scanCts?.Dispose();
             _scanCts = null;
         }
     }
@@ -131,7 +146,14 @@ public partial class ScanWizardDemoViewModel : ObservableObject
     {
         if (IsScanning)
         {
-            _scanCts?.Cancel();
+            try
+            {
+                _scanCts?.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Ignored if CTS was already disposed
+            }
         }
 
         _notificationService?.Show(new NotificationMessage(
