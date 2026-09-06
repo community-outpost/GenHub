@@ -307,7 +307,7 @@ public partial class ContentManifestBuilder(
     }
 
     /// <summary>
-    /// Adds a dependency to the manifest.
+    /// Adds a content dependency.
     /// </summary>
     /// <param name="id">Dependency ID.</param>
     /// <param name="name">Dependency name.</param>
@@ -318,6 +318,7 @@ public partial class ContentManifestBuilder(
     /// <param name="compatibleVersions">List of compatible versions.</param>
     /// <param name="isExclusive">Is exclusive.</param>
     /// <param name="conflictsWith">Conflicting dependency IDs.</param>
+    /// <param name="compatibleGameTypes">List of compatible game types.</param>
     /// <returns>The builder instance.</returns>
     public IContentManifestBuilder AddDependency(
         ManifestId id,
@@ -328,7 +329,8 @@ public partial class ContentManifestBuilder(
         string maxVersion = "",
         List<string>? compatibleVersions = null,
         bool isExclusive = false,
-        List<ManifestId>? conflictsWith = null)
+        List<ManifestId>? conflictsWith = null,
+        List<GameType>? compatibleGameTypes = null)
     {
         var dependency = new ContentDependency
         {
@@ -341,6 +343,7 @@ public partial class ContentManifestBuilder(
             IsExclusive = isExclusive,
             ConflictsWith = conflictsWith ?? [],
             InstallBehavior = installBehavior,
+            CompatibleGameTypes = compatibleGameTypes ?? [],
         };
         _manifest.Dependencies.Add(dependency);
         logger.LogDebug("Added dependency: {DependencyId} (InstallBehavior: {InstallBehavior}, Exclusive: {IsExclusive})", id, installBehavior, isExclusive);
@@ -742,6 +745,33 @@ public partial class ContentManifestBuilder(
 
         _manifest.Files.Add(manifestFile);
         logger.LogDebug("Added patch for {TargetFile} with source {PatchFile}", targetRelativePath, patchSourceFile);
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public IContentManifestBuilder WithEntryPoint(string entryPoint)
+    {
+        _manifest.EntryPoint = entryPoint;
+        logger.LogDebug("Set manifest entry point to {EntryPoint}", entryPoint);
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public IContentManifestBuilder WithId(ManifestId id)
+    {
+        _manifest.Id = id;
+        _publisherId = null;
+        _contentName = null;
+        _manifestVersion = null;
+        logger.LogDebug("Explicitly set manifest ID: {ManifestId}", id);
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public IContentManifestBuilder WithName(string name)
+    {
+        _manifest.Name = name;
+        logger.LogDebug("Set manifest display name: {Name}", name);
         return this;
     }
 

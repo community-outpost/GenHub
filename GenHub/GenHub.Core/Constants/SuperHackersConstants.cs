@@ -120,4 +120,7 @@ public static class SuperHackersConstants
 
     /// <summary>Delimiter used in manifest versions.</summary>
     public const string VersionDelimiter = ".";
+
+    /// <summary>Default page size for discovery (10 items = 5 release cards).</summary>
+    public const int PageSize = 10;
 }

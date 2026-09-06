@@ -46,7 +46,7 @@ public static class ManifestModule
         services.AddSingleton<IManifestIdService, ManifestIdService>();
 
         // Discovery and generation services
-        services.AddScoped<ManifestDiscoveryService>();
+        services.AddSingleton<ManifestDiscoveryService>();
 
         services.AddScoped<IManifestGenerationService, ManifestGenerationService>();
 

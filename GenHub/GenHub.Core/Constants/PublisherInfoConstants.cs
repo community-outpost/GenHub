@@ -271,7 +271,87 @@ public static class PublisherInfoConstants
             GameInstallationType.Wine => (Wine.Name, Wine.Website, Wine.SupportUrl),
             GameInstallationType.CDISO => (CdIso.Name, CdIso.Website, CdIso.SupportUrl),
             GameInstallationType.Retail => (Retail.Name, Retail.Website, Retail.SupportUrl),
+
+            // Unknown is the enum default for unrecognized installs and Lutris is a legitimate Linux
+            // install type; both fall back to Retail, matching InstallationTypeDisplayConverter.
+            GameInstallationType.Unknown => (Retail.Name, Retail.Website, Retail.SupportUrl),
+            GameInstallationType.Lutris => (Retail.Name, Retail.Website, Retail.SupportUrl),
             _ => (Retail.Name, Retail.Website, Retail.SupportUrl), // Default to retail
         };
+    }
+
+    /// <summary>
+    /// Gets the logo source URI for a publisher or content item based on publisher ID, provider name, or title.
+    /// </summary>
+    /// <param name="publisherIdOrName">The publisher ID or provider display name.</param>
+    /// <param name="contentIdOrName">The content ID, title, or manifest ID context.</param>
+    /// <returns>An avares:// URI string pointing to the logo image asset, or null if unmapped.</returns>
+    public static string? GetPublisherLogo(string? publisherIdOrName, string? contentIdOrName = null)
+    {
+        var primary = MatchLogo(publisherIdOrName);
+        var secondary = MatchLogo(contentIdOrName);
+
+        // If primary matched generic GitHub, but secondary matched a specific publisher, prefer the specific publisher
+        if (primary == GitHub.LogoSource && secondary != null && secondary != GitHub.LogoSource)
+        {
+            return secondary;
+        }
+
+        return primary ?? secondary;
+    }
+
+    private static string? MatchLogo(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return null;
+        }
+
+        if (input.Contains("communityoutpost", StringComparison.OrdinalIgnoreCase) ||
+            input.Contains("community outpost", StringComparison.OrdinalIgnoreCase) ||
+            input.Contains("community-outpost", StringComparison.OrdinalIgnoreCase))
+        {
+            return CommunityOutpost.LogoSource;
+        }
+
+        if (input.Contains("superhacker", StringComparison.OrdinalIgnoreCase))
+        {
+            return TheSuperHackers.LogoSource;
+        }
+
+        if (input.Contains("generalsonline", StringComparison.OrdinalIgnoreCase) ||
+            input.Contains("generals online", StringComparison.OrdinalIgnoreCase) ||
+            input.Contains("generals-online", StringComparison.OrdinalIgnoreCase))
+        {
+            return GeneralsOnline.LogoSource;
+        }
+
+        if (input.Contains("moddb", StringComparison.OrdinalIgnoreCase) ||
+            input.Contains("mod db", StringComparison.OrdinalIgnoreCase) ||
+            input.Contains("mod-db", StringComparison.OrdinalIgnoreCase))
+        {
+            return ModDB.LogoSource;
+        }
+
+        if (input.Contains("cnclabs", StringComparison.OrdinalIgnoreCase) ||
+            input.Contains("cnc labs", StringComparison.OrdinalIgnoreCase) ||
+            input.Contains("cnc-labs", StringComparison.OrdinalIgnoreCase))
+        {
+            return CNCLabs.LogoSource;
+        }
+
+        if (input.Contains("aodmaps", StringComparison.OrdinalIgnoreCase) ||
+            input.Contains("aod maps", StringComparison.OrdinalIgnoreCase) ||
+            input.Contains("aod-maps", StringComparison.OrdinalIgnoreCase))
+        {
+            return AODMaps.LogoSource;
+        }
+
+        if (input.Contains("github", StringComparison.OrdinalIgnoreCase))
+        {
+            return GitHub.LogoSource;
+        }
+
+        return null;
     }
 }

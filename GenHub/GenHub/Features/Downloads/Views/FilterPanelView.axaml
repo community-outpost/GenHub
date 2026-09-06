@@ -1,0 +1,182 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Downloads.ViewModels"
+             xmlns:filters="clr-namespace:GenHub.Features.Downloads.ViewModels.Filters"
+             xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
+             xmlns:constants="clr-namespace:GenHub.Core.Constants;assembly=GenHub.Core"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="120"
+             x:Class="GenHub.Features.Downloads.Views.FilterPanelView"
+             x:DataType="filters:IFilterPanelViewModel"
+             Background="Transparent">
+
+    <UserControl.Resources>
+        <converters:EqualityConverter x:Key="EqualityConverter" />
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <!-- Filter section label -->
+        <Style Selector="TextBlock.filter-label">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+        </Style>
+
+        <!-- Filter toggle button -->
+        <Style Selector="ToggleButton.filter-toggle">
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,0,6,6" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <Style Selector="ToggleButton.filter-toggle:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
+        </Style>
+
+        <Style Selector="ToggleButton.filter-toggle:checked">
+            <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+
+        <!-- Dropdown styling -->
+        <Style Selector="ComboBox.filter-dropdown">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="MinWidth" Value="130" />
+            <Setter Property="MinHeight" Value="32" />
+        </Style>
+
+        <!-- Secondary action button (Clear Filters) -->
+        <Style Selector="Button.filter-clear">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <Style Selector="Button.filter-clear:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        </Style>
+    </UserControl.Styles>
+
+    <!-- Dynamic content based on filter type -->
+    <ContentControl Content="{Binding}">
+        <ContentControl.DataTemplates>
+            <!-- Static Publisher Filter (ContentType toggles) -->
+            <DataTemplate DataType="filters:StaticPublisherFilterViewModel">
+                <WrapPanel Orientation="Horizontal">
+                    <ItemsControl ItemsSource="{Binding ContentTypeFilters}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <ToggleButton Classes="filter-toggle"
+                                              Content="{Binding DisplayName}"
+                                              IsChecked="{Binding IsSelected}"
+                                              Command="{Binding $parent[ItemsControl].((filters:StaticPublisherFilterViewModel)DataContext).ToggleContentTypeCommand}"
+                                              CommandParameter="{Binding}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </WrapPanel>
+            </DataTemplate>
+
+            <!-- Community Outpost Filter (Category toggles) -->
+            <DataTemplate DataType="filters:CommunityOutpostFilterViewModel">
+                <StackPanel Spacing="8">
+                    <WrapPanel Orientation="Horizontal">
+                        <ItemsControl ItemsSource="{Binding ContentTypeFilters}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <ToggleButton Classes="filter-toggle"
+                                                  Content="{Binding DisplayName}"
+                                                  IsChecked="{Binding IsSelected}"
+                                                  Command="{Binding $parent[ItemsControl].((filters:CommunityOutpostFilterViewModel)DataContext).ToggleContentTypeCommand}"
+                                                  CommandParameter="{Binding}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </WrapPanel>
+                </StackPanel>
+            </DataTemplate>
+
+            <!-- GitHub Filter (Topics + Authors dropdowns) -->
+            <DataTemplate DataType="filters:GitHubFilterViewModel">
+                <StackPanel Spacing="12">
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <!-- Topics -->
+                        <StackPanel>
+                            <TextBlock Classes="filter-label" Text="Topics" />
+                            <ComboBox Classes="filter-dropdown"
+                                      ItemsSource="{Binding TopicOptions}"
+                                      SelectedValue="{Binding SelectedTopic, Mode=TwoWay}"
+                                      SelectedValueBinding="{Binding Value}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding DisplayName}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- Authors -->
+                        <StackPanel>
+                            <TextBlock Classes="filter-label" Text="Authors" />
+                            <ComboBox Classes="filter-dropdown"
+                                      ItemsSource="{Binding AuthorOptions}"
+                                      SelectedValue="{Binding SelectedAuthor, Mode=TwoWay}"
+                                      SelectedValueBinding="{Binding Value}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding DisplayName}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Filter Actions -->
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Apply Filters"
+                                Command="{Binding ApplyFiltersActionCommand}"
+                                MinWidth="120"
+                                Classes="primary" />
+                        <Button Content="Clear Filters"
+                                Command="{Binding ClearFiltersActionCommand}"
+                                MinWidth="120" />
+                    </StackPanel>
+                </StackPanel>
+            </DataTemplate>
+        </ContentControl.DataTemplates>
+    </ContentControl>
+</UserControl>

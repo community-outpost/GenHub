@@ -53,12 +53,18 @@ public class StringToImageConverter : IValueConverter
             if (path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
-                // TODO: For web URLs, implement caching/downloading if needed
+                var cached = Services.ImageCacheService.Instance.GetBitmapFromMemory(path);
+                if (cached != null)
+                {
+                    return cached;
+                }
+
+                _ = Services.ImageCacheService.Instance.GetBitmapAsync(path);
                 return null;
             }
 
-            // Handle local file paths
-            if (Path.IsPathRooted(path) && File.Exists(path))
+            // Handle local file paths (reject UNC shares)
+            if (Path.IsPathRooted(path) && !path.StartsWith(@"\\", StringComparison.Ordinal) && !path.StartsWith("//", StringComparison.Ordinal) && File.Exists(path))
             {
                 return new Bitmap(path);
             }
@@ -73,13 +79,13 @@ public class StringToImageConverter : IValueConverter
     }
 
     /// <summary>
-    /// Not implemented. Converts a Bitmap back to a string file path.
+    /// Not supported. Converts a Bitmap back to a string file path.
     /// </summary>
     /// <inheritdoc/>
-    /// <returns>This method does not return a value; it always throws <see cref="NotImplementedException"/>.</returns>
-    /// <exception cref="NotImplementedException">Always thrown as this converter only supports one-way conversion.</exception>
+    /// <returns>This method does not return a value; it always throws <see cref="NotSupportedException"/>.</returns>
+    /// <exception cref="NotSupportedException">Always thrown as this converter only supports one-way conversion.</exception>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        throw new NotImplementedException();
+        throw new NotSupportedException();
     }
 }

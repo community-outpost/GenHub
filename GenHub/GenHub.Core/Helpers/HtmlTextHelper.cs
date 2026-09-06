@@ -116,10 +116,10 @@ public static partial class HtmlTextHelper
         return string.Concat(text.AsSpan(0, maxLength - 3), "...");
     }
 
-    [GeneratedRegex(@"<script\b[^>]*>(?:[\s\S]*?</script\s*>|[\s\S]*$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"<script\b[^>]*>[\s\S]*?</script>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex ScriptTagRegex();
 
-    [GeneratedRegex(@"<style\b[^>]*>(?:[\s\S]*?</style\s*>|[\s\S]*$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"<style\b[^>]*>[\s\S]*?</style>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex StyleTagRegex();
 
     [GeneratedRegex(@"<br\s*/?>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]

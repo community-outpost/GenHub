@@ -1,0 +1,235 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:GenHub.Features.Downloads.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="500"
+        x:Class="GenHub.Features.Downloads.Views.DependencyPreviewView"
+        x:DataType="vm:DependencyPreviewViewModel"
+        Title="Dependency Preview"
+        Width="600" Height="500"
+        MinWidth="500" MinHeight="400"
+        Icon="avares://GenHub/Assets/Icons/generalshub-icon.png"
+        SystemDecorations="Full"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        Background="{DynamicResource WindowBackground}"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True">
+
+    <Window.Styles>
+        <Style Selector="Grid.TitleBarArea">
+            <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
+            <Setter Property="Height" Value="40"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="40,*">
+        <!-- Title Bar -->
+        <Grid Grid.Row="0"
+              ColumnDefinitions="Auto,*,Auto,Auto,Auto"
+              Classes="TitleBarArea"
+              x:Name="TitleBarGrid"
+              PointerPressed="OnTitleBarPointerPressed">
+
+            <!-- App icon and title -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="12,0,0,0">
+                <Image Source="avares://GenHub/Assets/Icons/generalshub-icon.png"
+                       Width="24" Height="24" />
+                <TextBlock Text="Dependency Preview"
+                           VerticalAlignment="Center"
+                           FontSize="14" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimary}" />
+            </StackPanel>
+
+            <!-- Minimize Button -->
+            <Button Grid.Column="2"
+                    VerticalAlignment="Stretch"
+                    VerticalContentAlignment="Center"
+                    HorizontalContentAlignment="Center"
+                    Background="Transparent"
+                    Foreground="{DynamicResource TextSecondary}"
+                    BorderThickness="0"
+                    Padding="0"
+                    Width="46" Height="40"
+                    Click="MinimizeButton_Click">
+                <Path Data="M4,11H20V13H4Z"
+                      Fill="{Binding $parent[Button].Foreground}"
+                      Width="12" Height="12"
+                      Stretch="Uniform"
+                      VerticalAlignment="Center"
+                      HorizontalAlignment="Center"
+                      Margin="0,8,0,0" />
+                <Button.Styles>
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+
+            <!-- Maximize/Restore Button -->
+            <Button Grid.Column="3"
+                    VerticalAlignment="Stretch"
+                    VerticalContentAlignment="Center"
+                    HorizontalContentAlignment="Center"
+                    Background="Transparent"
+                    Foreground="{DynamicResource TextSecondary}"
+                    BorderThickness="0"
+                    Padding="0"
+                    Width="46" Height="40"
+                    Click="MaximizeButton_Click">
+                <Path x:Name="MaximizeIcon"
+                      Data="M4,4H20V20H4V4M6,8V18H18V8H6Z"
+                      Fill="{Binding $parent[Button].Foreground}"
+                      Width="12" Height="12"
+                      Stretch="Uniform"
+                      VerticalAlignment="Center"
+                      HorizontalAlignment="Center" />
+                <Button.Styles>
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+
+            <!-- Close Button -->
+            <Button Grid.Column="4"
+                    VerticalAlignment="Stretch"
+                    VerticalContentAlignment="Center"
+                    HorizontalContentAlignment="Center"
+                    Background="Transparent"
+                    Foreground="{DynamicResource TextSecondary}"
+                    BorderThickness="0"
+                    Padding="0"
+                    Width="46" Height="40"
+                    Click="CloseButton_Click">
+                <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                      Fill="{Binding $parent[Button].Foreground}"
+                      Width="12" Height="12"
+                      Stretch="Uniform"
+                      VerticalAlignment="Center"
+                      HorizontalAlignment="Center" />
+                <Button.Styles>
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
+                        <Setter Property="Foreground" Value="White"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </Grid>
+
+        <!-- Main Body -->
+        <Grid Grid.Row="1" RowDefinitions="Auto,*,Auto" Margin="24,16,24,24">
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,24">
+            <TextBlock Text="Review Dependencies" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+            <TextBlock Text="{Binding ContentName, StringFormat='Adding: {0}'}" FontSize="14" Foreground="{DynamicResource AccentBrush}"/>
+            <TextBlock Text="{Binding TotalDependencyCount, StringFormat='{}{0} dependencies will be enabled'}"
+                       FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
+        </StackPanel>
+
+        <!-- Content -->
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Spacing="16">
+                <!-- Resolved Dependencies Section -->
+                <StackPanel Spacing="12" IsVisible="{Binding !!ResolvedDependencies.Count}">
+                    <TextBlock Text="Dependencies to Add" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                    <TextBlock Text="The following content will be enabled in your profile:"
+                               FontSize="13" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,8"/>
+
+                    <ItemsControl ItemsSource="{Binding ResolvedDependencies}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                                    <Grid ColumnDefinitions="Auto,*">
+                                        <!-- Success Icon -->
+                                        <Border Grid.Column="0" Width="32" Height="32" CornerRadius="16"
+                                                Background="{DynamicResource SuccessBrush}" Margin="0,0,12,0">
+                                            <PathIcon Data="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"
+                                                      Width="16" Height="16" Foreground="White"/>
+                                        </Border>
+
+                                        <StackPanel Grid.Column="1" Spacing="4">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                            <TextBlock Text="{Binding Description}" FontSize="12" Foreground="{DynamicResource TextSecondary}"
+                                                       TextWrapping="Wrap" IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- Missing Dependencies Section -->
+                <StackPanel Spacing="12" IsVisible="{Binding HasMissingDependencies}">
+                    <TextBlock Text="Missing Dependencies" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource ErrorBrush}"/>
+                    <Border Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="⚠ Warning: Some required dependencies are missing"
+                                       FontWeight="SemiBold" Foreground="{DynamicResource ErrorBrush}"/>
+                            <TextBlock Text="The following dependencies are required but not available in your library. The content may not work correctly without them."
+                                       FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <ItemsControl ItemsSource="{Binding MissingDependencies}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1"
+                                        CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                                    <Grid ColumnDefinitions="Auto,*">
+                                        <!-- Error Icon -->
+                                        <Border Grid.Column="0" Width="32" Height="32" CornerRadius="16"
+                                                Background="{DynamicResource ErrorBrush}" Margin="0,0,12,0">
+                                            <PathIcon Data="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
+                                                      Width="16" Height="16" Foreground="White"/>
+                                        </Border>
+
+                                        <StackPanel Grid.Column="1" Spacing="4">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                            <TextBlock Text="{Binding Description}" FontSize="12" Foreground="{DynamicResource TextSecondary}"
+                                                       TextWrapping="Wrap" IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Accept Risk Checkbox -->
+                    <CheckBox IsChecked="{Binding UserAcceptedRisk}" Margin="0,8,0,0">
+                        <TextBlock Text="I understand the risks and want to proceed anyway"
+                                   Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                    </CheckBox>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="0,24,0,0">
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
+                <Button Content="Cancel"
+                        Command="{Binding CancelCommand}"
+                        Width="100" Height="36"
+                        Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        Foreground="{DynamicResource TextPrimary}"
+                        CornerRadius="6"/>
+
+                <Button Content="Proceed"
+                        Command="{Binding ProceedCommand}"
+                        Width="100" Height="36"
+                        Background="{DynamicResource AccentBrush}"
+                        Foreground="White"
+                        CornerRadius="6"
+                        IsEnabled="{Binding CanProceed}"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+    </Grid>
+</Window>

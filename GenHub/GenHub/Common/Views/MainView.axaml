@@ -146,8 +146,8 @@
         <DataTemplate DataType="profileVM:GameProfileLauncherViewModel">
             <profileViews:GameProfileLauncherView />
         </DataTemplate>
-        <DataTemplate DataType="downloadsVM:DownloadsViewModel">
-            <downloadsViews:DownloadsView />
+        <DataTemplate DataType="downloadsVM:DownloadsBrowserViewModel">
+            <downloadsViews:DownloadsBrowserView />
         </DataTemplate>
         <DataTemplate DataType="toolsVM:ToolsViewModel">
             <toolsViews:ToolsView />
