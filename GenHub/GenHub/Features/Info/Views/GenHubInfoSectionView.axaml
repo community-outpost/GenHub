@@ -24,6 +24,7 @@
       <Setter Property="FontWeight" Value="Bold"/>
       <Setter Property="Foreground" Value="white"/>
       <Setter Property="Margin" Value="0,0,0,8"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
 
     <!-- Info Card Styles - Modern Premium Glassmorphic Look -->
@@ -33,6 +34,7 @@
       <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="Padding" Value="24"/>
+      <Setter Property="ClipToBounds" Value="False"/>
       <Setter Property="BoxShadow" Value="0 4 16 0 #30000000"/>
       <Setter Property="Transitions">
         <Transitions>
@@ -46,6 +48,8 @@
     <Style Selector="Button.info-card-btn">
        <Setter Property="FocusAdorner" Value="{x:Null}"/>
        <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
+       <Setter Property="ClipToBounds" Value="False"/>
+       <Setter Property="Margin" Value="15,0,15,24"/>
        <Setter Property="Template">
          <ControlTemplate>
            <ContentPresenter Content="{TemplateBinding Content}"
@@ -99,7 +103,7 @@
         <Setter Property="Padding" Value="20,16"/>
         <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="Margin" Value="0,16,0,0"/>
+        <Setter Property="Margin" Value="15,16,15,0"/>
         <Setter Property="BoxShadow" Value="0 10 40 0 #80000000"/>
     </Style>
 
@@ -150,8 +154,8 @@
       <StackPanel Spacing="10" MaxWidth="1000" HorizontalAlignment="Stretch" ClipToBounds="False">
 
         <!-- Main Section Header -->
-        <StackPanel Margin="0,0,0,50">
-          <TextBlock Text="{Binding SelectedSection.Title}" Classes="section-header"/>
+        <StackPanel Margin="15,0,15,50">
+          <TextBlock Text="{Binding SelectedSection.Title}" Classes="section-header" TextWrapping="Wrap"/>
           <TextBlock Text="{Binding SelectedSection.Description}"
                      FontSize="18"
                      Foreground="#999999"
@@ -163,13 +167,13 @@
         <!-- ============================================== -->
         <Border IsVisible="{Binding IsGameProfilesSelected}" Margin="0,0,0,50">
           <StackPanel>
-             <StackPanel HorizontalAlignment="Left">
+             <StackPanel HorizontalAlignment="Left" Margin="15,0,15,0">
                 <TextBlock Text="Demo: Profile Card" Classes="demo-title"/>
                 <TextBlock Text="Basic interaction reference." Classes="demo-subtitle"/>
             </StackPanel>
 
             <Border Classes="demo-container">
-              <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
+              <Viewbox Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
                 <StackPanel HorizontalAlignment="Center" Spacing="20">
                     <!-- Scaled down profile card for better fit -->
                     <Viewbox Stretch="Uniform" MaxHeight="400">
@@ -192,11 +196,13 @@
                 <Binding Path="SelectedSection.Id" Converter="{x:Static ObjectConverters.Equal}" ConverterParameter="shortcuts"/>
              </Border.IsVisible>
              <StackPanel>
-                <TextBlock Text="Demo: Desktop Shortcuts" Classes="demo-title"/>
-                <TextBlock Text="Shortcut creation process." Classes="demo-subtitle"/>
+                <StackPanel HorizontalAlignment="Left" Margin="15,0,15,0">
+                    <TextBlock Text="Demo: Desktop Shortcuts" Classes="demo-title"/>
+                    <TextBlock Text="Shortcut creation process." Classes="demo-subtitle"/>
+                </StackPanel>
 
                 <Border Classes="demo-container">
-                  <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
+                  <Viewbox Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="40" VerticalAlignment="Center">
 
                          <!-- 1. The Source: Profile Card -->
@@ -247,10 +253,12 @@
                 <Binding Path="SelectedSection.Id" Converter="{x:Static ObjectConverters.Equal}" ConverterParameter="steam-integration"/>
              </Border.IsVisible>
              <StackPanel>
-                <TextBlock Text="Demo: Steam Status" Classes="demo-title"/>
-                <TextBlock Text="Visual indicator state." Classes="demo-subtitle"/>
+                <StackPanel HorizontalAlignment="Left" Margin="15,0,15,0">
+                    <TextBlock Text="Demo: Steam Status" Classes="demo-title"/>
+                    <TextBlock Text="Visual indicator state." Classes="demo-subtitle"/>
+                </StackPanel>
 
-                <Border Classes="demo-container" HorizontalAlignment="Center">
+                <Border Classes="demo-container">
                     <StackPanel HorizontalAlignment="Center" Spacing="20">
                         <TextBlock Text="Click the highlighted Steam icon to toggle integration."
                                    FontSize="13" Foreground="#666666" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
@@ -272,33 +280,29 @@
           <StackPanel Spacing="40">
             <!-- 1. Standard Update Mechanism -->
             <StackPanel Spacing="20">
-                <StackPanel Spacing="10">
+                <StackPanel Spacing="10" Margin="15,0,15,0">
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <material:MaterialIcon Kind="CloudDownload" Width="24" Height="24" Foreground="{StaticResource SystemAccentColorBrush}"/>
                         <TextBlock Text="Automatic Updates" Classes="demo-title" VerticalAlignment="Center"/>
                     </StackPanel>
                     <TextBlock Text="GenHub uses the Velopack engine for seamless background updates. Use this notification bar to manage official releases."
                                Classes="demo-subtitle"/>
-
-                    <!-- Detailed explanations (Standard Updates) -->
-                    <StackPanel Margin="0,12,0,0" Spacing="12">
-
-                        <Border Classes="demo-container" Margin="0,10,0,0">
-                          <StackPanel HorizontalAlignment="Center" Spacing="20">
-                            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Background="{DynamicResource CardBackground}" ClipToBounds="True" MaxWidth="600">
-                                <update:UpdateNotificationView DataContext="{Binding DemoUpdateNotification}"/>
-                            </Border>
-                            <TextBlock Text="Try clicking 'Browse Builds' to see experimental developer versions!"
-                                       FontSize="12" Foreground="#666" HorizontalAlignment="Center" FontStyle="Italic" TextWrapping="Wrap" TextAlignment="Center"/>
-                          </StackPanel>
-                        </Border>
-                    </StackPanel>
                 </StackPanel>
+
+                <Border Classes="demo-container">
+                  <StackPanel HorizontalAlignment="Center" Spacing="20">
+                    <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Background="{DynamicResource CardBackground}" ClipToBounds="True" MaxWidth="600">
+                        <update:UpdateNotificationView DataContext="{Binding DemoUpdateNotification}"/>
+                    </Border>
+                    <TextBlock Text="Try clicking 'Browse Builds' to see experimental developer versions!"
+                               FontSize="12" Foreground="#666" HorizontalAlignment="Center" FontStyle="Italic" TextWrapping="Wrap" TextAlignment="Center"/>
+                  </StackPanel>
+                </Border>
             </StackPanel>
 
             <!-- 2. GitHub PAT & CI Artifacts -->
             <StackPanel Spacing="20">
-                <StackPanel Spacing="10">
+                <StackPanel Spacing="10" Margin="15,0,15,0">
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <material:MaterialIcon Kind="Github" Width="24" Height="24" Foreground="{StaticResource SystemAccentColorBrush}"/>
                         <TextBlock Text="Advanced: CI Artifacts &amp; GitHub PAT" Classes="demo-title" VerticalAlignment="Center"/>
@@ -306,61 +310,54 @@
                     <TextBlock Text="Subscribe to pull requests or specific branches to test new features before they are merged."
                                Classes="demo-subtitle"/>
 
-                    <!-- Detailed explanations (PAT & CI) -->
-                    <StackPanel Margin="0,12,0,0" Spacing="15">
-                        <TextBlock Text="CI (Continuous Integration) Artifacts are automated builds created by GitHub for every code change. To access these protected resources, GenHub requires a Personal Access Token."
-                                   FontSize="13" Foreground="#AAAAAA" TextWrapping="Wrap" MaxWidth="1000"/>
-
-                        <Grid ColumnDefinitions="*, *">
-                             <!-- Explanations removed in favor of InfoCards -->
-                        </Grid>
-
-                        <Border Classes="demo-container" Margin="0,10,0,0">
-                            <Border Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="30" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" MaxWidth="600" HorizontalAlignment="Center">
-                                <StackPanel Spacing="20" DataContext="{Binding DemoGameSettingsVM}">
-                                     <StackPanel Orientation="Horizontal" Spacing="12">
-                                        <PathIcon Data="M7,14A2,2 0 0,1 5,12A2,2 0 0,1 7,10A2,2 0 0,1 9,12A2,2 0 0,1 7,14M12.65,10C11.83,7.67 9.61,6 7,6A6,6 0 0,0 1,12A6,6 0 0,0 7,18C9.61,18 11.83,16.33 12.65,14H17V18H21V14H23V10H12.65Z" Width="20" Height="20" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
-                                        <TextBlock Text="GitHub Personal Access Token"
-                                                   FontSize="18" FontWeight="SemiBold" Foreground="#FFFFFF" VerticalAlignment="Center" />
-                                     </StackPanel>
-
-                                     <!-- PAT Status -->
-                                     <Border Background="#25FFFFFF" CornerRadius="6" Padding="12,8" HorizontalAlignment="Left">
-                                         <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <Ellipse Width="10" Height="10" VerticalAlignment="Center" Fill="{Binding PatStatusColor}" />
-                                            <TextBlock Text="{Binding PatStatusMessage}" Foreground="#EEE" FontSize="13" FontWeight="Medium" />
-                                         </StackPanel>
-                                     </Border>
-
-                                     <!-- PAT Input -->
-                                     <StackPanel Spacing="8">
-                                         <Grid ColumnDefinitions="*,Auto">
-                                            <TextBox Grid.Column="0"
-                                                     Text="{Binding GitHubPatInput}"
-                                                     PasswordChar=""
-                                                     Watermark="ghp_xxxxxxxxxxxxxxxxxxxx"
-                                                     IsEnabled="True"
-                                                     FontSize="14"
-                                                     Height="40"
-                                                     Margin="0,0,12,0"/>
-                                            <Button Grid.Column="1"
-                                                    Content="Save &amp; Test"
-                                                    Command="{Binding TestPatCommand}"
-                                                    Background="{StaticResource SystemAccentColorBrush}"
-                                                    Foreground="White"
-                                                    Padding="20,0"
-                                                    Height="40"
-                                                    FontWeight="SemiBold"
-                                                    CornerRadius="4" />
-                                         </Grid>
-                                         <TextBlock Text="Try entering 'ghp_demo' and clicking Save &amp; Test to see the validation in action!"
-                                                   FontSize="11" Foreground="#666" HorizontalAlignment="Left" Margin="2,0,0,0" TextWrapping="Wrap" />
-                                     </StackPanel>
-                                </StackPanel>
-                            </Border>
-                        </Border>
-                    </StackPanel>
+                    <TextBlock Text="CI (Continuous Integration) Artifacts are automated builds created by GitHub for every code change. To access these protected resources, GenHub requires a Personal Access Token."
+                               FontSize="13" Foreground="#AAAAAA" TextWrapping="Wrap" MaxWidth="1000" Margin="0,12,0,0"/>
                 </StackPanel>
+
+                <Border Classes="demo-container">
+                    <Border Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="30" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" MaxWidth="600" HorizontalAlignment="Center">
+                        <StackPanel Spacing="20" DataContext="{Binding DemoGameSettingsVM}">
+                             <StackPanel Orientation="Horizontal" Spacing="12">
+                                <PathIcon Data="M7,14A2,2 0 0,1 5,12A2,2 0 0,1 7,10A2,2 0 0,1 9,12A2,2 0 0,1 7,14M12.65,10C11.83,7.67 9.61,6 7,6A6,6 0 0,0 1,12A6,6 0 0,0 7,18C9.61,18 11.83,16.33 12.65,14H17V18H21V14H23V10H12.65Z" Width="20" Height="20" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
+                                <TextBlock Text="GitHub Personal Access Token"
+                                           FontSize="18" FontWeight="SemiBold" Foreground="#FFFFFF" VerticalAlignment="Center" />
+                             </StackPanel>
+
+                             <!-- PAT Status -->
+                             <Border Background="#25FFFFFF" CornerRadius="6" Padding="12,8" HorizontalAlignment="Left">
+                                 <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Ellipse Width="10" Height="10" VerticalAlignment="Center" Fill="{Binding PatStatusColor}" />
+                                    <TextBlock Text="{Binding PatStatusMessage}" Foreground="#EEE" FontSize="13" FontWeight="Medium" />
+                                 </StackPanel>
+                             </Border>
+
+                             <!-- PAT Input -->
+                             <StackPanel Spacing="8">
+                                 <Grid ColumnDefinitions="*,Auto">
+                                    <TextBox Grid.Column="0"
+                                             Text="{Binding GitHubPatInput}"
+                                             PasswordChar=""
+                                             Watermark="ghp_xxxxxxxxxxxxxxxxxxxx"
+                                             IsEnabled="True"
+                                             FontSize="14"
+                                             Height="40"
+                                             Margin="0,0,12,0"/>
+                                    <Button Grid.Column="1"
+                                            Content="Save &amp; Test"
+                                            Command="{Binding TestPatCommand}"
+                                            Background="{StaticResource SystemAccentColorBrush}"
+                                            Foreground="White"
+                                            Padding="20,0"
+                                            Height="40"
+                                            FontWeight="SemiBold"
+                                            CornerRadius="4" />
+                                 </Grid>
+                                 <TextBlock Text="Try entering 'ghp_demo' and clicking Save &amp; Test to see the validation in action!"
+                                           FontSize="11" Foreground="#666" HorizontalAlignment="Left" Margin="2,0,0,0" TextWrapping="Wrap" />
+                             </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </Border>
             </StackPanel>
           </StackPanel>
         </Border>
@@ -370,14 +367,9 @@
         <!-- ============================================== -->
         <Border IsVisible="{Binding IsGameSettingsSelected}" Margin="0,0,0,50">
           <StackPanel>
-             <StackPanel HorizontalAlignment="Left" Spacing="8">
+             <StackPanel HorizontalAlignment="Left" Spacing="8" Margin="15,0,15,0">
                 <TextBlock Text="Demo: Options.ini Configuration" Classes="demo-title"/>
                 <TextBlock Text="Modifying profile-specific game settings." Classes="demo-subtitle"/>
-
-                <!-- Detailed explanations REMOVED to avoid duplication with InfoCards -->
-                <StackPanel Margin="0,12,0,0" Spacing="20" MaxWidth="1000">
-                </StackPanel>
-
             </StackPanel>
 
             <Border Classes="demo-container">
@@ -386,7 +378,7 @@
                              FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"
                              TextWrapping="Wrap" TextAlignment="Center"/>
 
-                  <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
+                  <Viewbox Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
                     <Grid HorizontalAlignment="Center">
                       <Grid.ColumnDefinitions>
                           <ColumnDefinition Width="800" MinWidth="400" />
@@ -438,7 +430,7 @@
                     </Grid>
                   </Viewbox>
 
-                  <TextBlock Text="Try adjusting the resolution or enabling experimental features in the Game Settings tab!"
+                  <TextBlock Text="Try toggling custom resolution or clicking the browse buttons!"
                              FontSize="13" Foreground="#666" HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="700" TextWrapping="Wrap"/>
                </StackPanel>
             </Border>
@@ -446,11 +438,11 @@
         </Border>
 
         <!-- ============================================== -->
-        <!-- DEMO: GAME PROFILE CONTENT                     -->
+        <!-- DEMO: CONTENT SELECTION                        -->
         <!-- ============================================== -->
         <Border IsVisible="{Binding IsGameProfileContentSelected}" Margin="0,0,0,50">
           <StackPanel Spacing="20">
-             <StackPanel HorizontalAlignment="Left" Spacing="8">
+             <StackPanel HorizontalAlignment="Left" Spacing="8" Margin="15,0,15,0">
                 <TextBlock Text="Demo: Content Selection" Classes="demo-title"/>
                 <TextBlock Text="Assigning Mods and Maps to a profile." Classes="demo-subtitle"/>
 
@@ -458,9 +450,6 @@
                 <StackPanel Margin="0,12,0,0" Spacing="6">
                     <TextBlock Text="The Content Editor is where you construct the 'Playlist' of content for a specific profile."
                                FontSize="13" Foreground="#AAAAAA" TextWrapping="Wrap" MaxWidth="900"/>
-
-                <!-- Content Types Explained Table REMOVED (Redundant) -->
-
                 </StackPanel>
             </StackPanel>
 
@@ -470,7 +459,7 @@
                              FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"
                              TextWrapping="Wrap" TextAlignment="Center"/>
 
-                  <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
+                  <Viewbox Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
                     <Grid HorizontalAlignment="Center">
                       <Grid.ColumnDefinitions>
                           <ColumnDefinition Width="800" MinWidth="400" />
@@ -538,15 +527,15 @@
                 <!-- 1. REPLAY MANAGER -->
                 <StackPanel Spacing="40">
                     <!-- Header -->
-                    <StackPanel HorizontalAlignment="Left" Spacing="8">
+                    <StackPanel HorizontalAlignment="Left" Spacing="8" Margin="15,0,15,0">
                         <TextBlock Text="Replay Manager" Classes="demo-title"/>
                         <TextBlock Text="Manage local replay files." Classes="demo-subtitle"/>
                     </StackPanel>
 
                     <!-- Interactive Demo -->
                     <Border Classes="demo-container">
-                        <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
-                            <Grid Width="800" MaxHeight="600" HorizontalAlignment="Center">
+                        <Viewbox Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
+                            <Grid Width="800" Height="550" HorizontalAlignment="Center">
                                 <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
                                     <toolsRep:ReplayManagerView DataContext="{Binding DemoReplayManager}"/>
                                 </Border>
@@ -558,15 +547,15 @@
                 <!-- 2. MAP MANAGER -->
                 <StackPanel Spacing="40">
                     <!-- Header -->
-                    <StackPanel HorizontalAlignment="Left" Spacing="8">
+                    <StackPanel HorizontalAlignment="Left" Spacing="8" Margin="15,0,15,0">
                         <TextBlock Text="Map Manager" Classes="demo-title"/>
                         <TextBlock Text="Manage map directories." Classes="demo-subtitle"/>
                     </StackPanel>
 
                     <!-- Interactive Demo -->
                     <Border Classes="demo-container">
-                        <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
-                            <Grid Width="800" MaxHeight="600" HorizontalAlignment="Center">
+                        <Viewbox Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
+                            <Grid Width="800" Height="550" HorizontalAlignment="Center">
                                 <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
                                     <toolsMap:MapManagerView DataContext="{Binding DemoMapManager}"/>
                                 </Border>
@@ -583,14 +572,14 @@
         <!-- ============================================== -->
         <Border IsVisible="{Binding IsScanForGamesSelected}" Margin="0,0,0,50">
           <StackPanel>
-            <StackPanel HorizontalAlignment="Left">
+            <StackPanel HorizontalAlignment="Left" Margin="15,0,15,0">
                 <TextBlock Text="Scan Wizard" Classes="demo-title"/>
                 <TextBlock Text="Automatic detection and library management." Classes="demo-subtitle"/>
             </StackPanel>
 
             <Border Classes="demo-container">
-               <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="700">
-                  <views:ScanWizardDemoView DataContext="{Binding DemoScanWizard}" Width="700" />
+               <Viewbox Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="700">
+                  <views:ScanWizardDemoView DataContext="{Binding DemoScanWizard}" Width="700" Height="450"/>
                </Viewbox>
             </Border>
           </StackPanel>
@@ -601,7 +590,7 @@
         <!-- ============================================== -->
         <Border IsVisible="{Binding IsLocalContentSelected}" Margin="0,0,0,50">
              <StackPanel Spacing="20">
-                <StackPanel HorizontalAlignment="Left" Spacing="8">
+                <StackPanel HorizontalAlignment="Left" Spacing="8" Margin="15,0,15,0">
                     <TextBlock Text="Content Import" Classes="demo-title"/>
                     <TextBlock Text="Add external files for profile usage." Classes="demo-subtitle"/>
 
@@ -613,7 +602,7 @@
                 <!-- Expanded demo container with proper width -->
                 <Border Classes="demo-container">
                    <!-- Use Viewbox to scale content while maintaining aspect ratio -->
-                   <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
+                   <Viewbox Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
                        <!-- SIMULATED WINDOW FRAME -->
                        <Panel Width="800" Height="600">
                             <!-- Acrylic Tint Layer Simulation -->
@@ -671,14 +660,14 @@
         <!-- ============================================== -->
         <Border IsVisible="{Binding IsWorkspaceSelected}" Margin="0,0,0,50">
           <StackPanel>
-            <StackPanel HorizontalAlignment="Left">
+            <StackPanel HorizontalAlignment="Left" Margin="15,0,15,0">
                 <TextBlock Text="Workspace Simulator" Classes="demo-title"/>
                 <TextBlock Text="Visualizes virtual file system construction via symlinks." Classes="demo-subtitle"/>
             </StackPanel>
 
             <Border Classes="demo-container">
-               <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
-                  <views:WorkspaceDemoView DataContext="{Binding DemoWorkspace}" Width="800" />
+               <Viewbox Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
+                  <views:WorkspaceDemoView DataContext="{Binding DemoWorkspace}" Width="800" Height="500"/>
                </Viewbox>
             </Border>
           </StackPanel>
@@ -691,10 +680,11 @@
         <!-- Standard Layout (Single Column) -->
         <ItemsControl ItemsSource="{Binding SelectedSection.Cards}"
                       IsVisible="{Binding !IsFaqSelected}"
-                      Padding="0,0,0,20">
+                      Padding="0,0,0,20"
+                      ClipToBounds="False">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-              <StackPanel Spacing="0"/>
+              <StackPanel Spacing="0" ClipToBounds="False"/>
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
@@ -704,7 +694,8 @@
                       Background="Transparent" BorderThickness="0" Padding="0"
                       HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                       HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
-                      Margin="0,0,0,24"
+                      Margin="15,0,15,24"
+                      ClipToBounds="False"
                       Classes="info-card-btn">
                 <Border Classes="info-card">
                   <Grid RowDefinitions="Auto, Auto">
@@ -742,7 +733,7 @@
                               BorderBrush="#333"
                               BorderThickness="1"
                               CornerRadius="8"
-                              Padding="24"
+                              Padding="20"
                               Margin="0,0,0,24">
                         <StackPanel>
                             <TextBlock Text="DETAILED GUIDE" FontSize="11" FontWeight="Bold" Foreground="#888" Margin="0,0,0,12"/>
@@ -781,12 +772,12 @@
         </ItemsControl>
 
         <!-- FAQ Layout (Independent Columns for Staggered/Masonry Look) -->
-        <Grid IsVisible="{Binding IsFaqSelected}" ColumnDefinitions="*, *" Margin="0,0,0,20">
+        <Grid IsVisible="{Binding IsFaqSelected}" ColumnDefinitions="*, *" Margin="0,0,0,20" ClipToBounds="False">
             <!-- Left Column -->
-            <ItemsControl Grid.Column="0" ItemsSource="{Binding FaqCardsLeft}">
+            <ItemsControl Grid.Column="0" ItemsSource="{Binding FaqCardsLeft}" ClipToBounds="False">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <StackPanel Spacing="0" VerticalAlignment="Top"/>
+                        <StackPanel Spacing="0" VerticalAlignment="Top" ClipToBounds="False"/>
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
@@ -796,7 +787,8 @@
                               HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                               HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
                               Classes="info-card-btn"
-                              Margin="12,0,6,24">
+                              Margin="15,0,8,24"
+                              ClipToBounds="False">
                         <Border Classes="info-card">
                             <StackPanel>
                                 <!-- Header (Unified structure) -->
@@ -823,10 +815,10 @@
             </ItemsControl>
 
             <!-- Right Column -->
-            <ItemsControl Grid.Column="1" ItemsSource="{Binding FaqCardsRight}">
+            <ItemsControl Grid.Column="1" ItemsSource="{Binding FaqCardsRight}" ClipToBounds="False">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <StackPanel Spacing="0" VerticalAlignment="Top"/>
+                        <StackPanel Spacing="0" VerticalAlignment="Top" ClipToBounds="False"/>
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
@@ -836,7 +828,8 @@
                               HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                               HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
                               Classes="info-card-btn"
-                              Margin="6,0,12,24">
+                              Margin="8,0,15,24"
+                              ClipToBounds="False">
                         <Border Classes="info-card">
                             <StackPanel>
                                 <!-- Header (Unified structure) -->

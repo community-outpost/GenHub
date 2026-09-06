@@ -159,10 +159,10 @@
                             <TextBox Text="{Binding SourcePath}" IsReadOnly="True" Watermark="No content selected" Classes="glass" Margin="0,0,6,0"/>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
                                 <Button Command="{Binding BrowseFolderCommand}" ToolTip.Tip="Browse Folder" Classes="icon-btn">
-                                    <material:MaterialIcon Kind="FolderOpenOutline" Width="16" Height="16"/>
+                                    <PathIcon Data="{StaticResource ToolIcon.FolderOpenOutline}" Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
                                 </Button>
                                 <Button Command="{Binding BrowseFileCommand}" ToolTip.Tip="Browse Files" Classes="icon-btn">
-                                    <material:MaterialIcon Kind="PackageVariantClosed" Width="16" Height="16"/>
+                                    <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}" Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
                                 </Button>
                             </StackPanel>
                         </Grid>
