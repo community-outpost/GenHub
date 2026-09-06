@@ -173,7 +173,7 @@
             </StackPanel>
 
             <Border Classes="demo-container">
-              <Viewbox Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
+              <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
                 <StackPanel HorizontalAlignment="Center" Spacing="20">
                     <!-- Scaled down profile card for better fit -->
                     <Viewbox Stretch="Uniform" MaxHeight="400">
@@ -202,7 +202,7 @@
                 </StackPanel>
 
                 <Border Classes="demo-container">
-                  <Viewbox Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
+                  <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="40" VerticalAlignment="Center">
 
                          <!-- 1. The Source: Profile Card -->
@@ -378,7 +378,7 @@
                              FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"
                              TextWrapping="Wrap" TextAlignment="Center"/>
 
-                  <Viewbox Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
+                  <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
                     <Grid HorizontalAlignment="Center">
                       <Grid.ColumnDefinitions>
                           <ColumnDefinition Width="800" MinWidth="400" />
@@ -459,7 +459,7 @@
                              FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"
                              TextWrapping="Wrap" TextAlignment="Center"/>
 
-                  <Viewbox Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
+                  <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
                     <Grid HorizontalAlignment="Center">
                       <Grid.ColumnDefinitions>
                           <ColumnDefinition Width="800" MinWidth="400" />
@@ -534,7 +534,7 @@
 
                     <!-- Interactive Demo -->
                     <Border Classes="demo-container">
-                        <Viewbox Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
+                        <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
                             <Grid Width="800" Height="550" HorizontalAlignment="Center">
                                 <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
                                     <toolsRep:ReplayManagerView DataContext="{Binding DemoReplayManager}"/>
@@ -554,7 +554,7 @@
 
                     <!-- Interactive Demo -->
                     <Border Classes="demo-container">
-                        <Viewbox Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
+                        <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
                             <Grid Width="800" Height="550" HorizontalAlignment="Center">
                                 <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
                                     <toolsMap:MapManagerView DataContext="{Binding DemoMapManager}"/>
@@ -578,7 +578,7 @@
             </StackPanel>
 
             <Border Classes="demo-container">
-               <Viewbox Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="700">
+               <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="700">
                   <views:ScanWizardDemoView DataContext="{Binding DemoScanWizard}" Width="700" Height="450"/>
                </Viewbox>
             </Border>
@@ -602,7 +602,7 @@
                 <!-- Expanded demo container with proper width -->
                 <Border Classes="demo-container">
                    <!-- Use Viewbox to scale content while maintaining aspect ratio -->
-                   <Viewbox Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
+                   <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
                        <!-- SIMULATED WINDOW FRAME -->
                        <Panel Width="800" Height="600">
                             <!-- Acrylic Tint Layer Simulation -->
@@ -666,7 +666,7 @@
             </StackPanel>
 
             <Border Classes="demo-container">
-               <Viewbox Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
+               <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
                   <views:WorkspaceDemoView DataContext="{Binding DemoWorkspace}" Width="800" Height="500"/>
                </Viewbox>
             </Border>
