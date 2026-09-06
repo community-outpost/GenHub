@@ -20,8 +20,9 @@ public class DependencyResolver(
     IContentManifestPool manifestPool,
     ILogger<DependencyResolver> logger) : IDependencyResolver
 {
-    private readonly IContentManifestPool _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
-    private readonly ILogger<DependencyResolver> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    private const string GameDataName = "gamedata";
+    private const string ZeroHourName = "zerohour";
+    private const string GameClientType = "gameclient";
 
     /// <summary>
     /// Matches a declared catalog ID to an acquired manifest ID allowing version and variant differences.
@@ -68,25 +69,19 @@ public class DependencyResolver(
             return false;
         }
 
-        var isAnyPublisher = declaredParts[2].Equals(ManifestConstants.AnyPublisherToken, StringComparison.OrdinalIgnoreCase);
-        if (!isAnyPublisher && !declaredParts[2].Equals(acquiredParts[2], StringComparison.OrdinalIgnoreCase))
+        if (!IsPublisherCompatible(declaredParts[2], acquiredParts[2]))
         {
             return false;
         }
 
-        if (!declaredParts[3].Equals(acquiredParts[3], StringComparison.OrdinalIgnoreCase))
+        var declaredType = declaredParts[3];
+        var acquiredType = acquiredParts[3];
+        if (!IsContentTypeCompatible(declaredType, acquiredType))
         {
             return false;
         }
 
-        var declaredName = declaredParts[4];
-        var acquiredName = acquiredParts[4];
-        if (declaredName.Equals(acquiredName, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return acquiredName.StartsWith(declaredName + ManifestConstants.VariantSeparator, StringComparison.OrdinalIgnoreCase);
+        return IsContentNameCompatible(declaredParts[4], acquiredParts[4], declaredType, acquiredType);
     }
 
     /// <inheritdoc/>
@@ -103,55 +98,43 @@ public class DependencyResolver(
             if (!visited.Add(contentId))
                 continue;
 
-            resolvedIds.Add(contentId);
-
-            try
+            var manifest = await FindManifestInPoolAsync(contentId, cancellationToken);
+            if (manifest != null)
             {
-                var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(contentId), cancellationToken);
-                if (manifestResult.Success && manifestResult.Data != null)
+                resolvedIds.Add(manifest.Id.Value);
+
+                if (manifest.Dependencies != null)
                 {
-                    var manifest = manifestResult.Data;
-                    if (manifest.Dependencies != null)
+                    var relevantDeps = manifest.Dependencies.Where(d => d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall);
+                    foreach (var dep in relevantDeps)
                     {
-                        var relevantDeps = manifest.Dependencies.Where(d => d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall);
-                        foreach (var dep in relevantDeps)
+                        // Skip default/placeholder IDs - these are generic type-based constraints validated separately
+                        if (dep.Id.ToString() == ManifestConstants.DefaultContentDependencyId)
                         {
-                            // Skip default/placeholder IDs - these are generic type-based constraints validated separately
-                            if (dep.Id.ToString() == ManifestConstants.DefaultContentDependencyId)
-                            {
-                                _logger.LogDebug("Skipping generic dependency {DependencyName} (type-based constraint, not specific manifest)", dep.Name);
-                                continue;
-                            }
+                            logger.LogDebug("Skipping generic dependency {DependencyName} (type-based constraint, not specific manifest)", dep.Name);
+                            continue;
+                        }
 
-                            // Skip type-based dependencies (StrictPublisher = false means any matching type will satisfy)
-                            // These use semantic IDs like "1.104.any.gameinstallation.zerohour" and are validated separately
-                            if (!dep.StrictPublisher)
-                            {
-                                _logger.LogDebug("Skipping type-based dependency {DependencyName} (StrictPublisher=false, validated by type matching)", dep.Name);
-                                continue;
-                            }
+                        // Skip type-based dependencies (StrictPublisher = false means any matching type will satisfy)
+                        // These use semantic IDs like "1.104.any.gameinstallation.zerohour" and are validated separately
+                        if (!dep.StrictPublisher)
+                        {
+                            logger.LogDebug("Skipping type-based dependency {DependencyName} (StrictPublisher=false, validated by type matching)", dep.Name);
+                            continue;
+                        }
 
-                            // TODO: AutoInstall dependencies are resolved here but not automatically installed.
-                            // Future PR should implement IAutoInstallService to acquire missing AutoInstall content.
-                            if (!resolvedIds.Contains(dep.Id))
-                            {
-                                toProcess.Enqueue(dep.Id);
-                            }
+                        // AutoInstall dependencies are resolved here but not automatically installed.
+                        // Future work should implement IAutoInstallService to acquire missing AutoInstall content.
+                        if (!resolvedIds.Contains(dep.Id.Value))
+                        {
+                            toProcess.Enqueue(dep.Id.Value);
                         }
                     }
                 }
-                else
-                {
-                    // Manifest not found - log and collect missing IDs
-                    missingContentIds.Add(contentId);
-                    _logger.LogWarning("Manifest not found for content ID: {ContentId}", contentId);
-                }
             }
-            catch (ArgumentException ex)
+            else
             {
-                // Invalid ID - log and collect as missing
                 missingContentIds.Add(contentId);
-                _logger.LogWarning(ex, "Invalid manifest ID during dependency resolution: {ContentId}", contentId);
             }
         }
 
@@ -183,7 +166,7 @@ public class DependencyResolver(
             {
                 var circularWarning = $"Circular dependency detected: '{contentId}' is already in the resolution path";
                 warnings.Add(circularWarning);
-                _logger.LogWarning("Circular dependency detected: {ContentId} is already in the resolution path", contentId);
+                logger.LogWarning("Circular dependency detected: {ContentId} is already in the resolution path", contentId);
                 continue;
             }
 
@@ -191,14 +174,13 @@ public class DependencyResolver(
                 continue;
 
             processingStack.Add(contentId);
-            resolvedIds.Add(contentId);
 
             try
             {
-                var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(contentId), cancellationToken);
-                if (manifestResult.Success && manifestResult.Data != null)
+                var manifest = await FindManifestInPoolAsync(contentId, cancellationToken);
+                if (manifest != null)
                 {
-                    var manifest = manifestResult.Data;
+                    resolvedIds.Add(manifest.Id.Value);
                     resolvedManifests.Add(manifest);
 
                     if (manifest.Dependencies != null)
@@ -209,7 +191,7 @@ public class DependencyResolver(
                             // Skip default/placeholder IDs - these are generic type-based constraints validated separately
                             if (dep.Id.ToString() == ManifestConstants.DefaultContentDependencyId)
                             {
-                                _logger.LogDebug("Skipping generic dependency {DependencyName} (type-based constraint, not specific manifest)", dep.Name);
+                                logger.LogDebug("Skipping generic dependency {DependencyName} (type-based constraint, not specific manifest)", dep.Name);
                                 continue;
                             }
 
@@ -217,29 +199,21 @@ public class DependencyResolver(
                             // These use semantic IDs like "1.104.any.gameinstallation.zerohour" and are validated separately
                             if (!dep.StrictPublisher)
                             {
-                                _logger.LogDebug("Skipping type-based dependency {DependencyName} (StrictPublisher=false, validated by type matching)", dep.Name);
+                                logger.LogDebug("Skipping type-based dependency {DependencyName} (StrictPublisher=false, validated by type matching)", dep.Name);
                                 continue;
                             }
 
-                            if (!resolvedIds.Contains(dep.Id))
+                            if (!resolvedIds.Contains(dep.Id.Value))
                             {
-                                toProcess.Enqueue(dep.Id);
+                                toProcess.Enqueue(dep.Id.Value);
                             }
                         }
                     }
                 }
                 else
                 {
-                    // Manifest not found
                     missingContentIds.Add(contentId);
-                    _logger.LogWarning("Manifest not found for content ID: {ContentId}", contentId);
                 }
-            }
-            catch (ArgumentException ex)
-            {
-                // Invalid ID
-                missingContentIds.Add(contentId);
-                _logger.LogWarning(ex, "Invalid manifest ID during dependency resolution: {ContentId}", contentId);
             }
             finally
             {
@@ -258,5 +232,173 @@ public class DependencyResolver(
         }
 
         return DependencyResolutionResult.CreateSuccess([..resolvedIds], resolvedManifests, missingContentIds);
+    }
+
+    private static bool IsPublisherCompatible(string declaredPublisher, string acquiredPublisher) =>
+        declaredPublisher.Equals(ManifestConstants.AnyPublisherToken, StringComparison.OrdinalIgnoreCase) ||
+        declaredPublisher.Equals(acquiredPublisher, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsContentTypeCompatible(string declaredType, string acquiredType) =>
+        declaredType.Equals(acquiredType, StringComparison.OrdinalIgnoreCase) ||
+        (IsPatchOrGameData(declaredType) && IsPatchOrGameData(acquiredType));
+
+    private static bool IsContentNameCompatible(
+        string declaredName,
+        string acquiredName,
+        string declaredType,
+        string acquiredType)
+    {
+        if (declaredName.Equals(acquiredName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (acquiredName.StartsWith(declaredName + ManifestConstants.VariantSeparator, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (declaredType.Equals(GameClientType, StringComparison.OrdinalIgnoreCase) &&
+            acquiredType.Equals(GameClientType, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (IsPatchOrGameData(declaredType) && IsPatchOrGameDataName(declaredName) && IsPatchOrGameDataName(acquiredName))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsPatchOrGameDataName(string name) =>
+        name.Equals(ZeroHourName, StringComparison.OrdinalIgnoreCase) ||
+        name.Equals(GameDataName, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsPatchOrGameData(string typeOrName) =>
+        typeOrName.Equals("patch", StringComparison.OrdinalIgnoreCase) ||
+        typeOrName.Equals(GameDataName, StringComparison.OrdinalIgnoreCase);
+
+    private static bool MatchesContentKeyword(string contentId, ContentManifest manifest)
+    {
+        if (contentId.Contains(GameDataName, StringComparison.OrdinalIgnoreCase) &&
+            (manifest.Id.Value.Contains(GameDataName, StringComparison.OrdinalIgnoreCase) ||
+             manifest.Name.Contains("Game Data", StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        if ((contentId.Contains("quickmatchmaps", StringComparison.OrdinalIgnoreCase) ||
+             contentId.Contains("mappack", StringComparison.OrdinalIgnoreCase)) &&
+            (manifest.ContentType == ContentType.MapPack ||
+             manifest.Id.Value.Contains("mappack", StringComparison.OrdinalIgnoreCase) ||
+             manifest.Id.Value.Contains("quickmatchmaps", StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        if ((contentId.Contains("60hz", StringComparison.OrdinalIgnoreCase) ||
+             (contentId.Contains(GameClientType, StringComparison.OrdinalIgnoreCase) &&
+              !contentId.Contains(GameDataName, StringComparison.OrdinalIgnoreCase) &&
+              !contentId.Contains("mappack", StringComparison.OrdinalIgnoreCase))) &&
+            manifest.ContentType == ContentType.GameClient)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private async Task<ContentManifest?> FindManifestInPoolAsync(string contentId, CancellationToken cancellationToken)
+    {
+        // 1. Try exact match first
+        try
+        {
+            var exactResult = await manifestPool.GetManifestAsync(ManifestId.Create(contentId), cancellationToken);
+            if (exactResult.Success && exactResult.Data != null)
+            {
+                return exactResult.Data;
+            }
+        }
+        catch (ArgumentException)
+        {
+            // Invalid manifest ID format for exact match - continue to fallback search
+        }
+
+        // 2. Fallback: Search all pooled manifests for a compatible catalog match
+        var allResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
+        if (!allResult.Success || allResult.Data == null)
+        {
+            logger.LogWarning(
+                "[DependencyResolver] Manifest not found for content ID '{ContentId}' and manifest pool is empty or failed to load.",
+                contentId);
+            return null;
+        }
+
+        var poolList = allResult.Data.ToList();
+        return FindCompatiblePooledManifest(contentId, poolList);
+    }
+
+    private ContentManifest? FindCompatiblePooledManifest(string contentId, IReadOnlyList<ContentManifest> poolList)
+    {
+        // First pass: try HasCompatibleCatalogIdentity
+        var compatible = poolList.FirstOrDefault(m => HasCompatibleCatalogIdentity(contentId, m.Id.Value));
+        if (compatible != null)
+        {
+            logger.LogInformation(
+                "[DependencyResolver] Resolved manifest ID '{DeclaredId}' to compatible pooled manifest '{ResolvedId}' ({ManifestName})",
+                contentId,
+                compatible.Id.Value,
+                compatible.Name);
+            return compatible;
+        }
+
+        // Second pass: if contentId has publisher info, look for best matching manifest from that publisher
+        var publisherMatched = FindManifestByPublisherMatch(contentId, poolList);
+        if (publisherMatched != null)
+        {
+            return publisherMatched;
+        }
+
+        logger.LogWarning(
+            "[DependencyResolver] Manifest not found for content ID '{ContentId}'. Pool contains {Count} manifests: [{AvailableManifests}]",
+            contentId,
+            poolList.Count,
+            string.Join(", ", poolList.Select(m => $"{m.Id.Value} ({m.Name})")));
+        return null;
+    }
+
+    private ContentManifest? FindManifestByPublisherMatch(string contentId, IReadOnlyList<ContentManifest> poolList)
+    {
+        var parts = contentId.Split('.');
+        if (parts.Length < 3)
+        {
+            return null;
+        }
+
+        var publisher = parts[2];
+        var publisherManifests = poolList
+            .Where(m => string.Equals(m.Publisher?.PublisherType, publisher, StringComparison.OrdinalIgnoreCase) ||
+                        m.Id.Value.Contains($".{publisher}.", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (publisherManifests.Count == 0)
+        {
+            return null;
+        }
+
+        var matched = publisherManifests.FirstOrDefault(m => MatchesContentKeyword(contentId, m));
+        if (matched != null)
+        {
+            logger.LogInformation(
+                "[DependencyResolver] Resolved manifest ID '{DeclaredId}' by publisher/variant match to pooled manifest '{ResolvedId}' ({ManifestName})",
+                contentId,
+                matched.Id.Value,
+                matched.Name);
+            return matched;
+        }
+
+        return null;
     }
 }

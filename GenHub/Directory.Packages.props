@@ -13,6 +13,7 @@
     <PackageVersion Include="Avalonia.Fonts.Inter" Version="11.2.7" />
     <PackageVersion Include="Avalonia.Controls.DataGrid" Version="11.2.7" />
     <PackageVersion Include="Avalonia.Diagnostics" Version="11.2.7" />
+    <PackageVersion Include="Avalonia.Headless.XUnit" Version="11.2.7" />
     <PackageVersion Include="BCnEncoder.Net" Version="2.3.0" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.13.12" />
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.2.1" />

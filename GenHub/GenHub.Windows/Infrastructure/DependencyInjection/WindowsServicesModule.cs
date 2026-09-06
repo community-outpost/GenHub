@@ -1,13 +1,17 @@
-using System;
-using System.Runtime.Versioning;
+using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Features.GameSettings;
 using GenHub.Features.Workspace;
+using GenHub.Windows.Features.ActionSets;
+using GenHub.Windows.Features.ActionSets.Fixes;
+using GenHub.Windows.Features.ActionSets.Infrastructure;
+using GenHub.Windows.Features.ActionSets.UI;
 using GenHub.Windows.Features.GitHub.Services;
 using GenHub.Windows.Features.Shortcuts;
 using GenHub.Windows.Features.Workspace;
@@ -29,6 +33,10 @@ public static class WindowsServicesModule
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddWindowsServices(this IServiceCollection services)
     {
+        // Add HttpClient for patches that download content
+        services.AddHttpClient();
+        services.AddHttpClient("Downloader");
+
         // Register Windows-specific services
         services.AddSingleton<IGameInstallationDetector, WindowsInstallationDetector>();
         services.AddSingleton<IGamePathProvider, WindowsGamePathProvider>();
@@ -44,6 +52,57 @@ public static class WindowsServicesModule
             var logger = serviceProvider.GetRequiredService<ILogger<WindowsFileOperationsService>>();
             return new WindowsFileOperationsService(baseService, casService, logger);
         });
+
+        // Register ActionSet Infrastructure
+        services.AddSingleton<IRegistryService, RegistryService>();
+        services.AddSingleton<IActionSetOrchestrator, ActionSetOrchestrator>();
+
+        // Register ActionSets
+        services.AddSingleton<IActionSet, BrowserEngineFix>();
+        services.AddSingleton<IActionSet, DbgHelpFix>();
+        services.AddSingleton<IActionSet, EAAppRegistryFix>();
+        services.AddSingleton<IActionSet, MyDocumentsPathCompatibility>();
+        services.AddSingleton<IActionSet, VCRedist2005Fix>();
+        services.AddSingleton<IActionSet, VCRedist2008Fix>();
+        services.AddSingleton<IActionSet, VCRedist2010Fix>();
+        services.AddSingleton<IActionSet, GenToolFix>();
+        services.AddSingleton<IActionSet, RemoveReadOnlyFix>();
+        services.AddSingleton<IActionSet, AppCompatConfigurationsFix>();
+        services.AddSingleton<IActionSet, DirectXRuntimeFix>();
+        services.AddSingleton<IActionSet, Patch104Fix>();
+        services.AddSingleton<IActionSet, Patch108Fix>();
+        services.AddSingleton<IActionSet, OptionsIniFix>();
+        services.AddSingleton<IActionSet, VanillaExecutableFix>();
+        services.AddSingleton<IActionSet, ZeroHourExecutableFix>();
+        services.AddSingleton<IActionSet, OneDriveFix>();
+        services.AddSingleton<IActionSet, EdgeScrollerFix>();
+        services.AddSingleton<IActionSet, TheFirstDecadeRegistryFix>();
+        services.AddSingleton<IActionSet, CncOnlineLauncherFix>();
+        services.AddSingleton<IActionSet, MalwarebytesFix>();
+        services.AddSingleton<IActionSet, D3D8XdllCheck>();
+        services.AddSingleton<IActionSet, NahimicFix>();
+        services.AddSingleton<IActionSet, DisableOriginInGame>();
+        services.AddSingleton<IActionSet, GenArial>();
+        services.AddSingleton<IActionSet, HDIconsFix>();
+        services.AddSingleton<IActionSet, WindowsMediaFeaturePack>();
+        services.AddSingleton<IActionSet, GameRangerRunAsAdmin>();
+        services.AddSingleton<IActionSet, ExpandedLanLobbyMenu>();
+        services.AddSingleton<IActionSet, ProxyLauncher>();
+        services.AddSingleton<IActionSet, StartMenuFix>();
+        services.AddSingleton<IActionSet, SerialKeyFix>();
+        services.AddSingleton<IActionSet, IntelGfxDriverCompatibility>();
+
+        // Network Optimization Fixes
+        services.AddSingleton<IActionSet, NetworkPrivateProfileFix>();
+        services.AddSingleton<IActionSet, PreferIPv4Fix>();
+        services.AddSingleton<IActionSet, FirewallExceptionFix>();
+
+        // NOTE: GenPatcherContentActionSetProvider removed - content stubs were non-functional.
+        // Content from GenPatcherContentRegistry is available in the Downloads UI.
+
+        // Register GenPatcher Tool
+        services.AddSingleton<IToolPlugin, GenPatcherTool>();
+        services.AddSingleton<GenPatcherViewModel>();
 
         return services;
     }

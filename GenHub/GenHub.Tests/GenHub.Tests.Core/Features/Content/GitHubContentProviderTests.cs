@@ -1,6 +1,7 @@
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
@@ -9,6 +10,7 @@ using GenHub.Core.Models.Validation;
 using GenHub.Features.Content.Services.GitHub;
 using Microsoft.Extensions.Logging;
 using Moq;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Content;
 

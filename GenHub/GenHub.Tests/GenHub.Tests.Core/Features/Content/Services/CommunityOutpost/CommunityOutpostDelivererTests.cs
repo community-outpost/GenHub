@@ -10,6 +10,7 @@ using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Content.Services.Common;
 using GenHub.Features.Content.Services.CommunityOutpost;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -326,10 +327,13 @@ public sealed class CommunityOutpostDelivererTests : IDisposable
         IContentManifestPool manifestPool)
     {
         var converter = new CompressedImageToTgaConverter(NullLogger<CompressedImageToTgaConverter>.Instance);
+        var controlBarProcessor = new ControlBarPackageProcessor(
+            converter,
+            NullLogger<ControlBarPackageProcessor>.Instance);
         var manifestFactory = new CommunityOutpostManifestFactory(
             NullLogger<CommunityOutpostManifestFactory>.Instance,
             new Mock<IFileHashProvider>().Object,
-            converter);
+            controlBarProcessor);
 
         return new CommunityOutpostDeliverer(
             downloadService,

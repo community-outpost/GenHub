@@ -971,7 +971,8 @@ public class GameLauncher(
 
         var launchConfig = BuildGameLaunchConfiguration(finalExecutablePath, workspaceInfo, arguments, profile, installation);
 
-        var archiveRootError = ValidateRetailArchiveRoots(launchConfig.EnvironmentVariables, installation, profile.GameClient.GameType);
+        var targetGame = profile.GameClient?.GameType ?? GameType.Generals;
+        var archiveRootError = ValidateRetailArchiveRoots(launchConfig.EnvironmentVariables, installation, targetGame);
         if (archiveRootError is not null)
         {
             logger.LogError("[GameLauncher] Retail archive root validation failed: {Error}", archiveRootError);
@@ -1218,12 +1219,23 @@ public class GameLauncher(
         GameProfile profile,
         CancellationToken cancellationToken)
     {
-        var enabledIds = profile.EnabledContentIds ?? Enumerable.Empty<string>();
-        logger.LogDebug("[GameLauncher] Resolving {Count} enabled content manifests with dependencies", profile.EnabledContentIds?.Count ?? 0);
+        var enabledIds = profile.EnabledContentIds ?? [];
+        logger.LogInformation(
+            "[GameLauncher] Resolving {Count} enabled content IDs for profile '{ProfileName}' (ID: {ProfileId}): [{ContentIds}]",
+            enabledIds.Count,
+            profile.Name,
+            profile.Id,
+            string.Join(", ", enabledIds));
+
         var resolutionResult = await dependencyResolver.ResolveDependenciesWithManifestsAsync(enabledIds, cancellationToken);
         if (!resolutionResult.Success)
         {
-            logger.LogError("[GameLauncher] Failed to resolve content dependencies: {Error}", resolutionResult.FirstError);
+            logger.LogError(
+                "[GameLauncher] Failed to resolve content dependencies for profile '{ProfileName}' (ID: {ProfileId}): {Error}. Requested IDs: [{RequestedIds}]",
+                profile.Name,
+                profile.Id,
+                resolutionResult.FirstError,
+                string.Join(", ", enabledIds));
             return OperationResult<List<ContentManifest>>.CreateFailure($"Failed to resolve content dependencies: {resolutionResult.FirstError}");
         }
 
@@ -1231,15 +1243,18 @@ public class GameLauncher(
         {
             foreach (var warning in resolutionResult.Warnings)
             {
-                logger.LogWarning("[GameLauncher] Dependency resolution warning: {Warning}", warning);
+                logger.LogWarning("[GameLauncher] Dependency resolution warning for profile '{ProfileName}': {Warning}", profile.Name, warning);
             }
         }
 
         var manifests = resolutionResult.ResolvedManifests.ToList();
         logger.LogInformation(
-            "[GameLauncher] Resolved {Count} manifests (from {EnabledCount} enabled IDs, including dependencies)",
+            "[GameLauncher] Successfully resolved {Count} manifests for profile '{ProfileName}' (from {EnabledCount} enabled IDs): [{ManifestSummaries}]",
             manifests.Count,
-            enabledIds.Count());
+            profile.Name,
+            enabledIds.Count,
+            string.Join(", ", manifests.Select(m => $"{m.Id.Value} ('{m.Name}')")));
+
         foreach (var manifest in manifests)
         {
             logger.LogDebug(
@@ -1675,7 +1690,7 @@ public class GameLauncher(
                 foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash)))
                 {
                     var existsResult = await casService.ExistsAsync(file.Hash, manifest.ContentType, cancellationToken);
-                    if (!existsResult.Success || !existsResult.Data)
+                    if (existsResult is not { Success: true, Data: true })
                     {
                         missingHashes.Add(file.Hash);
                     }

@@ -10,6 +10,7 @@ using GenHub.Core.Services.Content;
 using GenHub.Core.Services.Providers;
 using GenHub.Core.Services.Providers.VersionSchemes;
 using GenHub.Features.Content.Services;
+using GenHub.Features.Content.Services.Common;
 using GenHub.Features.Content.Services.CommunityOutpost;
 using GenHub.Features.Content.Services.ContentDeliverers;
 using GenHub.Features.Content.Services.ContentDiscoverers;
@@ -350,12 +351,15 @@ public static class ContentPipelineModule
     /// </summary>
     private static void AddCsvPipeline(IServiceCollection services)
     {
-        // Register CSV content provider
-        services.AddTransient<IContentProvider, CsvContentProvider>();
+        services.AddSingleton<CsvCatalogCache>();
 
-        // Register CSV discoverer (concrete and interface)
+        // Register CSV content provider
+        services.AddTransient<CsvContentProvider>();
+        services.AddTransient<IContentProvider>(sp => sp.GetRequiredService<CsvContentProvider>());
+
+        // Register CSV discoverer (concrete and interface). Remote content is cached on disk.
         services.AddTransient<CsvDiscoverer>();
-        services.AddTransient<IContentDiscoverer, CsvDiscoverer>();
+        services.AddTransient<IContentDiscoverer>(sp => sp.GetRequiredService<CsvDiscoverer>());
 
         // Register CSV resolver (concrete and interface)
         services.AddTransient<CsvResolver>();
@@ -385,5 +389,13 @@ public static class ContentPipelineModule
 
         // Register installation instructions execution service
         services.AddSingleton<IInstallationInstructionsService, InstallationInstructionsService>();
+
+        // Register archive payload processor
+        services.AddSingleton<ArchivePayloadProcessor>();
+        services.AddSingleton<IArchivePayloadProcessor>(sp => sp.GetRequiredService<ArchivePayloadProcessor>());
+
+        // Register control bar packaging processor
+        services.AddSingleton<ControlBarPackageProcessor>();
+        services.AddSingleton<IControlBarPackageProcessor>(sp => sp.GetRequiredService<ControlBarPackageProcessor>());
     }
 }

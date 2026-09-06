@@ -11,6 +11,11 @@ public static class IoConstants
     public const int DefaultFileBufferSize = 65536;
 
     /// <summary>
+    /// Buffer size used when scanning binary streams for embedded signatures (8KB).
+    /// </summary>
+    public const int SignatureScanBufferSize = 8192;
+
+    /// <summary>
     /// How many times a path may be re-resolved while following symbolic links whose targets are
     /// themselves reached through links. Bounds the walk on a filesystem that contains a cycle.
     /// </summary>

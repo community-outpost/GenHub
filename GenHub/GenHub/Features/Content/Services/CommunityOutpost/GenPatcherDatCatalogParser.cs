@@ -28,8 +28,6 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
 {
     private static readonly string[] LineSeparators = ["\r\n", "\n"];
 
-    private readonly ILogger<GenPatcherDatCatalogParser> _logger = logger;
-
     /// <inheritdoc/>
     public string CatalogFormat => CommunityOutpostCatalogConstants.CatalogFormat;
 
@@ -45,7 +43,7 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
 
             if (string.IsNullOrEmpty(catalogContent))
             {
-                _logger.LogWarning("Catalog content is empty");
+                logger.LogWarning("Catalog content is empty");
                 return Task.FromResult(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results));
             }
 
@@ -54,11 +52,11 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
 
             if (catalog.Items.Count == 0)
             {
-                _logger.LogWarning("No items found in catalog");
+                logger.LogWarning("No items found in catalog");
                 return Task.FromResult(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results));
             }
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Parsed {ItemCount} items from GenPatcher catalog (version {Version})",
                 catalog.Items.Count,
                 catalog.CatalogVersion);
@@ -75,12 +73,12 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
                 }
             }
 
-            _logger.LogInformation("Converted {Count} catalog items to search results", results.Count);
+            logger.LogInformation("Converted {Count} catalog items to search results", results.Count);
             return Task.FromResult(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to parse GenPatcher catalog");
+            logger.LogError(ex, "Failed to parse GenPatcher catalog");
             return Task.FromResult(OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure($"Failed to parse catalog: {ex.Message}"));
         }
     }
@@ -184,7 +182,7 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
             if (versionMatch.Success)
             {
                 catalog.CatalogVersion = versionMatch.Groups[1].Value;
-                _logger.LogDebug("dl.dat catalog version: {Version}", catalog.CatalogVersion);
+                logger.LogDebug("dl.dat catalog version: {Version}", catalog.CatalogVersion);
                 continue;
             }
 
@@ -192,7 +190,7 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
             var contentMatch = ContentLineRegex().Match(trimmedLine);
             if (!contentMatch.Success)
             {
-                _logger.LogDebug("Skipping unrecognized line: {Line}", trimmedLine.Length > 50 ? trimmedLine[..50] + "..." : trimmedLine);
+                logger.LogDebug("Skipping unrecognized line: {Line}", trimmedLine.Length > 50 ? trimmedLine[..50] + "..." : trimmedLine);
                 continue;
             }
 
@@ -203,7 +201,7 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
 
             if (!long.TryParse(sizeStr, out var fileSize))
             {
-                _logger.LogWarning("Failed to parse file size '{Size}' for content code {Code}", sizeStr, code);
+                logger.LogWarning("Failed to parse file size '{Size}' for content code {Code}", sizeStr, code);
                 continue;
             }
 
@@ -228,7 +226,7 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
 
         catalog.Items = [.. contentByCode.Values];
 
-        _logger.LogDebug(
+        logger.LogDebug(
             "Parsed {ItemCount} content items with {TotalMirrors} total mirrors",
             catalog.Items.Count,
             catalog.Items.Sum(i => i.Mirrors.Count));
@@ -255,7 +253,7 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
             if ((metadata.ContentType == ContentType.Patch && metadata.Category != GenPatcherContentCategory.OfficialPatch) ||
                 metadata.ContentType == ContentType.UnknownContentType)
             {
-                _logger.LogDebug("Filtering out content {Code} - restricted content type {Type}", item.ContentCode, metadata.ContentType);
+                logger.LogDebug("Filtering out content {Code} - restricted content type {Type}", item.ContentCode, metadata.ContentType);
                 return null;
             }
 
@@ -263,7 +261,7 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
             // and showing them in the UI only confuses users
             if (metadata.IsBaseDependency)
             {
-                _logger.LogDebug("Skipping base dependency {Code} ({Name}) - auto-installed as dependency", item.ContentCode, metadata.DisplayName);
+                logger.LogDebug("Skipping base dependency {Code} ({Name}) - auto-installed as dependency", item.ContentCode, metadata.DisplayName);
                 return null;
             }
 
@@ -271,7 +269,7 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
             // These clutter the UI, but English is often desired as a standalone patch.
             if (metadata.Category == GenPatcherContentCategory.OfficialPatch && metadata.LanguageCode != "en")
             {
-                _logger.LogDebug("Skipping official patch {Code} ({Language}) - not shown in UI", item.ContentCode, metadata.LanguageCode);
+                logger.LogDebug("Skipping official patch {Code} ({Language}) - not shown in UI", item.ContentCode, metadata.LanguageCode);
                 return null;
             }
 
@@ -279,7 +277,7 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
             var preferredUrl = GetPreferredDownloadUrl(item, provider);
             if (string.IsNullOrEmpty(preferredUrl))
             {
-                _logger.LogWarning("No download URLs available for content code {Code}", item.ContentCode);
+                logger.LogWarning("No download URLs available for content code {Code}", item.ContentCode);
                 return null;
             }
 
@@ -336,7 +334,7 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
             result.ResolverMetadata[CommunityOutpostCatalogConstants.MirrorUrlsKey] = JsonSerializer.Serialize(absoluteUrls);
             result.ResolverMetadata[CommunityOutpostCatalogConstants.MirrorsKey] = string.Join(", ", item.Mirrors.Select(m => m.Name));
 
-            _logger.LogDebug(
+            logger.LogDebug(
                 "Created ContentSearchResult for {Code}: {Name} ({ContentType}, {Game})",
                 item.ContentCode,
                 metadata.DisplayName,
@@ -347,7 +345,7 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to convert content item {Code} to search result", item.ContentCode);
+            logger.LogWarning(ex, "Failed to convert content item {Code} to search result", item.ContentCode);
             return null;
         }
     }

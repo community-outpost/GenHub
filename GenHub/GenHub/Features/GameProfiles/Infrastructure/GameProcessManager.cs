@@ -1345,6 +1345,7 @@ public class GameProcessManager(
     {
         try
         {
+            launcher.Refresh();
             if (!launcher.HasExited)
             {
                 return (false, null);

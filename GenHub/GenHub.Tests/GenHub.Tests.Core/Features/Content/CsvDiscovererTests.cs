@@ -12,6 +12,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -52,7 +53,8 @@ public class CsvDiscovererTests
     private sealed class StubHttpMessageHandler(
         string? expectedUrl = null,
         string content = "",
-        HttpStatusCode statusCode = HttpStatusCode.NotFound) : HttpMessageHandler
+        HttpStatusCode statusCode = HttpStatusCode.NotFound,
+        string? responseUrl = null) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
@@ -62,7 +64,7 @@ public class CsvDiscovererTests
             var responseContent = code == HttpStatusCode.OK ? content : string.Empty;
             var response = new HttpResponseMessage(code)
             {
-                RequestMessage = request,
+                RequestMessage = responseUrl == null ? request : new HttpRequestMessage(HttpMethod.Get, responseUrl),
                 Content = new StringContent(responseContent),
             };
 
@@ -241,6 +243,125 @@ public class CsvDiscovererTests
         finally
         {
             tempIndex.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a downloaded remote index remains available to a new discoverer while offline.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DiscoverAsync_WhenOffline_UsesPersistedRemoteIndexAsync()
+    {
+        var cacheDirectory = Directory.CreateTempSubdirectory();
+        try
+        {
+            const string indexUrl = "https://example.com/index.json";
+            var indexJson = JsonSerializer.Serialize(new CsvCatalogRegistryIndex
+            {
+                Entries = [CreateEntry(TestGeneralsCsvUrl, CsvConstants.GeneralsGameType, GeneralsVersion, CsvConstants.LanguageEn)],
+            });
+            var configuration = new CsvCatalogConfiguration { IndexFilePath = indexUrl };
+            var onlineDiscoverer = CreateDiscoverer(
+                configuration,
+                new StubHttpMessageHandler(indexUrl, indexJson, HttpStatusCode.OK),
+                cacheDirectory.FullName);
+
+            var onlineResult = await onlineDiscoverer.DiscoverAsync(new ContentSearchQuery());
+            onlineResult.Data!.Items.Should().ContainSingle();
+            CsvCacheTestHelpers.MakeEntriesStale(cacheDirectory.FullName);
+
+            var offlineDiscoverer = CreateDiscoverer(
+                configuration,
+                new StubHttpMessageHandler(statusCode: HttpStatusCode.ServiceUnavailable),
+                cacheDirectory.FullName);
+            var offlineResult = await offlineDiscoverer.DiscoverAsync(new ContentSearchQuery());
+
+            offlineResult.Success.Should().BeTrue();
+            offlineResult.Data!.Items.Should().ContainSingle();
+        }
+        finally
+        {
+            cacheDirectory.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that an invalid remote response does not replace a stale valid index.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DiscoverAsync_WhenRemoteIndexIsInvalid_PreservesCachedIndexAsync()
+    {
+        var cacheDirectory = Directory.CreateTempSubdirectory();
+        try
+        {
+            const string indexUrl = "https://example.com/index.json";
+            var indexJson = JsonSerializer.Serialize(new CsvCatalogRegistryIndex
+            {
+                Entries = [CreateEntry(TestGeneralsCsvUrl, CsvConstants.GeneralsGameType, GeneralsVersion, CsvConstants.LanguageEn)],
+            });
+            var configuration = new CsvCatalogConfiguration { IndexFilePath = indexUrl };
+            var onlineDiscoverer = CreateDiscoverer(
+                configuration,
+                new StubHttpMessageHandler(indexUrl, indexJson, HttpStatusCode.OK),
+                cacheDirectory.FullName);
+            (await onlineDiscoverer.DiscoverAsync(new ContentSearchQuery())).Data!.Items.Should().ContainSingle();
+            CsvCacheTestHelpers.MakeEntriesStale(cacheDirectory.FullName);
+
+            var invalidDiscoverer = CreateDiscoverer(
+                configuration,
+                new StubHttpMessageHandler(indexUrl, "not json", HttpStatusCode.OK),
+                cacheDirectory.FullName);
+            (await invalidDiscoverer.DiscoverAsync(new ContentSearchQuery())).Data!.Items.Should().BeEmpty();
+
+            var offlineDiscoverer = CreateDiscoverer(
+                configuration,
+                new StubHttpMessageHandler(statusCode: HttpStatusCode.ServiceUnavailable),
+                cacheDirectory.FullName);
+            var offlineResult = await offlineDiscoverer.DiscoverAsync(new ContentSearchQuery());
+
+            offlineResult.Data!.Items.Should().ContainSingle();
+        }
+        finally
+        {
+            cacheDirectory.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that HTTP sources and HTTPS-to-HTTP redirects are rejected without being cached.
+    /// </summary>
+    /// <param name="sourceUrl">Configured index URL.</param>
+    /// <param name="responseUrl">Final response URL after redirects.</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Theory]
+    [InlineData("http://example.com/index.json", "http://example.com/index.json")]
+    [InlineData("https://example.com/index.json", "http://example.com/index.json")]
+    public async Task DiscoverAsync_WhenTransportIsInsecure_DoesNotCacheAsync(string sourceUrl, string responseUrl)
+    {
+        var cacheDirectory = Directory.CreateTempSubdirectory();
+        try
+        {
+            var indexJson = JsonSerializer.Serialize(new CsvCatalogRegistryIndex
+            {
+                Entries = [CreateEntry(TestGeneralsCsvUrl, CsvConstants.GeneralsGameType, GeneralsVersion, CsvConstants.LanguageEn)],
+            });
+            var discoverer = CreateDiscoverer(
+                new CsvCatalogConfiguration { IndexFilePath = sourceUrl },
+                new StubHttpMessageHandler(sourceUrl, indexJson, HttpStatusCode.OK, responseUrl),
+                cacheDirectory.FullName);
+
+            var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
+
+            result.Data!.Items.Should().BeEmpty();
+            Directory
+                .EnumerateFiles(cacheDirectory.FullName, $"*{CsvConstants.CacheFileExtension}", SearchOption.AllDirectories)
+                .Should().BeEmpty();
+        }
+        finally
+        {
+            cacheDirectory.Delete(true);
         }
     }
 
@@ -485,7 +606,10 @@ public class CsvDiscovererTests
         act.Should().NotThrow();
     }
 
-    private static CsvDiscoverer CreateDiscoverer(CsvCatalogConfiguration? config, HttpMessageHandler? httpMessageHandler = null)
+    private static CsvDiscoverer CreateDiscoverer(
+        CsvCatalogConfiguration? config,
+        HttpMessageHandler? httpMessageHandler = null,
+        string? applicationDataPath = null)
     {
         var mockConfig = new Mock<IConfigurationProviderService>();
         mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns(config!);
@@ -494,7 +618,14 @@ public class CsvDiscovererTests
             .Setup(o => o.CreateClient(It.IsAny<string>()))
             .Returns(() => new HttpClient(httpMessageHandler ?? new StubHttpMessageHandler()));
 
-        return new CsvDiscoverer(Mock.Of<ILogger<CsvDiscoverer>>(), mockConfig.Object, mockHttpClientFactory.Object);
+        CsvCatalogCache? catalogCache = null;
+        if (applicationDataPath != null)
+        {
+            mockConfig.Setup(o => o.GetApplicationDataPath()).Returns(applicationDataPath);
+            catalogCache = new CsvCatalogCache(mockConfig.Object, Mock.Of<ILogger<CsvCatalogCache>>());
+        }
+
+        return new CsvDiscoverer(Mock.Of<ILogger<CsvDiscoverer>>(), mockConfig.Object, mockHttpClientFactory.Object, catalogCache);
     }
 
     private static TempIndexFile CreateIndexFile(params CsvCatalogRegistryEntry[] entries)

@@ -8,10 +8,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.ContentResolvers;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -47,7 +49,8 @@ public class CsvResolverTests
     private sealed class StubHttpMessageHandler(
         string? expectedUrl = null,
         string content = "",
-        HttpStatusCode statusCode = HttpStatusCode.NotFound) : HttpMessageHandler
+        HttpStatusCode statusCode = HttpStatusCode.NotFound,
+        string? responseUrl = null) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
@@ -57,7 +60,7 @@ public class CsvResolverTests
             var responseContent = code == HttpStatusCode.OK ? content : string.Empty;
             var response = new HttpResponseMessage(code)
             {
-                RequestMessage = request,
+                RequestMessage = responseUrl == null ? request : new HttpRequestMessage(HttpMethod.Get, responseUrl),
                 Content = new StringContent(responseContent),
             };
 
@@ -130,6 +133,109 @@ public class CsvResolverTests
         result.Data!.Files.Should().HaveCount(2); // game.dat (All) + English.big (EN)
         result.Data.Files.Should().Contain(f => f.RelativePath == "game.dat" && f.SourceType == ContentSourceType.RemoteDownload);
         result.Data.Files.Should().Contain(f => f.RelativePath == "English.big" && f.SourceType == ContentSourceType.RemoteDownload);
+    }
+
+    /// <summary>
+    /// Verifies that a downloaded remote CSV remains available to a new resolver while offline.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenOffline_UsesPersistedRemoteCsvAsync()
+    {
+        var cacheDirectory = Directory.CreateTempSubdirectory();
+        try
+        {
+            const string remoteUrl = "https://example.com/catalog.csv";
+            var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
+            var onlineResolver = CreateResolver(
+                new StubHttpMessageHandler(remoteUrl, FullSampleCsv, HttpStatusCode.OK),
+                cacheDirectory.FullName);
+
+            var onlineResult = await onlineResolver.ResolveAsync(item);
+            onlineResult.Success.Should().BeTrue();
+            CsvCacheTestHelpers.MakeEntriesStale(cacheDirectory.FullName);
+
+            var offlineResolver = CreateResolver(
+                new StubHttpMessageHandler(remoteUrl, statusCode: HttpStatusCode.ServiceUnavailable),
+                cacheDirectory.FullName);
+            var offlineResult = await offlineResolver.ResolveAsync(item);
+
+            offlineResult.Success.Should().BeTrue();
+            offlineResult.Data!.Files.Should().HaveCount(2);
+        }
+        finally
+        {
+            cacheDirectory.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a remote response with no usable records does not replace a stale valid CSV.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenRemoteCsvHasNoMatches_PreservesCachedCsvAsync()
+    {
+        var cacheDirectory = Directory.CreateTempSubdirectory();
+        try
+        {
+            const string remoteUrl = "https://example.com/catalog.csv";
+            var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
+            var onlineResolver = CreateResolver(
+                new StubHttpMessageHandler(remoteUrl, FullSampleCsv, HttpStatusCode.OK),
+                cacheDirectory.FullName);
+            (await onlineResolver.ResolveAsync(item)).Success.Should().BeTrue();
+            CsvCacheTestHelpers.MakeEntriesStale(cacheDirectory.FullName);
+
+            var invalidResolver = CreateResolver(
+                new StubHttpMessageHandler(remoteUrl, SampleCsvHeader, HttpStatusCode.OK),
+                cacheDirectory.FullName);
+            (await invalidResolver.ResolveAsync(item)).Success.Should().BeFalse();
+
+            var offlineResolver = CreateResolver(
+                new StubHttpMessageHandler(remoteUrl, statusCode: HttpStatusCode.ServiceUnavailable),
+                cacheDirectory.FullName);
+            var offlineResult = await offlineResolver.ResolveAsync(item);
+
+            offlineResult.Success.Should().BeTrue();
+            offlineResult.Data!.Files.Should().HaveCount(2);
+        }
+        finally
+        {
+            cacheDirectory.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that HTTP sources and HTTPS-to-HTTP redirects are rejected without being cached.
+    /// </summary>
+    /// <param name="sourceUrl">Configured CSV URL.</param>
+    /// <param name="responseUrl">Final response URL after redirects.</param>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Theory]
+    [InlineData("http://example.com/catalog.csv", "http://example.com/catalog.csv")]
+    [InlineData("https://example.com/catalog.csv", "http://example.com/catalog.csv")]
+    public async Task ResolveAsync_WhenTransportIsInsecure_DoesNotCacheAsync(string sourceUrl, string responseUrl)
+    {
+        var cacheDirectory = Directory.CreateTempSubdirectory();
+        try
+        {
+            var resolver = CreateResolver(
+                new StubHttpMessageHandler(sourceUrl, FullSampleCsv, HttpStatusCode.OK, responseUrl),
+                cacheDirectory.FullName);
+            var item = CreateDiscoveredItem(sourceUrl, GameType.Generals, CsvConstants.LanguageEn);
+
+            var result = await resolver.ResolveAsync(item);
+
+            result.Success.Should().BeFalse();
+            Directory
+                .EnumerateFiles(cacheDirectory.FullName, $"*{CsvConstants.CacheFileExtension}", SearchOption.AllDirectories)
+                .Should().BeEmpty();
+        }
+        finally
+        {
+            cacheDirectory.Delete(true);
+        }
     }
 
     /// <summary>
@@ -357,14 +463,22 @@ public class CsvResolverTests
         result.Data.Should().NotBeNull();
     }
 
-    private static CsvResolver CreateResolver(HttpMessageHandler? handler = null)
+    private static CsvResolver CreateResolver(HttpMessageHandler? handler = null, string? applicationDataPath = null)
     {
         var mockHttpClientFactory = new Mock<IHttpClientFactory>();
         mockHttpClientFactory
             .Setup(o => o.CreateClient(It.IsAny<string>()))
             .Returns(() => new HttpClient(handler ?? new StubHttpMessageHandler()));
 
-        return new CsvResolver(mockHttpClientFactory.Object, Mock.Of<ILogger<CsvResolver>>());
+        CsvCatalogCache? catalogCache = null;
+        if (applicationDataPath != null)
+        {
+            var configurationProvider = new Mock<IConfigurationProviderService>();
+            configurationProvider.Setup(provider => provider.GetApplicationDataPath()).Returns(applicationDataPath);
+            catalogCache = new CsvCatalogCache(configurationProvider.Object, Mock.Of<ILogger<CsvCatalogCache>>());
+        }
+
+        return new CsvResolver(mockHttpClientFactory.Object, Mock.Of<ILogger<CsvResolver>>(), catalogCache);
     }
 
     private static ContentSearchResult CreateDiscoveredItem(string sourceUrl, GameType gameType, string language)

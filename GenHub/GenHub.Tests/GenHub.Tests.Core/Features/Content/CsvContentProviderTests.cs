@@ -321,11 +321,11 @@ public class CsvContentProviderTests
     }
 
     /// <summary>
-    /// Verifies that <see cref="BaseContentProvider.PrepareContentAsync"/> completes preparation.
+    /// Verifies that <see cref="BaseContentProvider.PrepareContentAsync"/> delivers CSV catalog files before validation.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task PrepareContentAsync_WithValidManifest_ReturnsSuccessAsync()
+    public async Task PrepareContentAsync_WithValidManifest_DeliversContentAsync()
     {
         var manifestId = ManifestIdGenerator.GeneratePublisherContentId(PublisherTypeConstants.CsvRegistry, ContentType.GameInstallation, "generals-1.08-en");
         var manifest = new ContentManifest
@@ -335,19 +335,132 @@ public class CsvContentProviderTests
             Version = "1.08",
             ContentType = ContentType.GameInstallation,
             TargetGame = GameType.Generals,
+            Files = [new ManifestFile { RelativePath = "game.dat", Size = 12345 }],
         };
+        var deliveredManifest = new ContentManifest
+        {
+            Id = manifest.Id,
+            Name = manifest.Name,
+            Version = "1.08-delivered",
+            ContentType = manifest.ContentType,
+            TargetGame = manifest.TargetGame,
+            Files = manifest.Files,
+        };
+        var workingDirectory = "C:\\test\\dir";
+        var progress = Mock.Of<IProgress<ContentAcquisitionProgress>>();
+        using var cancellationSource = new CancellationTokenSource();
+
+        var mockDeliverer = new Mock<IContentDeliverer>();
+        mockDeliverer.Setup(d => d.SourceName).Returns(ContentSourceNames.HttpDeliverer);
+        mockDeliverer.Setup(d => d.CanDeliver(manifest)).Returns(true);
+        mockDeliverer
+            .Setup(d => d.DeliverContentAsync(manifest, workingDirectory, progress, cancellationSource.Token))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(deliveredManifest));
 
         var mockValidator = new Mock<IContentValidator>();
         mockValidator.Setup(v => v.ValidateManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult(manifestId, []));
-        mockValidator.Setup(v => v.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<IProgress<GenHub.Core.Models.Validation.ValidationProgress>>(), It.IsAny<CancellationToken>()))
+        mockValidator.Setup(v => v.ValidateAllAsync(workingDirectory, deliveredManifest, It.IsAny<IProgress<GenHub.Core.Models.Validation.ValidationProgress>>(), cancellationSource.Token))
             .ReturnsAsync(new ValidationResult(manifestId, []));
 
-        var provider = CreateProvider(validator: mockValidator.Object);
+        var provider = CreateProvider(validator: mockValidator.Object, deliverer: mockDeliverer.Object);
+
+        var result = await provider.PrepareContentAsync(manifest, workingDirectory, progress, cancellationSource.Token);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().BeSameAs(deliveredManifest);
+        mockDeliverer.Verify(d => d.CanDeliver(manifest), Times.Once);
+        mockDeliverer.Verify(
+            d => d.DeliverContentAsync(manifest, workingDirectory, progress, cancellationSource.Token),
+            Times.Once);
+        mockValidator.Verify(
+            v => v.ValidateAllAsync(workingDirectory, deliveredManifest, It.IsAny<IProgress<GenHub.Core.Models.Validation.ValidationProgress>>(), cancellationSource.Token),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that preparation fails without attempting delivery when the HTTP deliverer cannot handle the manifest.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task PrepareContentAsync_WhenDelivererCannotDeliver_ReturnsFailureAsync()
+    {
+        var manifestId = ManifestIdGenerator.GeneratePublisherContentId(PublisherTypeConstants.CsvRegistry, ContentType.GameInstallation, "generals-1.08-en");
+        var manifest = new ContentManifest
+        {
+            Id = new ManifestId(manifestId),
+            Name = "Generals 1.08 (EN)",
+            Version = "1.08",
+            ContentType = ContentType.GameInstallation,
+            TargetGame = GameType.Generals,
+            Files = [new ManifestFile { RelativePath = "game.dat", Size = 12345 }],
+        };
+
+        var mockDeliverer = new Mock<IContentDeliverer>();
+        mockDeliverer.Setup(d => d.SourceName).Returns(ContentSourceNames.HttpDeliverer);
+        mockDeliverer.Setup(d => d.CanDeliver(manifest)).Returns(false);
+
+        var mockValidator = new Mock<IContentValidator>();
+        mockValidator.Setup(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifestId, []));
+
+        var provider = CreateProvider(validator: mockValidator.Object, deliverer: mockDeliverer.Object);
 
         var result = await provider.PrepareContentAsync(manifest, "C:\\test\\dir");
 
-        result.Success.Should().BeTrue();
+        result.Success.Should().BeFalse();
+        result.FirstError.Should().Contain("Cannot deliver content");
+        mockDeliverer.Verify(
+            d => d.DeliverContentAsync(
+                It.IsAny<ContentManifest>(),
+                It.IsAny<string>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that a delivery failure is returned without continuing to final validation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task PrepareContentAsync_WhenDeliveryFails_ReturnsFailureAsync()
+    {
+        var manifestId = ManifestIdGenerator.GeneratePublisherContentId(PublisherTypeConstants.CsvRegistry, ContentType.GameInstallation, "generals-1.08-en");
+        var manifest = new ContentManifest
+        {
+            Id = new ManifestId(manifestId),
+            Name = "Generals 1.08 (EN)",
+            Version = "1.08",
+            ContentType = ContentType.GameInstallation,
+            TargetGame = GameType.Generals,
+            Files = [new ManifestFile { RelativePath = "game.dat", Size = 12345 }],
+        };
+
+        var mockDeliverer = new Mock<IContentDeliverer>();
+        mockDeliverer.Setup(d => d.SourceName).Returns(ContentSourceNames.HttpDeliverer);
+        mockDeliverer.Setup(d => d.CanDeliver(manifest)).Returns(true);
+        mockDeliverer
+            .Setup(d => d.DeliverContentAsync(manifest, It.IsAny<string>(), null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateFailure("Download failed"));
+
+        var mockValidator = new Mock<IContentValidator>();
+        mockValidator.Setup(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifestId, []));
+
+        var provider = CreateProvider(validator: mockValidator.Object, deliverer: mockDeliverer.Object);
+
+        var result = await provider.PrepareContentAsync(manifest, "C:\\test\\dir");
+
+        result.Success.Should().BeFalse();
+        result.FirstError.Should().Be("Content delivery failed: Download failed");
+        mockValidator.Verify(
+            v => v.ValidateAllAsync(
+                It.IsAny<string>(),
+                It.IsAny<ContentManifest>(),
+                It.IsAny<IProgress<GenHub.Core.Models.Validation.ValidationProgress>?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     private static IInstallationInstructionsService CreateMockInstallationService()
@@ -366,7 +479,9 @@ public class CsvContentProviderTests
         return mockInstallService.Object;
     }
 
-    private static CsvContentProvider CreateProvider(IContentValidator? validator = null)
+    private static CsvContentProvider CreateProvider(
+        IContentValidator? validator = null,
+        IContentDeliverer? deliverer = null)
     {
         var mockDiscoverer = new Mock<IContentDiscoverer>();
         mockDiscoverer.Setup(d => d.SourceName).Returns(CsvConstants.SourceName);
@@ -380,7 +495,7 @@ public class CsvContentProviderTests
         return new CsvContentProvider(
             [mockDiscoverer.Object],
             [mockResolver.Object],
-            [mockDeliverer.Object],
+            [deliverer ?? mockDeliverer.Object],
             Mock.Of<ILogger<CsvContentProvider>>(),
             validator ?? Mock.Of<IContentValidator>(),
             CreateMockInstallationService());

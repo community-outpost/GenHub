@@ -1,0 +1,66 @@
+name: Qodo PR Review (Z.AI Coding Plan)
+
+on:
+  pull_request:
+    branches: [main, development]
+    types: [opened, reopened, ready_for_review, synchronize]
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  qodo_review:
+    if: >-
+      ${{
+        github.event.sender.type != 'Bot' &&
+        (github.event_name == 'pull_request' || github.event.issue.pull_request)
+      }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Run Qodo PR-Agent
+        uses: qodo-ai/pr-agent@97169bcab8943d457b99256d357b856c68e0c61e # main
+        env:
+          # --- Z.AI Coding Plan Credentials & Base URL ---
+          OPENAI_KEY: ${{ secrets.ZAI_API_KEY }}
+          PR_AGENT__OPENAI__KEY: ${{ secrets.ZAI_API_KEY }}
+          PR_AGENT__OPENAI__API_BASE: "https://api.z.ai/api/coding/paas/v4"
+          OPENAI.API_BASE: "https://api.z.ai/api/coding/paas/v4"
+          OPENAI__API_BASE: "https://api.z.ai/api/coding/paas/v4"
+          OPENAI_API_BASE: "https://api.z.ai/api/coding/paas/v4"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+          # --- Single Model (No Fallbacks) ---
+          CONFIG.MODEL: "openai/glm-5.3-flash"
+          PR_AGENT__CONFIG__MODEL: "openai/glm-5.3-flash"
+          CONFIG.FALLBACK_MODELS: "[]"
+          PR_AGENT__CONFIG__FALLBACK_MODELS: "[]"
+          CONFIG.CUSTOM_MODEL_MAX_TOKENS: 128000
+          PR_AGENT__CONFIG__CUSTOM_MODEL_MAX_TOKENS: 128000
+
+          # --- PR Actions (Only Review on Open, No Auto-Describe / Auto-Improve) ---
+          GITHUB_ACTION_CONFIG.AUTO_REVIEW: "true"
+          GITHUB_ACTION_CONFIG.AUTO_DESCRIBE: "false"
+          GITHUB_ACTION_CONFIG.AUTO_IMPROVE: "false"
+
+          # --- Push Triggers ---
+          GITHUB_ACTION_CONFIG.HANDLE_PUSH_TRIGGER: "true"
+          GITHUB_ACTION_CONFIG.PUSH_TRIGGER_IGNORE_BOT_COMMITS: "true"
+          GITHUB_ACTION_CONFIG.PUSH_TRIGGER_IGNORE_MERGE_COMMITS: "true"
+
+          # Synchronize (push to PR):
+          # - main: only incremental review ("/review -i")
+          # - development: full review of the entire PR ("/review")
+          GITHUB_ACTION_CONFIG.PUSH_COMMANDS: ${{ github.base_ref == 'main' && '["/review -i"]' || '["/review"]' }}
+
+          # --- Incremental Review Settings (No Cooldown) ---
+          PR_REVIEWER.REQUIRE_ALL_THRESHOLDS_FOR_INCREMENTAL_REVIEW: "false"
+          PR_REVIEWER.MINIMAL_COMMITS_FOR_INCREMENTAL_REVIEW: 0
+          PR_REVIEWER.MINIMAL_MINUTES_FOR_INCREMENTAL_REVIEW: 0

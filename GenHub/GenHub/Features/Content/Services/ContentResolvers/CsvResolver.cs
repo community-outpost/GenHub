@@ -16,6 +16,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentResolvers;
@@ -25,8 +26,11 @@ namespace GenHub.Features.Content.Services.ContentResolvers;
 /// </summary>
 public class CsvResolver(
     IHttpClientFactory httpClientFactory,
-    ILogger<CsvResolver> logger) : IContentResolver
+    ILogger<CsvResolver> logger,
+    CsvCatalogCache? catalogCache = null) : IContentResolver
 {
+    private sealed record CsvContentLoadResult(string Content, bool ShouldCache);
+
     private static readonly CsvConfiguration CsvConfig = new(CultureInfo.InvariantCulture)
     {
         HasHeaderRecord = true,
@@ -67,7 +71,7 @@ public class CsvResolver(
             var languageStr = GetLanguageString(discoveredItem);
             var version = GetVersionString(discoveredItem);
 
-            var matchingEntries = ParseAndFilterCsv(loadResult.Data, gameTypeStr, languageStr);
+            var matchingEntries = ParseAndFilterCsv(loadResult.Data.Content, gameTypeStr, languageStr);
             if (matchingEntries.Count == 0)
             {
                 logger.LogWarning(
@@ -77,6 +81,11 @@ public class CsvResolver(
                     languageStr);
                 return OperationResult<ContentManifest>.CreateFailure(
                     $"No matching files found in CSV catalog for {gameTypeStr} ({languageStr}).");
+            }
+
+            if (loadResult.Data.ShouldCache && catalogCache != null)
+            {
+                await catalogCache.StoreAsync(discoveredItem.SourceUrl, loadResult.Data.Content, cancellationToken);
             }
 
             var isRemote = Uri.TryCreate(discoveredItem.SourceUrl, UriKind.Absolute, out var uri) &&
@@ -110,6 +119,12 @@ public class CsvResolver(
         CancellationToken cancellationToken = default)
     {
         return ResolveAsync(discoveredItem, cancellationToken);
+    }
+
+    private static bool IsRecoverableRemoteFailure(Exception exception, CancellationToken cancellationToken)
+    {
+        return exception is HttpRequestException or IOException ||
+            (exception is OperationCanceledException && !cancellationToken.IsCancellationRequested);
     }
 
     private static string GetGameTypeString(ContentSearchResult item)
@@ -309,14 +324,43 @@ public class CsvResolver(
         return manifest;
     }
 
-    private async Task<OperationResult<string>> LoadCsvContentAsync(string sourceUrl, CancellationToken cancellationToken)
+    private async Task<OperationResult<CsvContentLoadResult>> LoadCsvContentAsync(string sourceUrl, CancellationToken cancellationToken)
     {
         if (Uri.TryCreate(sourceUrl, UriKind.Absolute, out var uri) &&
             (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
         {
-            var httpClient = httpClientFactory.CreateClient(string.Empty);
-            var content = await httpClient.GetStringAsync(uri, cancellationToken);
-            return OperationResult<string>.CreateSuccess(content);
+            if (uri.Scheme != Uri.UriSchemeHttps)
+            {
+                return OperationResult<CsvContentLoadResult>.CreateFailure($"CSV catalog must use HTTPS: {uri}");
+            }
+
+            var cached = catalogCache == null
+                ? null
+                : await catalogCache.ReadAsync(sourceUrl, cancellationToken);
+            if (cached?.IsFresh == true)
+            {
+                return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(cached.Content, false));
+            }
+
+            try
+            {
+                var httpClient = httpClientFactory.CreateClient(string.Empty);
+                using var response = await httpClient.GetAsync(uri, cancellationToken);
+                response.EnsureSuccessStatusCode();
+                var responseUri = response.RequestMessage?.RequestUri;
+                if (responseUri?.Scheme != Uri.UriSchemeHttps)
+                {
+                    throw new HttpRequestException($"CSV catalog redirect must use HTTPS: {responseUri}");
+                }
+
+                var content = await response.Content.ReadAsStringAsync(cancellationToken);
+                return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(content, true));
+            }
+            catch (Exception ex) when (cached != null && IsRecoverableRemoteFailure(ex, cancellationToken))
+            {
+                logger.LogWarning(ex, "Remote CSV catalog {SourceUrl} is unavailable; using stale cached content", sourceUrl);
+                return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(cached.Content, false));
+            }
         }
 
         var resolvedPath = Path.IsPathRooted(sourceUrl)
@@ -325,10 +369,10 @@ public class CsvResolver(
 
         if (!File.Exists(resolvedPath))
         {
-            return OperationResult<string>.CreateFailure($"CSV file not found at: {resolvedPath}");
+            return OperationResult<CsvContentLoadResult>.CreateFailure($"CSV file not found at: {resolvedPath}");
         }
 
         var fileContent = await File.ReadAllTextAsync(resolvedPath, cancellationToken);
-        return OperationResult<string>.CreateSuccess(fileContent);
+        return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(fileContent, false));
     }
 }

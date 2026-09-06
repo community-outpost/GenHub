@@ -219,4 +219,14 @@ public static class LanguageFilePatterns
     /// File pattern for Portuguese ZH BIG files: "PortugueseZH.big".
     /// </summary>
     public const string PortugueseZHBig = "PortugueseZH.big";
+
+    /// <summary>
+    /// File pattern for Zero Hour audio BIG files: "AudioZH.big".
+    /// </summary>
+    public const string AudioZHBig = "AudioZH.big";
+
+    /// <summary>
+    /// Wildcard file pattern for any Zero Hour BIG files: "*ZH.big".
+    /// </summary>
+    public const string AnyZeroHourBig = "*ZH.big";
 }

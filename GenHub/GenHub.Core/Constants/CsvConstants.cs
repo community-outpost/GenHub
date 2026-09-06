@@ -34,6 +34,26 @@ public static class CsvConstants
     public const string ProviderDescription = "Provides base game manifests from verified CSV catalogs.";
 
     /// <summary>
+    /// Directory name for cached CSV indexes and catalogs.
+    /// </summary>
+    public const string CacheDirectoryName = "CsvCatalogs";
+
+    /// <summary>
+    /// File extension for cached CSV catalog content.
+    /// </summary>
+    public const string CacheFileExtension = ".cache";
+
+    /// <summary>
+    /// File extension for temporary CSV cache writes.
+    /// </summary>
+    public const string TemporaryCacheFileExtension = ".tmp";
+
+    /// <summary>
+    /// Number of days stale CSV catalog data is retained for offline fallback.
+    /// </summary>
+    public const int CacheRetentionDays = 30;
+
+    /// <summary>
     /// Resolver ID for CSV catalog content.
     /// </summary>
     public const string ResolverId = "CSVResolver";

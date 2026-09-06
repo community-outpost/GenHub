@@ -1,14 +1,14 @@
-using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Manifest;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.Publishers;
 
@@ -18,7 +18,9 @@ namespace GenHub.Features.Content.Services.Publishers;
 /// </summary>
 public class GitHubManifestFactory(
     ILogger<GitHubManifestFactory> logger,
-    IFileHashProvider hashProvider)
+    IFileHashProvider hashProvider,
+    IArchivePayloadProcessor archivePayloadProcessor,
+    IControlBarPackageProcessor? controlBarProcessor = null)
     : IPublisherManifestFactory
 {
     /// <inheritdoc />
@@ -28,16 +30,7 @@ public class GitHubManifestFactory(
     public bool CanHandle(ContentManifest manifest)
     {
         // Handle standard "github" publisher
-        var publisherMatches = manifest.Publisher?.PublisherType?.Equals("github", StringComparison.OrdinalIgnoreCase) == true;
-
-        // Also handle legacy or owner-based publisher types if they map to GitHub
-        // (But usually GitHubResolver sets PublisherType to "github")
-        // Only handle Mod or MapPack content types for now (GameClients might be handled, but usually specific factories exist)
-        // If we want to support any GitHub ZIP extraction, we can make this broader.
-        // But for safety, let's start with Mod.
-        // Update: We want to support Mod. GamClient is handled if no specific factory picks it up?
-        // Actually, GitHubManifestFactory can be a fallback for any GitHub content that was extracted.
-        return publisherMatches;
+        return manifest.Publisher?.PublisherType?.Equals("github", StringComparison.OrdinalIgnoreCase) == true;
     }
 
     /// <inheritdoc />
@@ -52,6 +45,22 @@ public class GitHubManifestFactory(
         {
             logger.LogWarning("Extracted directory does not exist: {Directory}", extractedDirectory);
             return [];
+        }
+
+        // Process archive payloads and normalize layout prior to computing hashes and creating CAS manifest
+        await archivePayloadProcessor.ProcessPayloadAsync(
+            extractedDirectory,
+            originalManifest.ContentType,
+            originalManifest.TargetGame,
+            cancellationToken);
+
+        if (controlBarProcessor?.IsControlBarContent(extractedDirectory, originalManifest) == true)
+        {
+            logger.LogInformation("Processing Control Bar content in GitHub extracted payload");
+            await controlBarProcessor.ProcessAndRepackControlBarAsync(
+                extractedDirectory,
+                originalManifest,
+                cancellationToken: cancellationToken);
         }
 
         var files = new List<ManifestFile>();

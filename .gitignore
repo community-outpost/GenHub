@@ -5,8 +5,10 @@
 .*
 !.github/
 !.gitignore
+!.gitattributes
 !.agents/
 !.claude/
+!.pr_agent.toml
 
 *.suo
 *.user

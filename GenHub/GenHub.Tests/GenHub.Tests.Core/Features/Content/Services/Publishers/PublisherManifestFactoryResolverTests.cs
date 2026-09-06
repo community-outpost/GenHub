@@ -19,6 +19,7 @@ namespace GenHub.Tests.Core.Features.Content.Services.Publishers;
 public class PublisherManifestFactoryResolverTests
 {
     private readonly Mock<IFileHashProvider> _hashProviderMock;
+    private readonly Mock<IArchivePayloadProcessor> _archiveProcessorMock;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PublisherManifestFactoryResolverTests"/> class.
@@ -26,6 +27,7 @@ public class PublisherManifestFactoryResolverTests
     public PublisherManifestFactoryResolverTests()
     {
         _hashProviderMock = new Mock<IFileHashProvider>();
+        _archiveProcessorMock = new Mock<IArchivePayloadProcessor>();
     }
 
     /// <summary>
@@ -41,7 +43,8 @@ public class PublisherManifestFactoryResolverTests
 
         var gitHubFactory = new GitHubManifestFactory(
             NullLogger<GitHubManifestFactory>.Instance,
-            _hashProviderMock.Object);
+            _hashProviderMock.Object,
+            _archiveProcessorMock.Object);
 
         var resolver = new PublisherManifestFactoryResolver(
             [superHackersFactory, gitHubFactory],
@@ -79,7 +82,8 @@ public class PublisherManifestFactoryResolverTests
 
         var gitHubFactory = new GitHubManifestFactory(
             NullLogger<GitHubManifestFactory>.Instance,
-            _hashProviderMock.Object);
+            _hashProviderMock.Object,
+            _archiveProcessorMock.Object);
 
         var resolver = new PublisherManifestFactoryResolver(
             [superHackersFactory, gitHubFactory],
@@ -147,7 +151,8 @@ public class PublisherManifestFactoryResolverTests
         // Arrange
         var gitHubFactory = new GitHubManifestFactory(
             NullLogger<GitHubManifestFactory>.Instance,
-            _hashProviderMock.Object);
+            _hashProviderMock.Object,
+            _archiveProcessorMock.Object);
 
         var resolver = new PublisherManifestFactoryResolver(
             [gitHubFactory],
