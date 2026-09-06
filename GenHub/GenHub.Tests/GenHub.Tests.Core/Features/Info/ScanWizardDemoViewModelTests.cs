@@ -22,7 +22,7 @@ public class ScanWizardDemoViewModelTests
     [Fact]
     public void CreateDemoScanWizard_InitializesWithDetectedItems()
     {
-        var vm = DemoViewModelFactory.CreateDemoScanWizard(_notificationServiceMock.Object);
+        var vm = CreateVm();
 
         vm.Should().NotBeNull();
         vm.Items.Should().HaveCount(2);
@@ -36,7 +36,7 @@ public class ScanWizardDemoViewModelTests
     [Fact]
     public void SelectionChanged_UpdatesConfirmLabelAndHasSelectedItems()
     {
-        var vm = DemoViewModelFactory.CreateDemoScanWizard(_notificationServiceMock.Object);
+        var vm = CreateVm();
 
         // Deselect first item
         vm.Items[0].IsSelected = false;
@@ -61,7 +61,7 @@ public class ScanWizardDemoViewModelTests
     [Fact]
     public async Task RescanCommand_ExecutesAndRepopulatesItems()
     {
-        var vm = DemoViewModelFactory.CreateDemoScanWizard(_notificationServiceMock.Object);
+        var vm = CreateVm();
         vm.Items[0].IsSelected = false;
 
         await vm.RescanCommand.ExecuteAsync(null);
@@ -81,7 +81,7 @@ public class ScanWizardDemoViewModelTests
     [Fact]
     public void ImportCommand_WithSelectedItems_DispatchesSuccessNotification()
     {
-        var vm = DemoViewModelFactory.CreateDemoScanWizard(_notificationServiceMock.Object);
+        var vm = CreateVm();
 
         vm.ImportCommand.Execute(null);
 
@@ -96,7 +96,7 @@ public class ScanWizardDemoViewModelTests
     [Fact]
     public void ImportCommand_WithNoSelectedItems_DoesNotDispatchNotification()
     {
-        var vm = DemoViewModelFactory.CreateDemoScanWizard(_notificationServiceMock.Object);
+        var vm = CreateVm();
         vm.Items[0].IsSelected = false;
         vm.Items[1].IsSelected = false;
 
@@ -113,7 +113,7 @@ public class ScanWizardDemoViewModelTests
     [Fact]
     public void CancelCommand_DispatchesInfoNotification()
     {
-        var vm = DemoViewModelFactory.CreateDemoScanWizard(_notificationServiceMock.Object);
+        var vm = CreateVm();
 
         vm.CancelCommand.Execute(null);
 
@@ -121,4 +121,7 @@ public class ScanWizardDemoViewModelTests
             n => n.Show(It.Is<NotificationMessage>(m => m.Type == NotificationType.Info && m.Title == "Scan Wizard")),
             Times.Once);
     }
+
+    private ScanWizardDemoViewModel CreateVm() =>
+        DemoViewModelFactory.CreateDemoScanWizard(_notificationServiceMock.Object);
 }

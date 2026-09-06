@@ -165,6 +165,16 @@ public static class InfoConstants
     public const string IconUpdate = "Update";
 
     /// <summary>
+    /// Icon resource URI for Generals demo item.
+    /// </summary>
+    public const string DemoIconGenerals = "avares://GenHub/Assets/Icons/generals-icon.png";
+
+    /// <summary>
+    /// Icon resource URI for Zero Hour demo item.
+    /// </summary>
+    public const string DemoIconZeroHour = "avares://GenHub/Assets/Icons/zerohour-icon.png";
+
+    /// <summary>
     /// The list of supported languages for the FAQ.
     /// </summary>
     public static readonly IReadOnlyList<string> SupportedFaqLanguages = new[]

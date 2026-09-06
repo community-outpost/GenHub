@@ -13,10 +13,26 @@ namespace GenHub.Features.Info.Services;
 /// <summary>
 /// Provides default information sections, guides, and documentation for GenHub.
 /// </summary>
-public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNotesService) : IInfoContentProvider
+public class DefaultInfoContentProvider : IInfoContentProvider
 {
     private readonly List<InfoSection> _sections = CreateContent();
-    private readonly IGeneralsOnlinePatchNotesService _patchNotesService = patchNotesService;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DefaultInfoContentProvider"/> class.
+    /// </summary>
+    public DefaultInfoContentProvider()
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DefaultInfoContentProvider"/> class.
+    /// </summary>
+    /// <param name="patchNotesService">Optional patch notes service.</param>
+    public DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService? patchNotesService)
+        : this()
+    {
+        _ = patchNotesService;
+    }
 
     /// <inheritdoc/>
     public Task<IEnumerable<InfoSection>> GetAllSectionsAsync()
@@ -88,7 +104,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     GenHub connects to your existing game files before launching profiles.
 
                     1.  Navigate to the **Game Profiles** tab.
-                    2.  Click the **Scan for Games** button in the toolbar.
+                    2.  Click the **SCAN** button in the toolbar.
                     3.  GenHub automatically searches standard Steam, EA App, Origin, and CD install directories.
 
                     *Once detected, you can create and launch profiles based on this installation.*

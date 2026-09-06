@@ -11,19 +11,19 @@ public partial class ScanWizardDemoItemViewModel : ObservableObject
     private readonly Action? _onSelectionChanged;
 
     [ObservableProperty]
-    private string _title = string.Empty;
+    private string _title;
 
     [ObservableProperty]
-    private string _path = string.Empty;
+    private string _path;
 
     [ObservableProperty]
-    private string _version = string.Empty;
+    private string _version;
 
     [ObservableProperty]
-    private string _iconPath = string.Empty;
+    private string _iconPath;
 
     [ObservableProperty]
-    private bool _isSelected = true;
+    private bool _isSelected;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ScanWizardDemoItemViewModel"/> class.

@@ -1,9 +1,11 @@
 using System;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Notifications;
@@ -123,19 +125,29 @@ public partial class ScanWizardDemoViewModel : ObservableObject
     private void PopulateDefaultItems()
     {
         Items.Clear();
+
+        var basePath = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+        if (string.IsNullOrEmpty(basePath))
+        {
+            basePath = Path.Combine("C:", "Program Files (x86)");
+        }
+
+        var generalsPath = Path.Combine(basePath, "EA Games", "Command and Conquer Generals");
+        var zeroHourPath = Path.Combine(basePath, "EA Games", "Command and Conquer Generals Zero Hour");
+
         Items.Add(new ScanWizardDemoItemViewModel(
             "Command & Conquer: Generals",
-            @"C:\Program Files (x86)\EA Games\Command and Conquer Generals",
+            generalsPath,
             "v1.08",
-            "avares://GenHub/Assets/Icons/generals-icon.png",
+            InfoConstants.DemoIconGenerals,
             isSelected: true,
             onSelectionChanged: UpdateState));
 
         Items.Add(new ScanWizardDemoItemViewModel(
             "Command & Conquer: Generals - Zero Hour",
-            @"C:\Program Files (x86)\EA Games\Command and Conquer Generals Zero Hour",
+            zeroHourPath,
             "v1.04",
-            "avares://GenHub/Assets/Icons/zerohour-icon.png",
+            InfoConstants.DemoIconZeroHour,
             isSelected: true,
             onSelectionChanged: UpdateState));
     }
