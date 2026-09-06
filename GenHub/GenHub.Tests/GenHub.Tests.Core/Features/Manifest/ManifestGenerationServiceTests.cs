@@ -556,7 +556,8 @@ public class ManifestGenerationServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that CreateGameInstallationManifestAsync skips symbolic links and reparse points during fallback directory scan.
+    /// Tests that CreateGameInstallationManifestAsync skips symbolic links and reparse points during fallback directory scan,
+    /// including symlinked files, directories, and primary executables.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
@@ -566,31 +567,31 @@ public class ManifestGenerationServiceTests : IDisposable
         var installationPath = Path.Combine(_tempDirectory, "ReparseFallbackInstall");
         Directory.CreateDirectory(installationPath);
 
-        var exePath = Path.Combine(installationPath, "generals.exe");
-        await File.WriteAllTextAsync(exePath, "legacy exe");
-
         var normalFile = Path.Combine(installationPath, "normal.ini");
         await File.WriteAllTextAsync(normalFile, "normal content");
 
-        // External directory and file outside the installation
+        // External directory and files outside the installation
         var outsideDir = Path.Combine(_tempDirectory, "OutsideTargetFolder");
         Directory.CreateDirectory(outsideDir);
         var outsideFile = Path.Combine(outsideDir, "outside.big");
         await File.WriteAllTextAsync(outsideFile, "outside content");
+        var outsideExe = Path.Combine(outsideDir, "outside_generals.exe");
+        await File.WriteAllTextAsync(outsideExe, "outside exe");
 
-        // Create symlinked file and symlinked directory under installation
+        // Create symlinked file, symlinked directory, and symlinked primary executable under installation
         var symlinkFile = Path.Combine(installationPath, "linked_file.big");
         var symlinkDir = Path.Combine(installationPath, "linked_dir");
+        var symlinkExe = Path.Combine(installationPath, "generals.exe");
 
         try
         {
             File.CreateSymbolicLink(symlinkFile, outsideFile);
             Directory.CreateSymbolicLink(symlinkDir, outsideDir);
+            File.CreateSymbolicLink(symlinkExe, outsideExe);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
         {
-            // Skip symlink assertions if runtime lacks permissions to create symbolic links
-            return;
+            Assert.Skip($"Symbolic link creation requires elevated privileges or Developer Mode on this platform: {ex.Message}");
         }
 
         // Act - version "1.02" has no authoritative CSV catalog
@@ -598,10 +599,10 @@ public class ManifestGenerationServiceTests : IDisposable
             installationPath, GameType.Generals, GameInstallationType.Retail, "1.02");
         var manifest = builder.Build();
 
-        // Assert - symlinks/reparse points are excluded from manifest
+        // Assert - symlinks/reparse points are excluded from manifest, including symlinked primary executable
         Assert.NotNull(manifest);
-        Assert.Contains(manifest.Files, f => f.RelativePath == "generals.exe");
         Assert.Contains(manifest.Files, f => f.RelativePath == "normal.ini");
+        Assert.DoesNotContain(manifest.Files, f => f.RelativePath == "generals.exe");
         Assert.DoesNotContain(manifest.Files, f => f.RelativePath == "linked_file.big");
         Assert.DoesNotContain(manifest.Files, f => f.RelativePath.Contains("outside.big"));
     }
