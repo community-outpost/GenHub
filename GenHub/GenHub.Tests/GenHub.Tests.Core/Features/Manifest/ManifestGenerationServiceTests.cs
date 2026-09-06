@@ -467,6 +467,49 @@ public class ManifestGenerationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync skips a backup file (.bak) if it is a symbolic link or reparse point,
+    /// falling back to the original non-reparse file.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_BackupIsReparsePoint_SkipsBackupAndUsesOriginalAsync()
+    {
+        // Arrange
+        var installationPath = Path.Combine(_tempDirectory, "BackupReparsePointTest");
+        Directory.CreateDirectory(installationPath);
+
+        var outsideDir = Path.Combine(_tempDirectory, "OutsideBackupDir");
+        Directory.CreateDirectory(outsideDir);
+        var outsideTarget = Path.Combine(outsideDir, "outside_backup.exe");
+        await File.WriteAllTextAsync(outsideTarget, "malicious or external backup");
+
+        var originalExe = Path.Combine(installationPath, "generals.exe");
+        var backupExe = Path.Combine(installationPath, "generals.exe.bak");
+        await File.WriteAllTextAsync(originalExe, "valid original exe");
+
+        try
+        {
+            File.CreateSymbolicLink(backupExe, outsideTarget);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            _testOutput?.WriteLine($"Skipping backup symlink test: symbolic link creation requires elevated privileges ({ex.Message}).");
+            return;
+        }
+
+        // Act
+        var builder = await _service.CreateGameInstallationManifestAsync(
+            installationPath, GameType.Generals, GameInstallationType.Steam, "1.08", "EN");
+        var manifest = builder.Build();
+
+        // Assert - The symlinked .bak backup must be skipped and originalExe used
+        Assert.NotNull(manifest);
+        var exeFile = manifest.Files.FirstOrDefault(f => f.RelativePath == "generals.exe");
+        Assert.NotNull(exeFile);
+        Assert.Equal(originalExe, exeFile.SourcePath);
+    }
+
+    /// <summary>
     /// Tests that CreateGameInstallationManifestAsync falls back to directory scan when no authoritative CSV catalog is found,
     /// recursing into subdirectories and including broadened game file extensions while skipping backups.
     /// </summary>

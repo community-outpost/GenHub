@@ -140,10 +140,11 @@ public class MarkdownTextBlock : UserControl
                         TextDecorations = TextDecorations.Underline,
                     };
 
-                    // Make the link clickable
+                    // Make the link clickable and wrap text for responsive layout
                     var linkText = new TextBlock
                     {
                         Cursor = new Cursor(StandardCursorType.Hand),
+                        TextWrapping = TextWrapping.Wrap,
                     };
 
                     linkText.Inlines?.Add(linkRun);
