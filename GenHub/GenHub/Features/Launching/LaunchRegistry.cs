@@ -8,6 +8,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.GameProfile;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Launching;
@@ -20,7 +21,7 @@ public class LaunchRegistry : ILaunchRegistry
 {
     private const int MaxInspectionFailures = 5;
     private readonly ILogger<LaunchRegistry> _logger;
-    private readonly IWorkspaceManager? _workspaceManager;
+    private readonly IServiceScopeFactory? _scopeFactory;
     private readonly IGameProcessManager? _processManager;
     private readonly ConcurrentDictionary<string, GameLaunchInfo> _activeLaunches = new();
     private readonly ConcurrentDictionary<string, int> _inspectionFailureCounts = new();
@@ -29,15 +30,15 @@ public class LaunchRegistry : ILaunchRegistry
     /// Initializes a new instance of the <see cref="LaunchRegistry"/> class.
     /// </summary>
     /// <param name="logger">The logger instance.</param>
-    /// <param name="workspaceManager">Optional workspace manager for cleanup.</param>
+    /// <param name="scopeFactory">Optional service scope factory for workspace cleanup.</param>
     /// <param name="processManager">Optional process manager for tracking game processes.</param>
     public LaunchRegistry(
         ILogger<LaunchRegistry> logger,
-        IWorkspaceManager? workspaceManager = null,
+        IServiceScopeFactory? scopeFactory = null,
         IGameProcessManager? processManager = null)
     {
         _logger = logger;
-        _workspaceManager = workspaceManager;
+        _scopeFactory = scopeFactory;
         _processManager = processManager;
 
         if (_processManager != null)
@@ -208,7 +209,7 @@ public class LaunchRegistry : ILaunchRegistry
     /// <param name="launchId">The launch ID.</param>
     private async Task CleanupWorkspaceForLaunchAsync(GameLaunchInfo launchInfo, string launchId)
     {
-        if (_workspaceManager == null || string.IsNullOrEmpty(launchInfo.WorkspaceId))
+        if (_scopeFactory == null || string.IsNullOrEmpty(launchInfo.WorkspaceId))
         {
             return;
         }
@@ -221,7 +222,14 @@ public class LaunchRegistry : ILaunchRegistry
                 launchId,
                 launchInfo.ProfileId);
 
-            var cleanupResult = await _workspaceManager.CleanupWorkspaceAsync(launchInfo.WorkspaceId);
+            using var scope = _scopeFactory.CreateScope();
+            var workspaceManager = scope.ServiceProvider.GetService<IWorkspaceManager>();
+            if (workspaceManager == null)
+            {
+                return;
+            }
+
+            var cleanupResult = await workspaceManager.CleanupWorkspaceAsync(launchInfo.WorkspaceId);
             if (cleanupResult.Failed)
             {
                 _logger.LogWarning(
