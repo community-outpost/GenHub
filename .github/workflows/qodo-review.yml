@@ -26,12 +26,8 @@ jobs:
 
     steps:
       - name: Run Qodo PR-Agent
-        uses: the-pr-agent/pr-agent@97169bcab8943d457b99256d357b856c68e0c61e # main
+        uses: qodo-ai/pr-agent@97169bcab8943d457b99256d357b856c68e0c61e # main
         env:
-          # --- Configuration Branch (Enables loading .pr_agent.toml from PR branch) ---
-          PR_AGENT_CONFIG_BRANCH: ${{ github.head_ref || github.ref_name }}
-          CONFIG.CONFIG_BRANCH: ${{ github.head_ref || github.ref_name }}
-
           # --- Z.AI Coding Plan Credentials & Base URL ---
           OPENAI_KEY: ${{ secrets.ZAI_API_KEY }}
           PR_AGENT__OPENAI__KEY: ${{ secrets.ZAI_API_KEY }}
@@ -43,8 +39,11 @@ jobs:
 
           # --- Single Model (No Fallbacks) ---
           CONFIG.MODEL: "openai/glm-5.3-flash"
+          PR_AGENT__CONFIG__MODEL: "openai/glm-5.3-flash"
           CONFIG.FALLBACK_MODELS: "[]"
+          PR_AGENT__CONFIG__FALLBACK_MODELS: "[]"
           CONFIG.CUSTOM_MODEL_MAX_TOKENS: 128000
+          PR_AGENT__CONFIG__CUSTOM_MODEL_MAX_TOKENS: 128000
 
           # --- PR Actions (Only Review on Open, No Auto-Describe / Auto-Improve) ---
           GITHUB_ACTION_CONFIG.AUTO_REVIEW: "true"
