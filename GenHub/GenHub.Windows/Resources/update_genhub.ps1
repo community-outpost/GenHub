@@ -8,8 +8,6 @@ param(
     [string]$BackupDir = "{{BACKUP_DIR}}"
 )
 
-$ErrorActionPreference = 'SilentlyContinue'
-
 function Write-Log {
     param([string]$Message)
     $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
@@ -36,19 +34,48 @@ Start-Sleep -Seconds 2
 
 Write-Log "Starting file replacement..."
 $updateSuccess = $false
+$excluded = @(
+    'settings.json',
+    'Profiles',
+    'Manifests',
+    'UserData',
+    'workspaces.json',
+    'logs',
+    'Logs',
+    'Data',
+    'cas-pool',
+    'Workspaces',
+    'Cache',
+    'cache',
+    'upload_history.json',
+    'MapPacks',
+    'mappacks',
+    '.genhub-cas'
+)
+
 try {
+    Write-Log "Ensuring target directory exists: $TargetDir"
+    if (-not (Test-Path $TargetDir)) {
+        New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
+    }
+
     Write-Log "Creating backup directory: $BackupDir"
     New-Item -ItemType Directory -Path $BackupDir -Force | Out-Null
     
     Write-Log "Backing up existing files..."
     if (Test-Path $TargetDir) {
-        Copy-Item -Path "$TargetDir\*" -Destination $BackupDir -Recurse -Force -ErrorAction SilentlyContinue
+        $existingItems = Get-ChildItem -Path $TargetDir -Force -ErrorAction SilentlyContinue
+        if ($null -ne $existingItems -and $existingItems.Count -gt 0) {
+            Copy-Item -Path "$TargetDir\*" -Destination $BackupDir -Recurse -Force -ErrorAction Stop
+        }
     }
     
-    Write-Log "Copying new files from $SourceDir to $TargetDir"
-    Copy-Item -Path "$SourceDir\*" -Destination $TargetDir -Recurse -Force -ErrorAction Stop
+    Write-Log "Copying application binaries from $SourceDir to $TargetDir"
+    Get-ChildItem -Path $SourceDir -Force | Where-Object { $excluded -notcontains $_.Name } | ForEach-Object {
+        Copy-Item -Path $_.FullName -Destination $TargetDir -Recurse -Force -ErrorAction Stop
+    }
     
-    Write-Log "Update completed successfully"
+    Write-Log "Update files copied successfully"
     
     Write-Log "Starting updated application: $CurrentExe"
     if (-not (Test-Path $CurrentExe)) {
@@ -70,9 +97,16 @@ try {
     }
     Write-Log "Application started and verified running (PID: $($proc.Id))"
 
-    # Only delete source directory on verified success after launch
+    # Clean up migrated application binaries from source, preserving user data
     if (Test-Path $SourceDir) {
-        Remove-Item -Path $SourceDir -Recurse -Force -ErrorAction SilentlyContinue
+        Get-ChildItem -Path $SourceDir -Force | Where-Object { $excluded -notcontains $_.Name } | ForEach-Object {
+            Remove-Item -Path $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        # Remove source directory only if it is now completely empty
+        $remaining = Get-ChildItem -Path $SourceDir -Force -ErrorAction SilentlyContinue
+        if ($null -eq $remaining -or $remaining.Count -eq 0) {
+            Remove-Item -Path $SourceDir -Force -ErrorAction SilentlyContinue
+        }
     }
     $updateSuccess = $true
 }
@@ -80,9 +114,12 @@ catch {
     Write-Log "Update failed: $($_.Exception.Message)"
     Write-Log "Attempting to restore backup..."
     if (Test-Path $BackupDir) {
-        Remove-Item -Path "$TargetDir\*" -Recurse -Force -ErrorAction SilentlyContinue
-        Copy-Item -Path "$BackupDir\*" -Destination $TargetDir -Recurse -Force -ErrorAction SilentlyContinue
-        Write-Log "Backup restored successfully"
+        $backupItems = Get-ChildItem -Path $BackupDir -Force -ErrorAction SilentlyContinue
+        if ($null -ne $backupItems -and $backupItems.Count -gt 0) {
+            Remove-Item -Path "$TargetDir\*" -Recurse -Force -ErrorAction SilentlyContinue
+            Copy-Item -Path "$BackupDir\*" -Destination $TargetDir -Recurse -Force -ErrorAction SilentlyContinue
+            Write-Log "Backup restored successfully"
+        }
     }
 }
 finally {

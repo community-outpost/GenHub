@@ -830,18 +830,19 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private async Task MigrateInstallationLocation()
+    private async Task MigrateInstallationLocation(CancellationToken cancellationToken)
     {
         if (IsMigrating)
         {
             return;
         }
 
+        var hideDelayMs = (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds;
         try
         {
             if (string.IsNullOrWhiteSpace(MigrationTargetPath))
             {
-                _notificationService.ShowWarning("Migration Target Required", "Please select a target directory for migration.", 4000);
+                _notificationService.ShowWarning("Migration Target Required", "Please select a target directory for migration.", hideDelayMs);
                 return;
             }
 
@@ -853,13 +854,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
             var preflight = await _storageMigrationService.ValidatePreflightAsync(
                 MigrationTargetPath,
-                RelocateCasAndWorkspacesWithMigration);
+                RelocateCasAndWorkspacesWithMigration,
+                cancellationToken);
 
             if (!preflight.Success || preflight.Data is null || !preflight.Data.IsValid)
             {
                 var errorMessage = preflight.Data?.ErrorMessage ?? preflight.FirstError ?? "Pre-flight validation failed.";
                 _logger.LogWarning("Migration pre-flight checks failed: {ErrorMessage}", errorMessage);
-                _notificationService.ShowError("Migration Pre-flight Failed", errorMessage, 6000);
+                _notificationService.ShowError("Migration Pre-flight Failed", errorMessage, hideDelayMs);
                 IsMigrating = false;
                 MigrationStatusText = string.Empty;
                 MigrationProgressPercentage = 0;
@@ -899,21 +901,26 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 LaunchHelperProcess = true,
             };
 
-            var migrationResult = await _storageMigrationService.MigrateAsync(request, progressReporter);
+            var migrationResult = await _storageMigrationService.MigrateAsync(request, progressReporter, cancellationToken);
             if (!migrationResult.Success)
             {
                 var error = migrationResult.FirstError ?? "Migration operation failed.";
                 _logger.LogError("Installation migration failed: {Error}", error);
-                _notificationService.ShowError("Migration Failed", error, 6000);
+                _notificationService.ShowError("Migration Failed", error, hideDelayMs);
                 IsMigrating = false;
                 MigrationStatusText = $"Migration failed: {error}";
                 MigrationProgressPercentage = 0;
+            }
+            else
+            {
+                MigrationStatusText = "Migration complete. Restarting GenHub...";
+                MigrationProgressPercentage = 100;
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error during installation migration");
-            _notificationService.ShowError("Migration Error", ex.Message, 6000);
+            _notificationService.ShowError("Migration Error", ex.Message, hideDelayMs);
             IsMigrating = false;
             MigrationStatusText = string.Empty;
             MigrationProgressPercentage = 0;

@@ -75,7 +75,7 @@ public partial class App : Application
             // Handle startup arguments sequentially (launch profile, then subscription if present)
             SafeFireAndForget(HandleStartupArgsAsync(desktop.Args, mainWindow), nameof(HandleStartupArgsAsync));
 
-            // Repair desktop shortcuts if application executable has moved/relocated
+            // Repair desktop and application shortcuts if application executable has moved/relocated
             SafeFireAndForget(RepairShortcutsAsync(), nameof(RepairShortcutsAsync));
         }
 
@@ -366,6 +366,12 @@ public partial class App : Application
             return;
         }
 
+        await Task.Run(ExecuteRepairShortcutsAsync);
+    }
+
+    private async Task ExecuteRepairShortcutsAsync()
+    {
+        var logger = _serviceProvider.GetService<ILogger<App>>();
         try
         {
             var shortcutService = _serviceProvider.GetService<IShortcutService>();
@@ -375,22 +381,41 @@ public partial class App : Application
                 return;
             }
 
-            var profilesResult = await profileManager.GetAllProfilesAsync();
-            if (profilesResult.Success && profilesResult.Data != null)
+            await RepairProfileShortcutsAsync(shortcutService, profileManager, logger);
+
+            var repairAppResult = await shortcutService.RepairApplicationShortcutsAsync();
+            if (!repairAppResult.Success)
             {
-                foreach (var profile in profilesResult.Data)
-                {
-                    if (await shortcutService.ShortcutExistsAsync(profile))
-                    {
-                        await shortcutService.CreateDesktopShortcutAsync(profile);
-                    }
-                }
+                logger?.LogWarning("Failed to repair application shortcuts: {Error}", repairAppResult.FirstError);
             }
         }
         catch (Exception ex)
         {
-            var logger = _serviceProvider.GetService<ILogger<App>>();
             logger?.LogWarning(ex, "Failed to repair desktop shortcuts during startup");
+        }
+    }
+
+    private async Task RepairProfileShortcutsAsync(
+        IShortcutService shortcutService,
+        IGameProfileManager profileManager,
+        ILogger<App>? logger)
+    {
+        var profilesResult = await profileManager.GetAllProfilesAsync();
+        if (!profilesResult.Success || profilesResult.Data == null)
+        {
+            return;
+        }
+
+        foreach (var profile in profilesResult.Data)
+        {
+            if (await shortcutService.ShortcutExistsAsync(profile))
+            {
+                var result = await shortcutService.CreateDesktopShortcutAsync(profile);
+                if (!result.Success)
+                {
+                    logger?.LogWarning("Failed to repair desktop shortcut for profile {ProfileName}: {Error}", profile.Name, result.FirstError);
+                }
+            }
         }
     }
 }

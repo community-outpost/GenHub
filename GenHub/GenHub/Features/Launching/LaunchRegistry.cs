@@ -1,27 +1,25 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
-using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.GameProfile;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Launching;
 
 /// <summary>
 /// In-memory implementation of the launch registry.
-/// Automatically cleans up workspaces when game processes exit.
 /// </summary>
 public class LaunchRegistry : ILaunchRegistry
 {
     private const int MaxInspectionFailures = 5;
     private readonly ILogger<LaunchRegistry> _logger;
-    private readonly IServiceScopeFactory? _scopeFactory;
     private readonly IGameProcessManager? _processManager;
     private readonly ConcurrentDictionary<string, GameLaunchInfo> _activeLaunches = new();
     private readonly ConcurrentDictionary<string, int> _inspectionFailureCounts = new();
@@ -30,15 +28,12 @@ public class LaunchRegistry : ILaunchRegistry
     /// Initializes a new instance of the <see cref="LaunchRegistry"/> class.
     /// </summary>
     /// <param name="logger">The logger instance.</param>
-    /// <param name="scopeFactory">Optional service scope factory for workspace cleanup.</param>
     /// <param name="processManager">Optional process manager for tracking game processes.</param>
     public LaunchRegistry(
         ILogger<LaunchRegistry> logger,
-        IServiceScopeFactory? scopeFactory = null,
         IGameProcessManager? processManager = null)
     {
         _logger = logger;
-        _scopeFactory = scopeFactory;
         _processManager = processManager;
 
         if (_processManager != null)
@@ -138,12 +133,12 @@ public class LaunchRegistry : ILaunchRegistry
     /// Attempts to update the process status for a launch.
     /// </summary>
     /// <param name="launchInfo">The launch information to update.</param>
-    /// <param name="launchId">The launch ID for logging purposes.</param>
+    /// <param name="launchId">The launch ID.</param>
     private void TryUpdateProcessStatus(GameLaunchInfo launchInfo, string launchId)
     {
         try
         {
-            // GetProcesses() can throw UnauthorizedAccessException on some systems
+            // Use ProcessInfo to check if process is still running
             var runningProcess = Process.GetProcesses()
                 .FirstOrDefault(p => p.Id == launchInfo.ProcessInfo.ProcessId);
 
@@ -153,29 +148,26 @@ public class LaunchRegistry : ILaunchRegistry
                 _inspectionFailureCounts.TryRemove(launchId, out _);
                 launchInfo.TerminatedAt = DateTime.UtcNow;
                 launchInfo.ProcessInfo.IsRunning = false;
-
-                // NOTE: Workspace is NOT cleaned up automatically - it persists across launches
-                // Only clean up workspace when profile is deleted or content changes
-                return;
             }
-
-            using (runningProcess)
+            else
             {
+                // Verify process hasn't exited (Handle might throw if process has exited)
                 if (runningProcess.HasExited)
                 {
+                    _logger.LogDebug("Process {ProcessId} for launch {LaunchId} has exited", launchInfo.ProcessInfo.ProcessId, launchId);
+
                     try
                     {
                         launchInfo.TerminatedAt = runningProcess.ExitTime;
                     }
-                    catch (InvalidOperationException)
+                    catch (Exception ex) when (ex is InvalidOperationException or Win32Exception or NotSupportedException)
                     {
+                        // Fallback to current time if ExitTime throws
                         launchInfo.TerminatedAt = DateTime.UtcNow;
                     }
 
                     _inspectionFailureCounts.TryRemove(launchId, out _);
                     launchInfo.ProcessInfo.IsRunning = false;
-
-                    // NOTE: Workspace is NOT cleaned up automatically - it persists across launches
                 }
                 else
                 {
@@ -199,60 +191,6 @@ public class LaunchRegistry : ILaunchRegistry
                 // Do not mark process terminated on transient inspection error; preserve it as active so safe teardown guards hold
                 _logger.LogWarning(ex, "Failed to check process status for launch {LaunchId} (attempt {Failures}/{MaxFailures})", launchId, failures, MaxInspectionFailures);
             }
-        }
-    }
-
-    /// <summary>
-    /// Cleans up the workspace for a terminated launch.
-    /// </summary>
-    /// <param name="launchInfo">The launch information.</param>
-    /// <param name="launchId">The launch ID.</param>
-    private async Task CleanupWorkspaceForLaunchAsync(GameLaunchInfo launchInfo, string launchId)
-    {
-        if (_scopeFactory == null || string.IsNullOrEmpty(launchInfo.WorkspaceId))
-        {
-            return;
-        }
-
-        try
-        {
-            _logger.LogInformation(
-                "Automatically cleaning up workspace {WorkspaceId} for terminated launch {LaunchId} (Profile: {ProfileId})",
-                launchInfo.WorkspaceId,
-                launchId,
-                launchInfo.ProfileId);
-
-            using var scope = _scopeFactory.CreateScope();
-            var workspaceManager = scope.ServiceProvider.GetService<IWorkspaceManager>();
-            if (workspaceManager == null)
-            {
-                return;
-            }
-
-            var cleanupResult = await workspaceManager.CleanupWorkspaceAsync(launchInfo.WorkspaceId);
-            if (cleanupResult.Failed)
-            {
-                _logger.LogWarning(
-                    "Failed to cleanup workspace {WorkspaceId} for launch {LaunchId}: {Error}",
-                    launchInfo.WorkspaceId,
-                    launchId,
-                    cleanupResult.FirstError);
-            }
-            else
-            {
-                _logger.LogInformation(
-                    "Successfully cleaned up workspace {WorkspaceId} for terminated launch {LaunchId}",
-                    launchInfo.WorkspaceId,
-                    launchId);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Exception during automatic workspace cleanup for launch {LaunchId}, workspace {WorkspaceId}",
-                launchId,
-                launchInfo.WorkspaceId);
         }
     }
 

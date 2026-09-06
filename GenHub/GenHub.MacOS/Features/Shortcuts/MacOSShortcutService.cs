@@ -81,6 +81,12 @@ public sealed class MacOSShortcutService(ILogger<MacOSShortcutService> logger) :
         return Path.Combine(desktopPath, $"{AppConstants.AppName}-{name}{ShortcutExtension}");
     }
 
+    /// <inheritdoc />
+    public Task<OperationResult<bool>> RepairApplicationShortcutsAsync()
+    {
+        return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
+    }
+
     private static string SanitizeFileName(string fileName)
     {
         var sanitized = new StringBuilder(fileName);

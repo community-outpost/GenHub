@@ -1,4 +1,7 @@
 #!/bin/bash
+trap '' HUP
+
+UPDATER_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 
 # Arguments passed from application
 PROCESS_ID="${1:-{{PROCESS_ID}}}"
@@ -10,6 +13,17 @@ BACKUP_DIR="${6:-{{BACKUP_DIR}}}"
 
 write_log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
+}
+
+is_excluded() {
+    case "$1" in
+        settings.json|Profiles|Manifests|UserData|workspaces.json|logs|Logs|Data|cas-pool|Workspaces|Cache|cache|upload_history.json|MapPacks|mappacks|.genhub-cas)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
 }
 
 write_log "GenHub Linux Update Script Started"
@@ -33,27 +47,43 @@ if kill -0 "$PROCESS_ID" 2>/dev/null; then
 fi
 
 write_log "Ensuring all GenHub processes are closed..."
-pkill -f "^$CURRENT_EXE\$" || true
+pkill -x "GenHub" 2>/dev/null || true
+pkill -x "GenHub.Linux" 2>/dev/null || true
 sleep 2
 
 write_log "Starting file replacement..."
 
-# Create backup directory
+# Create backup and target directories
 write_log "Creating backup directory: $BACKUP_DIR"
 mkdir -p "$BACKUP_DIR"
+mkdir -p "$TARGET_DIR"
 
 # Backup existing files
-write_log "Backing up existing files..."
-if [ -d "$TARGET_DIR" ]; then
-    cp -a "$TARGET_DIR/." "$BACKUP_DIR/" 2>/dev/null || true
+if [ -d "$TARGET_DIR" ] && [ "$(ls -A "$TARGET_DIR" 2>/dev/null)" ]; then
+    write_log "Backing up existing files..."
+    if ! cp -a "$TARGET_DIR/." "$BACKUP_DIR/" 2>> "$LOG_FILE"; then
+        write_log "Error: Failed to create backup of existing files."
+        exit 1
+    fi
 fi
 
-# Copy new files including hidden files
-write_log "Copying new files from $SOURCE_DIR to $TARGET_DIR"
-mkdir -p "$TARGET_DIR"
-if ! cp -a "$SOURCE_DIR/." "$TARGET_DIR/" 2>&1; then
+# Copy application files (excluding user data)
+write_log "Copying application files from $SOURCE_DIR to $TARGET_DIR"
+copy_failed=0
+for item in "$SOURCE_DIR"/* "$SOURCE_DIR"/.[!.]*; do
+    [ -e "$item" ] || continue
+    name=$(basename "$item")
+    if is_excluded "$name"; then
+        continue
+    fi
+    if ! cp -a "$item" "$TARGET_DIR/" 2>> "$LOG_FILE"; then
+        copy_failed=1
+        break
+    fi
+done
+
+if [ "$copy_failed" -eq 1 ]; then
     write_log "Error: Failed to copy update files"
-    # Attempt to restore backup
     if [ -d "$BACKUP_DIR" ] && [ "$(ls -A "$BACKUP_DIR" 2>/dev/null)" ]; then
         write_log "Attempting to restore backup..."
         rm -rf "${TARGET_DIR:?}"/* "${TARGET_DIR:?}"/.[!.]* 2>/dev/null || true
@@ -97,9 +127,17 @@ if [ -f "$CURRENT_EXE" ]; then
     done
     write_log "Application started and verified running (PID: $APP_PID)"
 
-    # Cleanup source directory only after verified launch
+    # Clean up migrated application binaries from source, preserving user data
     write_log "Cleaning up source directory..."
-    rm -rf "${SOURCE_DIR:?}" 2>/dev/null || true
+    for item in "$SOURCE_DIR"/* "$SOURCE_DIR"/.[!.]*; do
+        [ -e "$item" ] || continue
+        name=$(basename "$item")
+        if is_excluded "$name"; then
+            continue
+        fi
+        rm -rf "$item" 2>/dev/null || true
+    done
+    rmdir "$SOURCE_DIR" 2>/dev/null || true
 else
     write_log "Error: Updated executable not found: $CURRENT_EXE"
     if [ -d "$BACKUP_DIR" ] && [ "$(ls -A "$BACKUP_DIR" 2>/dev/null)" ]; then
@@ -114,8 +152,6 @@ else
     exit 1
 fi
 
-# Self-destruct the updater script's parent directory
-UPDATER_DIR=$(dirname "$0")
 sleep 2
 rm -rf "${UPDATER_DIR:?}" 2>/dev/null || true
 

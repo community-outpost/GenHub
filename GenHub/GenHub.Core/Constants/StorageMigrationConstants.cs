@@ -49,4 +49,49 @@ public static class StorageMigrationConstants
     /// Finalizing stage name.
     /// </summary>
     public const string StageFinalizing = "Finalizing Migration";
+
+    /// <summary>
+    /// Velopack current directory name.
+    /// </summary>
+    public const string CurrentDirectoryName = "current";
+
+    /// <summary>
+    /// Velopack versioned directory prefix.
+    /// </summary>
+    public const string AppDirectoryPrefix = "app-";
+
+    /// <summary>
+    /// Prefix for temporary migration staging directories.
+    /// </summary>
+    public const string MigrationTempDirectoryPrefix = "genhub_migrate_";
+
+    /// <summary>
+    /// Lowercase logs directory name.
+    /// </summary>
+    public const string LogsDirectoryName = "logs";
+
+    /// <summary>
+    /// Capitalized logs directory name.
+    /// </summary>
+    public const string LogsCapitalizedDirectoryName = "Logs";
+
+    /// <summary>
+    /// Lowercase cache directory name.
+    /// </summary>
+    public const string CacheLowercaseDirectoryName = "cache";
+
+    /// <summary>
+    /// Lowercase mappacks directory name.
+    /// </summary>
+    public const string MapPacksLowercaseDirectoryName = "mappacks";
+
+    /// <summary>
+    /// Upload history file name.
+    /// </summary>
+    public const string UploadHistoryFileName = "upload_history.json";
+
+    /// <summary>
+    /// CAS directory marker name.
+    /// </summary>
+    public const string DotGenHubCasDirectoryName = ".genhub-cas";
 }

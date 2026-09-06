@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,14 +13,15 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Linux.Features.Shortcuts;
 
 /// <summary>
-/// Linux implementation of <see cref="IShortcutService"/> that creates .desktop files.
-/// </summary>
+/// Linux implementation of <see cref="IShortcutService"/> that creates .desktop files.\n/// </summary>
 [SupportedOSPlatform("linux")]
 public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShortcutService
 {
     private const string DesktopEntryVersion = "1.0";
     private const string DesktopEntryType = "Application";
     private const string DesktopFileExtension = ".desktop";
+
+    private static readonly UTF8Encoding Utf8NoBom = new(false);
 
     /// <inheritdoc />
     public async Task<OperationResult<string>> CreateDesktopShortcutAsync(GameProfile profile, string? shortcutName = null)
@@ -42,7 +44,6 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
             var comment = $"Launch {profile.Name} with GenHub";
             var name = shortcutName ?? profile.Name;
 
-            // Use the profile's icon if available
             var iconPath = !string.IsNullOrEmpty(profile.IconPath) && File.Exists(profile.IconPath)
                 ? profile.IconPath
                 : string.Empty;
@@ -55,16 +56,14 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
                 workingDirectory,
                 iconPath);
 
-            // Ensure the directory exists
             var directory = Path.GetDirectoryName(shortcutPath);
             if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
             {
                 Directory.CreateDirectory(directory);
             }
 
-            await File.WriteAllTextAsync(shortcutPath, desktopEntry, Encoding.UTF8);
+            await File.WriteAllTextAsync(shortcutPath, desktopEntry, Utf8NoBom);
 
-            // Make the .desktop file executable
             MakeExecutable(shortcutPath);
 
             logger.LogInformation(
@@ -130,16 +129,51 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
         return Path.Combine(desktopPath, $"{AppConstants.AppName}-{name}{DesktopFileExtension}");
     }
 
+    /// <inheritdoc />
+    public Task<OperationResult<bool>> RepairApplicationShortcutsAsync()
+    {
+        var processPath = Environment.ProcessPath;
+        if (string.IsNullOrEmpty(processPath) || !File.Exists(processPath))
+        {
+            return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
+        }
+
+        try
+        {
+            var executablePath = ResolveLauncherExecutable(processPath);
+            var workingDirectory = Path.GetDirectoryName(executablePath) ?? string.Empty;
+            var dataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
+            if (string.IsNullOrWhiteSpace(dataHome))
+            {
+                var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                dataHome = Path.Combine(home, ".local", "share");
+            }
+
+            var appDir = Path.Combine(dataHome, "applications");
+            var locations = new[]
+            {
+                Path.Combine(appDir, $"{AppConstants.AppName}{DesktopFileExtension}"),
+                Path.Combine(appDir, $"community-outpost.{AppConstants.AppName}{DesktopFileExtension}"),
+                Path.Combine(GetDesktopPath(), $"{AppConstants.AppName}{DesktopFileExtension}"),
+            };
+
+            foreach (var shortcutPath in locations.Where(File.Exists))
+            {
+                TryRepairDesktopEntry(shortcutPath, executablePath, workingDirectory);
+            }
+
+            return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to repair application shortcuts");
+            return Task.FromResult(OperationResult<bool>.CreateFailure($"Failed to repair application shortcuts: {ex.Message}"));
+        }
+    }
+
     /// <summary>
     /// Builds a .desktop file content following the freedesktop.org specification.
     /// </summary>
-    /// <param name="name">The display name for the shortcut.</param>
-    /// <param name="comment">A description/tooltip for the shortcut.</param>
-    /// <param name="executablePath">The path to the executable.</param>
-    /// <param name="arguments">Command line arguments.</param>
-    /// <param name="workingDirectory">The working directory.</param>
-    /// <param name="iconPath">The path to the icon.</param>
-    /// <returns>The .desktop file content.</returns>
     private static string BuildDesktopEntry(
         string name,
         string comment,
@@ -148,84 +182,48 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
         string workingDirectory,
         string iconPath)
     {
-        var builder = new StringBuilder();
+        var sb = new StringBuilder();
+        sb.AppendLine("[Desktop Entry]");
+        sb.AppendLine($"Version={DesktopEntryVersion}");
+        sb.AppendLine($"Type={DesktopEntryType}");
+        sb.AppendLine($"Name={EscapeDesktopValue(name)}");
 
-        builder.AppendLine("[Desktop Entry]");
-        builder.AppendLine($"Version={DesktopEntryVersion}");
-        builder.AppendLine($"Type={DesktopEntryType}");
-        builder.AppendLine($"Name={EscapeDesktopValue(name)}");
-        builder.AppendLine($"Comment={EscapeDesktopValue(comment)}");
-        builder.AppendLine($"Exec={EscapeExecValue(executablePath)} {arguments}");
-
-        if (!string.IsNullOrEmpty(workingDirectory))
+        if (!string.IsNullOrEmpty(comment))
         {
-            builder.AppendLine($"Path={workingDirectory}");
+            sb.AppendLine($"Comment={EscapeDesktopValue(comment)}");
         }
+
+        var execValue = string.IsNullOrEmpty(arguments)
+            ? EscapeExecValue(executablePath)
+            : $"{EscapeExecValue(executablePath)} {arguments}";
+        sb.AppendLine($"Exec={execValue}");
 
         if (!string.IsNullOrEmpty(iconPath))
         {
-            builder.AppendLine($"Icon={iconPath}");
+            sb.AppendLine($"Icon={EscapeDesktopValue(iconPath)}");
         }
 
-        builder.AppendLine("Terminal=false");
-        builder.AppendLine("Categories=Game;");
+        if (!string.IsNullOrEmpty(workingDirectory))
+        {
+            sb.AppendLine($"Path={EscapeDesktopValue(workingDirectory)}");
+        }
 
-        return builder.ToString();
+        sb.AppendLine("Terminal=false");
+        sb.AppendLine("Categories=Game;");
+        sb.AppendLine("StartupNotify=true");
+
+        return sb.ToString();
     }
 
     /// <summary>
-    /// Gets the path to the user's desktop directory.
+    /// Escapes special characters in desktop entry values according to the freedesktop.org specification.
     /// </summary>
-    /// <returns>The desktop directory path.</returns>
-    private static string GetDesktopPath()
-    {
-        // Try XDG_DESKTOP_DIR first
-        var xdgDesktopDir = Environment.GetEnvironmentVariable("XDG_DESKTOP_DIR");
-        if (!string.IsNullOrEmpty(xdgDesktopDir) && Directory.Exists(xdgDesktopDir))
-        {
-            return xdgDesktopDir;
-        }
-
-        // Fall back to ~/Desktop
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var desktopPath = Path.Combine(home, "Desktop");
-
-        // If Desktop doesn't exist, try the XDG user directories config
-        if (!Directory.Exists(desktopPath))
-        {
-            var xdgConfigPath = Path.Combine(home, ".config", "user-dirs.dirs");
-            if (File.Exists(xdgConfigPath))
-            {
-                var lines = File.ReadAllLines(xdgConfigPath);
-                foreach (var line in lines)
-                {
-                    if (line.StartsWith("XDG_DESKTOP_DIR=", StringComparison.Ordinal))
-                    {
-                        var value = line.Substring("XDG_DESKTOP_DIR=".Length).Trim('"');
-                        value = value.Replace("$HOME", home);
-                        if (Directory.Exists(value))
-                        {
-                            return value;
-                        }
-                    }
-                }
-            }
-        }
-
-        return desktopPath;
-    }
-
-    /// <summary>
-    /// Escapes special characters in desktop entry values.
-    /// </summary>
-    /// <param name="value">The value to escape.</param>
-    /// <returns>The escaped value.</returns>
     private static string EscapeDesktopValue(string value)
     {
-        // Escape backslashes, newlines, tabs, and semicolons
         return value
             .Replace("\\", "\\\\")
             .Replace("\n", "\\n")
+            .Replace("\r", "\\r")
             .Replace("\t", "\\t")
             .Replace(";", "\\;");
     }
@@ -233,24 +231,49 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
     /// <summary>
     /// Escapes special characters in Exec field values.
     /// </summary>
-    /// <param name="value">The value to escape.</param>
-    /// <returns>The escaped value.</returns>
     private static string EscapeExecValue(string value)
     {
-        // Quote the executable path if it contains spaces
-        if (value.Contains(' ', StringComparison.Ordinal))
+        var escaped = value.Replace("%", "%%");
+        if (escaped.Contains(' ', StringComparison.Ordinal) || escaped.Contains('"', StringComparison.Ordinal))
         {
-            return $"\"{value}\"";
+            escaped = escaped.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            return $"\"{escaped}\"";
         }
 
-        return value;
+        return escaped;
+    }
+
+    /// <summary>
+    /// Updates the executable path in an Exec desktop entry line while preserving existing arguments.
+    /// </summary>
+    private static string ReplaceExecutableInExecLine(string execLine, string newExecutablePath)
+    {
+        var value = execLine[5..].Trim();
+        var args = string.Empty;
+        if (value.StartsWith('\"'))
+        {
+            var endQuote = value.IndexOf('\"', 1);
+            if (endQuote >= 0 && endQuote + 1 < value.Length)
+            {
+                args = value[(endQuote + 1)..].Trim();
+            }
+        }
+        else
+        {
+            var spaceIndex = value.IndexOf(' ');
+            if (spaceIndex >= 0)
+            {
+                args = value[spaceIndex..].Trim();
+            }
+        }
+
+        var escapedExe = EscapeExecValue(newExecutablePath);
+        return string.IsNullOrEmpty(args) ? $"Exec={escapedExe}" : $"Exec={escapedExe} {args}";
     }
 
     /// <summary>
     /// Sanitizes a file name by removing or replacing invalid characters.
     /// </summary>
-    /// <param name="fileName">The file name to sanitize.</param>
-    /// <returns>A sanitized file name.</returns>
     private static string SanitizeFileName(string fileName)
     {
         var invalidChars = Path.GetInvalidFileNameChars();
@@ -261,21 +284,63 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
             sanitized.Replace(c, '_');
         }
 
-        // Also replace spaces with underscores for Linux desktop files
         sanitized.Replace(' ', '_');
 
         return sanitized.ToString().Trim();
     }
 
     /// <summary>
+    /// Resolves the stable Velopack root launcher executable if running from a versioned directory.
+    /// </summary>
+    /// <param name="executablePath">The running process executable path.</param>
+    /// <returns>The root launcher path if available; otherwise the original executable path.</returns>
+    private static string ResolveLauncherExecutable(string executablePath)
+    {
+        var dir = Path.GetDirectoryName(executablePath);
+        if (!string.IsNullOrEmpty(dir))
+        {
+            var dirName = Path.GetFileName(dir);
+            if (string.Equals(dirName, StorageMigrationConstants.CurrentDirectoryName, StringComparison.OrdinalIgnoreCase) ||
+                dirName.StartsWith(StorageMigrationConstants.AppDirectoryPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                var parentDir = Directory.GetParent(dir)?.FullName;
+                if (!string.IsNullOrEmpty(parentDir))
+                {
+                    var parentExe = Path.Combine(parentDir, AppConstants.AppName);
+                    if (File.Exists(parentExe))
+                    {
+                        return parentExe;
+                    }
+                }
+            }
+        }
+
+        return executablePath;
+    }
+
+    /// <summary>
+    /// Gets the user's desktop path, following XDG standards if available.
+    /// </summary>
+    private static string GetDesktopPath()
+    {
+        var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+        if (string.IsNullOrEmpty(desktopPath))
+        {
+            desktopPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                "Desktop");
+        }
+
+        return desktopPath;
+    }
+
+    /// <summary>
     /// Makes a file executable using chmod.
     /// </summary>
-    /// <param name="filePath">The path to the file.</param>
     private void MakeExecutable(string filePath)
     {
         try
         {
-            // Use File.SetUnixFileMode if available (.NET 7+)
             var mode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
                        UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
                        UnixFileMode.OtherRead | UnixFileMode.OtherExecute;
@@ -284,6 +349,32 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to set executable permissions on {FilePath}", filePath);
+        }
+    }
+
+    private void TryRepairDesktopEntry(string shortcutPath, string executablePath, string workingDirectory)
+    {
+        var lines = File.ReadAllLines(shortcutPath);
+        var updated = false;
+        for (var i = 0; i < lines.Length; i++)
+        {
+            if (lines[i].StartsWith("Exec=", StringComparison.OrdinalIgnoreCase))
+            {
+                lines[i] = ReplaceExecutableInExecLine(lines[i], executablePath);
+                updated = true;
+            }
+            else if (lines[i].StartsWith("Path=", StringComparison.OrdinalIgnoreCase))
+            {
+                lines[i] = $"Path={workingDirectory}";
+                updated = true;
+            }
+        }
+
+        if (updated)
+        {
+            File.WriteAllLines(shortcutPath, lines, Utf8NoBom);
+            MakeExecutable(shortcutPath);
+            logger.LogInformation("Repaired application desktop entry at {ShortcutPath} -> {ExecutablePath}", shortcutPath, executablePath);
         }
     }
 }
