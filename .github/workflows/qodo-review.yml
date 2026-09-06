@@ -4,19 +4,29 @@ on:
   pull_request_target:
     branches: [main, development]
     types: [opened, reopened, ready_for_review, synchronize]
+  pull_request:
+    branches: [main, development]
+    types: [opened, reopened, ready_for_review, synchronize]
   issue_comment:
     types: [created]
 
 jobs:
   qodo_review:
+    # Fork PRs: run under pull_request_target to access secrets safely
+    # Internal PRs: run under pull_request
+    # Bot comments: ignored to prevent unnecessary runs and cancellations
     if: >-
       ${{
         github.event.sender.type != 'Bot' &&
-        (github.event_name == 'pull_request_target' || github.event.issue.pull_request)
+        (
+          (github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name != github.repository) ||
+          (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) ||
+          github.event.issue.pull_request
+        )
       }}
     concurrency:
       group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number }}-${{ github.event_name }}
-      cancel-in-progress: ${{ github.event_name == 'pull_request_target' }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
