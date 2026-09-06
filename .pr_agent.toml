@@ -3,6 +3,9 @@ model = "openai/glm-5.3-flash"
 fallback_models = []
 custom_model_max_tokens = 128000
 
+[openai]
+api_base = "https://api.z.ai/api/coding/paas/v4"
+
 [pr_reviewer]
 persistent_comment = true
 require_score_review = false
