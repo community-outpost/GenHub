@@ -10,6 +10,9 @@ namespace GenHub.Tests.Core.Features.UI;
 /// </summary>
 public class InfoSectionResponsivenessTests
 {
+    /// <summary>
+    /// Verifies that <c>GenHubInfoSectionView</c> sets <c>HorizontalScrollBarVisibility="Disabled"</c>.
+    /// </summary>
     [Fact]
     public void GenHubInfoSectionView_DisablesHorizontalScrollBar()
     {
@@ -22,6 +25,9 @@ public class InfoSectionResponsivenessTests
         Assert.DoesNotContain("HorizontalScrollBarVisibility=\"Auto\"", content);
     }
 
+    /// <summary>
+    /// Verifies that <c>ChangelogsView</c> sets <c>HorizontalScrollBarVisibility="Disabled"</c>.
+    /// </summary>
     [Fact]
     public void ChangelogsView_DisablesHorizontalScrollBar()
     {
@@ -34,6 +40,9 @@ public class InfoSectionResponsivenessTests
         Assert.DoesNotContain("HorizontalScrollBarVisibility=\"Auto\"", content);
     }
 
+    /// <summary>
+    /// Verifies that <c>GenHubInfoSectionView</c> styles define text wrapping for headers and titles.
+    /// </summary>
     [Fact]
     public void GenHubInfoSectionView_StylesIncludeTextWrapping()
     {
