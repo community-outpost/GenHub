@@ -656,34 +656,57 @@ def validate_catalog(catalog: dict) -> bool:
     return valid
 
 
+def _load_existing_mappings(output_path: str, base_mappings: list) -> list:
+    """Loads and merges existing mappings from disk if present."""
+    if not os.path.exists(output_path):
+        return base_mappings
+
+    try:
+        with open(output_path, "r", encoding="utf-8") as f:
+            loaded = json.load(f)
+            if isinstance(loaded, dict) and "mappings" in loaded:
+                return merge_catalogs(base_mappings, loaded["mappings"])
+    except CatalogConflictError as e:
+        print(f"Error: Catalog conflict detected in existing catalog: {e}", file=sys.stderr)
+        sys.exit(1)
+    except (OSError, ValueError) as e:
+        print(f"Warning: could not read existing catalog: {e}", file=sys.stderr)
+
+    return base_mappings
+
+
+def _crawl_and_merge(existing_mappings: list, inspect_binaries: bool) -> list:
+    """Crawls upstream release feeds and merges into existing mappings."""
+    try:
+        sh_crawled = crawl_superhackers_releases(inspect_binaries=inspect_binaries)
+        if sh_crawled:
+            existing_mappings = merge_catalogs(existing_mappings, sh_crawled)
+
+        go_crawled = crawl_generalsonline_releases(inspect_binaries=inspect_binaries)
+        if go_crawled:
+            existing_mappings = merge_catalogs(existing_mappings, go_crawled)
+        return existing_mappings
+    except CatalogConflictError as e:
+        print(f"Error: Crawled catalog conflict detected: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def _write_catalog_file(output_path: str, catalog: dict) -> None:
+    """Serializes catalog JSON to disk."""
+    output_dir = os.path.dirname(output_path)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(catalog, f, indent=2)
+        f.write("\n")
+
+
 def build_catalog(output_path: str = DEFAULT_OUTPUT_PATH, crawl: bool = False, inspect_binaries: bool = False) -> dict:
     """Builds and writes the complete CRC catalog."""
-    existing_mappings = list(BASELINE_ENTRIES)
-
-    if os.path.exists(output_path):
-        try:
-            with open(output_path, "r", encoding="utf-8") as f:
-                loaded = json.load(f)
-                if isinstance(loaded, dict) and "mappings" in loaded:
-                    existing_mappings = merge_catalogs(existing_mappings, loaded["mappings"])
-        except CatalogConflictError as e:
-            print(f"Error: Catalog conflict detected in existing catalog: {e}", file=sys.stderr)
-            sys.exit(1)
-        except (OSError, ValueError) as e:
-            print(f"Warning: could not read existing catalog: {e}", file=sys.stderr)
+    existing_mappings = _load_existing_mappings(output_path, list(BASELINE_ENTRIES))
 
     if crawl:
-        try:
-            sh_crawled = crawl_superhackers_releases(inspect_binaries=inspect_binaries)
-            if sh_crawled:
-                existing_mappings = merge_catalogs(existing_mappings, sh_crawled)
-
-            go_crawled = crawl_generalsonline_releases(inspect_binaries=inspect_binaries)
-            if go_crawled:
-                existing_mappings = merge_catalogs(existing_mappings, go_crawled)
-        except CatalogConflictError as e:
-            print(f"Error: Crawled catalog conflict detected: {e}", file=sys.stderr)
-            sys.exit(1)
+        existing_mappings = _crawl_and_merge(existing_mappings, inspect_binaries=inspect_binaries)
 
     catalog = {
         "schemaVersion": 1,
@@ -696,13 +719,7 @@ def build_catalog(output_path: str = DEFAULT_OUTPUT_PATH, crawl: bool = False, i
         print("Error: Generated catalog failed validation; refusing to write.", file=sys.stderr)
         sys.exit(1)
 
-    output_dir = os.path.dirname(output_path)
-    if output_dir:
-        os.makedirs(output_dir, exist_ok=True)
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(catalog, f, indent=2)
-        f.write("\n")
-
+    _write_catalog_file(output_path, catalog)
     print(f"Successfully generated CRC mapping catalog at {output_path} with {len(existing_mappings)} entries.")
     return catalog
 

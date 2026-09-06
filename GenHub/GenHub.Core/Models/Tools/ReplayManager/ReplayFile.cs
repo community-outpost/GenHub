@@ -75,9 +75,7 @@ public sealed class ReplayFile : IExportableFile
         {
             if (MatchedClient != null)
             {
-                var clientDescription = string.IsNullOrWhiteSpace(MatchedClient.Description)
-                    ? (string.IsNullOrWhiteSpace(MatchedClient.Publisher) ? UnknownValue : MatchedClient.Publisher)
-                    : MatchedClient.Description;
+                var clientDescription = ResolveClientDescription(MatchedClient);
 
                 if (!string.IsNullOrWhiteSpace(MatchedClient.DataPatchName))
                 {
@@ -128,6 +126,21 @@ public sealed class ReplayFile : IExportableFile
             $"Exe CRC {Metadata?.FormattedExeCrc ?? "N/A"} / INI CRC {Metadata?.FormattedIniCrc ?? "N/A"} is not in the official catalog. Click 'Profile' to configure using your base installation.",
         _ => "Replay header metadata is not available or could not be parsed.",
     };
+
+    private static string ResolveClientDescription(CrcMappingEntry matchedClient)
+    {
+        if (!string.IsNullOrWhiteSpace(matchedClient.Description))
+        {
+            return matchedClient.Description;
+        }
+
+        if (!string.IsNullOrWhiteSpace(matchedClient.Publisher))
+        {
+            return matchedClient.Publisher;
+        }
+
+        return UnknownValue;
+    }
 
     private static string FormatFileSize(long bytes) => bytes switch
     {
