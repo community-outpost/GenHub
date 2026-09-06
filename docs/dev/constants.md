@@ -978,6 +978,7 @@ Storage and CAS (Content-Addressable Storage) related constants.
 - `MaxConcurrentDownloads`: 10
 - `MinDownloadTimeoutSeconds`: 30
 - `MaxDownloadTimeoutSeconds`: 3600
+- `MinDownloadSaveTimeoutMs`: 60000
 - `MinDownloadBufferSizeBytes`: 4096
 - `MaxDownloadBufferSizeBytes`: 1048576
 

@@ -10,7 +10,7 @@ public static class ModDBCategoryMapper
     /// <summary>
     /// Maps a ModDB category code to a ContentType.
     /// </summary>
-    /// <param name="categoryCode">The ModDB category code (e.g., "2" for Full Version).</param>
+    /// <param name="categoryCode">The ModDB category code (e.g., &quot;2&quot; for Full Version).</param>
     /// <returns>The mapped ContentType.</returns>
     public static ContentType MapCategory(string? categoryCode)
     {
@@ -88,7 +88,7 @@ public static class ModDBCategoryMapper
     /// <summary>
     /// Maps a friendly category name (from text scraping) to ContentType.
     /// </summary>
-    /// <param name="categoryName">The category name (e.g., "Full Version", "Multiplayer Map").</param>
+    /// <param name="categoryName">The category name (e.g., &quot;Full Version&quot;, &quot;Multiplayer Map&quot;).</param>
     /// <returns>The mapped ContentType.</returns>
     public static ContentType MapCategoryByName(string? categoryName)
     {
@@ -111,6 +111,11 @@ public static class ModDBCategoryMapper
             var s when s.Contains("movie") => ContentType.Video,
             var s when s.Contains("video") => ContentType.Video,
 
+            var s when s.Contains("tool") => ContentType.ModdingTool,
+            var s when s.Contains("sdk") => ContentType.ModdingTool,
+            var s when s == "ide" || s.Contains(" ide") || s.Contains("ide ") || s.Contains("-ide") || s.Contains("ide-") => ContentType.ModdingTool,
+            var s when s.Contains("source code") => ContentType.ModdingTool,
+
             var s when s.Contains("multiplayer map") => ContentType.Map,
             var s when s.Contains("singleplayer map") => ContentType.Map,
             var s when s.Contains("map") => ContentType.Map,
@@ -121,11 +126,6 @@ public static class ModDBCategoryMapper
             var s when s.Contains("hud") => ContentType.Skin,
 
             var s when s.Contains("language") => ContentType.LanguagePack,
-
-            var s when s.Contains("tool") => ContentType.ModdingTool,
-            var s when s.Contains("sdk") => ContentType.ModdingTool,
-            var s when s.Contains("ide") => ContentType.ModdingTool,
-            var s when s.Contains("source code") => ContentType.ModdingTool,
 
             _ => ContentType.Addon,
         };

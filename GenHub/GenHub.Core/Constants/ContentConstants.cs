@@ -94,4 +94,31 @@ public static class ContentConstants
     /// Maximum allowed size for the content catalog in bytes (10 MB).
     /// </summary>
     public const long MaxCatalogSizeBytes = 10 * ConversionConstants.BytesPerMegabyte;
+
+    /// <summary>
+    /// Shared resolver/display metadata key for map player counts.
+    /// Builtin and catalog publishers should set this so download cards can render a consistent badge.
+    /// </summary>
+    public const string PlayerCountMetadataKey = "playerCount";
+
+    /// <summary>
+    /// Shared resolver/display metadata key for content categories (AOA, Compstomp, ModDB category, etc.).
+    /// </summary>
+    public const string CategoryMetadataKey = "category";
+
+    /// <summary>
+    /// Display metadata key for a comma-separated list of included/required content names
+    /// (e.g. catalog ContentBundle dependencies resolved to friendly titles).
+    /// </summary>
+    public const string IncludesSummaryMetadataKey = "includesSummary";
+
+    /// <summary>
+    /// Number of recent releases and addons to eagerly preload extended details for.
+    /// </summary>
+    public const int PreloadRecentItemsLimit = 5;
+
+    /// <summary>
+    /// Maximum concurrent background requests when preloading recent item details.
+    /// </summary>
+    public const int PreloadConcurrencyLimit = 3;
 }
