@@ -459,6 +459,59 @@ public class StorageMigrationServiceTests : IDisposable
         Assert.True(File.Exists(Path.Combine(_casDir, "sample_cas.bin")));
     }
 
+    /// <summary>
+    /// Tests that MigrateAsync adopts the new CAS path, updates settings, and reinitializes the CAS pool when CAS rollback fails.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
+    [Fact]
+    public async Task MigrateAsync_ReinitializesCasPool_WhenCasRollbackFailsAndTargetAdoptedAsync()
+    {
+        var service = CreateService();
+        var targetPath = Path.Combine(_tempRoot, "NewInstallDirCasRollbackFail");
+        Directory.CreateDirectory(targetPath);
+
+        var callCount = 0;
+        _mockUserSettingsService
+            .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .Returns<Func<UserSettings, bool>>(func =>
+            {
+                func(_userSettings);
+                callCount++;
+                if (callCount == 1)
+                {
+                    // Block CAS rollback by placing a file at the original CAS location after it was moved
+                    File.WriteAllText(_casDir, "blocker");
+                    return Task.FromResult(false);
+                }
+
+                return Task.FromResult(true);
+            });
+
+        var request = new StorageMigrationRequest
+        {
+            TargetPath = targetPath,
+            RelocateCasAndWorkspace = true,
+            ExitApplicationOnSuccess = false,
+            LaunchHelperProcess = false,
+        };
+
+        var result = await service.MigrateAsync(request);
+
+        Assert.False(result.Success);
+
+        var expectedNewCas = Path.Combine(targetPath, DirectoryNames.Data, DirectoryNames.CasPool);
+        var liveSettings = _mockUserSettingsService.Object.Get();
+
+        // CAS was adopted at target path because rollback failed
+        Assert.Equal(expectedNewCas, liveSettings.CasConfiguration.CasRootPath);
+
+        // Workspace was rolled back to original location
+        Assert.Equal(_workspaceDir, liveSettings.WorkspacePath);
+
+        // Verify ICasPoolManager was reinitialized since target CAS was adopted
+        _mockCasPoolManager.Verify(x => x.ReinitializeInstallationPool(), Times.Once);
+    }
+
     private StorageMigrationService CreateService()
     {
         return new StorageMigrationService(

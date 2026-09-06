@@ -591,9 +591,14 @@ fi
 mkdir -p ""$TARGET_DIR""
 if ! cp -a ""$SOURCE_DIR/."" ""$TARGET_DIR/"" 2>&1; then
     write_log ""Error: Failed to copy migration files""
-    if [ -d ""$BACKUP_DIR"" ]; then
+    if [ -d ""$BACKUP_DIR"" ] && [ ""$(ls -A ""$BACKUP_DIR"" 2>/dev/null)"" ]; then
+        write_log ""Attempting to restore backup...""
         rm -rf ""${TARGET_DIR:?}""/* ""${TARGET_DIR:?}""/.[!.]* 2>/dev/null || true
-        cp -a ""${BACKUP_DIR:?}/."" ""$TARGET_DIR/"" 2>/dev/null || true
+        if cp -a ""${BACKUP_DIR:?}/."" ""$TARGET_DIR/"" 2>/dev/null; then
+            write_log ""Backup restored.""
+        else
+            write_log ""Error: Failed to restore backup.""
+        fi
     fi
     exit 1
 fi
@@ -612,8 +617,13 @@ if [ -f ""$CURRENT_EXE"" ]; then
         if ! kill -0 ""$APP_PID"" 2>/dev/null; then
             write_log ""Error: Application exited prematurely after launch""
             if [ -d ""$BACKUP_DIR"" ] && [ ""$(ls -A ""$BACKUP_DIR"" 2>/dev/null)"" ]; then
+                write_log ""Attempting to restore backup...""
                 rm -rf ""${TARGET_DIR:?}""/* ""${TARGET_DIR:?}""/.[!.]* 2>/dev/null || true
-                cp -a ""${BACKUP_DIR:?}/."" ""$TARGET_DIR/"" 2>/dev/null || true
+                if cp -a ""${BACKUP_DIR:?}/."" ""$TARGET_DIR/"" 2>/dev/null; then
+                    write_log ""Backup restored.""
+                else
+                    write_log ""Error: Failed to restore backup.""
+                fi
             fi
             exit 1
         fi
@@ -622,8 +632,13 @@ if [ -f ""$CURRENT_EXE"" ]; then
 else
     write_log ""Error: Updated executable not found: $CURRENT_EXE""
     if [ -d ""$BACKUP_DIR"" ] && [ ""$(ls -A ""$BACKUP_DIR"" 2>/dev/null)"" ]; then
+        write_log ""Attempting to restore backup...""
         rm -rf ""${TARGET_DIR:?}""/* ""${TARGET_DIR:?}""/.[!.]* 2>/dev/null || true
-        cp -a ""${BACKUP_DIR:?}/."" ""$TARGET_DIR/"" 2>/dev/null || true
+        if cp -a ""${BACKUP_DIR:?}/."" ""$TARGET_DIR/"" 2>/dev/null; then
+            write_log ""Backup restored.""
+        else
+            write_log ""Error: Failed to restore backup.""
+        fi
     fi
     exit 1
 fi
@@ -710,6 +725,11 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
         return false;
     }
 
+    private static string? DetermineRollbackPath(bool rolledBack, string? originalPath, string finalPath)
+    {
+        return rolledBack ? originalPath : finalPath;
+    }
+
     private async Task<(bool HasActiveProcesses, List<string> ProcessNames)> CheckActiveProcessesAsync(CancellationToken cancellationToken)
     {
         var activeLaunches = (await launchRegistry.GetAllActiveLaunchesAsync()).ToList();
@@ -775,33 +795,13 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
 
         if (!TryMoveDirectoryIfExternal(currentWorkspaceRoot, targetWorkspaceRoot, sourceRoot, out var workspaceMoved))
         {
-            var casRolledBack = RollbackDirectoryMove(casMoved, currentCasRoot, targetCasRoot, logger);
-            if (!casRolledBack && currentCasRoot != null)
-            {
-                var casSaved = await userSettingsService.TryUpdateAndSaveAsync(liveSettings =>
-                {
-                    liveSettings.CasConfiguration.CasRootPath = finalCasRoot;
-                    return true;
-                });
-
-                if (!casSaved)
-                {
-                    await Task.Delay(500);
-                    casSaved = await userSettingsService.TryUpdateAndSaveAsync(liveSettings =>
-                    {
-                        liveSettings.CasConfiguration.CasRootPath = finalCasRoot;
-                        return true;
-                    });
-                }
-
-                if (!casSaved)
-                {
-                    logger.LogCritical("Failed to persist CAS storage path to {Target} after rollback failure.", finalCasRoot);
-                    return OperationResult<bool>.CreateFailure($"Critical: CAS storage rollback failed, and settings could not be saved to target path {finalCasRoot}.");
-                }
-            }
-
-            return OperationResult<bool>.CreateFailure("Failed to relocate game workspaces directory.");
+            return await HandleWorkspaceMoveFailureAsync(
+                casMoved,
+                currentCasRoot,
+                targetCasRoot,
+                finalCasRoot,
+                currentWorkspaceRoot,
+                finalWorkspaceRoot);
         }
 
         var saved = await userSettingsService.TryUpdateAndSaveAsync(settings =>
@@ -814,72 +814,142 @@ rm -rf ""${UPDATER_DIR:?}"" 2>/dev/null || true
 
         if (!saved)
         {
-            logger.LogError("Failed to persist relocated storage settings. Rolling back storage relocation.");
-
-            var casRolledBack = RollbackDirectoryMove(casMoved, currentCasRoot, targetCasRoot, logger);
-            var workspaceRolledBack = RollbackDirectoryMove(workspaceMoved, currentWorkspaceRoot, targetWorkspaceRoot, logger);
-
-            var rollbackSaved = await userSettingsService.TryUpdateAndSaveAsync(liveSettings =>
-            {
-                if (casRolledBack && currentCasRoot != null)
-                {
-                    liveSettings.CasConfiguration.CasRootPath = currentCasRoot;
-                }
-                else if (!casRolledBack)
-                {
-                    liveSettings.CasConfiguration.CasRootPath = finalCasRoot;
-                }
-
-                if (workspaceRolledBack && currentWorkspaceRoot != null)
-                {
-                    liveSettings.WorkspacePath = currentWorkspaceRoot;
-                }
-                else if (!workspaceRolledBack)
-                {
-                    liveSettings.WorkspacePath = finalWorkspaceRoot;
-                }
-
-                return true;
-            });
-
-            if (!rollbackSaved)
-            {
-                await Task.Delay(500);
-                rollbackSaved = await userSettingsService.TryUpdateAndSaveAsync(liveSettings =>
-                {
-                    if (casRolledBack && currentCasRoot != null)
-                    {
-                        liveSettings.CasConfiguration.CasRootPath = currentCasRoot;
-                    }
-                    else if (!casRolledBack)
-                    {
-                        liveSettings.CasConfiguration.CasRootPath = finalCasRoot;
-                    }
-
-                    if (workspaceRolledBack && currentWorkspaceRoot != null)
-                    {
-                        liveSettings.WorkspacePath = currentWorkspaceRoot;
-                    }
-                    else if (!workspaceRolledBack)
-                    {
-                        liveSettings.WorkspacePath = finalWorkspaceRoot;
-                    }
-
-                    return true;
-                });
-            }
-
-            if (!rollbackSaved)
-            {
-                logger.LogCritical("Failed to persist storage paths during rollback. Settings on disk may be out of sync with physical storage.");
-                return OperationResult<bool>.CreateFailure("Critical: Failed to persist storage configuration during rollback. Configuration on disk may be unrecovered and out of sync with physical storage.");
-            }
-
-            return OperationResult<bool>.CreateFailure("Failed to persist relocated storage settings. Storage locations have been rolled back.");
+            return await HandleSettingsPersistFailureAsync(
+                casMoved,
+                workspaceMoved,
+                currentCasRoot,
+                currentWorkspaceRoot,
+                targetCasRoot,
+                targetWorkspaceRoot,
+                finalCasRoot,
+                finalWorkspaceRoot);
         }
 
         casPoolManager.ReinitializeInstallationPool();
         return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private async Task<OperationResult<bool>> HandleWorkspaceMoveFailureAsync(
+        bool casMoved,
+        string? currentCasRoot,
+        string targetCasRoot,
+        string finalCasRoot,
+        string? currentWorkspaceRoot,
+        string finalWorkspaceRoot)
+    {
+        var casRolledBack = RollbackDirectoryMove(casMoved, currentCasRoot, targetCasRoot, logger);
+        if (!casRolledBack && currentCasRoot != null)
+        {
+            var casSaved = await PersistRollbackPathsAsync(
+                casRolledBack: false,
+                workspaceRolledBack: true,
+                currentCasRoot,
+                currentWorkspaceRoot,
+                finalCasRoot,
+                finalWorkspaceRoot);
+
+            if (!casSaved)
+            {
+                logger.LogCritical("Failed to persist CAS storage path to {Target} after rollback failure.", finalCasRoot);
+                return OperationResult<bool>.CreateFailure($"Critical: CAS storage rollback failed, and settings could not be saved to target path {finalCasRoot}.");
+            }
+        }
+
+        return OperationResult<bool>.CreateFailure("Failed to relocate game workspaces directory.");
+    }
+
+    private async Task<OperationResult<bool>> HandleSettingsPersistFailureAsync(
+        bool casMoved,
+        bool workspaceMoved,
+        string? currentCasRoot,
+        string? currentWorkspaceRoot,
+        string targetCasRoot,
+        string targetWorkspaceRoot,
+        string finalCasRoot,
+        string finalWorkspaceRoot)
+    {
+        logger.LogError("Failed to persist relocated storage settings. Rolling back storage relocation.");
+
+        var casRolledBack = RollbackDirectoryMove(casMoved, currentCasRoot, targetCasRoot, logger);
+        var workspaceRolledBack = RollbackDirectoryMove(workspaceMoved, currentWorkspaceRoot, targetWorkspaceRoot, logger);
+
+        var rollbackSaved = await PersistRollbackPathsAsync(
+            casRolledBack,
+            workspaceRolledBack,
+            currentCasRoot,
+            currentWorkspaceRoot,
+            finalCasRoot,
+            finalWorkspaceRoot);
+
+        if (!rollbackSaved)
+        {
+            logger.LogCritical("Failed to persist storage paths during rollback. Settings on disk may be out of sync with physical storage.");
+            return OperationResult<bool>.CreateFailure("Critical: Failed to persist storage configuration during rollback. Configuration on disk may be unrecovered and out of sync with physical storage.");
+        }
+
+        return OperationResult<bool>.CreateFailure("Failed to persist relocated storage settings. Storage locations have been rolled back.");
+    }
+
+    private async Task<bool> PersistRollbackPathsAsync(
+        bool casRolledBack,
+        bool workspaceRolledBack,
+        string? currentCasRoot,
+        string? currentWorkspaceRoot,
+        string finalCasRoot,
+        string finalWorkspaceRoot)
+    {
+        var saved = await TrySaveRollbackPathsAsync(
+            casRolledBack,
+            workspaceRolledBack,
+            currentCasRoot,
+            currentWorkspaceRoot,
+            finalCasRoot,
+            finalWorkspaceRoot);
+
+        if (!saved)
+        {
+            await Task.Delay(500);
+            saved = await TrySaveRollbackPathsAsync(
+                casRolledBack,
+                workspaceRolledBack,
+                currentCasRoot,
+                currentWorkspaceRoot,
+                finalCasRoot,
+                finalWorkspaceRoot);
+        }
+
+        if (saved && !casRolledBack)
+        {
+            casPoolManager.ReinitializeInstallationPool();
+        }
+
+        return saved;
+    }
+
+    private Task<bool> TrySaveRollbackPathsAsync(
+        bool casRolledBack,
+        bool workspaceRolledBack,
+        string? currentCasRoot,
+        string? currentWorkspaceRoot,
+        string finalCasRoot,
+        string finalWorkspaceRoot)
+    {
+        return userSettingsService.TryUpdateAndSaveAsync(liveSettings =>
+        {
+            var casPath = DetermineRollbackPath(casRolledBack, currentCasRoot, finalCasRoot);
+            if (casPath != null)
+            {
+                liveSettings.CasConfiguration.CasRootPath = casPath;
+            }
+
+            var workspacePath = DetermineRollbackPath(workspaceRolledBack, currentWorkspaceRoot, finalWorkspaceRoot);
+            if (workspacePath != null)
+            {
+                liveSettings.WorkspacePath = workspacePath;
+            }
+
+            return true;
+        });
     }
 
     private bool TryMoveDirectoryIfExternal(string? currentPath, string targetPath, string sourceRoot, out bool moved)

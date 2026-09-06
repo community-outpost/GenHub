@@ -54,10 +54,14 @@ mkdir -p "$TARGET_DIR"
 if ! cp -a "$SOURCE_DIR/." "$TARGET_DIR/" 2>&1; then
     write_log "Error: Failed to copy update files"
     # Attempt to restore backup
-    if [ -d "$BACKUP_DIR" ]; then
+    if [ -d "$BACKUP_DIR" ] && [ "$(ls -A "$BACKUP_DIR" 2>/dev/null)" ]; then
         write_log "Attempting to restore backup..."
         rm -rf "${TARGET_DIR:?}"/* "${TARGET_DIR:?}"/.[!.]* 2>/dev/null || true
-        cp -a "${BACKUP_DIR:?}/." "$TARGET_DIR/" 2>/dev/null || true
+        if cp -a "${BACKUP_DIR:?}/." "$TARGET_DIR/" 2>/dev/null; then
+            write_log "Backup restored."
+        else
+            write_log "Error: Failed to restore backup."
+        fi
     fi
     exit 1
 fi
@@ -82,8 +86,11 @@ if [ -f "$CURRENT_EXE" ]; then
             if [ -d "$BACKUP_DIR" ] && [ "$(ls -A "$BACKUP_DIR" 2>/dev/null)" ]; then
                 write_log "Attempting to restore backup..."
                 rm -rf "${TARGET_DIR:?}"/* "${TARGET_DIR:?}"/.[!.]* 2>/dev/null || true
-                cp -a "${BACKUP_DIR:?}/." "$TARGET_DIR/" 2>/dev/null || true
-                write_log "Backup restored."
+                if cp -a "${BACKUP_DIR:?}/." "$TARGET_DIR/" 2>/dev/null; then
+                    write_log "Backup restored."
+                else
+                    write_log "Error: Failed to restore backup."
+                fi
             fi
             exit 1
         fi
@@ -98,7 +105,11 @@ else
     if [ -d "$BACKUP_DIR" ] && [ "$(ls -A "$BACKUP_DIR" 2>/dev/null)" ]; then
         write_log "Attempting to restore backup..."
         rm -rf "${TARGET_DIR:?}"/* "${TARGET_DIR:?}"/.[!.]* 2>/dev/null || true
-        cp -a "${BACKUP_DIR:?}/." "$TARGET_DIR/" 2>/dev/null || true
+        if cp -a "${BACKUP_DIR:?}/." "$TARGET_DIR/" 2>/dev/null; then
+            write_log "Backup restored."
+        else
+            write_log "Error: Failed to restore backup."
+        fi
     fi
     exit 1
 fi
