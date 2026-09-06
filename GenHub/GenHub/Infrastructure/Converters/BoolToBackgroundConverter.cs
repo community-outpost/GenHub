@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
+using GenHub.Core.Constants;
 
 namespace GenHub.Infrastructure.Converters;
 
@@ -10,8 +11,8 @@ namespace GenHub.Infrastructure.Converters;
 /// </summary>
 public class BoolToBackgroundConverter : IValueConverter
 {
-    private static readonly IBrush Selected = new SolidColorBrush(Color.FromArgb(60, 171, 71, 188));
-    private static readonly IBrush Unselected = new SolidColorBrush(Color.Parse("#252525"));
+    private static readonly IBrush Selected = new SolidColorBrush(Color.Parse(UiConstants.CardSelectedBackgroundColor));
+    private static readonly IBrush Unselected = new SolidColorBrush(Color.Parse(UiConstants.CardUnselectedBackgroundColor));
 
     /// <summary>
     /// Converts a boolean to the matching background brush.
@@ -25,13 +26,13 @@ public class BoolToBackgroundConverter : IValueConverter
         => value is true ? Selected : Unselected;
 
     /// <summary>
-    /// Converts back from a brush to a boolean. Not implemented.
+    /// Converts back from a brush to a boolean. Not supported.
     /// </summary>
     /// <param name="value">The brush value to convert back.</param>
     /// <param name="targetType">The target type for the conversion.</param>
     /// <param name="parameter">Optional parameter for conversion.</param>
     /// <param name="culture">The culture to use for conversion.</param>
-    /// <returns>This method is not implemented and always throws.</returns>
+    /// <returns>This method is not supported and always throws.</returns>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotImplementedException();
+        => throw new NotSupportedException();
 }

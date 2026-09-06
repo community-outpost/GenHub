@@ -20,8 +20,8 @@ public class IndentToMarginConverter : IValueConverter
     /// <returns>A Thickness value for left margin indentation.</returns>
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        var indent = value is int level ? level : 0;
-        var indentPixels = Math.Min(indent, 5) * 24;
+        var indent = value is int level ? Math.Clamp(level, 0, 5) : 0;
+        var indentPixels = indent * 24;
         return new Thickness(indentPixels, 0, 0, 8);
     }
 

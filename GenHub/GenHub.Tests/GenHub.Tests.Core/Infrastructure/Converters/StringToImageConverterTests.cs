@@ -1,6 +1,11 @@
+using System;
 using System.Globalization;
+using System.IO;
+using Avalonia.Headless.XUnit;
+using Avalonia.Media.Imaging;
 using GenHub.Core.Constants;
 using GenHub.Infrastructure.Converters;
+using Xunit;
 
 namespace GenHub.Tests.Core.Infrastructure.Converters;
 
@@ -9,6 +14,9 @@ namespace GenHub.Tests.Core.Infrastructure.Converters;
 /// </summary>
 public class StringToImageConverterTests
 {
+    private static readonly byte[] ValidPngBytes = Convert.FromBase64String(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==");
+
     private readonly StringToImageConverter _converter = new();
     private readonly CultureInfo _culture = CultureInfo.InvariantCulture;
 
@@ -53,7 +61,7 @@ public class StringToImageConverterTests
     }
 
     /// <summary>
-    /// Tests that <see cref="StringToImageConverter.Convert"/> returns null for HTTP URLs.
+    /// Tests that <see cref="StringToImageConverter.Convert"/> returns null for HTTP URLs on memory miss.
     /// </summary>
     [Fact]
     public void Convert_WithHttpUrl_ReturnsNull()
@@ -63,7 +71,7 @@ public class StringToImageConverterTests
     }
 
     /// <summary>
-    /// Tests that <see cref="StringToImageConverter.Convert"/> returns null for HTTPS URLs.
+    /// Tests that <see cref="StringToImageConverter.Convert"/> returns null for HTTPS URLs on memory miss.
     /// </summary>
     [Fact]
     public void Convert_WithHttpsUrl_ReturnsNull()
@@ -83,17 +91,37 @@ public class StringToImageConverterTests
     }
 
     /// <summary>
-    /// Tests that <see cref="StringToImageConverter.Convert"/> does not return null for avares URI (attempts to load).
+    /// Tests that <see cref="StringToImageConverter.Convert"/> loads an existing local file into a Bitmap without locking.
     /// </summary>
-    [Fact]
-    public void Convert_WithAvarUri_DoesNotReturnNull()
+    [AvaloniaFact]
+    public void Convert_WithValidLocalFile_ReturnsBitmap()
     {
-        // This will attempt to load the asset; if it fails, it returns null due to catch block
-        var result = _converter.Convert(UriConstants.AvarUriScheme + "GenHub/Assets/placeholder.png", typeof(object), null, _culture);
+        var tempFile = Path.Combine(Path.GetTempPath(), $"string_to_image_{Guid.NewGuid():N}.png");
+        File.WriteAllBytes(tempFile, ValidPngBytes);
 
-        // We can't assert a specific value since asset loading depends on the environment
-        // But we can assert it's not immediately null due to the path check
-        Assert.True(result == null || result is not null); // Essentially, no assertion failure
+        try
+        {
+            var result = _converter.Convert(tempFile, typeof(object), null, _culture);
+            Assert.NotNull(result);
+            Assert.IsType<Bitmap>(result);
+
+            // Verify file was opened without locking
+            File.Delete(tempFile);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                try
+                {
+                    File.Delete(tempFile);
+                }
+                catch
+                {
+                    // ignore cleanup failure
+                }
+            }
+        }
     }
 
     /// <summary>

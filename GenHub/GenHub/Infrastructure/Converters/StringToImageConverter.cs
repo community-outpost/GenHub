@@ -9,7 +9,9 @@ using GenHub.Core.Constants;
 namespace GenHub.Infrastructure.Converters;
 
 /// <summary>
-/// Converts a string file path to a Bitmap for use as an image source.
+/// Converts a string file path or asset URI to a <see cref="Bitmap"/> for use as an image source.
+/// Note: For asynchronous loading and caching of remote HTTP/HTTPS images, use
+/// <see cref="Controls.ImageLoader.SourceProperty"/> rather than this synchronous converter.
 /// </summary>
 public class StringToImageConverter : IValueConverter
 {
@@ -33,40 +35,32 @@ public class StringToImageConverter : IValueConverter
                 return new Bitmap(asset);
             }
 
-            // Handle relative asset paths (e.g., "/Assets/Logos/logo.png")
-            if (path.StartsWith("/", StringComparison.Ordinal))
+            // Handle relative asset paths (e.g., "/Assets/Logos/logo.png" or "Assets/Logos/logo.png")
+            if (path.StartsWith("/Assets/", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
             {
-                var uri = new Uri($"avares://GenHub{path}");
+                var cleanPath = path.TrimStart('/');
+                var uri = new Uri($"avares://GenHub/{cleanPath}");
                 var asset = AssetLoader.Open(uri);
                 return new Bitmap(asset);
             }
 
-            // Handle asset paths starting with 'Assets/'
-            if (path.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
-            {
-                var uri = new Uri($"avares://GenHub/{path}");
-                var asset = AssetLoader.Open(uri);
-                return new Bitmap(asset);
-            }
-
-            // Handle web URLs
+            // Handle web URLs: return cached bitmap if available in memory.
+            // Full asynchronous loading and caching should be done via ImageLoader.Source.
             if (path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
-                var cached = Services.ImageCacheService.Instance.GetBitmapFromMemory(path);
-                if (cached != null)
-                {
-                    return cached;
-                }
-
-                _ = Services.ImageCacheService.Instance.GetBitmapAsync(path);
-                return null;
+                return Services.ImageCacheService.Instance.GetBitmapFromMemory(path);
             }
 
-            // Handle local file paths (reject UNC shares)
+            // Handle local file paths (reject UNC shares). Decode from a memory stream to avoid locking the file.
             if (Path.IsPathRooted(path) && !path.StartsWith(@"\\", StringComparison.Ordinal) && !path.StartsWith("//", StringComparison.Ordinal) && File.Exists(path))
             {
-                return new Bitmap(path);
+                using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var ms = new MemoryStream();
+                fs.CopyTo(ms);
+                ms.Position = 0;
+                return new Bitmap(ms);
             }
 
             return null;
