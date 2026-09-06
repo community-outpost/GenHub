@@ -538,7 +538,7 @@ public partial class GenHubInfoSectionViewModel(
 
         if (DemoAddLocalContent == null)
         {
-            DemoAddLocalContent = DemoViewModelFactory.CreateDemoAddLocalContent();
+            DemoAddLocalContent = DemoViewModelFactory.CreateDemoAddLocalContent(notificationService);
             OnPropertyChanged(nameof(DemoAddLocalContent));
         }
 

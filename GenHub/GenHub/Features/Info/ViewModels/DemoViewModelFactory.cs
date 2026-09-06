@@ -313,13 +313,14 @@ public static class DemoViewModelFactory
     /// <summary>
     /// Creates a demo AddLocalContentViewModel with mock data.
     /// </summary>
+    /// <param name="notificationService">Optional notification service for demo actions.</param>
     /// <returns>A configured demo add local content view model.</returns>
-    public static AddLocalContentViewModel CreateDemoAddLocalContent()
+    public static AddLocalContentViewModel CreateDemoAddLocalContent(INotificationService? notificationService = null)
     {
         var mockService = new MockLocalContentService();
         var mockLogger = new MockLogger<AddLocalContentViewModel>();
 
-        return new AddLocalContentViewModel(mockService, null, null, null, mockLogger);
+        return new DemoAddLocalContentViewModel(mockService, null, notificationService, mockLogger);
     }
 
     /// <summary>

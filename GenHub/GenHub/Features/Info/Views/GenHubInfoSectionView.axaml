@@ -386,7 +386,7 @@
                              FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"
                              TextWrapping="Wrap" TextAlignment="Center"/>
 
-                  <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Stretch">
+                  <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
                     <Grid HorizontalAlignment="Center">
                       <Grid.ColumnDefinitions>
                           <ColumnDefinition Width="800" MinWidth="400" />
@@ -470,7 +470,7 @@
                              FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"
                              TextWrapping="Wrap" TextAlignment="Center"/>
 
-                  <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Stretch">
+                  <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
                     <Grid HorizontalAlignment="Center">
                       <Grid.ColumnDefinitions>
                           <ColumnDefinition Width="800" MinWidth="400" />
