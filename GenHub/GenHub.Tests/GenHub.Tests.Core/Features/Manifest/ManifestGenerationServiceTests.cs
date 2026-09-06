@@ -9,6 +9,7 @@ using GenHub.Features.Manifest;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Xunit.Abstractions;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 using GameInstallationType = GenHub.Core.Models.Enums.GameInstallationType;
 using GameType = GenHub.Core.Models.Enums.GameType;
@@ -24,14 +25,17 @@ public class ManifestGenerationServiceTests : IDisposable
     private readonly Mock<IManifestIdService> _manifestIdServiceMock;
     private readonly Mock<IDownloadService> _downloadServiceMock;
     private readonly Mock<IConfigurationProviderService> _configProviderServiceMock;
+    private readonly ITestOutputHelper? _testOutput;
     private readonly ManifestGenerationService _service;
     private readonly string _tempDirectory;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ManifestGenerationServiceTests"/> class.
     /// </summary>
-    public ManifestGenerationServiceTests()
+    /// <param name="testOutput">Optional test output helper for test reporting.</param>
+    public ManifestGenerationServiceTests(ITestOutputHelper? testOutput = null)
     {
+        _testOutput = testOutput;
         _hashProviderMock = new Mock<IFileHashProvider>();
         _manifestIdServiceMock = new Mock<IManifestIdService>();
         _downloadServiceMock = new Mock<IDownloadService>();
@@ -591,7 +595,8 @@ public class ManifestGenerationServiceTests : IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
         {
-            Assert.Skip($"Symbolic link creation requires elevated privileges or Developer Mode on this platform: {ex.Message}");
+            _testOutput?.WriteLine($"Skipping symlink test: symbolic link creation requires elevated privileges or Developer Mode on this platform ({ex.Message}).");
+            return;
         }
 
         // Act - version "1.02" has no authoritative CSV catalog
