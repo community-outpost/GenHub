@@ -454,6 +454,11 @@ public class CsvDiscoverer(
             result.ResolverMetadata[CsvConstants.FileCountMetadataKey] = entry.FileCount.Value.ToString();
         }
 
+        if (entry.Checksum != null && !string.IsNullOrWhiteSpace(entry.Checksum.Sha256))
+        {
+            result.ResolverMetadata[CsvConstants.Sha256MetadataKey] = entry.Checksum.Sha256;
+        }
+
         return result;
     }
 }

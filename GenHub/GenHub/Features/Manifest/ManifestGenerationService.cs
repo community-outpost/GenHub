@@ -577,6 +577,29 @@ public class ManifestGenerationService(
         return null;
     }
 
+    private static string? GetCatalogSha256(GameType gameType, string version)
+    {
+        if (gameType == GameType.Generals)
+        {
+            return version switch
+            {
+                "1.08" or "1.8" => CsvConstants.Generals108Sha256,
+                _ => null,
+            };
+        }
+
+        if (gameType == GameType.ZeroHour)
+        {
+            return version switch
+            {
+                "1.04" or "1.4" => CsvConstants.ZeroHour104Sha256,
+                _ => null,
+            };
+        }
+
+        return null;
+    }
+
     private static List<CsvCatalogEntry> FilterEntriesByGameAndLanguage(
         IEnumerable<CsvCatalogEntry> records,
         string targetGame,
@@ -1199,6 +1222,7 @@ public class ManifestGenerationService(
         {
             try
             {
+                var expectedSha256 = GetCatalogSha256(gameType, version);
                 var searchResult = new ContentSearchResult
                 {
                     Id = string.Empty,
@@ -1216,6 +1240,11 @@ public class ManifestGenerationService(
                         [CsvConstants.CsvUrlMetadataKey] = csvFileName,
                     },
                 };
+
+                if (!string.IsNullOrEmpty(expectedSha256))
+                {
+                    searchResult.ResolverMetadata[CsvConstants.Sha256MetadataKey] = expectedSha256;
+                }
 
                 var resolveResult = await _resolvedCsvResolver.ResolveAsync(searchResult);
                 if (resolveResult.Success && resolveResult.Data?.Files != null && resolveResult.Data.Files.Count > 0)

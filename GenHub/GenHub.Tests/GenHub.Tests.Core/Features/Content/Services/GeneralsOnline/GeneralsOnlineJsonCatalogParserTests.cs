@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.GeneralsOnline;
@@ -5,6 +8,7 @@ using GenHub.Core.Models.Providers;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Xunit;
 
 namespace GenHub.Tests.Core.Features.Content.Services.GeneralsOnline;
 
@@ -91,6 +95,80 @@ public class GeneralsOnlineJsonCatalogParserTests
         Assert.True(result.Success);
         var item = result.Data.First();
         Assert.Equal("111825_QFE2", item.Version);
+    }
+
+    /// <summary>
+    /// Tests that ParseAsync extracts the QFE version from download URL when API version lacks QFE.
+    /// This prevents reconciler mismatch where latest.txt reports QFE but manifest.json version omitted it.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ParseAsync_WithVersionLackingQfeAndDownloadUrlContainingQfe_ResolvesUrlVersionWithQfeAsync()
+    {
+        // Arrange
+        var json = @"{
+            ""version"": ""082826"",
+            ""download_url"": ""https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip"",
+            ""size"": 30108752,
+            ""sha256"": ""A3BBF2676F9B49B5EFD61345F4AE2BA562838DC7B273B2844873B1D4B9B60E3B"",
+            ""release_notes"": ""www.playgenerals.online""
+        }";
+
+        var wrapper = $"{{\"source\":\"manifest\",\"data\":{json}}}";
+
+        // Act
+        var result = await _parser.ParseAsync(wrapper, _provider);
+
+        // Assert
+        Assert.True(result.Success);
+        var item = result.Data.First();
+        Assert.Equal("082826_QFE1", item.Version);
+        var release = item.GetData<GeneralsOnlineRelease>();
+        Assert.NotNull(release);
+        Assert.Equal("082826_QFE1", release.Version);
+        Assert.Equal("A3BBF2676F9B49B5EFD61345F4AE2BA562838DC7B273B2844873B1D4B9B60E3B", release.Sha256);
+    }
+
+    /// <summary>
+    /// Tests that ResolveReleaseVersion correctly resolves canonical versions.
+    /// </summary>
+    /// <param name="apiVersion">The version in the API response.</param>
+    /// <param name="downloadUrl">The download URL.</param>
+    /// <param name="expected">The expected resolved version.</param>
+    [Theory]
+    [InlineData("082826", "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip", "082826_QFE1")]
+    [InlineData("082826_QFE1", "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip", "082826_QFE1")]
+    [InlineData("082826_QFE2", "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip", "082826_QFE2")]
+    [InlineData("082826_QFE1", "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE2.zip", "082826_QFE2")]
+    [InlineData("082826", "https://cdn.playgenerals.online/GeneralsOnline_portable_082826.zip", "082826")]
+    [InlineData(null, "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip", "082826_QFE1")]
+    [InlineData("082826_QFE1", null, "082826_QFE1")]
+    public void ResolveReleaseVersion_WithVariousInputs_ResolvesExpectedVersion(
+        string? apiVersion,
+        string? downloadUrl,
+        string expected)
+    {
+        var actual = GeneralsOnlineJsonCatalogParser.ResolveReleaseVersion(apiVersion, downloadUrl);
+        Assert.Equal(expected, actual);
+    }
+
+    /// <summary>
+    /// Tests that ExtractVersionFromUrl extracts valid version substrings from candidate URLs.
+    /// </summary>
+    /// <param name="url">The download URL.</param>
+    /// <param name="expected">The expected version substring.</param>
+    [Theory]
+    [InlineData("https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip", "082826_QFE1")]
+    [InlineData("https://cdn.playgenerals.online/GeneralsOnline_portable_042826_QFE3_EAC.zip?nocache=123", "042826_QFE3_EAC")]
+    [InlineData("/GeneralsOnline_portable_082826_QFE1.zip", "082826_QFE1")]
+    [InlineData("GeneralsOnline_portable_082826_QFE1.zip", "082826_QFE1")]
+    [InlineData("https://cdn.playgenerals.online/other_file.zip", null)]
+    [InlineData("", null)]
+    [InlineData(null, null)]
+    public void ExtractVersionFromUrl_WithVariousUrls_ExtractsExpected(string? url, string? expected)
+    {
+        var actual = GeneralsOnlineJsonCatalogParser.ExtractVersionFromUrl(url);
+        Assert.Equal(expected, actual);
     }
 
     /// <summary>
