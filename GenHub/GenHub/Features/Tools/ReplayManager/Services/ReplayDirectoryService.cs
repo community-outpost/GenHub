@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -386,7 +387,7 @@ public sealed class ReplayDirectoryService(
             var unmappedProfile = profiles.FirstOrDefault(p =>
                 p.GameClient?.GameType == replay.GameVersion &&
                 ((!string.IsNullOrEmpty(replay.MatchingProfileId) && string.Equals(p.Id, replay.MatchingProfileId, StringComparison.OrdinalIgnoreCase)) ||
-                 (!string.IsNullOrEmpty(p.Description) && p.Description.Contains(replay.FileName, StringComparison.OrdinalIgnoreCase))));
+                 MatchesReplayFileName(p.Description, replay.FileName)));
 
             if (unmappedProfile != null)
             {
@@ -530,8 +531,8 @@ public sealed class ReplayDirectoryService(
 
         var profileName = $"{clientTitle} (Replay: {Path.GetFileNameWithoutExtension(replay.FileName)})";
         var description = isUnmapped
-            ? $"Profile configured for unmapped replay {replay.FileName} (Exe: {replay.Metadata?.FormattedExeCrc ?? "N/A"}, INI: {replay.Metadata?.FormattedIniCrc ?? "N/A"})"
-            : $"Profile configured for {replay.MatchedClient?.Description} (Exe: {replay.Metadata?.FormattedExeCrc}, INI: {replay.Metadata?.FormattedIniCrc})";
+            ? $"[replay:{replay.FileName}] Profile configured for unmapped replay {replay.FileName} (Exe: {replay.Metadata?.FormattedExeCrc ?? "N/A"}, INI: {replay.Metadata?.FormattedIniCrc ?? "N/A"})"
+            : $"[replay:{replay.FileName}] Profile configured for {replay.MatchedClient?.Description} (Exe: {replay.Metadata?.FormattedExeCrc}, INI: {replay.Metadata?.FormattedIniCrc})";
 
         return new CreateProfileRequest
         {
@@ -561,7 +562,7 @@ public sealed class ReplayDirectoryService(
             var byIdOrName = profileList.FirstOrDefault(p =>
                 p.GameClient?.GameType == gameVersion &&
                 ((!string.IsNullOrEmpty(replay.MatchingProfileId) && string.Equals(p.Id, replay.MatchingProfileId, StringComparison.OrdinalIgnoreCase)) ||
-                 (!string.IsNullOrEmpty(p.Description) && p.Description.Contains(replay.FileName, StringComparison.OrdinalIgnoreCase))));
+                 MatchesReplayFileName(p.Description, replay.FileName)));
 
             if (byIdOrName != null)
             {
@@ -725,6 +726,23 @@ public sealed class ReplayDirectoryService(
         return ReplayCompatibilityStatus.Orphaned;
     }
 
+    private static bool MatchesReplayFileName(string? description, string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(description) || string.IsNullOrWhiteSpace(fileName))
+        {
+            return false;
+        }
+
+        var tag = $"[replay:{fileName}]";
+        if (description.Contains(tag, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var pattern = $@"(?<![\w.-]){Regex.Escape(fileName)}(?![\w.-])";
+        return Regex.IsMatch(description, pattern, RegexOptions.IgnoreCase);
+    }
+
     private static void ResolveMatchedClientCompatibility(
         ReplayFile replay,
         CrcMappingEntry match,
@@ -781,12 +799,12 @@ public sealed class ReplayDirectoryService(
         string clientManifestId,
         CancellationToken ct)
     {
-        if (string.IsNullOrEmpty(clientManifestId))
+        if (string.IsNullOrEmpty(clientManifestId) || !ManifestId.TryCreate(clientManifestId, out var manifestId))
         {
             return null;
         }
 
-        var clientManifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(clientManifestId), ct);
+        var clientManifestResult = await manifestPool.GetManifestAsync(manifestId, ct);
         return clientManifestResult is { Success: true } ? clientManifestResult.Data : null;
     }
 
@@ -1010,6 +1028,18 @@ public sealed class ReplayDirectoryService(
         return FindMatchingExistingClientManifest(existingManifests, matchedClient, gameVersion) != null;
     }
 
+    private static bool IsManifestTargetGameCompatible(ContentManifest manifest, GameType gameVersion)
+    {
+        if (manifest.TargetGame == gameVersion || manifest.TargetGame == GameType.Unknown)
+        {
+            return true;
+        }
+
+        var gameStr = gameVersion == GameType.ZeroHour ? ManifestConstants.ZeroHourContentName : ManifestConstants.GeneralsContentName;
+        return manifest.Id.Value.Contains($".{gameStr}.", StringComparison.OrdinalIgnoreCase) ||
+               manifest.Id.Value.EndsWith($".{gameStr}", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static ContentManifest? FindMatchingExistingClientManifest(
         IEnumerable<ContentManifest> existingManifests,
         CrcMappingEntry matchedClient,
@@ -1018,7 +1048,7 @@ public sealed class ReplayDirectoryService(
         return existingManifests.FirstOrDefault(m =>
             string.Equals(m.Id.Value, matchedClient.ManifestId, StringComparison.OrdinalIgnoreCase) ||
             (m.ContentType == ContentType.GameClient &&
-             (m.TargetGame == gameVersion || m.TargetGame == GameType.Unknown) &&
+             IsManifestTargetGameCompatible(m, gameVersion) &&
              HasMatchingClientVersion(matchedClient, m) &&
              (DependencyResolver.HasCompatibleCatalogIdentity(matchedClient.ManifestId, m.Id.Value) ||
               (!string.IsNullOrEmpty(matchedClient.Publisher) &&

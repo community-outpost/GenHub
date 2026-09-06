@@ -75,12 +75,16 @@ public sealed class ReplayFile : IExportableFile
         {
             if (MatchedClient != null)
             {
+                var clientDescription = string.IsNullOrWhiteSpace(MatchedClient.Description)
+                    ? MatchedClient.Publisher ?? UnknownValue
+                    : MatchedClient.Description;
+
                 if (!string.IsNullOrWhiteSpace(MatchedClient.DataPatchName))
                 {
-                    return $"{MatchedClient.Description} / {MatchedClient.DataPatchName}";
+                    return $"{clientDescription} / {MatchedClient.DataPatchName}";
                 }
 
-                return MatchedClient.Description;
+                return clientDescription;
             }
 
             if (Metadata != null && (!string.IsNullOrEmpty(Metadata.FormattedExeCrc) || !string.IsNullOrEmpty(Metadata.FormattedIniCrc)))
