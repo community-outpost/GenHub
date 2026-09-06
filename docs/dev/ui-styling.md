@@ -13,6 +13,7 @@ This document defines the mandatory UI standards and design patterns for Avaloni
 2. **Use shared controls.** Do not build one-off sidebars, search boxes, or card containers. Use existing controls in `GenHub.Common.Controls` (like `SidebarLayout`).
 3. **Inset pill navigation.** Sidebars and lists use inset rounded pills with consistent margins and padding, not full-bleed rectangles with sharp corners.
 4. **Theme support.** Colors must adapt dynamically when switching between factions, profiles, or themes.
+5. **No Unicode Emojis.** Never use emojis in UI views, button labels, badges, dialogs, tooltips, or notifications. Use clean semantic text, theme brush indicators, or vector SVG StreamGeometry `PathIcon` controls from application resources.
 
 ## Semantic theme tokens
 

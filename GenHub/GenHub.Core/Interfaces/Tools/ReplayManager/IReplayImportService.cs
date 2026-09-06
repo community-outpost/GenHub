@@ -15,7 +15,7 @@ namespace GenHub.Core.Interfaces.Tools.ReplayManager;
 public interface IReplayImportService
 {
     /// <summary>
-    /// Maximum size for a single replay file in bytes (1 MB).
+    /// Maximum size for a single replay file in bytes (10 MB).
     /// </summary>
     public const long MaxReplaySizeBytes = ReplayManagerConstants.MaxReplaySizeBytes;
 

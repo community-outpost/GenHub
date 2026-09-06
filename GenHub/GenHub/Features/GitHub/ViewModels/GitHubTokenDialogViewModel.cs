@@ -129,14 +129,14 @@ public partial class GitHubTokenDialogViewModel(IGitHubTokenStorage tokenStorage
                     var scopeString = string.Join(",", scopes);
                     if (scopeString.Contains("repo", StringComparison.OrdinalIgnoreCase))
                     {
-                        ValidationMessage = "✓ Token is valid with repo access!";
+                        ValidationMessage = "Token is valid with repo access.";
                         ValidationMessageColor = Brushes.LightGreen;
                         IsTokenValid = true;
                         logger?.LogInformation("GitHub token validated successfully with repo scope");
                     }
                     else
                     {
-                        ValidationMessage = "⚠ Token is valid but missing 'repo' scope. Some features may not work.";
+                        ValidationMessage = "Token is valid but missing 'repo' scope. Some features may not work.";
                         ValidationMessageColor = Brushes.Orange;
                         IsTokenValid = true; // Still allow saving
                         logger?.LogWarning("GitHub token valid but missing repo scope");
@@ -144,7 +144,7 @@ public partial class GitHubTokenDialogViewModel(IGitHubTokenStorage tokenStorage
                 }
                 else
                 {
-                    ValidationMessage = "✓ Token is valid!";
+                    ValidationMessage = "Token is valid.";
                     ValidationMessageColor = Brushes.LightGreen;
                     IsTokenValid = true;
                 }

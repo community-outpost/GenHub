@@ -40,6 +40,9 @@ public static class PublisherTypeConstants
     /// <summary>EA App publisher.</summary>
     public const string EaApp = "eaapp";
 
+    /// <summary>Official Electronic Arts publisher identifier.</summary>
+    public const string Ea = "ea";
+
     /// <summary>Steam publisher.</summary>
     public const string Steam = "steam";
 
@@ -51,6 +54,9 @@ public static class PublisherTypeConstants
 
     /// <summary>The Super Hackers community publisher.</summary>
     public const string TheSuperHackers = "thesuperhackers";
+
+    /// <summary>Legacy alias for The Super Hackers community publisher.</summary>
+    public const string LegacySuperHackers = "superhackers";
 
     /// <summary>CNC Labs community site.</summary>
     public const string CncLabs = "cnclabs";

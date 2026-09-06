@@ -601,7 +601,7 @@
                 IsVisible="{Binding LoadingError}"
                 ZIndex="1000">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
-                <TextBlock Text="❌ Failed to load settings" FontSize="16" Foreground="White" />
+                <TextBlock Text="Failed to load settings" FontSize="16" Foreground="White" />
                 <Button Content="Close" HorizontalAlignment="Center" Command="{Binding ExecuteCancelCommand}" />
             </StackPanel>
         </Border>

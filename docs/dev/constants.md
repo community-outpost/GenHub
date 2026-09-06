@@ -1659,7 +1659,7 @@ Constants specifically for the Replay Manager feature.
 
 | Constant                       | Value                                 | Description                                                                 |
 | ------------------------------ | ------------------------------------- | --------------------------------------------------------------------------- |
-| `MaxReplaySizeBytes`           | `1048576` (1MB)                       | Maximum size for a single replay file                                       |
+| `MaxReplaySizeBytes`           | `10485760` (10MB)                     | Maximum size for a single replay file                                       |
 | `MaxZipEntries`                | `100`                                 | Maximum allowed entries in a replay ZIP archive                             |
 | `MaxAggregateUncompressedBytes`| `52428800` (50MB)                     | Maximum aggregate uncompressed bytes for replay ZIP archives                |
 | `MaxCompressionRatio`          | `50.0`                                | Maximum compression ratio allowed for replay ZIP archives                   |

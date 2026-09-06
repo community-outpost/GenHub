@@ -401,6 +401,27 @@ public class GameProfileLauncherViewModelTests
         Assert.Equal(expectedVersion, item.Version);
     }
 
+    /// <summary>
+    /// Verifies that receiving ProfileLaunchedMessage updates the matching profile's IsProcessRunning and ProcessId properties.
+    /// </summary>
+    [Fact]
+    public void Receive_ProfileLaunchedMessage_UpdatesIsProcessRunningAndProcessId()
+    {
+        var vm = CreateViewModelWithMockDependencies();
+        var profile = new GameProfile
+        {
+            Id = "test-profile-123",
+            Name = "Test Profile",
+        };
+        var item = new GameProfileItemViewModel("test-profile-123", profile, string.Empty, string.Empty);
+        vm.Profiles.Add(item);
+
+        vm.Receive(new ProfileLaunchedMessage("test-profile-123", 45678));
+
+        Assert.True(item.IsProcessRunning);
+        Assert.Equal(45678, item.ProcessId);
+    }
+
     private static ProfileResourceService CreateProfileResourceService()
     {
         return new ProfileResourceService(NullLogger<ProfileResourceService>.Instance);

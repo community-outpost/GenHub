@@ -274,4 +274,90 @@ public class DependencyResolverTests
         Assert.Contains(result.ResolvedManifests, m => m.Id.Value == "1.82826.generalsonline.gameclient.60hz");
         Assert.Contains(result.ResolvedManifests, m => m.Id.Value == "1.82826.generalsonline.patch.gamedata");
     }
+
+    /// <summary>
+    /// Verifies that circular dependencies are detected without infinite loops and reported as warnings.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveDependenciesWithManifestsAsync_WhenCircularDependency_ResolvesWithWarningAsync()
+    {
+        var idA = ManifestId.Create("1.100.mod.patch.packa");
+        var idB = ManifestId.Create("1.100.mod.patch.packb");
+
+        var manifestA = new ContentManifest
+        {
+            Id = idA,
+            Name = "Pack A",
+            ContentType = ContentType.Patch,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = idB,
+                    Name = "Pack B",
+                    DependencyType = ContentType.Patch,
+                    InstallBehavior = DependencyInstallBehavior.RequireExisting,
+                    StrictPublisher = true,
+                },
+            ],
+        };
+
+        var manifestB = new ContentManifest
+        {
+            Id = idB,
+            Name = "Pack B",
+            ContentType = ContentType.Patch,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = idA,
+                    Name = "Pack A",
+                    DependencyType = ContentType.Patch,
+                    InstallBehavior = DependencyInstallBehavior.RequireExisting,
+                    StrictPublisher = true,
+                },
+            ],
+        };
+
+        _manifestPoolMock
+            .Setup(p => p.GetManifestAsync(idA, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifestA));
+
+        _manifestPoolMock
+            .Setup(p => p.GetManifestAsync(idB, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifestB));
+
+        var result = await _resolver.ResolveDependenciesWithManifestsAsync([idA.Value]);
+
+        Assert.True(result.Success);
+        Assert.Equal(2, result.ResolvedManifests.Count);
+        Assert.NotNull(result.Warnings);
+        Assert.NotEmpty(result.Warnings);
+        Assert.Contains("Circular dependency detected", result.Warnings[0]);
+    }
+
+    /// <summary>
+    /// Verifies that HasCompatibleCatalogIdentity correctly handles various segment matching scenarios.
+    /// </summary>
+    /// <param name="declaredId">The declared catalog ID.</param>
+    /// <param name="acquiredId">The acquired manifest ID.</param>
+    /// <param name="expected">The expected match result.</param>
+    [Theory]
+    [InlineData("1.104.steam.gameclient.zerohour", "1.104.steam.gameclient.zerohour", true)]
+    [InlineData("1.828261.generalsonline.gameclient.zerohour", "1.82826.generalsonline.gameclient.60hz", true)]
+    [InlineData("1.104.any.gameinstallation.zerohour", "1.104.steam.gameinstallation.zerohour", true)]
+    [InlineData("1.104.steam.gameclient.zerohour", "1.104.ea.gameclient.zerohour", false)]
+    [InlineData("1.104.steam.gameclient.zerohour", "1.104.steam.patch.zerohour", false)]
+    [InlineData("1.104.retail.gameinstallation.generals", "1.104.retail.gameinstallation.zerohour104zh", false)]
+    [InlineData("1.104.retail.gameinstallation.zerohour", "1.104.retail.gameinstallation.generals108en", false)]
+    [InlineData("1.104.generalsonline.gameclient.generalsonlinezh", "1.104.generalsonline.gameclient.generalsonlinezh-60", true)]
+    [InlineData("1.104.retail.gameinstallation.zerohour", "1.104.retail.gameinstallation.zerohour104zh", true)]
+    [InlineData("1.108.retail.gameinstallation.generals", "1.108.retail.gameinstallation.generals108en", true)]
+    public void HasCompatibleCatalogIdentity_MatchesCorrectly(string declaredId, string acquiredId, bool expected)
+    {
+        var result = DependencyResolver.HasCompatibleCatalogIdentity(declaredId, acquiredId);
+        Assert.Equal(expected, result);
+    }
 }

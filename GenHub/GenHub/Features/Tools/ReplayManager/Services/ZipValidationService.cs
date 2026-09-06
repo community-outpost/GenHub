@@ -61,7 +61,7 @@ public sealed class ZipValidationService(ILogger<ZipValidationService> logger) :
                 // Check single entry size
                 if (entry.Length > ReplayManagerConstants.MaxReplaySizeBytes)
                 {
-                    return (false, $"File {entry.Name} in ZIP exceeds 1 MB limit.");
+                    return (false, $"File {entry.Name} in ZIP exceeds {ReplayManagerConstants.MaxReplaySizeBytes / ConversionConstants.BytesPerMegabyte} MB limit.");
                 }
 
                 // Check compression ratio

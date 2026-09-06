@@ -118,13 +118,13 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
             }
             else
             {
-                ShowStatusMessage($"⚠ Failed to load tools: {string.Join(", ", result.Errors)}", MessageType.Error);
+                ShowStatusMessage($"Failed to load tools: {string.Join(", ", result.Errors)}", MessageType.Error);
                 logger.LogWarning("Failed to load tools: {Errors}", string.Join(", ", result.Errors));
             }
         }
         catch (Exception ex)
         {
-            ShowStatusMessage($"⚠ An error occurred while loading tools: {ex.Message}", MessageType.Error);
+            ShowStatusMessage($"An error occurred while loading tools: {ex.Message}", MessageType.Error);
             logger.LogError(ex, "Error loading tools");
         }
         finally
@@ -201,12 +201,12 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
                     SelectedTool = result.Data;
 
                     var versionDisplay = string.IsNullOrEmpty(result.Data.Metadata.Version) ? string.Empty : $" v{result.Data.Metadata.Version}";
-                    ShowStatusMessage($"✓ Tool '{result.Data.Metadata.Name}'{versionDisplay} installed successfully.", MessageType.Success);
+                    ShowStatusMessage($"Tool '{result.Data.Metadata.Name}'{versionDisplay} installed successfully.", MessageType.Success);
                     logger.LogInformation("Tool {ToolName} added successfully", result.Data.Metadata.Name);
                 }
                 else
                 {
-                    ShowStatusMessage($"✗ Failed to install tool: {string.Join(", ", result.Errors)}", MessageType.Error);
+                    ShowStatusMessage($"Failed to install tool: {string.Join(", ", result.Errors)}", MessageType.Error);
                     logger.LogWarning("Failed to add tool: {Errors}", string.Join(", ", result.Errors));
                 }
 
@@ -216,7 +216,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         catch (Exception ex)
         {
             IsLoading = false;
-            ShowStatusMessage($"✗ An error occurred while adding the tool: {ex.Message}", MessageType.Error);
+            ShowStatusMessage($"An error occurred while adding the tool: {ex.Message}", MessageType.Error);
             logger.LogError(ex, "Error adding tool");
         }
     }
@@ -231,7 +231,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         if (toolToRemove == null) return;
         if (toolToRemove.Metadata.IsBundled)
         {
-            ShowStatusMessage($"✗ Tool '{toolToRemove.Metadata.Name}' is a bundled tool and cannot be removed.", MessageType.Error);
+            ShowStatusMessage($"Tool '{toolToRemove.Metadata.Name}' is a bundled tool and cannot be removed.", MessageType.Error);
             return;
         }
 
@@ -265,13 +265,13 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
                     SelectedTool = InstalledTools.FirstOrDefault();
                 }
 
-                ShowStatusMessage($"✓ Tool '{toolToRemove.Metadata.Name}' removed successfully.", MessageType.Success);
+                ShowStatusMessage($"Tool '{toolToRemove.Metadata.Name}' removed successfully.", MessageType.Success);
 
                 logger.LogInformation("Tool {ToolId} removed successfully", toolToRemove.Metadata.Id);
             }
             else
             {
-                ShowStatusMessage($"✗ Failed to remove tool: {string.Join(", ", result.Errors)}", MessageType.Error);
+                ShowStatusMessage($"Failed to remove tool: {string.Join(", ", result.Errors)}", MessageType.Error);
                 logger.LogWarning("Failed to remove tool: {Errors}", string.Join(", ", result.Errors));
             }
 
@@ -280,7 +280,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         catch (Exception ex)
         {
             IsLoading = false;
-            ShowStatusMessage($"✗ An error occurred while removing the tool: {ex.Message}", MessageType.Error);
+            ShowStatusMessage($"An error occurred while removing the tool: {ex.Message}", MessageType.Error);
             logger.LogError(ex, "Error removing tool");
         }
     }
@@ -333,24 +333,24 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
                                       ?? InstalledTools[0];
                     SelectedTool = toolToSelect;
 
-                    ShowStatusMessage($"✓ Refreshed {InstalledTools.Count} tool(s) successfully.", MessageType.Success);
+                    ShowStatusMessage($"Refreshed {InstalledTools.Count} tool(s) successfully.", MessageType.Success);
                 }
                 else
                 {
-                    ShowStatusMessage("✓ Refreshed tools list.", MessageType.Success);
+                    ShowStatusMessage("Refreshed tools list.", MessageType.Success);
                 }
 
                 logger.LogInformation("Refreshed {Count} tool plugins", InstalledTools.Count);
             }
             else
             {
-                ShowStatusMessage($"⚠ Failed to refresh tools: {string.Join(", ", result.Errors)}", MessageType.Error);
+                ShowStatusMessage($"Failed to refresh tools: {string.Join(", ", result.Errors)}", MessageType.Error);
                 logger.LogWarning("Failed to refresh tools: {Errors}", string.Join(", ", result.Errors));
             }
         }
         catch (Exception ex)
         {
-            ShowStatusMessage($"⚠ An error occurred while refreshing tools: {ex.Message}", MessageType.Error);
+            ShowStatusMessage($"An error occurred while refreshing tools: {ex.Message}", MessageType.Error);
             logger.LogError(ex, "Error refreshing tools");
         }
         finally
@@ -388,7 +388,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
             {
                 logger.LogError(ex, "Error activating tool: {ToolName}", newValue.Metadata.Name);
                 CurrentToolControl = null;
-                ShowStatusMessage($"✗ Error loading tool '{newValue.Metadata.Name}': {ex.Message}", MessageType.Error);
+                ShowStatusMessage($"Error loading tool '{newValue.Metadata.Name}': {ex.Message}", MessageType.Error);
             }
         }
         else

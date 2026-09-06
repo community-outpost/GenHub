@@ -924,6 +924,114 @@ public partial class ReplayManagerViewModel(
         }
     }
 
+    /// <summary>
+    /// Creates a dedicated game profile configured for the selected replay file.
+    /// </summary>
+    /// <param name="replay">The replay file to create a profile for.</param>
+    [RelayCommand]
+    private async Task CreateProfileForReplayAsync(ReplayFile replay)
+    {
+        if (replay == null)
+        {
+            return;
+        }
+
+        if (IsDemoPath(replay.FullPath))
+        {
+            notificationService.ShowInfo(
+                "Create Profile for Replay",
+                "Creates a dedicated game profile configured with the exact game client and INI configuration required by this replay.");
+            return;
+        }
+
+        IsBusy = true;
+        StatusMessage = $"Configuring profile for {replay.FileName}...";
+
+        try
+        {
+            var result = await directoryService.CreateProfileForReplayAsync(replay);
+            if (result.Success && result.Data != null)
+            {
+                notificationService.ShowSuccess(
+                    "Profile Created",
+                    $"Created profile '{result.Data.Name}' for {replay.ClientAndPatchDisplay}.");
+                StatusMessage = $"Created profile '{result.Data.Name}'.";
+                await LoadReplaysAsync();
+            }
+            else
+            {
+                var errorMsg = result.FirstError ?? "Failed to create game profile for replay.";
+                notificationService.ShowError("Profile Creation Failed", errorMsg);
+                StatusMessage = "Profile creation failed.";
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Failed to create profile for replay {FileName}", replay.FileName);
+            notificationService.ShowError("Profile Creation Error", ex.Message);
+            StatusMessage = "Profile creation error.";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// Launches the game profile matching the selected replay.
+    /// </summary>
+    /// <param name="replay">The replay file to launch.</param>
+    [RelayCommand]
+    private async Task LaunchReplayAsync(ReplayFile replay)
+    {
+        if (replay == null)
+        {
+            return;
+        }
+
+        if (IsDemoPath(replay.FullPath))
+        {
+            notificationService.ShowInfo(
+                "Launch Replay Profile",
+                "Launches the game using the profile matching this replay so you can watch it without version or INI mismatch errors.");
+            return;
+        }
+
+        IsBusy = true;
+        StatusMessage = $"Launching profile for {replay.FileName}...";
+
+        try
+        {
+            var result = await directoryService.LaunchReplayAsync(replay);
+            if (result.Success)
+            {
+                var profileName = !string.IsNullOrEmpty(replay.MatchingProfileName)
+                    ? replay.MatchingProfileName
+                    : (replay.MatchedClient?.Description ?? "Matching Profile");
+                notificationService.ShowSuccess(
+                    "Game Launched",
+                    $"Launched profile '{profileName}' for replay '{replay.FileName}'.");
+                StatusMessage = $"Launched profile '{profileName}'.";
+            }
+            else
+            {
+                var errorMsg = result.FirstError ?? "Failed to launch game profile.";
+                notificationService.ShowError("Launch Failed", errorMsg);
+                StatusMessage = "Launch failed.";
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Failed to launch replay profile for {FileName}", replay.FileName);
+            notificationService.ShowError("Launch Error", ex.Message);
+            StatusMessage = "Launch error.";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
     private void ApplyFilter()
     {
         var source = SelectedTab == GameType.Generals ? GeneralsReplays : ZeroHourReplays;

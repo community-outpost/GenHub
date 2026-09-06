@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
@@ -209,6 +210,7 @@ public class ProfileLauncherFacade(
             // 1. Profile is deleted
             // 2. Content changes require workspace refresh
             logger.LogInformation("Successfully stopped profile {ProfileId}", profileId);
+            WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(profileId, 0));
             return ProfileOperationResult<bool>.CreateSuccess(true);
         }
         catch (Exception ex)
@@ -299,7 +301,7 @@ public class ProfileLauncherFacade(
             {
                 Id = profileId,
                 Manifests = manifests,
-                GameClient = profile.GameClient!,
+                GameClient = profile.GameClient,
                 Strategy = ResolveSupportedWorkspaceStrategy(
                     profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy()),
                 ForceRecreate = false,
@@ -524,6 +526,11 @@ public class ProfileLauncherFacade(
                 ProfileValidationConstants.ToolLaunchSuccessTitle,
                 $"Successfully launched '{profile.Name}'",
                 NotificationDurations.Medium);
+
+            if (toolLaunchInfo.ProcessInfo.ProcessId > 0)
+            {
+                WeakReferenceMessenger.Default.Send(new ProfileLaunchedMessage(profileId, toolLaunchInfo.ProcessInfo.ProcessId));
+            }
 
             return ProfileOperationResult<GameLaunchInfo>.CreateSuccess(toolLaunchInfo);
         }
@@ -850,6 +857,11 @@ public class ProfileLauncherFacade(
                 }
             }
 
+            if (launchInfo.ProcessInfo.ProcessId > 0)
+            {
+                WeakReferenceMessenger.Default.Send(new ProfileLaunchedMessage(profileId, launchInfo.ProcessInfo.ProcessId));
+            }
+
             return ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -1104,38 +1116,65 @@ public class ProfileLauncherFacade(
             return (manifests, false, false);
         }
 
+        var allManifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
+        var pooledManifests = allManifestsResult.Success && allManifestsResult.Data != null
+            ? allManifestsResult.Data.ToList()
+            : [];
+
         foreach (var contentId in profile.EnabledContentIds)
         {
-            if (!ManifestId.TryCreate(contentId, out var manifestId))
+            var (manifest, isValid) = await ResolveManifestForValidationAsync(contentId, pooledManifests, cancellationToken);
+            if (manifest != null)
             {
-                logger.LogWarning("Skipping invalid manifest ID during validation: {ContentId}", contentId);
-                continue;
-            }
+                manifests.Add(manifest);
 
-            try
-            {
-                var manifestResult = await manifestPool.GetManifestAsync(manifestId, cancellationToken);
-                if (manifestResult.Success && manifestResult.Data != null)
+                if (manifest.ContentType == Core.Models.Enums.ContentType.GameInstallation)
                 {
-                    manifests.Add(manifestResult.Data);
-
-                    if (manifestResult.Data.ContentType == Core.Models.Enums.ContentType.GameInstallation)
-                    {
-                        hasGameInstallationManifest = true;
-                    }
-                    else if (manifestResult.Data.ContentType == Core.Models.Enums.ContentType.GameClient)
-                    {
-                        hasGameClientManifest = true;
-                    }
+                    hasGameInstallationManifest = true;
+                }
+                else if (manifest.ContentType == Core.Models.Enums.ContentType.GameClient)
+                {
+                    hasGameClientManifest = true;
                 }
             }
-            catch (ArgumentException ex)
+            else if (isValid)
             {
-                logger.LogWarning(ex, "Skipping invalid manifest ID during validation: {ContentId}", contentId);
+                logger.LogWarning("Manifest for content ID '{ContentId}' not found in pool during launch validation", contentId);
             }
         }
 
         return (manifests, hasGameInstallationManifest, hasGameClientManifest);
+    }
+
+    private async Task<(ContentManifest? Manifest, bool IsValid)> ResolveManifestForValidationAsync(
+        string contentId,
+        IReadOnlyList<ContentManifest> pooledManifests,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (ManifestId.TryCreate(contentId, out var manifestId))
+            {
+                var manifestResult = await manifestPool.GetManifestAsync(manifestId, cancellationToken);
+                if (manifestResult.Success && manifestResult.Data != null)
+                {
+                    return (manifestResult.Data, true);
+                }
+            }
+
+            var declaredParts = contentId.Split(ManifestConstants.ManifestIdSegmentSeparator);
+            var match = pooledManifests.FirstOrDefault(m =>
+            {
+                var acquiredParts = m.Id.Value.Split(ManifestConstants.ManifestIdSegmentSeparator);
+                return DependencyResolver.HasCompatibleCatalogIdentity(declaredParts, acquiredParts);
+            });
+            return (match, true);
+        }
+        catch (ArgumentException ex)
+        {
+            logger.LogWarning(ex, "Skipping invalid manifest ID during validation: {ContentId}", contentId);
+            return (null, false);
+        }
     }
 
     private async Task<Dictionary<string, string>> ResolveManifestSourcePathsAsync(
@@ -1596,6 +1635,7 @@ public class ProfileLauncherFacade(
             var installationResult = await installationService.GetInstallationAsync(profile.GameInstallationId ?? string.Empty, cancellationToken);
             if (installationResult.Success && installationResult.Data != null)
             {
+                await installationService.CreateAndRegisterInstallationManifestsAsync(installationResult.Data, cancellationToken);
                 return OperationResult<Core.Models.GameInstallations.GameInstallation>.CreateSuccess(installationResult.Data);
             }
 
@@ -1614,7 +1654,8 @@ public class ProfileLauncherFacade(
 
                 if (exactPathMatches.Count == 1)
                 {
-                    var matchingInstallation = exactPathMatches.First();
+                    var matchingInstallation = exactPathMatches[0];
+                    await installationService.CreateAndRegisterInstallationManifestsAsync(matchingInstallation, cancellationToken);
                     logger.LogInformation(
                         "Rebound profile {ProfileId} from stale installation {OldId} to current installation {NewId} by path match ({Path})",
                         profile.Id,
@@ -1627,12 +1668,14 @@ public class ProfileLauncherFacade(
                 if (exactPathMatches.Count > 1)
                 {
                     // This should never happen - multiple installations with same path
+                    var firstMatch = exactPathMatches[0];
+                    await installationService.CreateAndRegisterInstallationManifestsAsync(firstMatch, cancellationToken);
                     logger.LogWarning(
                         "Profile {ProfileId} has {Count} installations with matching path {Path}, using first match",
                         profile.Id,
                         exactPathMatches.Count,
                         profile.GameClient?.WorkingDirectory);
-                    return OperationResult<Core.Models.GameInstallations.GameInstallation>.CreateSuccess(exactPathMatches.First());
+                    return OperationResult<Core.Models.GameInstallations.GameInstallation>.CreateSuccess(firstMatch);
                 }
 
                 // Fallback: Match by game type only (less specific, only if single match)
@@ -1644,7 +1687,8 @@ public class ProfileLauncherFacade(
 
                 if (gameTypeMatches.Count == 1)
                 {
-                    var matchingInstallation = gameTypeMatches.First();
+                    var matchingInstallation = gameTypeMatches[0];
+                    await installationService.CreateAndRegisterInstallationManifestsAsync(matchingInstallation, cancellationToken);
                     logger.LogInformation(
                         "Rebound profile {ProfileId} from stale installation {OldId} to current installation {NewId} by game type match (no path match found)",
                         profile.Id,
@@ -1824,7 +1868,7 @@ public class ProfileLauncherFacade(
             }
 
             var manifestResult = await manifestPool.GetManifestAsync(id, cancellationToken);
-            if (manifestResult.Success && manifestResult.Data!.ContentType.IsStandalone())
+            if (manifestResult.Success && manifestResult.Data != null && manifestResult.Data.ContentType.IsStandalone())
             {
                 return idString;
             }

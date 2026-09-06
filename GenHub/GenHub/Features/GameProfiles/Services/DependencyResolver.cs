@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
@@ -20,10 +21,6 @@ public class DependencyResolver(
     IContentManifestPool manifestPool,
     ILogger<DependencyResolver> logger) : IDependencyResolver
 {
-    private const string GameDataName = "gamedata";
-    private const string ZeroHourName = "zerohour";
-    private const string GameClientType = "gameclient";
-
     /// <summary>
     /// Matches a declared catalog ID to an acquired manifest ID allowing version and variant differences.
     /// </summary>
@@ -81,7 +78,7 @@ public class DependencyResolver(
             return false;
         }
 
-        return IsContentNameCompatible(declaredParts[4], acquiredParts[4], declaredType, acquiredType);
+        return IsContentNameCompatible(declaredParts[4], acquiredParts[4], declaredType);
     }
 
     /// <inheritdoc/>
@@ -155,25 +152,21 @@ public class DependencyResolver(
         var warnings = new List<string>();
         var toProcess = new Queue<string>(contentIds);
         var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var processingStack = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // Track currently processing path for circular detection
+        var ancestorMap = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var id in contentIds)
+        {
+            ancestorMap[id] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
 
         while (toProcess.Count > 0)
         {
             var contentId = toProcess.Dequeue();
 
-            // Circular dependency detection
-            if (processingStack.Contains(contentId))
-            {
-                var circularWarning = $"Circular dependency detected: '{contentId}' is already in the resolution path";
-                warnings.Add(circularWarning);
-                logger.LogWarning("Circular dependency detected: {ContentId} is already in the resolution path", contentId);
-                continue;
-            }
-
             if (!visited.Add(contentId))
                 continue;
 
-            processingStack.Add(contentId);
+            resolvedIds.Add(contentId);
 
             try
             {
@@ -186,6 +179,9 @@ public class DependencyResolver(
                     if (manifest.Dependencies != null)
                     {
                         var relevantDeps = manifest.Dependencies.Where(d => d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall);
+                        ancestorMap.TryGetValue(contentId, out var currentAncestors);
+                        var currentChain = currentAncestors ?? [];
+
                         foreach (var dep in relevantDeps)
                         {
                             // Skip default/placeholder IDs - these are generic type-based constraints validated separately
@@ -203,8 +199,17 @@ public class DependencyResolver(
                                 continue;
                             }
 
-                            if (!resolvedIds.Contains(dep.Id.Value))
+                            // True circular dependency: the dependency is already an ancestor of the current node
+                            if (currentChain.Contains(dep.Id.Value) || string.Equals(contentId, dep.Id.Value, StringComparison.OrdinalIgnoreCase))
                             {
+                                var circularWarning = $"Circular dependency detected: '{dep.Id.Value}' is already in the resolution path";
+                                warnings.Add(circularWarning);
+                                logger.LogWarning("Circular dependency detected: {ContentId} is already in the resolution path", dep.Id.Value);
+                            }
+                            else if (!resolvedIds.Contains(dep.Id.Value) && !visited.Contains(dep.Id.Value))
+                            {
+                                var depAncestors = new HashSet<string>(currentChain, StringComparer.OrdinalIgnoreCase) { contentId };
+                                ancestorMap[dep.Id.Value] = depAncestors;
                                 toProcess.Enqueue(dep.Id.Value);
                             }
                         }
@@ -215,9 +220,10 @@ public class DependencyResolver(
                     missingContentIds.Add(contentId);
                 }
             }
-            finally
+            catch (ArgumentException ex)
             {
-                processingStack.Remove(contentId);
+                missingContentIds.Add(contentId);
+                logger.LogWarning(ex, "Invalid manifest ID during dependency resolution: {ContentId}", contentId);
             }
         }
 
@@ -245,8 +251,7 @@ public class DependencyResolver(
     private static bool IsContentNameCompatible(
         string declaredName,
         string acquiredName,
-        string declaredType,
-        string acquiredType)
+        string declaredType)
     {
         if (declaredName.Equals(acquiredName, StringComparison.OrdinalIgnoreCase))
         {
@@ -258,10 +263,10 @@ public class DependencyResolver(
             return true;
         }
 
-        if (declaredType.Equals(GameClientType, StringComparison.OrdinalIgnoreCase) &&
-            acquiredType.Equals(GameClientType, StringComparison.OrdinalIgnoreCase))
+        if (declaredType.Equals(ManifestConstants.GameClientContentTypeName, StringComparison.OrdinalIgnoreCase) ||
+            declaredType.Equals(ContentType.GameInstallation.ToManifestIdString(), StringComparison.OrdinalIgnoreCase))
         {
-            return true;
+            return AreGameVariantsCompatible(declaredName, acquiredName);
         }
 
         if (IsPatchOrGameData(declaredType) && IsPatchOrGameDataName(declaredName) && IsPatchOrGameDataName(acquiredName))
@@ -272,36 +277,88 @@ public class DependencyResolver(
         return false;
     }
 
+    private static bool IsZeroHourIdentifier(string name)
+    {
+        if (name.Contains(ManifestConstants.ZeroHourContentName, StringComparison.OrdinalIgnoreCase) ||
+            name.StartsWith(ManifestConstants.GeneralsZeroHourContentName, StringComparison.OrdinalIgnoreCase) ||
+            name.EndsWith(ManifestConstants.ZeroHourShortContentName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var tokens = name.Split(ManifestConstants.VariantSeparator);
+        return tokens.Any(IsZeroHourToken);
+    }
+
+    private static bool IsZeroHourToken(string token) =>
+        string.Equals(token, ManifestConstants.ZeroHourShortContentName, StringComparison.OrdinalIgnoreCase) ||
+        token.EndsWith(ManifestConstants.ZeroHourShortContentName, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsGeneralsIdentifier(string name)
+    {
+        if (IsZeroHourIdentifier(name))
+        {
+            return false;
+        }
+
+        if (string.Equals(name, ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase) ||
+            name.StartsWith(ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase) ||
+            name.Contains(ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var tokens = name.Split(ManifestConstants.VariantSeparator);
+        return tokens.Any(t =>
+            string.Equals(t, ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase) ||
+            t.StartsWith(ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool AreGameVariantsCompatible(string declaredName, string acquiredName)
+    {
+        var isDeclaredZeroHour = IsZeroHourIdentifier(declaredName);
+        var isAcquiredZeroHour = IsZeroHourIdentifier(acquiredName);
+        var isDeclaredGenerals = IsGeneralsIdentifier(declaredName);
+        var isAcquiredGenerals = IsGeneralsIdentifier(acquiredName);
+
+        if ((isDeclaredZeroHour && isAcquiredGenerals) || (isDeclaredGenerals && isAcquiredZeroHour))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
     private static bool IsPatchOrGameDataName(string name) =>
-        name.Equals(ZeroHourName, StringComparison.OrdinalIgnoreCase) ||
-        name.Equals(GameDataName, StringComparison.OrdinalIgnoreCase);
+        name.Equals(ManifestConstants.ZeroHourContentName, StringComparison.OrdinalIgnoreCase) ||
+        name.Equals(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase);
 
     private static bool IsPatchOrGameData(string typeOrName) =>
-        typeOrName.Equals("patch", StringComparison.OrdinalIgnoreCase) ||
-        typeOrName.Equals(GameDataName, StringComparison.OrdinalIgnoreCase);
+        typeOrName.Equals(ContentType.Patch.ToManifestIdString(), StringComparison.OrdinalIgnoreCase) ||
+        typeOrName.Equals(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase);
 
     private static bool MatchesContentKeyword(string contentId, ContentManifest manifest)
     {
-        if (contentId.Contains(GameDataName, StringComparison.OrdinalIgnoreCase) &&
-            (manifest.Id.Value.Contains(GameDataName, StringComparison.OrdinalIgnoreCase) ||
-             manifest.Name.Contains("Game Data", StringComparison.OrdinalIgnoreCase)))
+        if (contentId.Contains(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase) &&
+            (manifest.Id.Value.Contains(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase) ||
+             manifest.Name.Contains(ManifestConstants.GameDataDisplayKeyword, StringComparison.OrdinalIgnoreCase)))
         {
             return true;
         }
 
-        if ((contentId.Contains("quickmatchmaps", StringComparison.OrdinalIgnoreCase) ||
-             contentId.Contains("mappack", StringComparison.OrdinalIgnoreCase)) &&
+        if ((contentId.Contains(ManifestConstants.QuickMatchMapsKeyword, StringComparison.OrdinalIgnoreCase) ||
+             contentId.Contains(ManifestConstants.MapPackKeyword, StringComparison.OrdinalIgnoreCase)) &&
             (manifest.ContentType == ContentType.MapPack ||
-             manifest.Id.Value.Contains("mappack", StringComparison.OrdinalIgnoreCase) ||
-             manifest.Id.Value.Contains("quickmatchmaps", StringComparison.OrdinalIgnoreCase)))
+             manifest.Id.Value.Contains(ManifestConstants.MapPackKeyword, StringComparison.OrdinalIgnoreCase) ||
+             manifest.Id.Value.Contains(ManifestConstants.QuickMatchMapsKeyword, StringComparison.OrdinalIgnoreCase)))
         {
             return true;
         }
 
-        if ((contentId.Contains("60hz", StringComparison.OrdinalIgnoreCase) ||
-             (contentId.Contains(GameClientType, StringComparison.OrdinalIgnoreCase) &&
-              !contentId.Contains(GameDataName, StringComparison.OrdinalIgnoreCase) &&
-              !contentId.Contains("mappack", StringComparison.OrdinalIgnoreCase))) &&
+        if ((contentId.Contains(ManifestConstants.SixtyHzKeyword, StringComparison.OrdinalIgnoreCase) ||
+             (contentId.Contains(ManifestConstants.GameClientContentTypeName, StringComparison.OrdinalIgnoreCase) &&
+              !contentId.Contains(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase) &&
+              !contentId.Contains(ManifestConstants.MapPackKeyword, StringComparison.OrdinalIgnoreCase))) &&
             manifest.ContentType == ContentType.GameClient)
         {
             return true;
