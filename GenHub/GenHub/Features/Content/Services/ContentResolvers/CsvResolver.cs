@@ -4,6 +4,8 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using CsvHelper;
@@ -29,7 +31,7 @@ public class CsvResolver(
     ILogger<CsvResolver> logger,
     CsvCatalogCache? catalogCache = null) : IContentResolver
 {
-    private sealed record CsvContentLoadResult(string Content, bool ShouldCache);
+    private sealed record CsvContentLoadResult(string Content, bool ShouldCache, byte[] RawBytes);
 
     private static readonly CsvConfiguration CsvConfig = new(CultureInfo.InvariantCulture)
     {
@@ -65,6 +67,27 @@ public class CsvResolver(
             if (!loadResult.Success || loadResult.Data == null)
             {
                 return OperationResult<ContentManifest>.CreateFailure(loadResult.Errors);
+            }
+
+            if (discoveredItem.ResolverMetadata.TryGetValue(CsvConstants.Sha256MetadataKey, out var expectedSha256) &&
+                !string.IsNullOrWhiteSpace(expectedSha256))
+            {
+                var actualHash = Convert.ToHexString(SHA256.HashData(loadResult.Data.RawBytes)).ToLowerInvariant();
+                if (!string.Equals(actualHash, expectedSha256.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.LogError(
+                        "CSV catalog SHA-256 integrity verification failed for {SourceUrl}. Expected: {Expected}, Actual: {Actual}",
+                        discoveredItem.SourceUrl,
+                        expectedSha256,
+                        actualHash);
+
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        $"CSV catalog integrity check failed for {discoveredItem.SourceUrl}");
+                }
+
+                logger.LogDebug(
+                    "CSV catalog SHA-256 verified successfully for {SourceUrl}",
+                    discoveredItem.SourceUrl);
             }
 
             var gameTypeStr = GetGameTypeString(discoveredItem);
@@ -339,7 +362,8 @@ public class CsvResolver(
                 : await catalogCache.ReadAsync(sourceUrl, cancellationToken);
             if (cached?.IsFresh == true)
             {
-                return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(cached.Content, false));
+                var cachedBytes = Encoding.UTF8.GetBytes(cached.Content);
+                return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(cached.Content, false, cachedBytes));
             }
 
             try
@@ -353,13 +377,15 @@ public class CsvResolver(
                     throw new HttpRequestException($"CSV catalog redirect must use HTTPS: {responseUri}");
                 }
 
-                var content = await response.Content.ReadAsStringAsync(cancellationToken);
-                return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(content, true));
+                var rawBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+                var content = Encoding.UTF8.GetString(rawBytes).TrimStart('\uFEFF');
+                return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(content, true, rawBytes));
             }
             catch (Exception ex) when (cached != null && IsRecoverableRemoteFailure(ex, cancellationToken))
             {
                 logger.LogWarning(ex, "Remote CSV catalog {SourceUrl} is unavailable; using stale cached content", sourceUrl);
-                return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(cached.Content, false));
+                var cachedBytes = Encoding.UTF8.GetBytes(cached.Content);
+                return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(cached.Content, false, cachedBytes));
             }
         }
 
@@ -372,7 +398,8 @@ public class CsvResolver(
             return OperationResult<CsvContentLoadResult>.CreateFailure($"CSV file not found at: {resolvedPath}");
         }
 
-        var fileContent = await File.ReadAllTextAsync(resolvedPath, cancellationToken);
-        return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(fileContent, false));
+        var fileBytes = await File.ReadAllBytesAsync(resolvedPath, cancellationToken);
+        var fileContent = Encoding.UTF8.GetString(fileBytes).TrimStart('\uFEFF');
+        return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(fileContent, false, fileBytes));
     }
 }

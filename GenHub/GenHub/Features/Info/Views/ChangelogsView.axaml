@@ -72,13 +72,13 @@
                         </Button>
                     </Grid>
 
-                    <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" Margin="0,4,0,12" Foreground="#DDDDDD"/>
+                    <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" Margin="0,4,0,12" Foreground="#DDDDDD" TextWrapping="Wrap"/>
 
                     <!-- Separator -->
                     <Border Height="1" Background="#22FFFFFF" Margin="0,0,0,12"/>
 
                     <!-- Body -->
-                    <ScrollViewer Height="300" Margin="0,0,0,12" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                    <ScrollViewer Height="300" Margin="0,0,0,12" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <controls:MarkdownTextBlock Markdown="{Binding Body}" />
                     </ScrollViewer>
                 </StackPanel>
