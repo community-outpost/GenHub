@@ -865,15 +865,6 @@ public class ManifestGenerationService(
         }
 
         var sourcePath = ResolveSourcePathWithBackup(file, relativePath);
-        if (sourcePath != file && IsReparsePoint(sourcePath))
-        {
-            logger.LogWarning(
-                "Backup source {SourcePath} for {RelativePath} is a reparse point or symbolic link and will be skipped",
-                sourcePath,
-                relativePath);
-            return;
-        }
-
         var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(relativePath, sourcePath);
 
         try
