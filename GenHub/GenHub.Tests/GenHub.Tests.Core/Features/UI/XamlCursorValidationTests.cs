@@ -48,7 +48,7 @@ public partial class XamlCursorValidationTests
     [Fact]
     public void AllAxamlFiles_ContainValidCursorValues()
     {
-        var solutionDir = FindSolutionDirectory();
+        var solutionDir = UiTestPathHelper.FindSolutionDirectory();
         Assert.True(Directory.Exists(solutionDir), $"Solution directory not found at: {solutionDir}");
 
         var axamlFiles = Directory.GetFiles(solutionDir, "*.axaml", SearchOption.AllDirectories);
@@ -103,36 +103,6 @@ public partial class XamlCursorValidationTests
     private static bool IsValidCursor(string cursorValue)
     {
         return Enum.TryParse<StandardCursorType>(cursorValue, ignoreCase: true, out _);
-    }
-
-    /// <summary>
-    /// Finds the directory containing GenHub.sln by searching upward from the current execution base directory.
-    /// </summary>
-    private static string FindSolutionDirectory()
-    {
-        var current = new DirectoryInfo(AppContext.BaseDirectory);
-        while (current != null)
-        {
-            if (File.Exists(Path.Combine(current.FullName, "GenHub.sln")))
-            {
-                return current.FullName;
-            }
-
-            current = current.Parent;
-        }
-
-        current = new DirectoryInfo(Directory.GetCurrentDirectory());
-        while (current != null)
-        {
-            if (File.Exists(Path.Combine(current.FullName, "GenHub.sln")))
-            {
-                return current.FullName;
-            }
-
-            current = current.Parent;
-        }
-
-        throw new DirectoryNotFoundException("Could not locate directory containing GenHub.sln from: " + AppContext.BaseDirectory);
     }
 
     /// <summary>
