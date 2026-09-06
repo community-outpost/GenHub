@@ -32,6 +32,7 @@ jobs:
           # --- Single Model (No Fallbacks) ---
           CONFIG.MODEL: "openai/glm-5.3-flash"
           CONFIG.FALLBACK_MODELS: "[]"
+          CONFIG.CUSTOM_MODEL_MAX_TOKENS: 128000
 
           # --- PR & Push Triggers ---
           GITHUB_ACTION_CONFIG.HANDLE_PUSH_TRIGGER: "true"
