@@ -11,8 +11,9 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Helpers;
-using Microsoft.Extensions.Caching.Memory;
+using GenHub.Features.GitHub.Services;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentDiscoverers;
@@ -25,7 +26,7 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 public partial class GitHubTopicsDiscoverer(
     IGitHubApiClient gitHubApiClient,
     ILogger<GitHubTopicsDiscoverer> logger,
-    IMemoryCache cache) : IContentDiscoverer
+    GitHubRateLimitTracker? rateLimitTracker = null) : IContentDiscoverer
 {
     [System.Text.RegularExpressions.GeneratedRegex(@"[^\d]")]
     private static partial System.Text.RegularExpressions.Regex NonDigitRegex();
@@ -53,39 +54,39 @@ public partial class GitHubTopicsDiscoverer(
     private static partial class VariantPatterns
     {
         /// <summary>
-        /// Regex to match resolution patterns like 1920x1080, 2560x1440, etc.
-        /// </summary>
-        [System.Text.RegularExpressions.GeneratedRegex(@"\d{3,4}x\d{3,4}", System.Text.RegularExpressions.RegexOptions.Compiled)]
-        public static partial System.Text.RegularExpressions.Regex ResolutionPattern();
-
-        /// <summary>
-        /// Regex to match non-digit characters.
-        /// </summary>
-        [System.Text.RegularExpressions.GeneratedRegex(@"[^\d]", System.Text.RegularExpressions.RegexOptions.Compiled)]
-        public static partial System.Text.RegularExpressions.Regex NonDigitPattern();
-
-        /// <summary>
-        /// Common resolution display names for user-friendly output.
-        /// </summary>
-        public static readonly Dictionary<string, string> ResolutionDisplayNames = new(StringComparer.OrdinalIgnoreCase)
-        {
-            { "1280x720", "720p" },
-            { "1366x768", "768p" },
-            { "1600x900", "900p" },
-            { "1920x1080", "1080p" },
-            { "2560x1440", "1440p" },
-            { "3840x2160", "4K" },
-            { "5120x2880", "5K" },
-            { "7680x4320", "8K" },
-        };
-
-        /// <summary>
-        /// File extensions that are archives and should be checked for variants.
+        /// Common archive extensions to check for variants.
         /// </summary>
         public static readonly string[] ArchiveExtensions =
         [
             ".zip", ".7z", ".rar", ".tar.gz", ".tgz",
         ];
+
+        /// <summary>
+        /// Resolution patterns commonly used in filenames (e.g., 1080p, 1440p, 4k, 1920x1080).
+        /// </summary>
+        [System.Text.RegularExpressions.GeneratedRegex(
+            @"(?:1080p|1440p|2160p|4k|720p|\d{3,4}x\d{3,4})",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+        public static partial System.Text.RegularExpressions.Regex ResolutionPattern();
+
+        /// <summary>
+        /// Display names for common resolutions.
+        /// </summary>
+        public static readonly Dictionary<string, string> ResolutionDisplayNames =
+            new(StringComparer.OrdinalIgnoreCase)
+            {
+                { "1080p", "1080p" },
+                { "1920x1080", "1080p" },
+                { "1440p", "1440p" },
+                { "2560x1440", "1440p" },
+                { "2160p", "4K" },
+                { "4k", "4K" },
+                { "3840x2160", "4K" },
+                { "5120x2880", "5K" },
+                { "7680x4320", "8K" },
+                { "720p", "720p" },
+                { "1280x720", "720p" },
+            };
 
         /// <summary>
         /// Filenames to exclude from variant splitting (source code, etc.).
@@ -111,7 +112,7 @@ public partial class GitHubTopicsDiscoverer(
         ContentSourceCapabilities.SupportsPackageAcquisition;
 
     /// <inheritdoc />
-    public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+    public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
     {
@@ -126,7 +127,13 @@ public partial class GitHubTopicsDiscoverer(
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var searchResponse = await SearchRepositoriesByTopicWithCacheAsync(
+                if (IsRateLimitExhausted())
+                {
+                    logger.LogWarning("GitHub API rate limit exhausted. Halting discovery early.");
+                    break;
+                }
+
+                var searchResponse = await gitHubApiClient.SearchRepositoriesByTopicAsync(
                     topic,
                     perPage: GitHubTopicsConstants.DefaultPerPage,
                     page: 1,
@@ -164,27 +171,53 @@ public partial class GitHubTopicsDiscoverer(
 
                     // Try to get latest release for version info
                     GitHubRelease? latestRelease = null;
-                    try
+                    if (!IsRateLimitExhausted())
                     {
-                        // Apply rate limiting
-                        await _rateLimitSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                         try
                         {
-                            latestRelease = await gitHubApiClient.GetLatestReleaseAsync(
-                                repo.Owner.Login,
-                                repo.Name,
-                                cancellationToken).ConfigureAwait(false);
+                            // Apply rate limiting
+                            await _rateLimitSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                            try
+                            {
+                                try
+                                {
+                                    latestRelease = await gitHubApiClient.GetLatestReleaseAsync(
+                                        repo.Owner.Login,
+                                        repo.Name,
+                                        cancellationToken).ConfigureAwait(false);
+                                }
+                                finally
+                                {
+                                    // Add delay before releasing semaphore to maintain rate limit
+                                    try
+                                    {
+                                        await Task.Delay(RateLimitDelay, cancellationToken).ConfigureAwait(false);
+                                    }
+                                    catch (OperationCanceledException)
+                                    {
+                                        // Ignore cancellation during the delay so semaphore release executes cleanly
+                                    }
+                                }
+                            }
+                            finally
+                            {
+                                _rateLimitSemaphore.Release();
+                            }
+
+                            cancellationToken.ThrowIfCancellationRequested();
                         }
-                        finally
+                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                         {
-                            // Add delay before releasing semaphore to maintain rate limit
-                            await Task.Delay(RateLimitDelay, cancellationToken).ConfigureAwait(false);
-                            _rateLimitSemaphore.Release();
+                            throw;
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogDebug(ex, "No releases found for {Repo}, will use repo info", repo.FullName);
                         }
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        logger.LogDebug(ex, "No releases found for {Repo}, will use repo info", repo.FullName);
+                        logger.LogDebug("GitHub API rate limit exhausted. Skipping release fetch for {Repo}", repo.FullName);
                     }
 
                     // Create search results (may return multiple for multi-asset releases)
@@ -202,7 +235,12 @@ public partial class GitHubTopicsDiscoverer(
             }
 
             logger.LogInformation("GitHub Topics discovery found {Count} repositories", results.Count);
-            return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
+            return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items = results,
+                TotalItems = results.Count,
+                HasMoreItems = false,
+            });
         }
         catch (OperationCanceledException)
         {
@@ -212,97 +250,8 @@ public partial class GitHubTopicsDiscoverer(
         catch (Exception ex)
         {
             logger.LogError(ex, "GitHub Topics discovery failed");
-            return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure($"GitHub Topics discovery failed: {ex.Message}");
+            return OperationResult<ContentDiscoveryResult>.CreateFailure($"GitHub Topics discovery failed: {ex.Message}");
         }
-    }
-
-    [System.Text.RegularExpressions.GeneratedRegex(@"(\d{3,4}x\d{3,4})")]
-    private static partial System.Text.RegularExpressions.Regex MyRegex();
-
-    /// <summary>
-    /// Infers ContentType from repository topics.
-    /// </summary>
-    private static (ContentType Type, bool IsInferred) InferContentTypeFromTopics(List<string> topics)
-    {
-        // Check for explicit type topics
-        if (topics.Contains(GitHubTopicsConstants.GameClientTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.GameClient, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.ModTopic, StringComparer.OrdinalIgnoreCase) ||
-            topics.Contains(GitHubTopicsConstants.GeneralsModTopic, StringComparer.OrdinalIgnoreCase) ||
-            topics.Contains(GitHubTopicsConstants.ZeroHourModTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.Mod, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.MapPackTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.MapPack, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.AddonTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.Addon, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.PatchTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.Patch, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.LanguagePackTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.LanguagePack, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.MissionTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.Mission, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.MapTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.Map, false);
-        }
-
-        // No explicit type found, will need inference
-        return (ContentType.Addon, true);
-    }
-
-    /// <summary>
-    /// Infers GameType from repository topics.
-    /// </summary>
-    private static (GameType Type, bool IsInferred) InferGameTypeFromTopics(List<string> topics)
-    {
-        // Check for game-specific topics
-        if (topics.Contains(GitHubTopicsConstants.ZeroHourModTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (GameType.ZeroHour, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.GeneralsModTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            // Check if also has ZH topic - use exact matching instead of substring matching
-            if (topics.Any(t => t.Equals("zh", StringComparison.OrdinalIgnoreCase) ||
-                               t.Equals("zerohour", StringComparison.OrdinalIgnoreCase) ||
-                               t.Equals("zero-hour", StringComparison.OrdinalIgnoreCase)))
-            {
-                return (GameType.ZeroHour, false);
-            }
-
-            return (GameType.Generals, false);
-        }
-
-        // Generals Online content is typically for Zero Hour
-        if (topics.Contains(GitHubTopicsConstants.GeneralsOnlineTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (GameType.ZeroHour, false);
-        }
-
-        // Default to ZeroHour (most common) with inference flag
-        return (GameType.ZeroHour, true);
     }
 
     /// <summary>
@@ -415,7 +364,7 @@ public partial class GitHubTopicsDiscoverer(
             return true;
 
         // Check for source-related patterns
-        if (VariantPatterns.ExcludedPatterns.Any(p => lowerName.Contains(p)))
+        if (VariantPatterns.ExcludedPatterns.Any(lowerName.Contains))
             return true;
 
         return false;
@@ -427,7 +376,7 @@ public partial class GitHubTopicsDiscoverer(
     private static bool IsArchiveAsset(string assetName)
     {
         var lowerName = assetName.ToLowerInvariant();
-        return VariantPatterns.ArchiveExtensions.Any(ext => lowerName.EndsWith(ext));
+        return VariantPatterns.ArchiveExtensions.Any(lowerName.EndsWith);
     }
 
     /// <summary>
@@ -491,7 +440,7 @@ public partial class GitHubTopicsDiscoverer(
             { "portuguese", "Portuguese" },
         };
 
-        // Check if filename contains a resolution (e.g., 1920x1080)
+        // Check if filename contains a resolution (e.g., 1920x1080).
         // Note: Resolution matching is already handled by VariantPatterns.ResolutionPattern() above.
         foreach (var (pattern, displayName) in languagePatterns)
         {
@@ -500,7 +449,7 @@ public partial class GitHubTopicsDiscoverer(
         }
 
         // Fallback: extract meaningful suffix
-        var parts = nameWithoutExt.Split(['_', '-', '.'], StringSplitOptions.RemoveEmptyEntries);
+        var parts = nameWithoutExt.Split(new[] { '_', '-', '.' }, StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length > 1)
         {
             // Return last meaningful part (often the variant)
@@ -510,22 +459,19 @@ public partial class GitHubTopicsDiscoverer(
         return nameWithoutExt;
     }
 
-    /// <summary>
-    /// Searches for repositories by topic with caching to reduce API calls.
-    /// </summary>
-    private async Task<GitHubRepositorySearchResponse> SearchRepositoriesByTopicWithCacheAsync(
-        string topic,
-        int perPage,
-        int page,
-        CancellationToken cancellationToken)
+    private bool IsRateLimitExhausted()
     {
-        var cacheKey = $"github_topic_{topic}_{perPage}_{page}";
-        var result = await cache.GetOrCreateAsync(cacheKey, async entry =>
+        if (gitHubApiClient.IsRateLimited)
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(GitHubTopicsConstants.CacheDurationMinutes);
-            return await gitHubApiClient.SearchRepositoriesByTopicAsync(topic, perPage, page, cancellationToken).ConfigureAwait(false);
-        }).ConfigureAwait(false);
-        return result ?? new GitHubRepositorySearchResponse();
+            return true;
+        }
+
+        if (rateLimitTracker != null && rateLimitTracker.IsAtLimit && rateLimitTracker.TimeUntilReset > TimeSpan.Zero)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -579,7 +525,7 @@ public partial class GitHubTopicsDiscoverer(
         string sourceTopic)
     {
         // Infer content type from topics first, then fall back to name-based inference
-        var (contentType, isTypeInferred) = InferContentTypeFromTopics(repo.Topics);
+        var (contentType, isTypeInferred) = GitHubInferenceHelper.InferContentTypeFromTopics(repo.Topics);
         if (isTypeInferred)
         {
             var nameInference = GitHubInferenceHelper.InferContentType(repo.Name, release.Name);
@@ -587,7 +533,7 @@ public partial class GitHubTopicsDiscoverer(
         }
 
         // Infer game type
-        var (gameType, isGameInferred) = InferGameTypeFromTopics(repo.Topics);
+        var (gameType, isGameInferred) = GitHubInferenceHelper.InferGameTypeFromTopics(repo.Topics);
         if (isGameInferred)
         {
             var nameInference = GitHubInferenceHelper.InferTargetGame(repo.Name, release.Name);
@@ -671,7 +617,7 @@ public partial class GitHubTopicsDiscoverer(
         string sourceTopic)
     {
         // Infer content type from topics first, then fall back to name-based inference
-        var (contentType, isTypeInferred) = InferContentTypeFromTopics(repo.Topics);
+        var (contentType, isTypeInferred) = GitHubInferenceHelper.InferContentTypeFromTopics(repo.Topics);
         if (isTypeInferred)
         {
             var nameInference = GitHubInferenceHelper.InferContentType(repo.Name, latestRelease?.Name);
@@ -679,7 +625,7 @@ public partial class GitHubTopicsDiscoverer(
         }
 
         // Infer game type
-        var (gameType, isGameInferred) = InferGameTypeFromTopics(repo.Topics);
+        var (gameType, isGameInferred) = GitHubInferenceHelper.InferGameTypeFromTopics(repo.Topics);
         if (isGameInferred)
         {
             var nameInference = GitHubInferenceHelper.InferTargetGame(repo.Name, latestRelease?.Name);

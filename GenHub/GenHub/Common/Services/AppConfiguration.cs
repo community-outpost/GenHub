@@ -1,7 +1,9 @@
 using System;
 using System.IO;
+using System.Linq;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -27,12 +29,12 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
             var configured = _configuration?.GetValue<string>(ConfigurationKeys.AppDataPath);
             return !string.IsNullOrEmpty(configured)
                 ? configured
-                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub");
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GenHub");
         }
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "Failed to get configured AppDataPath, using default");
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub");
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GenHub");
         }
     }
 
@@ -126,7 +128,7 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
         var configured = _configuration?[ConfigurationKeys.WorkspaceDefaultStrategy];
         return !string.IsNullOrEmpty(configured) && Enum.TryParse(configured, out WorkspaceStrategy strategy)
             ? strategy
-            : WorkspaceStrategy.SymlinkOnly;
+            : WorkspaceConstants.DefaultWorkspaceStrategy;
     }
 
     /// <summary>
@@ -138,20 +140,20 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
         var configured = _configuration?[ConfigurationKeys.UiDefaultTheme];
         if (!string.IsNullOrEmpty(configured))
         {
-            // Validate that the configured theme is valid (only "Dark" and "Light" are supported)
             var normalizedTheme = configured.Trim();
-            if (string.Equals(normalizedTheme, "Dark", StringComparison.OrdinalIgnoreCase) ||
+            if (ThemeConstants.AllThemes.Any(t =>
+                    string.Equals(t.Id, normalizedTheme, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(t.DisplayName, normalizedTheme, StringComparison.OrdinalIgnoreCase)) ||
+                string.Equals(normalizedTheme, "Dark", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(normalizedTheme, "Light", StringComparison.OrdinalIgnoreCase))
             {
                 return normalizedTheme;
             }
-            else
-            {
-                _logger?.LogWarning("Invalid theme '{Theme}' configured, falling back to default", configured);
-            }
+
+            _logger?.LogWarning("Invalid theme '{Theme}' configured, falling back to default", configured);
         }
 
-        return AppConstants.DefaultThemeName; // Default theme
+        return ThemeConstants.DefaultTheme.Id;
     }
 
     /// <summary>
@@ -218,12 +220,25 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
     {
         if (_configuration == null)
         {
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppConstants.AppName);
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
         }
 
         var configured = _configuration[ConfigurationKeys.AppDataPath];
         return !string.IsNullOrEmpty(configured)
             ? configured
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppConstants.AppName);
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
+    }
+
+    /// <summary>
+    /// Gets the application data path used by releases up to v0.0.3, which stored data under the roaming profile.
+    /// </summary>
+    /// <returns>The legacy application data path as a string.</returns>
+    public string GetLegacyConfiguredDataPath() =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppConstants.AppName);
+
+    /// <inheritdoc />
+    public CsvCatalogConfiguration GetCsvCatalogConfiguration()
+    {
+        return _configuration?.GetSection(ConfigurationKeys.GenHubSection).Get<CsvCatalogConfiguration>() ?? new CsvCatalogConfiguration();
     }
 }

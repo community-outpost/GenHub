@@ -1,0 +1,49 @@
+:root {
+    /* Primary Purple Tones */
+    --primary: #7c3aed;
+    --primary-dark: #6d28d9;
+    --primary-light: #a78bfa;
+    --primary-glow: rgba(124, 58, 237, 0.4);
+    
+    /* Accent Colors */
+    --accent: #a855f7;
+    --accent-glow: rgba(168, 85, 247, 0.3);
+    --success: #10b981;
+    
+    /* Purple-tinted Backgrounds */
+    --bg-deep: #0a0612;
+    --bg-dark: #100a1f;
+    --bg-card: rgba(25, 15, 45, 0.6);
+    --bg-card-solid: #1a0f2e;
+    --bg-elevated: rgba(30, 20, 55, 0.8);
+    
+    /* Glass Effect */
+    --glass-bg: rgba(20, 10, 40, 0.4);
+    --glass-border: rgba(124, 58, 237, 0.2);
+    --glass-highlight: rgba(167, 139, 250, 0.08);
+    
+    /* Text Colors */
+    --text-main: #f0f4ff;
+    --text-secondary: #c7d2fe;
+    --text-muted: #7c8db5;
+    
+    /* Borders */
+    --border: rgba(124, 58, 237, 0.25);
+    --border-subtle: rgba(167, 139, 250, 0.08);
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, #7c3aed 0%, #6d28d9 50%, #5b21b6 100%);
+    --gradient-glow: linear-gradient(135deg, rgba(124, 58, 237, 0.2) 0%, rgba(168, 85, 247, 0.15) 100%);
+    --gradient-text: linear-gradient(135deg, #f0f4ff 0%, #d8b4fe 50%, #a78bfa 100%);
+    
+    /* Shadows */
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.5);
+    --shadow-glow: 0 0 40px var(--primary-glow), 0 0 80px rgba(124, 58, 237, 0.2);
+    
+    /* Blur */
+    --blur-sm: 8px;
+    --blur-md: 16px;
+    --blur-lg: 24px;
+}

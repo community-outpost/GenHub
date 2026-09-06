@@ -17,23 +17,23 @@
 
     <UserControl.Styles>
         <Style Selector="Border.publisher-card">
-            <Setter Property="Background" Value="#2A2A2A" />
+            <Setter Property="Background" Value="{DynamicResource CardBackground}" />
             <Setter Property="CornerRadius" Value="12" />
             <Setter Property="Padding" Value="20" />
             <Setter Property="Margin" Value="10,5" />
             <Setter Property="MaxWidth" Value="500" />
             <Setter Property="BoxShadow" Value="0 4 12 0 #30000000" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="#404040" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
         </Style>
 
         <Style Selector="Border.publisher-card:pointerover">
-            <Setter Property="BorderBrush" Value="#555555" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
         </Style>
 
         <Style Selector="Button.card-action">
-            <Setter Property="Background" Value="#404040" />
-            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Padding" Value="12,8" />
             <Setter Property="Margin" Value="5,0" />
@@ -41,11 +41,20 @@
         </Style>
 
         <Style Selector="Button.card-action:pointerover">
-            <Setter Property="Background" Value="#505050" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+        </Style>
+
+        <Style Selector="Button.flyout-item">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="CornerRadius" Value="6" />
+        </Style>
+
+        <Style Selector="Button.flyout-item:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
         </Style>
 
         <Style Selector="Border.content-type-badge">
-            <Setter Property="Background" Value="#404040" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
             <Setter Property="CornerRadius" Value="4" />
             <Setter Property="Padding" Value="8,4" />
             <Setter Property="Margin" Value="4,2" />
@@ -55,7 +64,7 @@
     <Border Classes="publisher-card" VerticalAlignment="Top">
         <StackPanel Spacing="12">
             <!-- Header with expand/collapse -->
-            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
                 <!-- Icon - Logo Image or Color Circle -->
                 <Panel Grid.Column="0"
                        Width="24" Height="24"
@@ -79,21 +88,23 @@
                            Foreground="White"
                            VerticalAlignment="Center" />
 
-                <!-- Loading/Error Indicator -->
-                <TextBlock Grid.Column="2"
-                           Text="⟳"
-                           FontSize="16"
-                           Foreground="#FF9800"
-                           IsVisible="{Binding IsLoading}"
-                           VerticalAlignment="Center"
-                           Margin="0,0,10,0" />
+                <!-- Loading Indicator -->
+                <ProgressBar Grid.Column="2"
+                             IsIndeterminate="True"
+                             Width="16" Height="16"
+                             Foreground="{DynamicResource AccentBrush}"
+                             IsVisible="{Binding IsLoading}"
+                             VerticalAlignment="Center"
+                             Margin="0,0,10,0" />
 
                 <!-- Expand/Collapse Button -->
-                <Button Grid.Column="3"
+                <Button Grid.Column="4"
                         Command="{Binding ToggleExpandCommand}"
                         Background="Transparent"
                         BorderThickness="0"
                         Padding="8"
+                        AutomationProperties.Name="Toggle Content Details"
+                        ToolTip.Tip="Toggle content details"
                         Cursor="Hand">
                     <Button.IsVisible>
                         <MultiBinding Converter="{x:Static BoolConverters.And}">
@@ -102,8 +113,8 @@
                         </MultiBinding>
                     </Button.IsVisible>
                     <Panel>
-                        <TextBlock Text="▲" FontSize="16" Foreground="White" IsVisible="{Binding IsExpanded}" />
-                        <TextBlock Text="▼" FontSize="16" Foreground="White" IsVisible="{Binding !IsExpanded}" />
+                        <PathIcon Data="M7.41,15.41L12,10.83L16.59,15.41L18,14L12,8L6,14L7.41,15.41Z" Width="12" Height="12" Foreground="{DynamicResource TextSecondary}" IsVisible="{Binding IsExpanded}" />
+                        <PathIcon Data="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z" Width="12" Height="12" Foreground="{DynamicResource TextSecondary}" IsVisible="{Binding !IsExpanded}" />
                     </Panel>
                 </Button>
             </Grid>
@@ -148,7 +159,7 @@
                 <ItemsControl ItemsSource="{Binding ContentTypes}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="#1A1A1A"
+                            <Border Background="{DynamicResource SurfaceElevatedBrush}"
                                     CornerRadius="6"
                                     Padding="12"
                                     Margin="0,4">
@@ -157,25 +168,25 @@
                                     <TextBlock Text="{Binding DisplayName}"
                                                FontSize="14"
                                                FontWeight="SemiBold"
-                                               Foreground="#AAAAAA" />
+                                               Foreground="{DynamicResource TextSecondary}" />
 
                                     <!-- Content Items -->
                                     <ItemsControl ItemsSource="{Binding Items}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <Grid x:Name="ContentItemRoot" ColumnDefinitions="Auto,*,Auto" Margin="0,4">
-                                                    <TextBlock Grid.Column="0" Text="•" Foreground="White" Margin="0,0,8,0" VerticalAlignment="Top" />
+                                                    <TextBlock Grid.Column="0" Text="•" Foreground="{DynamicResource TextPrimary}" Margin="0,0,8,0" VerticalAlignment="Top" />
                                                     <StackPanel Grid.Column="1" Spacing="4">
                                                         <StackPanel Orientation="Horizontal" Spacing="8">
-                                                            <TextBlock Text="{Binding Name}" Foreground="White" FontWeight="Medium" />
-                                                            <TextBlock Text="{Binding Version}" Foreground="#888888" FontSize="12" VerticalAlignment="Center" />
+                                                            <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextPrimary}" FontWeight="Medium" />
+                                                            <TextBlock Text="{Binding Version}" Foreground="{DynamicResource TextMuted}" FontSize="12" VerticalAlignment="Center" />
                                                         </StackPanel>
 
                                                         <!-- Item Description / Changelog -->
                                                         <StackPanel IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                                             <TextBlock Text="{Binding Description}"
                                                                        FontSize="12"
-                                                                       Foreground="#999999"
+                                                                       Foreground="{DynamicResource TextSecondary}"
                                                                        TextWrapping="Wrap"
                                                                        MaxLines="3"
                                                                        TextTrimming="CharacterEllipsis"
@@ -183,14 +194,14 @@
 
                                                             <TextBlock Text="{Binding Description}"
                                                                        FontSize="12"
-                                                                       Foreground="#999999"
+                                                                       Foreground="{DynamicResource TextSecondary}"
                                                                        TextWrapping="Wrap"
                                                                        IsVisible="{Binding IsChangelogExpanded}" />
 
                                                             <Button Classes="link-button"
                                                                     Content="{Binding IsChangelogExpanded, Converter={x:Static converters:BoolToTextConverter.Instance}, ConverterParameter='Show Less|Show More'}"
                                                                     Command="{Binding ToggleChangelogCommand}"
-                                                                    Foreground="#2196F3"
+                                                                    Foreground="{DynamicResource AccentLightBrush}"
                                                                     Background="Transparent"
                                                                     BorderThickness="0"
                                                                     Padding="0"
@@ -201,17 +212,32 @@
                                                                     IsVisible="{Binding ShouldShowChangelogToggle}" />
                                                         </StackPanel>
 
+                                                        <!-- Dependency Warning - shown prominently for content with required dependencies -->
+                                                        <Border Background="#4D3A1A"
+                                                                BorderBrush="{DynamicResource WarningBrush}"
+                                                                BorderThickness="1"
+                                                                CornerRadius="4"
+                                                                Padding="8,6"
+                                                                Margin="0,4,0,0"
+                                                                IsVisible="{Binding HasRequiredDependencies}">
+                                                            <TextBlock Text="{Binding DependencyWarningText}"
+                                                                       FontSize="11"
+                                                                       Foreground="{DynamicResource WarningHighlightBrush}"
+                                                                       FontWeight="SemiBold"
+                                                                       TextWrapping="Wrap" />
+                                                        </Border>
+
                                                         <!-- Progress Bar - visible during installation -->
                                                         <ProgressBar Value="{Binding DownloadProgress}"
                                                                      Maximum="100"
                                                                      Height="4"
                                                                      IsVisible="{Binding IsDownloading}"
-                                                                     Foreground="#4CAF50"
-                                                                     Background="#333333" />
+                                                                     Foreground="{DynamicResource AccentBrush}"
+                                                                     Background="{DynamicResource SurfaceHoverBrush}" />
                                                         <!-- Status Text - visible during install or when there's a status message -->
                                                         <TextBlock Text="{Binding DownloadStatus}"
                                                                    FontSize="10"
-                                                                   Foreground="#AAAAAA"
+                                                                   Foreground="{DynamicResource TextSecondary}"
                                                                    TextWrapping="Wrap"
                                                                    IsVisible="{Binding DownloadStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                                     </StackPanel>
@@ -323,7 +349,7 @@
                                                                                 <ItemsControl.ItemTemplate>
                                                                                     <DataTemplate>
                                                                                         <StackPanel x:Name="VariantItemRoot" Margin="0,0,0,8">
-                                                                                            <Border Background="#333333" CornerRadius="4" Padding="6,4" Margin="0,0,0,4">
+                                                                                            <Border Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="4" Padding="6,4" Margin="0,0,0,4">
                                                                                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" Foreground="White" />
                                                                                             </Border>
 
@@ -404,12 +430,14 @@
             </StackPanel>
 
             <!-- Error Message -->
-            <Border Background="#4D1F1F"
+            <Border Background="{DynamicResource DetailsBackground}"
+                    BorderBrush="{DynamicResource ErrorBrush}"
+                    BorderThickness="1"
                     CornerRadius="6"
                     Padding="12"
                     IsVisible="{Binding HasError}">
                 <TextBlock Text="{Binding ErrorMessage}"
-                           Foreground="#FF5555"
+                           Foreground="{DynamicResource ErrorBrush}"
                            TextWrapping="Wrap" />
             </Border>
         </StackPanel>

@@ -37,7 +37,7 @@ public class WindowsFileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateHardLinkAsync_CreatesHardLink_OnWindows()
+    public async Task CreateHardLinkAsync_CreatesHardLink_OnWindowsAsync()
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -72,7 +72,7 @@ public class WindowsFileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateSymlinkAsync_CreatesSymlink_OnWindows()
+    public async Task CreateSymlinkAsync_CreatesSymlink_OnWindowsAsync()
     {
         if (!OperatingSystem.IsWindows())
         {

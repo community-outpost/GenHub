@@ -16,7 +16,11 @@ namespace GenHub.Features.GitHub.ViewModels;
 /// <summary>
 /// ViewModel for the GitHub PAT token dialog.
 /// </summary>
-public partial class GitHubTokenDialogViewModel(IGitHubTokenStorage tokenStorage, IHttpClientFactory httpClientFactory, ILogger<GitHubTokenDialogViewModel> logger) : ObservableObject, IDisposable
+public partial class GitHubTokenDialogViewModel(
+    IGitHubTokenStorage tokenStorage,
+    IHttpClientFactory httpClientFactory,
+    ILogger<GitHubTokenDialogViewModel> logger,
+    IGitHubApiClient? gitHubApiClient = null) : ObservableObject, IDisposable
 {
     private SecureString? _secureToken;
 
@@ -70,6 +74,7 @@ public partial class GitHubTokenDialogViewModel(IGitHubTokenStorage tokenStorage
     public void Dispose()
     {
         _secureToken?.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>
@@ -200,6 +205,7 @@ public partial class GitHubTokenDialogViewModel(IGitHubTokenStorage tokenStorage
         try
         {
             await tokenStorage.SaveTokenAsync(_secureToken);
+            gitHubApiClient?.SetAuthenticationToken(_secureToken);
             logger?.LogInformation("GitHub PAT saved successfully");
             SaveCompleted?.Invoke();
         }

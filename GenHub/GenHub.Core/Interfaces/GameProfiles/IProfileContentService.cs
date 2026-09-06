@@ -44,4 +44,14 @@ public interface IProfileContentService
         string profileName,
         string manifestId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Validates a profile's enabled content for conflicts.
+    /// </summary>
+    /// <param name="profileId">The profile ID to validate.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>List of conflict warning messages to display to the user.</returns>
+    Task<List<string>> ValidateProfileContentAsync(
+        string profileId,
+        CancellationToken cancellationToken = default);
 }

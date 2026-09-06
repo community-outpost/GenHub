@@ -1,17 +1,20 @@
+using System;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
+using GenHub.Features.Notifications.ViewModels;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Features.Tools.ViewModels;
-using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -32,10 +35,18 @@ public static class SharedViewModelModule
         // Register MainViewModel (critical for app startup)
         services.AddSingleton<MainViewModel>();
 
+        // Register NotificationFeedViewModel (required by MainViewModel)
+        services.AddSingleton<NotificationFeedViewModel>();
+
         // Register tab ViewModels
         services.AddSingleton<GameProfileLauncherViewModel>();
         services.AddSingleton<DownloadsViewModel>();
         services.AddSingleton<ToolsViewModel>();
+
+        // The token store is resolved with GetService, not GetRequiredService: only Windows
+        // registers one, and SettingsViewModel already takes it as optional. Requiring it
+        // here crashed Linux and macOS at startup while MainView was being constructed,
+        // well past the point where the error is legible.
         services.AddSingleton<SettingsViewModel>(sp => new SettingsViewModel(
             sp.GetRequiredService<IUserSettingsService>(),
             sp.GetRequiredService<ILogger<SettingsViewModel>>(),
@@ -46,7 +57,13 @@ public static class SharedViewModelModule
             sp.GetRequiredService<IVelopackUpdateManager>(),
             sp.GetRequiredService<INotificationService>(),
             sp.GetRequiredService<IConfigurationProviderService>(),
-            sp.GetRequiredService<IGameInstallationService>()));
+            sp.GetRequiredService<IGameInstallationService>(),
+            sp.GetRequiredService<IStorageLocationService>(),
+            sp.GetRequiredService<IUserDataTracker>(),
+            sp.GetRequiredService<IDialogService>(),
+            sp.GetService<IThemeService>(),
+            sp.GetService<IGitHubTokenStorage>(),
+            sp.GetService<IGitHubApiClient>()));
         services.AddSingleton<GameProfileSettingsViewModel>();
 
         // Register PublisherCardViewModel as transient

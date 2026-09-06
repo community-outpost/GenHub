@@ -52,16 +52,6 @@ public abstract class WorkspaceStrategyBase<T>(
         ".avi", ".mp4", ".wmv", ".bik",
     ];
 
-    /// <summary>
-    /// The logger instance.
-    /// </summary>
-    private readonly ILogger<T> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
-    /// <summary>
-    /// The file operations service.
-    /// </summary>
-    private readonly IFileOperationsService _fileOperations = fileOperations ?? throw new ArgumentNullException(nameof(fileOperations));
-
     /// <inheritdoc/>
     public abstract string Name { get; }
 
@@ -77,12 +67,12 @@ public abstract class WorkspaceStrategyBase<T>(
     /// <summary>
     /// Gets the logger instance.
     /// </summary>
-    protected ILogger<T> Logger => _logger;
+    protected ILogger<T> Logger => logger;
 
     /// <summary>
     /// Gets the file operations service.
     /// </summary>
-    protected IFileOperationsService FileOperations => _fileOperations;
+    protected IFileOperationsService FileOperations => fileOperations;
 
     /// <inheritdoc/>
     public abstract bool CanHandle(WorkspaceConfiguration configuration);
@@ -113,7 +103,7 @@ public abstract class WorkspaceStrategyBase<T>(
         string currentFile,
         DownloadProgress? downloadProgress = null)
     {
-        if (progress == null)
+        if (progress is null)
         {
             return;
         }
@@ -268,42 +258,32 @@ public abstract class WorkspaceStrategyBase<T>(
 
         if (gameClientManifest != null)
         {
-            var executableFile = gameClientManifest.Files?
-                .FirstOrDefault(f => f.IsExecutable);
+            // Resolution order and failure behaviour live in ManifestVariantResolver.
+            // The previous inline logic took the first file marked IsExecutable, which is
+            // enumeration-order dependent as soon as more than one file qualifies — and
+            // several do, once dynamic libraries and native extensionless binaries are in
+            // the same manifest.
+            var resolution = ManifestVariantResolver.ResolveEntryPoint(gameClientManifest);
 
-            if (executableFile != null)
+            if (resolution.Success)
             {
-                // Use the full relative path from the manifest
                 workspaceInfo.ExecutablePath = Path.Combine(
                     workspaceInfo.WorkspacePath,
-                    executableFile.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+                    resolution.RelativePath!.Replace('/', Path.DirectorySeparatorChar));
 
-                _logger.LogInformation(
-                    "Executable resolved from GameClient manifest: {ExecutablePath} (marked as IsExecutable)",
-                    workspaceInfo.ExecutablePath);
+                logger.LogInformation(
+                    "Executable resolved from GameClient manifest: {ExecutablePath} ({Reason})",
+                    workspaceInfo.ExecutablePath,
+                    resolution.Reason);
             }
             else
             {
-                // Fallback: Try finding any .exe file
-                executableFile = gameClientManifest.Files?
-                    .FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
-
-                if (executableFile != null)
-                {
-                    workspaceInfo.ExecutablePath = Path.Combine(
-                        workspaceInfo.WorkspacePath,
-                        executableFile.RelativePath.Replace('/', Path.DirectorySeparatorChar));
-
-                    _logger.LogWarning(
-                        "Executable resolved from GameClient manifest by .exe extension (IsExecutable not set): {ExecutablePath}",
-                        workspaceInfo.ExecutablePath);
-                }
-                else
-                {
-                    _logger.LogWarning(
-                        "GameClient manifest '{ManifestId}' does not contain an executable file",
-                        gameClientManifest.Id);
-                }
+                // Left unset deliberately rather than guessed. Launching the wrong binary
+                // fails somewhere far less diagnosable than here.
+                logger.LogWarning(
+                    "Could not determine the executable for GameClient manifest '{ManifestId}': {Resolution}",
+                    gameClientManifest.Id,
+                    resolution);
             }
         }
         else if (!string.IsNullOrEmpty(configuration.GameClient.ExecutablePath))
@@ -319,20 +299,20 @@ public abstract class WorkspaceStrategyBase<T>(
             if (executableExistsInManifest)
             {
                 workspaceInfo.ExecutablePath = Path.Combine(workspaceInfo.WorkspacePath, executableFileName);
-                _logger.LogDebug(
+                logger.LogDebug(
                     "Executable path resolved by filename search: {ExecutablePath}",
                     workspaceInfo.ExecutablePath);
             }
             else
             {
-                _logger.LogDebug(
+                logger.LogDebug(
                     "No executable found in manifests for filename: {ExecutableFileName}",
                     executableFileName);
             }
         }
         else
         {
-            _logger.LogDebug("No GameClient configuration or manifest available - executable path not set");
+            logger.LogDebug("No GameClient configuration or manifest available - executable path not set");
         }
     }
 
@@ -349,7 +329,7 @@ public abstract class WorkspaceStrategyBase<T>(
             return true;
         }
 
-        _logger.LogWarning("Source file not found: {SourcePath} (relative: {RelativePath})", sourcePath, relativePath);
+        logger.LogWarning("Source file not found: {SourcePath} (relative: {RelativePath})", sourcePath, relativePath);
         return false;
     }
 
@@ -411,7 +391,7 @@ public abstract class WorkspaceStrategyBase<T>(
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Could not get file size for {FilePath}", filePath);
+            logger.LogDebug(ex, "Could not get file size for {FilePath}", filePath);
             return 0L;
         }
     }
@@ -446,9 +426,10 @@ public abstract class WorkspaceStrategyBase<T>(
     /// </summary>
     /// <param name="hash">The hash of the CAS content.</param>
     /// <param name="targetPath">The target path for the CAS file in the workspace.</param>
+    /// <param name="contentType">The content type of the file.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    protected abstract Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken);
+    protected abstract Task CreateCasLinkAsync(string hash, string targetPath, ContentType? contentType, CancellationToken cancellationToken);
 
     /// <summary>
     /// Resolves the target path for a manifest file based on its InstallTarget.
@@ -456,9 +437,8 @@ public abstract class WorkspaceStrategyBase<T>(
     /// </summary>
     /// <param name="file">The manifest file to resolve the path for.</param>
     /// <param name="workspacePath">The root workspace path.</param>
-    /// <param name="manifest">The manifest containing the file (for target game info).</param>
     /// <returns>The fully resolved target path.</returns>
-    protected string ResolveTargetPath(ManifestFile file, string workspacePath, ContentManifest manifest)
+    protected string ResolveTargetPath(ManifestFile file, string workspacePath)
     {
         // Most content goes to the workspace
         if (file.InstallTarget == ContentInstallTarget.Workspace)
@@ -466,20 +446,17 @@ public abstract class WorkspaceStrategyBase<T>(
             return Path.Combine(workspacePath, file.RelativePath);
         }
 
-        // Get the user data base path for non-workspace content
-        var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
+        // If we reach here, it means a file with UserData or System target was passed to a workspace strategy.
+        // The strategies and reconciler have been updated to filter these out, but we'll handle it gracefully
+        // by logging a warning and treating it as a workspace file as a final fallback.
+        logger.LogWarning(
+            "[Workspace] File {RelativePath} has non-workspace target {InstallTarget}. " +
+            "Workspace strategies should only process Workspace-targeted files. " +
+            "This file will be placed in the workspace as a fallback.",
+            file.RelativePath,
+            file.InstallTarget);
 
-        return file.InstallTarget switch
-        {
-            ContentInstallTarget.UserDataDirectory => Path.Combine(userDataBasePath, file.RelativePath),
-            ContentInstallTarget.UserMapsDirectory => Path.Combine(userDataBasePath, "Maps", file.RelativePath),
-            ContentInstallTarget.UserReplaysDirectory => Path.Combine(userDataBasePath, "Replays", file.RelativePath),
-            ContentInstallTarget.UserScreenshotsDirectory => Path.Combine(userDataBasePath, "Screenshots", file.RelativePath),
-            ContentInstallTarget.System => throw new NotSupportedException(
-                "System install target is not supported for workspace operations. " +
-                "Prerequisites like Visual C++ runtimes should be installed through system package managers."),
-            _ => Path.Combine(workspacePath, file.RelativePath),
-        };
+        return Path.Combine(workspacePath, file.RelativePath);
     }
 
     /// <summary>
@@ -494,12 +471,12 @@ public abstract class WorkspaceStrategyBase<T>(
     protected virtual async Task ProcessManifestFileAsync(ManifestFile file, ContentManifest manifest, string workspacePath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
         // Resolve target path based on InstallTarget - maps go to user Documents, etc.
-        var targetPath = ResolveTargetPath(file, workspacePath, manifest);
+        var targetPath = ResolveTargetPath(file, workspacePath);
 
         // Log if installing to non-workspace location
         if (file.InstallTarget != ContentInstallTarget.Workspace)
         {
-            Logger.LogInformation(
+            logger.LogInformation(
                 "Installing file to {InstallTarget}: {RelativePath} -> {TargetPath}",
                 file.InstallTarget,
                 file.RelativePath,
@@ -509,7 +486,7 @@ public abstract class WorkspaceStrategyBase<T>(
         switch (file.SourceType)
         {
             case ContentSourceType.ContentAddressable:
-                await ProcessCasFileAsync(file, targetPath, cancellationToken);
+                await ProcessCasFileAsync(file, manifest.ContentType, targetPath, cancellationToken);
                 break;
             case ContentSourceType.GameInstallation:
                 await ProcessGameInstallationFileAsync(file, targetPath, configuration, cancellationToken);
@@ -523,16 +500,19 @@ public abstract class WorkspaceStrategyBase<T>(
             default:
                 throw new NotSupportedException($"Unsupported content source type: {file.SourceType}");
         }
+
+        await EnsureExecutableAsync(file, targetPath, cancellationToken);
     }
 
     /// <summary>
     /// Processes a CAS file with fallback logic. Strategies should call this for CAS files.
     /// </summary>
     /// <param name="file">The manifest file representing the CAS content.</param>
+    /// <param name="contentType">The content type of the file.</param>
     /// <param name="targetPath">The target path for the file in the workspace.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    protected virtual async Task ProcessCasFileAsync(ManifestFile file, string targetPath, CancellationToken cancellationToken)
+    protected virtual async Task ProcessCasFileAsync(ManifestFile file, ContentType? contentType, string targetPath, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(file.Hash))
         {
@@ -542,20 +522,20 @@ public abstract class WorkspaceStrategyBase<T>(
         try
         {
             // First try the strategy-specific CAS link creation
-            await CreateCasLinkAsync(file.Hash, targetPath, cancellationToken);
+            await CreateCasLinkAsync(file.Hash, targetPath, contentType, cancellationToken);
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, "Strategy-specific CAS link creation failed for hash {Hash} at {Path}, attempting direct service fallback", file.Hash, targetPath);
+            logger.LogWarning(ex, "Strategy-specific CAS link creation failed for hash {Hash} at {Path}, attempting direct service fallback", file.Hash, targetPath);
 
             // Fallback to direct service operations
             try
             {
-                var linked = await FileOperations.LinkFromCasAsync(file.Hash, targetPath, useHardLink: false, cancellationToken);
+                var linked = await FileOperations.LinkFromCasAsync(file.Hash, targetPath, useHardLink: false, contentType: contentType, cancellationToken: cancellationToken);
                 if (!linked)
                 {
                     // Final fallback to copy
-                    var copied = await FileOperations.CopyFromCasAsync(file.Hash, targetPath, cancellationToken);
+                    var copied = await FileOperations.CopyFromCasAsync(file.Hash, targetPath, contentType: contentType, cancellationToken: cancellationToken);
                     if (!copied)
                     {
                         throw new CasStorageException($"CAS content not available for hash {file.Hash}", ex);
@@ -564,7 +544,7 @@ public abstract class WorkspaceStrategyBase<T>(
             }
             catch (Exception fallbackEx)
             {
-                Logger.LogError(fallbackEx, "All CAS operations failed for hash {Hash} at {Path}", file.Hash, targetPath);
+                logger.LogError(fallbackEx, "All CAS operations failed for hash {Hash} at {Path}", file.Hash, targetPath);
                 throw new CasStorageException($"CAS content not available for hash {file.Hash}", fallbackEx);
             }
         }
@@ -623,6 +603,85 @@ public abstract class WorkspaceStrategyBase<T>(
 
         // Copy from extracted source to target
         await FileOperations.CopyFileAsync(file.SourcePath, targetPath, cancellationToken);
-        Logger.LogDebug("Copied extracted file: {Source} -> {Target}", file.SourcePath, targetPath);
+        logger.LogDebug("Copied extracted file: {Source} -> {Target}", file.SourcePath, targetPath);
+    }
+
+    /// <summary>
+    /// Gives a materialised file the Unix execute bit, on a copy that the workspace owns.
+    /// <para>
+    /// The copy is the point. Under the hard-link strategy the workspace file <em>is</em>
+    /// the content-store blob — same inode, and file mode lives in the inode, not the
+    /// directory entry. Calling chmod on it would change permissions for every other
+    /// profile referencing that hash, and the content store keys purely on content hash,
+    /// so it has no way to represent two files with identical bytes and different modes.
+    /// </para>
+    /// <para>
+    /// Breaking the link costs one copy per executable. Manifests contain a handful of
+    /// those and gigabytes of data, so the deduplication that matters is untouched.
+    /// </para>
+    /// <para>
+    /// No-op on Windows, which has no execute bit, and for files that do not need one.
+    /// </para>
+    /// </summary>
+    /// <param name="file">The manifest entry that was just materialised.</param>
+    /// <param name="targetPath">Its absolute path in the workspace.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A task representing the operation.</returns>
+    protected async Task EnsureExecutableAsync(ManifestFile file, string targetPath, CancellationToken cancellationToken)
+    {
+        if (OperatingSystem.IsWindows() || !file.IsExecutable || !File.Exists(targetPath))
+        {
+            return;
+        }
+
+        try
+        {
+            // The copy is made executable *before* it is moved into place, and the move
+            // replaces the destination atomically. There is therefore no observable state
+            // in which the destination is missing or present-but-not-executable: it is
+            // either the original entry or the finished private copy.
+            //
+            // A delete-then-move sequence would expose both of those states. The second
+            // is only papered over later — validation can restore a lost execute bit on
+            // the entry point, but not on any other executable the manifest names.
+            var quarantineCleared = await Task.Run(
+                () => ExecutableFileSwap.MakeExecutable(targetPath),
+                cancellationToken);
+            if (!quarantineCleared)
+            {
+                Logger.LogWarning(
+                    "Could not clear the macOS quarantine attribute from {RelativePath}; " +
+                    "macOS may refuse to launch it until it is cleared manually",
+                    file.RelativePath);
+            }
+
+            Logger.LogDebug("Marked {RelativePath} executable on a workspace-owned copy", file.RelativePath);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(
+                ex,
+                "Could not mark {RelativePath} executable",
+                file.RelativePath);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Strips a leading directory name from a path if present.
+    /// Handles both forward and back slashes.
+    /// </summary>
+    private static string StripLeadingDirectory(string path, string directoryName)
+    {
+        // Handle both forward and back slashes
+        var normalized = path.Replace('\\', '/');
+        var prefix = directoryName + "/";
+
+        if (normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return normalized[prefix.Length..];
+        }
+
+        return path;
     }
 }

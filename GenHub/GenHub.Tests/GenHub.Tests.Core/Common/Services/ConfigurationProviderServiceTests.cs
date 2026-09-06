@@ -2,7 +2,9 @@ using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -82,6 +84,30 @@ public class ConfigurationProviderServiceTests
                 _mockAppConfig.Object,
                 _mockUserSettings.Object,
                 null!));
+    }
+
+    /// <summary>
+    /// Preserves every CAS option when applying the default primary pool path.
+    /// </summary>
+    [Fact]
+    public void GetCasConfiguration_WhenPrimaryPathIsEmpty_PreservesGcLockTimeout()
+    {
+        var expectedTimeout = TimeSpan.FromSeconds(91);
+        var settings = new UserSettings
+        {
+            CasConfiguration = new CasConfiguration
+            {
+                CasRootPath = string.Empty,
+                GcLockTimeout = expectedTimeout,
+            },
+        };
+        _mockUserSettings.Setup(service => service.Get()).Returns(settings);
+        var provider = CreateProvider();
+
+        var result = provider.GetCasConfiguration();
+
+        Assert.Equal(expectedTimeout, result.GcLockTimeout);
+        Assert.False(string.IsNullOrWhiteSpace(result.CasRootPath));
     }
 
     /// <summary>
@@ -525,6 +551,58 @@ public class ConfigurationProviderServiceTests
     }
 
     /// <summary>
+    /// Verifies that GetAutoCheckForUpdatesPeriodically returns user setting when explicitly set.
+    /// </summary>
+    /// <param name="userValue">The value to set for AutoCheckForUpdatesPeriodically in user settings.</param>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void GetAutoCheckForUpdatesPeriodically_ReturnsUserSetting(bool userValue)
+    {
+        // Arrange
+        var userSettings = new UserSettings { AutoCheckForUpdatesPeriodically = userValue };
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.AutoCheckForUpdatesPeriodically));
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetAutoCheckForUpdatesPeriodically();
+
+        // Assert
+        Assert.Equal(userValue, result);
+    }
+
+    /// <summary>
+    /// Verifies that GetPeriodicUpdateCheckIntervalMinutes returns user setting when explicitly set.
+    /// </summary>
+    /// <param name="intervalMinutes">The interval to set in user settings.</param>
+    /// <param name="expectedMinutes">The expected clamped interval.</param>
+    [Theory]
+    [InlineData(60, 60)]
+    [InlineData(0, AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalMinutes)]
+    [InlineData(20000, AppUpdateConstants.MaxPeriodicUpdateCheckIntervalMinutes)]
+    public void GetPeriodicUpdateCheckIntervalMinutes_ReturnsUserSetting(int intervalMinutes, int expectedMinutes)
+    {
+        // Arrange
+        var userSettings = new UserSettings { PeriodicUpdateCheckIntervalMinutes = intervalMinutes };
+        if (intervalMinutes > 0)
+        {
+            userSettings.MarkAsExplicitlySet(nameof(UserSettings.PeriodicUpdateCheckIntervalMinutes));
+        }
+
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetPeriodicUpdateCheckIntervalMinutes();
+
+        // Assert
+        Assert.Equal(expectedMinutes, result);
+    }
+
+    /// <summary>
     /// Verifies that GetEnableDetailedLogging returns user setting when explicitly set.
     /// </summary>
     /// <param name="userValue">The value to set for EnableDetailedLogging in user settings.</param>
@@ -674,7 +752,7 @@ public class ConfigurationProviderServiceTests
         var result = provider.GetApplicationDataPath();
 
         // Assert
-        Assert.Equal(Path.Combine(appDataPath, "Content"), result);
+        Assert.Equal(appDataPath, result);
     }
 
     /// <summary>
@@ -706,7 +784,7 @@ public class ConfigurationProviderServiceTests
     {
         // Arrange
         var appDataPath = "/app/data/path";
-        var userSettings = new UserSettings { ContentDirectories = new List<string>() };
+        var userSettings = new UserSettings { ContentDirectories = [] };
         _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
         _mockAppConfig.Setup(x => x.GetConfiguredDataPath()).Returns(appDataPath);
 
@@ -717,8 +795,33 @@ public class ConfigurationProviderServiceTests
 
         // Assert
         Assert.Contains(Path.Combine(appDataPath, FileTypes.ManifestsDirectory), result);
-        Assert.Contains(Path.Combine(appDataPath, "CustomManifests"), result);
+        Assert.Contains(Path.Combine(appDataPath, DirectoryNames.CustomManifests), result);
         Assert.True(result.Count >= 3);
+    }
+
+    /// <summary>
+    /// Verifies that the default content directories follow an explicitly set application data path,
+    /// so local discovery scans the same root the manifests are read from and written to.
+    /// </summary>
+    [Fact]
+    public void GetContentDirectories_WithExplicitApplicationDataPath_ReturnsOverride()
+    {
+        // Arrange
+        var userPath = Path.Combine(Path.GetTempPath(), "genhub-user-data-root");
+        var userSettings = new UserSettings { ApplicationDataPath = userPath, ContentDirectories = [] };
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.ApplicationDataPath));
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+        _mockAppConfig.Setup(x => x.GetConfiguredDataPath()).Returns("/app/data/path");
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetContentDirectories();
+
+        // Assert
+        Assert.Contains(Path.Combine(userPath, FileTypes.ManifestsDirectory), result);
+        Assert.Contains(Path.Combine(userPath, DirectoryNames.CustomManifests), result);
+        Assert.Equal(provider.GetManifestsPath(), result[0]);
     }
 
     /// <summary>
@@ -749,7 +852,7 @@ public class ConfigurationProviderServiceTests
     public void GetGitHubDiscoveryRepositories_WithNullUserSetting_ReturnsDefaults()
     {
         // Arrange
-        var userSettings = new UserSettings { GitHubDiscoveryRepositories = new List<string>() };
+        var userSettings = new UserSettings { GitHubDiscoveryRepositories = [] };
         _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
 
         var provider = CreateProvider();
@@ -759,7 +862,536 @@ public class ConfigurationProviderServiceTests
 
         // Assert
         Assert.Contains("TheSuperHackers/GeneralsGameCode", result);
-        Assert.Single(result);
+        Assert.Contains("TheSuperHackers/GeneralsGamePatch2", result);
+        Assert.Equal(2, result.Count);
+    }
+
+    /// <summary>
+    /// Verifies that GetProfilesPath honors an explicitly set application data path.
+    /// </summary>
+    [Fact]
+    public void GetProfilesPath_WithExplicitApplicationDataPath_ReturnsOverride()
+    {
+        // Arrange
+        var userPath = Path.Combine(Path.GetTempPath(), "genhub-user-data-root");
+        var userSettings = new UserSettings { ApplicationDataPath = userPath };
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.ApplicationDataPath));
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+        _mockAppConfig.Setup(x => x.GetConfiguredDataPath()).Returns("/app/data/path");
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetProfilesPath();
+
+        // Assert
+        Assert.Equal(Path.Combine(userPath, DirectoryNames.Profiles), result);
+    }
+
+    /// <summary>
+    /// Verifies that GetManifestsPath honors an explicitly set application data path.
+    /// </summary>
+    [Fact]
+    public void GetManifestsPath_WithExplicitApplicationDataPath_ReturnsOverride()
+    {
+        // Arrange
+        var userPath = Path.Combine(Path.GetTempPath(), "genhub-user-data-root");
+        var userSettings = new UserSettings { ApplicationDataPath = userPath };
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.ApplicationDataPath));
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+        _mockAppConfig.Setup(x => x.GetConfiguredDataPath()).Returns("/app/data/path");
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetManifestsPath();
+
+        // Assert
+        Assert.Equal(Path.Combine(userPath, FileTypes.ManifestsDirectory), result);
+    }
+
+    /// <summary>
+    /// Verifies that the profiles and manifests paths fall back to the configured data path when no
+    /// application data path override is set.
+    /// </summary>
+    [Fact]
+    public void GetProfilesAndManifestsPath_WithoutOverride_ReturnConfiguredDataPath()
+    {
+        // Arrange
+        var appDataPath = "/app/data/path";
+        _mockAppConfig.Setup(x => x.GetConfiguredDataPath()).Returns(appDataPath);
+
+        var provider = CreateProvider();
+
+        // Act & Assert
+        Assert.Equal(Path.Combine(appDataPath, DirectoryNames.Profiles), provider.GetProfilesPath());
+        Assert.Equal(Path.Combine(appDataPath, FileTypes.ManifestsDirectory), provider.GetManifestsPath());
+    }
+
+    /// <summary>
+    /// Verifies that the legacy roaming data root is migrated into the current root while the CAS
+    /// pool, which still defaults to the legacy location, is left in place.
+    /// </summary>
+    [Fact]
+    public void MigrateLegacyDataRoot_WithLegacyData_MovesTrackedEntriesAndLeavesCasPool()
+    {
+        var (legacyRoot, newRoot) = CreateMigrationRoots();
+        try
+        {
+            SeedLegacyRoot(legacyRoot);
+
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot, newRoot);
+
+            Assert.Equal("profile", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.Profiles, "profile.json")));
+            Assert.Equal("manifest", File.ReadAllText(Path.Combine(newRoot, FileTypes.ManifestsDirectory, "content.manifest.json")));
+            Assert.Equal("index", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.UserData, FileTypes.UserDataIndexFileName)));
+            Assert.Equal("backup", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.UserData, DirectoryNames.UserDataBackups, "save.bak")));
+            Assert.Equal("settings", File.ReadAllText(Path.Combine(newRoot, FileTypes.SettingsFileName)));
+            Assert.Equal("workspaces", File.ReadAllText(Path.Combine(newRoot, FileTypes.WorkspaceMetadataFileName)));
+
+            Assert.True(File.Exists(Path.Combine(legacyRoot, DirectoryNames.CasPool, "objects", "blob.bin")));
+            Assert.False(Directory.Exists(Path.Combine(newRoot, DirectoryNames.CasPool)));
+        }
+        finally
+        {
+            DeleteDirectories(legacyRoot, newRoot);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that running the legacy root migration a second time leaves the migrated data alone.
+    /// </summary>
+    [Fact]
+    public void MigrateLegacyDataRoot_RunTwice_IsIdempotent()
+    {
+        var (legacyRoot, newRoot) = CreateMigrationRoots();
+        try
+        {
+            SeedLegacyRoot(legacyRoot);
+            var provider = CreateProvider();
+
+            provider.MigrateLegacyDataRoot(legacyRoot, newRoot, newRoot);
+            provider.MigrateLegacyDataRoot(legacyRoot, newRoot, newRoot);
+
+            Assert.Equal("profile", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.Profiles, "profile.json")));
+            Assert.Equal("settings", File.ReadAllText(Path.Combine(newRoot, FileTypes.SettingsFileName)));
+            Assert.True(File.Exists(Path.Combine(legacyRoot, DirectoryNames.CasPool, "objects", "blob.bin")));
+        }
+        finally
+        {
+            DeleteDirectories(legacyRoot, newRoot);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that data already present in the current root wins over the legacy copy.
+    /// </summary>
+    [Fact]
+    public void MigrateLegacyDataRoot_WithExistingData_DoesNotOverwriteNewRoot()
+    {
+        var (legacyRoot, newRoot) = CreateMigrationRoots();
+        try
+        {
+            SeedLegacyRoot(legacyRoot);
+            Directory.CreateDirectory(Path.Combine(newRoot, DirectoryNames.Profiles));
+            File.WriteAllText(Path.Combine(newRoot, DirectoryNames.Profiles, "profile.json"), "current-profile");
+            File.WriteAllText(Path.Combine(newRoot, FileTypes.SettingsFileName), "current-settings");
+
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot, newRoot);
+
+            Assert.Equal("current-profile", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.Profiles, "profile.json")));
+            Assert.Equal("current-settings", File.ReadAllText(Path.Combine(newRoot, FileTypes.SettingsFileName)));
+            Assert.Equal("workspaces", File.ReadAllText(Path.Combine(newRoot, FileTypes.WorkspaceMetadataFileName)));
+        }
+        finally
+        {
+            DeleteDirectories(legacyRoot, newRoot);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a missing legacy root does not create the current root.
+    /// </summary>
+    [Fact]
+    public void MigrateLegacyDataRoot_WithoutLegacyRoot_DoesNothing()
+    {
+        var (legacyRoot, newRoot) = CreateMigrationRoots();
+        Directory.Delete(legacyRoot);
+        Directory.Delete(newRoot);
+        try
+        {
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot, newRoot);
+
+            Assert.False(Directory.Exists(newRoot));
+        }
+        finally
+        {
+            DeleteDirectories(legacyRoot, newRoot);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the migration is skipped when both roots resolve to the same directory.
+    /// </summary>
+    [Fact]
+    public void MigrateLegacyDataRoot_WithIdenticalRoots_DoesNothing()
+    {
+        var (legacyRoot, newRoot) = CreateMigrationRoots();
+        try
+        {
+            SeedLegacyRoot(legacyRoot);
+
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, Path.Combine(legacyRoot, "."), Path.Combine(legacyRoot, "."));
+
+            Assert.Equal("profile", File.ReadAllText(Path.Combine(legacyRoot, DirectoryNames.Profiles, "profile.json")));
+            Assert.Equal("settings", File.ReadAllText(Path.Combine(legacyRoot, FileTypes.SettingsFileName)));
+        }
+        finally
+        {
+            DeleteDirectories(legacyRoot, newRoot);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the migration leaves nothing behind in the legacy root, so a regression from a
+    /// move to a copy is caught rather than passing every positive assertion.
+    /// </summary>
+    [Fact]
+    public void MigrateLegacyDataRoot_WithLegacyData_RemovesTheLegacySources()
+    {
+        var (legacyRoot, newRoot) = CreateMigrationRoots();
+        try
+        {
+            SeedLegacyRoot(legacyRoot);
+
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot, newRoot);
+
+            Assert.False(File.Exists(Path.Combine(legacyRoot, FileTypes.SettingsFileName)));
+            Assert.False(File.Exists(Path.Combine(legacyRoot, FileTypes.WorkspaceMetadataFileName)));
+            Assert.False(Directory.Exists(Path.Combine(legacyRoot, DirectoryNames.Profiles)));
+            Assert.False(Directory.Exists(Path.Combine(legacyRoot, FileTypes.ManifestsDirectory)));
+            Assert.False(Directory.Exists(Path.Combine(legacyRoot, DirectoryNames.UserData)));
+        }
+        finally
+        {
+            DeleteDirectories(legacyRoot, newRoot);
+        }
+    }
+
+    /// <summary>
+    /// Verifies the steady state after a successful migration: a legacy root that still holds the CAS
+    /// pool, but none of the migrated entries, is left completely alone.
+    /// </summary>
+    [Fact]
+    public void MigrateLegacyDataRoot_WithoutLegacyEntries_LeavesBothRootsAlone()
+    {
+        var (legacyRoot, newRoot) = CreateMigrationRoots();
+        Directory.Delete(newRoot);
+        try
+        {
+            WriteFile(Path.Combine(legacyRoot, DirectoryNames.CasPool, "objects", "blob.bin"), "cas");
+
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot, newRoot);
+
+            Assert.False(Directory.Exists(newRoot));
+            Assert.True(File.Exists(Path.Combine(legacyRoot, DirectoryNames.CasPool, "objects", "blob.bin")));
+        }
+        finally
+        {
+            DeleteDirectories(legacyRoot, newRoot);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the sub-layout releases up to v0.0.3 wrote, which nested the manifests, tracked
+    /// user data and workspace metadata under a Content directory, is flattened into the data root.
+    /// </summary>
+    [Fact]
+    public void MigrateLegacyDataRoot_WithContentSubLayout_FlattensIntoDataRoot()
+    {
+        var (legacyRoot, newRoot) = CreateMigrationRoots();
+        try
+        {
+            var legacyContent = Path.Combine(legacyRoot, DirectoryNames.LegacyContent);
+            WriteFile(Path.Combine(legacyRoot, DirectoryNames.Profiles, "profile.json"), "profile");
+            WriteFile(Path.Combine(legacyContent, FileTypes.ManifestsDirectory, "content.manifest.json"), "manifest");
+            WriteFile(Path.Combine(legacyContent, DirectoryNames.UserData, FileTypes.UserDataIndexFileName), "index");
+            WriteFile(Path.Combine(legacyContent, FileTypes.WorkspaceMetadataFileName), "workspaces");
+
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot, newRoot);
+
+            Assert.Equal("profile", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.Profiles, "profile.json")));
+            Assert.Equal("manifest", File.ReadAllText(Path.Combine(newRoot, FileTypes.ManifestsDirectory, "content.manifest.json")));
+            Assert.Equal("index", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.UserData, FileTypes.UserDataIndexFileName)));
+            Assert.Equal("workspaces", File.ReadAllText(Path.Combine(newRoot, FileTypes.WorkspaceMetadataFileName)));
+        }
+        finally
+        {
+            DeleteDirectories(legacyRoot, newRoot);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the settings file releases up to v0.0.3 wrote, which was named after the JSON
+    /// extension rather than the settings file name, is migrated under the current name.
+    /// </summary>
+    [Fact]
+    public void MigrateLegacyDataRoot_WithLegacySettingsFileName_MigratesUnderCurrentName()
+    {
+        var (legacyRoot, newRoot) = CreateMigrationRoots();
+        try
+        {
+            WriteFile(Path.Combine(legacyRoot, FileTypes.LegacySettingsFileName), "settings");
+
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot, newRoot);
+
+            Assert.Equal("settings", File.ReadAllText(Path.Combine(newRoot, FileTypes.SettingsFileName)));
+            Assert.False(File.Exists(Path.Combine(legacyRoot, FileTypes.LegacySettingsFileName)));
+        }
+        finally
+        {
+            DeleteDirectories(legacyRoot, newRoot);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a settings file already under the current name wins over the v0.0.3 one.
+    /// </summary>
+    [Fact]
+    public void MigrateLegacyDataRoot_WithBothSettingsFileNames_PrefersTheCurrentName()
+    {
+        var (legacyRoot, newRoot) = CreateMigrationRoots();
+        try
+        {
+            WriteFile(Path.Combine(legacyRoot, FileTypes.SettingsFileName), "current");
+            WriteFile(Path.Combine(legacyRoot, FileTypes.LegacySettingsFileName), "older");
+
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot, newRoot);
+
+            Assert.Equal("current", File.ReadAllText(Path.Combine(newRoot, FileTypes.SettingsFileName)));
+        }
+        finally
+        {
+            DeleteDirectories(legacyRoot, newRoot);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the data consumers read through the application data path lands in the override
+    /// root while the settings file, which is resolved from the configured root, lands there instead.
+    /// </summary>
+    [Fact]
+    public void MigrateLegacyDataRoot_WithSeparateDataAndSettingsRoots_SplitsTheDestinations()
+    {
+        var (legacyRoot, newRoot) = CreateMigrationRoots();
+        var overrideRoot = Path.Combine(Path.GetDirectoryName(newRoot)!, "relocated");
+        try
+        {
+            SeedLegacyRoot(legacyRoot);
+
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, overrideRoot, newRoot);
+
+            Assert.Equal("profile", File.ReadAllText(Path.Combine(overrideRoot, DirectoryNames.Profiles, "profile.json")));
+            Assert.Equal("manifest", File.ReadAllText(Path.Combine(overrideRoot, FileTypes.ManifestsDirectory, "content.manifest.json")));
+            Assert.Equal("index", File.ReadAllText(Path.Combine(overrideRoot, DirectoryNames.UserData, FileTypes.UserDataIndexFileName)));
+            Assert.Equal("workspaces", File.ReadAllText(Path.Combine(overrideRoot, FileTypes.WorkspaceMetadataFileName)));
+
+            Assert.Equal("settings", File.ReadAllText(Path.Combine(newRoot, FileTypes.SettingsFileName)));
+            Assert.False(File.Exists(Path.Combine(overrideRoot, FileTypes.SettingsFileName)));
+            Assert.False(Directory.Exists(Path.Combine(newRoot, DirectoryNames.Profiles)));
+        }
+        finally
+        {
+            DeleteDirectories(legacyRoot, newRoot);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that GetCsvCatalogConfiguration returns app config values when user settings are not set.
+    /// </summary>
+    [Fact]
+    public void GetCsvCatalogConfiguration_WithDefaultSettings_ReturnsAppConfig()
+    {
+        // Arrange
+        var appConfig = new CsvCatalogConfiguration
+        {
+            IndexFilePath = "https://example.com/index.json",
+            CsvValidationCatalogs =
+            [
+                new CsvCatalogRegistryEntry { Url = "https://example.com/catalog.csv", GameType = CsvConstants.GeneralsGameType },
+            ],
+        };
+        _mockAppConfig.Setup(x => x.GetCsvCatalogConfiguration()).Returns(appConfig);
+        _mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetCsvCatalogConfiguration();
+
+        // Assert
+        Assert.Equal("https://example.com/index.json", result.IndexFilePath);
+        Assert.Single(result.CsvValidationCatalogs);
+        Assert.Equal("https://example.com/catalog.csv", result.CsvValidationCatalogs[0].Url);
+    }
+
+    /// <summary>
+    /// Verifies that GetCsvCatalogConfiguration overrides app config when user settings are explicitly set.
+    /// </summary>
+    [Fact]
+    public void GetCsvCatalogConfiguration_WithExplicitUserSettings_OverridesAppConfig()
+    {
+        // Arrange
+        var appConfig = new CsvCatalogConfiguration
+        {
+            IndexFilePath = "https://example.com/app-index.json",
+            CsvValidationCatalogs =
+            [
+                new CsvCatalogRegistryEntry { Url = "https://example.com/app.csv", GameType = CsvConstants.GeneralsGameType },
+            ],
+        };
+        var userSettings = new UserSettings
+        {
+            IndexFilePath = "https://example.com/user-index.json",
+            CsvValidationCatalogs =
+            [
+                new CsvCatalogRegistryEntry { Url = "https://example.com/user.csv", GameType = CsvConstants.ZeroHourGameType },
+            ],
+        };
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.IndexFilePath));
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.CsvValidationCatalogs));
+
+        _mockAppConfig.Setup(x => x.GetCsvCatalogConfiguration()).Returns(appConfig);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetCsvCatalogConfiguration();
+
+        // Assert
+        Assert.Equal("https://example.com/user-index.json", result.IndexFilePath);
+        Assert.Single(result.CsvValidationCatalogs);
+        Assert.Equal("https://example.com/user.csv", result.CsvValidationCatalogs[0].Url);
+        Assert.Equal(CsvConstants.ZeroHourGameType, result.CsvValidationCatalogs[0].GameType);
+    }
+
+    /// <summary>
+    /// Verifies that GetEffectiveSettings includes CSV catalog configuration.
+    /// </summary>
+    [Fact]
+    public void GetEffectiveSettings_IncludesCsvCatalogConfiguration()
+    {
+        // Arrange
+        var appConfig = new CsvCatalogConfiguration
+        {
+            IndexFilePath = "https://example.com/index.json",
+            CsvValidationCatalogs =
+            [
+                new CsvCatalogRegistryEntry { Url = "https://example.com/catalog.csv", GameType = CsvConstants.GeneralsGameType },
+            ],
+        };
+        var testDataPath = Path.Combine(Path.GetTempPath(), $"genhub-test-{Guid.NewGuid():N}");
+        _mockAppConfig.Setup(x => x.GetCsvCatalogConfiguration()).Returns(appConfig);
+        _mockAppConfig.Setup(x => x.GetConfiguredDataPath()).Returns(testDataPath);
+        _mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
+
+        var provider = CreateProvider();
+
+        // Act
+        var settings = provider.GetEffectiveSettings();
+
+        // Assert
+        Assert.Equal("https://example.com/index.json", settings.IndexFilePath);
+        Assert.NotNull(settings.CsvValidationCatalogs);
+        Assert.Single(settings.CsvValidationCatalogs);
+        Assert.Equal("https://example.com/catalog.csv", settings.CsvValidationCatalogs[0].Url);
+    }
+
+    /// <summary>
+    /// Verifies that an explicitly set empty catalog list overrides app config.
+    /// </summary>
+    [Fact]
+    public void GetCsvCatalogConfiguration_WithExplicitEmptyList_OverridesAppConfig()
+    {
+        // Arrange
+        var appConfig = new CsvCatalogConfiguration
+        {
+            IndexFilePath = "https://example.com/index.json",
+            CsvValidationCatalogs =
+            [
+                new CsvCatalogRegistryEntry { Url = "https://example.com/catalog.csv", GameType = CsvConstants.GeneralsGameType },
+            ],
+        };
+        var userSettings = new UserSettings
+        {
+            CsvValidationCatalogs = [],
+        };
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.CsvValidationCatalogs));
+
+        _mockAppConfig.Setup(x => x.GetCsvCatalogConfiguration()).Returns(appConfig);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetCsvCatalogConfiguration();
+
+        // Assert
+        Assert.NotNull(result.CsvValidationCatalogs);
+        Assert.Empty(result.CsvValidationCatalogs);
+    }
+
+    /// <summary>
+    /// Creates a fresh legacy and current data root pair under the temp directory.
+    /// </summary>
+    /// <returns>The legacy and current root paths.</returns>
+    private static (string LegacyRoot, string NewRoot) CreateMigrationRoots()
+    {
+        var testRoot = Path.Combine(Path.GetTempPath(), $"genhub-migration-{Guid.NewGuid():N}");
+        var legacyRoot = Path.Combine(testRoot, "roaming");
+        var newRoot = Path.Combine(testRoot, "local");
+        Directory.CreateDirectory(legacyRoot);
+        Directory.CreateDirectory(newRoot);
+        return (legacyRoot, newRoot);
+    }
+
+    /// <summary>
+    /// Populates a legacy data root with the entries an alpha-3 install would contain.
+    /// </summary>
+    /// <param name="legacyRoot">The legacy data root to populate.</param>
+    private static void SeedLegacyRoot(string legacyRoot)
+    {
+        WriteFile(Path.Combine(legacyRoot, DirectoryNames.Profiles, "profile.json"), "profile");
+        WriteFile(Path.Combine(legacyRoot, FileTypes.ManifestsDirectory, "content.manifest.json"), "manifest");
+        WriteFile(Path.Combine(legacyRoot, DirectoryNames.UserData, FileTypes.UserDataIndexFileName), "index");
+        WriteFile(Path.Combine(legacyRoot, DirectoryNames.UserData, DirectoryNames.UserDataBackups, "save.bak"), "backup");
+        WriteFile(Path.Combine(legacyRoot, FileTypes.SettingsFileName), "settings");
+        WriteFile(Path.Combine(legacyRoot, FileTypes.WorkspaceMetadataFileName), "workspaces");
+        WriteFile(Path.Combine(legacyRoot, DirectoryNames.CasPool, "objects", "blob.bin"), "cas");
+    }
+
+    private static void WriteFile(string path, string content)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, content);
+    }
+
+    private static void DeleteDirectories(params string[] paths)
+    {
+        foreach (var path in paths.Select(Path.GetDirectoryName).Where(path => !string.IsNullOrEmpty(path)).Distinct())
+        {
+            try
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path!, true);
+                }
+            }
+            catch (IOException)
+            {
+            }
+        }
     }
 
     /// <summary>

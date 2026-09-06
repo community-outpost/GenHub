@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
@@ -31,7 +32,8 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         _testDirectory = Path.Combine(Path.GetTempPath(), $"GenHubTest_{Guid.NewGuid()}");
         Directory.CreateDirectory(_testDirectory);
         _mockLogger = new Mock<ILogger<WorkspaceReconciler>>();
-        _reconciler = new WorkspaceReconciler(_mockLogger.Object);
+        var mockFileOps = new Mock<IFileOperationsService>();
+        _reconciler = new WorkspaceReconciler(_mockLogger.Object, mockFileOps.Object);
     }
 
     /// <summary>
@@ -40,7 +42,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AnalyzeWorkspaceDelta_ModVsGameInstallation_ModWins()
+    public async Task AnalyzeWorkspaceDelta_ModVsGameInstallation_ModWinsAsync()
     {
         // Arrange
         var testFile = "Data\\Art\\Textures\\test.dds";
@@ -55,7 +57,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         };
 
         // Act
-        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config, CancellationToken.None);
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config);
 
         // Assert
         Assert.NotEmpty(result);
@@ -71,7 +73,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AnalyzeWorkspaceDelta_PatchVsGameClient_PatchWins()
+    public async Task AnalyzeWorkspaceDelta_PatchVsGameClient_PatchWinsAsync()
     {
         // Arrange
         var testFile = "generals.exe";
@@ -86,7 +88,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         };
 
         // Act
-        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config, CancellationToken.None);
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config);
 
         // Assert
         Assert.NotEmpty(result);
@@ -102,7 +104,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AnalyzeWorkspaceDelta_GameClientVsGameInstallation_GameClientWins()
+    public async Task AnalyzeWorkspaceDelta_GameClientVsGameInstallation_GameClientWinsAsync()
     {
         // Arrange
         var testFile = "options.ini";
@@ -117,7 +119,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         };
 
         // Act
-        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config, CancellationToken.None);
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config);
 
         // Assert
         Assert.NotEmpty(result);
@@ -133,7 +135,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AnalyzeWorkspaceDelta_ThreeWayConflict_HighestPriorityWins()
+    public async Task AnalyzeWorkspaceDelta_ThreeWayConflict_HighestPriorityWinsAsync()
     {
         // Arrange
         var testFile = "Data\\INI\\GameData.ini";
@@ -149,7 +151,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         };
 
         // Act
-        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config, CancellationToken.None);
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config);
 
         // Assert
         Assert.NotEmpty(result);
@@ -166,7 +168,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AnalyzeWorkspaceDelta_NoConflict_FileAddedNormally()
+    public async Task AnalyzeWorkspaceDelta_NoConflict_FileAddedNormallyAsync()
     {
         // Arrange
         var testFile = "unique.dat";
@@ -180,7 +182,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         };
 
         // Act
-        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config, CancellationToken.None);
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config);
 
         // Assert
         Assert.NotEmpty(result);
@@ -193,7 +195,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AnalyzeWorkspaceDelta_ConflictOccurs_LogsWarning()
+    public async Task AnalyzeWorkspaceDelta_ConflictOccurs_LogsWarningAsync()
     {
         // Arrange
         var testFile = "conflict.txt";
@@ -208,7 +210,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         };
 
         // Act
-        await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config, CancellationToken.None);
+        await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config);
 
         // Assert
         _mockLogger.Verify(

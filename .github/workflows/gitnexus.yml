@@ -1,0 +1,86 @@
+name: GitNexus Graph Index & Artifact
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [development, main, 'release/**']
+  pull_request:
+    branches: [development, main, 'release/**']
+  workflow_dispatch:
+
+# A release branch is normally the head of an open release PR, so a push to it would otherwise
+# start a second workflow run under a different key. Same-repository pull requests therefore share
+# a group with pushes describing the same branch, and collapse.
+#
+# Only same-repository heads are keyed by branch name. A fork's head ref is contributor-controlled,
+# so keying on it unconditionally would let a fork branch named `development`, `main` or
+# `release/*` land in a protected branch's group — and because cancel-in-progress is on for pull
+# requests, each push to that PR would cancel the protected branch's running CI. Fork pull requests
+# fall back to github.ref_name, which is `<pr-number>/merge` and therefore unique per PR.
+concurrency:
+  group: >-
+    ${{ github.workflow }}-${{
+      github.event.pull_request.head.repo.full_name == github.repository
+        && github.event.pull_request.head.ref
+        || github.ref_name
+    }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  index:
+    name: GitNexus Index & Artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Analyze Codebase
+        run: |
+          pnpm exec gitnexus analyze --force --index-only
+          pnpm exec gitnexus status
+
+      - name: Upload GitNexus Knowledge Graph Artifact
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: gitnexus-graph-${{ github.sha }}
+          path: .gitnexus/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
+          overwrite: true
+
+      - name: PR Impact Analysis (Informational)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          echo "### 🔍 GitNexus Blast Radius & Change Impact (Informational)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          set +e
+          pnpm exec gitnexus detect-changes --scope compare --base-ref "$BASE_SHA" 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          EXIT_CODE=${PIPESTATUS[0]}
+          set -e
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          exit $EXIT_CODE

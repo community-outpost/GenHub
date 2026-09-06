@@ -128,8 +128,8 @@ public class WorkspaceStrategyBaseTests : IDisposable
 
         var config = new WorkspaceConfiguration
         {
-            Manifests = new List<ContentManifest>
-            {
+            Manifests =
+            [
                 new()
                 {
                     Files =
@@ -138,7 +138,7 @@ public class WorkspaceStrategyBaseTests : IDisposable
                         new() { RelativePath = "config.ini", Size = 500 },
                     ],
                 },
-            },
+            ],
             GameClient = new GameClient { ExecutablePath = "generals.exe" },
         };
 
@@ -195,6 +195,8 @@ public class WorkspaceStrategyBaseTests : IDisposable
         {
             Directory.Delete(_tempDir, true);
         }
+
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>
@@ -282,8 +284,21 @@ public class WorkspaceStrategyBaseTests : IDisposable
         /// <returns>The total size in bytes.</returns>
         public long TestCalculateActualTotalSize(WorkspaceConfiguration configuration) => CalculateActualTotalSize(configuration);
 
+        /// <summary>
+        /// Exposes executable materialization for production-path regression tests.
+        /// </summary>
+        /// <param name="file">The manifest file.</param>
+        /// <param name="targetPath">The materialized workspace path.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
+        /// <returns>A task representing the operation.</returns>
+        public Task TestEnsureExecutableAsync(
+            ManifestFile file,
+            string targetPath,
+            CancellationToken cancellationToken = default) =>
+            EnsureExecutableAsync(file, targetPath, cancellationToken);
+
         /// <inheritdoc/>
-        protected override Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken)
+        protected override Task CreateCasLinkAsync(string hash, string targetPath, GenHub.Core.Models.Enums.ContentType? contentType, CancellationToken cancellationToken)
         {
             // For testing, just simulate a completed task.
             return Task.CompletedTask;

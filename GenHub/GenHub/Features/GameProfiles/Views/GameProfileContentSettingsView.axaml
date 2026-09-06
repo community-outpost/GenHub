@@ -1,0 +1,244 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
+             xmlns:views="clr-namespace:GenHub.Features.GameProfiles.Views"
+             xmlns:models="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
+             xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+             xmlns:converters="clr-namespace:Avalonia.Data.Converters;assembly=Avalonia.Base"
+             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="1200"
+             x:Class="GenHub.Features.GameProfiles.Views.GameProfileContentSettingsView"
+             x:DataType="vm:GameProfileSettingsViewModel">
+
+    <UserControl.Resources>
+        <conv:ThemeBackgroundConverter x:Key="ThemeBackgroundConverter" />
+        <conv:ThemeBorderConverter x:Key="ThemeBorderConverter" />
+        <conv:ColorToBrushConverter x:Key="ColorToBrushConverter" />
+        <conv:GameTypeDisplayConverter x:Key="GameTypeDisplayConverter" />
+        <conv:ContentTypeDisplayConverter x:Key="ContentTypeDisplayConverter" />
+        <conv:InvertedBoolToVisibilityConverter x:Key="InvertedBoolToVisibilityConverter" />
+        <conv:EqualityConverter x:Key="EqualityConverter" />
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="Button.edit-content-btn">
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Grid.content-card:pointerover Button.delete-reveal-btn">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+        <Style Selector="Grid.content-card:focus-within Button.delete-reveal-btn">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+        <Style Selector="Button.delete-reveal-btn:focus">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid>
+        <!-- Content Area -->
+        <ScrollViewer x:Name="ContentSettingsScrollViewer" Padding="0,24,0,80" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" BringIntoViewOnFocusChange="False">
+            <StackPanel Spacing="0">
+
+                <!-- Enabled Content Section -->
+                <Control x:Name="SelectionSection" Height="1" Margin="0,-1,0,0" />
+                <Border Classes="settings-card">
+                    <StackPanel Spacing="16">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" Classes="section-header" Text="Enabled Content" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}"/>
+                            <Button Grid.Column="1"
+                                    Command="{Binding LoadAvailableContentCommand}"
+                                    Background="Transparent"
+                                    Padding="10,6"
+                                    FontSize="12"
+                                    FontWeight="SemiBold"
+                                    VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <material:MaterialIcon Kind="Refresh" Width="16" Height="16"/>
+                                    <TextBlock Text="Refresh" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+
+                        <Separator Background="{DynamicResource BorderBrush}" Height="1" />
+
+                        <!-- Warning if no content -->
+                        <Border Background="{DynamicResource DetailsBackground}"
+                                BorderBrush="{DynamicResource WarningBrush}"
+                                BorderThickness="1"
+                                CornerRadius="10" Padding="16" Margin="0,4,0,8"
+                                IsVisible="{Binding EnabledContent.Count, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter=0}">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <material:MaterialIcon Kind="AlertCircleOutline" Width="20" Height="20" Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center"/>
+                                <TextBlock Text="No content currently enabled. Add at least one Game Client or Executable to launch this profile."
+                                           FontSize="13" Foreground="{DynamicResource TextPrimary}" Opacity="0.9" TextWrapping="Wrap" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Enabled content list -->
+                        <ItemsControl ItemsSource="{Binding EnabledContent}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Classes="content-card-btn" Padding="0">
+                                        <Grid ColumnDefinitions="*,Auto" Classes="content-card">
+                                            <Button Grid.Column="0"
+                                                    Margin="0" BorderThickness="0" Background="Transparent"
+                                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                                    Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).DisableContentCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    ToolTip.Tip="Remove from profile">
+                                                <StackPanel Spacing="6" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimary}"/>
+                                                    <WrapPanel Orientation="Horizontal">
+                                                        <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4"
+                                                                IsVisible="{Binding Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                            <TextBlock Text="{Binding Publisher}" FontSize="10" Foreground="{DynamicResource AccentLightBrush}" FontWeight="SemiBold" />
+                                                        </Border>
+                                                    </WrapPanel>
+                                                </StackPanel>
+                                            </Button>
+
+                                            <Button Grid.Column="1" Classes="delete-reveal-btn edit-content-btn"
+                                                    Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).EditContentCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    IsVisible="{Binding IsEditable}"
+                                                    Background="Transparent"
+                                                    Padding="8" Margin="8,0,12,0"
+                                                    AutomationProperties.Name="Edit"
+                                                    ToolTip.Tip="Edit">
+                                                <material:MaterialIcon Kind="PencilOutline" Width="16" Height="16" Foreground="{DynamicResource AccentLightBrush}"/>
+                                            </Button>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <!-- Discovery Section -->
+                <Control x:Name="DiscoverySection" Height="1" Margin="0,-1,0,0" />
+                <Border Classes="settings-card">
+                    <StackPanel Spacing="20">
+                        <TextBlock Classes="section-header" Text="Available Content" Foreground="{DynamicResource TextPrimary}"/>
+
+                        <!-- Filter Pills -->
+                        <ItemsControl ItemsSource="{Binding VisibleFilters}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel HorizontalAlignment="Center" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:GameProfileSettingsViewModel+FilterTypeInfo">
+                                    <Button Classes="filter-pill"
+                                            Classes.selected="{Binding ContentType, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).SelectedContentType}}"
+                                            Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).SelectContentTypeFilterCommand}"
+                                            CommandParameter="{Binding ContentType}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <PathIcon Data="{Binding IconData}" Width="16" Height="16" />
+                                            <TextBlock Text="{Binding DisplayName}" FontSize="12" />
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Filter Row -->
+                        <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0">
+                            <Button Grid.Column="0" Classes="filter-pill"
+                                    Command="{Binding AddLocalContentCommand}"
+                                    Padding="16,8"
+                                    ToolTip.Tip="Import content from disk">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <material:MaterialIcon Kind="FolderPlusOutline" Width="16" Height="16"/>
+                                    <TextBlock Text="Add Local Folder" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="4">
+                                <Button Classes="filter-pill" Content="Generals"
+                                        Classes.selected="{Binding GameTypeFilter, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static models:GameType.Generals}}"
+                                        Command="{Binding SelectGameTypeFilterCommand}"
+                                        CommandParameter="{x:Static models:GameType.Generals}" />
+                                <Button Classes="filter-pill" Content="Zero Hour"
+                                        Classes.selected="{Binding GameTypeFilter, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static models:GameType.ZeroHour}}"
+                                        Command="{Binding SelectGameTypeFilterCommand}"
+                                        CommandParameter="{x:Static models:GameType.ZeroHour}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- List Background -->
+                        <Border Background="#10FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="12" Padding="12">
+                             <ItemsControl ItemsSource="{Binding AvailableContent}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Classes="content-card-btn" Padding="0">
+                                            <Grid ColumnDefinitions="*,Auto,Auto" Classes="content-card">
+                                                 <Button Grid.Column="0"
+                                                         Margin="0" BorderThickness="0" Background="Transparent"
+                                                         HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                                         Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).EnableContentCommand}"
+                                                         CommandParameter="{Binding}"
+                                                         IsVisible="{Binding IsEnabled, Converter={x:Static conv:InvertedBoolToVisibilityConverter.Instance}}"
+                                                         ToolTip.Tip="Click to add to profile">
+                                                     <StackPanel Spacing="6" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                         <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimary}"/>
+                                                         <WrapPanel Orientation="Horizontal">
+                                                             <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4"
+                                                                    IsVisible="{Binding Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                                <TextBlock Text="{Binding Publisher}" FontSize="10" Foreground="{DynamicResource AccentLightBrush}" FontWeight="SemiBold" />
+                                                             </Border>
+                                                         </WrapPanel>
+                                                     </StackPanel>
+                                                 </Button>
+
+                                                 <Button Grid.Column="1" Classes="delete-reveal-btn edit-content-btn"
+                                                         Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).EditContentCommand}"
+                                                         CommandParameter="{Binding}"
+                                                         IsVisible="{Binding IsEditable}"
+                                                         Background="Transparent"
+                                                         Padding="8" Margin="8,0,0,0"
+                                                         ToolTip.Tip="Edit">
+                                                     <material:MaterialIcon Kind="PencilOutline" Width="16" Height="16" Foreground="{DynamicResource AccentLightBrush}"/>
+                                                 </Button>
+
+                                                 <Button Grid.Column="2" Classes="delete-reveal-btn edit-content-btn"
+                                                         Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).DeleteContentCommand}"
+                                                         CommandParameter="{Binding}"
+                                                         Background="Transparent"
+                                                         Padding="8" Margin="4,0,0,0"
+                                                         ToolTip.Tip="Delete">
+                                                     <material:MaterialIcon Kind="DeleteOutline" Width="16" Height="16" Foreground="{DynamicResource ErrorBrush}"/>
+                                                 </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <Panel Height="200" />
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

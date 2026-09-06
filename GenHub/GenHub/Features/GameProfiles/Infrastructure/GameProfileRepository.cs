@@ -1,12 +1,11 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Results;
@@ -105,7 +104,7 @@ public class GameProfileRepository(
                 return ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess(new List<GameProfile>().AsReadOnly());
             }
 
-            var profileFiles = Directory.GetFiles(_profilesDirectory, "*.json");
+            var profileFiles = Directory.GetFiles(_profilesDirectory, FileTypes.JsonFilePattern);
             var profiles = new List<GameProfile>();
 
             foreach (var filePath in profileFiles)
@@ -113,11 +112,24 @@ public class GameProfileRepository(
                 try
                 {
                     var json = await File.ReadAllTextAsync(filePath, cancellationToken);
+
+                    if (string.IsNullOrWhiteSpace(json))
+                    {
+                        _logger.LogWarning("Profile file {FilePath} is empty. Renaming to .corrupted", filePath);
+                        TryQuarantineCorruptedFile(filePath);
+                        continue;
+                    }
+
                     var profile = JsonSerializer.Deserialize<GameProfile>(json, _jsonOptions);
                     if (profile != null)
                     {
                         profiles.Add(profile);
                     }
+                }
+                catch (JsonException ex)
+                {
+                    _logger.LogWarning(ex, "Failed to deserialize profile from {FilePath}. File may be corrupted. Renaming to .corrupted", filePath);
+                    TryQuarantineCorruptedFile(filePath);
                 }
                 catch (Exception ex)
                 {
@@ -125,7 +137,7 @@ public class GameProfileRepository(
                 }
             }
 
-            _logger.LogDebug("Successfully loaded {Count} profiles", profiles.Count);
+            _logger.LogTrace("Successfully loaded {Count} profiles", profiles.Count);
             return ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess(profiles.AsReadOnly());
         }
         catch (Exception ex)
@@ -167,6 +179,24 @@ public class GameProfileRepository(
         }
     }
 
+    private void TryQuarantineCorruptedFile(string filePath)
+    {
+        try
+        {
+            var corruptedPath = filePath + ".corrupted";
+            if (File.Exists(corruptedPath))
+            {
+                File.Delete(corruptedPath);
+            }
+
+            File.Move(filePath, corruptedPath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to quarantine corrupted profile file {FilePath}", filePath);
+        }
+    }
+
     private string GetProfileFilePath(string profileId)
     {
         if (string.IsNullOrWhiteSpace(profileId))
@@ -180,7 +210,7 @@ public class GameProfileRepository(
     }
 
     /// <summary>
-    /// Ensures the profiles directory exists.
+    /// Ensures profiles directory exists.
     /// </summary>
     private void EnsureDirectoryExists()
     {

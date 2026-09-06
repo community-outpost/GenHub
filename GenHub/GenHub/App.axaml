@@ -1,20 +1,37 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:GenHub.Infrastructure.Converters"
+             xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="GenHub.App">
-    <Application.Styles>
-        <FluentTheme />
-        <StyleInclude Source="avares://GenHub/Assets/Styles/ComboBoxStyles.axaml" />
-    </Application.Styles>
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceInclude Source="avares://GenHub/Assets/Styles/ThemeResources.axaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <local:StringToImageConverter x:Key="StringToImageConverter" />
+            <local:ColorToBrushConverter x:Key="ColorToBrushConverter" />
+            <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+            <local:IntToBoolConverter x:Key="IntToBoolConverter" />
+            <local:EqualityConverter x:Key="EqualityConverter" />
+            <local:BoolToExpandIconConverter x:Key="BoolToExpandIconConverter" />
+            <local:BoolToExpandTextConverter x:Key="BoolToExpandTextConverter" />
         </ResourceDictionary>
-        <local:StringToImageConverter x:Key="StringToImageConverter" />
-        <local:ColorToBrushConverter x:Key="ColorToBrushConverter" />
-        <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
-        <local:IntToBoolConverter x:Key="IntToBoolConverter" />
     </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme />
+        <materialIcons:MaterialIconStyles />
+        <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+        <StyleInclude Source="avares://GenHub/Assets/Styles/ComboBoxStyles.axaml" />
+        <StyleInclude Source="avares://GenHub/Assets/Styles/SidebarStyles.axaml" />
+        <StyleInclude Source="avares://GenHub/Assets/Styles/ScrollbarStyles.axaml" />
+        <StyleInclude Source="avares://GenHub/Assets/Styles/ExpanderStyles.axaml" />
+        <StyleInclude Source="avares://GenHub/Common/Controls/SidebarLayoutStyles.axaml" />
+
+        <Style Selector="ProgressBar">
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+        </Style>
+    </Application.Styles>
 </Application>

@@ -28,29 +28,52 @@ public static class SuperHackersConstants
     /// <summary>
     /// Cover image source path for Generals variant.
     /// </summary>
-    public const string GeneralsCoverSource = "/Assets/Covers/generals-cover-2.png";
+    public const string GeneralsCoverSource = "/Assets/Covers/china-cover.png";
 
     /// <summary>
     /// Cover image source path for Zero Hour variant.
     /// </summary>
-    public const string ZeroHourCoverSource = "/Assets/Covers/zerohour-cover.png";
+    public const string ZeroHourCoverSource = "/Assets/Covers/china-cover.png";
+
+    /// <summary>
+    /// Theme color for Zero Hour variant.
+    /// </summary>
+    public const string ZeroHourThemeColor = "#8B0000";
+
+    /// <summary>
+    /// Theme color for Generals variant.
+    /// </summary>
+    public const string GeneralsThemeColor = "#FFA500";
 
     /// <summary>
     /// The resolver ID used for GitHub releases.
     /// </summary>
     public const string ResolverId = "GitHubRelease";
 
-    // ===== GitHub Repository =====
-
     /// <summary>
-    /// The GitHub repository owner.
+    /// GitHub owner for Generals game code.
     /// </summary>
-    public const string GeneralsGameCodeOwner = "thesuperhackers";
+    public const string GeneralsGameCodeOwner = "TheSuperHackers";
 
     /// <summary>
-    /// The GitHub repository name.
+    /// GitHub repo for Generals game code.
     /// </summary>
     public const string GeneralsGameCodeRepo = "GeneralsGameCode";
+
+    /// <summary>
+    /// GitHub owner for Generals game patch 2.
+    /// </summary>
+    public const string GeneralsGamePatch2Owner = "TheSuperHackers";
+
+    /// <summary>
+    /// GitHub repo for Generals game patch 2.
+    /// </summary>
+    public const string GeneralsGamePatch2Repo = "GeneralsGamePatch2";
+
+    /// <summary>
+    /// Display name for Generals game patch 2.
+    /// </summary>
+    public const string GeneralsGamePatch2DisplayName = "Community Patch 2";
 
     // ===== Service Configuration =====
 
@@ -85,4 +108,16 @@ public static class SuperHackersConstants
     /// Display name for Zero Hour variant.
     /// </summary>
     public const string ZeroHourDisplayName = "Zero Hour";
+
+    /// <summary>Display name for local installations.</summary>
+    public const string LocalInstallDisplayName = "SuperHackers (Local)";
+
+    /// <summary>Description for local installations.</summary>
+    public const string LocalInstallDescription = "Auto-detected local installation";
+
+    /// <summary>Full display name for the publisher.</summary>
+    public const string PublisherDisplayName = "The Super Hackers";
+
+    /// <summary>Delimiter used in manifest versions.</summary>
+    public const string VersionDelimiter = ".";
 }

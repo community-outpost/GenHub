@@ -1,8 +1,11 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
 /// URI scheme constants for handling different types of URIs and paths.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized URI constants / mock demo paths")]
 public static class UriConstants
 {
     /// <summary>
@@ -83,4 +86,16 @@ public static class UriConstants
     /// Filename for Zero Hour cover.
     /// </summary>
     public const string ZeroHourCoverFilename = "zerohour-cover.png";
+
+    // Logo Path Constants
+
+    /// <summary>
+    /// Logo URI for Generals Online.
+    /// </summary>
+    public const string GeneralsOnlineLogoUri = "avares://GenHub/Assets/Logos/generalsonline-logo.png";
+
+    /// <summary>
+    /// Logo URI for The Super Hackers.
+    /// </summary>
+    public const string SuperHackersLogoUri = "avares://GenHub/Assets/Logos/thesuperhackers-logo.png";
 }

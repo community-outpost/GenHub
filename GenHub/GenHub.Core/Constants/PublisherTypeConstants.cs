@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Models.Enums;
 
@@ -20,6 +22,9 @@ namespace GenHub.Core.Constants;
 /// </remarks>
 public static class PublisherTypeConstants
 {
+    /// <summary>Combined view of all publishers.</summary>
+    public const string All = "all";
+
     /// <summary>Unknown or unspecified publisher.</summary>
     public const string Unknown = "unknown";
 
@@ -46,6 +51,31 @@ public static class PublisherTypeConstants
 
     /// <summary>The Super Hackers community publisher.</summary>
     public const string TheSuperHackers = "thesuperhackers";
+
+    /// <summary>CNC Labs community site.</summary>
+    public const string CncLabs = "cnclabs";
+
+    /// <summary>Community Outpost platform.</summary>
+    public const string CommunityOutpost = "communityoutpost";
+
+    /// <summary>CSV registry publisher.</summary>
+    public const string CsvRegistry = "csvregistry";
+
+    /// <summary>Art of Defense Maps community site.</summary>
+    public const string AODMaps = "aodmaps";
+
+    /// <summary>GenHub internal system content publisher.</summary>
+    public const string GenHubInternal = "genhub";
+
+    /// <summary>
+    /// Set of publisher identifiers trusted to execute installation steps (e.g. installers).
+    /// </summary>
+    public static readonly IReadOnlySet<string> TrustedExecutablePublishers = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        GeneralsOnline,
+        CommunityOutpost,
+        TheSuperHackers,
+    };
 
     /// <summary>
     /// Maps GameInstallationType enum to publisher type string.

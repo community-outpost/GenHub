@@ -1,4 +1,5 @@
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Interfaces.Workspace;
 
@@ -58,6 +59,22 @@ public interface IFileOperationsService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Compares a file against an expected hash, distinguishing a genuine mismatch from a failure to
+    /// compute the hash at all. Callers that act destructively on a mismatch must use this rather
+    /// than <see cref="VerifyFileHashAsync"/>, which collapses both outcomes into <c>false</c>.
+    /// A file that does not exist yields <see cref="FileHashVerification.Failed"/>: no hash was
+    /// computed, so its absence is not evidence that its content ever differed.
+    /// </summary>
+    /// <param name="filePath">The file path.</param>
+    /// <param name="expectedHash">The expected hash value.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>The verification outcome.</returns>
+    Task<FileHashVerification> CheckFileHashAsync(
+        string filePath,
+        string expectedHash,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Applies a patch to a target file. The patch format is determined by the implementation.
     /// </summary>
     /// <param name="targetPath">The file to be patched.</param>
@@ -95,9 +112,10 @@ public interface IFileOperationsService
     /// </summary>
     /// <param name="hash">The content hash in CAS.</param>
     /// <param name="destinationPath">The destination file path.</param>
+    /// <param name="contentType">The content type for CAS pool resolution.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if the operation succeeded; otherwise, false.</returns>
-    Task<bool> CopyFromCasAsync(string hash, string destinationPath, CancellationToken cancellationToken = default);
+    Task<bool> CopyFromCasAsync(string hash, string destinationPath, ContentType? contentType = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Creates a link (hard or symbolic) from CAS to the specified destination path.
@@ -106,9 +124,10 @@ public interface IFileOperationsService
     /// <param name="hash">The content hash in CAS.</param>
     /// <param name="destinationPath">The destination file path.</param>
     /// <param name="useHardLink">Whether to use a hard link instead of symbolic link.</param>
+    /// <param name="contentType">The content type for CAS pool resolution.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if the operation succeeded.</returns>
-    Task<bool> LinkFromCasAsync(string hash, string destinationPath, bool useHardLink = false, CancellationToken cancellationToken = default);
+    Task<bool> LinkFromCasAsync(string hash, string destinationPath, bool useHardLink = false, ContentType? contentType = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Opens a stream to content stored in CAS.

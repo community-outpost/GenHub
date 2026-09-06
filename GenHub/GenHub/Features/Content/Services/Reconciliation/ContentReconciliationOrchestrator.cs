@@ -1,0 +1,739 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using CommunityToolkit.Mvvm.Messaging;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
+using GenHub.Features.Storage.Services;
+using Microsoft.Extensions.Logging;
+
+namespace GenHub.Features.Content.Services.Reconciliation;
+
+/// <summary>
+/// Central orchestrator for content reconciliation operations.
+/// Enforces correct operation ordering to prevent GC timing issues:
+/// Update Profiles → Untrack Old → Remove Old → GC.
+/// </summary>
+public class ContentReconciliationOrchestrator(
+    IContentReconciliationService reconciliationService,
+    IContentManifestPool manifestPool,
+    ICasLifecycleManager casLifecycleManager,
+    IReconciliationAuditLog auditLog,
+    ILogger<ContentReconciliationOrchestrator> logger) : IContentReconciliationOrchestrator
+{
+    /// <inheritdoc/>
+    public async Task<OperationResult<ContentReplacementResult>> ExecuteContentReplacementAsync(
+        ContentReplacementRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var operationId = Guid.NewGuid().ToString("N")[..ReconciliationConstants.OperationIdLength];
+        var warnings = new List<string>();
+
+        bool criticalFailureOccurred = false;
+
+        logger.LogInformation(
+            "[Orchestrator:{OpId}] Starting content replacement for {Count} manifests",
+            operationId,
+            request.ManifestMapping.Count);
+
+        // Publish start event
+        WeakReferenceMessenger.Default.Send(new ReconciliationStartedEvent(
+            operationId,
+            "ContentReplacement",
+            0, // Will be determined during execution
+            request.ManifestMapping.Count));
+
+        try
+        {
+            // STEP 1: Update all profiles with new manifest references
+            var (profilesUpdated, workspacesInvalidated, step1Failed) = await ExecuteStep1UpdateProfilesAsync(
+                request.ManifestMapping,
+                operationId,
+                warnings,
+                cancellationToken);
+
+            if (step1Failed)
+            {
+                criticalFailureOccurred = true;
+            }
+
+            // STEP 2: Untrack old manifests (MUST happen before GC)
+            bool step2Failed = await ExecuteStep2UntrackManifestsAsync(
+                request,
+                operationId,
+                criticalFailureOccurred,
+                warnings,
+                cancellationToken);
+
+            if (step2Failed)
+            {
+                criticalFailureOccurred = true;
+            }
+
+            // STEP 3: Remove old manifest files from pool
+            var (manifestsRemoved, step3Failed) = await ExecuteStep3RemoveManifestsAsync(
+                request,
+                operationId,
+                criticalFailureOccurred,
+                warnings,
+                cancellationToken);
+
+            if (step3Failed)
+            {
+                criticalFailureOccurred = true;
+            }
+
+            // STEP 4: Run GC (now safe - .refs files are gone)
+            var (casObjectsCollected, bytesFreed) = await ExecuteStep4GarbageCollectionAsync(
+                request,
+                operationId,
+                criticalFailureOccurred,
+                warnings,
+                cancellationToken);
+
+            stopwatch.Stop();
+
+            var result = new ContentReplacementResult
+            {
+                ProfilesUpdated = profilesUpdated,
+                WorkspacesInvalidated = workspacesInvalidated,
+                ManifestsRemoved = manifestsRemoved,
+                CasObjectsCollected = casObjectsCollected,
+                BytesFreed = bytesFreed,
+                Duration = stopwatch.Elapsed,
+                Warnings = warnings,
+            };
+
+            var auditMetadata = new Dictionary<string, string>
+            {
+                ["profilesUpdated"] = profilesUpdated.ToString(),
+                ["workspacesInvalidated"] = workspacesInvalidated.ToString(),
+                ["manifestsRemoved"] = manifestsRemoved.ToString(),
+                ["casObjectsCollected"] = casObjectsCollected.ToString(),
+                ["bytesFreed"] = bytesFreed.ToString(),
+            };
+            if (warnings.Count > 0)
+            {
+                auditMetadata["warnings"] = string.Join("; ", warnings);
+            }
+
+            await auditLog.LogOperationAsync(
+                new ReconciliationAuditEntry
+                {
+                    OperationId = operationId,
+                    OperationType = ReconciliationOperationType.ManifestReplacement,
+                    Timestamp = DateTime.UtcNow,
+                    Source = request.Source,
+                    AffectedManifestIds = [.. request.ManifestMapping.Keys.Concat(request.ManifestMapping.Values).Distinct()],
+                    ManifestMapping = request.ManifestMapping,
+                    Success = !criticalFailureOccurred,
+                    ErrorMessage = criticalFailureOccurred ? string.Join("; ", warnings) : null,
+                    Duration = stopwatch.Elapsed,
+                    Metadata = auditMetadata,
+                },
+                cancellationToken);
+
+            // Publish completion event
+            WeakReferenceMessenger.Default.Send(new ReconciliationCompletedEvent(
+                operationId,
+                "ContentReplacement",
+                profilesUpdated,
+                manifestsRemoved,
+                !criticalFailureOccurred,
+                criticalFailureOccurred ? string.Join("; ", warnings) : null,
+                stopwatch.Elapsed));
+
+            logger.LogInformation(
+                "[Orchestrator:{OpId}] Content replacement completed: {Profiles} profiles, {Manifests} manifests, {Objects} CAS objects, {Bytes} bytes freed",
+                operationId,
+                profilesUpdated,
+                manifestsRemoved,
+                casObjectsCollected,
+                bytesFreed);
+
+            if (criticalFailureOccurred)
+            {
+                return OperationResult<ContentReplacementResult>.CreateFailure(
+                    $"Content replacement completed with critical errors: {string.Join("; ", warnings)}", result, TimeSpan.Zero);
+            }
+
+            return OperationResult<ContentReplacementResult>.CreateSuccess(result);
+        }
+        catch (OperationCanceledException)
+        {
+            stopwatch.Stop();
+            throw;
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            logger.LogError(ex, "[Orchestrator:{OpId}] Content replacement failed", operationId);
+
+            await auditLog.LogOperationAsync(
+                new ReconciliationAuditEntry
+                {
+                    OperationId = operationId,
+                    OperationType = ReconciliationOperationType.ManifestReplacement,
+                    Timestamp = DateTime.UtcNow,
+                    Source = request.Source,
+                    AffectedManifestIds = [.. request.ManifestMapping.Keys],
+                    ManifestMapping = request.ManifestMapping,
+                    Success = false,
+                    ErrorMessage = ex.Message,
+                    Duration = stopwatch.Elapsed,
+                },
+                cancellationToken);
+
+            // Publish failure event
+            WeakReferenceMessenger.Default.Send(new ReconciliationCompletedEvent(
+                operationId,
+                "ContentReplacement",
+                0,
+                0,
+                false,
+                ex.Message,
+                stopwatch.Elapsed));
+
+            return OperationResult<ContentReplacementResult>.CreateFailure($"Content replacement failed: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<ContentRemovalResult>> ExecuteContentRemovalAsync(
+        IEnumerable<string> manifestIds,
+        CancellationToken cancellationToken = default)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var operationId = Guid.NewGuid().ToString("N")[..ReconciliationConstants.OperationIdLength];
+        var ids = manifestIds.ToList();
+        var warnings = new List<string>();
+
+        logger.LogInformation(
+            "[Orchestrator:{OpId}] Starting content removal for {Count} manifests",
+            operationId,
+            ids.Count);
+
+        try
+        {
+            bool criticalFailureOccurred = false;
+
+            // STEP 1: Update profiles to remove manifest references
+            int profilesUpdated = 0;
+            int invalidatedWorkspacesCount = 0;
+            var successfulReconciledIds = new List<string>();
+            foreach (var manifestId in ids)
+            {
+                var reconcileResult = await reconciliationService.ReconcileManifestRemovalAsync(ManifestId.Create(manifestId), skipUntrack: true, cancellationToken);
+                if (reconcileResult.Success && reconcileResult.Data != null)
+                {
+                    profilesUpdated += reconcileResult.Data.ProfilesUpdated;
+                    invalidatedWorkspacesCount += reconcileResult.Data.WorkspacesInvalidated;
+                    successfulReconciledIds.Add(manifestId);
+                }
+                else
+                {
+                     logger.LogWarning("[Orchestrator:{OpId}] ReconcileManifestRemoval failed for {ManifestId}: {Error}", operationId, manifestId, reconcileResult.FirstError);
+                     warnings.Add($"Manifest removal reconciliation failed for {manifestId}: {reconcileResult.FirstError}");
+
+                     // We don't abort here, but track it so we don't do unsafe optimized cleanup later
+                     // If profiles failed to update, they might still reference the content
+                     criticalFailureOccurred = true;
+                }
+            }
+
+            // STEP 2: Untrack only successfully reconciled manifests
+            // CasLifecycleManager.UntrackManifestsAsync guarantees Success=true only when all manifests untrack without errors
+            if (successfulReconciledIds.Count > 0)
+            {
+                var untrackResult = await casLifecycleManager.UntrackManifestsAsync(successfulReconciledIds, cancellationToken);
+                if (!untrackResult.Success)
+                {
+                    logger.LogError("[Orchestrator:{OpId}] Bulk untracking failed entirely: {Error}", operationId, untrackResult.FirstError);
+                    warnings.Add($"Manifest untracking failed: {untrackResult.FirstError}");
+                    criticalFailureOccurred = true;
+                }
+                else
+                {
+                    foreach (var manifestId in successfulReconciledIds)
+                    {
+                        WeakReferenceMessenger.Default.Send(new ContentRemovingEvent(manifestId, null, "Removal"));
+                    }
+                }
+            }
+
+            // STEP 3: Remove manifest files from pool
+            int manifestsRemoved = 0;
+            if (criticalFailureOccurred)
+            {
+                logger.LogWarning("[Orchestrator:{OpId}] Skipping manifest removal step due to previous errors", operationId);
+                warnings.Add("Manifest removal step skipped due to previous errors in profile update or untracking.");
+            }
+            else
+            {
+                foreach (var id in successfulReconciledIds)
+                {
+                    try
+                    {
+                        // Use helper for optimized removal
+                        // We use skipUntrack: true because we are sure bulk untrack succeeded (criticalFailureOccurred is false)
+                        var removeResult = await RemoveManifestWithOptimizedUntrackingAsync(id, skipUntrack: true, cancellationToken);
+                        if (removeResult.Success)
+                        {
+                            manifestsRemoved++;
+                        }
+                        else
+                        {
+                            logger.LogWarning("[Orchestrator:{OpId}] Failed to remove manifest {ManifestId}: {Error}", operationId, id, removeResult.FirstError);
+                            warnings.Add($"Failed to remove manifest {id}: {removeResult.FirstError}");
+                            criticalFailureOccurred = true;
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        logger.LogInformation("[Orchestrator:{OpId}] Content removal cancelled", operationId);
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "[Orchestrator:{OpId}] Failed to remove manifest {ManifestId}", operationId, id);
+                        warnings.Add($"Error removing manifest {id}: {ex.Message}");
+                        criticalFailureOccurred = true;
+                    }
+                }
+            }
+
+            // STEP 4: Run GC
+            int casObjectsCollected = 0;
+            long bytesFreed = 0;
+            if (criticalFailureOccurred)
+            {
+                logger.LogWarning("[Orchestrator:{OpId}] Skipping GC due to previous manifest removal failures", operationId);
+            }
+            else
+            {
+                logger.LogDebug("[Orchestrator:{OpId}] Step 4: Running garbage collection", operationId);
+                var gcResult = await casLifecycleManager.RunGarbageCollectionAsync(force: false, cancellationToken: cancellationToken);
+                if (gcResult.Success && gcResult.Data != null)
+                {
+                    casObjectsCollected = gcResult.Data.ObjectsDeleted;
+                    bytesFreed = gcResult.Data.BytesFreed;
+                }
+                else
+                {
+                    var warning = gcResult.FirstError ?? "Garbage collection did not run";
+                    warnings.Add(warning);
+                    logger.LogWarning("[Orchestrator:{OpId}] {Warning}", operationId, warning);
+                }
+            }
+
+            stopwatch.Stop();
+
+            var result = new ContentRemovalResult
+            {
+                ProfilesUpdated = profilesUpdated,
+                WorkspacesInvalidated = invalidatedWorkspacesCount,
+                ManifestsRemoved = manifestsRemoved,
+                CasObjectsCollected = casObjectsCollected,
+                BytesFreed = bytesFreed,
+                Duration = stopwatch.Elapsed,
+                Warnings = warnings,
+            };
+
+            var auditMetadata = new Dictionary<string, string>
+            {
+                ["profilesUpdated"] = profilesUpdated.ToString(),
+                ["workspacesInvalidated"] = invalidatedWorkspacesCount.ToString(),
+                ["manifestsRemoved"] = manifestsRemoved.ToString(),
+                ["casObjectsCollected"] = casObjectsCollected.ToString(),
+                ["bytesFreed"] = bytesFreed.ToString(),
+            };
+            if (warnings.Count > 0)
+            {
+                auditMetadata["warnings"] = string.Join("; ", warnings);
+            }
+
+            await auditLog.LogOperationAsync(
+                new ReconciliationAuditEntry
+                {
+                    OperationId = operationId,
+                    OperationType = ReconciliationOperationType.ManifestRemoval,
+                    Timestamp = DateTime.UtcNow,
+                    AffectedManifestIds = ids,
+                    Success = !criticalFailureOccurred,
+                    ErrorMessage = criticalFailureOccurred ? "One or more manifests failed to untrack or be removed from the pool." : null,
+                    Metadata = auditMetadata,
+                    Duration = stopwatch.Elapsed,
+                },
+                cancellationToken);
+
+            logger.LogInformation(
+                "[Orchestrator:{OpId}] Content removal completed: {Profiles} profiles, {Manifests} manifests removed. (Critical failure={Failed})",
+                operationId,
+                profilesUpdated,
+                manifestsRemoved,
+                criticalFailureOccurred);
+
+            if (criticalFailureOccurred)
+            {
+                return OperationResult<ContentRemovalResult>.CreateFailure(
+                    "Content removal completed with critical errors. See audit log for details.", result, TimeSpan.Zero);
+            }
+
+            return OperationResult<ContentRemovalResult>.CreateSuccess(result);
+        }
+        catch (OperationCanceledException)
+        {
+            stopwatch.Stop();
+            logger.LogInformation("[Orchestrator:{OpId}] Content removal cancelled", operationId);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            logger.LogError(ex, "[Orchestrator:{OpId}] Content removal failed", operationId);
+
+            await auditLog.LogOperationAsync(
+                new ReconciliationAuditEntry
+                {
+                    OperationId = operationId,
+                    OperationType = ReconciliationOperationType.ManifestRemoval,
+                    Timestamp = DateTime.UtcNow,
+                    AffectedManifestIds = ids,
+                    Success = false,
+                    ErrorMessage = $"Unexpected failure during content removal: {ex.Message}",
+                    Duration = stopwatch.Elapsed,
+                },
+                cancellationToken);
+
+            // Publish failure event
+            WeakReferenceMessenger.Default.Send(new ReconciliationCompletedEvent(
+                operationId,
+                "ContentRemoval",
+                0,
+                0,
+                false,
+                ex.Message,
+                stopwatch.Elapsed));
+
+            return OperationResult<ContentRemovalResult>.CreateFailure($"Content removal failed: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<ContentUpdateResult>> ExecuteContentUpdateAsync(
+        string oldManifestId,
+        ContentManifest newManifest,
+        CancellationToken cancellationToken = default)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var operationId = Guid.NewGuid().ToString("N")[..ReconciliationConstants.OperationIdLength];
+        var newId = newManifest.Id.Value;
+        var idChanged = !string.Equals(oldManifestId, newId, StringComparison.OrdinalIgnoreCase);
+
+        logger.LogInformation(
+            "[Orchestrator:{OpId}] Starting local content update: {OldId} → {NewId} (idChanged={Changed})",
+            operationId,
+            oldManifestId,
+            newId,
+            idChanged);
+
+        try
+        {
+            // Delegate to existing orchestration logic which has correct ordering
+            var result = await reconciliationService.OrchestrateLocalUpdateAsync(
+                oldManifestId,
+                newManifest,
+                cancellationToken);
+
+            stopwatch.Stop();
+
+            var success = result.Success && result.Data != null;
+            var profilesUpdated = result.Data?.ProfilesUpdated ?? 0;
+            var workspacesInvalidated = result.Data?.WorkspacesInvalidated ?? 0;
+            var errorMessage = result.Success ? null : (result.FirstError ?? "Update failed");
+
+            await auditLog.LogOperationAsync(
+                new ReconciliationAuditEntry
+                {
+                    OperationId = operationId,
+                    OperationType = ReconciliationOperationType.LocalContentUpdate,
+                    Timestamp = DateTime.UtcNow,
+                    AffectedManifestIds = [oldManifestId, newId],
+                    ManifestMapping = new Dictionary<string, string> { [oldManifestId] = newId },
+                    Success = success,
+                    ErrorMessage = errorMessage,
+                    Metadata = new Dictionary<string, string>
+                    {
+                        ["idChanged"] = idChanged.ToString(),
+                        ["profilesUpdated"] = profilesUpdated.ToString(),
+                        ["workspacesInvalidated"] = workspacesInvalidated.ToString(),
+                        ["durationMs"] = stopwatch.ElapsedMilliseconds.ToString(),
+                        ["operationType"] = "ContentUpdate",
+                        ["result"] = success ? "Success" : "Failure",
+                    },
+                    Duration = stopwatch.Elapsed,
+                },
+                cancellationToken);
+
+            // Publish completion event for local update
+            WeakReferenceMessenger.Default.Send(new ReconciliationCompletedEvent(
+                operationId,
+                "LocalContentUpdate",
+                profilesUpdated,
+                idChanged ? 1 : 0,
+                success,
+                errorMessage,
+                stopwatch.Elapsed));
+
+            if (!success || result.Data == null)
+            {
+                logger.LogWarning("[Orchestrator:{OpId}] Local content update failed: {Error}", operationId, errorMessage);
+                return OperationResult<ContentUpdateResult>.CreateFailure(errorMessage ?? "Update failed");
+            }
+
+            var updateResult = result.Data with { Duration = stopwatch.Elapsed };
+
+            logger.LogInformation(
+                "[Orchestrator:{OpId}] Local content update completed in {Duration}ms ({Profiles} profiles, {Workspaces} workspaces invalidated)",
+                operationId,
+                stopwatch.ElapsedMilliseconds,
+                updateResult.ProfilesUpdated,
+                updateResult.WorkspacesInvalidated);
+
+            return OperationResult<ContentUpdateResult>.CreateSuccess(updateResult);
+        }
+        catch (OperationCanceledException)
+        {
+            stopwatch.Stop();
+            logger.LogInformation("[Orchestrator:{OpId}] Content update cancelled", operationId);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            logger.LogError(ex, "[Orchestrator:{OpId}] Local content update failed", operationId);
+
+            await auditLog.LogOperationAsync(
+                new ReconciliationAuditEntry
+                {
+                    OperationId = operationId,
+                    OperationType = ReconciliationOperationType.LocalContentUpdate,
+                    Timestamp = DateTime.UtcNow,
+                    AffectedManifestIds = [oldManifestId, newId],
+                    ManifestMapping = new Dictionary<string, string> { [oldManifestId] = newId },
+                    Success = false,
+                    ErrorMessage = $"Update failed: {ex.Message}",
+                    Duration = stopwatch.Elapsed,
+                },
+                cancellationToken);
+
+            // Publish completion event for local update
+            WeakReferenceMessenger.Default.Send(new ReconciliationCompletedEvent(
+                operationId,
+                "LocalContentUpdate",
+                0,
+                idChanged ? 1 : 0,
+                false,
+                $"Update failed: {ex.Message}",
+                stopwatch.Elapsed));
+
+            return OperationResult<ContentUpdateResult>.CreateFailure($"Update failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Helper method for manifest removal that respects the optimized skipUntrack pattern.
+    /// Used when bulk untracking was already performed successfully.
+    /// </summary>
+    /// <param name="manifestId">The ID of the manifest to remove.</param>
+    /// <param name="skipUntrack">Whether to skip the untracking step in the storage layer.
+    /// Should be true if bulk untracking was already performed to avoid redundant I/O.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A result indicating success or failure.</returns>
+    private async Task<OperationResult<bool>> RemoveManifestWithOptimizedUntrackingAsync(
+        string manifestId,
+        bool skipUntrack,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var id = ManifestId.Create(manifestId);
+            var result = await manifestPool.RemoveManifestAsync(id, skipUntrack, cancellationToken);
+            if (!result.Success)
+            {
+                return OperationResult<bool>.CreateFailure($"Failed to remove manifest {manifestId}: {result.FirstError}");
+            }
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            return OperationResult<bool>.CreateFailure($"Error removing manifest {manifestId}: {ex.Message}");
+        }
+    }
+
+    private async Task<(int ProfilesUpdated, int WorkspacesInvalidated, bool Failed)> ExecuteStep1UpdateProfilesAsync(
+        IReadOnlyDictionary<string, string> manifestMapping,
+        string operationId,
+        List<string> warnings,
+        CancellationToken cancellationToken)
+    {
+        logger.LogDebug("[Orchestrator:{OpId}] Step 1: Updating profiles", operationId);
+        var profileResult = await reconciliationService.OrchestrateBulkUpdateAsync(
+            manifestMapping,
+            false, // GC handled in Step 4
+            cancellationToken);
+
+        int profilesUpdated = profileResult.Data?.ProfilesUpdated ?? 0;
+        int workspacesInvalidated = profileResult.Data?.WorkspacesInvalidated ?? 0;
+        bool failed = false;
+
+        if (!profileResult.Success)
+        {
+            warnings.Add($"Profile update failure: {profileResult.FirstError}");
+            failed = true;
+        }
+        else if (profileResult.Data?.FailedProfilesCount > 0)
+        {
+            warnings.Add($"Partial failure: {profileResult.Data.FailedProfilesCount} profiles failed to update");
+            failed = true;
+        }
+
+        return (profilesUpdated, workspacesInvalidated, failed);
+    }
+
+    private async Task<bool> ExecuteStep2UntrackManifestsAsync(
+        ContentReplacementRequest request,
+        string operationId,
+        bool criticalFailureOccurred,
+        List<string> warnings,
+        CancellationToken cancellationToken)
+    {
+        if (!request.RemoveOldManifests)
+        {
+            return false;
+        }
+
+        if (criticalFailureOccurred)
+        {
+            logger.LogWarning("[Orchestrator:{OpId}] Skipping manifest untracking step due to previous errors in profile update", operationId);
+            warnings.Add("Manifest untracking skipped due to previous errors in profile update.");
+            return false;
+        }
+
+        logger.LogDebug("[Orchestrator:{OpId}] Step 2: Untracking old manifests", operationId);
+        var untrackResult = await casLifecycleManager.UntrackManifestsAsync([.. request.ManifestMapping.Keys], cancellationToken);
+
+        if (!untrackResult.Success)
+        {
+            warnings.Add($"Manifest untracking failed: {untrackResult.FirstError}");
+            return true;
+        }
+
+        foreach (var oldId in request.ManifestMapping.Keys)
+        {
+            WeakReferenceMessenger.Default.Send(new ContentRemovingEvent(oldId, null, "Replacement"));
+        }
+
+        return false;
+    }
+
+    private async Task<(int ManifestsRemoved, bool Failed)> ExecuteStep3RemoveManifestsAsync(
+        ContentReplacementRequest request,
+        string operationId,
+        bool criticalFailureOccurred,
+        List<string> warnings,
+        CancellationToken cancellationToken)
+    {
+        int manifestsRemoved = 0;
+        if (!request.RemoveOldManifests)
+        {
+            return (manifestsRemoved, false);
+        }
+
+        logger.LogDebug("[Orchestrator:{OpId}] Step 3: Removing old manifests from pool", operationId);
+        if (criticalFailureOccurred)
+        {
+            logger.LogWarning("[Orchestrator:{OpId}] Skipping manifest removal step due to previous errors", operationId);
+            warnings.Add("Manifest removal step skipped due to previous errors in profile update or untracking.");
+            return (manifestsRemoved, false);
+        }
+
+        bool failed = false;
+        foreach (var oldId in request.ManifestMapping.Keys)
+        {
+            try
+            {
+                var removeResult = await RemoveManifestWithOptimizedUntrackingAsync(oldId, skipUntrack: true, cancellationToken);
+                if (removeResult.Success)
+                {
+                    manifestsRemoved++;
+                }
+                else
+                {
+                    warnings.Add(removeResult.FirstError ?? "Manifest removal failed with unknown error");
+                    failed = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                warnings.Add($"Error removing manifest {oldId}: {ex.Message}");
+                failed = true;
+            }
+        }
+
+        return (manifestsRemoved, failed);
+    }
+
+    private async Task<(int CasObjectsCollected, long BytesFreed)> ExecuteStep4GarbageCollectionAsync(
+        ContentReplacementRequest request,
+        string operationId,
+        bool criticalFailureOccurred,
+        List<string> warnings,
+        CancellationToken cancellationToken)
+    {
+        int casObjectsCollected = 0;
+        long bytesFreed = 0;
+
+        if (!request.RunGarbageCollection)
+        {
+            return (casObjectsCollected, bytesFreed);
+        }
+
+        if (criticalFailureOccurred)
+        {
+            logger.LogWarning("[Orchestrator:{OpId}] Skipping GC due to previous manifest removal failures", operationId);
+            warnings.Add("Garbage collection skipped due to failures in manifest untracking or removal");
+            return (casObjectsCollected, bytesFreed);
+        }
+
+        logger.LogDebug("[Orchestrator:{OpId}] Step 4: Running garbage collection", operationId);
+        var gcResult = await casLifecycleManager.RunGarbageCollectionAsync(force: false, cancellationToken: cancellationToken);
+        if (gcResult.Success && gcResult.Data != null)
+        {
+            casObjectsCollected = gcResult.Data.ObjectsDeleted;
+            bytesFreed = gcResult.Data.BytesFreed;
+        }
+        else
+        {
+            var warning = gcResult.FirstError ?? "Garbage collection did not run";
+            warnings.Add(warning);
+            logger.LogWarning("[Orchestrator:{OpId}] {Warning}", operationId, warning);
+        }
+
+        return (casObjectsCollected, bytesFreed);
+    }
+}

@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.GitHub;
 using GenHub.Features.AppUpdate.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Velopack.Sources;
 
 namespace GenHub.Tests.Core.Features.AppUpdate.Services;
 
@@ -55,7 +56,7 @@ public class VelopackUpdateManagerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CheckForUpdatesAsync_InDevEnvironment_ShouldReturnNull()
+    public async Task CheckForUpdatesAsync_InDevEnvironment_ShouldReturnNullAsync()
     {
         // Arrange
         var manager = CreateManager();
@@ -72,7 +73,7 @@ public class VelopackUpdateManagerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CheckForUpdatesAsync_WithCancellation_ShouldHandleGracefully()
+    public async Task CheckForUpdatesAsync_WithCancellation_ShouldHandleGracefullyAsync()
     {
         // Arrange
         var manager = CreateManager();
@@ -91,7 +92,7 @@ public class VelopackUpdateManagerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DownloadUpdatesAsync_WhenNotInitialized_ShouldThrowInvalidOperationException()
+    public async Task DownloadUpdatesAsync_WhenNotInitialized_ShouldThrowInvalidOperationExceptionAsync()
     {
         // Arrange
         var manager = CreateManager();
@@ -174,7 +175,7 @@ public class VelopackUpdateManagerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CheckForArtifactUpdatesAsync_WithoutPAT_ShouldReturnNull()
+    public async Task CheckForArtifactUpdatesAsync_WithoutPAT_ShouldReturnNullAsync()
     {
         // Arrange
         _mockGitHubTokenStorage.Setup(x => x.HasToken()).Returns(false);
@@ -186,6 +187,28 @@ public class VelopackUpdateManagerTests
         // Assert
         Assert.Null(result);
         Assert.False(manager.HasArtifactUpdateAvailable);
+    }
+
+    /// <summary>
+    /// Tests that VelopackUpdateManager accepts a custom IFileDownloader.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithCustomFileDownloader_ShouldInitializeSuccessfully()
+    {
+        // Arrange
+        var customDownloader = new Mock<IFileDownloader>().Object;
+
+        // Act
+        var manager = new VelopackUpdateManager(
+            _mockLogger.Object,
+            _mockHttpClientFactory.Object,
+            _mockGitHubTokenStorage.Object,
+            _mockUserSettingsService.Object,
+            customDownloader);
+
+        // Assert
+        Assert.NotNull(manager);
+        Assert.False(manager.IsUpdatePendingRestart);
     }
 
     /// <summary>

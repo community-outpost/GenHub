@@ -1,0 +1,53 @@
+name: Deploy Landing Page to GitHub Pages
+
+on:
+  workflow_run:
+    workflows: ["GenHub Release"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/configure-pages@v5
+
+      - id: release_info
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LATEST_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName')
+          
+          BUILD_NUM=$(echo "$LATEST_TAG" | cut -d'.' -f3)
+          DISPLAY_NAME="Alpha ${BUILD_NUM}"
+          
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "display_name=$DISPLAY_NAME" >> $GITHUB_OUTPUT
+
+      - run: |
+          mkdir -p ./public
+          cp Landing-page/index.html ./public/index.html
+          
+          if [ -d "Landing-page/assets" ]; then
+            cp -r Landing-page/assets ./public/assets
+          fi
+          
+          DOWNLOAD_URL="https://github.com/community-outpost/GenHub/releases/download/${{ steps.release_info.outputs.latest_tag }}/GenHub-win-Setup.exe"
+          
+          sed -i "s|VERSION_PLACEHOLDER|${{ steps.release_info.outputs.display_name }}|g" ./public/index.html
+          sed -i "s|URL_PLACEHOLDER|${DOWNLOAD_URL}|g" ./public/index.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./public
+
+      - uses: actions/deploy-pages@v4

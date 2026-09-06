@@ -1,0 +1,283 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
+             xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="550"
+             x:Class="GenHub.Features.GameProfiles.Views.AddLocalContentView"
+             x:DataType="vm:AddLocalContentViewModel"
+             DragDrop.AllowDrop="True">
+
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <conv:InvertedBoolToVisibilityConverter x:Key="InvertedBoolToVisibilityConverter" />
+        <conv:BoolToTextConverter x:Key="BoolToTextConverter" />
+        <conv:ExecutableHighlightConverter x:Key="ExecutableHighlightConverter" />
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.label">
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="LetterSpacing" Value="0.5"/>
+        </Style>
+
+        <Style Selector="TextBox.glass">
+            <Setter Property="Background" Value="#10FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#20FFFFFF"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10,8"/>
+        </Style>
+        <Style Selector="TextBox.glass:focus">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <Style Selector="ComboBox.glass">
+            <Setter Property="Background" Value="#10FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#20FFFFFF"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10,8"/>
+        </Style>
+
+        <Style Selector="Button.icon-btn">
+             <Setter Property="Background" Value="#10FFFFFF"/>
+             <Setter Property="BorderBrush" Value="#20FFFFFF"/>
+             <Setter Property="BorderThickness" Value="1"/>
+             <Setter Property="Padding" Value="10,8"/>
+             <Setter Property="CornerRadius" Value="6"/>
+             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+             <Setter Property="Cursor" Value="Hand"/>
+             <Setter Property="Transitions">
+                 <Transitions>
+                     <BrushTransition Property="Background" Duration="0:0:0.15" />
+                     <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                 </Transitions>
+             </Setter>
+        </Style>
+        <Style Selector="Button.icon-btn:pointerover">
+             <Setter Property="Background" Value="#20FFFFFF"/>
+             <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}"/>
+        </Style>
+
+        <Style Selector="Button.accent">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" />
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.accent:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AccentLightBrush}"/>
+        </Style>
+        <Style Selector="Button.accent:disabled">
+            <Setter Property="Background" Value="#10FFFFFF"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
+            <Setter Property="Cursor" Value="Arrow"/>
+        </Style>
+
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" />
+                    <BrushTransition Property="Foreground" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.ghost:pointerover">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Panel>
+        <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+
+            <!-- Header Area -->
+            <StackPanel Grid.Row="0" Margin="0,0,0,20" Spacing="4">
+                <TextBlock Text="Import Content" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                <TextBlock Text="Drag and drop archives or folders, or browse below." FontSize="13" Foreground="{DynamicResource TextSecondary}" />
+            </StackPanel>
+
+            <!-- Main Content Area -->
+            <Grid Grid.Row="1" ColumnDefinitions="320,*" Margin="0,0,0,20">
+
+                <!-- LEFT COLUMN: Form -->
+                <StackPanel Grid.Column="0" Spacing="16" Margin="0,0,24,0">
+
+                    <!-- Content Name -->
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="NAME" Classes="label"/>
+                        <TextBox Text="{Binding ContentName}" Watermark="e.g. My Awesome Mod" Classes="glass"/>
+                    </StackPanel>
+
+                    <!-- Content Type -->
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="TYPE" Classes="label"/>
+                        <ComboBox ItemsSource="{Binding AllowedContentTypes}"
+                                  SelectedItem="{Binding SelectedContentType}"
+                                  HorizontalAlignment="Stretch"
+                                  Classes="glass">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+
+                     <!-- Target Game -->
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="TARGET GAME" Classes="label"/>
+                        <ComboBox ItemsSource="{Binding AvailableGameTypes}"
+                                  SelectedItem="{Binding SelectedGameType}"
+                                  HorizontalAlignment="Stretch"
+                                  Classes="glass"/>
+                    </StackPanel>
+
+                    <!-- Source -->
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="SOURCE" Classes="label"/>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Text="{Binding SourcePath}" IsReadOnly="True" Watermark="No content selected" Classes="glass" Margin="0,0,6,0"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                                <Button Command="{Binding BrowseFolderCommand}" ToolTip.Tip="Browse Folder" Classes="icon-btn">
+                                    <material:MaterialIcon Kind="FolderOpenOutline" Width="16" Height="16"/>
+                                </Button>
+                                <Button Command="{Binding BrowseFileCommand}" ToolTip.Tip="Browse Files" Classes="icon-btn">
+                                    <material:MaterialIcon Kind="PackageVariantClosed" Width="16" Height="16"/>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- Status Message -->
+                    <Border Background="{DynamicResource DetailsBackground}" BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1" CornerRadius="6" Padding="12" IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <material:MaterialIcon Kind="AlertCircleOutline" Width="16" Height="16" Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" FontSize="12" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+
+                <!-- RIGHT COLUMN: Tree Preview -->
+                <Border Grid.Column="1" Background="#10FFFFFF" CornerRadius="10" BorderBrush="#20FFFFFF" BorderThickness="1" ClipToBounds="True">
+                    <Grid RowDefinitions="Auto,*">
+                        <Border Background="#08FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="0,0,0,1" Padding="16,10">
+                            <TextBlock Text="CONTENT PREVIEW" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" LetterSpacing="0.8"/>
+                        </Border>
+
+                        <TreeView Grid.Row="1" ItemsSource="{Binding FileTree}" Background="Transparent" Foreground="{DynamicResource TextPrimary}" Margin="8" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <TreeView.Styles>
+                                <Style Selector="TreeViewItem">
+                                    <Setter Property="MinHeight" Value="26"/>
+                                    <Setter Property="FontSize" Value="13"/>
+                                </Style>
+                            </TreeView.Styles>
+                            <TreeView.ItemTemplate>
+                                <TreeDataTemplate ItemsSource="{Binding Children}">
+                                    <Grid ColumnDefinitions="*,Auto,Auto" Background="Transparent" Margin="0,0,8,0">
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                            <material:MaterialIcon Kind="FileDocumentOutline" Width="15" Height="15" Foreground="{DynamicResource TextSecondary}" IsVisible="{Binding IsFile}" VerticalAlignment="Center"/>
+                                            <material:MaterialIcon Kind="FolderOutline" Width="15" Height="15" Foreground="{DynamicResource AccentLightBrush}" IsVisible="{Binding !IsFile}" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding Name}"
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding Name}">
+                                                <TextBlock.Foreground>
+                                                    <MultiBinding Converter="{StaticResource ExecutableHighlightConverter}">
+                                                        <Binding Path="IsExecutable"/>
+                                                        <Binding Path="IsSelectedExecutable"/>
+                                                    </MultiBinding>
+                                                </TextBlock.Foreground>
+                                            </TextBlock>
+                                        </StackPanel>
+
+                                        <!-- Select as Executable button -->
+                                        <Button Grid.Column="1"
+                                                Command="{Binding ((vm:AddLocalContentViewModel)DataContext).SelectExecutableCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"
+                                                Classes="icon-btn"
+                                                Padding="6,3"
+                                                Margin="6,0,0,0"
+                                                AutomationProperties.Name="Select as main executable"
+                                                ToolTip.Tip="Select as main executable">
+                                            <Button.IsVisible>
+                                                <MultiBinding Converter="{x:Static conv:MultiBooleanAndConverter.Instance}">
+                                                    <Binding Path="IsExecutable"/>
+                                                    <Binding Path="((vm:AddLocalContentViewModel)DataContext).ShowExecutableSelection" RelativeSource="{RelativeSource AncestorType=UserControl}"/>
+                                                </MultiBinding>
+                                            </Button.IsVisible>
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <material:MaterialIcon Kind="Play" Width="12" Height="12" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding IsSelectedExecutable, Converter={StaticResource BoolToTextConverter}, ConverterParameter='Selected|Select'}" FontSize="10.5" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
+
+                                        <!-- Remove Item button -->
+                                        <Button Grid.Column="2"
+                                                Command="{Binding ((vm:AddLocalContentViewModel)DataContext).DeleteItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"
+                                                Classes="icon-btn"
+                                                Padding="6,3"
+                                                Margin="6,0,0,0"
+                                                ToolTip.Tip="Remove Item">
+                                            <material:MaterialIcon Kind="Close" Width="12" Height="12"/>
+                                        </Button>
+                                    </Grid>
+                                </TreeDataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
+
+                        <!-- Empty State Overlay -->
+                        <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="10" IsVisible="{Binding !FileTree.Count}" IsHitTestVisible="False">
+                            <material:MaterialIcon Kind="FolderEyeOutline" Width="48" Height="48" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="No Content Loaded" Foreground="{DynamicResource TextPrimary}" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                            <TextBlock Text="{Binding PreviewIdleText}" Foreground="{DynamicResource TextSecondary}" FontSize="12" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- Footer Actions -->
+            <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto">
+                <Button Grid.Column="0" Content="Cancel" Command="{Binding CancelCommand}" Classes="ghost" IsVisible="{Binding !IsDemoMode}"/>
+
+                <Button Grid.Column="2" Command="{Binding AddContentCommand}" Classes="accent" IsEnabled="{Binding CanAdd}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <material:MaterialIcon Kind="Check" Width="16" Height="16" VerticalAlignment="Center"/>
+                        <TextBlock Text="ADD CONTENT" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
+
+        </Grid>
+
+        <!-- Loading Overlay -->
+        <Grid Background="#CC000000" IsVisible="{Binding ShowLoadingOverlay}">
+             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="15">
+                 <ProgressBar IsIndeterminate="True" Width="200" Height="4" Foreground="{DynamicResource AccentBrush}" Background="{DynamicResource SurfaceHoverBrush}"/>
+                 <TextBlock Text="Processing..." Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" FontSize="14" FontWeight="Light"/>
+             </StackPanel>
+        </Grid>
+
+    </Panel>
+</UserControl>

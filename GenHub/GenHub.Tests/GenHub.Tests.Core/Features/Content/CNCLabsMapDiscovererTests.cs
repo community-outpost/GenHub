@@ -1,11 +1,13 @@
-﻿using System.Net;
-using GenHub.Core.Constants;
+﻿using GenHub.Core.Constants;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Tests.Core.Infrastructure;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Net;
 
 namespace GenHub.Tests.Core.Features.Content;
 
@@ -33,7 +35,7 @@ public class CNCLabsMapDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_NullQuery_ReturnsFailure()
+    public async Task DiscoverAsync_NullQuery_ReturnsFailureAsync()
     {
         // Arrange
         using var http = CreateHttpClient(_ => new HttpResponseMessage(HttpStatusCode.OK));
@@ -54,7 +56,7 @@ public class CNCLabsMapDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_MissingSearchTermAndFilters_ReturnsFailure()
+    public async Task DiscoverAsync_MissingSearchTermAndFilters_ReturnsFailureAsync()
     {
         // Arrange: neither SearchTerm nor both TargetGame & ContentType
         var query = new ContentSearchQuery
@@ -80,7 +82,7 @@ public class CNCLabsMapDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_CancellationRequested_ReturnsFailure()
+    public async Task DiscoverAsync_CancellationRequested_ReturnsFailureAsync()
     {
         // Arrange
         var query = new ContentSearchQuery
@@ -108,7 +110,7 @@ public class CNCLabsMapDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_HttpThrows_ReturnsFailure_AndLogs()
+    public async Task DiscoverAsync_HttpThrows_ReturnsFailure_AndLogsAsync()
     {
         // Arrange - any request throws
         using var http = new HttpClient(new ThrowingHandler(new HttpRequestException("boom")));
@@ -136,7 +138,7 @@ public class CNCLabsMapDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_WithFilters_ParsesListAndProjectsResults()
+    public async Task DiscoverAsync_WithFilters_ParsesListAndProjectsResultsAsync()
     {
         // Arrange
         var query = new ContentSearchQuery
@@ -175,14 +177,14 @@ public class CNCLabsMapDiscovererTests
 
         // Assert
         Assert.True(result.Success);
-        var items = result.Data!.ToList();
+        var items = result.Data!.Items.ToList();
 
         Assert.Single(items);
         var item = items[0];
 
         Assert.Equal(string.Format(CNCLabsConstants.MapIdFormat, 3239), item.Id);
         Assert.Equal("COOP GLA vs CHI - Call of Dragon", item.Name);
-        Assert.Equal(CNCLabsConstants.MapDescriptionTemplate, item.Description);
+        Assert.Equal("This is another custom scripted co-op mission map. 1 or 2 humans players as GLA against 1 China…", item.Description);
         Assert.Equal("El_Chapo", item.AuthorName);
         Assert.Equal(GenHub.Core.Models.Enums.ContentType.Map, item.ContentType);
         Assert.Equal(GameType.Generals, item.TargetGame);

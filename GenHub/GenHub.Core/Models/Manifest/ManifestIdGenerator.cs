@@ -204,17 +204,31 @@ public static partial class ManifestIdGenerator
         if (string.IsNullOrWhiteSpace(tag) || tag.Equals("latest", StringComparison.OrdinalIgnoreCase))
             return 0;
 
-        // Extract all digits and concatenate
-        var digits = DigitsRegex().Replace(tag, string.Empty);
+        // Clean up the tag (remove 'v' prefix, whitespace)
+        var cleanTag = tag.TrimStart('v', 'V').Trim();
 
-        if (string.IsNullOrEmpty(digits))
-            return 0;
+        try
+        {
+            // Use standard normalization logic (handles 1.04 -> 104, 1.5 -> 105)
+            // This ensures "v1.5" produces the same ID as "1.5" would in other contexts
+            var normalized = NormalizeVersionString(cleanTag);
+            return int.TryParse(normalized, out var version) ? version : 0;
+        }
+        catch (ArgumentException)
+        {
+            // Fallback to simple digit extraction if strict normalization fails
+            // (e.g. for complex tags like "beta-1-final")
+            var digits = DigitsRegex().Replace(tag, string.Empty);
 
-        // Take first 9 digits to avoid overflow
-        if (digits.Length > 9)
-            digits = digits[..9];
+            if (string.IsNullOrEmpty(digits))
+                return 0;
 
-        return int.TryParse(digits, out var version) ? version : 0;
+            // Take first 9 digits to avoid overflow
+            if (digits.Length > 9)
+                digits = digits[..9];
+
+            return int.TryParse(digits, out var version) ? version : 0;
+        }
     }
 
     /// <summary>

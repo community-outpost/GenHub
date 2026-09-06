@@ -41,6 +41,11 @@ public enum ContentAcquisitionPhase
     Delivering,
 
     /// <summary>
+    /// The phase where content is being stored in CAS.
+    /// </summary>
+    StoringInCas,
+
+    /// <summary>
     /// The phase indicating acquisition is completed.
     /// </summary>
     Completed,

@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using GenHub.Core.Helpers;
+
 namespace GenHub.Core.Models.Tools;
 
 /// <summary>
@@ -10,18 +13,24 @@ public class ToolMetadata
     /// </summary>
     public required string Id { get; set; }
 
+    private string _version = string.Empty;
+
     /// <summary>
     /// Gets or sets the display name of the tool.
     /// </summary>
     public required string Name { get; set; }
 
     /// <summary>
-    /// Gets or sets the author of the tool.
+    /// Gets or sets the version of the tool.
     /// </summary>
-    public required string Version { get; set; }
+    public required string Version
+    {
+        get => _version;
+        set => _version = GameVersionHelper.IsDefaultVersion(value) ? string.Empty : value;
+    }
 
     /// <summary>
-    /// Gets or sets the version of the tool.
+    /// Gets or sets the author of the tool.
     /// </summary>
     public required string Author { get; set; }
 
@@ -36,7 +45,12 @@ public class ToolMetadata
     public string? IconPath { get; set; }
 
     /// <summary>
+    /// Gets or sets a value indicating whether the tool is bundled with the application and cannot be removed.
+    /// </summary>
+    public bool IsBundled { get; set; }
+
+    /// <summary>
     /// Gets or sets the tags/categories for the tool.
     /// </summary>
-    public List<string> Tags { get; set; } = new();
+    public List<string> Tags { get; set; } = [];
 }

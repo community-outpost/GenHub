@@ -17,6 +17,23 @@ public partial class ContentDisplayItem : ObservableObject
     private bool _isEnabled;
 
     /// <summary>
+    /// Gets or sets a value indicating whether this content is locked and cannot be modified.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isLocked;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this content can be toggled by the user.
+    /// </summary>
+    [ObservableProperty]
+    private bool _canToggle = true;
+
+    /// <summary>
+    /// Gets or sets the unique identifier for this content item.
+    /// </summary>
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets or sets the manifest ID.
     /// </summary>
     public required ManifestId ManifestId { get; set; }
@@ -60,4 +77,19 @@ public partial class ContentDisplayItem : ObservableObject
     /// Gets or sets the GameClient ID for profile creation.
     /// </summary>
     public string? GameClientId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the path to the original content source (for local content).
+    /// </summary>
+    public string? SourcePath { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this content can be edited (locally created).
+    /// </summary>
+    public bool IsEditable { get; set; }
+
+    /// <summary>
+    /// Gets or sets the underlying content manifest if available.
+    /// </summary>
+    public ContentManifest? Manifest { get; set; }
 }

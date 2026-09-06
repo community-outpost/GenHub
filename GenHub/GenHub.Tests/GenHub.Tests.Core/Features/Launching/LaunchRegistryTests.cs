@@ -27,7 +27,7 @@ public class LaunchRegistryTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task RegisterLaunchAsync_ShouldAddLaunchInfo()
+    public async Task RegisterLaunchAsync_ShouldAddLaunchInfoAsync()
     {
         // Arrange
         var launchInfo = new GameLaunchInfo
@@ -53,7 +53,7 @@ public class LaunchRegistryTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetLaunchInfoAsync_WithNonExistentId_ShouldReturnNull()
+    public async Task GetLaunchInfoAsync_WithNonExistentId_ShouldReturnNullAsync()
     {
         // Act
         var result = await _registry.GetLaunchInfoAsync("non-existent-id");
@@ -67,7 +67,7 @@ public class LaunchRegistryTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task UnregisterLaunchAsync_ShouldRemoveLaunchInfo()
+    public async Task UnregisterLaunchAsync_ShouldRemoveLaunchInfoAsync()
     {
         // Arrange
         var launchInfo = new GameLaunchInfo

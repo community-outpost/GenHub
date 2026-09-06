@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
@@ -33,6 +34,16 @@ public class ContentManifestBuilderTests
     private readonly Mock<IManifestIdService> _manifestIdServiceMock;
 
     /// <summary>
+    /// Mock for the download service used in the builder.
+    /// </summary>
+    private readonly Mock<IDownloadService> _downloadServiceMock;
+
+    /// <summary>
+    /// Mock for the configuration provider service used in the builder.
+    /// </summary>
+    private readonly Mock<IConfigurationProviderService> _configProviderServiceMock;
+
+    /// <summary>
     /// The content manifest builder under test.
     /// </summary>
     private readonly ContentManifestBuilder _builder;
@@ -45,6 +56,8 @@ public class ContentManifestBuilderTests
         _loggerMock = new Mock<ILogger<ContentManifestBuilder>>();
         _hashProviderMock = new Mock<IFileHashProvider>();
         _manifestIdServiceMock = new Mock<IManifestIdService>();
+        _downloadServiceMock = new Mock<IDownloadService>();
+        _configProviderServiceMock = new Mock<IConfigurationProviderService>();
 
         // Set up mock to return success for ValidateAndCreateManifestId
         _manifestIdServiceMock.Setup(x => x.ValidateAndCreateManifestId(It.IsAny<string>()))
@@ -62,7 +75,12 @@ public class ContentManifestBuilderTests
                 return OperationResult<ManifestId>.CreateSuccess(ManifestId.Create(generated));
             });
 
-        _builder = new ContentManifestBuilder(_loggerMock.Object, _hashProviderMock.Object, _manifestIdServiceMock.Object);
+        _builder = new ContentManifestBuilder(
+            _loggerMock.Object,
+            _hashProviderMock.Object,
+            _manifestIdServiceMock.Object,
+            _downloadServiceMock.Object,
+            _configProviderServiceMock.Object);
     }
 
     /// <summary>
@@ -191,6 +209,60 @@ public class ContentManifestBuilderTests
     }
 
     /// <summary>
+    /// Tests that WithInstallationInstructions sets the full installation instructions object.
+    /// </summary>
+    [Fact]
+    public void WithInstallationInstructions_SetsCompleteObject()
+    {
+        var instructions = new InstallationInstructions
+        {
+            WorkspaceStrategy = WorkspaceStrategy.FullCopy,
+            DownloadHash = "abc123hash",
+            PostInstallSteps =
+            [
+                new InstallationStep
+                {
+                    Name = "Step 1",
+                    Kind = InstallationStepKind.RunVerifiedInstaller,
+                    TargetRelativePath = "setup.exe",
+                },
+            ],
+        };
+
+        var result = _builder
+            .WithBasicInfo("Test Publisher", "Test Name", "1")
+            .WithInstallationInstructions(instructions)
+            .Build();
+
+        Assert.NotNull(result.InstallationInstructions);
+        Assert.Equal(WorkspaceStrategy.FullCopy, result.InstallationInstructions.WorkspaceStrategy);
+        Assert.Equal("abc123hash", result.InstallationInstructions.DownloadHash);
+        Assert.Single(result.InstallationInstructions.PostInstallSteps);
+        Assert.Equal("Step 1", result.InstallationInstructions.PostInstallSteps[0].Name);
+    }
+
+    /// <summary>
+    /// Tests that AddPostInstallStep adds a structured installation step.
+    /// </summary>
+    [Fact]
+    public void AddPostInstallStep_AddsStepCorrectly()
+    {
+        var result = _builder
+            .WithBasicInfo("Test Publisher", "Test Name", "1")
+            .AddPostInstallStep("EAC Setup", InstallationStepKind.RunVerifiedInstaller, "EasyAntiCheat_EOS_Setup.exe", ["install", "12345"], requiresElevation: true, statusMessage: "Installing AntiCheat")
+            .Build();
+
+        Assert.NotNull(result.InstallationInstructions);
+        var step = Assert.Single(result.InstallationInstructions.PostInstallSteps);
+        Assert.Equal("EAC Setup", step.Name);
+        Assert.Equal(InstallationStepKind.RunVerifiedInstaller, step.Kind);
+        Assert.Equal("EasyAntiCheat_EOS_Setup.exe", step.TargetRelativePath);
+        Assert.True(step.RequiresElevation);
+        Assert.Equal("Installing AntiCheat", step.StatusMessage);
+        Assert.Equal(["install", "12345"], step.Arguments);
+    }
+
+    /// <summary>
     /// Tests that Build returns a valid manifest with minimal configuration.
     /// </summary>
     [Fact]
@@ -216,7 +288,7 @@ public class ContentManifestBuilderTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AddFilesFromDirectoryAsync_SetsCorrectInstallTargets()
+    public async Task AddFilesFromDirectoryAsync_SetsCorrectInstallTargetsAsync()
     {
         // Arrange
         var tempDir = Path.Combine(Path.GetTempPath(), "GenHubTest_" + Guid.NewGuid());

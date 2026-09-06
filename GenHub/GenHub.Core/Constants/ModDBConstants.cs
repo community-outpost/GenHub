@@ -1,14 +1,22 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
 /// Constants specific to ModDB and its content pipeline components.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized URI constants / mock demo paths")]
 public static class ModDBConstants
 {
     // ===== Base URLs =====
 
     /// <summary>Base URL for ModDB website.</summary>
     public const string BaseUrl = "https://www.moddb.com";
+
+    /// <summary>
+    /// URL to the ModDB icon.
+    /// </summary>
+    public const string IconUrl = "avares://GenHub/Assets/Icons/Publishers/moddb.png";
 
     /// <summary>Base URL for C&amp;C Generals content.</summary>
     public const string GeneralsBaseUrl = BaseUrl + "/games/cc-generals";
@@ -38,20 +46,43 @@ public static class ModDBConstants
 
     // ===== Publisher Info =====
 
+    /// <summary>Canonical lowercase identifier for ModDB.</summary>
+    public const string CanonicalIdentifier = "moddb";
+
     /// <summary>Publisher prefix for ModDB content (to be combined with author: moddb-{author}).</summary>
-    public const string PublisherPrefix = "moddb";
+    public const string PublisherPrefix = CanonicalIdentifier;
 
     /// <summary>Publisher type identifier for ModDB content pipeline.</summary>
-    public const string PublisherType = "moddb";
+    public const string PublisherType = CanonicalIdentifier;
 
-    /// <summary>Publisher name for manifests.</summary>
-    public const string PublisherName = "ModDB";
+    /// <summary>Publisher ID for the ModDB service.</summary>
+    public const string PublisherId = CanonicalIdentifier;
+
+    /// <summary>Display name for the publisher.</summary>
+    public const string PublisherDisplayName = "ModDB";
+
+    /// <summary>Format string for including the author with the publisher name.</summary>
+    public const string PublisherNameFormat = "ModDB ({0})";
+
+    /// <summary>Format for author tag.</summary>
+    public const string AuthorTagFormat = "by {0}";
+
+    /// <summary>
+    /// UserAgent string that mimics a standard web browser.
+    /// </summary>
+    public const string BrowserUserAgent = ApiConstants.BrowserUserAgent;
 
     /// <summary>Publisher logo source path for UI display.</summary>
     public const string LogoSource = "/Assets/Logos/moddb-logo.png";
 
     /// <summary>ModDB website URL.</summary>
     public const string PublisherWebsite = BaseUrl;
+
+    /// <summary>
+    /// On-disk Playwright browser profile name used to persist the Cloudflare clearance cookie so
+    /// the user only solves the bot challenge once per session (and across restarts until expiry).
+    /// </summary>
+    public const string BrowserProfileName = CanonicalIdentifier;
 
     /// <summary>Short description for publisher card display.</summary>
     public const string ShortDescription = "Community mods, maps, and content from ModDB";
@@ -164,6 +195,29 @@ public static class ModDBConstants
 
     /// <summary>Value for filter parameter when enabled.</summary>
     public const string FilterEnabledValue = "t";
+
+    // ===== Sort Values =====
+
+    /// <summary>Sort: Date descending (newest first).</summary>
+    public const string SortDateDesc = "date-desc";
+
+    /// <summary>Sort: Date ascending (oldest first).</summary>
+    public const string SortDateAsc = "date-asc";
+
+    /// <summary>Sort: Visits / Popularity descending.</summary>
+    public const string SortVisitDesc = "visit-desc";
+
+    /// <summary>Sort: Rating descending.</summary>
+    public const string SortRatingDesc = "rating-desc";
+
+    /// <summary>Sort: Name ascending (A-Z).</summary>
+    public const string SortNameAsc = "name-asc";
+
+    /// <summary>Sort: Name descending (Z-A).</summary>
+    public const string SortNameDesc = "name-desc";
+
+    /// <summary>Default sort value for ModDB searches and listings (newest first).</summary>
+    public const string DefaultSort = SortDateDesc;
 
     // ===== Category Values =====
 
@@ -337,6 +391,34 @@ public static class ModDBConstants
     /// <summary>Metadata key for original category.</summary>
     public const string OriginalCategoryMetadataKey = "moddbCategory";
 
+    /// <summary>Metadata key for identifying if content is a mod.</summary>
+    public const string IsModMetadataKey = "IsMod";
+
+    /// <summary>Metadata key for parent mod URL.</summary>
+    public const string ParentModUrlMetadataKey = "ParentModUrl";
+
+    // ===== Playwright / Scraping Constants =====
+
+    /// <summary>Default timeout for page navigation (ms).</summary>
+    public const int DefaultGotoTimeout = 30000;
+
+    /// <summary>
+    /// Default timeout for waiting for a selector (ms). ModDB sits behind Cloudflare; the headed
+    /// browser persistent profile usually receives the clearance cookie after verification, but 15 s gives a safe margin
+    /// for manual challenge solves before the scraper parses whatever it has.
+    /// </summary>
+    public const int DefaultSelectorTimeout = 15000;
+
+    /// <summary>
+    /// How long (ms) the listing scrape waits for the user to solve a Cloudflare challenge in the
+    /// visible browser before giving up. Long enough for a manual "I am not a robot" click; the
+    /// page stays open after the deadline so the user can finish and retry.
+    /// </summary>
+    public const int VerificationWaitTimeoutMs = 120000;
+
+    /// <summary>Selector for content items in listing pages (Fallback).</summary>
+    public const string DefaultListItemSelector = "div.row.rowcontent, div.table tr";
+
     // ===== Error Messages =====
 
     /// <summary>Error message for invalid URL.</summary>
@@ -362,6 +444,12 @@ public static class ModDBConstants
     /// <summary>Default description when none is available.</summary>
     public const string DefaultDescription = "Content from ModDB";
 
+    /// <summary>Format for parsing release dates (YYYYMMDD).</summary>
+    public const string ReleaseDateFormat = "yyyyMMdd";
+
+    /// <summary>Default filename for ModDB downloads.</summary>
+    public const string DefaultDownloadFilename = "ModDBDownload.zip";
+
     // ===== Timeframe Values =====
 
     /// <summary>Timeframe: Past 24 hours.</summary>
@@ -382,5 +470,5 @@ public static class ModDBConstants
     // ===== Content Tags =====
 
     /// <summary>Content tags for search and categorization.</summary>
-    public static readonly string[] Tags = new[] { "ModDB", "Community", "Mods", "Maps" };
+    public static readonly string[] Tags = ["ModDB", "Community", "Mods", "Maps"];
 }

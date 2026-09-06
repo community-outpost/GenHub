@@ -1,17 +1,21 @@
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Interfaces.Manifest;
-using GenHub.Core.Models.Content;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Manifest;
-using GenHub.Core.Models.Results;
-using GenHub.Features.Content.Services.ContentProviders;
-using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services.ContentProviders;
+using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.GeneralsOnline;
 
@@ -20,14 +24,19 @@ namespace GenHub.Features.Content.Services.GeneralsOnline;
 /// Orchestrates discovery, resolution, and delivery through the content pipeline.
 /// </summary>
 public class GeneralsOnlineProvider(
+    IProviderDefinitionLoader providerDefinitionLoader,
     IEnumerable<IContentDiscoverer> discoverers,
     IEnumerable<IContentResolver> resolvers,
     IEnumerable<IContentDeliverer> deliverers,
     IContentValidator contentValidator,
+    IInstallationInstructionsService installationInstructionsService,
     IContentManifestPool manifestPool,
     ILogger<GeneralsOnlineProvider> logger)
-    : BaseContentProvider(contentValidator, logger)
+    : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
+    private readonly ConcurrentDictionary<string, HashSet<string>> _preExistingManifestIdsByManifest = new(StringComparer.OrdinalIgnoreCase);
+    private ProviderDefinition? _cachedProviderDefinition;
+
     /// <inheritdoc />
     public override string SourceName => GeneralsOnlineConstants.PublisherType;
 
@@ -46,27 +55,6 @@ public class GeneralsOnlineProvider(
     public override ContentSourceCapabilities Capabilities =>
         ContentSourceCapabilities.RequiresDiscovery |
         ContentSourceCapabilities.SupportsPackageAcquisition;
-
-    /// <inheritdoc />
-    protected override IContentDiscoverer Discoverer =>
-        discoverers.First(d =>
-            d.SourceName.Equals(
-                GeneralsOnlineConstants.DiscovererSourceName,
-                StringComparison.OrdinalIgnoreCase));
-
-    /// <inheritdoc />
-    protected override IContentResolver Resolver =>
-        resolvers.First(r =>
-            r.ResolverId.Equals(
-                GeneralsOnlineConstants.ResolverId,
-                StringComparison.OrdinalIgnoreCase));
-
-    /// <inheritdoc />
-    protected override IContentDeliverer Deliverer =>
-        deliverers.First(d =>
-            d.SourceName.Equals(
-                GeneralsOnlineConstants.DelivererSourceName,
-                StringComparison.OrdinalIgnoreCase));
 
     /// <inheritdoc />
     public override async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
@@ -152,6 +140,60 @@ public class GeneralsOnlineProvider(
     }
 
     /// <inheritdoc />
+    protected override IContentDiscoverer Discoverer =>
+        discoverers.First(d =>
+            d.SourceName.Equals(
+                GeneralsOnlineConstants.DiscovererSourceName,
+                StringComparison.OrdinalIgnoreCase));
+
+    /// <inheritdoc />
+    protected override IContentResolver Resolver =>
+        resolvers.First(r =>
+            r.ResolverId.Equals(
+                GeneralsOnlineConstants.ResolverId,
+                StringComparison.OrdinalIgnoreCase));
+
+    /// <inheritdoc />
+    protected override IContentDeliverer Deliverer =>
+        deliverers.First(d =>
+            d.SourceName.Equals(
+                GeneralsOnlineConstants.DelivererSourceName,
+                StringComparison.OrdinalIgnoreCase));
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Returns the GeneralsOnline provider definition loaded from JSON configuration.
+    /// The definition contains endpoint URLs, timeouts, and other configuration that can be
+    /// modified without recompiling the application.
+    /// </remarks>
+    protected override ProviderDefinition? GetProviderDefinition()
+    {
+        // Use cached definition if available
+        if (_cachedProviderDefinition != null)
+        {
+            return _cachedProviderDefinition;
+        }
+
+        // Try to get from the loader (it should already be loaded at startup)
+        _cachedProviderDefinition = providerDefinitionLoader.GetProvider(GeneralsOnlineConstants.PublisherType);
+
+        if (_cachedProviderDefinition == null)
+        {
+            Logger.LogWarning(
+                "No provider definition found for {ProviderId}, using hardcoded constants",
+                GeneralsOnlineConstants.PublisherType);
+        }
+        else
+        {
+            Logger.LogInformation(
+                "Using provider definition for {ProviderId} from JSON configuration",
+                GeneralsOnlineConstants.PublisherType);
+        }
+
+        return _cachedProviderDefinition;
+    }
+
+    /// <inheritdoc />
     /// <remarks>
     /// This is the internal implementation called by the base class's public PrepareContentAsync method.
     /// The base class handles common validation and error handling, then delegates to this method.
@@ -162,6 +204,12 @@ public class GeneralsOnlineProvider(
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                "GeneralsOnline is currently supported only on Windows. Easy Anti-Cheat was not designed for Wine/Proton environments.");
+        }
+
         Logger.LogInformation("Preparing Generals Online content: {Version}", manifest.Version);
 
         try
@@ -172,6 +220,21 @@ public class GeneralsOnlineProvider(
                 return OperationResult<ContentManifest>.CreateFailure(
                     $"Cannot deliver content for manifest {manifest.Id}");
             }
+
+            var existingPool = await manifestPool.GetAllManifestsAsync(cancellationToken);
+            if (!existingPool.Success || existingPool.Data == null)
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Failed to query existing manifests before delivery: {existingPool.FirstError}");
+            }
+
+            var preExisting = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var m in existingPool.Data)
+            {
+                preExisting.Add(m.Id);
+            }
+
+            _preExistingManifestIdsByManifest[manifest.Id] = preExisting;
 
             var deliveryResult = await Deliverer.DeliverContentAsync(
                 manifest,
@@ -190,11 +253,75 @@ public class GeneralsOnlineProvider(
             Logger.LogInformation("Successfully prepared Generals Online content {ManifestId}", manifest.Id);
             return OperationResult<ContentManifest>.CreateSuccess(resultManifest);
         }
+        catch (OperationCanceledException)
+        {
+            Logger.LogInformation("Generals Online content preparation was canceled for {Version}", manifest.Version);
+            throw;
+        }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to prepare Generals Online content");
             return OperationResult<ContentManifest>.CreateFailure(
                 $"Content preparation failed: {ex.Message}");
         }
+    }
+
+    /// <inheritdoc />
+    protected override async Task RollbackPreparedContentAsync(
+        ContentManifest originalManifest,
+        ContentManifest preparedManifest,
+        string workingDirectory,
+        CancellationToken cancellationToken)
+    {
+        Logger.LogWarning("Rolling back Generals Online manifest registration for version {Version}", preparedManifest.Version);
+
+        try
+        {
+            if (!_preExistingManifestIdsByManifest.TryRemove(originalManifest.Id, out var preExistingIds) || preExistingIds == null)
+            {
+                Logger.LogWarning(
+                    "No pre-delivery manifest snapshot found for {ManifestId}; skipping rollback manifest unregistration to avoid removing existing content",
+                    originalManifest.Id);
+                return;
+            }
+
+            var allManifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
+            if (allManifestsResult.Success && allManifestsResult.Data != null)
+            {
+                var matchingManifests = allManifestsResult.Data
+                    .Where(m => string.Equals(m.Version, preparedManifest.Version, StringComparison.OrdinalIgnoreCase) &&
+                                string.Equals(m.Publisher?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase) &&
+                                !preExistingIds.Contains(m.Id))
+                    .ToList();
+
+                foreach (var manifest in matchingManifests)
+                {
+                    var removeResult = await manifestPool.RemoveManifestAsync(manifest.Id, cancellationToken: cancellationToken);
+                    if (!removeResult.Success)
+                    {
+                        Logger.LogWarning("Failed to remove manifest {ManifestId} during rollback: {Error}", manifest.Id, removeResult.FirstError);
+                    }
+                    else
+                    {
+                        Logger.LogInformation("Unregistered manifest {ManifestId} during rollback", manifest.Id);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error occurred during Generals Online manifest registration rollback");
+        }
+    }
+
+    /// <inheritdoc />
+    protected override Task OnContentPreparationCompletedAsync(
+        ContentManifest originalManifest,
+        ContentManifest preparedManifest,
+        string workingDirectory,
+        CancellationToken cancellationToken)
+    {
+        _preExistingManifestIdsByManifest.TryRemove(originalManifest.Id, out _);
+        return Task.CompletedTask;
     }
 }

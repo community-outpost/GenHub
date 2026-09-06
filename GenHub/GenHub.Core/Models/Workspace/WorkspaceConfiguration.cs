@@ -36,7 +36,7 @@ public class WorkspaceConfiguration
     public Dictionary<string, string> ManifestSourcePaths { get; set; } = new();
 
     /// <summary>Gets or sets the workspace strategy.</summary>
-    public WorkspaceStrategy Strategy { get; set; } = WorkspaceStrategy.HybridCopySymlink;
+    public WorkspaceStrategy Strategy { get; set; } = GenHub.Core.Constants.WorkspaceConstants.DefaultWorkspaceStrategy;
 
     /// <summary>Gets or sets a value indicating whether to force recreation of the workspace.</summary>
     public bool ForceRecreate { get; set; }
