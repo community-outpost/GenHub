@@ -152,9 +152,9 @@ BASELINE_ENTRIES = [
         "dataPatchCdnUrl": None,
     },
     {
-        "exeCrc": "0x89C1F821",
-        "iniCrc": "0x323577BD",
-        "sha256": "3B8580D1A1F93A96EBE430AA5D43048995393CE322DF20B2F2A1FD58DC0B3A79",
+        "exeCrc": "0x1C96366F",
+        "iniCrc": "0x5A8E12F0",
+        "sha256": "1c96366ff6a99f40863f6bbcfa8bf7622e8df1f80a474201e0e95e37c6416255",
         "manifestId": "1.108.steam.gameclient.generals",
         "dataPatchManifestId": None,
         "dataPatchName": "Steam 1.08 INI",
@@ -365,7 +365,7 @@ def _build_variant_candidate(date_code: str, qfe: int | None, is_eac: bool) -> t
     zip_name = f"GeneralsOnline_portable_{date_code}{suffix}.zip"
     url = f"{GENERALSONLINE_CDN}/{zip_name}"
     manifest_type = "eac-zerohour" if is_eac else "zerohour"
-    qfe_digit = str(qfe) if qfe is not None else "0"
+    qfe_digit = str(qfe) if qfe is not None else ""
     date_code_norm = str(int(date_code)) if date_code.isdigit() else date_code
     manifest_id = f"1.{date_code_norm}{qfe_digit}.generalsonline.gameclient.{manifest_type}"
     version_str = f"{date_code}{suffix}"

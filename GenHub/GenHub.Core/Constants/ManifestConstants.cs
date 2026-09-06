@@ -222,4 +222,18 @@ public static class ManifestConstants
 
     /// <summary>Content display title keyword for Game Data.</summary>
     public const string GameDataDisplayKeyword = "Game Data";
+
+    // ===== Content Manifest Segments =====
+
+    /// <summary>Manifest ID segment for game data content.</summary>
+    public const string GameDataManifestSegment = ".gamedata.";
+
+    /// <summary>Manifest ID segment for data patch content.</summary>
+    public const string DataPatchManifestSegment = ".datapatch.";
+
+    /// <summary>Manifest ID segment for community content.</summary>
+    public const string CommunityManifestSegment = ".community.";
+
+    /// <summary>Manifest ID segment for mod content.</summary>
+    public const string ModManifestSegment = ".mod.";
 }

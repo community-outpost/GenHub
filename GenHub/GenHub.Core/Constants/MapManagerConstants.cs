@@ -113,7 +113,7 @@ public static class MapManagerConstants
     /// <summary>
     /// Icon path for Map Manager.
     /// </summary>
-    public const string IconPath = "Assets/Icons/map.png";
+    public const string IconPath = "Assets/Icons/map.png"; // Placeholder
 
     /// <summary>
     /// Prefix for temporary share archives created for uploads.

@@ -16,6 +16,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
@@ -23,6 +24,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Tools.ReplayManager;
 using GenHub.Core.Models.Tools.UploadThing;
 using GenHub.Features.Tools.ViewModels;
@@ -45,8 +47,11 @@ public partial class ReplayManagerViewModel(
     IReplayExportService exportService,
     IUploadHistoryService uploadHistoryService,
     INotificationService notificationService,
-    ILogger<ReplayManagerViewModel> logger) : ObservableObject
+    ILogger<ReplayManagerViewModel> logger) : ObservableObject, IRecipient<ProfileLaunchedMessage>, IRecipient<ProfileStoppedMessage>, IDisposable
 {
+    private readonly HashSet<string> _runningProfileIds = new(StringComparer.OrdinalIgnoreCase);
+    private bool _messengerRegistered;
+
     [ObservableProperty]
     private GameType selectedTab = GameType.ZeroHour;
 
@@ -157,6 +162,7 @@ public partial class ReplayManagerViewModel(
     [RelayCommand]
     public async Task LoadReplaysAsync()
     {
+        EnsureMessengerRegistered();
         IsBusy = true;
         IsIndeterminate = true;
         StatusMessage = "Loading replays...";
@@ -200,6 +206,31 @@ public partial class ReplayManagerViewModel(
         {
             IsBusy = false;
         }
+    }
+
+    /// <inheritdoc />
+    public void Receive(ProfileLaunchedMessage message)
+    {
+        lock (_runningProfileIds)
+        {
+            _runningProfileIds.Add(message.ProfileId);
+        }
+    }
+
+    /// <inheritdoc />
+    public void Receive(ProfileStoppedMessage message)
+    {
+        lock (_runningProfileIds)
+        {
+            _runningProfileIds.Remove(message.ProfileId);
+        }
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        WeakReferenceMessenger.Default.UnregisterAll(this);
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>
@@ -271,6 +302,15 @@ public partial class ReplayManagerViewModel(
         }
 
         return PathHelper.GetUniqueNumberedPath(Path.Combine(directory, safeZipName));
+    }
+
+    private void EnsureMessengerRegistered()
+    {
+        if (!_messengerRegistered)
+        {
+            WeakReferenceMessenger.Default.RegisterAll(this);
+            _messengerRegistered = true;
+        }
     }
 
     /// <summary>
@@ -989,12 +1029,28 @@ public partial class ReplayManagerViewModel(
             return;
         }
 
+        EnsureMessengerRegistered();
+
         if (IsDemoPath(replay.FullPath))
         {
             notificationService.ShowInfo(
                 "Launch Replay Profile",
                 "Launches the game using the profile matching this replay so you can watch it without version or INI mismatch errors.");
             return;
+        }
+
+        if (!string.IsNullOrEmpty(replay.MatchingProfileId))
+        {
+            lock (_runningProfileIds)
+            {
+                if (_runningProfileIds.Contains(replay.MatchingProfileId))
+                {
+                    notificationService.ShowWarning(
+                        "Game Running",
+                        "The game profile for this replay is already running.");
+                    return;
+                }
+            }
         }
 
         IsBusy = true;

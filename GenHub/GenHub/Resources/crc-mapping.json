@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "lastUpdated": "2026-08-26T03:08:47.522373+00:00",
-  "totalEntries": 122,
+  "totalEntries": 129,
   "mappings": [
     {
       "exeCrc": "0x401D89EA",
@@ -1558,8 +1558,8 @@
       "exeCrc": "0xB9DB8815",
       "iniCrc": "0x5CB7992C",
       "sha256": "7156faf170b7c1415b7886e20cc3e0b7d8045721de983415bac952f3c3f069ab",
-      "manifestId": "1.828260.generalsonline.gameclient.zerohour",
-      "dataPatchManifestId": "1.828260.generalsonline.patch.gamedata",
+      "manifestId": "1.82826.generalsonline.gameclient.zerohour",
+      "dataPatchManifestId": "1.82826.generalsonline.patch.gamedata",
       "dataPatchName": "GeneralsOnline Game Data",
       "publisher": "generalsonline",
       "gameType": "ZeroHour",
@@ -1568,6 +1568,5 @@
       "description": "GeneralsOnline 082826",
       "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_082826.zip"
     }
-  ],
-  "version": "2026.08.30.3"
+  ]
 }

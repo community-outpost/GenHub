@@ -1296,7 +1296,7 @@ public partial class GameProfileLauncherViewModel(
                 try
                 {
                     WeakReferenceMessenger.Default.Send(
-                        new ProfileDeletedMessage(profile.ProfileId, profile.Name), 0);
+                        new ProfileDeletedMessage(profile.ProfileId, profile.Name));
                 }
                 catch (Exception ex)
                 {

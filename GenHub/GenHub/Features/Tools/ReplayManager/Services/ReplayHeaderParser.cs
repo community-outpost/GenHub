@@ -274,11 +274,22 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
 
     private static string CleanPlayerName(string rawName)
     {
-        if (rawName.Length > 0 && rawName[0] is 'H' or 'C' or 'X' or 'O' or 'h' or 'c' or 'x' or 'o')
+        if (string.IsNullOrWhiteSpace(rawName))
         {
-            return rawName[1..];
+            return string.Empty;
         }
 
-        return rawName;
+        var trimmed = rawName.Trim();
+        if (trimmed.Length <= 1)
+        {
+            return string.Empty;
+        }
+
+        if (trimmed[0] is 'H' or 'C' or 'h' or 'c')
+        {
+            return trimmed[1..].Trim();
+        }
+
+        return trimmed;
     }
 }
