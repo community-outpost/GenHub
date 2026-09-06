@@ -1,6 +1,7 @@
 [config]
 model = "openai/glm-5.3-flash"
 fallback_models = []
+ai_timeout = 900
 max_model_tokens = 128000
 custom_model_max_tokens = 128000
 

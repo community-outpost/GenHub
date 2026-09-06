@@ -50,11 +50,13 @@ jobs:
           OPENAI_API_BASE: "https://api.z.ai/api/coding/paas/v4"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-          # --- Single Model (No Fallbacks) & Token Limits ---
+          # --- Single Model (No Fallbacks), Token Limits & Extended Timeouts ---
           CONFIG.MODEL: "openai/glm-5.3-flash"
           PR_AGENT__CONFIG__MODEL: "openai/glm-5.3-flash"
           CONFIG.FALLBACK_MODELS: "[]"
           PR_AGENT__CONFIG__FALLBACK_MODELS: "[]"
+          CONFIG.AI_TIMEOUT: 900
+          PR_AGENT__CONFIG__AI_TIMEOUT: 900
           CONFIG.MAX_MODEL_TOKENS: 128000
           PR_AGENT__CONFIG__MAX_MODEL_TOKENS: 128000
           CONFIG.CUSTOM_MODEL_MAX_TOKENS: 128000
