@@ -212,7 +212,7 @@ public class GeneralsOnlineJsonCatalogParser(
                 fileName = Path.GetFileNameWithoutExtension(urlWithoutQuery);
             }
         }
-        catch
+        catch (ArgumentException)
         {
             return null;
         }

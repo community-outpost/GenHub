@@ -86,8 +86,6 @@ public class ManifestGenerationService(
 
     private readonly ILanguageDetector _languageDetector = languageDetector ?? new LanguageDetector();
 
-    private readonly CsvResolver? _resolvedCsvResolver = csvResolver;
-
     /// <summary>
     /// Creates a manifest builder for a game installation with string version normalization.
     /// </summary>
@@ -727,6 +725,21 @@ public class ManifestGenerationService(
     }
 
     /// <summary>
+    /// Determines whether the specified file path is a symbolic link or reparse point.
+    /// </summary>
+    private static bool IsReparsePoint(string path)
+    {
+        try
+        {
+            return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return true;
+        }
+    }
+
+    /// <summary>
     /// Adds authoritative vanilla game files to a manifest builder using the CSV catalog authority.
     /// </summary>
     /// <param name="builder">The manifest builder.</param>
@@ -1218,7 +1231,7 @@ public class ManifestGenerationService(
         var csvRemoteUrl = gameType == GameType.ZeroHour ? CsvConstants.ZeroHourCsvUrl : CsvConstants.GeneralsCsvUrl;
 
         // 1. Try CSV resolver if available
-        if (_resolvedCsvResolver != null)
+        if (csvResolver != null)
         {
             try
             {
@@ -1246,7 +1259,7 @@ public class ManifestGenerationService(
                     searchResult.ResolverMetadata[CsvConstants.Sha256MetadataKey] = expectedSha256;
                 }
 
-                var resolveResult = await _resolvedCsvResolver.ResolveAsync(searchResult);
+                var resolveResult = await csvResolver.ResolveAsync(searchResult);
                 if (resolveResult.Success && resolveResult.Data?.Files != null && resolveResult.Data.Files.Count > 0)
                 {
                     logger.LogDebug(
@@ -1393,21 +1406,6 @@ public class ManifestGenerationService(
         }
 
         return [];
-    }
-
-    /// <summary>
-    /// Determines whether the specified file path is a symbolic link or reparse point.
-    /// </summary>
-    private static bool IsReparsePoint(string path)
-    {
-        try
-        {
-            return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return true;
-        }
     }
 
     /// <summary>
