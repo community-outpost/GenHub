@@ -8,7 +8,7 @@ using Xunit;
 namespace GenHub.Tests.Core.Features.UI;
 
 /// <summary>
-/// Regression and static validation tests ensuring all AXAML templates define valid Avalonia cursor types.
+/// Regression and static validation tests ensuring all AXAML templates across the solution define valid Avalonia cursor types.
 /// </summary>
 public partial class XamlCursorValidationTests
 {
@@ -33,6 +33,8 @@ public partial class XamlCursorValidationTests
     [InlineData("No")]
     [InlineData("Wait")]
     [InlineData("Ibeam")]
+    [InlineData("SizeWestEast")]
+    [InlineData("SizeNorthSouth")]
     public void StandardCursorType_WhenGivenStandardType_ParsesSuccessfully(string cursorType)
     {
         var success = Enum.TryParse<StandardCursorType>(cursorType, ignoreCase: true, out _);
@@ -46,18 +48,20 @@ public partial class XamlCursorValidationTests
     [Fact]
     public void AllAxamlFiles_ContainValidCursorValues()
     {
-        var repoRoot = FindRepositoryRoot();
-        var genHubDirectory = Path.Combine(repoRoot, "GenHub");
-        Assert.True(Directory.Exists(genHubDirectory), $"GenHub directory not found at: {genHubDirectory}");
+        var solutionDir = FindSolutionDirectory();
+        Assert.True(Directory.Exists(solutionDir), $"Solution directory not found at: {solutionDir}");
 
-        var axamlFiles = Directory.GetFiles(genHubDirectory, "*.axaml", SearchOption.AllDirectories);
+        var axamlFiles = Directory.GetFiles(solutionDir, "*.axaml", SearchOption.AllDirectories);
         Assert.NotEmpty(axamlFiles);
 
         var errors = new List<string>();
 
         foreach (var file in axamlFiles)
         {
-            var content = File.ReadAllText(file);
+            var rawContent = File.ReadAllText(file);
+
+            // Strip XML comments before analyzing to avoid false positives inside commented blocks
+            var content = XmlCommentRegex().Replace(rawContent, string.Empty);
 
             // Check Cursor="..." attributes
             foreach (Match match in CursorAttributeRegex().Matches(content))
@@ -65,7 +69,7 @@ public partial class XamlCursorValidationTests
                 var cursorValue = match.Groups[1].Value.Trim();
                 if (!IsValidCursor(cursorValue))
                 {
-                    errors.Add($"{Path.GetRelativePath(repoRoot, file)}: Invalid Cursor attribute '{cursorValue}'");
+                    errors.Add($"{Path.GetRelativePath(solutionDir, file)}: Invalid Cursor attribute '{cursorValue}'");
                 }
             }
 
@@ -75,7 +79,7 @@ public partial class XamlCursorValidationTests
                 var cursorValue = match.Groups[1].Value.Trim();
                 if (!IsValidCursor(cursorValue))
                 {
-                    errors.Add($"{Path.GetRelativePath(repoRoot, file)}: Invalid Cursor setter value '{cursorValue}'");
+                    errors.Add($"{Path.GetRelativePath(solutionDir, file)}: Invalid Cursor setter value '{cursorValue}'");
                 }
             }
 
@@ -85,7 +89,7 @@ public partial class XamlCursorValidationTests
                 var cursorValue = match.Groups[1].Value.Trim();
                 if (!IsValidCursor(cursorValue))
                 {
-                    errors.Add($"{Path.GetRelativePath(repoRoot, file)}: Invalid Cursor setter value '{cursorValue}'");
+                    errors.Add($"{Path.GetRelativePath(solutionDir, file)}: Invalid Cursor setter value '{cursorValue}'");
                 }
             }
         }
@@ -102,15 +106,14 @@ public partial class XamlCursorValidationTests
     }
 
     /// <summary>
-    /// Finds the repository root by searching upward from the current execution base directory.
+    /// Finds the directory containing GenHub.sln by searching upward from the current execution base directory.
     /// </summary>
-    private static string FindRepositoryRoot()
+    private static string FindSolutionDirectory()
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);
         while (current != null)
         {
-            if (File.Exists(Path.Combine(current.FullName, "GenHub.sln")) ||
-                Directory.Exists(Path.Combine(current.FullName, ".git")))
+            if (File.Exists(Path.Combine(current.FullName, "GenHub.sln")))
             {
                 return current.FullName;
             }
@@ -121,8 +124,7 @@ public partial class XamlCursorValidationTests
         current = new DirectoryInfo(Directory.GetCurrentDirectory());
         while (current != null)
         {
-            if (File.Exists(Path.Combine(current.FullName, "GenHub.sln")) ||
-                Directory.Exists(Path.Combine(current.FullName, ".git")))
+            if (File.Exists(Path.Combine(current.FullName, "GenHub.sln")))
             {
                 return current.FullName;
             }
@@ -130,13 +132,19 @@ public partial class XamlCursorValidationTests
             current = current.Parent;
         }
 
-        throw new DirectoryNotFoundException("Could not locate repository root containing GenHub.sln or .git from: " + AppContext.BaseDirectory);
+        throw new DirectoryNotFoundException("Could not locate directory containing GenHub.sln from: " + AppContext.BaseDirectory);
     }
 
     /// <summary>
-    /// Matches AXAML attributes of the form Cursor="value".
+    /// Matches XML comment blocks.
     /// </summary>
-    [GeneratedRegex(@"Cursor\s*=\s*""([^""{}]+)""", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"<!--.*?-->", RegexOptions.Singleline)]
+    private static partial Regex XmlCommentRegex();
+
+    /// <summary>
+    /// Matches AXAML attributes of the form Cursor="value", anchored by a word boundary.
+    /// </summary>
+    [GeneratedRegex(@"\bCursor\s*=\s*""([^""{}]+)""", RegexOptions.IgnoreCase)]
     private static partial Regex CursorAttributeRegex();
 
     /// <summary>
