@@ -31,10 +31,19 @@ public class CsvResolverTests
 {
     private sealed class TempCsvFile : IDisposable
     {
-        public TempCsvFile(string csvContent)
+        public TempCsvFile(string csvContent, bool writeUtf8Bom = false)
         {
             FilePath = Path.GetTempFileName();
-            File.WriteAllText(FilePath, csvContent);
+            if (writeUtf8Bom)
+            {
+                var contentBytes = Encoding.UTF8.GetBytes(csvContent);
+                var bomBytes = new byte[] { 0xEF, 0xBB, 0xBF }.Concat(contentBytes).ToArray();
+                File.WriteAllBytes(FilePath, bomBytes);
+            }
+            else
+            {
+                File.WriteAllText(FilePath, csvContent);
+            }
         }
 
         public string FilePath { get; }
@@ -555,6 +564,23 @@ public class CsvResolverTests
 
         result.Success.Should().BeFalse();
         result.Errors.Should().Contain(e => e.Contains("integrity check failed"));
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> successfully resolves a local CSV file with UTF-8 BOM.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenLocalCsvFileHasBom_ResolvesManifestAsync()
+    {
+        using var tempCsv = new TempCsvFile(FullSampleCsv, writeUtf8Bom: true);
+        var resolver = CreateResolver();
+        var item = CreateDiscoveredItem(tempCsv.FilePath, GameType.Generals, CsvConstants.LanguageEn);
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
     }
 
     private static CsvResolver CreateResolver(HttpMessageHandler? handler = null, string? applicationDataPath = null)

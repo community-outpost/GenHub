@@ -378,7 +378,7 @@ public class CsvResolver(
                 }
 
                 var rawBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-                var content = Encoding.UTF8.GetString(rawBytes);
+                var content = Encoding.UTF8.GetString(rawBytes).TrimStart('\uFEFF');
                 return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(content, true, rawBytes));
             }
             catch (Exception ex) when (cached != null && IsRecoverableRemoteFailure(ex, cancellationToken))
@@ -399,7 +399,7 @@ public class CsvResolver(
         }
 
         var fileBytes = await File.ReadAllBytesAsync(resolvedPath, cancellationToken);
-        var fileContent = Encoding.UTF8.GetString(fileBytes);
+        var fileContent = Encoding.UTF8.GetString(fileBytes).TrimStart('\uFEFF');
         return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(fileContent, false, fileBytes));
     }
 }
