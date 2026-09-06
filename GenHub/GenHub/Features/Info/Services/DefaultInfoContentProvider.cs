@@ -67,6 +67,20 @@ public class DefaultInfoContentProvider : IInfoContentProvider
         ];
     }
 
+    private static InfoCard CreateCard(
+        string title,
+        string content,
+        InfoCardType type,
+        string? detailedContent = null) =>
+        new()
+        {
+            Title = title,
+            Content = content,
+            Type = type,
+            IsExpandable = !string.IsNullOrEmpty(detailedContent),
+            DetailedContent = detailedContent,
+        };
+
     private static InfoSection CreateQuickStartSection()
     {
         return new InfoSection
@@ -233,69 +247,59 @@ public class DefaultInfoContentProvider : IInfoContentProvider
 
     private static InfoSection CreateGameProfilesSection()
     {
+        (string Title, string Content, InfoCardType Type, string Detailed)[] cardData =
+        [
+            ("Your Personal Sandbox",
+             "Keep your mods, maps, and game settings isolated and safe.",
+             InfoCardType.Concept,
+             """
+             **Isolated Game Profiles:**
+             A profile is an independent configuration for your game. Instead of reinstalling or swapping files manually:
+
+             1.  **Safety:** Mod files never overwrite your original game installation. If a mod causes problems, your base game remains completely untouched.
+             2.  **Multiple Configurations:** Keep separate profiles for vanilla Zero Hour, Rise of the Reds, ShockWave, or custom balance patches, and switch between them instantly.
+             3.  **Speed:** Workspaces build in milliseconds using file linking, requiring almost zero extra storage on your drive.
+             """),
+            ("Controls",
+             "Quick reference for profile card buttons.",
+             InfoCardType.HowTo,
+             """
+             **Profile Card Controls:**
+             1.  **Play:** Launches the game with this profile's active mods, settings, and workspace.
+             2.  **Edit Profile (Pencil):** Opens the profile editor to select mods, maps, and adjust game settings.
+             3.  **Copy Profile (Duplicate):** Clones the profile, including all settings and enabled content, into a new profile.
+             4.  **Desktop Shortcut:** Creates a desktop shortcut to launch this profile directly.
+             5.  **Delete Profile:** Removes the profile and its dedicated workspace configuration.
+
+             **Copy Profile Feature:**
+             Cloning creates a complete, independent copy of the profile:
+             -   **Identical Settings:** Video, audio, and control options are duplicated.
+             -   **Identical Content:** All active mods, maps, and patches carry over.
+             -   **Independent Workspace:** Modifying the cloned profile never alters the original.
+
+             **Steam Status:**
+             -   **Gray Icon:** Steam integration is inactive.
+             -   **Blue Icon:** Steam integration is active. Playtime will log to Steam and the Steam Overlay will work in-game.
+             """),
+            ("Advanced Profile Options",
+             "Custom launch arguments and troubleshooting.",
+             InfoCardType.Feature,
+             """
+             **Launch Arguments:**
+             GenHub passes custom command-line arguments directly to the game. For example, use `-quickstart` to skip introduction videos, or `-win` to force windowed mode.
+
+             **Troubleshooting Logs:**
+             Profile startup and launch logs are recorded in the GenHub AppData directory to help diagnose issues if a game closes unexpectedly.
+             """),
+        ];
+
         return new InfoSection
         {
             Id = InfoConstants.SectionGameProfiles,
             Title = "Game Profiles",
             Description = "Create and manage isolated game configurations.",
             Order = 0,
-            Cards =
-            [
-                new InfoCard
-                {
-                    Title = "Your Personal Sandbox",
-                    Content = "Keep your mods, maps, and game settings isolated and safe.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Isolated Game Profiles:**
-                    A profile is an independent configuration for your game. Instead of reinstalling or swapping files manually:
-
-                    1.  **Safety:** Mod files never overwrite your original game installation. If a mod causes problems, your base game remains completely untouched.
-                    2.  **Multiple Configurations:** Keep separate profiles for vanilla Zero Hour, Rise of the Reds, ShockWave, or custom balance patches, and switch between them instantly.
-                    3.  **Speed:** Workspaces build in milliseconds using file linking, requiring almost zero extra storage on your drive.
-                    """,
-                },
-                new InfoCard
-                {
-                    Title = "Controls",
-                    Content = "Quick reference for profile card buttons.",
-                    Type = InfoCardType.HowTo,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Profile Card Controls:**
-                    1.  **Play:** Launches the game with this profile's active mods, settings, and workspace.
-                    2.  **Edit Profile (Pencil):** Opens the profile editor to select mods, maps, and adjust game settings.
-                    3.  **Copy Profile (Duplicate):** Clones the profile, including all settings and enabled content, into a new profile.
-                    4.  **Desktop Shortcut:** Creates a desktop shortcut to launch this profile directly.
-                    5.  **Delete Profile:** Removes the profile and its dedicated workspace configuration.
-
-                    **Copy Profile Feature:**
-                    Cloning creates a complete, independent copy of the profile:
-                    -   **Identical Settings:** Video, audio, and control options are duplicated.
-                    -   **Identical Content:** All active mods, maps, and patches carry over.
-                    -   **Independent Workspace:** Modifying the cloned profile never alters the original.
-
-                    **Steam Status:**
-                    -   **Gray Icon:** Steam integration is inactive.
-                    -   **Blue Icon:** Steam integration is active. Playtime will log to Steam and the Steam Overlay will work in-game.
-                    """,
-                },
-                new InfoCard
-                {
-                    Title = "Advanced Profile Options",
-                    Content = "Custom launch arguments and troubleshooting.",
-                    Type = InfoCardType.Feature,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Launch Arguments:**
-                    GenHub passes custom command-line arguments directly to the game. For example, use `-quickstart` to skip introduction videos, or `-win` to force windowed mode.
-
-                    **Troubleshooting Logs:**
-                    Profile startup and launch logs are recorded in the GenHub AppData directory to help diagnose issues if a game closes unexpectedly.
-                    """,
-                },
-            ],
+            Cards = cardData.Select(c => CreateCard(c.Title, c.Content, c.Type, c.Detailed)).ToList(),
         };
     }
 
@@ -463,111 +467,91 @@ public class DefaultInfoContentProvider : IInfoContentProvider
 
     private static InfoSection CreateShortcutsSection()
     {
+        (string Title, string Content, InfoCardType Type, string Detailed)[] cardData =
+        [
+            ("Headless Mode Launcher",
+             "Launch profiles directly from your desktop.",
+             InfoCardType.Concept,
+             """
+             **Direct Desktop Launching:**
+             Shortcuts allow you to start any mod configuration straight from your desktop without keeping the main launcher window open:
+
+             1.  **Direct Launch:** Double-click the shortcut to start the game immediately.
+             2.  **Silent Setup:** GenHub runs briefly in the background to prepare the profile workspace, then hands off to the game.
+             3.  **Clean Exit:** Workspace temporary files are automatically cleaned up when the game closes.
+             """),
+            ("Shortcut Creation",
+             "How to add a profile shortcut to your desktop.",
+             InfoCardType.HowTo,
+             """
+             **Creating a Shortcut:**
+             1.  In **Game Profiles**, right-click any profile card (or click the Desktop shortcut icon).
+             2.  Select **Create Desktop Shortcut**.
+             3.  A standard Windows shortcut (`.lnk`) appears on your desktop.
+             4.  Double-clicking this shortcut launches that specific profile configuration immediately.
+             """),
+            ("Icon Customization",
+             "Visual icons for your desktop shortcuts.",
+             InfoCardType.Feature,
+             """
+             **Shortcut Icons:**
+             GenHub extracts official high-resolution icon resources from the game executable (`generals.exe` or `game.dat`).
+             If your profile uses custom metadata or mod artwork, GenHub converts that image into an icon embedded directly in the shortcut.
+             """),
+        ];
+
         return new InfoSection
         {
             Id = InfoConstants.SectionShortcuts,
             Title = "Desktop Shortcuts",
             Description = "Create one-click desktop shortcuts for your profiles.",
             Order = 3,
-            Cards =
-            [
-                new InfoCard
-                {
-                    Title = "Headless Mode Launcher",
-                    Content = "Launch profiles directly from your desktop.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Direct Desktop Launching:**
-                    Shortcuts allow you to start any mod configuration straight from your desktop without keeping the main launcher window open:
-
-                    1.  **Direct Launch:** Double-click the shortcut to start the game immediately.
-                    2.  **Silent Setup:** GenHub runs briefly in the background to prepare the profile workspace, then hands off to the game.
-                    3.  **Clean Exit:** Workspace temporary files are automatically cleaned up when the game closes.
-                    """,
-                },
-                new InfoCard
-                {
-                    Title = "Shortcut Creation",
-                    Content = "How to add a profile shortcut to your desktop.",
-                    Type = InfoCardType.HowTo,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Creating a Shortcut:**
-                    1.  In **Game Profiles**, right-click any profile card (or click the Desktop shortcut icon).
-                    2.  Select **Create Desktop Shortcut**.
-                    3.  A standard Windows shortcut (`.lnk`) appears on your desktop.
-                    4.  Double-clicking this shortcut launches that specific profile configuration immediately.
-                    """,
-                },
-                new InfoCard
-                {
-                    Title = "Icon Customization",
-                    Content = "Visual icons for your desktop shortcuts.",
-                    Type = InfoCardType.Feature,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Shortcut Icons:**
-                    GenHub extracts official high-resolution icon resources from the game executable (`generals.exe` or `game.dat`).
-                    If your profile uses custom metadata or mod artwork, GenHub converts that image into an icon embedded directly in the shortcut.
-                    """,
-                },
-            ],
+            Cards = cardData.Select(c => CreateCard(c.Title, c.Content, c.Type, c.Detailed)).ToList(),
         };
     }
 
     private static InfoSection CreateSteamIntegrationSection()
     {
+        (string Title, string Content, InfoCardType Type, string Detailed)[] cardData =
+        [
+            ("AppID Injection",
+             "Use Steam playtime tracking and the overlay with any mod.",
+             InfoCardType.Concept,
+             """
+             **Steam Integration:**
+             GenHub connects your mod launches with Steam so you can take advantage of Steam community features:
+
+             *   **Steam Overlay:** Chat with friends, join invites, and take screenshots in-game.
+             *   **Friend Status:** Displays Command & Conquer: Generals as your current game.
+             *   **Playtime Tracking:** Hours played with mods count toward your official Steam library stats.
+             """),
+            ("Usage Requirements",
+             "Requirements for Steam integration.",
+             InfoCardType.HowTo,
+             """
+             **Prerequisites:**
+             To use Steam features:
+             1.  The **Steam desktop application** must be running before launching the game.
+             2.  The active Steam account must own *Command & Conquer: The Ultimate Collection*.
+
+             *Note: If Steam is not running, GenHub will launch the profile in standard mode without interruption.*
+             """),
+            ("Time Tracking",
+             "Steam playtime logging across mod profiles.",
+             InfoCardType.Feature,
+             """
+             **Playtime Tracking:**
+             Because Steam recognizes the game through GenHub's launcher, all playtime across your various mods, map packs, and profiles is logged to your Steam library.
+             """),
+        ];
+
         return new InfoSection
         {
             Id = InfoConstants.SectionSteam,
             Title = "Steam Integration",
             Description = "Track playtime and use the Steam Overlay with mods.",
             Order = 4,
-            Cards =
-            [
-                new InfoCard
-                {
-                    Title = "AppID Injection",
-                    Content = "Use Steam playtime tracking and the overlay with any mod.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Steam Integration:**
-                    GenHub connects your mod launches with Steam so you can take advantage of Steam community features:
-
-                    *   **Steam Overlay:** Chat with friends, join invites, and take screenshots in-game.
-                    *   **Friend Status:** Displays Command & Conquer: Generals as your current game.
-                    *   **Playtime Tracking:** Hours played with mods count toward your official Steam library stats.
-                    """,
-                },
-                new InfoCard
-                {
-                    Title = "Usage Requirements",
-                    Content = "Requirements for Steam integration.",
-                    Type = InfoCardType.HowTo,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Prerequisites:**
-                    To use Steam features:
-                    1.  The **Steam desktop application** must be running before launching the game.
-                    2.  The active Steam account must own *Command & Conquer: The Ultimate Collection*.
-
-                    *Note: If Steam is not running, GenHub will launch the profile in standard mode without interruption.*
-                    """,
-                },
-                new InfoCard
-                {
-                    Title = "Time Tracking",
-                    Content = "Steam playtime logging across mod profiles.",
-                    Type = InfoCardType.Feature,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Playtime Tracking:**
-                    Because Steam recognizes the game through GenHub's launcher, all playtime across your various mods, map packs, and profiles is logged to your Steam library.
-                    """,
-                },
-            ],
+            Cards = cardData.Select(c => CreateCard(c.Title, c.Content, c.Type, c.Detailed)).ToList(),
         };
     }
 
@@ -903,50 +887,40 @@ public class DefaultInfoContentProvider : IInfoContentProvider
 
     private static InfoSection CreateAppUpdatesSection()
     {
+        (string Title, string Content, InfoCardType Type, string Detailed)[] cardData =
+        [
+            ("Version Control",
+             "Official releases and update checking.",
+             InfoCardType.Concept,
+             """
+             **How Updates Work:**
+             GenHub checks for updates automatically from official GitHub releases. When a new version is published, GenHub verifies the release and displays an update notification.
+             """),
+            ("Update Workflow",
+             "Applying updates seamlessly.",
+             InfoCardType.HowTo,
+             """
+             **Update Process:**
+             1.  **Notification:** An update banner appears when a new release is available.
+             2.  **Background Download:** Updates download quietly in the background without interrupting your gameplay.
+             3.  **Fast Restart:** Clicking **Restart** applies the update in seconds and restores your launcher session.
+             """),
+            ("Rollback Capability",
+             "How to revert to an earlier release if needed.",
+             InfoCardType.Feature,
+             """
+             **Reverting to Previous Versions:**
+             GenHub automatically preserves your profile configurations and settings during updates. If you ever need to use an earlier build, download the previous release archive from GitHub and extract it into your GenHub installation directory.
+             """),
+        ];
+
         return new InfoSection
         {
             Id = InfoConstants.SectionAppUpdates,
             Title = "App Updates",
             Description = "Manage launcher updates and release channels.",
             Order = 9,
-            Cards =
-            [
-                new InfoCard
-                {
-                    Title = "Version Control",
-                    Content = "Official releases and update checking.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **How Updates Work:**
-                    GenHub checks for updates automatically from official GitHub releases. When a new version is published, GenHub verifies the release and displays an update notification.
-                    """,
-                },
-                new InfoCard
-                {
-                    Title = "Update Workflow",
-                    Content = "Applying updates seamlessly.",
-                    Type = InfoCardType.HowTo,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Update Process:**
-                    1.  **Notification:** An update banner appears when a new release is available.
-                    2.  **Background Download:** Updates download quietly in the background without interrupting your gameplay.
-                    3.  **Fast Restart:** Clicking **Restart** applies the update in seconds and restores your launcher session.
-                    """,
-                },
-                new InfoCard
-                {
-                    Title = "Rollback Capability",
-                    Content = "How to revert to an earlier release if needed.",
-                    Type = InfoCardType.Feature,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Reverting to Previous Versions:**
-                    GenHub automatically preserves your profile configurations and settings during updates. If you ever need to use an earlier build, download the previous release archive from GitHub and extract it into your GenHub installation directory.
-                    """,
-                },
-            ],
+            Cards = cardData.Select(c => CreateCard(c.Title, c.Content, c.Type, c.Detailed)).ToList(),
         };
     }
 
@@ -964,196 +938,110 @@ public class DefaultInfoContentProvider : IInfoContentProvider
 
     private static InfoSection CreateGeneralsOnlineFAQSection()
     {
+        (string Title, string Content, InfoCardType Type, string Detailed)[] faqData =
+        [
+            ("What is Generals Online?",
+             "Generals Online is a modern multiplayer and lobby platform for Command & Conquer: Generals and Zero Hour.",
+             InfoCardType.Concept,
+             "Generals Online replaces the discontinued GameSpy service with modern multiplayer matchmaking, lobby features, automatic updates, and ladder rankings—preserving classic gameplay while delivering stable online play on modern PCs."),
+            ("Do I need a clean install of Zero Hour?",
+             "No. Generals Online works alongside your existing installation.",
+             InfoCardType.HowTo,
+             "You do not need a fresh game installation or to delete existing files. GenHub isolates Generals Online so your base game files remain untouched."),
+            ("Can I play Generals Online if I have GenTool or GenPatcher installed?",
+             "Yes. Generals Online is fully compatible with GenTool and GenPatcher.",
+             InfoCardType.Concept,
+             "Generals Online runs in its own profile environment and works alongside GenTool widescreen and anti-cheat features without conflicts."),
+            ("Can I use custom UI or control bars?",
+             "Yes. Custom UI assets and control bars are supported.",
+             InfoCardType.Concept,
+             "Custom UI modifications, such as HUD control bars, work normally in Generals Online."),
+            ("Does Generals Online modify my original game files?",
+             "No. Your original installation files are never modified.",
+             InfoCardType.Concept,
+             "Generals Online runs from an isolated profile workspace. Your main game folder remains clean and untouched."),
+            ("Are custom maps supported?",
+             "Yes. Custom maps and in-lobby map transfers are supported.",
+             InfoCardType.Feature,
+             "Generals Online supports in-game and lobby map downloads so you can play custom maps with other players seamlessly."),
+            ("How do I launch Generals Online?",
+             "Launch through GenHub or your profile desktop shortcut.",
+             InfoCardType.HowTo,
+             "Select your Generals Online profile in GenHub and click Play, or launch it directly with a desktop shortcut created from that profile."),
+            ("Which game versions are supported?",
+             "Developed and tested for official Steam and EA App / Origin releases.",
+             InfoCardType.Concept,
+             """
+                    Generals Online is designed for official Steam and EA releases. For the best experience and easiest setup, the Steam release of Command & Conquer: The Ultimate Collection is recommended.
+                    """),
+            ("How do I log in?",
+             "Sign in securely using Steam, Discord, or GameReplays.",
+             InfoCardType.HowTo,
+             "Generals Online uses OpenID authentication. You authenticate directly through Steam, Discord, or GameReplays—your account passwords are never seen or stored by Generals Online."),
+            ("Is logging in safe?",
+             "Yes. OpenID ensures your account password remains completely private.",
+             InfoCardType.Concept,
+             "OpenID only transmits a secure account identifier to verify your identity. Your login credentials are handled directly by Steam, Discord, or GameReplays."),
+            ("How do I check if the service is online?",
+             "Check the in-game status, the community Discord, or the status page.",
+             InfoCardType.Feature,
+             "Live service status is shown on the login screen, with real-time announcements available on the community Discord."),
+            ("How do I report bugs or suggest features?",
+             "Join the community Discord to submit feedback.",
+             InfoCardType.HowTo,
+             "The development team actively tracks issues and community suggestions in dedicated Discord channels."),
+            ("How are updates delivered?",
+             "Updates download automatically through the launcher.",
+             InfoCardType.Feature,
+             "When an update is released, GenHub detects and applies it so you are always on the latest version."),
+            ("Do I need third-party VPN tools (Hamachi, Radmin, GameRanger)?",
+             "No. Online matchmaking is built directly into the service.",
+             InfoCardType.Concept,
+             "Generals Online includes native networking and matchmaking. You do not need third-party virtual LAN software or external wrappers to play online."),
+            ("Do I need to forward router ports?",
+             "No. Built-in NAT traversal connects players automatically.",
+             InfoCardType.Concept,
+             "Modern NAT traversal handles player connections automatically without requiring manual port forwarding on your home router."),
+            ("Is network communication secure?",
+             "Yes. Game traffic is encrypted using AES-256.",
+             InfoCardType.Feature,
+             "Network traffic uses industry-standard AES-256-GCM encryption, providing significantly better security than the original game engine's unencrypted packets."),
+            ("Why did Windows Firewall prompt for permission?",
+             "Windows prompts when a new app accesses the network for the first time.",
+             InfoCardType.HowTo,
+             "When connecting to multiplayer servers for the first time, Windows Firewall asks to allow network access. Click Allow to enable online connectivity."),
+            ("What are connection relays?",
+             "Relays route traffic when direct peer-to-peer connections are blocked.",
+             InfoCardType.Concept,
+             "If two players have strict firewalls that prevent direct peer-to-peer connection, traffic routes seamlessly through community relay servers (similar to Steam networking or CNCNet tunnels)."),
+            ("Do relays cause lag or performance drops?",
+             "Typically no. Relays use high-bandwidth, low-latency backbone servers.",
+             InfoCardType.Concept,
+             "Relay servers are hosted on high-speed backbones and often provide comparable or better latency than congested direct peer-to-peer routes."),
+            ("How does the game select which relay to use?",
+             "Relay connections are formed dynamically on a player-to-player basis.",
+             InfoCardType.Feature,
+             """
+                    Relay connections are established dynamically per player pair, selecting the server location with the lowest latency for that match.
+                    Users in the same lobby can connect through different regional edge nodes to achieve optimal ping.
+                    """),
+            ("Are relays secure?",
+             "Yes. Relays cannot decrypt match traffic.",
+             InfoCardType.Feature,
+             "Relay servers forward encrypted packets and do not have access to the encryption keys required to read or inspect traffic."),
+            ("Can I host a relay?",
+             "Community relay hosting is not needed at this time.",
+             InfoCardType.Concept,
+             "Generals Online operates on global edge infrastructure spanning hundreds of data centers worldwide, delivering low latency without requiring community relay hosting."),
+        ];
+
         return new InfoSection
         {
             Id = InfoConstants.SectionFaq,
             Title = "Frequently Asked Questions",
             Description = "Common questions about the Generals Online service.",
             Order = 7,
-            Cards =
-            [
-                new InfoCard
-                {
-                    Title = "What is Generals Online?",
-                    Content = "Generals Online is a modern multiplayer and lobby platform for Command & Conquer: Generals and Zero Hour.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = "Generals Online replaces the discontinued GameSpy service with modern multiplayer matchmaking, lobby features, automatic updates, and ladder rankings—preserving classic gameplay while delivering stable online play on modern PCs.",
-                },
-                new InfoCard
-                {
-                    Title = "Do I need a clean install of Zero Hour?",
-                    Content = "No. Generals Online works alongside your existing installation.",
-                    Type = InfoCardType.HowTo,
-                    IsExpandable = true,
-                    DetailedContent = "You do not need a fresh game installation or to delete existing files. GenHub isolates Generals Online so your base game files remain untouched.",
-                },
-                new InfoCard
-                {
-                    Title = "Can I play Generals Online if I have GenTool or GenPatcher installed?",
-                    Content = "Yes. Generals Online is fully compatible with GenTool and GenPatcher.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = "Generals Online runs in its own profile environment and works alongside GenTool widescreen and anti-cheat features without conflicts.",
-                },
-                new InfoCard
-                {
-                    Title = "Can I use custom UI or control bars?",
-                    Content = "Yes. Custom UI assets and control bars are supported.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = "Custom UI modifications, such as HUD control bars, work normally in Generals Online.",
-                },
-                new InfoCard
-                {
-                    Title = "Does Generals Online modify my original game files?",
-                    Content = "No. Your original installation files are never modified.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = "Generals Online runs from an isolated profile workspace. Your main game folder remains clean and untouched.",
-                },
-                new InfoCard
-                {
-                    Title = "Are custom maps supported?",
-                    Content = "Yes. Custom maps and in-lobby map transfers are supported.",
-                    Type = InfoCardType.Feature,
-                    IsExpandable = true,
-                    DetailedContent = "Generals Online supports in-game and lobby map downloads so you can play custom maps with other players seamlessly.",
-                },
-                new InfoCard
-                {
-                    Title = "How do I launch Generals Online?",
-                    Content = "Launch through GenHub or your profile desktop shortcut.",
-                    Type = InfoCardType.HowTo,
-                    IsExpandable = true,
-                    DetailedContent = "Select your Generals Online profile in GenHub and click Play, or launch it directly with a desktop shortcut created from that profile.",
-                },
-                new InfoCard
-                {
-                    Title = "Which game versions are supported?",
-                    Content = "Developed and tested for official Steam and EA App / Origin releases.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    Generals Online is designed for official Steam and EA releases. For the best experience and easiest setup, the Steam release of Command & Conquer: The Ultimate Collection is recommended.
-                    """,
-                },
-                new InfoCard
-                {
-                    Title = "How do I log in?",
-                    Content = "Sign in securely using Steam, Discord, or GameReplays.",
-                    Type = InfoCardType.HowTo,
-                    IsExpandable = true,
-                    DetailedContent = "Generals Online uses OpenID authentication. You authenticate directly through Steam, Discord, or GameReplays—your account passwords are never seen or stored by Generals Online.",
-                },
-                new InfoCard
-                {
-                    Title = "Is logging in safe?",
-                    Content = "Yes. OpenID ensures your account password remains completely private.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = "OpenID only transmits a secure account identifier to verify your identity. Your login credentials are handled directly by Steam, Discord, or GameReplays.",
-                },
-                new InfoCard
-                {
-                    Title = "How do I check if the service is online?",
-                    Content = "Check the in-game status, the community Discord, or the status page.",
-                    Type = InfoCardType.Feature,
-                    IsExpandable = true,
-                    DetailedContent = "Live service status is shown on the login screen, with real-time announcements available on the community Discord.",
-                },
-                new InfoCard
-                {
-                    Title = "How do I report bugs or suggest features?",
-                    Content = "Join the community Discord to submit feedback.",
-                    Type = InfoCardType.HowTo,
-                    IsExpandable = true,
-                    DetailedContent = "The development team actively tracks issues and community suggestions in dedicated Discord channels.",
-                },
-                new InfoCard
-                {
-                    Title = "How are updates delivered?",
-                    Content = "Updates download automatically through the launcher.",
-                    Type = InfoCardType.Feature,
-                    IsExpandable = true,
-                    DetailedContent = "When an update is released, GenHub detects and applies it so you are always on the latest version.",
-                },
-                new InfoCard
-                {
-                    Title = "Do I need third-party VPN tools (Hamachi, Radmin, GameRanger)?",
-                    Content = "No. Online matchmaking is built directly into the service.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = "Generals Online includes native networking and matchmaking. You do not need third-party virtual LAN software or external wrappers to play online.",
-                },
-                new InfoCard
-                {
-                    Title = "Do I need to forward router ports?",
-                    Content = "No. Built-in NAT traversal connects players automatically.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = "Modern NAT traversal handles player connections automatically without requiring manual port forwarding on your home router.",
-                },
-                new InfoCard
-                {
-                    Title = "Is network communication secure?",
-                    Content = "Yes. Game traffic is encrypted using AES-256.",
-                    Type = InfoCardType.Feature,
-                    IsExpandable = true,
-                    DetailedContent = "Network traffic uses industry-standard AES-256-GCM encryption, providing significantly better security than the original game engine's unencrypted packets.",
-                },
-                new InfoCard
-                {
-                    Title = "Why did Windows Firewall prompt for permission?",
-                    Content = "Windows prompts when a new app accesses the network for the first time.",
-                    Type = InfoCardType.HowTo,
-                    IsExpandable = true,
-                    DetailedContent = "When connecting to multiplayer servers for the first time, Windows Firewall asks to allow network access. Click Allow to enable online connectivity.",
-                },
-                new InfoCard
-                {
-                    Title = "What are connection relays?",
-                    Content = "Relays route traffic when direct peer-to-peer connections are blocked.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = "If two players have strict firewalls that prevent direct peer-to-peer connection, traffic routes seamlessly through community relay servers (similar to Steam networking or CNCNet tunnels).",
-                },
-                new InfoCard
-                {
-                    Title = "Do relays cause lag or performance drops?",
-                    Content = "Typically no. Relays use high-bandwidth, low-latency backbone servers.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = "Relay servers are hosted on high-speed backbones and often provide comparable or better latency than congested direct peer-to-peer routes.",
-                },
-                new InfoCard
-                {
-                    Title = "How does the game select which relay to use?",
-                    Content = "Relay connections are formed dynamically on a player-to-player basis.",
-                    Type = InfoCardType.Feature,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    Relay connections are established dynamically per player pair, selecting the server location with the lowest latency for that match.
-                    Users in the same lobby can connect through different regional edge nodes to achieve optimal ping.
-                    """,
-                },
-                new InfoCard
-                {
-                    Title = "Are relays secure?",
-                    Content = "Yes. Relays cannot decrypt match traffic.",
-                    Type = InfoCardType.Feature,
-                    IsExpandable = true,
-                    DetailedContent = "Relay servers forward encrypted packets and do not have access to the encryption keys required to read or inspect traffic.",
-                },
-                new InfoCard
-                {
-                    Title = "Can I host a relay?",
-                    Content = "Community relay hosting is not needed at this time.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = "Generals Online operates on global edge infrastructure spanning hundreds of data centers worldwide, delivering low latency without requiring community relay hosting.",
-                },
-            ],
+            Cards = faqData.Select(c => CreateCard(c.Title, c.Content, c.Type, c.Detailed)).ToList(),
         };
     }
 
