@@ -60,6 +60,13 @@ public sealed class ReplayDirectoryServiceTests
         _mockInstallationService
             .Setup(s => s.CreateAndRegisterInstallationManifestsAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
+
+        _mockManifestPool
+            .Setup(m => m.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+        _mockManifestPool
+            .Setup(m => m.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(null));
     }
 
     /// <summary>
@@ -953,5 +960,92 @@ public sealed class ReplayDirectoryServiceTests
                 Directory.Delete(tempDir, recursive: true);
             }
         }
+    }
+
+    /// <summary>
+    /// Verifies that third-party client profile creation resolves to the pooled manifest ID when the catalog ID differs.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateProfileForReplayAsync_WhenCatalogIdDiffersFromPooledClientVariant_ResolvesPooledManifestIdAsync()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "match_variant.rep",
+            FullPath = "/replays/match_variant.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0x6DBF4405,
+                IniCrc = 0x51ACED23,
+            },
+            MatchedClient = new CrcMappingEntry
+            {
+                ExeCrc = "0x6DBF4405",
+                IniCrc = "0x51ACED23",
+                ManifestId = "1.828261.generalsonline.gameclient.zerohour",
+                Publisher = "generalsonline",
+                GameType = "ZeroHour",
+                Version = "082826",
+                Description = "GeneralsOnline 082826",
+            },
+        };
+
+        var installation = new GameInstallation("/games/ZeroHour", GameInstallationType.Retail)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = "/games/ZeroHour",
+        };
+
+        _mockInstallationService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+
+        _mockProfileManager
+            .Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        var pooledClient = new ContentManifest
+        {
+            Id = ManifestId.Create("1.82826.generalsonline.gameclient.60hz"),
+            Name = "GeneralsOnline 60Hz",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+            TargetGame = GameType.Unknown,
+            Version = "082826",
+            Publisher = new PublisherInfo { PublisherType = "generalsonline" },
+        };
+
+        _mockManifestPool
+            .Setup(m => m.GetManifestAsync(ManifestId.Create("1.828261.generalsonline.gameclient.zerohour"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateFailure("Not found"));
+
+        _mockManifestPool
+            .Setup(m => m.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([pooledClient]));
+
+        CreateProfileRequest? capturedRequest = null;
+        _mockProfileManager
+            .Setup(p => p.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<CreateProfileRequest, CancellationToken>((req, _) => capturedRequest = req)
+            .ReturnsAsync((CreateProfileRequest req, CancellationToken _) =>
+                ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "profile-pooled-id", Name = req.Name }));
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var result = await service.CreateProfileForReplayAsync(replay);
+
+        Assert.True(result.Success);
+        Assert.NotNull(capturedRequest);
+        Assert.Equal("1.82826.generalsonline.gameclient.60hz", capturedRequest.GameClientId);
+        Assert.NotNull(capturedRequest.GameClient);
+        Assert.Equal("1.82826.generalsonline.gameclient.60hz", capturedRequest.GameClient.Id);
+        Assert.Equal("profile-pooled-id", replay.MatchingProfileId);
+        Assert.Equal(ReplayCompatibilityStatus.Compatible, replay.CompatibilityStatus);
     }
 }

@@ -350,6 +350,11 @@ public class DependencyResolverTests
     [InlineData("1.104.any.gameinstallation.zerohour", "1.104.steam.gameinstallation.zerohour", true)]
     [InlineData("1.104.steam.gameclient.zerohour", "1.104.ea.gameclient.zerohour", false)]
     [InlineData("1.104.steam.gameclient.zerohour", "1.104.steam.patch.zerohour", false)]
+    [InlineData("1.104.retail.gameinstallation.generals", "1.104.retail.gameinstallation.zerohour104zh", false)]
+    [InlineData("1.104.retail.gameinstallation.zerohour", "1.104.retail.gameinstallation.generals108en", false)]
+    [InlineData("1.104.generalsonline.gameclient.generalsonlinezh", "1.104.generalsonline.gameclient.generalsonlinezh-60", true)]
+    [InlineData("1.104.retail.gameinstallation.zerohour", "1.104.retail.gameinstallation.zerohour104zh", true)]
+    [InlineData("1.108.retail.gameinstallation.generals", "1.108.retail.gameinstallation.generals108en", true)]
     public void HasCompatibleCatalogIdentity_MatchesCorrectly(string declaredId, string acquiredId, bool expected)
     {
         var result = DependencyResolver.HasCompatibleCatalogIdentity(declaredId, acquiredId);

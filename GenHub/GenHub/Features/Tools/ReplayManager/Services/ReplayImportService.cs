@@ -125,7 +125,7 @@ public sealed class ReplayImportService(
                 // Only enforce size limit for individual .rep files, not for ZIP archives
                 if (!isZip && info.Length > ReplayManagerConstants.MaxReplaySizeBytes)
                 {
-                    errors.Add($"File {Path.GetFileName(path)} skipped: exceeds {ReplayManagerConstants.MaxReplaySizeBytes / (1024 * 1024)} MB.");
+                    errors.Add($"File {Path.GetFileName(path)} skipped: exceeds {ReplayManagerConstants.MaxReplaySizeBytes / ConversionConstants.BytesPerMegabyte} MB.");
                     skipped++;
                     continue;
                 }
