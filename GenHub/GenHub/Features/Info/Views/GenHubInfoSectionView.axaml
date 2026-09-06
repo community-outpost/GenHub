@@ -49,7 +49,7 @@
        <Setter Property="FocusAdorner" Value="{x:Null}"/>
        <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
        <Setter Property="ClipToBounds" Value="False"/>
-       <Setter Property="Margin" Value="15,0,15,24"/>
+       <Setter Property="Margin" Value="0,0,0,24"/>
        <Setter Property="Template">
          <ControlTemplate>
            <ContentPresenter Content="{TemplateBinding Content}"
@@ -103,7 +103,7 @@
         <Setter Property="Padding" Value="20,16"/>
         <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="Margin" Value="15,16,15,0"/>
+        <Setter Property="Margin" Value="0,16,0,0"/>
         <Setter Property="BoxShadow" Value="0 10 40 0 #80000000"/>
     </Style>
 
@@ -150,11 +150,11 @@
 
   </UserControl.Styles>
 
-  <ScrollViewer Padding="20,16,20,100" ClipToBounds="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-      <StackPanel Spacing="10" MaxWidth="1000" HorizontalAlignment="Stretch" ClipToBounds="False">
+  <ScrollViewer Padding="0,16,0,100" ClipToBounds="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Margin="32,0,32,0" Spacing="10" MaxWidth="1000" HorizontalAlignment="Stretch" ClipToBounds="False">
 
         <!-- Main Section Header -->
-        <StackPanel Margin="15,0,15,50">
+        <StackPanel Margin="0,0,0,50">
           <TextBlock Text="{Binding SelectedSection.Title}" Classes="section-header" TextWrapping="Wrap"/>
           <TextBlock Text="{Binding SelectedSection.Description}"
                      FontSize="18"
@@ -167,7 +167,7 @@
         <!-- ============================================== -->
         <Border IsVisible="{Binding IsGameProfilesSelected}" Margin="0,0,0,50">
           <StackPanel>
-             <StackPanel HorizontalAlignment="Left" Margin="15,0,15,0">
+             <StackPanel HorizontalAlignment="Left">
                 <TextBlock Text="Demo: Profile Card" Classes="demo-title"/>
                 <TextBlock Text="Basic interaction reference." Classes="demo-subtitle"/>
             </StackPanel>
@@ -196,7 +196,7 @@
                 <Binding Path="SelectedSection.Id" Converter="{x:Static ObjectConverters.Equal}" ConverterParameter="shortcuts"/>
              </Border.IsVisible>
              <StackPanel>
-                <StackPanel HorizontalAlignment="Left" Margin="15,0,15,0">
+                <StackPanel HorizontalAlignment="Left">
                     <TextBlock Text="Demo: Desktop Shortcuts" Classes="demo-title"/>
                     <TextBlock Text="Shortcut creation process." Classes="demo-subtitle"/>
                 </StackPanel>
@@ -253,7 +253,7 @@
                 <Binding Path="SelectedSection.Id" Converter="{x:Static ObjectConverters.Equal}" ConverterParameter="steam-integration"/>
              </Border.IsVisible>
              <StackPanel>
-                <StackPanel HorizontalAlignment="Left" Margin="15,0,15,0">
+                <StackPanel HorizontalAlignment="Left">
                     <TextBlock Text="Demo: Steam Status" Classes="demo-title"/>
                     <TextBlock Text="Visual indicator state." Classes="demo-subtitle"/>
                 </StackPanel>
@@ -280,7 +280,7 @@
           <StackPanel Spacing="40">
             <!-- 1. Standard Update Mechanism -->
             <StackPanel Spacing="20">
-                <StackPanel Spacing="10" Margin="15,0,15,0">
+                <StackPanel Spacing="10">
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <material:MaterialIcon Kind="CloudDownload" Width="24" Height="24" Foreground="{StaticResource SystemAccentColorBrush}"/>
                         <TextBlock Text="Automatic Updates" Classes="demo-title" VerticalAlignment="Center"/>
@@ -302,7 +302,7 @@
 
             <!-- 2. GitHub PAT & CI Artifacts -->
             <StackPanel Spacing="20">
-                <StackPanel Spacing="10" Margin="15,0,15,0">
+                <StackPanel Spacing="10">
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <material:MaterialIcon Kind="Github" Width="24" Height="24" Foreground="{StaticResource SystemAccentColorBrush}"/>
                         <TextBlock Text="Advanced: CI Artifacts &amp; GitHub PAT" Classes="demo-title" VerticalAlignment="Center"/>
@@ -367,7 +367,7 @@
         <!-- ============================================== -->
         <Border IsVisible="{Binding IsGameSettingsSelected}" Margin="0,0,0,50">
           <StackPanel>
-             <StackPanel HorizontalAlignment="Left" Spacing="8" Margin="15,0,15,0">
+             <StackPanel HorizontalAlignment="Left" Spacing="8">
                 <TextBlock Text="Demo: Options.ini Configuration" Classes="demo-title"/>
                 <TextBlock Text="Modifying profile-specific game settings." Classes="demo-subtitle"/>
             </StackPanel>
@@ -442,7 +442,7 @@
         <!-- ============================================== -->
         <Border IsVisible="{Binding IsGameProfileContentSelected}" Margin="0,0,0,50">
           <StackPanel Spacing="20">
-             <StackPanel HorizontalAlignment="Left" Spacing="8" Margin="15,0,15,0">
+             <StackPanel HorizontalAlignment="Left" Spacing="8">
                 <TextBlock Text="Demo: Content Selection" Classes="demo-title"/>
                 <TextBlock Text="Assigning Mods and Maps to a profile." Classes="demo-subtitle"/>
 
@@ -527,7 +527,7 @@
                 <!-- 1. REPLAY MANAGER -->
                 <StackPanel Spacing="40">
                     <!-- Header -->
-                    <StackPanel HorizontalAlignment="Left" Spacing="8" Margin="15,0,15,0">
+                    <StackPanel HorizontalAlignment="Left" Spacing="8">
                         <TextBlock Text="Replay Manager" Classes="demo-title"/>
                         <TextBlock Text="Manage local replay files." Classes="demo-subtitle"/>
                     </StackPanel>
@@ -547,7 +547,7 @@
                 <!-- 2. MAP MANAGER -->
                 <StackPanel Spacing="40">
                     <!-- Header -->
-                    <StackPanel HorizontalAlignment="Left" Spacing="8" Margin="15,0,15,0">
+                    <StackPanel HorizontalAlignment="Left" Spacing="8">
                         <TextBlock Text="Map Manager" Classes="demo-title"/>
                         <TextBlock Text="Manage map directories." Classes="demo-subtitle"/>
                     </StackPanel>
@@ -572,7 +572,7 @@
         <!-- ============================================== -->
         <Border IsVisible="{Binding IsScanForGamesSelected}" Margin="0,0,0,50">
           <StackPanel>
-            <StackPanel HorizontalAlignment="Left" Margin="15,0,15,0">
+            <StackPanel HorizontalAlignment="Left">
                 <TextBlock Text="Scan Wizard" Classes="demo-title"/>
                 <TextBlock Text="Automatic detection and library management." Classes="demo-subtitle"/>
             </StackPanel>
@@ -590,7 +590,7 @@
         <!-- ============================================== -->
         <Border IsVisible="{Binding IsLocalContentSelected}" Margin="0,0,0,50">
              <StackPanel Spacing="20">
-                <StackPanel HorizontalAlignment="Left" Spacing="8" Margin="15,0,15,0">
+                <StackPanel HorizontalAlignment="Left" Spacing="8">
                     <TextBlock Text="Content Import" Classes="demo-title"/>
                     <TextBlock Text="Add external files for profile usage." Classes="demo-subtitle"/>
 
@@ -660,7 +660,7 @@
         <!-- ============================================== -->
         <Border IsVisible="{Binding IsWorkspaceSelected}" Margin="0,0,0,50">
           <StackPanel>
-            <StackPanel HorizontalAlignment="Left" Margin="15,0,15,0">
+            <StackPanel HorizontalAlignment="Left">
                 <TextBlock Text="Workspace Simulator" Classes="demo-title"/>
                 <TextBlock Text="Visualizes virtual file system construction via symlinks." Classes="demo-subtitle"/>
             </StackPanel>
@@ -694,7 +694,7 @@
                       Background="Transparent" BorderThickness="0" Padding="0"
                       HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                       HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
-                      Margin="15,0,15,24"
+                      Margin="0,0,0,24"
                       ClipToBounds="False"
                       Classes="info-card-btn">
                 <Border Classes="info-card">
@@ -787,7 +787,7 @@
                               HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                               HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
                               Classes="info-card-btn"
-                              Margin="15,0,8,24"
+                              Margin="0,0,8,24"
                               ClipToBounds="False">
                         <Border Classes="info-card">
                             <StackPanel>
@@ -828,7 +828,7 @@
                               HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                               HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
                               Classes="info-card-btn"
-                              Margin="8,0,15,24"
+                              Margin="8,0,0,24"
                               ClipToBounds="False">
                         <Border Classes="info-card">
                             <StackPanel>

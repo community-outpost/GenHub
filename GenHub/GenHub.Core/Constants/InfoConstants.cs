@@ -175,6 +175,26 @@ public static class InfoConstants
     public const string DemoIconZeroHour = "avares://GenHub/Assets/Icons/zerohour-icon.png";
 
     /// <summary>
+    /// Default fallback base installation directory for simulated demo items.
+    /// </summary>
+    public const string DemoFallbackBasePath = @"C:\Program Files (x86)";
+
+    /// <summary>
+    /// Demo directory folder name for EA Games.
+    /// </summary>
+    public const string DemoFolderEaGames = "EA Games";
+
+    /// <summary>
+    /// Demo directory folder name for Command and Conquer Generals.
+    /// </summary>
+    public const string DemoFolderGenerals = "Command and Conquer Generals";
+
+    /// <summary>
+    /// Demo directory folder name for Command and Conquer Generals Zero Hour.
+    /// </summary>
+    public const string DemoFolderZeroHour = "Command and Conquer Generals Zero Hour";
+
+    /// <summary>
     /// The list of supported languages for the FAQ.
     /// </summary>
     public static readonly IReadOnlyList<string> SupportedFaqLanguages = new[]

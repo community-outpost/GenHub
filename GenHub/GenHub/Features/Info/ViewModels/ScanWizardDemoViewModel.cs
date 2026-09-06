@@ -175,11 +175,11 @@ public partial class ScanWizardDemoViewModel : ObservableObject
         var basePath = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
         if (string.IsNullOrEmpty(basePath))
         {
-            basePath = @"C:\Program Files (x86)";
+            basePath = InfoConstants.DemoFallbackBasePath;
         }
 
-        var generalsPath = Path.Combine(basePath, "EA Games", "Command and Conquer Generals");
-        var zeroHourPath = Path.Combine(basePath, "EA Games", "Command and Conquer Generals Zero Hour");
+        var generalsPath = Path.Combine(basePath, InfoConstants.DemoFolderEaGames, InfoConstants.DemoFolderGenerals);
+        var zeroHourPath = Path.Combine(basePath, InfoConstants.DemoFolderEaGames, InfoConstants.DemoFolderZeroHour);
 
         Items.Add(new ScanWizardDemoItemViewModel(
             "Command & Conquer: Generals",
