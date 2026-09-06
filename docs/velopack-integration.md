@@ -325,7 +325,7 @@ The app ID `GenHub` ensures clean, predictable installation paths without vendor
 
 ### Protocol Handler & URI Scheme Registration
 
-On Windows, the `genhub://` custom URI scheme is registered under `HKCU\Software\Classes\genhub` on application startup. If the installation directory is moved or migrated to a different folder or drive, the registration automatically self-heals upon next launch from the new location by updating the command path in the registry. Linux and macOS do not use registry-based protocol handlers, so no re-registration is needed on those platforms.
+On Windows, the `genhub://` custom URI scheme is registered under `HKCU\Software\Classes\genhub` on application startup. If the installation directory is moved or migrated to a different folder or drive, the registration automatically self-heals upon next launch from the new location by updating the command path in the registry. On Linux, application shortcuts and desktop entries containing `Exec=` and `Path=` definitions automatically self-heal upon next launch via `RepairApplicationShortcutsAsync()`. macOS application bundles maintain internal paths and do not require shortcut re-registration.
 
 ## Update Features
 

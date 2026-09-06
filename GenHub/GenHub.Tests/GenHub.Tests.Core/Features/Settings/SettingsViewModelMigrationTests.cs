@@ -197,7 +197,7 @@ public class SettingsViewModelMigrationTests
 
         _mockStorageMigrationService.Verify(
             x => x.MigrateAsync(
-                It.Is<StorageMigrationRequest>(r => r.TargetPath == "/target/folder" && r.RelocateCasAndWorkspace),
+                It.Is<StorageMigrationRequest>(r => r.TargetPath == "/target/folder" && r.RelocateCasAndWorkspace && r.ExitApplicationOnSuccess && r.LaunchHelperProcess),
                 It.IsAny<IProgress<StorageMigrationProgress>>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);

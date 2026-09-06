@@ -442,7 +442,8 @@
               <Grid ColumnDefinitions="*,Auto">
                 <TextBox Grid.Column="0"
                          Text="{Binding MigrationTargetPath}"
-                         Watermark="e.g. D:\Games\GenHub"
+                         Watermark="Select or enter target installation directory..."
+                         AutomationProperties.Name="Target installation directory"
                          IsEnabled="{Binding !IsMigrating}"
                          LostFocus="OnTextBoxLostFocus" />
                 <Button Grid.Column="1"
@@ -451,7 +452,7 @@
                         Classes="browse-button"
                         IsEnabled="{Binding !IsMigrating}" />
               </Grid>
-              <TextBlock Text="Select an empty or new folder on your preferred drive (e.g. D:\Games\GenHub)."
+              <TextBlock Text="Select an empty or new folder on your preferred drive."
                          Classes="setting-description" />
             </StackPanel>
 
@@ -464,10 +465,16 @@
                          Classes="setting-description" Margin="24,0,0,0" />
             </StackPanel>
 
-            <!-- Migration Progress (when active) -->
-            <StackPanel Spacing="8" IsVisible="{Binding IsMigrating}">
-              <ProgressBar Value="{Binding MigrationProgressPercentage}" Minimum="0" Maximum="100" Height="6" />
-              <TextBlock Text="{Binding MigrationStatusText}" Classes="setting-description" Foreground="{DynamicResource AccentBrush}" />
+            <!-- Migration Progress and Status -->
+            <StackPanel Spacing="8">
+              <ProgressBar Value="{Binding MigrationProgressPercentage}"
+                           Minimum="0" Maximum="100" Height="6"
+                           IsVisible="{Binding IsMigrating}"
+                           AutomationProperties.Name="Migration progress" />
+              <TextBlock Text="{Binding MigrationStatusText}"
+                         Classes="setting-description"
+                         Foreground="{DynamicResource AccentBrush}"
+                         IsVisible="{Binding MigrationStatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
             </StackPanel>
 
             <!-- Migrate Button -->

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Common.Services;
@@ -14,6 +15,7 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Storage;
+using GenHub.Core.Models.Workspace;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
@@ -57,6 +59,7 @@ public class StorageMigrationServiceTests : IDisposable
 
         _mockConfigProvider = new Mock<IConfigurationProviderService>();
         _mockConfigProvider.Setup(x => x.GetRootAppDataPath()).Returns(_appDataDir);
+        _mockConfigProvider.Setup(x => x.GetApplicationDataPath()).Returns(_appDataDir);
         _mockConfigProvider.Setup(x => x.GetCasConfiguration()).Returns(new CasConfiguration { CasRootPath = _casDir });
 
         _userSettings = new UserSettings
@@ -102,7 +105,7 @@ public class StorageMigrationServiceTests : IDisposable
                 Directory.Delete(_tempRoot, recursive: true);
             }
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Best effort cleanup
         }
@@ -510,6 +513,95 @@ public class StorageMigrationServiceTests : IDisposable
 
         // Verify ICasPoolManager was reinitialized since target CAS was adopted
         _mockCasPoolManager.Verify(x => x.ReinitializeInstallationPool(), Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that ValidatePreflightAsync fails when target directory exists and is not empty.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
+    [Fact]
+    public async Task ValidatePreflightAsync_Fails_WhenTargetDirectoryIsNotEmptyAsync()
+    {
+        var service = CreateService();
+        var targetPath = Path.Combine(_tempRoot, "NonEmptyTargetDir");
+        Directory.CreateDirectory(targetPath);
+        File.WriteAllText(Path.Combine(targetPath, "existing_file.txt"), "hello");
+
+        var result = await service.ValidatePreflightAsync(targetPath, false);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.False(result.Data.IsValid);
+        Assert.Contains("not empty", result.Data.ErrorMessage ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Tests that MigrateAsync rewrites workspace metadata paths when workspaces are relocated.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
+    [Fact]
+    public async Task MigrateAsync_RewritesWorkspaceMetadata_WhenWorkspacesRelocatedAsync()
+    {
+        var service = CreateService();
+        var targetPath = Path.Combine(_tempRoot, "NewInstallDirMetadata");
+        Directory.CreateDirectory(targetPath);
+
+        var wsItemDir = Path.Combine(_workspaceDir, "ws1");
+        Directory.CreateDirectory(wsItemDir);
+        var originalExe = Path.Combine(wsItemDir, "game.exe");
+        File.WriteAllText(originalExe, "binary");
+
+        var siblingDir = _workspaceDir + "Backup";
+        var siblingExe = Path.Combine(siblingDir, "game.exe");
+
+        var metadataPath = Path.Combine(_appDataDir, FileTypes.WorkspaceMetadataFileName);
+        var workspaces = new List<WorkspaceInfo>
+        {
+            new()
+            {
+                Id = "ws1",
+                WorkspacePath = wsItemDir,
+                ExecutablePath = originalExe,
+                WorkingDirectory = wsItemDir,
+            },
+            new()
+            {
+                Id = "ws-sibling",
+                WorkspacePath = siblingDir,
+                ExecutablePath = siblingExe,
+                WorkingDirectory = siblingDir,
+            },
+        };
+        await File.WriteAllTextAsync(metadataPath, JsonSerializer.Serialize(workspaces));
+
+        var request = new StorageMigrationRequest
+        {
+            TargetPath = targetPath,
+            RelocateCasAndWorkspace = true,
+            ExitApplicationOnSuccess = false,
+            LaunchHelperProcess = false,
+        };
+
+        var result = await service.MigrateAsync(request);
+
+        Assert.True(result.Success);
+
+        var expectedNewWs = Path.Combine(targetPath, DirectoryNames.Data, DirectoryNames.Workspaces);
+        var expectedNewItemDir = Path.Combine(expectedNewWs, "ws1");
+        var expectedNewExe = Path.Combine(expectedNewItemDir, "game.exe");
+
+        var updatedJson = await File.ReadAllTextAsync(metadataPath);
+        var updatedList = JsonSerializer.Deserialize<List<WorkspaceInfo>>(updatedJson);
+        Assert.NotNull(updatedList);
+        Assert.Equal(2, updatedList.Count);
+        Assert.Equal(expectedNewItemDir, updatedList[0].WorkspacePath);
+        Assert.Equal(expectedNewExe, updatedList[0].ExecutablePath);
+        Assert.Equal(expectedNewItemDir, updatedList[0].WorkingDirectory);
+
+        // Sibling path sharing prefix must remain unaffected
+        Assert.Equal(siblingDir, updatedList[1].WorkspacePath);
+        Assert.Equal(siblingExe, updatedList[1].ExecutablePath);
+        Assert.Equal(siblingDir, updatedList[1].WorkingDirectory);
     }
 
     private StorageMigrationService CreateService()
