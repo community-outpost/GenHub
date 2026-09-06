@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -461,6 +463,47 @@ public class CsvResolverTests
 
         result.Success.Should().BeTrue();
         result.Data.Should().NotBeNull();
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> succeeds when SHA-256 matches.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithMatchingSha256_SucceedsAsync()
+    {
+        var remoteUrl = "https://example.com/catalog.csv";
+        var httpHandler = new StubHttpMessageHandler(expectedUrl: remoteUrl, content: FullSampleCsv, statusCode: HttpStatusCode.OK);
+        var resolver = CreateResolver(httpHandler);
+
+        var expectedHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(FullSampleCsv))).ToLowerInvariant();
+        var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
+        item.ResolverMetadata[CsvConstants.Sha256MetadataKey] = expectedHash;
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> fails when SHA-256 does not match.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithMismatchedSha256_FailsIntegrityCheckAsync()
+    {
+        var remoteUrl = "https://example.com/catalog.csv";
+        var httpHandler = new StubHttpMessageHandler(expectedUrl: remoteUrl, content: FullSampleCsv, statusCode: HttpStatusCode.OK);
+        var resolver = CreateResolver(httpHandler);
+
+        var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
+        item.ResolverMetadata[CsvConstants.Sha256MetadataKey] = "0000000000000000000000000000000000000000000000000000000000000000";
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Contains("integrity check failed"));
     }
 
     private static CsvResolver CreateResolver(HttpMessageHandler? handler = null, string? applicationDataPath = null)

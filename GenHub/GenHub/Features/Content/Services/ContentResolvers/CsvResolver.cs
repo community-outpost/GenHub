@@ -4,6 +4,8 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using CsvHelper;
@@ -65,6 +67,37 @@ public class CsvResolver(
             if (!loadResult.Success || loadResult.Data == null)
             {
                 return OperationResult<ContentManifest>.CreateFailure(loadResult.Errors);
+            }
+
+            if (discoveredItem.ResolverMetadata.TryGetValue(CsvConstants.Sha256MetadataKey, out var expectedSha256) &&
+                !string.IsNullOrWhiteSpace(expectedSha256))
+            {
+                var rawBytes = Encoding.UTF8.GetBytes(loadResult.Data.Content);
+                var rawHash = Convert.ToHexString(SHA256.HashData(rawBytes)).ToLowerInvariant();
+                var matched = string.Equals(rawHash, expectedSha256.Trim(), StringComparison.OrdinalIgnoreCase);
+
+                if (!matched && loadResult.Data.Content.Contains("\r\n"))
+                {
+                    var normalizedBytes = Encoding.UTF8.GetBytes(loadResult.Data.Content.Replace("\r\n", "\n"));
+                    var normalizedHash = Convert.ToHexString(SHA256.HashData(normalizedBytes)).ToLowerInvariant();
+                    matched = string.Equals(normalizedHash, expectedSha256.Trim(), StringComparison.OrdinalIgnoreCase);
+                }
+
+                if (!matched)
+                {
+                    logger.LogError(
+                        "CSV catalog SHA-256 integrity verification failed for {SourceUrl}. Expected: {Expected}, Actual: {Actual}",
+                        discoveredItem.SourceUrl,
+                        expectedSha256,
+                        rawHash);
+
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        $"CSV catalog integrity check failed for {discoveredItem.SourceUrl}");
+                }
+
+                logger.LogDebug(
+                    "CSV catalog SHA-256 verified successfully for {SourceUrl}",
+                    discoveredItem.SourceUrl);
             }
 
             var gameTypeStr = GetGameTypeString(discoveredItem);
