@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Info;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Info;
@@ -25,7 +27,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     /// <inheritdoc/>
     public Task<InfoSection?> GetSectionAsync(string sectionId)
     {
-        return Task.FromResult(_sections.FirstOrDefault(s => s.Id.Equals(sectionId, System.StringComparison.OrdinalIgnoreCase)));
+        return Task.FromResult(_sections.FirstOrDefault(s => s.Id.Equals(sectionId, StringComparison.OrdinalIgnoreCase)));
     }
 
     private static List<InfoSection> CreateContent()
@@ -53,7 +55,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return new InfoSection
         {
-            Id = "quickstart",
+            Id = InfoConstants.SectionQuickstart,
             Title = "Quickstart Guide",
             Description = "Getting started with GenHub.",
             Order = -1,
@@ -96,8 +98,8 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                         new InfoAction
                         {
                             Label = "Go to Detection Guide",
-                            ActionId = "NAV_INFO_scan-games",
-                            IconKey = "Magnify",
+                            ActionId = InfoConstants.ActionNavScanGames,
+                            IconKey = InfoConstants.IconMagnify,
                             IsPrimary = true,
                         },
                     ],
@@ -121,15 +123,15 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                         new InfoAction
                         {
                             Label = "Go to Downloads",
-                            ActionId = "NAV_Downloads",
-                            IconKey = "CloudDownload",
+                            ActionId = InfoConstants.ActionNavDownloads,
+                            IconKey = InfoConstants.IconCloudDownload,
                             IsPrimary = true,
                         },
                         new InfoAction
                         {
                             Label = "Learn about Content",
-                            ActionId = "NAV_INFO_game-profile-content",
-                            IconKey = "BookOpenVariant",
+                            ActionId = InfoConstants.ActionNavGameProfileContent,
+                            IconKey = InfoConstants.IconBookOpenVariant,
                         },
                     ],
                 },
@@ -155,8 +157,8 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                         new InfoAction
                         {
                             Label = "Learn how to Import",
-                            ActionId = "NAV_INFO_local-content",
-                            IconKey = "FolderUpload",
+                            ActionId = InfoConstants.ActionNavLocalContent,
+                            IconKey = InfoConstants.IconFolderUpload,
                             IsPrimary = true,
                         },
                     ],
@@ -181,8 +183,8 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                         new InfoAction
                         {
                             Label = "Storage Settings",
-                            ActionId = "NAV_Settings",
-                            IconKey = "Harddisk",
+                            ActionId = InfoConstants.ActionNavSettings,
+                            IconKey = InfoConstants.IconHarddisk,
                         },
                     ],
                 },
@@ -204,8 +206,8 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                         new InfoAction
                         {
                             Label = "App Updates",
-                            ActionId = "NAV_INFO_app-updates",
-                            IconKey = "Update",
+                            ActionId = InfoConstants.ActionNavAppUpdates,
+                            IconKey = InfoConstants.IconUpdate,
                         },
                     ],
                 },
@@ -217,7 +219,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return new InfoSection
         {
-            Id = "game-profiles",
+            Id = InfoConstants.SectionGameProfiles,
             Title = "Game Profiles",
             Description = "Create and manage isolated game configurations.",
             Order = 0,
@@ -285,7 +287,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return new InfoSection
         {
-            Id = "game-settings",
+            Id = InfoConstants.SectionGameSettings,
             Title = "Game Settings",
             Description = "Configure display, audio, and engine settings per profile.",
             Order = 1,
@@ -360,7 +362,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return new InfoSection
         {
-            Id = "game-profile-content",
+            Id = InfoConstants.SectionGameProfileContent,
             Title = "Profile Content",
             Description = "Manage mods, maps, and patches enabled for each profile.",
             Order = 2,
@@ -447,7 +449,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return new InfoSection
         {
-            Id = "shortcuts",
+            Id = InfoConstants.SectionShortcuts,
             Title = "Desktop Shortcuts",
             Description = "Create one-click desktop shortcuts for your profiles.",
             Order = 3,
@@ -502,7 +504,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return new InfoSection
         {
-            Id = "steam-integration",
+            Id = InfoConstants.SectionSteam,
             Title = "Steam Integration",
             Description = "Track playtime and use the Steam Overlay with mods.",
             Order = 4,
@@ -557,7 +559,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return new InfoSection
         {
-            Id = "local-content",
+            Id = InfoConstants.SectionLocalContent,
             Title = "Local Content",
             Description = "Import external mods, maps, and tools from your PC.",
             Order = 5,
@@ -614,7 +616,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return new InfoSection
         {
-            Id = "tools",
+            Id = InfoConstants.SectionTools,
             Title = "Tools & Utilities",
             Description = "Inspect replays and manage custom maps directly.",
             Order = 6,
@@ -709,7 +711,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return new InfoSection
         {
-            Id = "scan-games",
+            Id = InfoConstants.SectionScanGames,
             Title = "Game Detection",
             Description = "Automatically detect and verify game installations.",
             Order = 7,
@@ -752,7 +754,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return new InfoSection
         {
-            Id = "workspaces",
+            Id = InfoConstants.SectionWorkspaces,
             Title = "Virtual Workspaces",
             Description = "Workspace strategies, file linking techniques, and isolation mechanics.",
             Order = 8,
@@ -887,7 +889,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return new InfoSection
         {
-            Id = "app-updates",
+            Id = InfoConstants.SectionAppUpdates,
             Title = "App Updates",
             Description = "Manage launcher updates and release channels.",
             Order = 9,
@@ -936,7 +938,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return new InfoSection
         {
-            Id = "changelogs",
+            Id = InfoConstants.SectionChangelogs,
             Title = "Changelog",
             Description = "Version history.",
             Order = 10,
@@ -948,7 +950,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return new InfoSection
         {
-            Id = "faq",
+            Id = InfoConstants.SectionFaq,
             Title = "Frequently Asked Questions",
             Description = "Common questions about the Generals Online service.",
             Order = 7,
@@ -1143,7 +1145,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return new InfoSection
         {
-            Id = "go-changelog",
+            Id = InfoConstants.SectionGoChangelog,
             Title = "Changelog",
             Description = "View the latest changes and updates to the Generals Online service.",
             Order = 8,

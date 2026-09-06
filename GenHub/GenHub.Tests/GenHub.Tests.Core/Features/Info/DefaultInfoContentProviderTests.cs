@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Info;
 using GenHub.Features.Info.Services;
 using Moq;
@@ -34,8 +35,8 @@ public class DefaultInfoContentProviderTests
         var sections = (await _provider.GetAllSectionsAsync()).ToList();
 
         sections.Should().NotBeEmpty();
-        sections.Should().Contain(s => s.Id == "workspaces");
-        sections.Should().Contain(s => s.Id == "quickstart");
+        sections.Should().Contain(s => s.Id == InfoConstants.SectionWorkspaces);
+        sections.Should().Contain(s => s.Id == InfoConstants.SectionQuickstart);
     }
 
     /// <summary>
@@ -45,7 +46,7 @@ public class DefaultInfoContentProviderTests
     [Fact]
     public async Task GetSectionAsync_WorkspaceSection_ContainsComprehensiveStrategyExplanationsAsync()
     {
-        var section = await _provider.GetSectionAsync("workspaces");
+        var section = await _provider.GetSectionAsync(InfoConstants.SectionWorkspaces);
 
         section.Should().NotBeNull();
         section!.Title.Should().Be("Virtual Workspaces");
