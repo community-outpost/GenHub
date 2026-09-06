@@ -52,18 +52,20 @@ public class CsvResolverTests
         string? expectedUrl = null,
         string content = "",
         HttpStatusCode statusCode = HttpStatusCode.NotFound,
-        string? responseUrl = null) : HttpMessageHandler
+        string? responseUrl = null,
+        byte[]? rawBytes = null) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             var code = expectedUrl == null || request.RequestUri?.AbsoluteUri == expectedUrl
                 ? statusCode
                 : HttpStatusCode.NotFound;
-            var responseContent = code == HttpStatusCode.OK ? content : string.Empty;
             var response = new HttpResponseMessage(code)
             {
                 RequestMessage = responseUrl == null ? request : new HttpRequestMessage(HttpMethod.Get, responseUrl),
-                Content = new StringContent(responseContent),
+                Content = rawBytes != null
+                    ? new ByteArrayContent(rawBytes)
+                    : new StringContent(code == HttpStatusCode.OK ? content : string.Empty),
             };
 
             return Task.FromResult(response);
@@ -499,6 +501,55 @@ public class CsvResolverTests
 
         var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
         item.ResolverMetadata[CsvConstants.Sha256MetadataKey] = "0000000000000000000000000000000000000000000000000000000000000000";
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Contains("integrity check failed"));
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> hashes raw bytes including UTF-8 BOM.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithBomBytes_HashesRawBytesIncludingBomAsync()
+    {
+        var remoteUrl = "https://example.com/catalog.csv";
+        var contentBytes = Encoding.UTF8.GetBytes(FullSampleCsv);
+        var bomBytes = new byte[] { 0xEF, 0xBB, 0xBF }.Concat(contentBytes).ToArray();
+        var httpHandler = new StubHttpMessageHandler(expectedUrl: remoteUrl, statusCode: HttpStatusCode.OK, rawBytes: bomBytes);
+        var resolver = CreateResolver(httpHandler);
+
+        var expectedHash = Convert.ToHexString(SHA256.HashData(bomBytes)).ToLowerInvariant();
+        var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
+        item.ResolverMetadata[CsvConstants.Sha256MetadataKey] = expectedHash;
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> strictly rejects altered line endings.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithAlteredLineEndings_FailsIntegrityCheckAsync()
+    {
+        var remoteUrl = "https://example.com/catalog.csv";
+        var lfCsv = FullSampleCsv.Replace("\r\n", "\n");
+        var crlfCsv = lfCsv.Replace("\n", "\r\n");
+
+        var crlfBytes = Encoding.UTF8.GetBytes(crlfCsv);
+        var lfHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(lfCsv))).ToLowerInvariant();
+
+        var httpHandler = new StubHttpMessageHandler(expectedUrl: remoteUrl, statusCode: HttpStatusCode.OK, rawBytes: crlfBytes);
+        var resolver = CreateResolver(httpHandler);
+
+        var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
+        item.ResolverMetadata[CsvConstants.Sha256MetadataKey] = lfHash;
 
         var result = await resolver.ResolveAsync(item);
 
