@@ -341,24 +341,24 @@ public class DependencyResolver(
     {
         if (contentId.Contains(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase) &&
             (manifest.Id.Value.Contains(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase) ||
-             manifest.Name.Contains("Game Data", StringComparison.OrdinalIgnoreCase)))
+             manifest.Name.Contains(ManifestConstants.GameDataDisplayKeyword, StringComparison.OrdinalIgnoreCase)))
         {
             return true;
         }
 
-        if ((contentId.Contains("quickmatchmaps", StringComparison.OrdinalIgnoreCase) ||
-             contentId.Contains("mappack", StringComparison.OrdinalIgnoreCase)) &&
+        if ((contentId.Contains(ManifestConstants.QuickMatchMapsKeyword, StringComparison.OrdinalIgnoreCase) ||
+             contentId.Contains(ManifestConstants.MapPackKeyword, StringComparison.OrdinalIgnoreCase)) &&
             (manifest.ContentType == ContentType.MapPack ||
-             manifest.Id.Value.Contains("mappack", StringComparison.OrdinalIgnoreCase) ||
-             manifest.Id.Value.Contains("quickmatchmaps", StringComparison.OrdinalIgnoreCase)))
+             manifest.Id.Value.Contains(ManifestConstants.MapPackKeyword, StringComparison.OrdinalIgnoreCase) ||
+             manifest.Id.Value.Contains(ManifestConstants.QuickMatchMapsKeyword, StringComparison.OrdinalIgnoreCase)))
         {
             return true;
         }
 
-        if ((contentId.Contains("60hz", StringComparison.OrdinalIgnoreCase) ||
+        if ((contentId.Contains(ManifestConstants.SixtyHzKeyword, StringComparison.OrdinalIgnoreCase) ||
              (contentId.Contains(ManifestConstants.GameClientContentTypeName, StringComparison.OrdinalIgnoreCase) &&
               !contentId.Contains(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase) &&
-              !contentId.Contains("mappack", StringComparison.OrdinalIgnoreCase))) &&
+              !contentId.Contains(ManifestConstants.MapPackKeyword, StringComparison.OrdinalIgnoreCase))) &&
             manifest.ContentType == ContentType.GameClient)
         {
             return true;

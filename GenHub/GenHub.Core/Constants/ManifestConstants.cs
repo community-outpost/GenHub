@@ -205,4 +205,21 @@ public static class ManifestConstants
 
     /// <summary>Tag for other content types.</summary>
     public const string OtherTag = "Other";
+
+    // ===== Content Keywords =====
+
+    /// <summary>Content keyword for patch segment.</summary>
+    public const string PatchKeyword = "patch";
+
+    /// <summary>Content keyword for quickmatch maps segment.</summary>
+    public const string QuickMatchMapsKeyword = "quickmatchmaps";
+
+    /// <summary>Content keyword for map pack segment.</summary>
+    public const string MapPackKeyword = "mappack";
+
+    /// <summary>Content keyword for 60Hz variant segment.</summary>
+    public const string SixtyHzKeyword = "60hz";
+
+    /// <summary>Content display title keyword for Game Data.</summary>
+    public const string GameDataDisplayKeyword = "Game Data";
 }

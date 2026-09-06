@@ -8,6 +8,21 @@ namespace GenHub.Core.Constants;
 public static class ReplayManagerConstants
 {
     /// <summary>
+    /// File extension for Command &amp; Conquer Generals replay files.
+    /// </summary>
+    public const string ReplayFileExtension = ".rep";
+
+    /// <summary>
+    /// File extension for ZIP archive files.
+    /// </summary>
+    public const string ZipFileExtension = ".zip";
+
+    /// <summary>
+    /// Environment variable name to override the default community CRC mapping catalog endpoint.
+    /// </summary>
+    public const string CrcCatalogUrlEnvironmentVariable = "GENHUB_CRC_CATALOG_URL";
+
+    /// <summary>
     /// Maximum size for a single replay file in bytes (10 MB).
     /// </summary>
     public const long MaxReplaySizeBytes = 10 * ConversionConstants.BytesPerMegabyte;

@@ -40,6 +40,9 @@ public static class PublisherTypeConstants
     /// <summary>EA App publisher.</summary>
     public const string EaApp = "eaapp";
 
+    /// <summary>Official Electronic Arts publisher identifier.</summary>
+    public const string Ea = "ea";
+
     /// <summary>Steam publisher.</summary>
     public const string Steam = "steam";
 

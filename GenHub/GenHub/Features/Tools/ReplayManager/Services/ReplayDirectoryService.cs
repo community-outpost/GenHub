@@ -77,10 +77,20 @@ public sealed class ReplayDirectoryService(
             return [];
         }
 
-        var files = Directory.GetFiles(directory, "*.*")
-            .Where(f => f.EndsWith(".rep", StringComparison.OrdinalIgnoreCase) ||
-                       f.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        var files = await Task.Run(
+            () =>
+            {
+                if (!Directory.Exists(directory))
+                {
+                    return [];
+                }
+
+                return Directory.GetFiles(directory, "*.*")
+                    .Where(f => f.EndsWith(ReplayManagerConstants.ReplayFileExtension, StringComparison.OrdinalIgnoreCase) ||
+                               f.EndsWith(ReplayManagerConstants.ZipFileExtension, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            },
+            ct);
 
         var (acquiredIds, existingProfiles) = await FetchAcquiredManifestIdsAndProfilesAsync(ct);
 
@@ -213,7 +223,7 @@ public sealed class ReplayDirectoryService(
 
             var isRetailClient = isUnmappedReplay ||
                                  string.IsNullOrWhiteSpace(replay.MatchedClient?.Publisher) ||
-                                 string.Equals(replay.MatchedClient?.Publisher, "ea", StringComparison.OrdinalIgnoreCase);
+                                 string.Equals(replay.MatchedClient?.Publisher, PublisherTypeConstants.Ea, StringComparison.OrdinalIgnoreCase);
 
             var (clientManifestId, gameClient) = await ResolveReplayGameClientAsync(
                 installation, replay, defaultVersion, isRetailClient, manifestPool, contentOrchestrator, ct);
@@ -718,7 +728,7 @@ public sealed class ReplayDirectoryService(
         }
 
         var isRetail = string.IsNullOrWhiteSpace(match.Publisher) ||
-                       string.Equals(match.Publisher, "ea", StringComparison.OrdinalIgnoreCase) ||
+                       string.Equals(match.Publisher, PublisherTypeConstants.Ea, StringComparison.OrdinalIgnoreCase) ||
                        match.ManifestId.Contains(ReplayManagerConstants.RetailManifestSegment, StringComparison.OrdinalIgnoreCase);
 
         if (!string.IsNullOrWhiteSpace(match.CdnUrl) || (!isRetail && !string.IsNullOrWhiteSpace(match.ManifestId)))
@@ -1114,9 +1124,16 @@ public sealed class ReplayDirectoryService(
                 return false;
             }
 
-            return string.Equals(v1, v2, StringComparison.OrdinalIgnoreCase) ||
-                   v1.StartsWith(v2, StringComparison.OrdinalIgnoreCase) ||
-                   v2.StartsWith(v1, StringComparison.OrdinalIgnoreCase);
+            if (string.Equals(v1, v2, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var minLen = Math.Min(v1.Length, v2.Length);
+            var maxLen = Math.Max(v1.Length, v2.Length);
+            return minLen >= 5 && maxLen - minLen <= 1 &&
+                   (v1.StartsWith(v2, StringComparison.OrdinalIgnoreCase) ||
+                    v2.StartsWith(v1, StringComparison.OrdinalIgnoreCase));
         }
 
         return false;
