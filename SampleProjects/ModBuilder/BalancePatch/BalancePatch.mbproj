@@ -1,0 +1,16 @@
+{
+  "name": "BalancePatch",
+  "version": "1.0.0",
+  "author": "Community Modder",
+  "description": "Multiplayer balance tuning and unit attribute overhaul",
+  "directories": {
+    "configs": "config",
+    "gameFilesEdited": "GameFilesEdited",
+    "build": ".Build",
+    "release": ".Release"
+  },
+  "bundleConfigs": [
+    "config/ModBundleItems.json",
+    "config/ModBundlePacks.json"
+  ]
+}

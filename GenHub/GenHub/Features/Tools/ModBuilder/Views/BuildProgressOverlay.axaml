@@ -1,0 +1,202 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
+             xmlns:controls="using:GenHub.Features.Tools.ModBuilder.Controls"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+             x:Class="GenHub.Features.Tools.ModBuilder.Views.BuildProgressOverlay"
+             x:DataType="vm:BuildProgressViewModel">
+
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="../Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="../Styles/ModBuilderIcons.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
+
+  <!-- Full-screen modal overlay -->
+  <Panel>
+    <!-- Semi-transparent backdrop -->
+    <Border Background="{DynamicResource OverlayBrush}"
+            IsVisible="{Binding IsVisible}">
+      <Border.Transitions>
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.25"/>
+        </Transitions>
+      </Border.Transitions>
+    </Border>
+
+    <!-- Main content card -->
+    <Border Background="{DynamicResource CardBackground}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="1"
+            CornerRadius="14"
+            BoxShadow="0 16 48 0 #80000000"
+            MaxWidth="850"
+            MaxHeight="680"
+            Padding="28"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            IsVisible="{Binding IsVisible}">
+
+      <Border.Transitions>
+        <Transitions>
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.35"/>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.25"/>
+        </Transitions>
+      </Border.Transitions>
+
+      <Grid RowDefinitions="Auto,*,Auto">
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Spacing="12">
+          <TextBlock Text="Building Project"
+                     FontSize="20"
+                     FontWeight="Bold"
+                     Foreground="{DynamicResource TextPrimary}"/>
+
+          <TextBlock Text="{Binding ProjectName}"
+                     FontSize="13.5"
+                     Foreground="{DynamicResource TextSecondary}"/>
+
+          <!-- Overall progress bar -->
+          <ProgressBar Value="{Binding OverallProgress}"
+                       Maximum="100"
+                       Height="8"
+                       CornerRadius="4"
+                       Foreground="{DynamicResource AccentBrush}"
+                       Background="{DynamicResource SurfaceHoverBrush}"/>
+
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0"
+                       Text="{Binding CurrentStage}"
+                       FontSize="12.5"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource AccentBrush}"/>
+
+            <TextBlock Grid.Column="1"
+                       FontSize="12.5"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimary}">
+              <Run Text="{Binding OverallProgress, StringFormat='{}{0:F1}'}"/>
+              <Run Text="%"/>
+            </TextBlock>
+          </Grid>
+        </StackPanel>
+
+        <!-- Stage cards -->
+        <ScrollViewer Grid.Row="1"
+                      Margin="0,20,0,0"
+                      VerticalScrollBarVisibility="Auto">
+          <ItemsControl ItemsSource="{Binding Stages}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Spacing="10"/>
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ProgressCardViewModel">
+                <controls:ProgressCard DataContext="{Binding}"/>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Metrics and actions -->
+        <Grid Grid.Row="2"
+              Margin="0,20,0,0"
+              RowDefinitions="Auto,Auto"
+              ColumnDefinitions="*,*,*,*">
+
+          <!-- Real-time metrics -->
+          <Border Grid.Row="0" Grid.Column="0"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                  CornerRadius="8" Padding="12" Margin="0,0,6,0">
+            <StackPanel Spacing="4">
+              <TextBlock Text="Files/sec"
+                         FontSize="11"
+                         Foreground="{DynamicResource TextSecondary}"/>
+              <TextBlock Text="{Binding FilesPerSecond, StringFormat='{}{0:F1}'}"
+                         FontSize="16"
+                         FontWeight="Bold"
+                         Foreground="{DynamicResource TextPrimary}"/>
+            </StackPanel>
+          </Border>
+
+          <Border Grid.Row="0" Grid.Column="1"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                  CornerRadius="8" Padding="12" Margin="4,0,4,0">
+            <StackPanel Spacing="4">
+              <TextBlock Text="Cache Hits"
+                         FontSize="11"
+                         Foreground="{DynamicResource TextSecondary}"/>
+              <TextBlock FontSize="16"
+                         FontWeight="Bold"
+                         Foreground="{DynamicResource SuccessBrush}">
+                <Run Text="{Binding CacheHits}"/>
+                <Run Text="/" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                <Run Text="{Binding TotalFiles}" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+              </TextBlock>
+            </StackPanel>
+          </Border>
+
+          <Border Grid.Row="0" Grid.Column="2"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                  CornerRadius="8" Padding="12" Margin="4,0,4,0">
+            <StackPanel Spacing="4">
+              <TextBlock Text="Elapsed"
+                         FontSize="11"
+                         Foreground="{DynamicResource TextSecondary}"/>
+              <TextBlock Text="{Binding ElapsedTime}"
+                         FontSize="16"
+                         FontWeight="Bold"
+                         Foreground="{DynamicResource TextPrimary}"/>
+            </StackPanel>
+          </Border>
+
+          <Border Grid.Row="0" Grid.Column="3"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                  CornerRadius="8" Padding="12" Margin="6,0,0,0">
+            <StackPanel Spacing="4">
+              <TextBlock Text="ETA"
+                         FontSize="11"
+                         Foreground="{DynamicResource TextSecondary}"/>
+              <TextBlock Text="{Binding EstimatedTimeRemaining}"
+                         FontSize="16"
+                         FontWeight="Bold"
+                         Foreground="{DynamicResource AccentBrush}"/>
+            </StackPanel>
+          </Border>
+
+          <!-- Cancel button -->
+          <Button Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="4"
+                  Margin="0,18,0,0"
+                  HorizontalAlignment="Center"
+                  Command="{Binding CancelCommand}"
+                  Background="{DynamicResource ErrorBadgeBackgroundBrush}"
+                  Foreground="{DynamicResource ErrorBrush}"
+                  BorderBrush="{DynamicResource ErrorBrush}"
+                  BorderThickness="1"
+                  CornerRadius="8"
+                  Padding="20,10"
+                  Cursor="Hand">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Path Data="{StaticResource IconStop}"
+                    Fill="{DynamicResource ErrorBrush}"
+                    Width="14" Height="14"
+                    Stretch="Uniform"/>
+              <TextBlock Text="Cancel Build" FontWeight="SemiBold"/>
+            </StackPanel>
+          </Button>
+        </Grid>
+      </Grid>
+    </Border>
+  </Panel>
+</UserControl>

@@ -271,8 +271,7 @@ public class MainViewModelTests
             mockServiceProvider.Object,
             mockLogger.Object,
             mockNotificationService.Object,
-            realGitHubDiscoverer,
-            configProvider);
+            realGitHubDiscoverer);
     }
 
     private static GameProfileLauncherViewModel CreateGameProfileLauncherViewModel()

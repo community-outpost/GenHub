@@ -1,0 +1,79 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
+        xmlns:views="using:GenHub.Features.Tools.ModBuilder.Views"
+        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="750"
+        x:Class="GenHub.Features.Tools.ModBuilder.Views.FileManagerDialog"
+        x:DataType="vm:FileManagerViewModel"
+        Title="ModBuilder - Game Asset &amp; File Manager"
+        Icon="/Assets/Icons/generalshub-icon.png"
+        Width="1200" Height="750"
+        MinWidth="950" MinHeight="550"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        SystemDecorations="Full"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        Background="{DynamicResource WindowBackground}">
+
+  <Window.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="../Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="../Styles/ModBuilderIcons.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Window.Resources>
+
+  <Grid RowDefinitions="Auto,*">
+    <!-- Custom Title Bar Header Area -->
+    <Grid Grid.Row="0" Height="48" Margin="16,8,16,8"
+          ColumnDefinitions="Auto,*,Auto"
+          Background="Transparent"
+          PointerPressed="OnTitleBarPointerPressed">
+      <!-- Title -->
+      <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+        <Border Width="32" Height="32" Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                CornerRadius="6" VerticalAlignment="Center">
+          <Path Width="16" Height="16" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconFolder}" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+        <StackPanel VerticalAlignment="Center">
+          <TextBlock Text="Game Asset &amp; File Manager"
+                     FontSize="14"
+                     FontWeight="Bold"
+                     Foreground="{DynamicResource TextPrimary}"/>
+          <TextBlock Text="Browse game files and import textures, INIs, and models into your project"
+                     FontSize="11"
+                     Foreground="{DynamicResource TextSecondary}"/>
+        </StackPanel>
+      </StackPanel>
+
+      <!-- Right Header Actions (Window Controls) -->
+      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+        <!-- Minimize Button -->
+        <Button Click="MinimizeButton_Click" Background="Transparent" BorderThickness="0" Padding="8" CornerRadius="4" VerticalAlignment="Center" ToolTip.Tip="Minimize" Cursor="Hand">
+          <Path Width="10" Height="2" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconMinimize}" Stretch="Uniform"/>
+        </Button>
+
+        <!-- Maximize/Restore Button -->
+        <Button Click="MaximizeButton_Click" Background="Transparent" BorderThickness="0" Padding="8" CornerRadius="4" VerticalAlignment="Center" ToolTip.Tip="Maximize / Restore" Cursor="Hand">
+          <Path Width="10" Height="10" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconMaximize}" Stretch="Uniform"/>
+        </Button>
+
+        <!-- Close Button -->
+        <Button Click="CloseButton_Click" Background="Transparent" BorderThickness="0" Padding="8" CornerRadius="4" VerticalAlignment="Center" ToolTip.Tip="Close" Cursor="Hand">
+          <Path Width="10" Height="10" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconClear}" Stretch="Uniform"/>
+        </Button>
+      </StackPanel>
+    </Grid>
+
+    <!-- Main Content Panel -->
+    <Border Grid.Row="1" Margin="16,0,16,16">
+      <views:FileManagerPanel/>
+    </Border>
+  </Grid>
+</Window>

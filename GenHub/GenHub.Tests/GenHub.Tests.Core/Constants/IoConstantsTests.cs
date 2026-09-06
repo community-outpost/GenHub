@@ -14,7 +14,7 @@ public class IoConstantsTests
     public void IoConstants_ShouldHaveExpectedValues()
     {
         // Arrange & Act & Assert
-        Assert.Equal(4096, IoConstants.DefaultFileBufferSize);
+        Assert.Equal(65536, IoConstants.DefaultFileBufferSize);
     }
 
     /// <summary>

@@ -16,12 +16,17 @@ public class IsSubscribedConverter : IMultiValueConverter
     /// <inheritdoc/>
     public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (values.Count < 3)
+        if (values == null || values.Count < 3)
         {
             return false;
         }
 
         var item = values[0];
+        if (item == null || item == Avalonia.AvaloniaProperty.UnsetValue)
+        {
+            return false;
+        }
+
         var subscribedPr = values[1] as PullRequestInfo;
         var subscribedBranch = values[2] as string;
 

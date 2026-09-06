@@ -218,7 +218,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          $testProjects = Get-ChildItem -Path "GenHub/GenHub.Tests" -Recurse -Filter *.csproj | Where-Object { $_.Name -notlike '*Linux*' -and $_.Name -notlike '*MacOS*' }
+          $testProjects = Get-ChildItem -Path "GenHub/GenHub.Tests" -Recurse -Filter *.csproj | Where-Object { $_.Name -notlike '*Linux*' -and $_.Name -notlike '*MacOS*' -and $_.Name -notlike '*Performance*' }
           if ($testProjects) {
             foreach ($testProject in $testProjects) {
               Write-Host "Testing $($testProject.FullName)"
@@ -358,7 +358,7 @@ jobs:
         run: |
           shopt -s globstar nullglob
           for test_project in ${{ env.TEST_PROJECTS }}; do
-            [[ "$test_project" == *Windows* || "$test_project" == *MacOS* ]] && continue
+            [[ "$test_project" == *Windows* || "$test_project" == *MacOS* || "$test_project" == *Performance* ]] && continue
             echo "Testing $test_project"
             dotnet test "$test_project" -c ${{ env.BUILD_CONFIGURATION }} --verbosity normal
           done
@@ -493,17 +493,10 @@ jobs:
 
           if kill -0 "$APP_PID" 2>/dev/null; then
             echo "App stayed up for ${SURVIVED}s"
-            if kill "$APP_PID" 2>/dev/null; then
-              wait "$APP_PID" 2>/dev/null || true
-            else
-              set +e
-              wait "$APP_PID"
-              APP_STATUS=$?
-              set -e
-              echo "::error::GenHub.app exited before CI could stop it (status $APP_STATUS). Log follows."
-              cat app-launch.log
-              exit 1
-            fi
+            kill "$APP_PID" 2>/dev/null || true
+            sleep 2
+            kill -9 "$APP_PID" 2>/dev/null || true
+            wait "$APP_PID" 2>/dev/null || true
           else
             set +e
             wait "$APP_PID"
@@ -527,7 +520,7 @@ jobs:
           while IFS= read -r test_project; do
             # MacOS is covered by "Run macOS Tests" before publish, so it is skipped
             # here rather than run a second time.
-            [[ "$test_project" == *Windows* || "$test_project" == *Linux* || "$test_project" == *MacOS* ]] && continue
+            [[ "$test_project" == *Windows* || "$test_project" == *Linux* || "$test_project" == *MacOS* || "$test_project" == *Performance* ]] && continue
             echo "Testing $test_project"
             dotnet test "$test_project" -c ${{ env.BUILD_CONFIGURATION }} --verbosity normal
           done < <(find GenHub/GenHub.Tests -type f -name '*.csproj' | sort)

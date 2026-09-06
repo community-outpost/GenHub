@@ -1,0 +1,16 @@
+{
+  "name": "TextureOverhaul",
+  "version": "1.0.0",
+  "author": "Community Artist",
+  "description": "HD vehicle skins, terrain textures, and user interface overhaul",
+  "directories": {
+    "configs": "config",
+    "gameFilesEdited": "GameFilesEdited",
+    "build": ".Build",
+    "release": ".Release"
+  },
+  "bundleConfigs": [
+    "config/ModBundleItems.json",
+    "config/ModBundlePacks.json"
+  ]
+}

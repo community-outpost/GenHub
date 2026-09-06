@@ -1,0 +1,86 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="200" d:DesignHeight="100"
+             x:Class="GenHub.Features.Tools.ModBuilder.Controls.MetricDisplay">
+
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="../Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="../Styles/ModBuilderIcons.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
+
+  <Border Background="{DynamicResource SurfaceElevatedBrush}"
+          BorderBrush="{DynamicResource BorderBrush}"
+          BorderThickness="1"
+          CornerRadius="8"
+          Padding="12">
+
+    <Grid RowDefinitions="Auto,Auto,Auto">
+
+      <!-- Icon & Label -->
+      <Grid Grid.Row="0" ColumnDefinitions="Auto,*">
+
+        <!-- Icon -->
+        <Border Grid.Column="0"
+                Width="30" Height="30"
+                Background="{Binding IconBackground}"
+                CornerRadius="6"
+                Margin="0,0,10,0">
+          <Path Width="16" Height="16"
+                Fill="{Binding IconForeground}"
+                Data="{Binding Icon}"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Stretch="Uniform"/>
+        </Border>
+
+        <!-- Label -->
+        <TextBlock Grid.Column="1"
+                   Text="{Binding Label}"
+                   FontSize="11.5"
+                   Foreground="{DynamicResource TextSecondary}"
+                   VerticalAlignment="Center"/>
+
+      </Grid>
+
+      <!-- Value -->
+      <TextBlock Grid.Row="1"
+                 Text="{Binding Value}"
+                 FontSize="18"
+                 FontWeight="Bold"
+                 Foreground="{DynamicResource TextPrimary}"
+                 Margin="0,6,0,0"/>
+
+      <!-- Trend Indicator -->
+      <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto" Margin="0,4,0,0">
+
+        <!-- Trend Icon -->
+        <Path Grid.Column="0"
+              Width="12" Height="12"
+              Fill="{Binding TrendColor}"
+              Data="{Binding TrendIcon}"
+              VerticalAlignment="Center"
+              Margin="0,0,4,0"
+              Stretch="Uniform"
+              IsVisible="{Binding HasTrend}"/>
+
+        <!-- Trend Text -->
+        <TextBlock Grid.Column="1"
+                   Text="{Binding TrendText}"
+                   FontSize="10.5"
+                   Foreground="{Binding TrendColor}"
+                   VerticalAlignment="Center"
+                   IsVisible="{Binding HasTrend}"/>
+
+      </Grid>
+
+    </Grid>
+
+  </Border>
+
+</UserControl>

@@ -1,0 +1,110 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="40"
+             x:Class="GenHub.Features.Tools.ModBuilder.Controls.FileTreeItem">
+
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="../Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="../Styles/ModBuilderIcons.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
+
+  <Border Background="Transparent"
+          BorderBrush="{DynamicResource BorderBrush}"
+          BorderThickness="0,0,0,1"
+          Padding="8,6"
+          CornerRadius="6">
+
+    <Border.Styles>
+      <Style Selector="Border:pointerover">
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+      </Style>
+      <Style Selector="Border:pressed">
+        <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
+      </Style>
+    </Border.Styles>
+
+    <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+
+      <!-- Indent Spacer -->
+      <Border Grid.Column="0" Width="{Binding IndentLevel, Converter={StaticResource IndentConverter}}"/>
+
+      <!-- Expand/Collapse Button -->
+      <Button Grid.Column="1"
+              Width="20" Height="20"
+              Padding="0"
+              Background="Transparent"
+              BorderThickness="0"
+              IsVisible="{Binding HasChildren}"
+              Command="{Binding ToggleExpandCommand}">
+        <Path Width="12" Height="12"
+              Fill="{DynamicResource TextSecondary}"
+              Data="{StaticResource IconChevronRight}"
+              RenderTransform="rotate(0deg)">
+          <Path.Styles>
+            <Style Selector="Path[IsVisible=True]">
+              <Style.Animations>
+                <Animation Duration="0:0:0.2" FillMode="Forward">
+                  <KeyFrame Cue="0%">
+                    <Setter Property="RenderTransform" Value="rotate(0deg)"/>
+                  </KeyFrame>
+                  <KeyFrame Cue="100%">
+                    <Setter Property="RenderTransform" Value="rotate(90deg)"/>
+                  </KeyFrame>
+                </Animation>
+              </Style.Animations>
+            </Style>
+          </Path.Styles>
+        </Path>
+      </Button>
+
+      <!-- File Type Icon -->
+      <Border Grid.Column="2"
+              Width="24" Height="24"
+              Margin="4,0"
+              Background="{Binding FileTypeColor}"
+              CornerRadius="4">
+        <Path Width="14" Height="14"
+              Fill="{DynamicResource TextPrimary}"
+              Data="{Binding FileTypeIcon}"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              Stretch="Uniform"/>
+      </Border>
+
+      <!-- File Name -->
+      <TextBlock Grid.Column="3"
+                 Text="{Binding FileName}"
+                 FontSize="12"
+                 Foreground="{DynamicResource TextPrimary}"
+                 VerticalAlignment="Center"
+                 TextTrimming="CharacterEllipsis"
+                 ToolTip.Tip="{Binding FullPath}"/>
+
+      <!-- Status Indicator -->
+      <Border Grid.Column="4"
+              Width="8" Height="8"
+              Margin="8,0"
+              CornerRadius="4"
+              Background="{Binding StatusColor}"
+              IsVisible="{Binding HasStatus}"
+              ToolTip.Tip="{Binding StatusText}"/>
+
+      <!-- File Size -->
+      <TextBlock Grid.Column="5"
+                 Text="{Binding FileSize}"
+                 FontSize="11"
+                 Foreground="{DynamicResource TextSecondary}"
+                 VerticalAlignment="Center"
+                 Margin="8,0,0,0"/>
+
+    </Grid>
+
+  </Border>
+
+</UserControl>

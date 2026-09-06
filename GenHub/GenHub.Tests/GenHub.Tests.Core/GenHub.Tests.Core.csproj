@@ -15,7 +15,6 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio"/>
-    <PackageReference Include="coverlet.collector"/>
     <PackageReference Include="moq" />
     <PackageReference Include="FluentAssertions" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
@@ -30,7 +29,5 @@
     <Using Include="Xunit" />
     <Using Include="Octokit" />
   </ItemGroup>
-
-  
 
 </Project>

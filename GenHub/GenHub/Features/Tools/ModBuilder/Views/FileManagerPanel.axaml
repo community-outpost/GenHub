@@ -1,0 +1,297 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
+             xmlns:models="using:GenHub.Features.Tools.ModBuilder.Models"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="600"
+             x:Class="GenHub.Features.Tools.ModBuilder.Views.FileManagerPanel"
+             x:DataType="vm:FileManagerViewModel">
+
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="../Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="../Styles/ModBuilderIcons.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
+
+  <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+    <!-- Installation Selector -->
+    <Border Grid.Row="0" Background="{DynamicResource CardBackground}" CornerRadius="10"
+            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+            Padding="14" Margin="0,0,0,10">
+      <Grid ColumnDefinitions="Auto,*">
+        <TextBlock Grid.Column="0" Text="Game Installation:"
+                   FontWeight="SemiBold" FontSize="13"
+                   Foreground="{DynamicResource TextPrimary}"
+                   VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+        <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableInstallations}"
+                  SelectedItem="{Binding SelectedInstallation}"
+                  MinWidth="320" HorizontalAlignment="Left">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="models:GameInstallationOption">
+              <Grid ColumnDefinitions="Auto,*,Auto">
+                <Image Grid.Column="0" Source="{Binding IconPath, Converter={StaticResource StringToImageConverter}}"
+                       Width="20" Height="20" Margin="0,0,8,0"
+                       IsVisible="{Binding IconPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                <TextBlock Grid.Column="1" Text="{Binding DisplayName}"
+                           VerticalAlignment="Center" FontSize="12.5"
+                           Foreground="{DynamicResource TextPrimary}"/>
+                <TextBlock Grid.Column="2" Text="{Binding Path}"
+                           FontSize="11" Foreground="{DynamicResource TextSecondary}"
+                           VerticalAlignment="Center" Margin="12,0,0,0"
+                           TextTrimming="CharacterEllipsis" MaxWidth="300"/>
+              </Grid>
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+      </Grid>
+    </Border>
+
+    <!-- Header with Search and Filters -->
+    <Border Grid.Row="1" Background="{DynamicResource CardBackground}"
+            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+            CornerRadius="10" Padding="14" Margin="0,0,0,10">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+        <TextBox Grid.Column="0" Text="{Binding SearchText}"
+                 Watermark="Search files..." Margin="0,0,8,0"
+                 VerticalContentAlignment="Center"/>
+
+        <ComboBox Grid.Column="1" ItemsSource="{Binding FileTypeFilters}"
+                  SelectedItem="{Binding SelectedFileType}"
+                  Width="180" Margin="0,0,8,0"/>
+
+        <Button Grid.Column="2" Command="{Binding RefreshCommand}"
+                Padding="10,6" Margin="0,0,8,0"
+                Background="{DynamicResource SurfaceElevatedBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1" CornerRadius="8"
+                VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                ToolTip.Tip="Refresh file lists">
+          <Path Width="14" Height="14" Fill="{DynamicResource TextPrimary}" Data="{StaticResource IconReload}" Stretch="Uniform" VerticalAlignment="Center"/>
+        </Button>
+
+        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Border Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                  BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                  CornerRadius="6" Padding="8,4">
+            <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+              <Path Width="12" Height="12" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
+              <TextBlock Text="{Binding TotalFiles}" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+              <TextBlock Text="files" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Border>
+
+          <Border Background="{DynamicResource WarningBadgeBackgroundBrush}"
+                  BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1"
+                  CornerRadius="6" Padding="8,4">
+            <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+              <Path Width="12" Height="12" Fill="{DynamicResource WarningBrush}" Data="{StaticResource IconEdit}" Stretch="Uniform" VerticalAlignment="Center"/>
+              <TextBlock Text="{Binding ModifiedFiles}" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center"/>
+              <TextBlock Text="modified" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Border>
+
+          <Border Background="{DynamicResource SuccessBadgeBackgroundBrush}"
+                  BorderBrush="{DynamicResource SuccessBrush}" BorderThickness="1"
+                  CornerRadius="6" Padding="8,4">
+            <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+              <Path Width="12" Height="12" Fill="{DynamicResource SuccessBrush}" Data="{StaticResource IconAdd}" Stretch="Uniform" VerticalAlignment="Center"/>
+              <TextBlock Text="{Binding NewFiles}" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
+              <TextBlock Text="new" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Split View: Game Files | Project Files -->
+    <Grid Grid.Row="2">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" MinWidth="250"/>
+        <ColumnDefinition Width="8"/>
+        <ColumnDefinition Width="*" MinWidth="250"/>
+      </Grid.ColumnDefinitions>
+
+      <!-- Left: Game Installation Files -->
+      <Border Grid.Column="0" Background="{DynamicResource CardBackground}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              CornerRadius="10" Padding="14" ClipToBounds="True">
+        <Grid RowDefinitions="Auto,*,Auto">
+          <TextBlock Grid.Row="0" Text="Game Installation Files"
+                     FontWeight="Bold" FontSize="14"
+                     Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,10"/>
+
+          <Border Grid.Row="1" BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="1" CornerRadius="8" Background="{DynamicResource SurfaceElevatedBrush}">
+            <TreeView ItemsSource="{Binding GameFiles}"
+                      SelectedItem="{Binding SelectedGameFile}"
+                      SelectionMode="Multiple"
+                      SelectedItems="{Binding SelectedGameFiles}">
+              <TreeView.ItemTemplate>
+                <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="models:FileTreeNode">
+                  <Border Background="Transparent" Padding="6,4"
+                          CornerRadius="6">
+                    <Border.Styles>
+                      <Style Selector="Border:pointerover">
+                        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+                      </Style>
+                    </Border.Styles>
+
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                      <!-- Icon -->
+                      <TextBlock Grid.Column="0" Margin="0,0,6,0"
+                                 FontSize="14" VerticalAlignment="Center">
+                        <TextBlock.Text>
+                          <MultiBinding Converter="{StaticResource FileIconConverter}">
+                            <Binding Path="IsDirectory"/>
+                            <Binding Path="Extension"/>
+                          </MultiBinding>
+                        </TextBlock.Text>
+                      </TextBlock>
+
+                      <!-- Name -->
+                      <TextBlock Grid.Column="2" Text="{Binding Name}"
+                                 VerticalAlignment="Center"
+                                 Foreground="{DynamicResource TextPrimary}"
+                                 TextTrimming="CharacterEllipsis"
+                                 ToolTip.Tip="{Binding FullPath}"/>
+
+                      <!-- Size -->
+                      <TextBlock Grid.Column="3" Text="{Binding FormattedSize}"
+                                 FontSize="11" Foreground="{DynamicResource TextSecondary}"
+                                 VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    </Grid>
+                  </Border>
+                </TreeDataTemplate>
+              </TreeView.ItemTemplate>
+            </TreeView>
+          </Border>
+
+          <Button Grid.Row="2" Command="{Binding AddFilesToProjectCommand}"
+                  HorizontalAlignment="Stretch"
+                  Margin="0,10,0,0" Padding="0,10"
+                  Background="{DynamicResource AccentBrush}"
+                  Foreground="White" BorderThickness="0" CornerRadius="8"
+                  VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                  IsEnabled="{Binding HasSelectedGameFiles}"
+                  ToolTip.Tip="Add selected files to project">
+            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+              <Path Width="14" Height="14" Fill="White" Data="{StaticResource IconChevronRight}" Stretch="Uniform" VerticalAlignment="Center"/>
+              <TextBlock Text="Add to Project" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Button>
+        </Grid>
+      </Border>
+
+      <!-- Splitter -->
+      <GridSplitter Grid.Column="1" Background="Transparent"
+                    ResizeDirection="Columns"/>
+
+      <!-- Right: Project Files -->
+      <Border Grid.Column="2" Background="{DynamicResource CardBackground}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              CornerRadius="10" Padding="14" ClipToBounds="True">
+        <Grid RowDefinitions="Auto,*,Auto">
+          <TextBlock Grid.Row="0" Text="Project Files (GameFilesEdited)"
+                     FontWeight="Bold" FontSize="14"
+                     Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,10"/>
+
+          <Border Grid.Row="1" BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="1" CornerRadius="8" Background="{DynamicResource SurfaceElevatedBrush}">
+            <TreeView ItemsSource="{Binding ProjectFiles}"
+                      SelectedItem="{Binding SelectedProjectFile}"
+                      SelectionMode="Multiple"
+                      SelectedItems="{Binding SelectedProjectFiles}">
+              <TreeView.ItemTemplate>
+                <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="models:FileTreeNode">
+                  <Border Background="Transparent" Padding="6,4"
+                          CornerRadius="6">
+                    <Border.Styles>
+                      <Style Selector="Border:pointerover">
+                        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+                      </Style>
+                    </Border.Styles>
+
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+                      <!-- Icon -->
+                      <TextBlock Grid.Column="0" Margin="0,0,6,0"
+                                 FontSize="14" VerticalAlignment="Center">
+                        <TextBlock.Text>
+                          <MultiBinding Converter="{StaticResource FileIconConverter}">
+                            <Binding Path="IsDirectory"/>
+                            <Binding Path="Extension"/>
+                          </MultiBinding>
+                        </TextBlock.Text>
+                      </TextBlock>
+
+                      <!-- Name -->
+                      <TextBlock Grid.Column="2" Text="{Binding Name}"
+                                 VerticalAlignment="Center"
+                                 Foreground="{DynamicResource TextPrimary}"
+                                 TextTrimming="CharacterEllipsis"
+                                 ToolTip.Tip="{Binding FullPath}"/>
+
+                      <!-- Status Indicator -->
+                      <Border Grid.Column="3" Width="8" Height="8"
+                              CornerRadius="4" Margin="8,0"
+                              Background="{Binding StatusColor}"
+                              IsVisible="{Binding HasStatus}"
+                              ToolTip.Tip="{Binding StatusText}"
+                              VerticalAlignment="Center"/>
+
+                      <!-- Size -->
+                      <TextBlock Grid.Column="4" Text="{Binding FormattedSize}"
+                                 FontSize="11" Foreground="{DynamicResource TextSecondary}"
+                                 VerticalAlignment="Center"/>
+                    </Grid>
+                  </Border>
+                </TreeDataTemplate>
+              </TreeView.ItemTemplate>
+            </TreeView>
+          </Border>
+
+          <Button Grid.Row="2" Command="{Binding RemoveFilesFromProjectCommand}"
+                  HorizontalAlignment="Stretch"
+                  Margin="0,10,0,0" Padding="0,10"
+                  Background="{DynamicResource ErrorBadgeBackgroundBrush}"
+                  Foreground="{DynamicResource ErrorBrush}"
+                  BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1"
+                  CornerRadius="8"
+                  VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                  IsEnabled="{Binding HasSelectedProjectFiles}"
+                  ToolTip.Tip="Remove selected files from project">
+            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+              <Path Width="14" Height="14" Fill="{DynamicResource ErrorBrush}" Data="{StaticResource IconClear}" Stretch="Uniform" VerticalAlignment="Center"/>
+              <TextBlock Text="Remove from Project" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Button>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <!-- Status Bar -->
+    <Border Grid.Row="3" Background="{DynamicResource SurfaceElevatedBrush}"
+            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+            CornerRadius="8" Padding="12,8" Margin="0,10,0,0">
+      <Grid ColumnDefinitions="Auto,*">
+        <ProgressBar Grid.Column="0"
+                     Value="{Binding ProgressPercentage}"
+                     IsIndeterminate="{Binding IsIndeterminateProgress}"
+                     MinWidth="160" Height="6" CornerRadius="3"
+                     Foreground="{DynamicResource AccentBrush}"
+                     Background="{DynamicResource SurfaceHoverBrush}"
+                     Margin="0,0,12,0"
+                     IsVisible="{Binding IsLoading}"/>
+
+        <TextBlock Grid.Column="1" Text="{Binding StatusMessage}"
+                   FontSize="12" Foreground="{DynamicResource TextSecondary}"
+                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

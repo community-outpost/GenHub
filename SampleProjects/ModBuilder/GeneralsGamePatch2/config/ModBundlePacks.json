@@ -1,0 +1,27 @@
+{
+  "BundlePacks": [
+    {
+      "Name": "GeneralsGamePatch2",
+      "Items": [
+        "PatchINI",
+        "PatchTextures",
+        "PatchAudio",
+        "PatchScripts"
+      ],
+      "OutputFile": ".Release/GeneralsGamePatch2.zip",
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Complete Generals Community Patch 2.0 full release package"
+    },
+    {
+      "Name": "PatchINIOnly",
+      "Items": [
+        "PatchINI"
+      ],
+      "OutputFile": ".Release/PatchINIOnly.zip",
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Lightweight INI-only balance and bugfix package"
+    }
+  ]
+}

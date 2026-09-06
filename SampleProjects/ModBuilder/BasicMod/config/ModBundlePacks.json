@@ -1,0 +1,27 @@
+{
+  "BundlePacks": [
+    {
+      "Name": "CommunityDataPatch",
+      "Items": [
+        "CoreINIPatch",
+        "CoreTextures",
+        "CoreAudio",
+        "GameScripts"
+      ],
+      "OutputFile": ".Release/CommunityDataPatch.zip",
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Full Community Patch distribution package containing all INI, texture, audio, and script fixes"
+    },
+    {
+      "Name": "CoreINIOnly",
+      "Items": [
+        "CoreINIPatch"
+      ],
+      "OutputFile": ".Release/CoreINIOnly.zip",
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Lightweight INI-only data patch package"
+    }
+  ]
+}
