@@ -18,6 +18,9 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel instance methods access CommunityToolkit MVVM generated properties.")]
 public partial class GameProfileItemViewModel : ViewModelBase
 {
+    private const string LocalPublisherName = "Local";
+    private const string SteamPublisherName = "Steam";
+
     /// <summary>
     /// Gets or sets the action to launch the profile.
     /// </summary>
@@ -457,7 +460,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 // But SKIP if the publisher is "Local" - we want NO version for local content
                 if (string.IsNullOrEmpty(_gameVersion) &&
                     !string.IsNullOrEmpty(gameProfile.GameClient.Version) &&
-                    !string.Equals(_publisher, "Local", StringComparison.OrdinalIgnoreCase))
+                    !string.Equals(_publisher, LocalPublisherName, StringComparison.OrdinalIgnoreCase))
                 {
                     // Normalize version to handle Unknown, Auto-Updated, and Automatically added cases
                     var version = gameProfile.GameClient.Version;
@@ -615,7 +618,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
     private static string MapPublisherName(string publisherSegment, string fallback) =>
         publisherSegment switch
         {
-            PublisherTypeConstants.Steam => "Steam",
+            PublisherTypeConstants.Steam => SteamPublisherName,
             PublisherTypeConstants.EaApp => "EA App",
             "thefirstdecade" => "The First Decade",
             PublisherTypeConstants.Retail => "Retail",
@@ -624,7 +627,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
             PublisherTypeConstants.GeneralsOnline => "Generals Online",
             PublisherTypeConstants.TheSuperHackers => "The Super Hackers",
             CommunityOutpostConstants.PublisherType => "Community Outpost",
-            "local" => "Local",
+            "local" => LocalPublisherName,
             _ => fallback,
         };
 
@@ -658,7 +661,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
     {
         return installationType switch
         {
-            GameInstallationType.Steam => "Steam",
+            GameInstallationType.Steam => SteamPublisherName,
             GameInstallationType.EaApp => "EA App",
             GameInstallationType.TheFirstDecade => "First Decade",
             GameInstallationType.Wine => "Wine/Linux",
@@ -776,20 +779,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
     private static (string Publisher, string? ColorValue, string? CoverImagePath) ResolvePublisherAndBranding(string publisherSegment, string fallbackRaw)
     {
-        var publisher = publisherSegment switch
-        {
-            PublisherTypeConstants.Steam => "Steam",
-            PublisherTypeConstants.EaApp => "EA App",
-            "thefirstdecade" => "The First Decade",
-            PublisherTypeConstants.Retail => "Retail",
-            "cdiso" => "CD/ISO",
-            "wine" => "Wine",
-            PublisherTypeConstants.GeneralsOnline => "Generals Online",
-            PublisherTypeConstants.TheSuperHackers => "The Super Hackers",
-            CommunityOutpostConstants.PublisherType => "Community Outpost",
-            "local" => "Local",
-            _ => fallbackRaw.ToUpperInvariant(),
-        };
+        var publisher = MapPublisherName(publisherSegment, fallbackRaw.ToUpperInvariant());
 
         string? colorValue = null;
         string? coverImagePath = null;
@@ -833,7 +823,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
             // But SKIP if the publisher is "Local"
             if (string.IsNullOrEmpty(GameVersion) &&
                 !string.IsNullOrEmpty(gameProfile.GameClient.Version) &&
-                !string.Equals(Publisher, "Local", StringComparison.OrdinalIgnoreCase))
+                !string.Equals(Publisher, LocalPublisherName, StringComparison.OrdinalIgnoreCase))
             {
                 var version = gameProfile.GameClient.Version;
                 GameVersion = IsZeroOrPlaceholderVersion(version) ? string.Empty : version;
@@ -907,7 +897,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
         if (string.IsNullOrEmpty(installationSource))
         {
             // Fallback to internal checking
-            installationSource = IsSteamInstallation ? "Steam" : "PC";
+            installationSource = IsSteamInstallation ? SteamPublisherName : "PC";
         }
 
         // 2. Content Info (_publisher and _gameVersion are set by ExtractManifestInfo called earlier)
