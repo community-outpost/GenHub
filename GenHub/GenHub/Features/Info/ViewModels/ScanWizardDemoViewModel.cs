@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -60,9 +61,10 @@ public partial class ScanWizardDemoViewModel : ObservableObject
     /// <summary>
     /// Simulates a scan for installed games.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the operation.</returns>
     [RelayCommand]
-    public async Task RescanAsync()
+    public async Task RescanAsync(CancellationToken cancellationToken = default)
     {
         if (IsScanning)
         {
@@ -70,21 +72,31 @@ public partial class ScanWizardDemoViewModel : ObservableObject
         }
 
         IsScanning = true;
-        Status = "Scanning registry, Steam, and EA App directories...";
-        Items.Clear();
+        try
+        {
+            Status = "Scanning registry, Steam, and EA App directories...";
+            Items.Clear();
 
-        await Task.Delay(1000);
+            await Task.Delay(1000, cancellationToken);
 
-        PopulateDefaultItems();
-        UpdateState();
-        Status = "GenHub detected 2 installations on your system.";
-        IsScanning = false;
+            PopulateDefaultItems();
+            UpdateState();
+            Status = "GenHub detected 2 installations on your system.";
 
-        _notificationService?.Show(new NotificationMessage(
-            NotificationType.Success,
-            "Scan Wizard",
-            "Scan complete: Found 2 game installations. (Simulated)",
-            3000));
+            _notificationService?.Show(new NotificationMessage(
+                NotificationType.Success,
+                "Scan Wizard",
+                "Scan complete: Found 2 game installations. (Simulated)",
+                3000));
+        }
+        catch (OperationCanceledException)
+        {
+            Status = "Scan cancelled.";
+        }
+        finally
+        {
+            IsScanning = false;
+        }
     }
 
     /// <summary>
@@ -129,7 +141,7 @@ public partial class ScanWizardDemoViewModel : ObservableObject
         var basePath = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
         if (string.IsNullOrEmpty(basePath))
         {
-            basePath = Path.Combine("C:", "Program Files (x86)");
+            basePath = @"C:\Program Files (x86)";
         }
 
         var generalsPath = Path.Combine(basePath, "EA Games", "Command and Conquer Generals");
