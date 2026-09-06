@@ -1,6 +1,7 @@
 [config]
 model = "openai/glm-5.3-flash"
 fallback_models = []
+max_model_tokens = 128000
 custom_model_max_tokens = 128000
 
 [openai]
