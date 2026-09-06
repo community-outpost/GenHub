@@ -153,7 +153,7 @@ public class GameProfileSettingsViewModelTests
 
         // Assert
         Assert.True(vm.LoadingError);
-        Assert.Equal("Error loading profile", vm.StatusMessage);
+        Assert.Equal("Failed to load profile", vm.StatusMessage);
     }
 
     /// <summary>

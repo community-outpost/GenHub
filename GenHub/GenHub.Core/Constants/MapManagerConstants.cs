@@ -36,9 +36,9 @@ public static class MapManagerConstants
     public const int RateLimitDays = 3;
 
     /// <summary>
-    /// Maximum upload size in bytes per period (100 MB).
+    /// Maximum upload size in bytes per period (10 MB).
     /// </summary>
-    public const long MaxUploadBytesPerPeriod = 100 * 1024 * 1024;
+    public const long MaxUploadBytesPerPeriod = 10 * 1024 * 1024;
 
     /// <summary>
     /// Maximum width for map thumbnails in pixels.

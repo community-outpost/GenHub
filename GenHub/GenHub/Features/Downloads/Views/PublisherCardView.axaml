@@ -183,13 +183,13 @@
                            VerticalAlignment="Center" />
 
                 <!-- Loading Indicator -->
-                <TextBlock Grid.Column="2"
-                           Text="⟳"
-                           FontSize="16"
-                           Foreground="#FF9800"
-                           IsVisible="{Binding IsLoading}"
-                           VerticalAlignment="Center"
-                           Margin="0,0,10,0" />
+                <ProgressBar Grid.Column="2"
+                             IsIndeterminate="True"
+                             Width="16" Height="16"
+                             Foreground="{DynamicResource AccentBrush}"
+                             IsVisible="{Binding IsLoading}"
+                             VerticalAlignment="Center"
+                             Margin="0,0,10,0" />
 
                 <!-- Expand/Collapse Button -->
                 <Button Grid.Column="4"
@@ -202,8 +202,8 @@
                         </MultiBinding>
                     </Button.IsVisible>
                     <Panel>
-                        <TextBlock Text="▲" FontSize="14" Foreground="#CCCCCC" IsVisible="{Binding IsExpanded}" />
-                        <TextBlock Text="▼" FontSize="14" Foreground="#CCCCCC" IsVisible="{Binding !IsExpanded}" />
+                        <PathIcon Data="M7.41,15.41L12,10.83L16.59,15.41L18,14L12,8L6,14L7.41,15.41Z" Width="12" Height="12" Foreground="{DynamicResource TextSecondary}" IsVisible="{Binding IsExpanded}" />
+                        <PathIcon Data="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z" Width="12" Height="12" Foreground="{DynamicResource TextSecondary}" IsVisible="{Binding !IsExpanded}" />
                     </Panel>
                 </Button>
             </Grid>

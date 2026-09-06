@@ -763,6 +763,151 @@
         </Border>
       </Expander>
 
+      <!-- Cloud Uploads & Storage Settings -->
+      <Expander x:Name="Expander_CloudUploads" IsExpanded="False" HorizontalAlignment="Stretch">
+        <Expander.Header>
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <PathIcon Data="M19.35,10.04C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.04C2.34,8.36 0,10.91 0,14A6,6 0 0,0 6,20H19A5,5 0 0,0 24,15C24,12.36 21.95,10.22 19.35,10.04M14,13V17H10V13H7L12,8L17,13H14Z"
+                          Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
+                <TextBlock Text="Cloud Storage &amp; Uploads" Classes="section-header" Margin="0"/>
+            </StackPanel>
+        </Expander.Header>
+        <Border Padding="20">
+          <StackPanel Spacing="20">
+            <!-- Quota Utilization Card -->
+            <Border Background="{DynamicResource SurfaceCardBrush}"
+                    BorderBrush="{DynamicResource BorderSubtleBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="16">
+              <StackPanel Spacing="10">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Grid.Column="0" Spacing="2">
+                    <TextBlock Text="UploadThing Cloud Storage Pool" Classes="setting-label" />
+                    <TextBlock Text="Temporary storage pool for sharing maps, replays, and custom profile packages."
+                               Classes="setting-description" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1"
+                             Text="{Binding UploadQuotaText}"
+                             FontSize="13"
+                             FontWeight="SemiBold"
+                             Foreground="{DynamicResource TextPrimary}"
+                             VerticalAlignment="Center" />
+                </Grid>
+
+                <ProgressBar Value="{Binding UploadQuotaPercent}"
+                             Maximum="100"
+                             Height="8"
+                             CornerRadius="4"
+                             Background="{DynamicResource BorderSubtleBrush}"
+                             Foreground="{DynamicResource AccentColor}" />
+
+                <TextBlock Text="Files automatically expire after 72 hours. Removing records clears local tracking without deleting hosted files."
+                           FontSize="11"
+                           Foreground="{DynamicResource TextSecondary}" />
+              </StackPanel>
+            </Border>
+
+            <!-- Active Uploads Header & Controls -->
+            <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,4,0,0">
+              <TextBlock Grid.Column="0" Text="Active Upload Records" Classes="setting-label" VerticalAlignment="Center" />
+              <Button Grid.Column="1"
+                      Content="Refresh"
+                      Command="{Binding RefreshUploadsCommand}"
+                      Classes="secondary-button"
+                      Margin="0,0,8,0" />
+              <Button Grid.Column="2"
+                      Content="Clear All"
+                      Command="{Binding ClearAllUploadsCommand}"
+                      IsEnabled="{Binding HasUploads}"
+                      Classes="secondary-button" />
+            </Grid>
+
+            <!-- Empty State -->
+            <Border IsVisible="{Binding !HasUploads}"
+                    Background="{DynamicResource SurfaceCardBrush}"
+                    BorderBrush="{DynamicResource BorderSubtleBrush}"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Padding="24">
+              <TextBlock Text="No active cloud uploads. When you upload custom replays, maps, or share profiles with local content, they will appear here."
+                         FontSize="12"
+                         Foreground="{DynamicResource TextSecondary}"
+                         TextAlignment="Center"
+                         TextWrapping="Wrap" />
+            </Border>
+
+            <!-- Active Uploads List -->
+            <ItemsControl ItemsSource="{Binding ActiveUploads}" IsVisible="{Binding HasUploads}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Background="{DynamicResource SurfaceCardBrush}"
+                          BorderBrush="{DynamicResource BorderSubtleBrush}"
+                          BorderThickness="1"
+                          CornerRadius="6"
+                          Padding="12,10"
+                          Margin="0,0,0,8">
+                    <Grid ColumnDefinitions="Auto,*,Auto,Auto" VerticalAlignment="Center">
+                      <PathIcon Grid.Column="0"
+                                Data="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"
+                                Width="16" Height="16"
+                                Foreground="{DynamicResource TextSecondary}"
+                                Margin="0,0,12,0"
+                                VerticalAlignment="Center" />
+
+                      <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                        <TextBlock Text="{Binding FileName}"
+                                   FontWeight="SemiBold"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource TextPrimary}"
+                                   TextTrimming="CharacterEllipsis" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                          <TextBlock Text="{Binding FormattedSize}"
+                                     FontSize="11"
+                                     Foreground="{DynamicResource TextSecondary}" />
+                          <TextBlock Text="•" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                          <TextBlock Text="{Binding FormattedDate}"
+                                     FontSize="11"
+                                     Foreground="{DynamicResource TextSecondary}" />
+                          <Border Background="{DynamicResource BorderSubtleBrush}"
+                                  CornerRadius="3"
+                                  Padding="4,1"
+                                  IsVisible="{Binding Category, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                            <TextBlock Text="{Binding Category}"
+                                       FontSize="10"
+                                       Foreground="{DynamicResource TextPrimary}" />
+                          </Border>
+                        </StackPanel>
+                      </StackPanel>
+
+                      <Button Grid.Column="2"
+                              Content="Copy Link"
+                              Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).CopyUploadUrlCommand}"
+                              CommandParameter="{Binding Url}"
+                              Classes="secondary-button"
+                              Padding="8,4"
+                              FontSize="12"
+                              Margin="0,0,6,0"
+                              VerticalAlignment="Center" />
+
+                      <Button Grid.Column="3"
+                              Content="Delete"
+                              Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).DeleteUploadCommand}"
+                              CommandParameter="{Binding .}"
+                              Classes="secondary-button"
+                              Padding="8,4"
+                              FontSize="12"
+                              Foreground="{DynamicResource ErrorBrush}"
+                              VerticalAlignment="Center" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+      </Expander>
+
       <!-- Danger Zone -->
       <Expander x:Name="Expander_DangerZone" IsExpanded="False" HorizontalAlignment="Stretch" Margin="0,16,0,0">
         <Expander.Header>

@@ -66,8 +66,11 @@
             <!-- Footer / Progress -->
             <StackPanel Grid.Row="2" Margin="0,15,0,0" Spacing="8">
                 <ProgressBar Value="{Binding Progress}" Height="4" Background="{DynamicResource SurfaceHoverBrush}" Foreground="{DynamicResource AccentBrush}"/>
-                <TextBlock Text="💡 This process creates a full 'virtual' game installation in milliseconds using almost zero disk space."
-                           FontSize="11" Foreground="#666" HorizontalAlignment="Center" FontStyle="Italic"/>
+                <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                    <PathIcon Data="M12,2A7,7 0 0,0 5,9C5,11.38 6.19,13.47 8,14.74V17A1,1 0 0,0 9,18H15A1,1 0 0,0 16,17V14.74C17.81,13.47 19,11.38 19,9A7,7 0 0,0 12,2M9,21A1,1 0 0,0 10,22H14A1,1 0 0,0 15,21V20H9V21Z" Width="12" Height="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                    <TextBlock Text="This process creates a full 'virtual' game installation in milliseconds using almost zero disk space."
+                               FontSize="11" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center" FontStyle="Italic" VerticalAlignment="Center"/>
+                </StackPanel>
             </StackPanel>
         </Grid>
     </Border>

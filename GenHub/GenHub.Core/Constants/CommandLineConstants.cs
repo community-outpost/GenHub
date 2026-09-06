@@ -44,4 +44,79 @@ public static class CommandLineConstants
     /// Query parameter carrying the absolute URL of a catalog (or future provider definition).
     /// </summary>
     public const string SubscribeUrlParam = "?url=";
+
+    /// <summary>
+    /// URI path segment for profile commands (<c>genhub://profile/...</c>).
+    /// </summary>
+    public const string ProfileCommand = "profile";
+
+    /// <summary>
+    /// URI subcommand for profile import (<c>genhub://profile/import</c>).
+    /// </summary>
+    public const string ProfileImportSubcommand = "import";
+
+    /// <summary>
+    /// URI subcommand for profile view (<c>genhub://profile/view</c>).
+    /// </summary>
+    public const string ProfileViewSubcommand = "view";
+
+    /// <summary>
+    /// Full prefix for profile import URIs (<c>genhub://profile/import</c>).
+    /// </summary>
+    public const string ProfileImportUriPrefix = UriScheme + "profile/import";
+
+    /// <summary>
+    /// Full prefix for profile view URIs (<c>genhub://profile/view</c>).
+    /// </summary>
+    public const string ProfileViewUriPrefix = UriScheme + "profile/view";
+
+    /// <summary>
+    /// Query parameter name carrying inline compressed profile data.
+    /// </summary>
+    public const string DataQueryParam = "data=";
+
+    /// <summary>
+    /// Query parameter name carrying remote profile URL.
+    /// </summary>
+    public const string UrlQueryParam = "url=";
+
+    /// <summary>
+    /// Query parameter name carrying catalog profile ID.
+    /// </summary>
+    public const string IdQueryParam = "id=";
+
+    /// <summary>
+    /// Query parameter name carrying catalog publisher identifier.
+    /// </summary>
+    public const string PublisherQueryParam = "publisher=";
+
+    /// <summary>
+    /// Command-line argument used to request importing a shared profile.
+    /// </summary>
+    public const string ImportProfileArg = "--import-profile";
+
+    /// <summary>
+    /// Command-line argument prefix for inline shared profile importing.
+    /// </summary>
+    public const string ImportProfileInlinePrefix = "--import-profile=";
+
+    /// <summary>
+    /// Command-line argument used to allow running multiple instances concurrently.
+    /// </summary>
+    public const string MultiInstanceArg = "--multi-instance";
+
+    /// <summary>
+    /// Short command-line argument used to allow running multiple instances concurrently.
+    /// </summary>
+    public const string MultiInstanceShortArg = "-m";
+
+    /// <summary>
+    /// Environment variable name to allow running multiple instances concurrently.
+    /// </summary>
+    public const string MultiInstanceEnvVar = "GENHUB_MULTI_INSTANCE";
+
+    /// <summary>
+    /// Environment variable value representing enabled multi-instance mode.
+    /// </summary>
+    public const string MultiInstanceEnvEnabledValue = "1";
 }

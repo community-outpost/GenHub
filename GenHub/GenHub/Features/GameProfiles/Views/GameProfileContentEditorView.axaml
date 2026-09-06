@@ -31,22 +31,23 @@
     <UserControl.Styles>
         <!-- Section card style -->
         <Style Selector="Border.section-card">
-            <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="Background" Value="#10FFFFFF" />
+            <Setter Property="BorderBrush" Value="#20FFFFFF" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="12" />
-            <Setter Property="Padding" Value="18" />
-            <Setter Property="Margin" Value="0,0,0,14" />
-            <Setter Property="TextElement.Foreground" Value="{DynamicResource TextPrimary}" />
-            <Setter Property="BoxShadow" Value="0 4 12 0 #20000000" />
+            <Setter Property="Padding" Value="24" />
+            <Setter Property="Margin" Value="24,0,24,24" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="TextElement.Foreground" Value="White" />
         </Style>
 
         <!-- Section title -->
         <Style Selector="TextBlock.section-title">
-            <Setter Property="FontSize" Value="16" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-            <Setter Property="Margin" Value="0,0,0,12" />
+            <Setter Property="FontSize" Value="20" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Margin" Value="0,0,0,20" />
         </Style>
 
         <!-- Sidebar buttons -->
@@ -80,41 +81,10 @@
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
 
-        <!-- Content filter pills -->
-        <Style Selector="Button.filter-pill">
-            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="14,8" />
-            <Setter Property="Margin" Value="3" />
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="FontWeight" Value="Medium" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.15" />
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-                </Transitions>
-            </Setter>
-        </Style>
-        <Style Selector="Button.filter-pill:pointerover">
-            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
-            <Setter Property="RenderTransform" Value="translateY(-1px)" />
-        </Style>
-        <Style Selector="Button.filter-pill.selected">
-            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="FontWeight" Value="Bold" />
-        </Style>
-
         <!-- Content Card Styles -->
         <Style Selector="Button.content-card-btn">
-            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="Background" Value="#08FFFFFF" />
+            <Setter Property="BorderBrush" Value="#15FFFFFF" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="10" />
             <Setter Property="Padding" Value="14" />
@@ -133,7 +103,7 @@
             </Setter>
         </Style>
         <Style Selector="Button.content-card-btn:pointerover">
-            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+            <Setter Property="Background" Value="#18FFFFFF" />
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="RenderTransform" Value="translateY(-1px)" />
         </Style>
@@ -170,10 +140,10 @@
 
         <!-- Sidebar Navigation -->
         <Border Grid.Column="0"
-                Background="{DynamicResource SurfaceElevatedBrush}"
-                BorderBrush="{DynamicResource BorderBrush}"
+                Background="#10000000"
+                BorderBrush="#20FFFFFF"
                 BorderThickness="0,0,1,0"
-                Padding="12,20">
+                Padding="12,24">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Spacing="4">
                     <Button Classes="sidebar-btn"
@@ -203,7 +173,7 @@
         <GridSplitter Grid.Column="1" Background="Transparent" ResizeDirection="Columns" />
 
         <!-- Content Area -->
-        <ScrollViewer x:Name="ContentEditorScrollViewer" Grid.Column="2" Padding="16,8,16,16"
+        <ScrollViewer x:Name="ContentEditorScrollViewer" Grid.Column="2" Padding="0,24,0,80"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
                       BringIntoViewOnFocusChange="False">

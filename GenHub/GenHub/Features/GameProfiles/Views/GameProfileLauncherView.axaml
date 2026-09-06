@@ -9,6 +9,7 @@
     mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="550"
     x:Class="GenHub.Features.GameProfiles.Views.GameProfileLauncherView"
     x:Name="ProfileLauncher"
+    DragDrop.AllowDrop="True"
     x:DataType="vm:GameProfileLauncherViewModel"
     x:CompileBindings="True">
 
@@ -246,6 +247,13 @@
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
                             <Panel>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <!-- Import Profile Button -->
+                                    <Button Command="{Binding ImportProfileCommand}"
+                                            Content="IMPORT"
+                                            Classes="outline"
+                                            ToolTip.Tip="Import a game profile package (.ghprofile, .json, or drag &amp; drop onto window)"
+                                            IsVisible="{Binding !IsScanning}" />
+
                                     <!-- Scan Button -->
                                     <Button Command="{Binding ScanForGamesCommand}"
                                             Content="SCAN"

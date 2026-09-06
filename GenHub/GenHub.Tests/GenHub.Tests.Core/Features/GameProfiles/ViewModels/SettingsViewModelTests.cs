@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -20,6 +24,7 @@ using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Settings.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Xunit;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 
@@ -769,6 +774,136 @@ public class SettingsViewModelTests
         Assert.Equal(ThemeConstants.DefaultTheme.Id, viewModel.Theme);
         Assert.Equal(ThemeConstants.DefaultTheme, viewModel.SelectedTheme);
         mockThemeService.Verify(s => s.ApplyTheme(ThemeConstants.DefaultTheme), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that RefreshUploadsCommand populates active upload items and computes quota percentage.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task RefreshUploadsCommand_PopulatesActiveUploadsAndComputesQuotaAsync()
+    {
+        // Arrange
+        var mockUploadHistoryService = new Mock<IUploadHistoryService>();
+        var items = new List<UploadHistoryItem>
+        {
+            new(DateTime.UtcNow, 2 * ConversionConstants.BytesPerMegabyte, string.Format(CultureInfo.InvariantCulture, ApiConstants.UploadThingPublicUrlFormat, "map1.zip"), "DesertStorm.zip"),
+            new(DateTime.UtcNow, 3 * ConversionConstants.BytesPerMegabyte, string.Format(CultureInfo.InvariantCulture, ApiConstants.UploadThingPublicUrlFormat, "rep1.rep"), "FinalMatch.rep"),
+        };
+
+        mockUploadHistoryService.Setup(s => s.GetUploadHistoryAsync(It.IsAny<string?>()))
+            .ReturnsAsync(items);
+        mockUploadHistoryService.Setup(s => s.GetUsageInfoAsync(It.IsAny<string?>()))
+            .ReturnsAsync(new UsageInfo(5 * ConversionConstants.BytesPerMegabyte, 10 * ConversionConstants.BytesPerMegabyte, DateTime.UtcNow.AddDays(30)));
+
+        var viewModel = new SettingsViewModel(
+            _mockConfigService.Object,
+            _mockLogger.Object,
+            _mockCasService.Object,
+            _mockProfileManager.Object,
+            _mockWorkspaceManager.Object,
+            _mockManifestPool.Object,
+            _mockUpdateManager.Object,
+            _mockNotificationService.Object,
+            _mockConfigurationProvider.Object,
+            _mockInstallationService.Object,
+            _mockStorageLocationService.Object,
+            _mockUserDataTracker.Object,
+            _mockDialogService.Object,
+            uploadHistoryService: mockUploadHistoryService.Object);
+
+        // Act
+        await viewModel.RefreshUploadsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.True(viewModel.HasUploads);
+        Assert.Equal(2, viewModel.ActiveUploads.Count);
+        Assert.Equal(50.0, viewModel.UploadQuotaPercent);
+        Assert.Contains("5.0 MB / 10.0 MB", viewModel.UploadQuotaText);
+    }
+
+    /// <summary>
+    /// Verifies that DeleteUploadCommand calls RemoveHistoryItemAsync and refreshes the list.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteUploadCommand_RemovesItemFromCloudAndRefreshesAsync()
+    {
+        // Arrange
+        var mockUploadHistoryService = new Mock<IUploadHistoryService>();
+        var itemToDelete = new UploadHistoryItem(DateTime.UtcNow, ConversionConstants.BytesPerMegabyte, string.Format(CultureInfo.InvariantCulture, ApiConstants.UploadThingPublicUrlFormat, "map.zip"), "Map.zip");
+
+        mockUploadHistoryService.Setup(s => s.RemoveHistoryItemAsync(itemToDelete.Url, It.IsAny<bool>()))
+            .ReturnsAsync(true);
+        mockUploadHistoryService.Setup(s => s.GetUploadHistoryAsync(It.IsAny<string?>()))
+            .ReturnsAsync(new List<UploadHistoryItem>());
+        mockUploadHistoryService.Setup(s => s.GetUsageInfoAsync(It.IsAny<string?>()))
+            .ReturnsAsync(new UsageInfo(0, 10 * ConversionConstants.BytesPerMegabyte, DateTime.UtcNow.AddDays(30)));
+
+        var viewModel = new SettingsViewModel(
+            _mockConfigService.Object,
+            _mockLogger.Object,
+            _mockCasService.Object,
+            _mockProfileManager.Object,
+            _mockWorkspaceManager.Object,
+            _mockManifestPool.Object,
+            _mockUpdateManager.Object,
+            _mockNotificationService.Object,
+            _mockConfigurationProvider.Object,
+            _mockInstallationService.Object,
+            _mockStorageLocationService.Object,
+            _mockUserDataTracker.Object,
+            _mockDialogService.Object,
+            uploadHistoryService: mockUploadHistoryService.Object);
+
+        // Act
+        await viewModel.DeleteUploadCommand.ExecuteAsync(itemToDelete);
+
+        // Assert
+        mockUploadHistoryService.Verify(s => s.RemoveHistoryItemAsync(itemToDelete.Url, It.IsAny<bool>()), Times.Once);
+        Assert.False(viewModel.HasUploads);
+        Assert.Empty(viewModel.ActiveUploads);
+    }
+
+    /// <summary>
+    /// Verifies that ClearAllUploadsCommand calls ClearHistoryAsync and empties the active list.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ClearAllUploadsCommand_PurgesAllUploadsAsync()
+    {
+        // Arrange
+        var mockUploadHistoryService = new Mock<IUploadHistoryService>();
+
+        mockUploadHistoryService.Setup(s => s.ClearHistoryAsync(It.IsAny<bool>(), It.IsAny<string?>()))
+            .ReturnsAsync((1, 0));
+        mockUploadHistoryService.Setup(s => s.GetUploadHistoryAsync(It.IsAny<string?>()))
+            .ReturnsAsync(new List<UploadHistoryItem>());
+        mockUploadHistoryService.Setup(s => s.GetUsageInfoAsync(It.IsAny<string?>()))
+            .ReturnsAsync(new UsageInfo(0, 10 * 1024 * 1024, DateTime.UtcNow.AddDays(30)));
+
+        var viewModel = new SettingsViewModel(
+            _mockConfigService.Object,
+            _mockLogger.Object,
+            _mockCasService.Object,
+            _mockProfileManager.Object,
+            _mockWorkspaceManager.Object,
+            _mockManifestPool.Object,
+            _mockUpdateManager.Object,
+            _mockNotificationService.Object,
+            _mockConfigurationProvider.Object,
+            _mockInstallationService.Object,
+            _mockStorageLocationService.Object,
+            _mockUserDataTracker.Object,
+            _mockDialogService.Object,
+            uploadHistoryService: mockUploadHistoryService.Object);
+
+        // Act
+        await viewModel.ClearAllUploadsCommand.ExecuteAsync(null);
+
+        // Assert
+        mockUploadHistoryService.Verify(s => s.ClearHistoryAsync(It.IsAny<bool>(), It.IsAny<string?>()), Times.Once);
+        Assert.False(viewModel.HasUploads);
     }
 
     private void SetupDeletableData()

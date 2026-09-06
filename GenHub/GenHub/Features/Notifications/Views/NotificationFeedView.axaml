@@ -160,8 +160,8 @@
                                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                                     <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#10B981" Margin="0,0,12,0" VerticalAlignment="Center"/>
                                                     <TextBlock Grid.Column="1" Text="Enable Notifications" Foreground="#E0E0E0" FontSize="13" VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="2" Text="✓" Foreground="#10B981" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
-                                                               IsVisible="{Binding IsUnmuted}"/>
+                                                    <PathIcon Grid.Column="2" Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" Width="12" Height="12" Foreground="#10B981" VerticalAlignment="Center"
+                                                              IsVisible="{Binding IsUnmuted}"/>
                                                 </Grid>
                                             </Button>
                                             <Button Command="{Binding MuteSessionCommand}"
@@ -175,8 +175,8 @@
                                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                                     <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#F59E0B" Margin="0,0,12,0" VerticalAlignment="Center"/>
                                                     <TextBlock Grid.Column="1" Text="Mute for this session" Foreground="#E0E0E0" FontSize="13" VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="2" Text="✓" Foreground="#F59E0B" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
-                                                               IsVisible="{Binding IsSessionMuted}"/>
+                                                    <PathIcon Grid.Column="2" Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" Width="12" Height="12" Foreground="#F59E0B" VerticalAlignment="Center"
+                                                              IsVisible="{Binding IsSessionMuted}"/>
                                                 </Grid>
                                             </Button>
                                             <Button Command="{Binding MutePersistentCommand}"
@@ -190,8 +190,8 @@
                                                 <Grid ColumnDefinitions="Auto,*,Auto">
                                                     <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#EF4444" Margin="0,0,12,0" VerticalAlignment="Center"/>
                                                     <TextBlock Grid.Column="1" Text="Mute permanently" Foreground="#E0E0E0" FontSize="13" VerticalAlignment="Center"/>
-                                                    <TextBlock Grid.Column="2" Text="✓" Foreground="#EF4444" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
-                                                               IsVisible="{Binding IsPersistentMuted}"/>
+                                                    <PathIcon Grid.Column="2" Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" Width="12" Height="12" Foreground="#EF4444" VerticalAlignment="Center"
+                                                              IsVisible="{Binding IsPersistentMuted}"/>
                                                 </Grid>
                                             </Button>
                                         </StackPanel>

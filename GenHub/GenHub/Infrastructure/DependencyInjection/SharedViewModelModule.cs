@@ -62,7 +62,8 @@ public static class SharedViewModelModule
             sp.GetRequiredService<IUserDataTracker>(),
             sp.GetRequiredService<IDialogService>(),
             sp.GetService<IThemeService>(),
-            sp.GetService<IGitHubTokenStorage>()));
+            sp.GetService<IGitHubTokenStorage>(),
+            sp.GetService<IUploadHistoryService>()));
         services.AddSingleton<GameProfileSettingsViewModel>();
 
         // Register PublisherCardViewModel as transient
