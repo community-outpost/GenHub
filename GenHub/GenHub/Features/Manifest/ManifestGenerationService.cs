@@ -811,6 +811,25 @@ public class ManifestGenerationService(
         }
 
         var sourcePath = ResolveSourcePathWithBackup(executablePath, executableName);
+
+        try
+        {
+            if (File.GetAttributes(executablePath).HasFlag(FileAttributes.ReparsePoint) ||
+                (sourcePath != executablePath && File.GetAttributes(sourcePath).HasFlag(FileAttributes.ReparsePoint)))
+            {
+                logger.LogWarning(
+                    "Primary executable {ExecutableName} at {ExecutablePath} is a reparse point or symbolic link and will be skipped",
+                    executableName,
+                    executablePath);
+                return;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to read attributes for primary executable {ExecutableName} at {ExecutablePath}", executableName, executablePath);
+            return;
+        }
+
         try
         {
             await builder.AddGameInstallationFileAsync(executableName, sourcePath, isExecutable: true);
