@@ -28,8 +28,14 @@ jobs:
       - name: Run Qodo PR-Agent
         uses: the-pr-agent/pr-agent@97169bcab8943d457b99256d357b856c68e0c61e # main
         env:
+          # --- Configuration Branch (Enables loading .pr_agent.toml from PR branch) ---
+          PR_AGENT_CONFIG_BRANCH: ${{ github.head_ref || github.ref_name }}
+          CONFIG.CONFIG_BRANCH: ${{ github.head_ref || github.ref_name }}
+
           # --- Z.AI Coding Plan Credentials & Base URL ---
           OPENAI_KEY: ${{ secrets.ZAI_API_KEY }}
+          PR_AGENT__OPENAI__KEY: ${{ secrets.ZAI_API_KEY }}
+          PR_AGENT__OPENAI__API_BASE: "https://api.z.ai/api/coding/paas/v4"
           OPENAI.API_BASE: "https://api.z.ai/api/coding/paas/v4"
           OPENAI__API_BASE: "https://api.z.ai/api/coding/paas/v4"
           OPENAI_API_BASE: "https://api.z.ai/api/coding/paas/v4"
