@@ -21,13 +21,6 @@ public class DependencyResolver(
     IContentManifestPool manifestPool,
     ILogger<DependencyResolver> logger) : IDependencyResolver
 {
-    private const string GameDataName = "gamedata";
-    private const string ZeroHourName = "zerohour";
-    private const string GeneralsName = "generals";
-    private const string ZeroHourShortName = "zh";
-    private const string GeneralsZeroHourName = "generalszh";
-    private const string GameClientType = "gameclient";
-
     /// <summary>
     /// Matches a declared catalog ID to an acquired manifest ID allowing version and variant differences.
     /// </summary>
@@ -270,7 +263,7 @@ public class DependencyResolver(
             return true;
         }
 
-        if (declaredType.Equals(GameClientType, StringComparison.OrdinalIgnoreCase) ||
+        if (declaredType.Equals(ManifestConstants.GameClientContentTypeName, StringComparison.OrdinalIgnoreCase) ||
             declaredType.Equals(ContentType.GameInstallation.ToManifestIdString(), StringComparison.OrdinalIgnoreCase))
         {
             return AreGameVariantsCompatible(declaredName, acquiredName);
@@ -286,9 +279,9 @@ public class DependencyResolver(
 
     private static bool IsZeroHourIdentifier(string name)
     {
-        if (name.Contains(ZeroHourName, StringComparison.OrdinalIgnoreCase) ||
-            name.StartsWith(GeneralsZeroHourName, StringComparison.OrdinalIgnoreCase) ||
-            name.EndsWith(ZeroHourShortName, StringComparison.OrdinalIgnoreCase))
+        if (name.Contains(ManifestConstants.ZeroHourContentName, StringComparison.OrdinalIgnoreCase) ||
+            name.StartsWith(ManifestConstants.GeneralsZeroHourContentName, StringComparison.OrdinalIgnoreCase) ||
+            name.EndsWith(ManifestConstants.ZeroHourShortContentName, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
@@ -298,8 +291,8 @@ public class DependencyResolver(
     }
 
     private static bool IsZeroHourToken(string token) =>
-        string.Equals(token, ZeroHourShortName, StringComparison.OrdinalIgnoreCase) ||
-        token.EndsWith(ZeroHourShortName, StringComparison.OrdinalIgnoreCase);
+        string.Equals(token, ManifestConstants.ZeroHourShortContentName, StringComparison.OrdinalIgnoreCase) ||
+        token.EndsWith(ManifestConstants.ZeroHourShortContentName, StringComparison.OrdinalIgnoreCase);
 
     private static bool IsGeneralsIdentifier(string name)
     {
@@ -308,17 +301,17 @@ public class DependencyResolver(
             return false;
         }
 
-        if (string.Equals(name, GeneralsName, StringComparison.OrdinalIgnoreCase) ||
-            name.StartsWith(GeneralsName, StringComparison.OrdinalIgnoreCase) ||
-            name.Contains(GeneralsName, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(name, ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase) ||
+            name.StartsWith(ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase) ||
+            name.Contains(ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
         var tokens = name.Split(ManifestConstants.VariantSeparator);
         return tokens.Any(t =>
-            string.Equals(t, GeneralsName, StringComparison.OrdinalIgnoreCase) ||
-            t.StartsWith(GeneralsName, StringComparison.OrdinalIgnoreCase));
+            string.Equals(t, ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase) ||
+            t.StartsWith(ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool AreGameVariantsCompatible(string declaredName, string acquiredName)
@@ -337,17 +330,17 @@ public class DependencyResolver(
     }
 
     private static bool IsPatchOrGameDataName(string name) =>
-        name.Equals(ZeroHourName, StringComparison.OrdinalIgnoreCase) ||
-        name.Equals(GameDataName, StringComparison.OrdinalIgnoreCase);
+        name.Equals(ManifestConstants.ZeroHourContentName, StringComparison.OrdinalIgnoreCase) ||
+        name.Equals(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase);
 
     private static bool IsPatchOrGameData(string typeOrName) =>
-        typeOrName.Equals("patch", StringComparison.OrdinalIgnoreCase) ||
-        typeOrName.Equals(GameDataName, StringComparison.OrdinalIgnoreCase);
+        typeOrName.Equals(ContentType.Patch.ToManifestIdString(), StringComparison.OrdinalIgnoreCase) ||
+        typeOrName.Equals(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase);
 
     private static bool MatchesContentKeyword(string contentId, ContentManifest manifest)
     {
-        if (contentId.Contains(GameDataName, StringComparison.OrdinalIgnoreCase) &&
-            (manifest.Id.Value.Contains(GameDataName, StringComparison.OrdinalIgnoreCase) ||
+        if (contentId.Contains(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase) &&
+            (manifest.Id.Value.Contains(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase) ||
              manifest.Name.Contains("Game Data", StringComparison.OrdinalIgnoreCase)))
         {
             return true;
@@ -363,8 +356,8 @@ public class DependencyResolver(
         }
 
         if ((contentId.Contains("60hz", StringComparison.OrdinalIgnoreCase) ||
-             (contentId.Contains(GameClientType, StringComparison.OrdinalIgnoreCase) &&
-              !contentId.Contains(GameDataName, StringComparison.OrdinalIgnoreCase) &&
+             (contentId.Contains(ManifestConstants.GameClientContentTypeName, StringComparison.OrdinalIgnoreCase) &&
+              !contentId.Contains(ManifestConstants.GameDataContentTypeName, StringComparison.OrdinalIgnoreCase) &&
               !contentId.Contains("mappack", StringComparison.OrdinalIgnoreCase))) &&
             manifest.ContentType == ContentType.GameClient)
         {

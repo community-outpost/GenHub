@@ -207,6 +207,18 @@
                         <TextBlock Text="Profile" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                       </StackPanel>
                     </Button>
+
+                    <!-- Unknown Status Profile Button (When header unparsed or archive) -->
+                    <Button Classes="icon-subtle" Padding="6,4"
+                            Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).CreateProfileForReplayCommand}"
+                            CommandParameter="{Binding}"
+                            IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Unknown}}"
+                            ToolTip.Tip="Create a profile using your base game installation to watch this replay">
+                      <StackPanel Orientation="Horizontal" Spacing="4">
+                        <PathIcon Data="{StaticResource ToolIcon.CogOutline}" Width="11" Height="11" VerticalAlignment="Center"/>
+                        <TextBlock Text="Profile" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                      </StackPanel>
+                    </Button>
                   </StackPanel>
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>

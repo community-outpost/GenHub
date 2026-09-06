@@ -469,12 +469,12 @@ def _is_crc_field_compatible(item_crc: str, existing_crc: str) -> bool:
 
 
 def _has_partial_crc_match(item_exe: str, item_ini: str, ex_exe: str, ex_ini: str) -> bool:
-    """Returns True if the crawled item provides a missing CRC without conflict."""
+    """Returns True if the crawled item provides a CRC missing from the existing entry."""
     return bool((not ex_exe and item_exe) or (not ex_ini and item_ini))
 
 
 def _has_same_cdn_url(item: dict, existing_entry: dict) -> bool:
-    """Returns True if both entries share the same CDN URL and existing has no sha256."""
+    """Returns True if both entries share the same CDN URL, the item has a sha256, and the existing entry lacks one."""
     return bool(
         not existing_entry.get("sha256")
         and item.get("sha256")
@@ -526,6 +526,9 @@ def _find_compatible_catalog_key(
             print(
                 f"Validation error: refusing to merge {m_id} due to conflicting CRCs ({item_exe}/{item_ini} vs {ex_exe}/{ex_ini}) for same cdnUrl",
                 file=sys.stderr,
+            )
+            raise ValueError(
+                f"Conflicting CRCs ({item_exe}/{item_ini} vs {ex_exe}/{ex_ini}) for same cdnUrl in manifestId {m_id}"
             )
 
     return None
@@ -580,13 +583,17 @@ def _validate_crc_fields(m_id: str, entry: dict) -> bool:
 
 def _validate_seen_manifest(m_id: str, entry: dict, seen_manifests: dict) -> bool:
     """Checks for duplicate or conflicting exeCrc for previously seen manifest IDs."""
+    new_exe = (entry.get("exeCrc") or "").lower()
     if m_id not in seen_manifests:
         seen_manifests[m_id] = entry
         return True
 
     existing_entry = seen_manifests[m_id]
     ex_exe = (existing_entry.get("exeCrc") or "").lower()
-    new_exe = (entry.get("exeCrc") or "").lower()
+    if not ex_exe and new_exe:
+        seen_manifests[m_id] = entry
+        return True
+
     if ex_exe and new_exe and ex_exe != new_exe:
         print(
             f"Validation error at {m_id}: conflicting exeCrc {new_exe} vs {ex_exe} for the same manifestId",
@@ -634,6 +641,10 @@ def validate_catalog(catalog: dict) -> bool:
     valid = True
     seen_manifests = {}
     for idx, entry in enumerate(catalog["mappings"]):
+        if not isinstance(entry, dict):
+            print(f"Validation error at mapping index {idx}: entry must be a JSON object", file=sys.stderr)
+            valid = False
+            continue
         if not _validate_mapping_entry(idx, entry, seen_manifests):
             valid = False
 
@@ -668,6 +679,10 @@ def build_catalog(output_path: str = DEFAULT_OUTPUT_PATH, crawl: bool = False, i
         "totalEntries": len(existing_mappings),
         "mappings": existing_mappings,
     }
+
+    if not validate_catalog(catalog):
+        print("Error: Generated catalog failed validation; refusing to write.", file=sys.stderr)
+        sys.exit(1)
 
     output_dir = os.path.dirname(output_path)
     if output_dir:

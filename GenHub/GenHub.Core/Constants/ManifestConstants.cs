@@ -116,6 +116,36 @@ public static class ManifestConstants
     public const string VariantSeparator = "-";
 
     /// <summary>
+    /// Content name for Generals game segment.
+    /// </summary>
+    public const string GeneralsContentName = "generals";
+
+    /// <summary>
+    /// Content name for Zero Hour game segment.
+    /// </summary>
+    public const string ZeroHourContentName = "zerohour";
+
+    /// <summary>
+    /// Short content name for Zero Hour segment.
+    /// </summary>
+    public const string ZeroHourShortContentName = "zh";
+
+    /// <summary>
+    /// Content name for combined Generals Zero Hour segment.
+    /// </summary>
+    public const string GeneralsZeroHourContentName = "generalszh";
+
+    /// <summary>
+    /// Content type name for game client segment.
+    /// </summary>
+    public const string GameClientContentTypeName = "gameclient";
+
+    /// <summary>
+    /// Content type name for game data segment.
+    /// </summary>
+    public const string GameDataContentTypeName = "gamedata";
+
+    /// <summary>
     /// Version string for Generals game installation manifests.
     /// This represents the executable version 1.08.
     /// Note: When used in manifest IDs, dots are removed to create "108" for schema compliance.
