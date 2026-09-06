@@ -348,10 +348,10 @@
             <!-- 1. Standard Update Mechanism -->
             <StackPanel Spacing="20">
                 <StackPanel Spacing="10">
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <material:MaterialIcon Kind="CloudDownload" Width="24" Height="24" Foreground="{StaticResource SystemAccentColorBrush}"/>
-                        <TextBlock Text="Automatic Updates" Classes="demo-title" VerticalAlignment="Center"/>
-                    </StackPanel>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <material:MaterialIcon Grid.Column="0" Kind="CloudDownload" Width="24" Height="24" Foreground="{StaticResource SystemAccentColorBrush}"/>
+                        <TextBlock Grid.Column="1" Text="Automatic Updates" Classes="demo-title" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                    </Grid>
                     <TextBlock Text="GenHub uses the Velopack engine for seamless background updates. Use this notification bar to manage official releases."
                                Classes="demo-subtitle"/>
 
@@ -374,10 +374,10 @@
             <!-- 2. GitHub PAT & CI Artifacts -->
             <StackPanel Spacing="20">
                 <StackPanel Spacing="10">
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <material:MaterialIcon Kind="Github" Width="24" Height="24" Foreground="{DynamicResource SystemAccentColorBrush}"/>
-                        <TextBlock Text="Advanced: CI Artifacts &amp; GitHub PAT" Classes="demo-title" VerticalAlignment="Center"/>
-                    </StackPanel>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <material:MaterialIcon Grid.Column="0" Kind="Github" Width="24" Height="24" Foreground="{DynamicResource SystemAccentColorBrush}"/>
+                        <TextBlock Grid.Column="1" Text="Advanced: CI Artifacts &amp; GitHub PAT" Classes="demo-title" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                    </Grid>
                     <TextBlock Text="Subscribe to pull requests or specific branches to test new features before they are merged."
                                Classes="demo-subtitle"/>
 
