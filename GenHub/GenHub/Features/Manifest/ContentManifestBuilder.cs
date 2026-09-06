@@ -25,6 +25,17 @@ public partial class ContentManifestBuilder(
     IDownloadService downloadService,
     IConfigurationProviderService configurationProvider) : IContentManifestBuilder
 {
+    private sealed record FileEntryOptions(
+        string RelativePath,
+        string SourcePath = "",
+        ContentSourceType SourceType = ContentSourceType.ContentAddressable,
+        string DownloadUrl = "",
+        bool IsExecutable = false,
+        FilePermissions? Permissions = null,
+        string? Hash = null,
+        long? Size = null,
+        bool IsRequired = true);
+
     private readonly ContentManifest _manifest = new();
     private readonly IFileHashProvider _hashProvider = hashProvider;
     private readonly IManifestIdService _manifestIdService = manifestIdService;
@@ -943,14 +954,4 @@ public partial class ContentManifestBuilder(
         return this;
     }
 
-    private sealed record FileEntryOptions(
-        string RelativePath,
-        string SourcePath = "",
-        ContentSourceType SourceType = ContentSourceType.ContentAddressable,
-        string DownloadUrl = "",
-        bool IsExecutable = false,
-        FilePermissions? Permissions = null,
-        string? Hash = null,
-        long? Size = null,
-        bool IsRequired = true);
 }
