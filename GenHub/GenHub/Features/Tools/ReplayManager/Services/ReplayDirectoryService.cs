@@ -726,6 +726,8 @@ public sealed class ReplayDirectoryService(
         return ReplayCompatibilityStatus.Orphaned;
     }
 
+    private static readonly TimeSpan ReplayFileNameRegexTimeout = TimeSpan.FromMilliseconds(250);
+
     private static bool MatchesReplayFileName(string? description, string fileName)
     {
         if (string.IsNullOrWhiteSpace(description) || string.IsNullOrWhiteSpace(fileName))
@@ -740,7 +742,7 @@ public sealed class ReplayDirectoryService(
         }
 
         var pattern = $@"(?<![\w.-]){Regex.Escape(fileName)}(?![\w.-])";
-        return Regex.IsMatch(description, pattern, RegexOptions.IgnoreCase);
+        return Regex.IsMatch(description, pattern, RegexOptions.IgnoreCase, ReplayFileNameRegexTimeout);
     }
 
     private static void ResolveMatchedClientCompatibility(
