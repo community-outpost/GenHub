@@ -424,6 +424,7 @@ public class GameInstallationServiceTests : IDisposable
             {
                 Id = "1.104.retail.gameinstallation.zerohour",
                 ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
+                TargetGame = GameType.Generals, // ID is canonical Zero Hour even if TargetGame was mispopulated
                 Version = "1.04",
                 Metadata = new ContentMetadata { SourcePath = tempDir },
             };

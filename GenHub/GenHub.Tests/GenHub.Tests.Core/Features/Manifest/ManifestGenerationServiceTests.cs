@@ -89,6 +89,7 @@ public class ManifestGenerationServiceTests : IDisposable
 
         // Assert
         Assert.NotNull(manifest);
+        Assert.Equal("generals.exe", manifest.EntryPoint);
         var executableFile = manifest.Files.FirstOrDefault(f => f.RelativePath.EndsWith("generals.exe"));
         Assert.NotNull(executableFile);
         Assert.Equal("hash_generals.exe", executableFile.Hash);
@@ -238,6 +239,7 @@ public class ManifestGenerationServiceTests : IDisposable
         var manifest = builder.Build();
 
         // Assert
+        Assert.Equal("game.dat", manifest.EntryPoint);
         Assert.Contains(manifest.Files, f => f.RelativePath == "game.dat" && f.IsExecutable);
         Assert.Contains(manifest.Files, f => f.RelativePath == "binkw32.dll");
         Assert.Contains(manifest.Files, f => f.RelativePath == "P2XDLL.DLL");

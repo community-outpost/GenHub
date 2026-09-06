@@ -56,6 +56,11 @@ public static class SettingsConstants
     public const string SectionUpdates = "updates";
 
     /// <summary>
+    /// Section ID for Catalog Subscriptions.
+    /// </summary>
+    public const string SectionSubscriptions = "subscriptions";
+
+    /// <summary>
     /// Section ID for Danger Zone.
     /// </summary>
     public const string SectionDangerZone = "danger-zone";

@@ -33,7 +33,7 @@ namespace GenHub.Common.ViewModels;
 /// Initializes a new instance of <see cref="MainViewModel"/> class.
 /// </summary>
 /// <param name="gameProfilesViewModel">Game profiles view model.</param>
-/// <param name="downloadsViewModel">Downloads view model.</param>
+/// <param name="downloadsBrowserViewModel">Downloads browser view model.</param>
 /// <param name="toolsViewModel">Tools view model.</param>
 /// <param name="settingsViewModel">Settings view model.</param>
 /// <param name="notificationManager">Notification manager view model.</param>
@@ -48,7 +48,7 @@ namespace GenHub.Common.ViewModels;
 [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "MainViewModel is the top-level composition ViewModel for tabs and services injected via dependency injection.")]
 public partial class MainViewModel(
     GameProfileLauncherViewModel gameProfilesViewModel,
-    DownloadsViewModel downloadsViewModel,
+    DownloadsBrowserViewModel downloadsBrowserViewModel,
     ToolsViewModel toolsViewModel,
     SettingsViewModel settingsViewModel,
     NotificationManagerViewModel notificationManager,
@@ -93,7 +93,7 @@ public partial class MainViewModel(
     /// <summary>
     /// Gets the downloads view model.
     /// </summary>
-    public DownloadsViewModel DownloadsViewModel { get; } = downloadsViewModel;
+    public DownloadsBrowserViewModel DownloadsBrowserViewModel { get; } = downloadsBrowserViewModel;
 
     /// <summary>
     /// Gets the tools view model.
@@ -133,7 +133,7 @@ public partial class MainViewModel(
     public object CurrentTabViewModel => SelectedTab switch
     {
         NavigationTab.GameProfiles => GameProfilesViewModel,
-        NavigationTab.Downloads => DownloadsViewModel,
+        NavigationTab.Downloads => DownloadsBrowserViewModel,
         NavigationTab.Tools => ToolsViewModel,
         NavigationTab.Settings => SettingsViewModel,
         NavigationTab.Info => InfoViewModel,
@@ -189,10 +189,13 @@ public partial class MainViewModel(
     {
         RegisterMessages();
         await GameProfilesViewModel.InitializeAsync();
-        await DownloadsViewModel.InitializeAsync();
+        await DownloadsBrowserViewModel.InitializeAsync();
         await ToolsViewModel.InitializeAsync();
         await InfoViewModel.InitializeAsync();
         logger?.LogInformation("MainViewModel initialized");
+
+        // Ensure the initial tab's activation logic runs (triggers lazy loading)
+        OnSelectedTabChanged(SelectedTab);
 
         await backgroundUpdateCoordinator.InitializeAsync(_initializationCts.Token);
 
@@ -269,7 +272,9 @@ public partial class MainViewModel(
                         Action = () =>
                         {
                             SelectTab(NavigationTab.Info);
-                            InfoViewModel.OpenSection("quickstart");
+
+                            // Programmatic navigation to the quickstart section
+                            InfoViewModel.OpenSection(InfoConstants.QuickstartSectionId);
                         },
                     },
                     new DialogAction
@@ -334,7 +339,7 @@ public partial class MainViewModel(
         }
         else if (value == NavigationTab.Downloads)
         {
-            _ = DownloadsViewModel.OnTabActivatedAsync();
+            _ = DownloadsBrowserViewModel.OnTabActivatedAsync();
         }
         else if (value == NavigationTab.Tools)
         {

@@ -103,6 +103,30 @@ public class ManifestVariantResolverTests
     }
 
     /// <summary>
+    /// When multiple executables exist (e.g. game client + development tools),
+    /// a single matching primary game executable resolves unambiguously.
+    /// </summary>
+    [Fact]
+    public void MultipleExecutables_WithSinglePrimaryGameExecutable_ResolvesPrimaryExecutable()
+    {
+        var manifest = new ContentManifest
+        {
+            Files =
+            [
+                File(@"tools\WorldBuilderZH.exe", true),
+                File(@"tools\guiedit.exe", true),
+                File(@"generalszh-weekly-2026-07-31\generalszh.exe", true),
+            ],
+        };
+
+        var resolution = ManifestVariantResolver.ResolveEntryPoint(manifest);
+
+        Assert.True(resolution.Success);
+        Assert.Equal(@"generalszh-weekly-2026-07-31\generalszh.exe", resolution.RelativePath);
+        Assert.Contains("primary game executable candidate", resolution.Reason);
+    }
+
+    /// <summary>
     /// A declared entry point removes the ambiguity above.
     /// </summary>
     [Fact]
@@ -231,6 +255,76 @@ public class ManifestVariantResolverTests
 
         Assert.False(resolution.Success);
         Assert.Contains("no launchable file", resolution.Reason);
+    }
+
+    /// <summary>
+    /// A manifest containing game.dat (such as Zero Hour installations) resolves game.dat
+    /// as the entry point even when no explicit entry point is declared.
+    /// </summary>
+    [Fact]
+    public void Manifest_WithGameDat_ResolvesGameDat()
+    {
+        var manifest = new ContentManifest
+        {
+            Files =
+            [
+                File("game.dat", true),
+                File("Generals.dat", false),
+                File("binkw32.dll", false),
+                File("mss32.dll", false),
+            ],
+        };
+
+        var resolution = ManifestVariantResolver.ResolveEntryPoint(manifest);
+
+        Assert.True(resolution.Success);
+        Assert.Equal("game.dat", resolution.RelativePath);
+    }
+
+    /// <summary>
+    /// Legacy manifests containing game.dat without execute flags still resolve game.dat.
+    /// </summary>
+    [Fact]
+    public void LegacyManifest_WithGameDat_ResolvesGameDat()
+    {
+        var manifest = new ContentManifest
+        {
+            Files =
+            [
+                File("game.dat", false),
+                File("Generals.dat", false),
+                File("binkw32.dll", false),
+                File("mss32.dll", false),
+            ],
+        };
+
+        var resolution = ManifestVariantResolver.ResolveEntryPoint(manifest);
+
+        Assert.True(resolution.Success);
+        Assert.Equal("game.dat", resolution.RelativePath);
+    }
+
+    /// <summary>
+    /// Manifests containing generals.ctr resolve generals.ctr as the primary executable.
+    /// </summary>
+    [Fact]
+    public void Manifest_WithGeneralsCtr_ResolvesGeneralsCtr()
+    {
+        var manifest = new ContentManifest
+        {
+            Files =
+            [
+                File("generals.ctr", true),
+                File("d3d8.enb", false),
+                File("generals.lcf", false),
+                File("generals.dat", false),
+            ],
+        };
+
+        var resolution = ManifestVariantResolver.ResolveEntryPoint(manifest);
+
+        Assert.True(resolution.Success);
+        Assert.Equal("generals.ctr", resolution.RelativePath);
     }
 
     private static ManifestFile File(string path, bool isExecutable = false) =>

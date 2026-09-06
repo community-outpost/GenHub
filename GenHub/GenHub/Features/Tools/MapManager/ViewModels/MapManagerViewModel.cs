@@ -150,6 +150,16 @@ public partial class MapManagerViewModel : ObservableObject
         _ = LoadMapsAsync();
     }
 
+    /// <summary>
+    /// Applies search filtering immediately.
+    /// </summary>
+    [RelayCommand]
+    private void Search()
+    {
+        _searchTimer.Stop();
+        ApplyFilter();
+    }
+
     private void ApplyFilter()
     {
         var source = SelectedTab == GameType.Generals ? GeneralsMaps : ZeroHourMaps;

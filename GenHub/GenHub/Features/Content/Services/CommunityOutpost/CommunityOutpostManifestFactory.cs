@@ -49,9 +49,19 @@ public class CommunityOutpostManifestFactory(
     }
 
     /// <inheritdoc />
+    public Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+        ContentManifest originalManifest,
+        string extractedDirectory,
+        CancellationToken cancellationToken = default)
+    {
+        return CreateManifestsFromExtractedContentAsync(originalManifest, extractedDirectory, progress: null, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
+        IProgress<GenHub.Core.Models.Content.ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken = default)
     {
         logger.LogInformation(
@@ -479,7 +489,7 @@ public class CommunityOutpostManifestFactory(
                 Id = manifestId,
                 Name = manifestName,
                 Version = originalManifest.Version,
-                ManifestVersion = originalManifest.ManifestVersion,
+                SchemaVersion = originalManifest.SchemaVersion,
                 ContentType = originalManifest.ContentType,
                 TargetGame = (variant != null && variant.TargetGame.HasValue) ? variant.TargetGame.Value : originalManifest.TargetGame,
                 Files = fileEntries,

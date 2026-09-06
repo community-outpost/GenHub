@@ -1,0 +1,430 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:filters="clr-namespace:GenHub.Features.Downloads.ViewModels.Filters"
+             xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
+             xmlns:constants="clr-namespace:GenHub.Core.Constants;assembly=GenHub.Core"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="100"
+             x:Class="GenHub.Features.Downloads.Views.FilterPanelView"
+             x:DataType="filters:IFilterPanelViewModel">
+
+    <UserControl.Styles>
+        <!-- Filter toggle button style -->
+        <Style Selector="ToggleButton.filter-toggle">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="Margin" Value="3,3" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" />
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                    <BrushTransition Property="Foreground" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="ToggleButton.filter-toggle:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
+        </Style>
+
+        <Style Selector="ToggleButton.filter-toggle:checked">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        </Style>
+
+        <Style Selector="ToggleButton.filter-toggle:checked:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Opacity" Value="0.9" />
+        </Style>
+
+        <!-- Filter label style -->
+        <Style Selector="TextBlock.filter-label">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+        </Style>
+
+        <!-- Action buttons -->
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.primary:pointerover">
+            <Setter Property="Opacity" Value="0.9" />
+        </Style>
+
+        <Style Selector="Button.secondary">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.secondary:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <!-- Dynamic content based on filter type -->
+    <ContentControl Content="{Binding}">
+        <ContentControl.DataTemplates>
+            <!-- Static Publisher Filter (ContentType toggles) -->
+            <DataTemplate DataType="filters:StaticPublisherFilterViewModel">
+                <WrapPanel Orientation="Horizontal">
+                    <ItemsControl ItemsSource="{Binding ContentTypeFilters}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <ToggleButton Classes="filter-toggle"
+                                              Content="{Binding DisplayName}"
+                                              IsChecked="{Binding IsSelected}"
+                                              Command="{Binding $parent[ItemsControl].((filters:StaticPublisherFilterViewModel)DataContext).ToggleContentTypeCommand}"
+                                              CommandParameter="{Binding}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </WrapPanel>
+            </DataTemplate>
+
+            <!-- ModDB Filter (Section Toggles + Dropdowns) -->
+            <DataTemplate DataType="filters:ModDBFilterViewModel">
+                <StackPanel Spacing="12">
+                    <!-- Section Toggle Buttons -->
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Classes="filter-label" Text="Section:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <ToggleButton Classes="filter-toggle"
+                                Content="Downloads"
+                                IsChecked="{Binding IsDownloadsSelected}"
+                                Command="{Binding SetSectionCommand}"
+                                CommandParameter="{x:Static filters:ModDBSection.Downloads}" />
+                        <ToggleButton Classes="filter-toggle"
+                                Content="Addons"
+                                IsChecked="{Binding IsAddonsSelected}"
+                                Command="{Binding SetSectionCommand}"
+                                CommandParameter="{x:Static filters:ModDBSection.Addons}" />
+                        <ToggleButton Classes="filter-toggle"
+                                Content="Mods"
+                                IsChecked="{Binding IsModsSelected}"
+                                Command="{Binding SetSectionCommand}"
+                                CommandParameter="{x:Static filters:ModDBSection.Mods}" />
+                    </StackPanel>
+
+                    <!-- Filter Dropdowns -->
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <!-- Category (Downloads and Mods only) -->
+                        <StackPanel IsVisible="{Binding ShowCategoryFilter}">
+                            <TextBlock Classes="filter-label" Text="Category" />
+                            <ComboBox Classes="filter-dropdown"
+                                      ItemsSource="{Binding CategoryOptions}"
+                                      SelectedValue="{Binding SelectedCategory, Mode=TwoWay}"
+                                      SelectedValueBinding="{Binding Value}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding DisplayName}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- Addon Category -->
+                        <StackPanel>
+                            <TextBlock Classes="filter-label" Text="Addon Category" />
+                            <ComboBox Classes="filter-dropdown"
+                                      ItemsSource="{Binding AddonCategoryOptions}"
+                                      SelectedValue="{Binding SelectedAddonCategory, Mode=TwoWay}"
+                                      SelectedValueBinding="{Binding Value}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding DisplayName}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- License (Addons only) -->
+                        <StackPanel IsVisible="{Binding ShowLicenseFilter}">
+                            <TextBlock Classes="filter-label" Text="License" />
+                            <ComboBox Classes="filter-dropdown"
+                                      ItemsSource="{Binding LicenseOptions}"
+                                      SelectedValue="{Binding SelectedLicense, Mode=TwoWay}"
+                                      SelectedValueBinding="{Binding Value}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding DisplayName}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- Timeframe -->
+                        <StackPanel>
+                            <TextBlock Classes="filter-label" Text="Timeframe" />
+                            <ComboBox Classes="filter-dropdown"
+                                      ItemsSource="{Binding TimeframeOptions}"
+                                      SelectedValue="{Binding SelectedTimeframe, Mode=TwoWay}"
+                                      SelectedValueBinding="{Binding Value}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding DisplayName}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- Sort -->
+                        <StackPanel>
+                            <TextBlock Classes="filter-label" Text="Sort" />
+                            <ComboBox Classes="filter-dropdown"
+                                      ItemsSource="{Binding SortOptions}"
+                                      SelectedValue="{Binding SelectedSort, Mode=TwoWay}"
+                                      SelectedValueBinding="{Binding Value}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding DisplayName}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Filter Actions -->
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Apply Filters"
+                                Command="{Binding ApplyFiltersActionCommand}"
+                                MinWidth="120"
+                                Classes="primary" />
+                        <Button Content="Clear Filters"
+                                Command="{Binding ClearFiltersActionCommand}"
+                                MinWidth="120"
+                                Classes="secondary" />
+                    </StackPanel>
+                </StackPanel>
+            </DataTemplate>
+
+            <!-- Community Outpost Filter -->
+            <DataTemplate DataType="filters:CommunityOutpostFilterViewModel">
+                <WrapPanel Orientation="Horizontal">
+                    <ItemsControl ItemsSource="{Binding ContentTypeFilters}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <ToggleButton Classes="filter-toggle"
+                                              Content="{Binding DisplayName}"
+                                              IsChecked="{Binding IsSelected}"
+                                              Command="{Binding $parent[ItemsControl].((filters:CommunityOutpostFilterViewModel)DataContext).ToggleContentTypeCommand}"
+                                              CommandParameter="{Binding}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </WrapPanel>
+            </DataTemplate>
+
+            <!-- CNCLabs Filter (Tag toggles) -->
+            <DataTemplate DataType="filters:CNCLabsFilterViewModel">
+                <StackPanel Spacing="12">
+                    <!-- Main Filters Row: Content Type + Game + Players -->
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <!-- Content Type -->
+                        <StackPanel>
+                            <TextBlock Classes="filter-label" Text="Content Type" Margin="0,0,0,4" />
+                            <ItemsControl ItemsSource="{Binding ContentTypeFilters}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <ToggleButton Classes="filter-toggle"
+                                                      Content="{Binding DisplayName}"
+                                                      IsChecked="{Binding IsSelected}"
+                                                      Command="{Binding $parent[ItemsControl].((filters:CNCLabsFilterViewModel)DataContext).ToggleContentTypeCommand}"
+                                                      CommandParameter="{Binding}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <!-- Game Selector -->
+                        <StackPanel>
+                            <TextBlock Classes="filter-label" Text="Game" Margin="0,0,0,4" />
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <ToggleButton Classes="filter-toggle"
+                                              Content="Zero Hour"
+                                              IsChecked="{Binding IsZeroHourSelected}" />
+                                <ToggleButton Classes="filter-toggle"
+                                              Content="Generals"
+                                              IsChecked="{Binding IsGeneralsSelected}" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Player Count Filter (radio-style toggles; 1-player excluded — site 404s on maps) -->
+                        <StackPanel>
+                            <TextBlock Classes="filter-label" Text="Players" Margin="0,0,0,4" />
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <ToggleButton Classes="filter-toggle" Content="Any" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Null}}" Command="{Binding SetPlayerCountCommand}" CommandParameter="{x:Null}" />
+                                <ToggleButton Classes="filter-toggle" Content="2" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter=2}" Command="{Binding SetPlayerCountCommand}" CommandParameter="2" />
+                                <ToggleButton Classes="filter-toggle" Content="3" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter=3}" Command="{Binding SetPlayerCountCommand}" CommandParameter="3" />
+                                <ToggleButton Classes="filter-toggle" Content="4" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter=4}" Command="{Binding SetPlayerCountCommand}" CommandParameter="4" />
+                                <ToggleButton Classes="filter-toggle" Content="5" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter=5}" Command="{Binding SetPlayerCountCommand}" CommandParameter="5" />
+                                <ToggleButton Classes="filter-toggle" Content="6" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter=6}" Command="{Binding SetPlayerCountCommand}" CommandParameter="6" />
+                                <ToggleButton Classes="filter-toggle" Content="7" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter=7}" Command="{Binding SetPlayerCountCommand}" CommandParameter="7" />
+                                <ToggleButton Classes="filter-toggle" Content="8" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter=8}" Command="{Binding SetPlayerCountCommand}" CommandParameter="8" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Map & Mission Filters -->
+                    <StackPanel>
+                        <TextBlock Classes="filter-label" Text="Map &amp; Mission Filters" Margin="0,0,0,4" />
+                        <ItemsControl ItemsSource="{Binding MapTagFilters}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <ToggleButton Classes="filter-toggle"
+                                                   Content="{Binding DisplayName}"
+                                                   IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                   Command="{Binding $parent[ItemsControl].((filters:CNCLabsFilterViewModel)DataContext).ToggleTagCommand}"
+                                                   CommandParameter="{Binding}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <!-- Apply Filters Button -->
+                    <Button Content="Apply Filters"
+                            Command="{Binding ApplyFiltersActionCommand}"
+                            HorizontalAlignment="Left"
+                            MinWidth="150"
+                            MaxWidth="200"
+                            Classes="primary" />
+                </StackPanel>
+            </DataTemplate>
+
+            <!-- GitHub Filter (Topic + Author dropdowns) -->
+            <DataTemplate DataType="filters:GitHubFilterViewModel">
+                <StackPanel Spacing="12">
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <!-- Topics -->
+                        <StackPanel>
+                            <TextBlock Classes="filter-label" Text="Topics" />
+                            <ComboBox Classes="filter-dropdown"
+                                      ItemsSource="{Binding TopicOptions}"
+                                      SelectedValue="{Binding SelectedTopic, Mode=TwoWay}"
+                                      SelectedValueBinding="{Binding Value}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding DisplayName}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- Authors -->
+                        <StackPanel>
+                            <TextBlock Classes="filter-label" Text="Authors" />
+                            <ComboBox Classes="filter-dropdown"
+                                      ItemsSource="{Binding AuthorOptions}"
+                                      SelectedValue="{Binding SelectedAuthor, Mode=TwoWay}"
+                                      SelectedValueBinding="{Binding Value}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding DisplayName}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Filter Actions -->
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Apply Filters"
+                                Command="{Binding ApplyFiltersActionCommand}"
+                                MinWidth="120"
+                                Classes="primary" />
+                        <Button Content="Clear Filters"
+                                Command="{Binding ClearFiltersActionCommand}"
+                                MinWidth="120" />
+                    </StackPanel>
+                </StackPanel>
+            </DataTemplate>
+
+            <!-- AODMaps Filter (Players + Categories) + Apply Button -->
+            <DataTemplate DataType="filters:AODMapsFilterViewModel">
+                <StackPanel Spacing="16">
+                    <!-- Player Count (1-8) -->
+                    <StackPanel>
+                        <TextBlock Classes="filter-label" Text="Player Count" />
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <ToggleButton Classes="filter-toggle" Content="All" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Null}}" Command="{Binding SetPlayerCountCommand}" CommandParameter="{x:Null}" />
+                            <ToggleButton Classes="filter-toggle" Content="2" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter='2 Players'}" Command="{Binding SetPlayerCountCommand}" CommandParameter="2 Players" />
+                            <ToggleButton Classes="filter-toggle" Content="3" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter='3 Players'}" Command="{Binding SetPlayerCountCommand}" CommandParameter="3 Players" />
+                            <ToggleButton Classes="filter-toggle" Content="4" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter='4 Players'}" Command="{Binding SetPlayerCountCommand}" CommandParameter="4 Players" />
+                            <ToggleButton Classes="filter-toggle" Content="5" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter='5 Players'}" Command="{Binding SetPlayerCountCommand}" CommandParameter="5 Players" />
+                            <ToggleButton Classes="filter-toggle" Content="6" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter='6 Players'}" Command="{Binding SetPlayerCountCommand}" CommandParameter="6 Players" />
+                            <ToggleButton Classes="filter-toggle" Content="7" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter='7 Players'}" Command="{Binding SetPlayerCountCommand}" CommandParameter="7 Players" />
+                            <ToggleButton Classes="filter-toggle" Content="8" IsChecked="{Binding SelectedPlayerCount, Converter={StaticResource EqualityConverter}, ConverterParameter='8 Players'}" Command="{Binding SetPlayerCountCommand}" CommandParameter="8 Players" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Categories -->
+                    <StackPanel>
+                        <TextBlock Classes="filter-label" Text="Categories" />
+                        <WrapPanel Orientation="Horizontal">
+                            <ToggleButton Classes="filter-toggle" Content="Any" IsChecked="{Binding SelectedCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Null}}" Command="{Binding SetCategoryCommand}" CommandParameter="{x:Null}" />
+                            <ToggleButton Classes="filter-toggle" Content="{x:Static constants:AODMapsConstants.CategoryCompstomp}" IsChecked="{Binding SelectedCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static constants:AODMapsConstants.CategoryCompstomp}}" Command="{Binding SetCategoryCommand}" CommandParameter="{x:Static constants:AODMapsConstants.CategoryCompstomp}" />
+                            <ToggleButton Classes="filter-toggle" Content="{x:Static constants:AODMapsConstants.CategoryAoa}" IsChecked="{Binding SelectedCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static constants:AODMapsConstants.CategoryAoa}}" Command="{Binding SetCategoryCommand}" CommandParameter="{x:Static constants:AODMapsConstants.CategoryAoa}" />
+                            <ToggleButton Classes="filter-toggle" Content="{x:Static constants:AODMapsConstants.CategoryRace}" IsChecked="{Binding SelectedCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static constants:AODMapsConstants.CategoryRace}}" Command="{Binding SetCategoryCommand}" CommandParameter="{x:Static constants:AODMapsConstants.CategoryRace}" />
+                            <ToggleButton Classes="filter-toggle" Content="{x:Static constants:AODMapsConstants.CategoryAir}" IsChecked="{Binding SelectedCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static constants:AODMapsConstants.CategoryAir}}" Command="{Binding SetCategoryCommand}" CommandParameter="{x:Static constants:AODMapsConstants.CategoryAir}" />
+                            <ToggleButton Classes="filter-toggle" Content="{x:Static constants:AODMapsConstants.CategoryContra}" IsChecked="{Binding SelectedCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static constants:AODMapsConstants.CategoryContra}}" Command="{Binding SetCategoryCommand}" CommandParameter="{x:Static constants:AODMapsConstants.CategoryContra}" />
+                        </WrapPanel>
+                    </StackPanel>
+
+                    <!-- Apply Filters Button -->
+                    <Button Content="Apply Filters"
+                            Command="{Binding ApplyFiltersActionCommand}"
+                            HorizontalAlignment="Left"
+                            MinWidth="150"
+                            MaxWidth="200"
+                            Classes="primary" />
+                </StackPanel>
+            </DataTemplate>
+        </ContentControl.DataTemplates>
+    </ContentControl>
+</UserControl>

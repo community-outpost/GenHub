@@ -38,16 +38,67 @@ public static class ModDBConstants
     /// <summary>Downloads section for Zero Hour.</summary>
     public const string ZeroHourDownloadsUrl = ZeroHourBaseUrl + "/downloads";
 
+    /// <summary>Mods URL path segment.</summary>
+    public const string ModsSegment = "/mods/";
+
+    /// <summary>Downloads URL path segment.</summary>
+    public const string DownloadsSegment = "/downloads/";
+
+    /// <summary>Downloads section name.</summary>
+    public const string DownloadsSection = "downloads";
+
+    /// <summary>Mods section name.</summary>
+    public const string ModsSection = "mods";
+
+    /// <summary>Addons URL path segment.</summary>
+    public const string AddonsSegment = "/addons/";
+
+    /// <summary>Addons section name.</summary>
+    public const string AddonsSection = "addons";
+
+    /// <summary>Articles URL path segment.</summary>
+    public const string ArticlesSegment = "/articles";
+
+    /// <summary>Games URL path segment.</summary>
+    public const string GamesSegment = "/games/";
+
+    /// <summary>Games section name.</summary>
+    public const string GamesSection = "games";
+
+    /// <summary>News URL path segment.</summary>
+    public const string NewsSegment = "/news";
+
+    /// <summary>Tutorials URL path segment.</summary>
+    public const string TutorialsSegment = "/tutorials";
+
+    /// <summary>Videos URL path segment.</summary>
+    public const string VideosSegment = "/videos";
+
+    /// <summary>Images URL path segment.</summary>
+    public const string ImagesSegment = "/images";
+
+    /// <summary>Reviews URL path segment.</summary>
+    public const string ReviewsSegment = "/reviews";
+
+    /// <summary>Placeholder blank gif image filename.</summary>
+    public const string BlankGifFileName = "blank.gif";
+
     /// <summary>Addons section for Generals.</summary>
     public const string GeneralsAddonsUrl = GeneralsBaseUrl + "/addons";
 
     /// <summary>Addons section for Zero Hour.</summary>
     public const string ZeroHourAddonsUrl = ZeroHourBaseUrl + "/addons";
 
+    /// <summary>Media RSS XML namespace URI.</summary>
+    public const string MediaRssNamespace = "http://search.yahoo.com/mrss/";
+
     // ===== Publisher Info =====
 
     /// <summary>Canonical lowercase identifier for ModDB.</summary>
     public const string CanonicalIdentifier = "moddb";
+
+    /// <summary>Canonical identifier string for ModDB.</summary>
+    public const string ModDbKey = CanonicalIdentifier;
 
     /// <summary>Publisher prefix for ModDB content (to be combined with author: moddb-{author}).</summary>
     public const string PublisherPrefix = CanonicalIdentifier;
@@ -466,6 +517,29 @@ public static class ModDBConstants
 
     /// <summary>Timeframe: Year or older.</summary>
     public const string TimeframeYearOrOlder = "5";
+
+    // ===== Managed Chromium Runtime Notifications =====
+
+    /// <summary>Title for the Chromium runtime installation toast.</summary>
+    public const string ChromiumInstallTitle = "Installing Chromium Runtime";
+
+    /// <summary>Initial message when downloading the managed Chromium runtime.</summary>
+    public const string ChromiumDownloadingMessage = "Downloading Chromium (~240 MB)... Please wait.";
+
+    /// <summary>Message while extracting and configuring the managed Chromium runtime.</summary>
+    public const string ChromiumExtractingMessage = "Extracting and configuring Chromium runtime...";
+
+    /// <summary>Title when the Chromium runtime installation completes successfully.</summary>
+    public const string ChromiumReadyTitle = "Chromium Runtime Ready";
+
+    /// <summary>Message when the Chromium runtime installation completes successfully.</summary>
+    public const string ChromiumReadyMessage = "Chromium runtime installed successfully.";
+
+    /// <summary>Title when the Chromium runtime installation fails.</summary>
+    public const string ChromiumInstallFailedTitle = "Chromium Installation Failed";
+
+    /// <summary>Message when the Chromium runtime installation fails.</summary>
+    public const string ChromiumInstallFailedMessage = "GenHub could not install its managed Chromium runtime. Check your network connection and try again.";
 
     // ===== Content Tags =====
 

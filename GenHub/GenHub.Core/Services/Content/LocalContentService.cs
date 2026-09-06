@@ -23,7 +23,8 @@ public class LocalContentService(
     IManifestGenerationService manifestGenerationService,
     IContentStorageService contentStorageService,
     IContentReconciliationService reconciliationService,
-    ILogger<LocalContentService> logger) : ILocalContentService
+    ILogger<LocalContentService> logger,
+    IArchivePayloadProcessor? archivePayloadProcessor = null) : ILocalContentService
 {
     /// <summary>
     /// The publisher name for locally-generated content.
@@ -90,6 +91,15 @@ public class LocalContentService(
                 name,
                 directoryPath,
                 contentType);
+
+            if (archivePayloadProcessor != null)
+            {
+                await archivePayloadProcessor.NormalizeDirectoryStructureAsync(
+                    directoryPath,
+                    contentType,
+                    targetGame,
+                    cancellationToken);
+            }
 
             // Use the existing manifest generation service
             var builder = await manifestGenerationService.CreateContentManifestAsync(

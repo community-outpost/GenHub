@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
@@ -40,7 +41,10 @@ public class AODMapsContentProvider(
         ?? throw new InvalidOperationException("HTTP deliverer not found");
 
     /// <inheritdoc />
-    public override string SourceName => AODMapsConstants.PublisherType;
+    /// <remarks>
+    /// Must match the ProviderName set by AODMapsDiscoverer on search results.
+    /// </remarks>
+    public override string SourceName => AODMapsConstants.DiscovererSourceName;
 
     /// <inheritdoc />
     public override string Description => "Provides content from AODMaps";
@@ -81,13 +85,34 @@ public class AODMapsContentProvider(
     }
 
     /// <inheritdoc />
-    protected override Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
+    protected override async Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
         ContentManifest manifest,
         string workingDirectory,
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
-        Logger.LogDebug("Preparing AODMaps content for manifest {ManifestId}", manifest.Id);
-        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
+        try
+        {
+            Logger.LogInformation("Preparing AODMaps content for manifest {ManifestId}", manifest.Id);
+
+            if (!Deliverer.CanDeliver(manifest))
+            {
+                return OperationResult<ContentManifest>.CreateFailure($"Cannot deliver content for manifest {manifest.Id}");
+            }
+
+            // Use the deliverer to handle content acquisition
+            var deliveryResult = await Deliverer.DeliverContentAsync(manifest, workingDirectory, progress, cancellationToken);
+            if (!deliveryResult.Success)
+            {
+                return OperationResult<ContentManifest>.CreateFailure($"AODMaps content delivery failed: {deliveryResult.FirstError}");
+            }
+
+            return OperationResult<ContentManifest>.CreateSuccess(deliveryResult.Data ?? manifest);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to prepare AODMaps content for manifest {ManifestId}", manifest.Id);
+            return OperationResult<ContentManifest>.CreateFailure($"AODMaps content preparation failed: {ex.Message}");
+        }
     }
 }

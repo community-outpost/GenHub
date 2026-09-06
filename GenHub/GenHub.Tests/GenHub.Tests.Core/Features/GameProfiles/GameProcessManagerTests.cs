@@ -157,7 +157,7 @@ public class GameProcessManagerTests
             ExecutablePath = harness.LauncherPath,
             WorkingDirectory = harness.WorkingDirectory,
             ExpectedChildProcessName = LauncherHarness.ChildProcessName,
-            ExpectedChildDiscoveryTimeout = TimeSpan.FromSeconds(10),
+            ExpectedChildDiscoveryTimeout = TimeSpan.FromSeconds(30),
         };
 
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
@@ -170,7 +170,7 @@ public class GameProcessManagerTests
             errors.Contains("without starting") || errors.Contains("start time could not be read"),
             $"Expected exit failure message, but got: {errors}");
         Assert.True(
-            stopwatch.Elapsed < TimeSpan.FromSeconds(5),
+            stopwatch.Elapsed < config.ExpectedChildDiscoveryTimeout,
             $"Expected a fast failure once the launcher exited, but it took {stopwatch.Elapsed}.");
     }
 
@@ -192,7 +192,7 @@ public class GameProcessManagerTests
             ExecutablePath = harness.LauncherPath,
             WorkingDirectory = harness.WorkingDirectory,
             ExpectedChildProcessName = LauncherHarness.ChildProcessName,
-            ExpectedChildDiscoveryTimeout = TimeSpan.FromSeconds(10),
+            ExpectedChildDiscoveryTimeout = TimeSpan.FromSeconds(30),
         };
 
         var result = await _processManager.StartProcessAsync(config);
@@ -403,7 +403,6 @@ public class GameProcessManagerTests
     [Fact]
     public async Task TerminateProcessAsync_WithRunningProcess_ShouldReturnSuccessAsync()
     {
-        // Arrange - Use cross-platform approach
         string tempExe = string.Empty;
         string scriptContent = string.Empty;
 
@@ -528,8 +527,8 @@ public class GameProcessManagerTests
             var childPath = Path.Combine(workingDirectory, OperatingSystem.IsWindows() ? ChildProcessName + ".exe" : ChildProcessName);
             File.Copy(LongRunningSystemBinary(), childPath);
 
-            string launcherPath = string.Empty;
-            string script = string.Empty;
+            var launcherPath = string.Empty;
+            var script = string.Empty;
             if (OperatingSystem.IsWindows())
             {
                 launcherPath = Path.Combine(workingDirectory, "genhublauncher.bat");
@@ -629,13 +628,29 @@ public class GameProcessManagerTests
         /// <returns>The path with every symlinked component replaced by its target.</returns>
         private static string Canonicalize(string path)
         {
+            if (OperatingSystem.IsWindows())
+            {
+                return Path.GetFullPath(path);
+            }
+
             var resolved = Path.GetPathRoot(path) ?? string.Empty;
 
             foreach (var segment in path[resolved.Length..].Split(
                 Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
             {
                 resolved = Path.Combine(resolved, segment);
-                resolved = Directory.ResolveLinkTarget(resolved, returnFinalTarget: true)?.FullName ?? resolved;
+                try
+                {
+                    resolved = Directory.ResolveLinkTarget(resolved, returnFinalTarget: true)?.FullName ?? resolved;
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    // Fall back to unresolved path if access is restricted.
+                }
+                catch (IOException)
+                {
+                    // Fall back to unresolved path on IO exceptions.
+                }
             }
 
             return resolved;

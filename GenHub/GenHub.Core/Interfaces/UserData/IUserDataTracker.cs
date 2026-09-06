@@ -140,6 +140,14 @@ public interface IUserDataTracker
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets the profile ID that currently has active user data materialized on disk, if any.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The active profile ID or null if no profile user data is active.</returns>
+    Task<OperationResult<string?>> GetActiveProfileIdAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Deletes ALL tracked user data files, manifests, and indexes.
     /// This is a destructive operation used for "Delete All Data" functionality.
     /// </summary>

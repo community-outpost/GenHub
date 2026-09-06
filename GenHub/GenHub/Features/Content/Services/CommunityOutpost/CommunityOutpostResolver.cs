@@ -31,14 +31,6 @@ public class CommunityOutpostResolver(
     IProviderDefinitionLoader providerLoader,
     ILogger<CommunityOutpostResolver> logger) : IContentResolver
 {
-    private sealed record ManifestMetadataContext(
-        ContentSearchResult DiscoveredItem,
-        GenPatcherContentMetadata ContentMetadata,
-        string ContentCode,
-        string Filename,
-        IReadOnlyList<string> MirrorUrls,
-        long FileSize);
-
     /// <inheritdoc/>
     public string ResolverId => CommunityOutpostConstants.PublisherId;
 
@@ -90,19 +82,13 @@ public class CommunityOutpostResolver(
             var contentMetadata = GenPatcherContentRegistry.GetMetadata(contentCode);
 
             // Determine filename from URL or content code
-            if (string.IsNullOrEmpty(discoveredItem.SourceUrl))
-            {
-                return Task.FromResult(OperationResult<ContentManifest>.CreateFailure(
-                    "SourceUrl cannot be null or empty for Community Outpost content"));
-            }
-
             if (!Uri.TryCreate(discoveredItem.SourceUrl, UriKind.Absolute, out var downloadUri))
             {
-                return Task.FromResult(OperationResult<ContentManifest>.CreateFailure(
-                    "SourceUrl must be a valid absolute URI for Community Outpost content"));
+                throw new InvalidOperationException(
+                    "SourceUrl must be a valid absolute URI for Community Outpost content");
             }
 
-            var filename = DetermineFilename(downloadUri, contentCode);
+            var filename = ExtractFileName(downloadUri, contentCode);
 
             // Get all mirror URLs for fallback support
             var mirrorUrls = GetMirrorUrls(discoveredItem);
@@ -113,14 +99,18 @@ public class CommunityOutpostResolver(
                 mirrorUrls.Count,
                 fileSize);
 
-            // Generate a deterministic content name from the content code
+            // Generate a deterministic content name from the content code.
+            // Preserve a catalog variant suffix (e.g. cbpr-1080p) so the factory builds
+            // only the selected resolution instead of every variant.
             var contentName = GenerateContentName(contentCode, contentMetadata);
+            var requestedVariantSuffix = TryExtractVariantSuffix(discoveredItem, contentMetadata);
+            if (!string.IsNullOrEmpty(requestedVariantSuffix) &&
+                contentName.IndexOf('-') < 0)
+            {
+                contentName = $"{contentCode}-{requestedVariantSuffix}".ToLowerInvariant();
+            }
 
-            // Extract version number for manifest ID
-            var versionSource = !string.IsNullOrEmpty(contentMetadata.Version)
-                ? contentMetadata.Version
-                : discoveredItem.Version;
-            var manifestVersion = ExtractVersionNumberForManifestId(versionSource);
+            var manifestVersion = DetermineManifestVersion(discoveredItem, contentMetadata);
 
             logger.LogDebug(
                 "Generating manifest ID: Publisher={Publisher}, ContentType={ContentType}, ContentName={ContentName}, Version={Version}",
@@ -129,47 +119,32 @@ public class CommunityOutpostResolver(
                 contentName,
                 manifestVersion);
 
-            // Create a new manifest builder for each resolve operation to ensure clean state
             var manifestBuilder = manifestBuilderFactory();
+            var manifest = BuildBaseManifest(
+                manifestBuilder,
+                discoveredItem,
+                contentMetadata,
+                contentName,
+                manifestVersion,
+                websiteUrl,
+                patchPageUrl);
 
-            // Build manifest with correct parameters
-            var manifest = manifestBuilder
-                .WithBasicInfo(
-                    CommunityOutpostConstants.PublisherType,
-                    contentName,
-                    manifestVersion)
-                .WithContentType(contentMetadata.ContentType, contentMetadata.TargetGame)
-                .WithPublisher(
-                    name: CommunityOutpostConstants.PublisherName,
-                    website: websiteUrl,
-                    supportUrl: patchPageUrl,
-                    contactEmail: string.Empty,
-                    publisherType: CommunityOutpostConstants.PublisherType)
-                .WithMetadata(
-                    contentMetadata.Description,
-                    tags: BuildTags(discoveredItem, contentMetadata),
-                    changelogUrl: patchPageUrl)
-                .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy);
-
-            // Add dependencies based on content type and category
-            PopulateDependencies(manifest, contentMetadata, contentCode);
-
-            // Add the file as a remote download
             manifest.AddRemoteFileAsync(
                 filename,
                 downloadUri.AbsoluteUri,
                 ContentSourceType.RemoteDownload,
                 isExecutable: false).Wait(cancellationToken);
 
-            // Store additional metadata in the manifest for the deliverer
             var builtManifest = manifest.Build();
-            ApplyBuiltManifestMetadata(
+
+            ApplyPostResolutionMetadata(
                 builtManifest,
-                new ManifestMetadataContext(
+                new PostResolutionContext(
                     discoveredItem,
                     contentMetadata,
                     contentCode,
                     filename,
+                    requestedVariantSuffix,
                     mirrorUrls,
                     fileSize));
 
@@ -183,23 +158,227 @@ public class CommunityOutpostResolver(
         }
         catch (Exception ex)
         {
-            logger.LogError(
-                ex,
-                "Failed to resolve Community Outpost content: {Name}",
-                discoveredItem.Name);
+            logger.LogError(ex, "Failed to resolve Community Outpost content: {Name}", discoveredItem.Name);
             return Task.FromResult(OperationResult<ContentManifest>.CreateFailure(
-                $"Failed to resolve content '{discoveredItem.Name}': {ex.Message}"));
+                $"Failed to resolve content: {ex.Message}"));
         }
     }
 
-    private static void ApplyBuiltManifestMetadata(
-        ContentManifest builtManifest,
-        ManifestMetadataContext context)
+    /// <summary>
+    /// Gets the filename from the download URI or generates one from the content code.
+    /// </summary>
+    private static string ExtractFileName(Uri downloadUri, string contentCode)
+    {
+        var lastSegment = downloadUri.Segments.Length > 0 ? downloadUri.Segments[^1].Trim('/') : string.Empty;
+
+        if (!string.IsNullOrEmpty(lastSegment) && lastSegment.Contains('.'))
+        {
+            return lastSegment;
+        }
+
+        return $"{contentCode}{CommunityOutpostConstants.DatFileExtension}";
+    }
+
+    /// <summary>
+    /// Extracts a numeric version suitable for manifest ID.
+    /// </summary>
+    private static string ExtractManifestVersion(string version)
+    {
+        if (string.IsNullOrEmpty(version))
+        {
+            return "0";
+        }
+
+        var trimmed = version.Trim();
+        if (trimmed == "1.0" || trimmed == "1.0.0" || trimmed == "0")
+        {
+            return "0";
+        }
+
+        if (TryParseDateVersion(trimmed, out var dateResult))
+        {
+            return dateResult;
+        }
+
+        // Remove dots and leading zeros to get numeric version
+        var digits = trimmed.Replace(".", string.Empty);
+        if (int.TryParse(digits, out var numericVersion))
+        {
+            return numericVersion.ToString();
+        }
+
+        return "0";
+    }
+
+    private static bool TryParseDateVersion(string trimmed, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? result)
+    {
+        // Handle date versions like "2025-11-07" (YYYY-MM-DD)
+        if (trimmed.Length == 10 && trimmed[4] == '-' && trimmed[7] == '-')
+        {
+            var dateDigits = trimmed.Replace("-", string.Empty);
+            if (dateDigits.Length == 8 && int.TryParse(dateDigits, out var dateValue))
+            {
+                result = dateValue.ToString();
+                return true;
+            }
+        }
+
+        // Handle date versions like "13-02-2025" (DD-MM-YYYY)
+        if (trimmed.Length == 10 && trimmed[2] == '-' && trimmed[5] == '-')
+        {
+            var parts = trimmed.Split('-');
+            if (parts.Length == 3)
+            {
+                var dateDigits = $"{parts[2]}{parts[1]}{parts[0]}";
+                if (dateDigits.Length == 8 && int.TryParse(dateDigits, out var dateValue))
+                {
+                    result = dateValue.ToString();
+                    return true;
+                }
+            }
+        }
+
+        result = null;
+        return false;
+    }
+
+    /// <summary>
+    /// Builds the tags list for the manifest.
+    /// </summary>
+    private static List<string> BuildTags(ContentSearchResult item, GenPatcherContentMetadata metadata)
+    {
+        var tags = new List<string>(item.Tags);
+
+        if (!string.IsNullOrEmpty(metadata.LanguageCode))
+        {
+            tags.Add(metadata.LanguageCode);
+        }
+
+        tags.Add(metadata.Category.ToString().ToLowerInvariant());
+
+        return tags;
+    }
+
+    /// <summary>
+    /// Gets a metadata value from the search result.
+    /// </summary>
+    private static string GetMetadataValue(ContentSearchResult item, string key, string defaultValue)
+    {
+        if (item.ResolverMetadata?.TryGetValue(key, out var value) == true)
+        {
+            return value;
+        }
+
+        return defaultValue;
+    }
+
+    /// <summary>
+    /// Gets a long metadata value from the search result.
+    /// </summary>
+    private static long GetMetadataValueLong(ContentSearchResult item, string key, long defaultValue)
+    {
+        var stringValue = GetMetadataValue(item, key, string.Empty);
+        return long.TryParse(stringValue, out var result) ? result : defaultValue;
+    }
+
+    private static string DetermineManifestVersion(
+        ContentSearchResult discoveredItem,
+        GenPatcherContentMetadata contentMetadata)
+    {
+        var idParts = discoveredItem.Id?.Split('.') ?? [];
+        if (idParts.Length >= 5 && int.TryParse(idParts[1], out _))
+        {
+            return idParts[1];
+        }
+
+        var versionSource = !string.IsNullOrEmpty(contentMetadata.Version)
+            ? contentMetadata.Version
+            : discoveredItem.Version;
+        return ExtractManifestVersion(versionSource);
+    }
+
+    private static IContentManifestBuilder BuildBaseManifest(
+        IContentManifestBuilder manifestBuilder,
+        ContentSearchResult discoveredItem,
+        GenPatcherContentMetadata contentMetadata,
+        string contentName,
+        string manifestVersion,
+        string websiteUrl,
+        string patchPageUrl)
+    {
+        var manifest = manifestBuilder
+            .WithBasicInfo(
+                CommunityOutpostConstants.PublisherType,
+                contentName,
+                manifestVersion)
+            .WithContentType(contentMetadata.ContentType, contentMetadata.TargetGame)
+            .WithPublisher(
+                name: CommunityOutpostConstants.PublisherName,
+                website: websiteUrl,
+                supportUrl: patchPageUrl,
+                contactEmail: string.Empty,
+                publisherType: CommunityOutpostConstants.PublisherType)
+            .WithMetadata(
+                contentMetadata.Description,
+                tags: BuildTags(discoveredItem, contentMetadata),
+                changelogUrl: patchPageUrl)
+            .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy);
+
+        var dependencies = contentMetadata.GetDependencies();
+        foreach (var dependency in dependencies)
+        {
+            manifest.AddDependency(
+                id: dependency.Id,
+                name: dependency.Name,
+                dependencyType: dependency.DependencyType,
+                installBehavior: dependency.InstallBehavior,
+                minVersion: dependency.MinVersion ?? string.Empty,
+                maxVersion: dependency.MaxVersion ?? string.Empty,
+                compatibleVersions: dependency.CompatibleVersions,
+                isExclusive: GenPatcherDependencyBuilder.IsCategoryExclusive(contentMetadata.Category),
+                conflictsWith: dependency.ConflictsWith);
+        }
+
+        return manifest;
+    }
+
+    private readonly record struct PostResolutionContext(
+        ContentSearchResult DiscoveredItem,
+        GenPatcherContentMetadata ContentMetadata,
+        string ContentCode,
+        string Filename,
+        string? RequestedVariantSuffix,
+        IReadOnlyList<string> MirrorUrls,
+        long FileSize);
+
+    private static void ApplyPostResolutionMetadata(ContentManifest builtManifest, in PostResolutionContext context)
     {
         builtManifest.InstallationInstructions ??= new InstallationInstructions();
         builtManifest.Metadata ??= new ContentMetadata();
 
+        ApplyMetadataTags(builtManifest, context);
+        ApplyManifestFileConfig(builtManifest, context);
+
+        builtManifest.Name = context.ContentMetadata.SupportsVariants && !string.IsNullOrEmpty(context.ContentMetadata.DisplayName)
+            ? context.ContentMetadata.DisplayName
+            : context.DiscoveredItem.Name ?? context.ContentMetadata.DisplayName;
+
+        builtManifest.Version = ResolveManifestVersion(context.ContentCode, context.ContentMetadata, context.DiscoveredItem);
+    }
+
+    private static void ApplyMetadataTags(ContentManifest builtManifest, in PostResolutionContext context)
+    {
+        builtManifest.Metadata ??= new ContentMetadata();
         builtManifest.Metadata.Tags ??= [];
+
+        if (!string.IsNullOrEmpty(context.RequestedVariantSuffix))
+        {
+            builtManifest.Metadata.SelectedVariantId = context.RequestedVariantSuffix;
+            builtManifest.Metadata.Tags.Add($"requestedVariant:{context.RequestedVariantSuffix}");
+            builtManifest.Metadata.Tags.Add($"selectedVariant:{context.RequestedVariantSuffix}");
+            builtManifest.Metadata.Tags.Add($"variant:{context.RequestedVariantSuffix}");
+        }
+
         if (context.MirrorUrls.Count > 1)
         {
             builtManifest.Metadata.Tags.Add($"mirrors:{context.MirrorUrls.Count}");
@@ -207,13 +386,19 @@ public class CommunityOutpostResolver(
 
         builtManifest.Metadata.Tags.Add($"contentCode:{context.ContentCode}");
         builtManifest.Metadata.Tags.Add($"installTarget:{context.ContentMetadata.InstallTarget}");
+    }
 
+    private static void ApplyManifestFileConfig(ContentManifest builtManifest, in PostResolutionContext context)
+    {
         if (context.Filename.EndsWith(CommunityOutpostConstants.DatFileExtension, StringComparison.OrdinalIgnoreCase))
         {
-            foreach (var file in builtManifest.Files.Where(f => f.RelativePath == context.Filename))
+            foreach (var file in builtManifest.Files)
             {
-                file.SourcePath = "archive:7z";
-                file.InstallTarget = context.ContentMetadata.InstallTarget;
+                if (file.RelativePath == context.Filename)
+                {
+                    file.SourcePath = "archive:7z";
+                    file.InstallTarget = context.ContentMetadata.InstallTarget;
+                }
             }
         }
 
@@ -221,19 +406,26 @@ public class CommunityOutpostResolver(
         {
             builtManifest.Files[0].Size = context.FileSize;
         }
+    }
 
-        builtManifest.Name = context.DiscoveredItem.Name ?? context.ContentMetadata.DisplayName;
+    private static string ResolveManifestVersion(string contentCode, GenPatcherContentMetadata contentMetadata, ContentSearchResult discoveredItem)
+    {
+        if (contentCode == "community-patch" && !string.IsNullOrWhiteSpace(discoveredItem.Version))
+        {
+            return discoveredItem.Version;
+        }
 
-        if (context.ContentCode == "community-patch" && !string.IsNullOrEmpty(context.DiscoveredItem.Version))
+        if (!string.IsNullOrWhiteSpace(contentMetadata.Version))
         {
-            builtManifest.Version = context.DiscoveredItem.Version;
+            return contentMetadata.Version;
         }
-        else
+
+        if (!string.IsNullOrWhiteSpace(discoveredItem.Version))
         {
-            builtManifest.Version = !string.IsNullOrEmpty(context.ContentMetadata.Version)
-                ? context.ContentMetadata.Version
-                : context.DiscoveredItem.Version;
+            return discoveredItem.Version;
         }
+
+        return CommunityOutpostCatalogConstants.DefaultMetadataVersion;
     }
 
     /// <summary>
@@ -282,131 +474,74 @@ public class CommunityOutpostResolver(
     }
 
     /// <summary>
-    /// Extracts a numeric version suitable for manifest ID.
+    /// Extracts a variant suffix from a search result ID, metadata, or name (e.g. cbpr-1080p -> 1080p).
     /// </summary>
-    private static string ExtractVersionNumberForManifestId(string version)
+    private static string? TryExtractVariantSuffix(ContentSearchResult item, GenPatcherContentMetadata metadata)
     {
-        if (string.IsNullOrEmpty(version))
+        return TryExtractVariantFromResolverMetadata(item.ResolverMetadata)
+            ?? TryExtractVariantFromId(item.Id, metadata)
+            ?? TryExtractVariantFromName(item.Name, metadata);
+    }
+
+    private static string? TryExtractVariantFromResolverMetadata(IDictionary<string, string>? resolverMetadata)
+    {
+        if (resolverMetadata == null)
         {
-            return "0";
+            return null;
         }
 
-        // Handle date versions like "2025-11-07" (YYYY-MM-DD)
-        if (version.Length == 10 && version[4] == '-' && version[7] == '-')
+        string[] keys = ["selectedVariant", "requestedVariant", "variant"];
+        foreach (var key in keys)
         {
-            var dateDigits = version.Replace("-", string.Empty);
-            if (dateDigits.Length == 8 && int.TryParse(dateDigits, out var dateValue))
+            if (resolverMetadata.TryGetValue(key, out var val) && !string.IsNullOrWhiteSpace(val))
             {
-                return dateValue.ToString();
+                return val.Trim();
             }
         }
 
-        // Handle date versions like "13-02-2025" (DD-MM-YYYY)
-        if (version.Length == 10 && version[2] == '-' && version[5] == '-')
+        return null;
+    }
+
+    private static string? TryExtractVariantFromId(string? id, GenPatcherContentMetadata metadata)
+    {
+        if (string.IsNullOrEmpty(id))
         {
-            // Reorder to YYYYMMDD
-            var parts = version.Split('-');
-            if (parts.Length == 3)
+            return null;
+        }
+
+        var parts = id.Split('.');
+        var contentName = parts.Length >= 5 ? parts[4] : id;
+        var dashIndex = contentName.IndexOf('-');
+        if (dashIndex > 0 && dashIndex < contentName.Length - 1)
+        {
+            return contentName[(dashIndex + 1)..];
+        }
+
+        if (metadata.Variants is { Count: > 0 })
+        {
+            var matchingVariant = metadata.Variants.FirstOrDefault(v =>
+                contentName.EndsWith(v.Id, StringComparison.OrdinalIgnoreCase) ||
+                contentName.EndsWith(v.Id.Replace("-", string.Empty), StringComparison.OrdinalIgnoreCase));
+            if (matchingVariant != null)
             {
-                var dateDigits = $"{parts[2]}{parts[1]}{parts[0]}";
-                if (dateDigits.Length == 8 && int.TryParse(dateDigits, out var dateValue))
-                {
-                    return dateValue.ToString();
-                }
+                return matchingVariant.Id;
             }
         }
 
-        // Remove dots and leading zeros to get numeric version
-        var digits = version.Replace(".", string.Empty);
-
-        if (int.TryParse(digits, out var numericVersion))
-        {
-            return numericVersion.ToString();
-        }
-
-        return "0";
+        return null;
     }
 
-    /// <summary>
-    /// Builds the tags list for the manifest.
-    /// </summary>
-    private static List<string> BuildTags(ContentSearchResult item, GenPatcherContentMetadata metadata)
+    private static string? TryExtractVariantFromName(string? name, GenPatcherContentMetadata metadata)
     {
-        var tags = new List<string>(item.Tags);
-
-        if (!string.IsNullOrEmpty(metadata.LanguageCode))
+        if (string.IsNullOrEmpty(name) || metadata.Variants is not { Count: > 0 })
         {
-            tags.Add(metadata.LanguageCode);
+            return null;
         }
 
-        tags.Add(metadata.Category.ToString().ToLowerInvariant());
-
-        return tags;
-    }
-
-    /// <summary>
-    /// Gets a metadata value from the search result.
-    /// </summary>
-    private static string GetMetadataValue(ContentSearchResult item, string key, string defaultValue)
-    {
-        if (item.ResolverMetadata is { } metadata && metadata.TryGetValue(key, out var value))
-        {
-            return value;
-        }
-
-        return defaultValue;
-    }
-
-    /// <summary>
-    /// Gets a long metadata value from the search result.
-    /// </summary>
-    private static long GetMetadataValueLong(ContentSearchResult item, string key, long defaultValue)
-    {
-        var stringValue = GetMetadataValue(item, key, string.Empty);
-        return long.TryParse(stringValue, out var result) ? result : defaultValue;
-    }
-
-    /// <summary>
-    /// Determines the filename from the download URI or generates one from the content code.
-    /// </summary>
-    private static string DetermineFilename(Uri downloadUri, string contentCode)
-    {
-        var path = downloadUri.AbsolutePath;
-        var lastSegment = path.Split('/')[^1];
-
-        if (!string.IsNullOrEmpty(lastSegment) && lastSegment.Contains('.'))
-        {
-            return lastSegment;
-        }
-
-        return $"{contentCode}{CommunityOutpostConstants.DatFileExtension}";
-    }
-
-    private void PopulateDependencies(
-        IContentManifestBuilder manifest,
-        GenPatcherContentMetadata contentMetadata,
-        string contentCode)
-    {
-        var dependencies = contentMetadata.GetDependencies();
-        foreach (var dependency in dependencies)
-        {
-            manifest.AddDependency(
-                id: dependency.Id,
-                name: dependency.Name,
-                dependencyType: dependency.DependencyType,
-                installBehavior: dependency.InstallBehavior,
-                minVersion: dependency.MinVersion ?? string.Empty,
-                maxVersion: dependency.MaxVersion ?? string.Empty,
-                compatibleVersions: dependency.CompatibleVersions,
-                isExclusive: GenPatcherDependencyBuilder.IsCategoryExclusive(contentMetadata.Category),
-                conflictsWith: dependency.ConflictsWith);
-
-            logger.LogDebug(
-                "Added dependency {DepName} ({DepType}) to manifest for {ContentCode}",
-                dependency.Name,
-                dependency.DependencyType,
-                contentCode);
-        }
+        return metadata.Variants.FirstOrDefault(v =>
+            name.EndsWith(v.Name, StringComparison.OrdinalIgnoreCase) ||
+            name.Contains(v.Name, StringComparison.OrdinalIgnoreCase) ||
+            name.EndsWith(v.Id, StringComparison.OrdinalIgnoreCase))?.Id;
     }
 
     /// <summary>

@@ -10,9 +10,14 @@ namespace GenHub.Core.Constants;
 /// Endpoint URLs and timeouts are configured via data-driven configuration.
 /// See <c>Providers/communityoutpost.provider.json</c> for runtime-configurable values.
 /// </remarks>
-[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized URI constants / mock demo paths")]
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Default base URL for Community Outpost service")]
 public static class CommunityOutpostConstants
 {
+    /// <summary>
+    /// Base URL for Community Outpost / GenPatcher service.
+    /// </summary>
+    public const string BaseUrl = "https://legi.cc";
+
     /// <summary>
     /// The publisher ID for Community Outpost.
     /// </summary>
@@ -52,6 +57,11 @@ public static class CommunityOutpostConstants
     /// The name of the content.
     /// </summary>
     public const string ContentName = "Community Patch";
+
+    /// <summary>
+    /// Tag and content code for Community Patch items.
+    /// </summary>
+    public const string CommunityPatchTag = "community-patch";
 
     /// <summary>
     /// Description for the discoverer.

@@ -117,24 +117,19 @@ public static class CNCLabsConstants
     public const string QueryStringIdParameter = "id";
 
     /// <summary>
-    /// CSS selector for a single downloadable item container on list pages.
+    /// CSS selector for a single downloadable item container on list pages (2026 Bootstrap redesign).
     /// </summary>
-    public const string ListItemSelector = "div.DownloadItem";
+    public const string ListItemSelector = "div.list-group-item";
 
     /// <summary>
-    /// CSS selector for the hidden input that carries the map's numeric File Id.
+    /// CSS selector for the anchor with the display name of the map (2026 Bootstrap redesign).
     /// </summary>
-    public const string FileIdHiddenSelector = "input[type='hidden'][id$='FileIdField']";
+    public const string DisplayNameAnchorSelector = "h5 a[href*='/downloads/details/']";
 
     /// <summary>
-    /// CSS selector for the anchor with the display name of the map.
+    /// CSS selector for the element that contains the short description (2026 Bootstrap redesign).
     /// </summary>
-    public const string DisplayNameAnchorSelector = "a.DisplayName";
-
-    /// <summary>
-    /// CSS selector for the element that contains the short description.
-    /// </summary>
-    public const string DescriptionSelector = "span[id$='DescriptionLabel']";
+    public const string DescriptionSelector = "div.mb-1.text-muted.small";
 
     /// <summary>
     /// CSS selector for bold labels inside the item description cell (used to locate the "Author:" label).

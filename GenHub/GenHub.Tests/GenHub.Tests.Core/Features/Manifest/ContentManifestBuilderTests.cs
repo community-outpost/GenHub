@@ -34,14 +34,14 @@ public class ContentManifestBuilderTests
     private readonly Mock<IManifestIdService> _manifestIdServiceMock;
 
     /// <summary>
-    /// Mock for the download service used in the builder.
+    /// Mock for the download service.
     /// </summary>
     private readonly Mock<IDownloadService> _downloadServiceMock;
 
     /// <summary>
-    /// Mock for the configuration provider service used in the builder.
+    /// Mock for the configuration provider.
     /// </summary>
-    private readonly Mock<IConfigurationProviderService> _configProviderServiceMock;
+    private readonly Mock<IConfigurationProviderService> _configurationProviderMock;
 
     /// <summary>
     /// The content manifest builder under test.
@@ -57,7 +57,7 @@ public class ContentManifestBuilderTests
         _hashProviderMock = new Mock<IFileHashProvider>();
         _manifestIdServiceMock = new Mock<IManifestIdService>();
         _downloadServiceMock = new Mock<IDownloadService>();
-        _configProviderServiceMock = new Mock<IConfigurationProviderService>();
+        _configurationProviderMock = new Mock<IConfigurationProviderService>();
 
         // Set up mock to return success for ValidateAndCreateManifestId
         _manifestIdServiceMock.Setup(x => x.ValidateAndCreateManifestId(It.IsAny<string>()))
@@ -80,7 +80,7 @@ public class ContentManifestBuilderTests
             _hashProviderMock.Object,
             _manifestIdServiceMock.Object,
             _downloadServiceMock.Object,
-            _configProviderServiceMock.Object);
+            _configurationProviderMock.Object);
     }
 
     /// <summary>
@@ -170,6 +170,45 @@ public class ContentManifestBuilderTests
         Assert.True(dependency.IsExclusive);
         Assert.Equal([ManifestId.Create("1.0.genhub.mod.conflict")], dependency.ConflictsWith);
         Assert.Equal(DependencyInstallBehavior.AutoInstall, dependency.InstallBehavior);
+    }
+
+    /// <summary>
+    /// Regression guard for the manifest builder state-pollution bug: a singleton factory holding
+    /// a single builder instance would accumulate dependencies across operations. Each builder
+    /// resolved from <c>Func&lt;IContentManifestBuilder&gt;</c> must be independent.
+    /// </summary>
+    [Fact]
+    public void BuilderFactory_EachBuilderIsIndependent()
+    {
+        // Arrange: a factory that returns a fresh builder each call (mirrors the DI registration).
+        Func<IContentManifestBuilder> factory = () => new ContentManifestBuilder(
+            _loggerMock.Object,
+            _hashProviderMock.Object,
+            _manifestIdServiceMock.Object,
+            _downloadServiceMock.Object,
+            _configurationProviderMock.Object);
+
+        // Act: build two manifests from two separate builder instances, adding a dependency only
+        // to the first.
+        var first = factory()
+            .WithBasicInfo("First Publisher", "First", "1")
+            .AddDependency(
+                id: ManifestId.Create("1.0.genhub.mod.dependency"),
+                name: "First Dependency",
+                dependencyType: ContentType.GameInstallation,
+                installBehavior: DependencyInstallBehavior.AutoInstall,
+                minVersion: "1.0")
+            .Build();
+
+        var second = factory()
+            .WithBasicInfo("Second Publisher", "Second", "1")
+            .Build();
+
+        // Assert: the second manifest must not carry the first's dependency.
+        Assert.Single(first.Dependencies);
+        Assert.Empty(second.Dependencies);
+        Assert.Equal("First", first.Name);
+        Assert.Equal("Second", second.Name);
     }
 
     /// <summary>

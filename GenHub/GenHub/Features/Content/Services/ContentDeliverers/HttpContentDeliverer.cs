@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -23,6 +25,24 @@ public class HttpContentDeliverer(IDownloadService downloadService, ILogger<Http
     private readonly IDownloadService _downloadService = downloadService;
     private readonly ILogger<HttpContentDeliverer> _logger = logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="HttpContentDeliverer"/> class with optional legacy dependencies.
+    /// </summary>
+    /// <param name="downloadService">The download service.</param>
+    /// <param name="playwrightService">The playwright service (unused).</param>
+    /// <param name="manifestBuilderFactory">The manifest builder factory (unused).</param>
+    /// <param name="fileHashProvider">The file hash provider (unused).</param>
+    /// <param name="logger">The logger.</param>
+    public HttpContentDeliverer(
+        IDownloadService downloadService,
+        IPlaywrightService? playwrightService,
+        Func<IContentManifestBuilder>? manifestBuilderFactory,
+        IFileHashProvider? fileHashProvider,
+        ILogger<HttpContentDeliverer> logger)
+        : this(downloadService, logger)
+    {
+    }
+
     /// <inheritdoc />
     public string SourceName => ContentSourceNames.HttpDeliverer;
 
@@ -38,6 +58,17 @@ public class HttpContentDeliverer(IDownloadService downloadService, ILogger<Http
     /// <inheritdoc />
     public bool CanDeliver(ContentManifest manifest)
     {
+        if (manifest?.Files == null)
+        {
+            return false;
+        }
+
+        // Dependency-only packages (e.g. ContentBundle) have no remote files to fetch.
+        if (manifest.Files.Count == 0)
+        {
+            return true;
+        }
+
         // Can deliver if files have HTTP download URLs
         return manifest.Files.Any(f =>
             !string.IsNullOrEmpty(f.DownloadUrl) &&

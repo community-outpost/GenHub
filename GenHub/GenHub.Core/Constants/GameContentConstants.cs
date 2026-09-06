@@ -16,6 +16,11 @@ public static class GameContentConstants
     public const int MaxWrapperNormalizationDepth = 10;
 
     /// <summary>
+    /// File name for the Electronic Arts intro logo movie.
+    /// </summary>
+    public const string EaLogoBikFileName = "EA_LOGO.BIK";
+
+    /// <summary>
     /// Default variant resolution for control bar packages.
     /// </summary>
     public const string DefaultControlBarVariant = "1080p";
@@ -49,6 +54,20 @@ public static class GameContentConstants
     /// Window directory name.
     /// </summary>
     public const string WindowDirectoryName = "Window";
+
+    /// <summary>
+    /// Canonical directory names used at the game workspace root.
+    /// </summary>
+    /// <summary>
+    /// Supported archive file extensions.
+    /// </summary>
+    public static readonly IReadOnlyList<string> ArchiveExtensions =
+    [
+        ".zip",
+        ".7z",
+        ".rar",
+        ".dat",
+    ];
 
     /// <summary>
     /// Canonical directory names used at the game workspace root.

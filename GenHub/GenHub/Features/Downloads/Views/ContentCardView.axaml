@@ -1,0 +1,633 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Downloads.ViewModels"
+             xmlns:models="clr-namespace:GenHub.Core.Models.GameProfile;assembly=GenHub.Core"
+             xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
+             mc:Ignorable="d" d:DesignWidth="280" d:DesignHeight="320"
+             x:Class="GenHub.Features.Downloads.Views.ContentCardView"
+             x:DataType="vm:ContentGridItemViewModel"
+             x:Name="Root">
+
+    <UserControl.Resources>
+        <converters:FileSizeConverter x:Key="FileSizeConverter" />
+        <converters:StringToImageConverter x:Key="StringToImageConverter" />
+        <converters:ColorToBrushConverter x:Key="ColorToBrushConverter" />
+        <converters:IntToBoolConverter x:Key="IntToBoolConverter" />
+        <converters:ContentStateToTextConverter x:Key="ContentStateToTextConverter" />
+        <converters:ContentStateToPathDataConverter x:Key="ContentStateToPathDataConverter" />
+        <converters:ContentStateToBrushConverter x:Key="ContentStateToBrushConverter" />
+        <converters:ContentTypeToBrushConverter x:Key="ContentTypeToBrushConverter" />
+        <converters:ContentTypeToBadgeBackgroundConverter x:Key="ContentTypeToBadgeBackgroundConverter" />
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <!-- Card shell -->
+        <Style Selector="Border.content-card">
+            <Setter Property="Background" Value="{DynamicResource CardBackground}" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Width" Value="240" />
+            <Setter Property="Height" Value="340" />
+            <Setter Property="BoxShadow" Value="0 6 20 0 #40000000" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="ClipToBounds" Value="True" />
+            <Setter Property="Transitions">
+                <Setter.Value>
+                    <Transitions>
+                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.18" />
+                        <BrushTransition Property="BorderBrush" Duration="0:0:0.18" />
+                        <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.18" />
+                    </Transitions>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style Selector="Border.content-card.bundle-card">
+            <Setter Property="Height" Value="NaN" />
+            <Setter Property="MinHeight" Value="340" />
+            <Setter Property="MaxHeight" Value="560" />
+        </Style>
+
+        <Style Selector="Border.content-card:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BoxShadow" Value="0 10 28 0 #60000000" />
+            <Setter Property="RenderTransform" Value="scale(1.02)" />
+        </Style>
+
+        <!-- CTAs -->
+        <Style Selector="Button.card-button">
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
+            <Setter Property="Transitions">
+                <Setter.Value>
+                    <Transitions>
+                        <BrushTransition Property="Background" Duration="0:0:0.15" />
+                        <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" />
+                    </Transitions>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.card-button:pointerover">
+            <Setter Property="Opacity" Value="0.94" />
+            <Setter Property="RenderTransform" Value="scale(1.015)" />
+        </Style>
+
+        <Style Selector="Button.card-button:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.98)" />
+        </Style>
+
+        <Style Selector="Button.card-button:disabled">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="Opacity" Value="0.6" />
+        </Style>
+
+        <Style Selector="Button.card-button.download-btn">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        </Style>
+
+        <Style Selector="Button.card-button.update-btn">
+            <Setter Property="Background" Value="{DynamicResource WarningBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
+        </Style>
+
+        <Style Selector="Button.card-button.add-profile-btn">
+            <Setter Property="Background" Value="{DynamicResource SuccessBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
+        </Style>
+
+        <Style Selector="Border.type-badge">
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="7,3" />
+            <Setter Property="BoxShadow" Value="0 2 6 0 #80000000" />
+        </Style>
+
+        <Style Selector="Border.player-count-badge">
+            <Setter Property="Background" Value="{DynamicResource CardBackground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ZeroHourFactionBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BoxShadow" Value="0 2 6 0 #80000000" />
+        </Style>
+
+        <Style Selector="Border.category-badge">
+            <Setter Property="Background" Value="{DynamicResource CardBackground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource GeneralsFactionBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BoxShadow" Value="0 2 6 0 #80000000" />
+        </Style>
+
+        <Style Selector="Border.variant-count-badge">
+            <Setter Property="Background" Value="{DynamicResource CardBackground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BoxShadow" Value="0 2 6 0 #80000000" />
+        </Style>
+
+        <Style Selector="Border.info-chip">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="Padding" Value="6,2" />
+        </Style>
+
+        <Style Selector="ComboBox.card-variant-combo">
+            <Setter Property="CornerRadius" Value="6" />
+        </Style>
+
+        <Style Selector="ToolTip">
+            <Setter Property="MaxWidth" Value="600" />
+            <Setter Property="MaxHeight" Value="500" />
+        </Style>
+
+        <Style Selector="ToolTip TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="TextTrimming" Value="None" />
+        </Style>
+    </UserControl.Styles>
+
+    <Border Classes="content-card" Classes.bundle-card="{Binding HasBundleComponents}">
+        <Panel>
+            <!-- 1. Acrylic blur -->
+            <ExperimentalAcrylicBorder CornerRadius="12" IsHitTestVisible="False">
+                <ExperimentalAcrylicBorder.Material>
+                    <ExperimentalAcrylicMaterial
+                        BackgroundSource="Digger"
+                        TintColor="#08080C"
+                        TintOpacity="0.85"
+                        MaterialOpacity="0.55" />
+                </ExperimentalAcrylicBorder.Material>
+            </ExperimentalAcrylicBorder>
+
+            <!-- 2. Subtle Dark Gradient -->
+            <Border CornerRadius="12" IsHitTestVisible="False" Opacity="0.6">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#20181828" />
+                        <GradientStop Offset="1" Color="#D008080C" />
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+
+            <!-- 3. Content -->
+            <Button Command="{Binding ViewCommand}"
+                    CommandParameter="{Binding}"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Padding="0"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch"
+                    HorizontalContentAlignment="Stretch"
+                    VerticalContentAlignment="Stretch"
+                    Cursor="Hand">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          Background="{TemplateBinding Background}" />
+                    </ControlTemplate>
+                </Button.Template>
+
+                <Grid RowDefinitions="Auto,*,Auto" ClipToBounds="True" Background="Transparent">
+                    <!-- Thumbnail / Icon Area -->
+                    <Border Grid.Row="0"
+                            Height="100"
+                            CornerRadius="12,12,0,0"
+                            Background="{DynamicResource SurfaceElevatedBrush}"
+                            ClipToBounds="True">
+                        <Panel>
+                            <!-- Top ContentType Accent Stripe -->
+                            <Border Height="3" VerticalAlignment="Top" HorizontalAlignment="Stretch"
+                                    Background="{Binding ContentType, Converter={StaticResource ContentTypeToBrushConverter}}"
+                                    CornerRadius="12,12,0,0" ZIndex="5" />
+
+                            <!-- Thumbnail image (banner / screenshot preferred over publisher avatar) -->
+                            <Image Source="{Binding IconBitmap}"
+                                   Stretch="UniformToFill"
+                                   IsVisible="{Binding IconBitmap, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+                            <!-- Publisher logo badge (top-left overlay) - only shown when thumbnail banner is present -->
+                            <Border IsVisible="{Binding IconBitmap, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Top"
+                                    Margin="6"
+                                    Padding="3"
+                                    Width="30" Height="30"
+                                    CornerRadius="8"
+                                    Background="{DynamicResource SurfaceElevatedBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    ClipToBounds="True"
+                                    ToolTip.Tip="{Binding ProviderName}">
+                                <Image Source="{Binding PublisherLogoBitmap}" Stretch="Uniform"
+                                       IsVisible="{Binding PublisherLogoBitmap, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                            </Border>
+
+                            <!-- Placeholder when no icon -->
+                            <StackPanel HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        IsVisible="{Binding IconBitmap, Converter={x:Static ObjectConverters.IsNull}}">
+                                <Border IsVisible="{Binding PublisherLogoBitmap, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                        Width="48" Height="48" CornerRadius="10" Background="{DynamicResource SurfaceElevatedBrush}" Padding="4">
+                                    <Image Source="{Binding PublisherLogoBitmap}" Stretch="Uniform" />
+                                </Border>
+                                <TextBlock Text="📦"
+                                           FontSize="28"
+                                           HorizontalAlignment="Center"
+                                           IsVisible="{Binding PublisherLogoBitmap, Converter={x:Static ObjectConverters.IsNull}}" />
+                            </StackPanel>
+
+                            <!-- Content metadata badges -->
+                            <WrapPanel Orientation="Horizontal"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Top"
+                                       Margin="6"
+                                       MaxWidth="228">
+                                <Border Classes="type-badge"
+                                        Background="{DynamicResource CardBackground}"
+                                        BorderBrush="{Binding ContentType, Converter={StaticResource ContentTypeToBrushConverter}}"
+                                        Margin="0,0,4,4"
+                                        ToolTip.Tip="{Binding ContentTypeDisplay}">
+                                    <TextBlock Text="{Binding ContentTypeDisplay}"
+                                               FontSize="10"
+                                               FontWeight="Bold"
+                                               Foreground="{Binding ContentType, Converter={StaticResource ContentTypeToBrushConverter}}" />
+                                </Border>
+                                <Border Classes="type-badge variant-count-badge"
+                                        IsVisible="{Binding HasVariantCountBadge}"
+                                        Margin="0,0,4,4"
+                                        ToolTip.Tip="{Binding VariantCountBadge}">
+                                    <TextBlock Text="{Binding VariantCountBadge}"
+                                               FontSize="10"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimary}" />
+                                </Border>
+                                <Border Classes="type-badge player-count-badge"
+                                        IsVisible="{Binding HasPlayerCountBadge}"
+                                        Margin="0,0,4,4"
+                                        ToolTip.Tip="{Binding PlayerCountBadge}">
+                                    <TextBlock Text="{Binding PlayerCountBadge}"
+                                               FontSize="10"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource ZeroHourAccentBrush}" />
+                                </Border>
+                                <Border Classes="type-badge category-badge"
+                                        IsVisible="{Binding HasCategoryBadge}"
+                                        Margin="0,0,0,4"
+                                        ToolTip.Tip="{Binding CategoryBadge}">
+                                    <TextBlock Text="{Binding CategoryBadge}"
+                                               FontSize="10"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource GeneralsAccentBrush}" />
+                                </Border>
+                            </WrapPanel>
+                        </Panel>
+                    </Border>
+
+                    <!-- Content Info -->
+                    <Grid Grid.Row="1" Margin="12,8" Background="Transparent">
+                        <StackPanel Spacing="4">
+                            <!-- Title -->
+                            <TextBlock Text="{Binding Name}"
+                                       FontSize="14"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimary}"
+                                       TextTrimming="CharacterEllipsis"
+                                       MaxLines="2"
+                                       TextWrapping="Wrap"
+                                       ToolTip.Tip="{Binding Name}" />
+
+                        <!-- Author & Date -->
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0"
+                                       Text="{Binding AuthorName}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextSecondary}"
+                                       TextTrimming="CharacterEllipsis"
+                                       MaxLines="1"
+                                       VerticalAlignment="Center"
+                                       IsVisible="{Binding HasAuthor}"
+                                       ToolTip.Tip="{Binding AuthorName}" />
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding LastUpdatedDisplay}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextMuted}"
+                                       TextTrimming="CharacterEllipsis"
+                                       MaxLines="1"
+                                       VerticalAlignment="Center"
+                                       Margin="6,0,0,0"
+                                       IsVisible="{Binding IsLastUpdatedVisible}"
+                                       ToolTip.Tip="{Binding LastUpdatedDisplay}" />
+                        </Grid>
+
+                        <!-- Variant pickers (one ComboBox per axis; single-axis looks identical to before). -->
+                        <ItemsControl ItemsSource="{Binding VariantAxes}"
+                                      IsVisible="{Binding HasVariants}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:VariantAxisGroup">
+                                    <StackPanel Spacing="2" Margin="0,0,0,2">
+                                        <TextBlock Text="{Binding AxisLabel}"
+                                                   FontSize="10"
+                                                   Foreground="{DynamicResource TextSecondary}"
+                                                   IsVisible="{Binding ShowAxisLabel}" />
+                                        <ComboBox Classes="card-variant-combo"
+                                                  ItemsSource="{Binding Options}"
+                                                  SelectedItem="{Binding SelectedOption}"
+                                                  FontSize="11"
+                                                  HorizontalAlignment="Stretch"
+                                                  MinHeight="26"
+                                                  Padding="6,2">
+                                            <ComboBox.SelectionBoxItemTemplate>
+                                                <DataTemplate x:DataType="vm:InstallableVariant">
+                                                    <Grid ColumnDefinitions="Auto,*">
+                                                        <PathIcon Grid.Column="0"
+                                                                  Data="{Binding CurrentState, Converter={StaticResource ContentStateToPathDataConverter}}"
+                                                                  Foreground="{Binding CurrentState, Converter={StaticResource ContentStateToBrushConverter}}"
+                                                                  Width="12" Height="12"
+                                                                  VerticalAlignment="Center"
+                                                                  Margin="0,0,6,0" />
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="{Binding Name}"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource TextPrimary}"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   MaxLines="1"
+                                                                   VerticalAlignment="Center"
+                                                                   ToolTip.Tip="{Binding Name}" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ComboBox.SelectionBoxItemTemplate>
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:InstallableVariant">
+                                                    <Grid ColumnDefinitions="Auto,*">
+                                                        <PathIcon Grid.Column="0"
+                                                                  Data="{Binding CurrentState, Converter={StaticResource ContentStateToPathDataConverter}}"
+                                                                  Foreground="{Binding CurrentState, Converter={StaticResource ContentStateToBrushConverter}}"
+                                                                  Width="12" Height="12"
+                                                                  VerticalAlignment="Center"
+                                                                  Margin="0,0,6,0" />
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="{Binding Name}"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource TextPrimary}"
+                                                                   TextWrapping="Wrap"
+                                                                   VerticalAlignment="Center"
+                                                                   ToolTip.Tip="{Binding Name}" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Bundle members: identity + per-item variant dropdowns -->
+                        <ItemsControl ItemsSource="{Binding BundleComponents}"
+                                      IsVisible="{Binding HasBundleComponents}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:BundleComponentViewModel">
+                                    <StackPanel Spacing="2" Margin="0,0,0,4">
+                                        <Grid ColumnDefinitions="*,Auto"
+                                              Background="Transparent"
+                                              ToolTip.Tip="{Binding SelectedDisplayName}">
+                                            <TextBlock Grid.Column="0"
+                                                        Text="{Binding SelectedDisplayName}"
+                                                        FontSize="11"
+                                                        Foreground="{DynamicResource TextPrimary}"
+                                                        TextTrimming="CharacterEllipsis"
+                                                        MaxLines="1"
+                                                        VerticalAlignment="Center" />
+                                            <PathIcon Grid.Column="1"
+                                                      Data="{Binding EffectiveState, Converter={StaticResource ContentStateToPathDataConverter}}"
+                                                      Foreground="{Binding EffectiveState, Converter={StaticResource ContentStateToBrushConverter}}"
+                                                      Width="12" Height="12"
+                                                      VerticalAlignment="Center"
+                                                      Margin="6,0,0,0" />
+                                        </Grid>
+                                        <ItemsControl ItemsSource="{Binding VariantAxes}"
+                                                      IsVisible="{Binding HasVariants}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:VariantAxisGroup">
+                                                    <StackPanel Spacing="1" Margin="0,0,0,2">
+                                                        <TextBlock Text="{Binding AxisLabel}"
+                                                                   FontSize="9"
+                                                                   Foreground="{DynamicResource TextSecondary}"
+                                                                   IsVisible="{Binding ShowAxisLabel}" />
+                                                        <ComboBox Classes="card-variant-combo"
+                                                                  ItemsSource="{Binding Options}"
+                                                                  SelectedItem="{Binding SelectedOption}"
+                                                                  FontSize="11"
+                                                                  HorizontalAlignment="Stretch"
+                                                                  MinHeight="24"
+                                                                  Padding="6,1">
+                                                            <ComboBox.SelectionBoxItemTemplate>
+                                                                <DataTemplate x:DataType="vm:InstallableVariant">
+                                                                    <Grid ColumnDefinitions="Auto,*">
+                                                                        <PathIcon Grid.Column="0"
+                                                                                  Data="{Binding CurrentState, Converter={StaticResource ContentStateToPathDataConverter}}"
+                                                                                  Foreground="{Binding CurrentState, Converter={StaticResource ContentStateToBrushConverter}}"
+                                                                                  Width="12" Height="12"
+                                                                                  VerticalAlignment="Center"
+                                                                                  Margin="0,0,6,0" />
+                                                                        <TextBlock Grid.Column="1"
+                                                                                   Text="{Binding Name}"
+                                                                                   FontSize="11"
+                                                                                   Foreground="{DynamicResource TextPrimary}"
+                                                                                   TextTrimming="CharacterEllipsis"
+                                                                                   MaxLines="1"
+                                                                                   VerticalAlignment="Center"
+                                                                                   ToolTip.Tip="{Binding Name}" />
+                                                                    </Grid>
+                                                                </DataTemplate>
+                                                            </ComboBox.SelectionBoxItemTemplate>
+                                                            <ComboBox.ItemTemplate>
+                                                                <DataTemplate x:DataType="vm:InstallableVariant">
+                                                                    <Grid ColumnDefinitions="Auto,*">
+                                                                        <PathIcon Grid.Column="0"
+                                                                                  Data="{Binding CurrentState, Converter={StaticResource ContentStateToPathDataConverter}}"
+                                                                                  Foreground="{Binding CurrentState, Converter={StaticResource ContentStateToBrushConverter}}"
+                                                                                  Width="12" Height="12"
+                                                                                  VerticalAlignment="Center"
+                                                                                  Margin="0,0,6,0" />
+                                                                        <TextBlock Grid.Column="1"
+                                                                                   Text="{Binding Name}"
+                                                                                   FontSize="11"
+                                                                                   Foreground="{DynamicResource TextPrimary}"
+                                                                                   TextWrapping="Wrap"
+                                                                                   VerticalAlignment="Center"
+                                                                                   ToolTip.Tip="{Binding Name}" />
+                                                                    </Grid>
+                                                                </DataTemplate>
+                                                            </ComboBox.ItemTemplate>
+                                                        </ComboBox>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Includes preview for non-bundle multi-content packages -->
+                        <StackPanel Spacing="2" IsVisible="{Binding HasIncludesSummary}">
+                            <TextBlock Text="Includes"
+                                       FontSize="10"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource AccentBrush}" />
+                            <TextBlock Text="{Binding IncludesSummary}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextSecondary}"
+                                       TextWrapping="Wrap"
+                                       TextTrimming="CharacterEllipsis"
+                                       MaxLines="2"
+                                       LineHeight="15"
+                                       ToolTip.Tip="{Binding IncludesSummary}" />
+                        </StackPanel>
+
+                        <!-- Version badge -->
+                        <StackPanel Orientation="Horizontal" Spacing="6"
+                                    IsVisible="{Binding HasDisplayVersion}">
+                            <Border Classes="info-chip"
+                                    ToolTip.Tip="{Binding Version}">
+                                <TextBlock Text="{Binding VersionBadge}"
+                                           FontSize="10.5"
+                                           FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimary}" />
+                            </Border>
+
+                            <Border Classes="info-chip"
+                                    IsVisible="{Binding IsDownloadSizeVisible}"
+                                    ToolTip.Tip="{Binding DownloadSize, Converter={StaticResource FileSizeConverter}}">
+                                <TextBlock Text="{Binding DownloadSize, Converter={StaticResource FileSizeConverter}}"
+                                           FontSize="10.5"
+                                           FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimary}" />
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Tag chips (capped for glanceability) -->
+                        <ItemsControl ItemsSource="{Binding DisplayCardTags}"
+                                      IsVisible="{Binding HasCardTags}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Classes="info-chip"
+                                            Margin="0,0,4,4"
+                                            ToolTip.Tip="{Binding}">
+                                        <TextBlock Text="{Binding}"
+                                                   FontSize="10"
+                                                   FontWeight="Medium"
+                                                   Foreground="{DynamicResource TextPrimary}" />
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Short description (full text lives in details) -->
+                        <TextBlock Text="{Binding ShortDescription}"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource TextSecondary}"
+                                   TextWrapping="Wrap"
+                                   TextTrimming="CharacterEllipsis"
+                                   MaxLines="2"
+                                   LineHeight="15"
+                                   ToolTip.Tip="{Binding Description}"
+                                   IsVisible="{Binding HasShortDescription}" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- Action Area -->
+                <StackPanel Grid.Row="2" Margin="12,0,12,12" Spacing="6">
+                    <!-- Download Progress -->
+                    <ProgressBar Value="{Binding DownloadProgress}"
+                                 Maximum="100"
+                                 Height="3"
+                                 IsVisible="{Binding IsDownloading}"
+                                 Foreground="{DynamicResource SuccessBrush}"
+                                 Background="{DynamicResource SurfaceElevatedBrush}" />
+
+                    <!-- Status Text -->
+                    <TextBlock Text="{Binding DownloadStatus}"
+                               FontSize="10"
+                               Foreground="{DynamicResource TextSecondary}"
+                               HorizontalAlignment="Stretch"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"
+                               MaxLines="1"
+                               TextTrimming="CharacterEllipsis"
+                               ToolTip.Tip="{Binding DownloadStatus}"
+                               IsVisible="{Binding DownloadStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                    <!-- Download Button (visible when not downloaded) -->
+                    <Button Classes="card-button download-btn"
+                            Command="{Binding DownloadCommand}"
+                            CommandParameter="{Binding}"
+                            IsVisible="{Binding ShowDownloadButton}"
+                            IsEnabled="{Binding !IsDownloading}">
+                        <ToolTip.Tip>Download this content to your library</ToolTip.Tip>
+                        <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Path Data="M12 3v9m0 0l-3-3m3 3l3-3M4 15v2a2 2 0 002 2h12a2 2 0 002-2v-2"
+                                  Stroke="White" StrokeThickness="2" StrokeJoin="Round" StrokeLineCap="Round"
+                                  Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center" />
+                            <TextBlock Text="Download" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Update Button (visible when update is available) -->
+                    <Button Classes="card-button update-btn"
+                            Command="{Binding UpdateCommand}"
+                            CommandParameter="{Binding}"
+                            IsVisible="{Binding ShowUpdateButton}"
+                            IsEnabled="{Binding !IsDownloading}">
+                        <ToolTip.Tip>A newer version is available. Click to update.</ToolTip.Tip>
+                        <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Path Data="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"
+                                  Fill="White" Width="12" Height="12" Stretch="Uniform" VerticalAlignment="Center" />
+                            <TextBlock Text="Update Available" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Add to Profile Button (visible when downloaded) -->
+                    <Button Classes="card-button add-profile-btn"
+                            Command="{Binding AddToProfileCommand}"
+                            CommandParameter="{Binding}"
+                            IsVisible="{Binding ShowAddToProfileButton}">
+                        <ToolTip.Tip>Add this content to a game profile</ToolTip.Tip>
+                        <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Path Data="M12 5v14M5 12h14"
+                                  Stroke="White" StrokeThickness="2" StrokeJoin="Round" StrokeLineCap="Round"
+                                  Width="12" Height="12" Stretch="Uniform" VerticalAlignment="Center" />
+                            <TextBlock Text="Add to Profile" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+            </Button>
+        </Panel>
+    </Border>
+</UserControl>

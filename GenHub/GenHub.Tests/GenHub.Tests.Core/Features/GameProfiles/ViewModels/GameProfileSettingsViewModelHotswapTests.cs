@@ -59,8 +59,9 @@ public class GameProfileSettingsViewModelHotswapTests
             null,
             NullLogger<GameProfileSettingsViewModel>.Instance,
             NullLogger<GameSettingsViewModel>.Instance,
-            _profileContentLinkerMock.Object,
-            _launchRegistryMock.Object);
+            archivePayloadProcessor: null,
+            profileContentLinker: _profileContentLinkerMock.Object,
+            launchRegistry: _launchRegistryMock.Object);
     }
 
     /// <summary>

@@ -18,7 +18,7 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="190" />
+            <ColumnDefinition Width="190" MinWidth="68" MaxWidth="300" />
             <ColumnDefinition Width="4" />
             <ColumnDefinition Width="*" MinWidth="0" />
         </Grid.ColumnDefinitions>
@@ -27,13 +27,15 @@
                 Background="#10000000"
                 BorderBrush="#20FFFFFF"
                 BorderThickness="0,0,1,0"
-                Padding="12,24">
+                Padding="12,24"
+                ClipToBounds="True">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Spacing="2">
                     <Button Classes="sidebar-btn"
                             Classes.selected="{Binding SelectedCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:SettingsCategory.Video}}"
                             Command="{Binding SelectCategoryCommand}"
-                            CommandParameter="{x:Static vm:SettingsCategory.Video}">
+                            CommandParameter="{x:Static vm:SettingsCategory.Video}"
+                            ToolTip.Tip="Video">
                         <StackPanel Orientation="Horizontal">
                             <PathIcon Data="M21,16H3V4H21M21,2H3C1.89,2 1,2.89 1,4V16C1,17.11 1.89,18 3,18H10V20H8V22H16V20H14V18H21C22.11,18 23,17.11 23,16V4C23,2.89 22.11,2 21,2Z" />
                             <TextBlock Text="Video" VerticalAlignment="Center" />
@@ -43,7 +45,8 @@
                     <Button Classes="sidebar-btn"
                             Classes.selected="{Binding SelectedCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:SettingsCategory.Audio}}"
                             Command="{Binding SelectCategoryCommand}"
-                            CommandParameter="{x:Static vm:SettingsCategory.Audio}">
+                            CommandParameter="{x:Static vm:SettingsCategory.Audio}"
+                            ToolTip.Tip="Audio">
                         <StackPanel Orientation="Horizontal">
                             <PathIcon Data="M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.85 14,18.71V20.77C18,19.86 21,16.28 21,12C21,7.72 18,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16.03C15.5,15.29 16.5,13.77 16.5,12M3,9V15H7L12,20V4L7,9H3Z" />
                             <TextBlock Text="Audio" VerticalAlignment="Center" />
@@ -53,7 +56,8 @@
                     <Button Classes="sidebar-btn"
                             Classes.selected="{Binding SelectedCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:SettingsCategory.Controls}}"
                             Command="{Binding SelectCategoryCommand}"
-                            CommandParameter="{x:Static vm:SettingsCategory.Controls}">
+                            CommandParameter="{x:Static vm:SettingsCategory.Controls}"
+                            ToolTip.Tip="Controls">
                         <StackPanel Orientation="Horizontal">
                             <PathIcon Data="M19,10H5A2,2 0 0,0 3,12V16A2,2 0 0,0 5,18H19A2,2 0 0,0 21,16V12C21,10.89 20.1,10 19,10M5,12H7V14H5V12M5,16V15H7V16H5M9,16V15H11V16H9M9,14V12H11V14H9M19,16H13V15H19V16M19,14H13V12H19V14Z" />
                             <TextBlock Text="Controls" VerticalAlignment="Center" />
@@ -63,7 +67,8 @@
                     <Button Classes="sidebar-btn"
                             Classes.selected="{Binding SelectedCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:SettingsCategory.TheSuperHackers}}"
                             Command="{Binding SelectCategoryCommand}"
-                            CommandParameter="{x:Static vm:SettingsCategory.TheSuperHackers}">
+                            CommandParameter="{x:Static vm:SettingsCategory.TheSuperHackers}"
+                            ToolTip.Tip="TheSuperHackers">
                         <StackPanel Orientation="Horizontal">
                             <Image Source="avares://GenHub/Assets/Logos/thesuperhackers-logo.png" Width="18" Height="18" />
                             <TextBlock Text="TheSuperHackers" VerticalAlignment="Center" />
@@ -73,7 +78,8 @@
                     <Button Classes="sidebar-btn"
                             Classes.selected="{Binding SelectedCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:SettingsCategory.GeneralsOnline}}"
                             Command="{Binding SelectCategoryCommand}"
-                            CommandParameter="{x:Static vm:SettingsCategory.GeneralsOnline}">
+                            CommandParameter="{x:Static vm:SettingsCategory.GeneralsOnline}"
+                            ToolTip.Tip="GeneralsOnline">
                         <StackPanel Orientation="Horizontal">
                             <Image Source="avares://GenHub/Assets/Logos/generalsonline-logo.png" Width="18" Height="18" />
                             <TextBlock Text="GeneralsOnline" VerticalAlignment="Center" />

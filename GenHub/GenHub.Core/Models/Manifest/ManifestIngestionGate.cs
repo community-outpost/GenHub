@@ -47,7 +47,7 @@ public static class ManifestIngestionGate
         var declaresVariants = manifest.Variants.Count > 0;
         var declaresVariantFormat =
             int.TryParse(
-                manifest.ManifestVersion,
+                manifest.SchemaVersion,
                 NumberStyles.None,
                 CultureInfo.InvariantCulture,
                 out var declaredFormat)
@@ -60,7 +60,7 @@ public static class ManifestIngestionGate
 
         var cause = declaresVariants
             ? $"declares {manifest.Variants.Count} artifact variant(s)"
-            : $"declares manifest format version {manifest.ManifestVersion}";
+            : $"declares manifest format version {manifest.SchemaVersion}";
 
         rejectionReason =
             $"Manifest '{manifest.Id.Value}' {cause}, which requires manifest format version " +

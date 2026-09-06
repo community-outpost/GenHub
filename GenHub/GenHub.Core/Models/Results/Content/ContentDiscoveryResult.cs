@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using GenHub.Core.Models.Content;
+
 namespace GenHub.Core.Models.Results.Content;
 
 /// <summary>
@@ -19,4 +22,9 @@ public class ContentDiscoveryResult
     /// Gets or initializes the total number of items available, if known.
     /// </summary>
     public int? TotalItems { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether discovery was blocked by a bot/Cloudflare challenge requiring user verification.
+    /// </summary>
+    public bool ChallengeDetected { get; init; }
 }

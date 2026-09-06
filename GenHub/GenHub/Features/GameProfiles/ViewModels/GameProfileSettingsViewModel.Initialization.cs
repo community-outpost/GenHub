@@ -138,6 +138,13 @@ public partial class GameProfileSettingsViewModel
             CurrentProfileId = profileId;
             _logger?.LogInformation("InitializeForProfileAsync called with profileId: {ProfileId}", profileId);
 
+            if (_gameProfileManager == null)
+            {
+                StatusMessage = "Error loading profile";
+                LoadingError = true;
+                return;
+            }
+
             var profileResult = await _gameProfileManager.GetProfileAsync(profileId);
             if (!profileResult.Success || profileResult.Data == null)
             {

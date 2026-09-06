@@ -77,8 +77,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         ContentType.Mission,
     ];
 
-    private static bool HasShownFirstLoadNotification { get; set; }
-
     private static string NormalizeResourcePath(string? path, string defaultUri)
     {
         if (string.IsNullOrWhiteSpace(path)) return defaultUri;
@@ -180,6 +178,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private static bool HasCompatibleCatalogMatch(string declaredId, string availableId) =>
         DependencyResolver.HasCompatibleCatalogIdentity(declaredId, availableId);
 
+    private static bool HasShownFirstLoadNotification { get; set; }
+
     private static bool IsDependencyAlreadyEnabled(ContentDependency dependency, IEnumerable<ContentDisplayItem> enabledContent)
     {
         var declaredId = dependency.Id.ToString();
@@ -260,11 +260,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly ILocalContentService? _localContentService;
     private readonly IGenLauncherNormalizationService? _genLauncherNormalizationService;
     private readonly IDialogService? _dialogService;
+    private readonly IArchivePayloadProcessor? _archivePayloadProcessor;
     private readonly ILogger<GameProfileSettingsViewModel>? _logger;
     private readonly ILogger<GameSettingsViewModel>? _gameSettingsLogger;
     private readonly IProfileContentLinker? _profileContentLinker;
     private readonly ILaunchRegistry? _launchRegistry;
-
     private readonly NotificationService _localNotificationService = new(NullLogger<NotificationService>.Instance);
     private readonly List<string> _originalEnabledContentIds = [];
     private GameProfile? _originalProfile;
@@ -305,6 +305,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// <param name="dialogService">The dialog service.</param>
     /// <param name="logger">The logger for this view model.</param>
     /// <param name="gameSettingsLogger">The logger for the game settings view model.</param>
+    /// <param name="archivePayloadProcessor">The archive payload processor service.</param>
     /// <param name="profileContentLinker">The profile content linker service.</param>
     /// <param name="launchRegistry">The launch registry service.</param>
     public GameProfileSettingsViewModel(
@@ -321,6 +322,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         IDialogService? dialogService,
         ILogger<GameProfileSettingsViewModel>? logger,
         ILogger<GameSettingsViewModel>? gameSettingsLogger,
+        IArchivePayloadProcessor? archivePayloadProcessor = null,
         IProfileContentLinker? profileContentLinker = null,
         ILaunchRegistry? launchRegistry = null)
     {
@@ -335,6 +337,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         _localContentService = localContentService;
         _genLauncherNormalizationService = genLauncherNormalizationService;
         _dialogService = dialogService;
+        _archivePayloadProcessor = archivePayloadProcessor;
         _logger = logger;
         _gameSettingsLogger = gameSettingsLogger;
         _profileContentLinker = profileContentLinker;
@@ -433,10 +436,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             }
 
             // 3. Check SelectedGameInstallation (if it's a GameClient replacement)
-            if (SelectedGameInstallation != null &&
-                SelectedGameInstallation.ManifestId.Value == oldId &&
-                _manifestPool != null &&
-                _profileContentLoader != null)
+            if (SelectedGameInstallation != null && SelectedGameInstallation.ManifestId.Value == oldId &&
+                _manifestPool != null && _profileContentLoader != null)
             {
                 var manifestResult = await _manifestPool.GetManifestAsync(newId);
                 if (manifestResult.Success && manifestResult.Data != null)
@@ -934,13 +935,13 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                     {
                         if (!dep.IsOptional)
                         {
-                            var reqType = dep.DependencyType switch
+                            var msg = dep.DependencyType switch
                             {
-                                ContentType.GameInstallation => "a Game Installation",
-                                ContentType.GameClient => "a Game Client",
-                                _ => $"{dep.DependencyType} content",
+                                ContentType.GameInstallation => $"• '{manifest.Name}' requires a Game Installation",
+                                ContentType.GameClient => $"• '{manifest.Name}' requires a Game Client",
+                                _ => $"• '{manifest.Name}' requires {dep.DependencyType} content",
                             };
-                            errors.Add($"• '{manifest.Name}' requires {reqType}");
+                            errors.Add(msg);
                         }
 
                         continue;

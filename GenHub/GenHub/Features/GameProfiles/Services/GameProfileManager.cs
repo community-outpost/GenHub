@@ -58,7 +58,7 @@ public class GameProfileManager(
             {
                 // Validate Tool profile content configuration
                 var validationError = await Core.Helpers.ToolProfileHelper.ValidateToolProfileContentAsync(
-                    request.EnabledContentIds,
+                    request.EnabledContentIds ?? [],
                     manifestPool,
                     cancellationToken);
 
@@ -68,7 +68,7 @@ public class GameProfileManager(
                 }
 
                 // Set toolContentId to the single ModdingTool content ID
-                toolContentId = request.EnabledContentIds.First();
+                toolContentId = request.EnabledContentIds?.FirstOrDefault();
 
                 logger.LogInformation(
                     "Detected Tool profile creation for tool: {ToolContentId}",

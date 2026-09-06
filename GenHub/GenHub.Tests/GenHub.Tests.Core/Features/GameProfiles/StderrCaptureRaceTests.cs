@@ -42,12 +42,12 @@ public class StderrCaptureRaceTests
             return;
         }
 
-        // 50 lines exceeds the 10 head + 20 tail (30 total) bounded error buffer capacity
+        // 60 lines exceeds the 10 head + 20 tail (30 total) bounded error buffer capacity
         // to verify middle line dropping without causing race conditions from heavy I/O in CI.
-        const int noiseLines = 50;
+        const int noiseLines = 60;
         var script =
             $"echo {HeadLine} >&2; " +
-            $"for i in $(seq 1 {noiseLines}); do echo noise-$i >&2; done; " +
+            $"seq -f 'noise-%g' 1 {noiseLines} >&2; " +
             $"echo {TailLine} >&2; " +
             "exit 3";
 

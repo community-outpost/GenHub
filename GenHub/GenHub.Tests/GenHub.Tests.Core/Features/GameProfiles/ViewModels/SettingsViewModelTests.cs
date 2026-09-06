@@ -2,8 +2,10 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
@@ -39,6 +41,9 @@ public class SettingsViewModelTests
     private readonly Mock<IConfigurationProviderService> _mockConfigurationProvider;
     private readonly Mock<IGameInstallationService> _mockInstallationService;
     private readonly Mock<IStorageLocationService> _mockStorageLocationService;
+    private readonly Mock<IGitHubApiClient> _mockGitHubApiClient;
+    private readonly Mock<IPublisherSubscriptionStore> _mockSubscriptionStore;
+    private readonly Mock<IPublisherCatalogRefreshService> _mockCatalogRefreshService;
     private readonly Mock<IUserDataTracker> _mockUserDataTracker;
     private readonly Mock<IDialogService> _mockDialogService;
     private readonly UserSettings _defaultSettings;
@@ -59,6 +64,9 @@ public class SettingsViewModelTests
         _mockConfigurationProvider = new Mock<IConfigurationProviderService>();
         _mockInstallationService = new Mock<IGameInstallationService>();
         _mockStorageLocationService = new Mock<IStorageLocationService>();
+        _mockGitHubApiClient = new Mock<IGitHubApiClient>();
+        _mockSubscriptionStore = new Mock<IPublisherSubscriptionStore>();
+        _mockCatalogRefreshService = new Mock<IPublisherCatalogRefreshService>();
         _mockUserDataTracker = new Mock<IUserDataTracker>();
         _mockDialogService = new Mock<IDialogService>();
         _defaultSettings = new UserSettings();
@@ -95,6 +103,9 @@ public class SettingsViewModelTests
             _mockWorkspaceManager.Object,
             _mockManifestPool.Object,
             _mockUpdateManager.Object,
+            _mockSubscriptionStore.Object,
+            _mockCatalogRefreshService.Object,
+            _mockGitHubApiClient.Object,
             _mockNotificationService.Object,
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
@@ -125,6 +136,9 @@ public class SettingsViewModelTests
             _mockWorkspaceManager.Object,
             _mockManifestPool.Object,
             _mockUpdateManager.Object,
+            _mockSubscriptionStore.Object,
+            _mockCatalogRefreshService.Object,
+            _mockGitHubApiClient.Object,
             _mockNotificationService.Object,
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
@@ -162,6 +176,9 @@ public class SettingsViewModelTests
             _mockWorkspaceManager.Object,
             _mockManifestPool.Object,
             _mockUpdateManager.Object,
+            _mockSubscriptionStore.Object,
+            _mockCatalogRefreshService.Object,
+            _mockGitHubApiClient.Object,
             _mockNotificationService.Object,
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
@@ -202,20 +219,7 @@ public class SettingsViewModelTests
         _mockConfigService.Setup(x => x.Get()).Returns(customSettings);
 
         // Act
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object);
+        var viewModel = CreateViewModel();
 
         // Assert
         Assert.False(viewModel.AutoCheckForUpdatesPeriodically);
@@ -230,24 +234,9 @@ public class SettingsViewModelTests
     public async Task SaveSettingsCommand_UpdatesPeriodicUpdateSettingsAsync()
     {
         // Arrange
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object)
-        {
-            AutoCheckForUpdatesPeriodically = false,
-            PeriodicUpdateCheckIntervalMinutes = 45,
-        };
+        var viewModel = CreateViewModel();
+        viewModel.AutoCheckForUpdatesPeriodically = false;
+        viewModel.PeriodicUpdateCheckIntervalMinutes = 45;
 
         UserSettings? capturedSettings = null;
         _mockConfigService.Setup(x => x.Update(It.IsAny<Action<UserSettings>>()))
@@ -281,6 +270,9 @@ public class SettingsViewModelTests
             _mockWorkspaceManager.Object,
             _mockManifestPool.Object,
             _mockUpdateManager.Object,
+            _mockSubscriptionStore.Object,
+            _mockCatalogRefreshService.Object,
+            _mockGitHubApiClient.Object,
             _mockNotificationService.Object,
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
@@ -317,6 +309,9 @@ public class SettingsViewModelTests
             _mockWorkspaceManager.Object,
             _mockManifestPool.Object,
             _mockUpdateManager.Object,
+            _mockSubscriptionStore.Object,
+            _mockCatalogRefreshService.Object,
+            _mockGitHubApiClient.Object,
             _mockNotificationService.Object,
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
@@ -348,6 +343,9 @@ public class SettingsViewModelTests
             _mockWorkspaceManager.Object,
             _mockManifestPool.Object,
             _mockUpdateManager.Object,
+            _mockSubscriptionStore.Object,
+            _mockCatalogRefreshService.Object,
+            _mockGitHubApiClient.Object,
             _mockNotificationService.Object,
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
@@ -381,6 +379,9 @@ public class SettingsViewModelTests
             _mockWorkspaceManager.Object,
             _mockManifestPool.Object,
             _mockUpdateManager.Object,
+            _mockSubscriptionStore.Object,
+            _mockCatalogRefreshService.Object,
+            _mockGitHubApiClient.Object,
             _mockNotificationService.Object,
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
@@ -420,6 +421,9 @@ public class SettingsViewModelTests
             _mockWorkspaceManager.Object,
             _mockManifestPool.Object,
             _mockUpdateManager.Object,
+            _mockSubscriptionStore.Object,
+            _mockCatalogRefreshService.Object,
+            _mockGitHubApiClient.Object,
             _mockNotificationService.Object,
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
@@ -461,6 +465,9 @@ public class SettingsViewModelTests
             _mockWorkspaceManager.Object,
             _mockManifestPool.Object,
             _mockUpdateManager.Object,
+            _mockSubscriptionStore.Object,
+            _mockCatalogRefreshService.Object,
+            _mockGitHubApiClient.Object,
             _mockNotificationService.Object,
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
@@ -505,6 +512,9 @@ public class SettingsViewModelTests
             _mockWorkspaceManager.Object,
             _mockManifestPool.Object,
             _mockUpdateManager.Object,
+            _mockSubscriptionStore.Object,
+            _mockCatalogRefreshService.Object,
+            _mockGitHubApiClient.Object,
             _mockNotificationService.Object,
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
@@ -695,6 +705,82 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that ClearLogsCommand clears log files and shows success notification.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ClearLogsCommand_WhenLogsDirectoryHasFiles_ClearsFilesAndShowsSuccessAsync()
+    {
+        // Arrange
+        var tempLogsDir = Path.Combine(Path.GetTempPath(), "GenHubTestLogs_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempLogsDir);
+
+        try
+        {
+            var todayLogName = $"genhub-{DateTime.UtcNow:yyyy-MM-dd}.log";
+            var pastLogName = $"genhub-{DateTime.UtcNow.AddDays(-1):yyyy-MM-dd}.log";
+            var logFile1 = Path.Combine(tempLogsDir, pastLogName);
+            var logFile2 = Path.Combine(tempLogsDir, todayLogName);
+            await File.WriteAllTextAsync(logFile1, "Sample log content 1");
+            await File.WriteAllTextAsync(logFile2, "Sample log content 2");
+
+            _mockConfigurationProvider.Setup(x => x.GetLogsPath()).Returns(tempLogsDir);
+            var viewModel = CreateViewModel();
+
+            // Act
+            await viewModel.ClearLogsCommand.ExecuteAsync(null);
+
+            // Assert - historical log deleted, active log truncated to preserve logging sink
+            Assert.False(File.Exists(logFile1));
+            Assert.True(File.Exists(logFile2));
+            Assert.Equal(0, new FileInfo(logFile2).Length);
+            _mockNotificationService.Verify(
+                x => x.ShowSuccess("Logs Cleared", It.Is<string>(s => s.Contains("2 log file(s)")), It.IsAny<int?>(), It.IsAny<bool>()),
+                Times.Once);
+        }
+        finally
+        {
+            if (Directory.Exists(tempLogsDir))
+            {
+                Directory.Delete(tempLogsDir, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that ClearLogsCommand shows info notification when no log files exist.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ClearLogsCommand_WhenNoLogFiles_ShowsInfoNotificationAsync()
+    {
+        // Arrange
+        var tempLogsDir = Path.Combine(Path.GetTempPath(), "GenHubTestLogsEmpty_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempLogsDir);
+
+        try
+        {
+            _mockConfigurationProvider.Setup(x => x.GetLogsPath()).Returns(tempLogsDir);
+            var viewModel = CreateViewModel();
+
+            // Act
+            await viewModel.ClearLogsCommand.ExecuteAsync(null);
+
+            // Assert
+            _mockNotificationService.Verify(
+                x => x.ShowInfo("Logs Empty", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+                Times.Once);
+        }
+        finally
+        {
+            if (Directory.Exists(tempLogsDir))
+            {
+                Directory.Delete(tempLogsDir, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
     /// Verifies that SelectColorThemeCommand updates selected theme and saves user settings.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
@@ -713,6 +799,9 @@ public class SettingsViewModelTests
             _mockWorkspaceManager.Object,
             _mockManifestPool.Object,
             _mockUpdateManager.Object,
+            _mockSubscriptionStore.Object,
+            _mockCatalogRefreshService.Object,
+            _mockGitHubApiClient.Object,
             _mockNotificationService.Object,
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
@@ -751,6 +840,9 @@ public class SettingsViewModelTests
             _mockWorkspaceManager.Object,
             _mockManifestPool.Object,
             _mockUpdateManager.Object,
+            _mockSubscriptionStore.Object,
+            _mockCatalogRefreshService.Object,
+            _mockGitHubApiClient.Object,
             _mockNotificationService.Object,
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
@@ -792,6 +884,9 @@ public class SettingsViewModelTests
         _mockWorkspaceManager.Object,
         _mockManifestPool.Object,
         _mockUpdateManager.Object,
+        _mockSubscriptionStore.Object,
+        _mockCatalogRefreshService.Object,
+        _mockGitHubApiClient.Object,
         _mockNotificationService.Object,
         _mockConfigurationProvider.Object,
         _mockInstallationService.Object,

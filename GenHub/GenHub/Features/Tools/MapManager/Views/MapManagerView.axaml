@@ -71,6 +71,10 @@
                  Text="{Binding SearchText}"
                  Width="170"
                  VerticalAlignment="Center">
+          <TextBox.KeyBindings>
+            <KeyBinding Gesture="Enter" Command="{Binding SearchCommand}" />
+            <KeyBinding Gesture="Return" Command="{Binding SearchCommand}" />
+          </TextBox.KeyBindings>
           <TextBox.InnerLeftContent>
             <PathIcon Data="{StaticResource ToolIcon.Magnify}" Width="16" Height="16"
                                    Foreground="{DynamicResource TextMuted}"

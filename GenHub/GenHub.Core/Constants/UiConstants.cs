@@ -40,6 +40,11 @@ public static class UiConstants
     /// </summary>
     public const double MaxProfileSettingsSidebarWidth = 300;
 
+    /// <summary>
+    /// Progressive item render delay in milliseconds for streaming cards into the download browser grid.
+    /// </summary>
+    public const int ProgressiveItemRenderDelayMs = 20;
+
     // Status colors
 
     /// <summary>

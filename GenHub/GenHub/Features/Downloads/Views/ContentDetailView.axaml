@@ -1,0 +1,1724 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Downloads.ViewModels"
+             xmlns:views="clr-namespace:GenHub.Features.Downloads.Views"
+             xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
+             xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls;assembly=GenHub"
+             xmlns:parsers="clr-namespace:GenHub.Core.Models.Parsers;assembly=GenHub.Core"
+             xmlns:content="clr-namespace:GenHub.Core.Models.Content;assembly=GenHub.Core"
+             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
+             x:Class="GenHub.Features.Downloads.Views.ContentDetailView"
+             x:DataType="vm:ContentDetailViewModel"
+             Background="Transparent">
+
+    <UserControl.Resources>
+        <converters:FileSizeConverter x:Key="FileSizeConverter" />
+        <converters:StringToImageConverter x:Key="StringToImageConverter" />
+        <converters:BoolToExpandTextConverter x:Key="BoolToExpandTextConverter" />
+        <converters:ContentStateToPathDataConverter x:Key="ContentStateToPathDataConverter" />
+        <converters:ContentStateToBrushConverter x:Key="ContentStateToBrushConverter" />
+        <converters:ContentTypeToBrushConverter x:Key="ContentTypeToBrushConverter" />
+        <converters:ContentTypeToBadgeBackgroundConverter x:Key="ContentTypeToBadgeBackgroundConverter" />
+        <converters:ContentTypeDisplayConverter x:Key="ContentTypeDisplayConverter" />
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="Border.download-item-card">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" />
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.download-item-card:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
+        </Style>
+        <Style Selector="Border.download-item-card.selected-card">
+            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        </Style>
+        <Style Selector="ComboBox.sidebar-variant-combo">
+            <Setter Property="CornerRadius" Value="6" />
+        </Style>
+        <Style Selector="Button.media-card-btn">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+        </Style>
+        <Style Selector="Button.media-card-btn /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+
+        <Style Selector="Border.media-item-card">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" />
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.media-card-btn:pointerover Border.media-item-card">
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="RenderTransform" Value="scale(1.02)" />
+        </Style>
+    </UserControl.Styles>
+
+    <Panel>
+    <Grid RowDefinitions="Auto,*" Margin="24">
+        <!-- Header / Navigation -->
+        <Button Grid.Row="0"
+                Command="{Binding CloseCommand}"
+                Content="← Back to Browse"
+                Background="Transparent"
+                Foreground="{DynamicResource AccentBrush}"
+                BorderThickness="0"
+                Margin="0,0,0,16"
+                FontSize="14"
+                FontWeight="SemiBold"
+                Cursor="Hand"
+                HorizontalAlignment="Left"
+                Padding="0,8">
+            <Button.Styles>
+                <Style Selector="Button:pointerover">
+                    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+                </Style>
+            </Button.Styles>
+        </Button>
+
+        <Grid Grid.Row="1" ColumnDefinitions="*, 320">
+            <!-- Main Content (Left) -->
+            <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*" Margin="0,0,24,0">
+                <!-- Banner Image (Removed) -->
+
+                <!-- Header Info -->
+                <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,0,0,24">
+                    <Border Grid.Column="0" CornerRadius="12" Width="80" Height="80" ClipToBounds="True" Background="{DynamicResource CardBackground}">
+                        <Panel>
+                            <Image Source="{Binding IconBitmap}"
+                                   Stretch="UniformToFill"
+                                   IsVisible="{Binding IconBitmap, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                            <TextBlock Text="📦"
+                                       FontSize="32"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       IsVisible="{Binding IconBitmap, Converter={x:Static ObjectConverters.IsNull}}" />
+                        </Panel>
+                    </Border>
+                    <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center" Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Name}"
+                                       FontSize="28"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource TextPrimary}"
+                                       TextWrapping="Wrap" />
+                            <Border Background="{Binding ContentType, Converter={StaticResource ContentTypeToBadgeBackgroundConverter}}"
+                                    BorderBrush="{Binding ContentType, Converter={StaticResource ContentTypeToBrushConverter}}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="8,3"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}"
+                                           FontSize="11"
+                                           FontWeight="Bold"
+                                           Foreground="{Binding ContentType, Converter={StaticResource ContentTypeToBrushConverter}}" />
+                            </Border>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{Binding AuthorName}" Foreground="{DynamicResource TextSecondary}"
+                                       IsVisible="{Binding HasAuthor}" />
+                            <TextBlock Text="•" Foreground="{DynamicResource TextMuted}"
+                                       IsVisible="{Binding HasAuthor}" />
+                            <TextBlock Text="{Binding ProviderName}" Foreground="{DynamicResource TextSecondary}" />
+                            <TextBlock Text="•" Foreground="{DynamicResource TextMuted}"
+                                       IsVisible="{Binding HasVersion}" />
+                            <TextBlock Text="{Binding Version}" Foreground="{DynamicResource TextSecondary}"
+                                       IsVisible="{Binding HasVersion}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Loading Indicator -->
+                <StackPanel Grid.Row="2" IsVisible="{Binding IsLoadingDetails}"
+                            VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16">
+                    <ProgressBar IsIndeterminate="True" Width="200" Foreground="{DynamicResource AccentBrush}" />
+                    <TextBlock Text="Loading details..." Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Tabs -->
+                <TabControl Grid.Row="2"
+                            SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}"
+                            IsVisible="{Binding !IsLoadingDetails}">
+                    <TabControl.Styles>
+                        <Style Selector="TabItem">
+                            <Setter Property="FontSize" Value="15" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+                            <Setter Property="Background" Value="Transparent" />
+                            <Setter Property="Margin" Value="0,0,16,0" />
+                            <Setter Property="Padding" Value="8,12,8,14" />
+                            <Setter Property="Cursor" Value="Hand" />
+                        </Style>
+                        <!-- Hide the default Fluent selected pipe indicator so only the bottom border bar is shown -->
+                        <Style Selector="TabItem /template/ Border#PART_SelectedPipe">
+                            <Setter Property="IsVisible" Value="False" />
+                        </Style>
+                        <Style Selector="TabItem:selected /template/ Border#PART_SelectedPipe">
+                            <Setter Property="IsVisible" Value="False" />
+                        </Style>
+                        <!-- Neutralize the Fluent theme's accent hover on the header content. -->
+                        <Style Selector="TabItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                            <Setter Property="TextBlock.Foreground" Value="{DynamicResource TextPrimary}" />
+                            <Setter Property="Background" Value="Transparent" />
+                        </Style>
+                        <Style Selector="TabItem:pointerover">
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+                            <Setter Property="Background" Value="Transparent" />
+                        </Style>
+                        <Style Selector="TabItem:selected">
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                            <Setter Property="BorderThickness" Value="0,0,0,3" />
+                        </Style>
+                        <Style Selector="TabItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                            <Setter Property="TextBlock.Foreground" Value="{DynamicResource TextPrimary}" />
+                        </Style>
+                        <Style Selector="TabItem:selected:pointerover">
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+                        </Style>
+                    </TabControl.Styles>
+
+                    <!-- Summary Tab (Default) -->
+                    <TabItem Header="Summary">
+                        <ScrollViewer>
+                            <StackPanel Spacing="24" Margin="0,24,0,0">
+                                <!-- Screenshots Gallery -->
+                                <Border Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="4"
+                                        IsVisible="{Binding SelectedScreenshotUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                    <Grid RowDefinitions="*,Auto">
+                                        <Button Command="{Binding OpenFullScreenMediaCommand}"
+                                                CommandParameter="{Binding SelectedScreenshotUrl}"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                Padding="0"
+                                                Cursor="Hand"
+                                                HorizontalAlignment="Center"
+                                                ToolTip.Tip="Click to expand screenshot">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <ContentPresenter Content="{TemplateBinding Content}" />
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                            <Panel>
+                                                <Image controls:ImageLoader.Source="{Binding SelectedScreenshotUrl}"
+                                                       MaxHeight="280" Stretch="Uniform" Margin="0,0,0,12" />
+                                                <Border Background="#99000000" CornerRadius="4" Padding="6,3"
+                                                        HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                                        Margin="0,0,8,20">
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <PathIcon Data="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
+                                                                  Width="12" Height="12" Foreground="{DynamicResource TextSecondary}" />
+                                                        <TextBlock Text="Expand" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </Panel>
+                                        </Button>
+                                        <ItemsControl Grid.Row="1" ItemsSource="{Binding Screenshots}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Margin="4" Padding="0" Width="80" Height="45" Cursor="Hand"
+                                                            Command="{Binding $parent[views:ContentDetailView].((vm:ContentDetailViewModel)DataContext).SetSelectedScreenshotCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            Background="{DynamicResource ButtonBackground}">
+                                                        <Image controls:ImageLoader.Source="{Binding}" Stretch="UniformToFill" />
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Description -->
+                                <StackPanel Spacing="12">
+                                    <TextBlock Text="About" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                    <TextBlock Text="{Binding Description}"
+                                               Foreground="{DynamicResource TextSecondary}"
+                                               FontSize="15"
+                                               LineHeight="24"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- Files Tab - Only show if more than 1 file -->
+                    <TabItem Header="Files" IsVisible="{Binding ShowFilesTab}">
+                        <ScrollViewer>
+                            <ItemsControl ItemsSource="{Binding Files}" Margin="0,24,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="parsers:DownloadableFile">
+                                        <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <StackPanel Grid.Column="0" Spacing="4">
+                                                    <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                                        <TextBlock Text="{Binding SizeDisplay}" Foreground="{DynamicResource TextSecondary}" FontSize="13"
+                                                                   IsVisible="{Binding SizeDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                        <TextBlock Text="{Binding UploadDate, StringFormat='{}{0:MMM dd, yyyy}'}"
+                                                                   Foreground="{DynamicResource TextSecondary}" FontSize="13"
+                                                                   IsVisible="{Binding UploadDate, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding Uploader, StringFormat='By: {0}'}"
+                                                               Foreground="{DynamicResource TextMuted}" FontSize="12"
+                                                               IsVisible="{Binding Uploader, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                </StackPanel>
+                                                <Button Grid.Column="1" Content="Download"
+                                                        Command="{Binding $parent[views:ContentDetailView].((vm:ContentDetailViewModel)DataContext).DownloadFileCommand}"
+                                                        CommandParameter="{Binding}"
+                                                        Background="{DynamicResource AccentBrush}" Foreground="White"
+                                                        CornerRadius="6" Padding="16,8"
+                                                        VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </TabItem>
+                    <!-- Releases Tab (visible when HasReleases) -->
+                    <TabItem IsVisible="{Binding HasReleases}">
+                        <TabItem.Header>
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="Releases" />
+                                <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="8" Padding="6,2">
+                                    <TextBlock Text="{Binding ReleasesCount}" FontSize="10" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" />
+                                </Border>
+                            </StackPanel>
+                        </TabItem.Header>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel Spacing="12" Margin="0,20,0,32">
+                                <TextBlock Text="Main Releases" FontWeight="SemiBold" FontSize="16" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8"/>
+                                <TextBlock Text="These are the primary mod/content releases" FontSize="13" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,12"/>
+
+                                <ItemsControl ItemsSource="{Binding Releases}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="vm:ReleaseItemViewModel">
+                                            <Border Classes="download-item-card"
+                                                    Classes.selected-card="{Binding IsSelected}"
+                                                    Padding="16" Margin="0,0,0,12">
+                                                <Grid RowDefinitions="Auto,Auto">
+                                                    <!-- Main Header Row -->
+                                                    <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto">
+                                                        <!-- Expand Chevron / Pill Button -->
+                                                        <Button Grid.Column="0"
+                                                                Command="{Binding ToggleExpandCommand}"
+                                                                Background="{DynamicResource SurfaceElevatedBrush}" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"
+                                                                CornerRadius="6" Padding="10,6" Margin="0,0,14,0" Cursor="Hand"
+                                                                VerticalAlignment="Center"
+                                                                ToolTip.Tip="Toggle release details">
+                                                            <Button.Styles>
+                                                                <Style Selector="Button:pointerover">
+                                                                    <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+                                                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                                                </Style>
+                                                                <Style Selector="Button:pressed">
+                                                                    <Setter Property="RenderTransform" Value="scale(0.96)" />
+                                                                </Style>
+                                                            </Button.Styles>
+                                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                <TextBlock Text="{Binding IsExpanded, Converter={StaticResource BoolToExpandTextConverter}}"
+                                                                           Foreground="{DynamicResource AccentBrush}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </Button>
+
+                                                        <!-- Thumbnail -->
+                                                        <Border Grid.Column="1" Width="44" Height="44" CornerRadius="6"
+                                                                ClipToBounds="True" Background="{DynamicResource CardBackground}" Margin="0,0,12,0"
+                                                                IsVisible="{Binding ThumbnailUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                                VerticalAlignment="Center">
+                                                            <Image controls:ImageLoader.Source="{Binding ThumbnailUrl}"
+                                                                   Stretch="UniformToFill" />
+                                                        </Border>
+
+                                                        <!-- Basic Info -->
+                                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="4" Margin="0,0,16,0">
+                                                            <!-- Title & Badges Wrap Panel -->
+                                                            <WrapPanel Orientation="Horizontal">
+                                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" Foreground="{DynamicResource TextPrimary}"
+                                                                           VerticalAlignment="Center" Margin="0,0,8,2" TextWrapping="Wrap" />
+                                                                <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" VerticalAlignment="Center" Margin="0,0,6,2"
+                                                                        IsVisible="{Binding Category, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                                    <TextBlock Text="{Binding Category}" FontSize="11" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold"/>
+                                                                </Border>
+                                                                <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" VerticalAlignment="Center" Margin="0,0,6,2"
+                                                                        IsVisible="{Binding HasVersion}">
+                                                                    <TextBlock Text="{Binding Version}" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                </Border>
+                                                            </WrapPanel>
+
+                                                            <!-- Subtitle metadata line -->
+                                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                                <TextBlock Text="{Binding FormattedSize}" FontSize="12" Foreground="{DynamicResource TextSecondary}"
+                                                                           IsVisible="{Binding HasFormattedSize}" />
+                                                                <TextBlock Text="•" FontSize="12" Foreground="{DynamicResource TextMuted}"
+                                                                           IsVisible="{Binding ShowSizeDot}" />
+                                                                <TextBlock Text="{Binding ReleaseDateDisplay}" FontSize="12" Foreground="{DynamicResource TextMuted}"
+                                                                           IsVisible="{Binding HasReleaseDate}" />
+                                                                <TextBlock Text="•" FontSize="12" Foreground="{DynamicResource TextMuted}"
+                                                                           IsVisible="{Binding ShowDateDot}" />
+                                                                <TextBlock Text="{Binding Uploader, StringFormat='By {0}'}" FontSize="12" Foreground="{DynamicResource TextSecondary}"
+                                                                           IsVisible="{Binding HasUploader}"/>
+                                                            </StackPanel>
+                                                        </StackPanel>
+
+                                                        <!-- Primary Actions -->
+                                                        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                            <!-- Selection / Download action states -->
+                                                            <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !IsDownloaded}">
+                                                                <!-- Select button (when not selected) -->
+                                                                <Button Command="{Binding SelectCommand}"
+                                                                        IsVisible="{Binding !IsSelected}"
+                                                                        Background="{DynamicResource SurfaceElevatedBrush}" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"
+                                                                        Foreground="{DynamicResource TextPrimary}" CornerRadius="6" Padding="14,7" Cursor="Hand"
+                                                                        ToolTip.Tip="Select this item as active target">
+                                                                    <Button.Styles>
+                                                                        <Style Selector="Button:pointerover">
+                                                                            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+                                                                            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                                                            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+                                                                        </Style>
+                                                                        <Style Selector="Button:pressed">
+                                                                            <Setter Property="RenderTransform" Value="scale(0.96)" />
+                                                                        </Style>
+                                                                    </Button.Styles>
+                                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                        <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"
+                                                                                  Width="12" Height="12" Foreground="{DynamicResource AccentBrush}"/>
+                                                                        <TextBlock Text="Select" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                    </StackPanel>
+                                                                </Button>
+
+                                                                <!-- Selected button (when selected) -->
+                                                                <Button Command="{Binding SelectCommand}"
+                                                                        IsVisible="{Binding IsSelected}"
+                                                                        Background="{DynamicResource AccentBrush}" BorderThickness="1" BorderBrush="{DynamicResource AccentLightBrush}"
+                                                                        Foreground="White" CornerRadius="6" Padding="14,7" Cursor="Hand"
+                                                                        ToolTip.Tip="Currently selected download target">
+                                                                    <Button.Styles>
+                                                                        <Style Selector="Button:pointerover">
+                                                                            <Setter Property="Opacity" Value="0.9" />
+                                                                        </Style>
+                                                                        <Style Selector="Button:pressed">
+                                                                            <Setter Property="RenderTransform" Value="scale(0.96)" />
+                                                                        </Style>
+                                                                    </Button.Styles>
+                                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                        <PathIcon Data="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"
+                                                                                  Width="12" Height="12" Foreground="White"/>
+                                                                        <TextBlock Text="Selected" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                    </StackPanel>
+                                                                </Button>
+                                                            </StackPanel>
+
+                                                            <!-- Add to Profile Button (visible when downloaded) -->
+                                                            <Button Command="{Binding AddToProfileCommand}"
+                                                                    IsVisible="{Binding IsDownloaded}"
+                                                                    Background="{DynamicResource SuccessBrush}" BorderThickness="1" BorderBrush="{DynamicResource SuccessBrush}"
+                                                                    Foreground="White" CornerRadius="6" Padding="14,7"
+                                                                    Cursor="Hand"
+                                                                    ToolTip.Tip="Add this downloaded file to a profile">
+                                                                <Button.Styles>
+                                                                    <Style Selector="Button:pointerover">
+                                                                        <Setter Property="Opacity" Value="0.9" />
+                                                                    </Style>
+                                                                    <Style Selector="Button:pressed">
+                                                                        <Setter Property="RenderTransform" Value="scale(0.96)" />
+                                                                    </Style>
+                                                                </Button.Styles>
+                                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                    <PathIcon Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"
+                                                                              Width="12" Height="12" Foreground="White"/>
+                                                                    <TextBlock Text="Add to Profile" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                </StackPanel>
+                                                            </Button>
+                                                        </StackPanel>
+                                                    </Grid>
+
+                                                    <!-- Expanded Detail Drawer -->
+                                                    <StackPanel Grid.Row="1" IsVisible="{Binding IsExpanded}" Margin="0,14,0,0">
+                                                        <Rectangle Height="1" Fill="{DynamicResource BorderBrush}" Margin="0,0,0,14"/>
+
+                                                        <!-- Loading Spinner -->
+                                                        <StackPanel IsVisible="{Binding IsLoadingDetails}"
+                                                                    Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12" Margin="0,12">
+                                                            <ProgressBar IsIndeterminate="True" Width="140" Height="4" VerticalAlignment="Center" />
+                                                            <TextBlock Text="Fetching release details..." Foreground="{DynamicResource TextSecondary}" FontSize="13" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+
+                                                        <!-- Extended Content -->
+                                                        <StackPanel IsVisible="{Binding !IsLoadingDetails}" Spacing="14">
+                                                            <!-- Status & Badges Header Bar -->
+                                                            <Border Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="8" Padding="14,10" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
+                                                                <Grid ColumnDefinitions="*,Auto">
+                                                                    <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                        <!-- Status Badge -->
+                                                                        <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderThickness="1" BorderBrush="{DynamicResource SuccessBrush}" CornerRadius="4" Padding="8,3" Margin="0,0,8,0"
+                                                                                IsVisible="{Binding IsDownloaded}">
+                                                                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                                                                <PathIcon Data="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" Width="11" Height="11" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
+                                                                                <TextBlock Text="Downloaded" FontSize="11" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                            </StackPanel>
+                                                                        </Border>
+                                                                        <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}" CornerRadius="4" Padding="8,3" Margin="0,0,8,0"
+                                                                                IsVisible="{Binding !IsDownloaded}">
+                                                                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                                                                <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z" Width="11" Height="11" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                                                                                <TextBlock Text="Available for Download" FontSize="11" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                            </StackPanel>
+                                                                        </Border>
+
+                                                                        <!-- Category Badge -->
+                                                                        <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}" CornerRadius="4" Padding="8,3" Margin="0,0,8,0"
+                                                                                IsVisible="{Binding HasCategory}">
+                                                                            <TextBlock Text="{Binding Category}" FontSize="11" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                        </Border>
+
+                                                                        <!-- Target Game Badge -->
+                                                                        <Border Background="{DynamicResource SurfaceHoverBrush}" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}" CornerRadius="4" Padding="8,3" Margin="0,0,8,0"
+                                                                                IsVisible="{Binding HasTargetGame}">
+                                                                            <TextBlock Text="{Binding TargetGame}" FontSize="11" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                        </Border>
+
+                                                                        <!-- Version Badge -->
+                                                                        <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}" CornerRadius="4" Padding="8,3" Margin="0,0,8,0"
+                                                                                IsVisible="{Binding HasVersion}">
+                                                                            <TextBlock Text="{Binding Version, StringFormat='v{0}'}" FontSize="11" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                        </Border>
+                                                                    </WrapPanel>
+
+                                                                    <!-- Copy Link Action -->
+                                                                    <Button Grid.Column="1" Command="{Binding CopyLinkCommand}"
+                                                                            IsVisible="{Binding HasDownloadUrl}"
+                                                                            Background="{DynamicResource SurfaceHoverBrush}" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"
+                                                                            Foreground="{DynamicResource TextSecondary}" CornerRadius="6" Padding="10,5" Cursor="Hand"
+                                                                            ToolTip.Tip="Copy download or source link">
+                                                                        <Button.Styles>
+                                                                            <Style Selector="Button:pointerover">
+                                                                                <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+                                                                                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+                                                                            </Style>
+                                                                        </Button.Styles>
+                                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                            <PathIcon Data="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"
+                                                                                      Width="11" Height="11" Foreground="{DynamicResource AccentBrush}"/>
+                                                                            <TextBlock Text="Copy Link" FontSize="11" FontWeight="Medium" VerticalAlignment="Center"/>
+                                                                        </StackPanel>
+                                                                    </Button>
+                                                                </Grid>
+                                                            </Border>
+
+                                                            <!-- Metadata Table Grid -->
+                                                            <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
+                                                                <Grid ColumnDefinitions="*, *, *" RowDefinitions="Auto,Auto,Auto">
+                                                                    <!-- Row 0: Filename, Category, Target Game -->
+                                                                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,12,12"
+                                                                                IsVisible="{Binding HasFilename}">
+                                                                        <TextBlock Text="Filename" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                        <TextBlock Text="{Binding Filename}" FontSize="13" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                                    </StackPanel>
+
+                                                                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,12,12"
+                                                                                IsVisible="{Binding HasCategory}">
+                                                                        <TextBlock Text="Category" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                        <TextBlock Text="{Binding Category}" FontSize="13" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" />
+                                                                    </StackPanel>
+
+                                                                    <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,12"
+                                                                                IsVisible="{Binding HasTargetGame}">
+                                                                        <TextBlock Text="Target Game" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                        <TextBlock Text="{Binding TargetGame}" FontSize="13" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" />
+                                                                    </StackPanel>
+
+                                                                    <!-- Row 1: Uploader, Upload/Release Date, Version -->
+                                                                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,12,12"
+                                                                                IsVisible="{Binding HasUploader}">
+                                                                        <TextBlock Text="Author / Uploader" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                        <TextBlock Text="{Binding Uploader}" FontSize="13" Foreground="{DynamicResource TextPrimary}" />
+                                                                    </StackPanel>
+
+                                                                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,12,12"
+                                                                                IsVisible="{Binding HasReleaseDate}">
+                                                                        <TextBlock Text="Release Date" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                        <TextBlock Text="{Binding ReleaseDateDisplay}" FontSize="13" Foreground="{DynamicResource TextPrimary}" />
+                                                                    </StackPanel>
+
+                                                                    <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,0,0,12"
+                                                                                IsVisible="{Binding HasVersion}">
+                                                                        <TextBlock Text="Version" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                        <TextBlock Text="{Binding Version}" FontSize="13" Foreground="{DynamicResource TextPrimary}" />
+                                                                    </StackPanel>
+
+                                                                    <!-- Row 2: Size, Total Downloads, MD5 Checksum -->
+                                                                    <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,12,0"
+                                                                                IsVisible="{Binding HasFormattedSize}">
+                                                                        <TextBlock Text="Size" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                        <TextBlock Text="{Binding FormattedSize}" FontSize="13" Foreground="{DynamicResource TextPrimary}" />
+                                                                    </StackPanel>
+
+                                                                    <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,0,12,0"
+                                                                                IsVisible="{Binding HasDownloadCount}">
+                                                                        <TextBlock Text="Total Downloads" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                        <TextBlock Text="{Binding DownloadCount, StringFormat='{}{0:N0}'}" FontSize="13" Foreground="{DynamicResource TextPrimary}" />
+                                                                    </StackPanel>
+
+                                                                    <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,0,0,0"
+                                                                                IsVisible="{Binding HasMd5Hash}">
+                                                                        <TextBlock Text="MD5 Checksum" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                                                            <TextBlock Text="{Binding Md5Hash}" FontSize="12" FontFamily="Consolas, Monospace" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="140"/>
+                                                                            <Button Content="Copy" Command="{Binding CopyMd5Command}" Padding="6,2" FontSize="10"
+                                                                                    Background="{DynamicResource SurfaceElevatedBrush}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Cursor="Hand" ToolTip.Tip="Copy MD5 hash"/>
+                                                                        </StackPanel>
+                                                                    </StackPanel>
+                                                                </Grid>
+                                                            </Border>
+
+                                                            <!-- Description / Readme Section -->
+                                                            <StackPanel Spacing="6" IsVisible="{Binding HasDescription}">
+                                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                    <PathIcon Data="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"
+                                                                              Width="13" Height="13" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
+                                                                    <TextBlock Text="Readme &amp; Release Notes" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                                                                </StackPanel>
+                                                                <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
+                                                                    <TextBlock Text="{Binding FullDescription}"
+                                                                               Foreground="{DynamicResource TextSecondary}" FontSize="13" LineHeight="22" TextWrapping="Wrap" />
+                                                                </Border>
+                                                            </StackPanel>
+
+                                                            <!-- Preview Images -->
+                                                            <StackPanel Spacing="6" IsVisible="{Binding HasPreviewImages}">
+                                                                <TextBlock Text="Preview Images" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                                                    <ItemsControl ItemsSource="{Binding PreviewImages}">
+                                                                        <ItemsControl.ItemsPanel>
+                                                                            <ItemsPanelTemplate>
+                                                                                <StackPanel Orientation="Horizontal" Spacing="10" />
+                                                                            </ItemsPanelTemplate>
+                                                                        </ItemsControl.ItemsPanel>
+                                                                        <ItemsControl.ItemTemplate>
+                                                                            <DataTemplate>
+                                                                                <Button Command="{Binding $parent[views:ContentDetailView].((vm:ContentDetailViewModel)DataContext).OpenFullScreenMediaCommand}"
+                                                                                        CommandParameter="{Binding}"
+                                                                                        Background="Transparent"
+                                                                                        BorderThickness="0"
+                                                                                        Padding="0"
+                                                                                        Cursor="Hand"
+                                                                                        ToolTip.Tip="Click to expand image">
+                                                                                    <Button.Template>
+                                                                                        <ControlTemplate TargetType="Button">
+                                                                                            <ContentPresenter Content="{TemplateBinding Content}" />
+                                                                                        </ControlTemplate>
+                                                                                    </Button.Template>
+                                                                                    <Border Width="160" Height="100" CornerRadius="6" ClipToBounds="True" Background="{DynamicResource CardBackground}">
+                                                                                        <Image controls:ImageLoader.Source="{Binding}" Stretch="UniformToFill" />
+                                                                                    </Border>
+                                                                                </Button>
+                                                                            </DataTemplate>
+                                                                        </ItemsControl.ItemTemplate>
+                                                                    </ItemsControl>
+                                                                </ScrollViewer>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- Addons Tab (visible when HasAddons) -->
+                    <TabItem IsVisible="{Binding HasAddons}">
+                        <TabItem.Header>
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="Addons" />
+                                <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="8" Padding="6,2">
+                                    <TextBlock Text="{Binding AddonsCount}" FontSize="10" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" />
+                                </Border>
+                            </StackPanel>
+                        </TabItem.Header>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel Spacing="0">
+                                <TextBlock Text="Available Addons" FontWeight="SemiBold" FontSize="16" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8"/>
+                                <TextBlock Text="Additional content that can be added to this mod" FontSize="13" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,12"/>
+
+                                <ItemsControl ItemsSource="{Binding Addons}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="vm:AddonItemViewModel">
+                                            <Border Classes="download-item-card"
+                                                    Classes.selected-card="{Binding IsSelected}"
+                                                    Padding="16" Margin="0,0,0,12">
+                                                <Grid RowDefinitions="Auto,Auto">
+                                                    <!-- Main Header Row -->
+                                                    <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto">
+                                                        <!-- Expand Chevron / Pill Button -->
+                                                        <Button Grid.Column="0"
+                                                                Command="{Binding ToggleExpandCommand}"
+                                                                Background="{DynamicResource SurfaceElevatedBrush}" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"
+                                                                CornerRadius="6" Padding="10,6" Margin="0,0,14,0" Cursor="Hand"
+                                                                VerticalAlignment="Center"
+                                                                ToolTip.Tip="Toggle addon details">
+                                                            <Button.Styles>
+                                                                <Style Selector="Button:pointerover">
+                                                                    <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+                                                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                                                </Style>
+                                                                <Style Selector="Button:pressed">
+                                                                    <Setter Property="RenderTransform" Value="scale(0.96)" />
+                                                                </Style>
+                                                            </Button.Styles>
+                                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                <TextBlock Text="{Binding IsExpanded, Converter={StaticResource BoolToExpandTextConverter}}"
+                                                                           Foreground="{DynamicResource AccentBrush}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </Button>
+
+                                                        <!-- Thumbnail -->
+                                                        <Border Grid.Column="1" Width="44" Height="44" CornerRadius="6"
+                                                                ClipToBounds="True" Background="{DynamicResource CardBackground}" Margin="0,0,12,0"
+                                                                IsVisible="{Binding ThumbnailUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                                VerticalAlignment="Center">
+                                                            <Image controls:ImageLoader.Source="{Binding ThumbnailUrl}"
+                                                                   Stretch="UniformToFill" />
+                                                        </Border>
+
+                                                        <!-- Basic Info -->
+                                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="4" Margin="0,0,16,0">
+                                                            <!-- Title & Badges Wrap Panel -->
+                                                            <WrapPanel Orientation="Horizontal">
+                                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" Foreground="{DynamicResource TextPrimary}"
+                                                                           VerticalAlignment="Center" Margin="0,0,8,2" TextWrapping="Wrap" />
+                                                                <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" VerticalAlignment="Center" Margin="0,0,6,2"
+                                                                        IsVisible="{Binding Category, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                                    <TextBlock Text="{Binding Category}" FontSize="11" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold"/>
+                                                                </Border>
+                                                                <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" VerticalAlignment="Center" Margin="0,0,6,2"
+                                                                        IsVisible="{Binding HasVersion}">
+                                                                    <TextBlock Text="{Binding Version}" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                </Border>
+                                                            </WrapPanel>
+
+                                                            <!-- Subtitle metadata line -->
+                                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                                <TextBlock Text="{Binding FormattedSize}" FontSize="12" Foreground="{DynamicResource TextSecondary}"
+                                                                           IsVisible="{Binding HasFormattedSize}" />
+                                                                <TextBlock Text="•" FontSize="12" Foreground="{DynamicResource TextMuted}"
+                                                                           IsVisible="{Binding ShowSizeDot}" />
+                                                                <TextBlock Text="{Binding ReleaseDateDisplay}" FontSize="12" Foreground="{DynamicResource TextMuted}"
+                                                                           IsVisible="{Binding HasReleaseDate}" />
+                                                                <TextBlock Text="•" FontSize="12" Foreground="{DynamicResource TextMuted}"
+                                                                           IsVisible="{Binding ShowDateDot}" />
+                                                                <TextBlock Text="{Binding Uploader, StringFormat='By {0}'}" FontSize="12" Foreground="{DynamicResource TextSecondary}"
+                                                                           IsVisible="{Binding HasUploader}"/>
+                                                            </StackPanel>
+                                                        </StackPanel>
+
+                                                        <!-- Primary Actions -->
+                                                        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                            <!-- Selection / Download action states -->
+                                                            <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !IsDownloaded}">
+                                                                <!-- Select button (when not selected) -->
+                                                                <Button Command="{Binding SelectCommand}"
+                                                                        IsVisible="{Binding !IsSelected}"
+                                                                        Background="{DynamicResource SurfaceElevatedBrush}" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"
+                                                                        Foreground="{DynamicResource TextPrimary}" CornerRadius="6" Padding="14,7" Cursor="Hand"
+                                                                        ToolTip.Tip="Select this item as active target">
+                                                                    <Button.Styles>
+                                                                        <Style Selector="Button:pointerover">
+                                                                            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+                                                                            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                                                            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+                                                                        </Style>
+                                                                        <Style Selector="Button:pressed">
+                                                                            <Setter Property="RenderTransform" Value="scale(0.96)" />
+                                                                        </Style>
+                                                                    </Button.Styles>
+                                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                        <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"
+                                                                                  Width="12" Height="12" Foreground="{DynamicResource AccentBrush}"/>
+                                                                        <TextBlock Text="Select" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                    </StackPanel>
+                                                                </Button>
+
+                                                                <!-- Selected button (when selected) -->
+                                                                <Button Command="{Binding SelectCommand}"
+                                                                        IsVisible="{Binding IsSelected}"
+                                                                        Background="{DynamicResource AccentBrush}" BorderThickness="1" BorderBrush="{DynamicResource AccentLightBrush}"
+                                                                        Foreground="White" CornerRadius="6" Padding="14,7" Cursor="Hand"
+                                                                        ToolTip.Tip="Currently selected download target">
+                                                                    <Button.Styles>
+                                                                        <Style Selector="Button:pointerover">
+                                                                            <Setter Property="Opacity" Value="0.9" />
+                                                                        </Style>
+                                                                        <Style Selector="Button:pressed">
+                                                                            <Setter Property="RenderTransform" Value="scale(0.96)" />
+                                                                        </Style>
+                                                                    </Button.Styles>
+                                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                        <PathIcon Data="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"
+                                                                                  Width="12" Height="12" Foreground="White"/>
+                                                                        <TextBlock Text="Selected" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                    </StackPanel>
+                                                                </Button>
+                                                            </StackPanel>
+
+                                                            <!-- Add to Profile Button (visible when downloaded) -->
+                                                            <Button Command="{Binding AddToProfileCommand}"
+                                                                    IsVisible="{Binding IsDownloaded}"
+                                                                    Background="{DynamicResource SuccessBrush}" BorderThickness="1" BorderBrush="{DynamicResource SuccessBrush}"
+                                                                    Foreground="White" CornerRadius="6" Padding="14,7"
+                                                                    Cursor="Hand"
+                                                                    ToolTip.Tip="Add this downloaded file to a profile">
+                                                                <Button.Styles>
+                                                                    <Style Selector="Button:pointerover">
+                                                                        <Setter Property="Opacity" Value="0.9" />
+                                                                    </Style>
+                                                                    <Style Selector="Button:pressed">
+                                                                        <Setter Property="RenderTransform" Value="scale(0.96)" />
+                                                                    </Style>
+                                                                </Button.Styles>
+                                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                    <PathIcon Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"
+                                                                              Width="12" Height="12" Foreground="White"/>
+                                                                    <TextBlock Text="Add to Profile" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                </StackPanel>
+                                                            </Button>
+                                                        </StackPanel>
+                                                    </Grid>
+
+                                                    <!-- Expanded Detail Drawer -->
+                                                    <StackPanel Grid.Row="1" IsVisible="{Binding IsExpanded}" Margin="0,14,0,0">
+                                                        <Rectangle Height="1" Fill="{DynamicResource BorderBrush}" Margin="0,0,0,14"/>
+
+                                                        <!-- Loading Spinner -->
+                                                        <StackPanel IsVisible="{Binding IsLoadingDetails}"
+                                                                    Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12" Margin="0,12">
+                                                            <ProgressBar IsIndeterminate="True" Width="140" Height="4" VerticalAlignment="Center" />
+                                                            <TextBlock Text="Fetching addon details..." Foreground="{DynamicResource TextSecondary}" FontSize="13" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+
+                                                        <!-- Extended Content -->
+                                                        <StackPanel IsVisible="{Binding !IsLoadingDetails}" Spacing="14">
+                                                            <!-- Status & Badges Header Bar -->
+                                                            <Border Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="8" Padding="14,10" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
+                                                                <Grid ColumnDefinitions="*,Auto">
+                                                                    <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                        <!-- Status Badge -->
+                                                                        <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderThickness="1" BorderBrush="{DynamicResource SuccessBrush}" CornerRadius="4" Padding="8,3" Margin="0,0,8,0"
+                                                                                IsVisible="{Binding IsDownloaded}">
+                                                                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                                                                <PathIcon Data="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" Width="11" Height="11" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
+                                                                                <TextBlock Text="Downloaded" FontSize="11" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                            </StackPanel>
+                                                                        </Border>
+                                                                        <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}" CornerRadius="4" Padding="8,3" Margin="0,0,8,0"
+                                                                                IsVisible="{Binding !IsDownloaded}">
+                                                                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                                                                <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z" Width="11" Height="11" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                                                                                <TextBlock Text="Available for Download" FontSize="11" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                            </StackPanel>
+                                                                        </Border>
+
+                                                                        <!-- Category Badge -->
+                                                                        <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}" CornerRadius="4" Padding="8,3" Margin="0,0,8,0"
+                                                                                IsVisible="{Binding HasCategory}">
+                                                                            <TextBlock Text="{Binding Category}" FontSize="11" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                        </Border>
+
+                                                                        <!-- Target Game Badge -->
+                                                                        <Border Background="{DynamicResource SurfaceHoverBrush}" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}" CornerRadius="4" Padding="8,3" Margin="0,0,8,0"
+                                                                                IsVisible="{Binding HasTargetGame}">
+                                                                            <TextBlock Text="{Binding TargetGame}" FontSize="11" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                        </Border>
+
+                                                                        <!-- Version Badge -->
+                                                                        <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}" CornerRadius="4" Padding="8,3" Margin="0,0,8,0"
+                                                                                IsVisible="{Binding HasVersion}">
+                                                                            <TextBlock Text="{Binding Version, StringFormat='v{0}'}" FontSize="11" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                        </Border>
+                                                                    </WrapPanel>
+
+                                                                    <!-- Copy Link Action -->
+                                                                    <Button Grid.Column="1" Command="{Binding CopyLinkCommand}"
+                                                                            IsVisible="{Binding HasDownloadUrl}"
+                                                                            Background="{DynamicResource SurfaceHoverBrush}" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"
+                                                                            Foreground="{DynamicResource TextSecondary}" CornerRadius="6" Padding="10,5" Cursor="Hand"
+                                                                            ToolTip.Tip="Copy download or source link">
+                                                                        <Button.Styles>
+                                                                            <Style Selector="Button:pointerover">
+                                                                                <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+                                                                                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+                                                                            </Style>
+                                                                        </Button.Styles>
+                                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                            <PathIcon Data="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"
+                                                                                      Width="11" Height="11" Foreground="{DynamicResource AccentBrush}"/>
+                                                                            <TextBlock Text="Copy Link" FontSize="11" FontWeight="Medium" VerticalAlignment="Center"/>
+                                                                        </StackPanel>
+                                                                    </Button>
+                                                                </Grid>
+                                                            </Border>
+
+                                                            <!-- Metadata Table Grid -->
+                                                            <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
+                                                                <Grid ColumnDefinitions="*, *, *" RowDefinitions="Auto,Auto,Auto">
+                                                                    <!-- Row 0: Filename, Category, Target Game -->
+                                                                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,12,12"
+                                                                                IsVisible="{Binding HasFilename}">
+                                                                        <TextBlock Text="Filename" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                        <TextBlock Text="{Binding Filename}" FontSize="13" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                                    </StackPanel>
+
+                                                                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,12,12"
+                                                                                IsVisible="{Binding HasCategory}">
+                                                                        <TextBlock Text="Category" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                        <TextBlock Text="{Binding Category}" FontSize="13" Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" />
+                                                                    </StackPanel>
+
+                                                                    <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,12"
+                                                                                IsVisible="{Binding HasTargetGame}">
+                                                                        <TextBlock Text="Target Game" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                        <TextBlock Text="{Binding TargetGame}" FontSize="13" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" />
+                                                                    </StackPanel>
+
+                                                                    <!-- Row 1: Uploader, Upload/Release Date, Version -->
+                                                                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,12,12"
+                                                                                IsVisible="{Binding HasUploader}">
+                                                                        <TextBlock Text="Author / Uploader" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                        <TextBlock Text="{Binding Uploader}" FontSize="13" Foreground="{DynamicResource TextPrimary}" />
+                                                                    </StackPanel>
+
+                                                                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,12,12"
+                                                                                IsVisible="{Binding HasReleaseDate}">
+                                                                        <TextBlock Text="Release Date" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                        <TextBlock Text="{Binding ReleaseDateDisplay}" FontSize="13" Foreground="{DynamicResource TextPrimary}" />
+                                                                    </StackPanel>
+
+                                                                    <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,0,0,12"
+                                                                                IsVisible="{Binding HasVersion}">
+                                                                        <TextBlock Text="Version" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                        <TextBlock Text="{Binding Version}" FontSize="13" Foreground="{DynamicResource TextPrimary}" />
+                                                                    </StackPanel>
+
+                                                                    <!-- Row 2: Size, Total Downloads, MD5 Checksum -->
+                                                                    <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,12,0"
+                                                                                IsVisible="{Binding HasFormattedSize}">
+                                                                        <TextBlock Text="Size" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                        <TextBlock Text="{Binding FormattedSize}" FontSize="13" Foreground="{DynamicResource TextPrimary}" />
+                                                                    </StackPanel>
+
+                                                                    <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,0,12,0"
+                                                                                IsVisible="{Binding HasDownloadCount}">
+                                                                        <TextBlock Text="Total Downloads" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                        <TextBlock Text="{Binding DownloadCount, StringFormat='{}{0:N0}'}" FontSize="13" Foreground="{DynamicResource TextPrimary}" />
+                                                                    </StackPanel>
+
+                                                                    <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,0,0,0"
+                                                                                IsVisible="{Binding HasMd5Hash}">
+                                                                        <TextBlock Text="MD5 Checksum" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                                                            <TextBlock Text="{Binding Md5Hash}" FontSize="12" FontFamily="Consolas, Monospace" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="140"/>
+                                                                            <Button Content="Copy" Command="{Binding CopyMd5Command}" Padding="6,2" FontSize="10"
+                                                                                    Background="{DynamicResource SurfaceElevatedBrush}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Cursor="Hand" ToolTip.Tip="Copy MD5 hash"/>
+                                                                        </StackPanel>
+                                                                    </StackPanel>
+                                                                </Grid>
+                                                            </Border>
+
+                                                            <!-- Description / Readme Section -->
+                                                            <StackPanel Spacing="6" IsVisible="{Binding HasDescription}">
+                                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                    <PathIcon Data="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"
+                                                                              Width="13" Height="13" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
+                                                                    <TextBlock Text="Readme &amp; Release Notes" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                                                                </StackPanel>
+                                                                <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
+                                                                    <TextBlock Text="{Binding FullDescription}"
+                                                                               Foreground="{DynamicResource TextSecondary}" FontSize="13" LineHeight="22" TextWrapping="Wrap" />
+                                                                </Border>
+                                                            </StackPanel>
+
+                                                            <!-- Preview Images -->
+                                                            <StackPanel Spacing="6" IsVisible="{Binding HasPreviewImages}">
+                                                                <TextBlock Text="Preview Images" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                                                    <ItemsControl ItemsSource="{Binding PreviewImages}">
+                                                                        <ItemsControl.ItemsPanel>
+                                                                            <ItemsPanelTemplate>
+                                                                                <StackPanel Orientation="Horizontal" Spacing="10" />
+                                                                            </ItemsPanelTemplate>
+                                                                        </ItemsControl.ItemsPanel>
+                                                                        <ItemsControl.ItemTemplate>
+                                                                            <DataTemplate>
+                                                                                <Button Command="{Binding $parent[views:ContentDetailView].((vm:ContentDetailViewModel)DataContext).OpenFullScreenMediaCommand}"
+                                                                                        CommandParameter="{Binding}"
+                                                                                        Background="Transparent"
+                                                                                        BorderThickness="0"
+                                                                                        Padding="0"
+                                                                                        Cursor="Hand"
+                                                                                        ToolTip.Tip="Click to expand image">
+                                                                                    <Button.Template>
+                                                                                        <ControlTemplate TargetType="Button">
+                                                                                            <ContentPresenter Content="{TemplateBinding Content}" />
+                                                                                        </ControlTemplate>
+                                                                                    </Button.Template>
+                                                                                    <Border Width="160" Height="100" CornerRadius="6" ClipToBounds="True" Background="{DynamicResource CardBackground}">
+                                                                                        <Image controls:ImageLoader.Source="{Binding}" Stretch="UniformToFill" />
+                                                                                    </Border>
+                                                                                </Button>
+                                                                            </DataTemplate>
+                                                                        </ItemsControl.ItemTemplate>
+                                                                    </ItemsControl>
+                                                                </ScrollViewer>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- Media Tab -->
+                    <TabItem Header="Media" IsVisible="{Binding HasMedia}">
+                        <ScrollViewer>
+                            <StackPanel Spacing="24" Margin="0,24,0,0">
+                                <!-- Videos -->
+                                <StackPanel Spacing="12" IsVisible="{Binding HasVideos}">
+                                    <TextBlock Text="Videos" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                    <ItemsControl ItemsSource="{Binding Videos}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="parsers:Video">
+                                                <Button Classes="media-card-btn"
+                                                        Command="{Binding $parent[views:ContentDetailView].((vm:ContentDetailViewModel)DataContext).OpenFullScreenMediaCommand}"
+                                                        CommandParameter="{Binding}"
+                                                        ToolTip.Tip="Click to watch video">
+                                                    <Border Classes="media-item-card" Padding="12" Margin="0,0,12,12" Width="300">
+                                                        <StackPanel Spacing="8">
+                                                            <Border CornerRadius="6" Height="170" Background="{DynamicResource CardBackground}" ClipToBounds="True">
+                                                                <Panel>
+                                                                    <Image controls:ImageLoader.Source="{Binding ThumbnailUrl}"
+                                                                           Stretch="UniformToFill"
+                                                                           IsVisible="{Binding ThumbnailUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                                    <!-- Play button overlay -->
+                                                                    <Border Width="44" Height="44" CornerRadius="22" Background="#B3000000"
+                                                                            BorderBrush="#80FFFFFF" BorderThickness="1"
+                                                                            HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                        <PathIcon Data="M8 5v14l11-7z" Width="18" Height="18" Foreground="White"
+                                                                                  HorizontalAlignment="Center" VerticalAlignment="Center" Margin="3,0,0,0" />
+                                                                    </Border>
+                                                                    <!-- Platform badge -->
+                                                                    <Border Background="#CC000000" CornerRadius="4" Padding="6,2"
+                                                                            HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="6"
+                                                                            IsVisible="{Binding Platform, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                                        <TextBlock Text="{Binding Platform}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                                                    </Border>
+                                                                </Panel>
+                                                            </Border>
+                                                            <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Text="{Binding Platform}" FontSize="12" Foreground="{DynamicResource TextMuted}" IsVisible="{Binding Platform, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                        </StackPanel>
+                                                    </Border>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <!-- Images -->
+                                <StackPanel Spacing="12" IsVisible="{Binding HasImages}">
+                                    <TextBlock Text="Images" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                    <ItemsControl ItemsSource="{Binding Images}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="parsers:Image">
+                                                <Button Classes="media-card-btn"
+                                                        Command="{Binding $parent[views:ContentDetailView].((vm:ContentDetailViewModel)DataContext).OpenFullScreenMediaCommand}"
+                                                        CommandParameter="{Binding}"
+                                                        ToolTip.Tip="Click to expand image">
+                                                    <Border Classes="media-item-card" Padding="8" Margin="0,0,8,8" Width="200">
+                                                        <StackPanel Spacing="8">
+                                                            <Border CornerRadius="6" Height="120" Background="{DynamicResource CardBackground}" ClipToBounds="True">
+                                                                <Panel>
+                                                                    <Image controls:ImageLoader.Source="{Binding ThumbnailUrl}"
+                                                                           Stretch="UniformToFill"
+                                                                           IsVisible="{Binding ThumbnailUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                                    <!-- Expand icon badge -->
+                                                                    <Border Background="#99000000" CornerRadius="4" Padding="4,2"
+                                                                            HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="4">
+                                                                        <PathIcon Data="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
+                                                                                  Width="10" Height="10" Foreground="{DynamicResource TextSecondary}" />
+                                                                    </Border>
+                                                                </Panel>
+                                                            </Border>
+                                                            <TextBlock Text="{Binding Title}" FontSize="13" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+                                                        </StackPanel>
+                                                    </Border>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- Community Tab -->
+                    <TabItem Header="Community" IsVisible="{Binding HasCommunity}">
+                        <ScrollViewer>
+                            <StackPanel Spacing="24" Margin="0,24,0,0">
+                                <!-- Articles -->
+                                <StackPanel Spacing="12" IsVisible="{Binding !!Articles.Count}">
+                                    <TextBlock Text="Articles" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                    <ItemsControl ItemsSource="{Binding Articles}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="parsers:Article">
+                                                <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                                    <StackPanel Spacing="8">
+                                                        <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                                        <StackPanel Orientation="Horizontal" Spacing="12">
+                                                            <TextBlock Text="{Binding Author}" Foreground="{DynamicResource TextSecondary}" FontSize="13" />
+                                                            <TextBlock Text="{Binding PublishDate, StringFormat='{}{0:MMM dd, yyyy}'}" Foreground="{DynamicResource TextMuted}" FontSize="13" />
+                                                        </StackPanel>
+                                                        <TextBlock Text="{Binding Content}" Foreground="{DynamicResource TextSecondary}" FontSize="14" MaxLines="3" TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <!-- Reviews -->
+                                <StackPanel Spacing="12" IsVisible="{Binding HasReviews}">
+                                    <TextBlock Text="Reviews" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                    <ItemsControl ItemsSource="{Binding Reviews}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="parsers:Review">
+                                                <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                                    <StackPanel Spacing="8">
+                                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                                                <TextBlock Text="{Binding Rating, StringFormat='⭐ {0:F1}'}" Foreground="{DynamicResource WarningBrush}" FontWeight="Bold" />
+                                                                <TextBlock Text="{Binding Author}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                                            </StackPanel>
+                                                            <TextBlock Grid.Column="2" Text="{Binding Date, StringFormat='{}{0:MMM dd, yyyy}'}" Foreground="{DynamicResource TextMuted}" FontSize="12" />
+                                                        </Grid>
+                                                        <TextBlock Text="{Binding Content}" Foreground="{DynamicResource TextSecondary}" FontSize="14" LineHeight="20" TextWrapping="Wrap" />
+                                                        <TextBlock Text="{Binding HelpfulVotes, StringFormat='{}{0} people found this helpful'}" Foreground="{DynamicResource TextMuted}" FontSize="12" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <!-- Comments -->
+                                <StackPanel Spacing="12" IsVisible="{Binding HasComments}">
+                                    <TextBlock Text="Comments" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                    <ItemsControl ItemsSource="{Binding Comments}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="parsers:Comment">
+                                                <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,8">
+                                                    <StackPanel Spacing="6">
+                                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                                                <TextBlock Text="{Binding Author}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                                                <Border Background="{DynamicResource AccentBrush}" CornerRadius="4" Padding="4,2" IsVisible="{Binding IsCreator}">
+                                                                    <TextBlock Text="CREATOR" FontSize="10" FontWeight="Bold" Foreground="White" />
+                                                                </Border>
+                                                            </StackPanel>
+                                                            <TextBlock Grid.Column="2" Text="{Binding Date, StringFormat='{}{0:MMM dd, yyyy}'}" Foreground="{DynamicResource TextMuted}" FontSize="12" />
+                                                        </Grid>
+                                                        <TextBlock Text="{Binding Content}" Foreground="{DynamicResource TextSecondary}" FontSize="13" LineHeight="20" TextWrapping="Wrap" />
+                                                        <TextBlock Text="{Binding Karma, StringFormat='Karma: {0}'}" Foreground="{DynamicResource TextMuted}" FontSize="11" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- Publisher Tabs - catalog-defined cards for subscribed publishers -->
+                    <TabItem Header="Publisher" IsVisible="{Binding HasCustomTabs}">
+                        <Grid RowDefinitions="Auto,*" Margin="0,20,0,0">
+                            <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,16">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <PathIcon Data="M12 2 2 7l10 5 8.2-4.1V14h2V7L12 2zm-6 11v4.5L12 21l6-3.5V13l-6 3-6-3z"
+                                              Width="20" Height="20" Foreground="{DynamicResource AccentBrush}" />
+                                    <TextBlock Text="This information is provided by the publisher and may change between releases."
+                                               Foreground="{DynamicResource TextSecondary}" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+
+                            <TabControl Grid.Row="1" ItemsSource="{Binding CustomTabs}">
+                                <TabControl.ItemTemplate>
+                                    <DataTemplate DataType="content:CustomTabDefinition">
+                                        <TextBlock Text="{Binding Header}" />
+                                    </DataTemplate>
+                                </TabControl.ItemTemplate>
+                                <TabControl.ContentTemplate>
+                                    <DataTemplate DataType="content:CustomTabDefinition">
+                                        <ScrollViewer>
+                                            <StackPanel Spacing="16" Margin="0,16,0,0">
+                                                <StackPanel Spacing="6" IsVisible="{Binding Intro, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                    <TextBlock Text="{Binding Header}" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                                    <TextBlock Text="{Binding Intro}" Foreground="{DynamicResource TextSecondary}" FontSize="14" LineHeight="21" TextWrapping="Wrap" />
+                                                </StackPanel>
+
+                                                <ItemsControl ItemsSource="{Binding Cards}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <WrapPanel Orientation="Horizontal" />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate DataType="content:CustomTabCardDefinition">
+                                                            <Border Width="250" Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="12" Margin="0,0,12,12">
+                                                                <StackPanel Spacing="10">
+                                                                    <Button Command="{Binding $parent[views:ContentDetailView].((vm:ContentDetailViewModel)DataContext).OpenFullScreenMediaCommand}"
+                                                                            CommandParameter="{Binding ImageUrl}"
+                                                                            Background="Transparent"
+                                                                            BorderThickness="0"
+                                                                            Padding="0"
+                                                                            Cursor="Hand"
+                                                                            ToolTip.Tip="Click to expand image"
+                                                                            IsVisible="{Binding ImageUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                                        <Button.Template>
+                                                                            <ControlTemplate TargetType="Button">
+                                                                                <ContentPresenter Content="{TemplateBinding Content}" />
+                                                                            </ControlTemplate>
+                                                                        </Button.Template>
+                                                                        <Border Height="96" Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="6" ClipToBounds="True">
+                                                                            <Image controls:ImageLoader.Source="{Binding ImageUrl}" Stretch="UniformToFill" />
+                                                                        </Border>
+                                                                    </Button>
+                                                                    <StackPanel Spacing="4">
+                                                                        <TextBlock Text="{Binding Label}" Foreground="{DynamicResource AccentBrush}" FontSize="11" FontWeight="SemiBold"
+                                                                                   IsVisible="{Binding Label, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                                        <TextBlock Text="{Binding Title}" Foreground="{DynamicResource TextPrimary}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                                        <TextBlock Text="{Binding Description}" Foreground="{DynamicResource TextSecondary}" FontSize="13" LineHeight="19" TextWrapping="Wrap" />
+                                                                    </StackPanel>
+                                                                </StackPanel>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </ScrollViewer>
+                                    </DataTemplate>
+                                </TabControl.ContentTemplate>
+                            </TabControl>
+                        </Grid>
+                    </TabItem>
+                </TabControl>
+            </Grid>
+
+            <!-- Sidebar (Right) -->
+            <ScrollViewer Grid.Column="1"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="16" Margin="0,0,4,0">
+                    <!-- Action Card -->
+                    <Border Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="20">
+                        <StackPanel Spacing="16">
+                            <!-- Download Button (visible when not downloaded and not update available) -->
+                            <Button HorizontalAlignment="Stretch"
+                                    Height="48"
+                                    Background="{DynamicResource AccentBrush}"
+                                    Foreground="White"
+                                    CornerRadius="8"
+                                    FontSize="15"
+                                    FontWeight="SemiBold"
+                                    IsVisible="{Binding ShowDownloadButton}"
+                                    IsEnabled="{Binding !IsDownloading}"
+                                    Command="{Binding DownloadCommand}"
+                                    Cursor="Hand"
+                                    Padding="20,0">
+                                <Button.Styles>
+                                    <Style Selector="Button:pointerover">
+                                        <Setter Property="Opacity" Value="0.9" />
+                                        <Setter Property="RenderTransform" Value="scale(1.02)" />
+                                    </Style>
+                                    <Style Selector="Button:pressed">
+                                        <Setter Property="RenderTransform" Value="scale(0.98)" />
+                                    </Style>
+                                    <Style Selector="Button:disabled">
+                                        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+                                        <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+                                        <Setter Property="Opacity" Value="0.6" />
+                                    </Style>
+                                </Button.Styles>
+                                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                                    <PathIcon Data="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"
+                                              Width="18" Height="18"
+                                              Foreground="White"/>
+                                    <TextBlock Text="Download Now" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Update Button (visible when update is available) -->
+                            <Button HorizontalAlignment="Stretch"
+                                    Height="48"
+                                    Background="{DynamicResource WarningBrush}"
+                                    Foreground="White"
+                                    CornerRadius="8"
+                                    FontSize="15"
+                                    FontWeight="SemiBold"
+                                    IsVisible="{Binding ShowUpdateButton}"
+                                    IsEnabled="{Binding !IsDownloading}"
+                                    Command="{Binding UpdateCommand}"
+                                    Cursor="Hand"
+                                    Padding="20,0">
+                                <ToolTip.Tip>A newer version is available. Click to download the update.</ToolTip.Tip>
+                                <Button.Styles>
+                                    <Style Selector="Button:pointerover">
+                                        <Setter Property="Opacity" Value="0.9" />
+                                        <Setter Property="RenderTransform" Value="scale(1.02)" />
+                                    </Style>
+                                    <Style Selector="Button:pressed">
+                                        <Setter Property="RenderTransform" Value="scale(0.98)" />
+                                    </Style>
+                                    <Style Selector="Button:disabled">
+                                        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+                                        <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+                                        <Setter Property="Opacity" Value="0.6" />
+                                    </Style>
+                                </Button.Styles>
+                                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                                    <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
+                                              Width="18" Height="18"
+                                              Foreground="White"/>
+                                    <TextBlock Text="Update Available" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Add to Profile Button (visible when downloaded and not update available) -->
+                            <Button HorizontalAlignment="Stretch"
+                                    Height="48"
+                                    Background="{DynamicResource SuccessBrush}"
+                                    Foreground="White"
+                                    CornerRadius="8"
+                                    FontSize="15"
+                                    FontWeight="SemiBold"
+                                    IsVisible="{Binding ShowAddToProfileButton}"
+                                    Command="{Binding AddToProfileCommand}"
+                                    Cursor="Hand"
+                                    Padding="20,0">
+                                <ToolTip.Tip>Add this content to a game profile</ToolTip.Tip>
+                                <Button.Styles>
+                                    <Style Selector="Button:pointerover">
+                                        <Setter Property="Opacity" Value="0.9" />
+                                        <Setter Property="RenderTransform" Value="scale(1.02)" />
+                                    </Style>
+                                    <Style Selector="Button:pressed">
+                                        <Setter Property="RenderTransform" Value="scale(0.98)" />
+                                    </Style>
+                                </Button.Styles>
+                                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                                    <PathIcon Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"
+                                              Width="18" Height="18"
+                                              Foreground="White"/>
+                                    <TextBlock Text="Add to Profile" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- View on source website -->
+                            <Button HorizontalAlignment="Stretch"
+                                    Height="38"
+                                    Background="{DynamicResource SurfaceElevatedBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    Foreground="{DynamicResource TextPrimary}"
+                                    CornerRadius="8"
+                                    FontSize="13"
+                                    IsVisible="{Binding HasSourceUrl}"
+                                    Command="{Binding OpenInBrowserCommand}"
+                                    Cursor="Hand"
+                                    Padding="16,0">
+                                <ToolTip.Tip>Open this content's page in your browser</ToolTip.Tip>
+                                <Button.Styles>
+                                    <Style Selector="Button:pointerover">
+                                        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+                                        <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
+                                    </Style>
+                                </Button.Styles>
+                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                    <PathIcon Data="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7zM19 19H5V5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7z"
+                                              Width="14" Height="14"
+                                              Foreground="{DynamicResource TextSecondary}"/>
+                                    <TextBlock Text="View on Website" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Download Progress -->
+                            <StackPanel IsVisible="{Binding IsDownloading}" Spacing="8">
+                                <TextBlock Text="{Binding DownloadStatusMessage}" Foreground="{DynamicResource TextSecondary}" FontSize="13" TextWrapping="Wrap" />
+                                <ProgressBar Value="{Binding DownloadProgress}" Height="4" Foreground="{DynamicResource SuccessBrush}" Background="{DynamicResource SurfaceElevatedBrush}" />
+                            </StackPanel>
+
+                            <!-- Required dependencies are visible before the user adds content to a
+                                 profile, rather than surfacing only as a launcher failure. -->
+                            <Border IsVisible="{Binding HasRequiredDependencies}"
+                                    Background="{DynamicResource SurfaceElevatedBrush}"
+                                    BorderBrush="{DynamicResource WarningBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="12">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Requires" Foreground="{DynamicResource GeneralsAccentBrush}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding RequiredDependenciesSummary}"
+                                               Foreground="{DynamicResource TextPrimary}" FontSize="13" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Single-item Variant Pickers (when HasVariants) -->
+                            <StackPanel Spacing="8" IsVisible="{Binding HasVariants}" Margin="0,4,0,0">
+                                <TextBlock Text="Variants" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" FontSize="14" />
+                                <ItemsControl ItemsSource="{Binding VariantAxes}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:VariantAxisGroup">
+                                            <StackPanel Spacing="3" Margin="0,0,0,6">
+                                                <TextBlock Text="{Binding AxisLabel}"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource TextSecondary}"
+                                                           IsVisible="{Binding ShowAxisLabel}" />
+                                                <ComboBox Classes="sidebar-variant-combo"
+                                                          ItemsSource="{Binding Options}"
+                                                          SelectedItem="{Binding SelectedOption}"
+                                                          FontSize="12"
+                                                          HorizontalAlignment="Stretch"
+                                                          MinHeight="28"
+                                                          Padding="8,4">
+                                                    <ComboBox.SelectionBoxItemTemplate>
+                                                        <DataTemplate x:DataType="vm:InstallableVariant">
+                                                            <Grid ColumnDefinitions="Auto,*">
+                                                                <PathIcon Grid.Column="0"
+                                                                          Data="{Binding CurrentState, Converter={StaticResource ContentStateToPathDataConverter}}"
+                                                                          Foreground="{Binding CurrentState, Converter={StaticResource ContentStateToBrushConverter}}"
+                                                                          Width="12" Height="12"
+                                                                          VerticalAlignment="Center"
+                                                                          Margin="0,0,6,0" />
+                                                                <TextBlock Grid.Column="1"
+                                                                           Text="{Binding Name}"
+                                                                           FontSize="12"
+                                                                           Foreground="{DynamicResource TextPrimary}"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           MaxLines="1"
+                                                                           VerticalAlignment="Center" />
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ComboBox.SelectionBoxItemTemplate>
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="vm:InstallableVariant">
+                                                            <Grid ColumnDefinitions="Auto,*">
+                                                                <PathIcon Grid.Column="0"
+                                                                          Data="{Binding CurrentState, Converter={StaticResource ContentStateToPathDataConverter}}"
+                                                                          Foreground="{Binding CurrentState, Converter={StaticResource ContentStateToBrushConverter}}"
+                                                                          Width="12" Height="12"
+                                                                          VerticalAlignment="Center"
+                                                                          Margin="0,0,6,0" />
+                                                                <TextBlock Grid.Column="1"
+                                                                           Text="{Binding Name}"
+                                                                           FontSize="12"
+                                                                           Foreground="{DynamicResource TextPrimary}"
+                                                                           TextWrapping="Wrap"
+                                                                           VerticalAlignment="Center" />
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <!-- Metadata Grid -->
+                            <StackPanel Spacing="8" Margin="0,8,0,0">
+                                <!-- Size - only show if > 0 -->
+                                <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding HasDownloadSize}">
+                                    <TextBlock Grid.Column="0" Text="Size" Foreground="{DynamicResource TextSecondary}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding DownloadSize, Converter={StaticResource FileSizeConverter}}" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Right"/>
+                                </Grid>
+
+                                <!-- Updated - only show if has valid date -->
+                                <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding HasLastUpdated}">
+                                    <TextBlock Grid.Column="0" Text="Updated" Foreground="{DynamicResource TextSecondary}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding LastUpdatedDisplay}" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Right"/>
+                                </Grid>
+
+                                <!-- Content type can be corrected before download when a mixed or
+                                     generic publisher cannot classify an item reliably. -->
+                                <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
+                                    <TextBlock Grid.Column="0" Text="Type" Foreground="{DynamicResource TextSecondary}"/>
+                                    <ComboBox Grid.Column="1"
+                                              ItemsSource="{Binding ContentTypeOptions}"
+                                              SelectedItem="{Binding SelectedContentType}"
+                                              HorizontalAlignment="Right"
+                                              MinWidth="130" />
+                                </Grid>
+
+                                <!-- Version - only show if not empty -->
+                                <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding HasVersion}">
+                                    <TextBlock Grid.Column="0" Text="Version" Foreground="{DynamicResource TextSecondary}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Version}" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Right"/>
+                                </Grid>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Bundle Contents Card (visible when HasBundleComponents) -->
+                    <Border Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="20"
+                            IsVisible="{Binding HasBundleComponents}">
+                        <StackPanel Spacing="12">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" Text="Bundle Contents" FontWeight="SemiBold" FontSize="15" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center" />
+                                <Border Grid.Column="1" Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="6" Padding="6,2">
+                                    <TextBlock Text="{Binding BundleComponents.Count, StringFormat='{}{0} items'}" FontSize="11" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" />
+                                </Border>
+                            </Grid>
+
+                            <ItemsControl ItemsSource="{Binding BundleComponents}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:BundleComponentViewModel">
+                                        <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                                            <StackPanel Spacing="6">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <StackPanel Grid.Column="0" Spacing="2">
+                                                        <TextBlock Text="{Binding SelectedDisplayName}"
+                                                                   FontSize="13"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="{DynamicResource TextPrimary}"
+                                                                   TextWrapping="Wrap" />
+                                                        <Border Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="4" Padding="4,1" HorizontalAlignment="Left"
+                                                                IsVisible="{Binding ContentTypeDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                            <TextBlock Text="{Binding ContentTypeDisplay}" FontSize="10" Foreground="{DynamicResource TextSecondary}" />
+                                                        </Border>
+                                                    </StackPanel>
+                                                    <PathIcon Grid.Column="1"
+                                                              Data="{Binding EffectiveState, Converter={StaticResource ContentStateToPathDataConverter}}"
+                                                              Foreground="{Binding EffectiveState, Converter={StaticResource ContentStateToBrushConverter}}"
+                                                              Width="14" Height="14"
+                                                              VerticalAlignment="Top"
+                                                              Margin="6,2,0,0" />
+                                                </Grid>
+
+                                                <!-- Variant pickers for this component (e.g. resolution for HUD) -->
+                                                <ItemsControl ItemsSource="{Binding VariantAxes}"
+                                                              IsVisible="{Binding HasVariants}"
+                                                              Margin="0,4,0,0">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="vm:VariantAxisGroup">
+                                                            <StackPanel Spacing="2" Margin="0,0,0,4">
+                                                                <TextBlock Text="{Binding AxisLabel}"
+                                                                           FontSize="10"
+                                                                           Foreground="{DynamicResource TextSecondary}"
+                                                                           IsVisible="{Binding ShowAxisLabel}" />
+                                                                <ComboBox Classes="sidebar-variant-combo"
+                                                                          ItemsSource="{Binding Options}"
+                                                                          SelectedItem="{Binding SelectedOption}"
+                                                                          FontSize="11"
+                                                                          HorizontalAlignment="Stretch"
+                                                                          MinHeight="26"
+                                                                          Padding="6,2">
+                                                                    <ComboBox.SelectionBoxItemTemplate>
+                                                                        <DataTemplate x:DataType="vm:InstallableVariant">
+                                                                            <Grid ColumnDefinitions="Auto,*">
+                                                                                <PathIcon Grid.Column="0"
+                                                                                          Data="{Binding CurrentState, Converter={StaticResource ContentStateToPathDataConverter}}"
+                                                                                          Foreground="{Binding CurrentState, Converter={StaticResource ContentStateToBrushConverter}}"
+                                                                                          Width="12" Height="12"
+                                                                                          VerticalAlignment="Center"
+                                                                                          Margin="0,0,6,0" />
+                                                                                <TextBlock Grid.Column="1"
+                                                                                           Text="{Binding Name}"
+                                                                                           FontSize="11"
+                                                                                           Foreground="{DynamicResource TextPrimary}"
+                                                                                           TextTrimming="CharacterEllipsis"
+                                                                                           MaxLines="1"
+                                                                                           VerticalAlignment="Center" />
+                                                                            </Grid>
+                                                                        </DataTemplate>
+                                                                    </ComboBox.SelectionBoxItemTemplate>
+                                                                    <ComboBox.ItemTemplate>
+                                                                        <DataTemplate x:DataType="vm:InstallableVariant">
+                                                                            <Grid ColumnDefinitions="Auto,*">
+                                                                                <PathIcon Grid.Column="0"
+                                                                                          Data="{Binding CurrentState, Converter={StaticResource ContentStateToPathDataConverter}}"
+                                                                                          Foreground="{Binding CurrentState, Converter={StaticResource ContentStateToBrushConverter}}"
+                                                                                          Width="12" Height="12"
+                                                                                          VerticalAlignment="Center"
+                                                                                          Margin="0,0,6,0" />
+                                                                                <TextBlock Grid.Column="1"
+                                                                                           Text="{Binding Name}"
+                                                                                           FontSize="11"
+                                                                                           Foreground="{DynamicResource TextPrimary}"
+                                                                                           TextWrapping="Wrap"
+                                                                                           VerticalAlignment="Center" />
+                                                                            </Grid>
+                                                                        </DataTemplate>
+                                                                    </ComboBox.ItemTemplate>
+                                                                </ComboBox>
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Tags -->
+                    <Border Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="20" IsVisible="{Binding !!Tags.Count}">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Tags" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                            <ItemsControl ItemsSource="{Binding Tags}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8">
+                                            <TextBlock Text="{Binding}" FontSize="12" Foreground="{DynamicResource TextSecondary}" />
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+
+    <!-- Full-Screen Media Modal Overlay -->
+    <Grid IsVisible="{Binding IsFullScreenMediaOpen}"
+          Background="#D9000000">
+        <!-- Backdrop click to close -->
+        <Button Command="{Binding CloseFullScreenMediaCommand}"
+                Background="Transparent"
+                BorderThickness="0"
+                Padding="0"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Panel Background="Transparent" />
+                </ControlTemplate>
+            </Button.Template>
+        </Button>
+
+        <!-- Media Preview Dialog -->
+        <Border Background="{DynamicResource CardBackground}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="12"
+                Margin="32"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                BoxShadow="0 16 48 0 #80000000"
+                ClipToBounds="True">
+            <Grid RowDefinitions="Auto,*" MaxWidth="1100" MaxHeight="750">
+                <!-- Modal Header -->
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="16,12" Background="Transparent">
+                    <TextBlock Grid.Column="0"
+                               Text="{Binding FullScreenMediaTitle}"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimary}"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" />
+                    <Button Grid.Column="1"
+                            Command="{Binding CloseFullScreenMediaCommand}"
+                            Content="✕"
+                            FontSize="14"
+                            FontWeight="Bold"
+                            Foreground="{DynamicResource TextSecondary}"
+                            Background="{DynamicResource SurfaceElevatedBrush}"
+                            BorderThickness="1"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            CornerRadius="6"
+                            Width="30"
+                            Height="30"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            Cursor="Hand">
+                        <Button.Styles>
+                            <Style Selector="Button:pointerover">
+                                <Setter Property="Background" Value="{DynamicResource ErrorBrush}" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Style>
+                        </Button.Styles>
+                    </Button>
+                </Grid>
+
+                <!-- Image Display -->
+                <Border Grid.Row="1" Background="{DynamicResource WindowBackground}" Padding="12">
+                    <Image controls:ImageLoader.Source="{Binding FullScreenMediaUrl}"
+                           Stretch="Uniform"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           MaxHeight="680"
+                           MaxWidth="1060" />
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</Panel>
+</UserControl>

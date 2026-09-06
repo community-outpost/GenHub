@@ -1,7 +1,8 @@
-using System;
-using System.IO;
+// <copyright file="ContentPathPolicyTests.cs" company="Community Outpost">
+// Copyright (c) Community Outpost. All rights reserved.
+// </copyright>
+
 using GenHub.Core.Helpers;
-using Xunit;
 
 namespace GenHub.Tests.Core.Helpers;
 
@@ -62,7 +63,7 @@ public sealed class ContentPathPolicyTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that directory traversal sequences return a failure result.
+    /// Verifies that path traversal attempts are detected and rejected.
     /// </summary>
     /// <param name="maliciousPath">The traversal path to test.</param>
     [Theory]
@@ -77,6 +78,7 @@ public sealed class ContentPathPolicyTests : IDisposable
     [InlineData("/foo/bar.txt")]
     [InlineData(@"C:\Windows\System32\cmd.exe")]
     [InlineData(@"\\server\share\file.txt")]
+    [InlineData("//server/share/file.txt")]
     public void ResolveContainedFile_PathEscapesRoot_ReturnsFailure(string maliciousPath)
     {
         var result = ContentPathPolicy.ResolveContainedFile(_tempRoot, maliciousPath);
@@ -84,9 +86,9 @@ public sealed class ContentPathPolicyTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that null or whitespace inputs return a failure result.
+    /// Verifies that null, empty, or whitespace relative paths return failure.
     /// </summary>
-    /// <param name="invalidPath">The invalid path to test.</param>
+    /// <param name="invalidPath">The invalid relative path to test.</param>
     [Theory]
     [InlineData(null)]
     [InlineData("")]

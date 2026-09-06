@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
-using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GeneralsOnline;
@@ -20,9 +18,7 @@ namespace GenHub.Features.Content.Services.GeneralsOnline;
 /// Parses Generals Online JSON catalog data into content search results.
 /// Accepts pre-fetched JSON from the Discoverer in wrapper format containing source type and data.
 /// </summary>
-public class GeneralsOnlineJsonCatalogParser(
-    ILogger<GeneralsOnlineJsonCatalogParser> logger
-) : ICatalogParser
+public class GeneralsOnlineJsonCatalogParser(ILogger<GeneralsOnlineJsonCatalogParser> logger) : ICatalogParser
 {
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
@@ -46,8 +42,7 @@ public class GeneralsOnlineJsonCatalogParser(
             {
                 logger.LogWarning("Catalog content is empty");
                 return Task.FromResult(
-                    OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
-                        []));
+                    OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([]));
             }
 
             // Parse the wrapper to determine source type
@@ -107,16 +102,14 @@ public class GeneralsOnlineJsonCatalogParser(
             {
                 logger.LogInformation("No Generals Online releases found in catalog");
                 return Task.FromResult(
-                    OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
-                        []));
+                    OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([]));
             }
 
             // Create search result from release
             var searchResult = CreateSearchResult(release, provider);
 
             return Task.FromResult(
-                OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
-                    [searchResult]));
+                OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([searchResult]));
         }
         catch (JsonException ex)
         {
@@ -196,7 +189,7 @@ public class GeneralsOnlineJsonCatalogParser(
             }
 
             if (!int.TryParse(datePart[..2], out var month) ||
-                !int.TryParse(datePart.Substring(2, 2), out var day) ||
+                !int.TryParse(datePart[2..4], out var day) ||
                 !int.TryParse(datePart[4..], out var yearSuffix))
             {
                 return null;
@@ -219,7 +212,6 @@ public class GeneralsOnlineJsonCatalogParser(
         ProviderDefinition provider)
     {
         var downloadPageUrl = provider.Endpoints.GetEndpoint("downloadPageUrl");
-        var iconUrl = provider.Endpoints.GetEndpoint("iconUrl");
 
         var searchResult = new ContentSearchResult
         {
@@ -231,7 +223,7 @@ public class GeneralsOnlineJsonCatalogParser(
             TargetGame = provider.TargetGame ?? GameType.ZeroHour,
             ProviderName = provider.PublisherType,
             AuthorName = GeneralsOnlineConstants.PublisherName,
-            IconUrl = iconUrl ?? string.Empty,
+            IconUrl = GeneralsOnlineConstants.LogoSource,
             LastUpdated = release.ReleaseDate,
             DownloadSize = release.PortableSize ?? 0,
             RequiresResolution = true,

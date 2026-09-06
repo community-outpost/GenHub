@@ -21,14 +21,16 @@ public class SuperHackersDependencyBuilder : BaseDependencyBuilder
     {
         return new ContentDependency
         {
-            Id = ManifestId.Create("1.104.genhub.gameinstallation.zerohour"),
+            // This is a type-only foundation requirement. The profile service supplies the
+            // concrete installation manifest that matches the user's installed game.
+            Id = ManifestId.Create(ManifestConstants.ZeroHourFoundationDependencyId),
             Name = GameClientConstants.ZeroHourInstallationDependencyName,
             DependencyType = ContentType.GameInstallation,
             MinVersion = ManifestConstants.ZeroHourManifestVersion, // "1.04"
             InstallBehavior = DependencyInstallBehavior.RequireExisting,
             IsOptional = false,
             StrictPublisher = false, // Any publisher's ZH installation will work
-            CompatibleGameTypes = new List<GameType> { GameType.ZeroHour },
+            CompatibleGameTypes = [GameType.ZeroHour],
         };
     }
 
@@ -40,14 +42,16 @@ public class SuperHackersDependencyBuilder : BaseDependencyBuilder
     {
         return new ContentDependency
         {
-            Id = ManifestId.Create("1.108.genhub.gameinstallation.generals"),
+            // This is a type-only foundation requirement. The profile service supplies the
+            // concrete installation manifest that matches the user's installed game.
+            Id = ManifestId.Create(ManifestConstants.GeneralsFoundationDependencyId),
             Name = "Generals 1.08 (Required)",
             DependencyType = ContentType.GameInstallation,
             MinVersion = ManifestConstants.GeneralsManifestVersion, // "1.08"
             InstallBehavior = DependencyInstallBehavior.RequireExisting,
             IsOptional = false,
             StrictPublisher = false, // Any publisher's Generals installation will work
-            CompatibleGameTypes = new List<GameType> { GameType.Generals },
+            CompatibleGameTypes = [GameType.Generals],
         };
     }
 
@@ -57,10 +61,10 @@ public class SuperHackersDependencyBuilder : BaseDependencyBuilder
     /// <returns>List of dependencies for Zero Hour variant.</returns>
     public static List<ContentDependency> GetDependenciesForZeroHour()
     {
-        return new List<ContentDependency>
-        {
+        return
+        [
             CreateZeroHourDependencyForSuperHackers(),
-        };
+        ];
     }
 
     /// <summary>
@@ -69,10 +73,10 @@ public class SuperHackersDependencyBuilder : BaseDependencyBuilder
     /// <returns>List of dependencies for Generals variant.</returns>
     public static List<ContentDependency> GetDependenciesForGenerals()
     {
-        return new List<ContentDependency>
-        {
+        return
+        [
             CreateGeneralsDependencyForSuperHackers(),
-        };
+        ];
     }
 
     /// <summary>
@@ -86,7 +90,7 @@ public class SuperHackersDependencyBuilder : BaseDependencyBuilder
         {
             GameType.ZeroHour => GetDependenciesForZeroHour(),
             GameType.Generals => GetDependenciesForGenerals(),
-            _ => new List<ContentDependency>(),
+            _ => [],
         };
     }
 
@@ -103,6 +107,6 @@ public class SuperHackersDependencyBuilder : BaseDependencyBuilder
             return GetDependenciesForGameType(manifest.TargetGame);
         }
 
-        return new List<ContentDependency>();
+        return [];
     }
 }

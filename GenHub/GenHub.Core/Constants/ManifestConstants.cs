@@ -124,6 +124,16 @@ public static class ManifestConstants
     /// </summary>
     public const string ZeroHourManifestVersion = "1.04";
 
+    /// <summary>
+    /// Type-only foundation requirement ID for Zero Hour game installations.
+    /// </summary>
+    public const string ZeroHourFoundationDependencyId = "1.104.any.gameinstallation.zerohour";
+
+    /// <summary>
+    /// Type-only foundation requirement ID for Generals game installations.
+    /// </summary>
+    public const string GeneralsFoundationDependencyId = "1.108.any.gameinstallation.generals";
+
     /// <summary>Tag for unknown authors.</summary>
     public const string UnknownAuthor = "unknown";
 

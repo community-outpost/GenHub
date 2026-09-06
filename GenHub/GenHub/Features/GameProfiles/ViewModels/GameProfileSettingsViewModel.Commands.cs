@@ -154,17 +154,10 @@ public partial class GameProfileSettingsViewModel
     [RelayCommand]
     private void SelectContentEditorCategory(ContentEditorCategory category)
     {
-        System.Diagnostics.Debug.WriteLine($"[ViewModel] SelectContentEditorCategory called with category: {category}");
-        System.Diagnostics.Debug.WriteLine($"[ViewModel] ScrollToSectionRequested is null: {ScrollToSectionRequested == null}");
-
         SelectedContentEditorCategory = category;
 
         var sectionName = category.ToString() + "Section";
-        System.Diagnostics.Debug.WriteLine($"[ViewModel] Invoking ScrollToSectionRequested with: {sectionName}");
-
         ScrollToSectionRequested?.Invoke(sectionName);
-
-        System.Diagnostics.Debug.WriteLine("[ViewModel] ScrollToSectionRequested invoked");
     }
 
     [RelayCommand]
@@ -333,56 +326,16 @@ public partial class GameProfileSettingsViewModel
             IsSaving = true;
             StatusMessage = "Saving profile...";
 
-            if (_gameProfileManager == null)
+            if (!ValidateSavePreconditions())
             {
-                StatusMessage = "Profile manager not available";
                 return;
             }
 
-            if (SelectedGameInstallation == null)
+            var enabledContentIds = CollectEnabledContentIds();
+
+            if (!await ValidateDependenciesAsync(enabledContentIds))
             {
-                StatusMessage = "Please select a game installation";
                 return;
-            }
-
-            if (string.IsNullOrWhiteSpace(Name))
-            {
-                StatusMessage = "Please enter a profile name";
-                return;
-            }
-
-            var hasLaunchableContent = EnabledContent.Any(c =>
-                c.IsEnabled &&
-                (c.ContentType == ContentType.GameInstallation ||
-                 c.ContentType == ContentType.GameClient ||
-                 c.ContentType == ContentType.Executable ||
-                 c.ContentType == ContentType.ModdingTool));
-
-            if (!hasLaunchableContent)
-            {
-                StatusMessage = "Error: A Game, Executable, or Tool must be enabled.";
-                _localNotificationService.ShowError(
-                    "Missing Launchable Content",
-                    "Please enable a Game, Executable, or Tool before saving.");
-                _logger?.LogWarning("Profile save blocked: No launchable content enabled");
-                return;
-            }
-
-            var enabledContentIds = EnabledContent.Where(c => c.IsEnabled).Select(c => c.ManifestId.Value).ToList();
-
-            if (_manifestPool != null)
-            {
-                var validationErrors = await ValidateAllDependenciesAsync(enabledContentIds);
-                if (validationErrors.Count > 0)
-                {
-                    var errorMessage = string.Join("\n", validationErrors);
-                    StatusMessage = "Error: Missing required dependencies";
-                    _localNotificationService.ShowError(
-                        "Missing Dependencies",
-                        $"Cannot save profile with missing dependencies:\n\n{errorMessage}");
-                    _logger?.LogWarning("Profile save blocked: {Errors}", errorMessage);
-                    return;
-                }
             }
 
             _logger?.LogInformation(
@@ -408,6 +361,88 @@ public partial class GameProfileSettingsViewModel
         {
             IsSaving = false;
         }
+    }
+
+    private bool ValidateSavePreconditions()
+    {
+        if (_gameProfileManager == null)
+        {
+            StatusMessage = "Profile manager not available";
+            return false;
+        }
+
+        if (SelectedGameInstallation == null)
+        {
+            StatusMessage = "Please select a game installation";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(Name))
+        {
+            StatusMessage = "Please enter a profile name";
+            return false;
+        }
+
+        var hasLaunchableContent = EnabledContent.Any(c =>
+            c.IsEnabled &&
+            (c.ContentType == ContentType.GameInstallation ||
+             c.ContentType == ContentType.GameClient ||
+             c.ContentType == ContentType.Executable ||
+             c.ContentType == ContentType.ModdingTool));
+
+        if (!hasLaunchableContent)
+        {
+            StatusMessage = "Error: A Game, Executable, or Tool must be enabled.";
+            _localNotificationService.ShowError(
+                "Missing Launchable Content",
+                "Please enable a Game, Executable, or Tool before saving.");
+            _logger?.LogWarning("Profile save blocked: No launchable content enabled");
+            return false;
+        }
+
+        return true;
+    }
+
+    private List<string> CollectEnabledContentIds()
+    {
+        var enabledContentIds = EnabledContent.Where(c => c.IsEnabled).Select(c => c.ManifestId.Value).ToList();
+
+        if (SelectedGameInstallation != null)
+        {
+            if (!string.IsNullOrEmpty(SelectedGameInstallation.GameClientId) &&
+                !enabledContentIds.Contains(SelectedGameInstallation.GameClientId, StringComparer.OrdinalIgnoreCase))
+            {
+                enabledContentIds.Add(SelectedGameInstallation.GameClientId);
+            }
+
+            if (!string.IsNullOrEmpty(SelectedGameInstallation.ManifestId.Value) &&
+                !enabledContentIds.Contains(SelectedGameInstallation.ManifestId.Value, StringComparer.OrdinalIgnoreCase))
+            {
+                enabledContentIds.Add(SelectedGameInstallation.ManifestId.Value);
+            }
+        }
+
+        return enabledContentIds;
+    }
+
+    private async Task<bool> ValidateDependenciesAsync(List<string> enabledContentIds)
+    {
+        if (_manifestPool != null)
+        {
+            var validationErrors = await ValidateAllDependenciesAsync(enabledContentIds);
+            if (validationErrors.Count > 0)
+            {
+                var errorMessage = string.Join("\n", validationErrors);
+                StatusMessage = "Error: Missing required dependencies";
+                _localNotificationService.ShowError(
+                    "Missing Dependencies",
+                    $"Cannot save profile with missing dependencies:\n\n{errorMessage}");
+                _logger?.LogWarning("Profile save blocked: {Errors}", errorMessage);
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private async Task CreateProfileAsync(List<string> enabledContentIds, CancellationToken cancellationToken = default)
@@ -1092,6 +1127,7 @@ public partial class GameProfileSettingsViewModel
                 _contentStorageService,
                 _genLauncherNormalizationService,
                 _dialogService,
+                _archivePayloadProcessor,
                 null);
             var window = new Views.AddLocalContentWindow
             {
@@ -1160,6 +1196,7 @@ public partial class GameProfileSettingsViewModel
                 _contentStorageService,
                 _genLauncherNormalizationService,
                 _dialogService,
+                _archivePayloadProcessor,
                 null);
             await vm.LoadFromManifestAsync(contentItem);
 

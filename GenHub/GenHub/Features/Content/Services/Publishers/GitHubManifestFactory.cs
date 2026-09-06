@@ -2,13 +2,18 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
+using SharpCompress.Archives;
+using SharpCompress.Common;
 
 namespace GenHub.Features.Content.Services.Publishers;
 
@@ -34,9 +39,19 @@ public class GitHubManifestFactory(
     }
 
     /// <inheritdoc />
+    public Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+        ContentManifest originalManifest,
+        string extractedDirectory,
+        CancellationToken cancellationToken = default)
+    {
+        return CreateManifestsFromExtractedContentAsync(originalManifest, extractedDirectory, progress: null, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
+        IProgress<GenHub.Core.Models.Content.ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Creating GitHub manifests from extracted content in: {Directory}", extractedDirectory);
@@ -47,20 +62,34 @@ public class GitHubManifestFactory(
             return [];
         }
 
-        // Process archive payloads and normalize layout prior to computing hashes and creating CAS manifest
-        await archivePayloadProcessor.ProcessPayloadAsync(
-            extractedDirectory,
-            originalManifest.ContentType,
-            originalManifest.TargetGame,
-            cancellationToken);
+        if (progress != null)
+        {
+            await archivePayloadProcessor.ProcessPayloadAsync(
+                extractedDirectory,
+                originalManifest.ContentType,
+                originalManifest.TargetGame,
+                normalizeInactiveArchives: true,
+                progress: progress,
+                cancellationToken: cancellationToken);
+        }
+        else
+        {
+            await archivePayloadProcessor.ProcessPayloadAsync(
+                extractedDirectory,
+                originalManifest.ContentType,
+                originalManifest.TargetGame,
+                cancellationToken);
+        }
 
         if (controlBarProcessor?.IsControlBarContent(extractedDirectory, originalManifest) == true)
         {
-            logger.LogInformation("Processing Control Bar content in GitHub extracted payload");
+            logger.LogInformation("Detected Control Bar content in GitHub payload, repacking into BIG archives");
             await controlBarProcessor.ProcessAndRepackControlBarAsync(
                 extractedDirectory,
                 originalManifest,
-                cancellationToken: cancellationToken);
+                requestedVariant: null,
+                cleanupSources: true,
+                cancellationToken);
         }
 
         var files = new List<ManifestFile>();
@@ -82,10 +111,7 @@ public class GitHubManifestFactory(
             // Compute hash for ContentAddressable storage
             string fileHash = await hashProvider.ComputeFileHashAsync(filePath, cancellationToken);
 
-            // Determine if executable (simple heuristic for now, can be improved)
-            bool isExecutable = filePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
-                                filePath.EndsWith(".bat", StringComparison.OrdinalIgnoreCase) ||
-                                filePath.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase);
+            bool isExecutable = ExecutableFileClassifier.RequiresExecutePermission(relativePath, filePath);
 
             var installTarget = originalManifest.ContentType switch
             {
@@ -114,7 +140,7 @@ public class GitHubManifestFactory(
         // Clone the original manifest but replace files
         var manifest = new ContentManifest
         {
-            ManifestVersion = originalManifest.ManifestVersion,
+            SchemaVersion = originalManifest.SchemaVersion,
             Id = originalManifest.Id, // Keep original ID
             Name = originalManifest.Name,
             Version = originalManifest.Version,

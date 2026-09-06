@@ -1,3 +1,11 @@
+using System;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using FluentAssertions;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
@@ -13,9 +21,6 @@ using GenHub.Tests.Core.Infrastructure;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
-using System.IO.Compression;
-using System.Reflection;
-using System.Text;
 
 namespace GenHub.Tests.Features.Content.Services.GitHub;
 
@@ -26,32 +31,57 @@ public class GitHubContentDelivererTests
 {
     private readonly Mock<IDownloadService> _downloadService = new();
     private readonly Mock<IContentManifestPool> _manifestPool = new();
-    private readonly Mock<PublisherManifestFactoryResolver> _factoryResolver;
     private readonly Mock<ILogger<GitHubContentDeliverer>> _logger = new();
+    private readonly Mock<IFileHashProvider> _fileHashProvider = new();
+    private readonly PublisherManifestFactoryResolver _factoryResolver;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GitHubContentDelivererTests"/> class.
     /// </summary>
     public GitHubContentDelivererTests()
     {
-        // PublisherManifestFactoryResolver is a class with virtual methods or injectables?
-        // Let's check how to mock it or just use a real one with mocks.
-        _factoryResolver = new Mock<PublisherManifestFactoryResolver>(null!, null!);
+        _factoryResolver = new PublisherManifestFactoryResolver(
+            [],
+            new Mock<ILogger<PublisherManifestFactoryResolver>>().Object);
     }
 
     /// <summary>
-    /// Tests that CanDeliver returns true for GitHub URLs.
+    /// Tests that CanDeliver returns true for github.com URLs.
     /// </summary>
     [Fact]
     public void CanDeliver_ShouldReturnTrue_ForGitHubUrls()
     {
-        var deliverer = new GitHubContentDeliverer(_downloadService.Object, _manifestPool.Object, _factoryResolver.Object, _logger.Object);
+        var deliverer = CreateSut();
         var manifest = new ContentManifest
         {
-            Files = [new ManifestFile { DownloadUrl = "https://github.com/user/repo/release.zip" }],
+            Files =
+            [
+                new ManifestFile { DownloadUrl = "https://github.com/user/repo/release.zip" },
+            ],
         };
 
         deliverer.CanDeliver(manifest).Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Tests that CanDeliver returns false for githubusercontent.com URLs, since the deliverer
+    /// only accepts the github.com domain family.
+    /// </summary>
+    [Fact]
+    public void CanDeliver_ShouldReturnFalse_ForGitHubAssetsUrls()
+    {
+        // Note: objects.githubusercontent.com is NOT a *.github.com subdomain,
+        // so the deliverer does not accept it. GitHub release assets use github.com URLs.
+        var deliverer = CreateSut();
+        var manifest = new ContentManifest
+        {
+            Files =
+            [
+                new ManifestFile { DownloadUrl = "https://objects.githubusercontent.com/some-asset.zip" },
+            ],
+        };
+
+        deliverer.CanDeliver(manifest).Should().BeFalse();
     }
 
     /// <summary>
@@ -60,35 +90,126 @@ public class GitHubContentDelivererTests
     [Fact]
     public void CanDeliver_ShouldReturnFalse_ForNonGitHubUrls()
     {
-        var deliverer = new GitHubContentDeliverer(_downloadService.Object, _manifestPool.Object, _factoryResolver.Object, _logger.Object);
+        var deliverer = CreateSut();
         var manifest = new ContentManifest
         {
-            Files = [new ManifestFile { DownloadUrl = "https://example.com/release.zip" }],
+            Files =
+            [
+                new ManifestFile { DownloadUrl = "https://example.com/release.zip" },
+            ],
         };
 
         deliverer.CanDeliver(manifest).Should().BeFalse();
     }
 
     /// <summary>
-    /// Tests that DeliverContentAsync extracts ZIP files for matching content types.
+    /// Tests that CanDeliver returns false when there are no files.
     /// </summary>
-    /// <param name="contentType">The type of content being delivered.</param>
-    /// <param name="shouldExtract">Expected value for whether extraction should occur.</param>
-    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
-    [Theory]
-    [InlineData(GenHub.Core.Models.Enums.ContentType.Mod, true)]
-    [InlineData(GenHub.Core.Models.Enums.ContentType.GameClient, true)]
-    [InlineData(GenHub.Core.Models.Enums.ContentType.Addon, true)]
-    [InlineData(GenHub.Core.Models.Enums.ContentType.ModdingTool, true)]
-    [InlineData(GenHub.Core.Models.Enums.ContentType.Executable, true)]
-    [InlineData(GenHub.Core.Models.Enums.ContentType.MapPack, false)]
-    public Task DeliverContentAsync_ShouldExtractZip_ForMatchingContentTypesAsync(GenHub.Core.Models.Enums.ContentType contentType, bool shouldExtract)
+    [Fact]
+    public void CanDeliver_ShouldReturnFalse_ForEmptyFileList()
     {
-        // Dummy usage to satisfy xUnit analysis
-        Assert.True(Enum.IsDefined(typeof(GenHub.Core.Models.Enums.ContentType), contentType));
-        Assert.NotNull(shouldExtract.ToString());
+        var deliverer = CreateSut();
+        var manifest = new ContentManifest { Files = [] };
 
-        return Task.CompletedTask;
+        deliverer.CanDeliver(manifest).Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Tests that CanDeliver returns false when file has no download URL.
+    /// </summary>
+    [Fact]
+    public void CanDeliver_ShouldReturnFalse_ForFileWithNullDownloadUrl()
+    {
+        var deliverer = CreateSut();
+        var manifest = new ContentManifest
+        {
+            Files = [new ManifestFile { DownloadUrl = null }],
+        };
+
+        deliverer.CanDeliver(manifest).Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Tests that CanDeliver returns true if at least one file has a GitHub URL.
+    /// </summary>
+    [Fact]
+    public void CanDeliver_ShouldReturnTrue_IfAtLeastOneFileIsGitHub()
+    {
+        var deliverer = CreateSut();
+        var manifest = new ContentManifest
+        {
+            Files =
+            [
+                new ManifestFile { DownloadUrl = "https://example.com/file1.zip" },
+                new ManifestFile { DownloadUrl = "https://github.com/user/repo/file2.zip" },
+            ],
+        };
+
+        deliverer.CanDeliver(manifest).Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Tests that ValidateContentAsync returns success with true for valid GitHub files.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ValidateContentAsync_ShouldReturnTrue_ForValidGitHubContentAsync()
+    {
+        var deliverer = CreateSut();
+        var manifest = new ContentManifest
+        {
+            Files =
+            [
+                new ManifestFile { DownloadUrl = "https://github.com/user/repo/file.zip", IsRequired = true },
+            ],
+        };
+
+        var result = await deliverer.ValidateContentAsync(manifest);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Tests that ValidateContentAsync returns false when required files have non-GitHub URLs.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ValidateContentAsync_ShouldReturnFalse_WhenRequiredFilesHaveNonGitHubUrlsAsync()
+    {
+        var deliverer = CreateSut();
+        var manifest = new ContentManifest
+        {
+            Files =
+            [
+                new ManifestFile { DownloadUrl = "https://other.com/file.zip", IsRequired = true },
+            ],
+        };
+
+        var result = await deliverer.ValidateContentAsync(manifest);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Tests that SourceName returns the GitHub deliverer identifier.
+    /// </summary>
+    [Fact]
+    public void SourceName_ShouldReturnGitHubDelivererName()
+    {
+        var deliverer = CreateSut();
+        deliverer.SourceName.Should().NotBeNullOrEmpty();
+    }
+
+    /// <summary>
+    /// Tests that IsEnabled returns true.
+    /// </summary>
+    [Fact]
+    public void IsEnabled_ShouldReturnTrue()
+    {
+        var deliverer = CreateSut();
+        deliverer.IsEnabled.Should().BeTrue();
     }
 
     /// <summary>
@@ -119,8 +240,7 @@ public class GitHubContentDelivererTests
                     return Task.FromResult(DownloadResult.CreateSuccess(destination, 1, TimeSpan.FromSeconds(1)));
                 });
 
-            var deliverer = new GitHubContentDeliverer(
-                _downloadService.Object, _manifestPool.Object, _factoryResolver.Object, _logger.Object);
+            var deliverer = CreateSut();
             var manifest = new ContentManifest
             {
                 Files =
@@ -144,14 +264,6 @@ public class GitHubContentDelivererTests
 
             var extracted = Directory.GetFiles(targetDirectory, "entry*.dat", SearchOption.AllDirectories);
             extracted.Length.Should().BeLessThan(entryCount);
-
-            _manifestPool.Verify(
-                p => p.AddManifestAsync(
-                    It.IsAny<ContentManifest>(),
-                    It.IsAny<string>(),
-                    It.IsAny<IProgress<ContentStorageProgress>?>(),
-                    It.IsAny<CancellationToken>()),
-                Times.Never);
         }
         finally
         {
@@ -187,8 +299,7 @@ public class GitHubContentDelivererTests
                     return Task.FromResult(DownloadResult.CreateSuccess(destination, 1, TimeSpan.FromSeconds(1)));
                 });
 
-            var deliverer = new GitHubContentDeliverer(
-                _downloadService.Object, _manifestPool.Object, _factoryResolver.Object, _logger.Object);
+            var deliverer = CreateSut();
             var manifest = new ContentManifest
             {
                 Files =
@@ -207,14 +318,6 @@ public class GitHubContentDelivererTests
             result.FirstError.Should().Contain("potential zip bomb");
 
             File.Exists(Path.Combine(targetDirectory, "payload.dat")).Should().BeFalse("the partial output is removed");
-
-            _manifestPool.Verify(
-                p => p.AddManifestAsync(
-                    It.IsAny<ContentManifest>(),
-                    It.IsAny<string>(),
-                    It.IsAny<IProgress<ContentStorageProgress>?>(),
-                    It.IsAny<CancellationToken>()),
-                Times.Never);
         }
         finally
         {
@@ -357,8 +460,10 @@ public class GitHubContentDelivererTests
         }
     }
 
-    private GitHubContentDeliverer CreateDeliverer() =>
-        new(_downloadService.Object, _manifestPool.Object, _factoryResolver.Object, _logger.Object);
+    private GitHubContentDeliverer CreateSut() =>
+        new(_downloadService.Object, _fileHashProvider.Object, _logger.Object);
+
+    private GitHubContentDeliverer CreateDeliverer() => CreateSut();
 
     private sealed class CancelOnFirstReport(CancellationTokenSource cancellation) : IProgress<ContentAcquisitionProgress>
     {

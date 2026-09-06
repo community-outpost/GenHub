@@ -89,11 +89,28 @@ public class LocalFileSystemContentProvider(
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
-        // Implementation-specific content preparation for local file system
-        Logger.LogDebug("Preparing local file system content for manifest {ManifestId}", manifest.Id);
+        try
+        {
+            Logger.LogInformation("Preparing local file system content for manifest {ManifestId}", manifest.Id);
 
-        // For local file system, content is already available locally
-        // Just return the manifest as-is
-        return await Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
+            if (!Deliverer.CanDeliver(manifest))
+            {
+                return OperationResult<ContentManifest>.CreateFailure($"Cannot deliver content for manifest {manifest.Id}");
+            }
+
+            // Use the deliverer to handle content acquisition (copying/extracting to staging)
+            var deliveryResult = await Deliverer.DeliverContentAsync(manifest, workingDirectory, progress, cancellationToken);
+            if (!deliveryResult.Success)
+            {
+                return OperationResult<ContentManifest>.CreateFailure($"Local file system content delivery failed: {deliveryResult.FirstError}");
+            }
+
+            return OperationResult<ContentManifest>.CreateSuccess(deliveryResult.Data ?? manifest);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to prepare local file system content for manifest {ManifestId}", manifest.Id);
+            return OperationResult<ContentManifest>.CreateFailure($"Local file system content preparation failed: {ex.Message}");
+        }
     }
 }

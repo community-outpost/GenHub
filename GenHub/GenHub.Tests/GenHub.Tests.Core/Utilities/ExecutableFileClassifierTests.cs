@@ -33,6 +33,7 @@ public class ExecutableFileClassifierTests : IDisposable
     [InlineData("generalszh", true)]
     [InlineData("GeneralsMD/Release/generalszh", true)]
     [InlineData("generals.exe", true)]
+    [InlineData("generals.ctr", false)]
     [InlineData("run.sh", true)]
     [InlineData("Launch.command", true)]
 
@@ -61,6 +62,7 @@ public class ExecutableFileClassifierTests : IDisposable
     [Theory]
     [InlineData("generalszh", true)]
     [InlineData("generals.exe", true)]
+    [InlineData("generals.ctr", false)]
     [InlineData("GeneralsOnlineZH_60.exe", true)]
 
     // A library is never launched, so it must not win a FirstOrDefault over the real
@@ -248,5 +250,19 @@ public class ExecutableFileClassifierTests : IDisposable
     {
         Assert.True(ExecutableFileClassifier.RequiresExecutePermission("generalszh", null));
         Assert.True(ExecutableFileClassifier.IsLegacyLaunchCandidate("generalszh", null));
+    }
+
+    /// <summary>
+    /// Custom mod extensions with PE magic bytes (e.g. Contra generals.ctr) are recognized on disk.
+    /// </summary>
+    [Fact]
+    public void CustomExtensionWithPEMagicBytes_IsClassifiedExecutable()
+    {
+        var contraPath = Path.Combine(_tempDirectory, "generals.ctr");
+        File.WriteAllBytes(contraPath, [0x4D, 0x5A, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00]);
+
+        Assert.True(ExecutableFileClassifier.RequiresExecutePermission("generals.ctr", contraPath));
+        Assert.True(ExecutableFileClassifier.IsLegacyLaunchCandidate("generals.ctr", contraPath));
+        Assert.True(ExecutableFileClassifier.HasExecutableMagicBytes(contraPath));
     }
 }

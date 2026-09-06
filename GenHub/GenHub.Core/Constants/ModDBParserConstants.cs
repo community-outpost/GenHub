@@ -23,6 +23,9 @@ public static class ModDBParserConstants
     /// <summary>Selector for release date.</summary>
     public const string ReleaseDateSelector = "time[datetime], .date, .released";
 
+    /// <summary>Attribute name for HTML datetime attribute.</summary>
+    public const string DateTimeAttribute = "datetime";
+
     /// <summary>Selector for game name.</summary>
     public const string GameNameSelector = ".game, .parentgame";
 
@@ -90,7 +93,7 @@ public static class ModDBParserConstants
     // ===== Description/Summary Selectors =====
 
     /// <summary>Selector for full description content.</summary>
-    public const string FullDescriptionSelector = "#downloaddescription, #downloadsummary, #articlebrowse .articlebody, .articlebody, #modsummary, .modtext, #profile .description, #description, .summary .content, .description .content";
+    public const string FullDescriptionSelector = "#downloaddescription, #downloadsummary, #articlebrowse .articlebody, .articlebody, #modsummary, .modtext, #profile .description, #description, #articlebrowse, .summary .content, .description .content";
 
     /// <summary>Selector for the file-page body copy (not the breadcrumb .summary trail).</summary>
     public const string FileDescriptionSelector = "#downloaddescription, #downloadsummary";
@@ -148,7 +151,7 @@ public static class ModDBParserConstants
     public const string VideoLinkSelector = "a[href*='/videos/'], a[href*='youtube.com/watch'], a[href*='youtu.be/'], a[href*='vimeo.com/']";
 
     /// <summary>Selector for video thumbnails.</summary>
-    public const string VideoThumbnailSelector = ".thumbnail img, .preview img";
+    public const string VideoThumbnailSelector = ".thumbnail img, .preview img, img";
 
     /// <summary>Selector for video titles.</summary>
     public const string VideoTitleSelector = ".title, h3, h4, h5, .caption";
