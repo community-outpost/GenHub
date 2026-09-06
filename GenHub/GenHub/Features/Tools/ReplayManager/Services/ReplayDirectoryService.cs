@@ -223,7 +223,7 @@ public sealed class ReplayDirectoryService(
             }
 
             var enabledContentIds = await GatherEnabledContentIdsAsync(
-                manifestPool, contentOrchestrator, replay, installationManifestId, clientManifestId, isRetailClient, logger, ct);
+                manifestPool, contentOrchestrator, replay, installationManifestId, clientManifestId, logger, ct);
 
             logger.LogInformation(
                 "[ReplayManager] Gathered {Count} enabled content IDs for replay profile: [{ContentIds}]",
@@ -428,7 +428,6 @@ public sealed class ReplayDirectoryService(
         ReplayFile replay,
         string installationManifestId,
         string clientManifestId,
-        bool isRetailClient,
         ILogger logger,
         CancellationToken ct)
     {
@@ -444,10 +443,14 @@ public sealed class ReplayDirectoryService(
             enabledContentIds.Add(clientManifestId);
         }
 
+        var isRetailClient = string.Equals(clientManifestId, installationManifestId, StringComparison.OrdinalIgnoreCase) ||
+                             string.IsNullOrWhiteSpace(replay.MatchedClient?.Publisher) ||
+                             string.Equals(replay.MatchedClient?.Publisher, "ea", StringComparison.OrdinalIgnoreCase);
+
         if (!isRetailClient && replay.MatchedClient != null && string.IsNullOrEmpty(replay.MatchedClient.DataPatchManifestId))
         {
             await AddThirdPartyCompanionManifestsAsync(
-                manifestPool, clientManifestId, replay.MatchedClient.Publisher, replay.GameVersion, replay.MatchedClient.Version, enabledContentIds, logger, ct);
+                manifestPool, clientManifestId, replay, enabledContentIds, logger, ct);
         }
 
         if (replay.MatchedClient != null &&
@@ -773,31 +776,59 @@ public sealed class ReplayDirectoryService(
         return matchedClient.ManifestId;
     }
 
+    private static async Task<ContentManifest?> GetClientManifestAsync(
+        IContentManifestPool manifestPool,
+        string clientManifestId,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(clientManifestId))
+        {
+            return null;
+        }
+
+        var clientManifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(clientManifestId), ct);
+        return clientManifestResult is { Success: true } ? clientManifestResult.Data : null;
+    }
+
+    private static bool IsCandidateCompanion(
+        ContentManifest manifest,
+        GameType targetGame,
+        string publisher,
+        string clientVersion)
+    {
+        return manifest.TargetGame == targetGame &&
+               (manifest.ContentType == ContentType.Patch || manifest.ContentType == ContentType.MapPack) &&
+               (string.Equals(manifest.Publisher?.PublisherType, publisher, StringComparison.OrdinalIgnoreCase) ||
+                manifest.Id.Value.Contains("." + publisher + ".", StringComparison.OrdinalIgnoreCase)) &&
+               !string.IsNullOrEmpty(manifest.Version) &&
+               string.Equals(manifest.Version, clientVersion, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool HasCompanionDependencyLink(
+        ContentManifest? clientManifest,
+        ContentManifest companion,
+        string clientManifestId)
+    {
+        return clientManifest?.Dependencies?.Any(d => string.Equals(d.Id.Value, companion.Id.Value, StringComparison.OrdinalIgnoreCase)) == true ||
+               companion.Dependencies?.Any(d => string.Equals(d.Id.Value, clientManifestId, StringComparison.OrdinalIgnoreCase)) == true;
+    }
+
     private static async Task AddThirdPartyCompanionManifestsAsync(
         IContentManifestPool manifestPool,
         string clientManifestId,
-        string? publisher,
-        GameType targetGame,
-        string? clientVersion,
+        ReplayFile replay,
         List<string> enabledContentIds,
         ILogger logger,
         CancellationToken ct)
     {
+        var publisher = replay.MatchedClient?.Publisher;
+        var clientVersion = replay.MatchedClient?.Version;
         if (string.IsNullOrEmpty(publisher) || string.IsNullOrEmpty(clientVersion))
         {
             return;
         }
 
-        ContentManifest? clientManifest = null;
-        if (!string.IsNullOrEmpty(clientManifestId))
-        {
-            var clientManifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(clientManifestId), ct);
-            if (clientManifestResult != null && clientManifestResult.Success)
-            {
-                clientManifest = clientManifestResult.Data;
-            }
-        }
-
+        var clientManifest = await GetClientManifestAsync(manifestPool, clientManifestId, ct);
         var allManifests = await manifestPool.GetAllManifestsAsync(ct);
         if (allManifests == null || !allManifests.Success || allManifests.Data == null)
         {
@@ -805,20 +836,11 @@ public sealed class ReplayDirectoryService(
         }
 
         var candidateCompanions = allManifests.Data.Where(m =>
-            m.TargetGame == targetGame &&
-            (m.ContentType == ContentType.Patch || m.ContentType == ContentType.MapPack) &&
-            (string.Equals(m.Publisher?.PublisherType, publisher, StringComparison.OrdinalIgnoreCase) ||
-             m.Id.Value.Contains("." + publisher + ".", StringComparison.OrdinalIgnoreCase)) &&
-            !string.IsNullOrEmpty(m.Version) &&
-            string.Equals(m.Version, clientVersion, StringComparison.OrdinalIgnoreCase));
+            IsCandidateCompanion(m, replay.GameVersion, publisher, clientVersion));
 
         foreach (var companion in candidateCompanions)
         {
-            var hasDependencyLink =
-                clientManifest?.Dependencies?.Any(d => string.Equals(d.Id.Value, companion.Id.Value, StringComparison.OrdinalIgnoreCase)) == true ||
-                companion.Dependencies?.Any(d => string.Equals(d.Id.Value, clientManifestId, StringComparison.OrdinalIgnoreCase)) == true;
-
-            if (hasDependencyLink)
+            if (HasCompanionDependencyLink(clientManifest, companion, clientManifestId))
             {
                 if (!enabledContentIds.Contains(companion.Id.Value, StringComparer.OrdinalIgnoreCase))
                 {

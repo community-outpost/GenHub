@@ -463,6 +463,50 @@ def _update_existing_entry(existing: dict, incoming: dict) -> None:
         existing["sha256"] = incoming["sha256"]
 
 
+def _is_crc_field_compatible(item_crc: str, existing_crc: str) -> bool:
+    """Checks whether two CRC hex strings are compatible (either empty or equal)."""
+    return not existing_crc or not item_crc or existing_crc == item_crc
+
+
+def _find_compatible_catalog_key(
+    merged: dict,
+    m_id: str,
+    key: tuple[str, str, str],
+    item: dict,
+) -> tuple[str, str, str] | None:
+    """Finds an existing catalog key compatible with the crawled item to merge CRCs/hashes."""
+    item_exe, item_ini = key[1], key[2]
+    if not item_exe and not item_ini:
+        return None
+
+    for existing_key, existing_entry in merged.items():
+        if existing_key[0] != m_id:
+            continue
+
+        ex_exe, ex_ini = existing_key[1], existing_key[2]
+        exe_compatible = _is_crc_field_compatible(item_exe, ex_exe)
+        ini_compatible = _is_crc_field_compatible(item_ini, ex_ini)
+        is_crc_compatible = exe_compatible and ini_compatible
+
+        has_partial_crc_match = (not ex_exe and item_exe) or (not ex_ini and item_ini)
+        same_cdn = (
+            not existing_entry.get("sha256")
+            and item.get("sha256")
+            and existing_entry.get("cdnUrl") == item.get("cdnUrl")
+        )
+
+        if is_crc_compatible and (has_partial_crc_match or same_cdn):
+            return existing_key
+
+        if same_cdn and not is_crc_compatible:
+            print(
+                f"Validation error: refusing to merge {m_id} due to conflicting CRCs ({item_exe}/{item_ini} vs {ex_exe}/{ex_ini}) for same cdnUrl",
+                file=sys.stderr,
+            )
+
+    return None
+
+
 def merge_catalogs(existing: list[dict], crawled: list[dict]) -> list[dict]:
     """Merges new crawled entries into existing catalog, preserving known CRCs and hashes."""
     def entry_key(entry: dict) -> tuple[str, str, str]:
@@ -481,66 +525,63 @@ def merge_catalogs(existing: list[dict], crawled: list[dict]) -> list[dict]:
         key = entry_key(item)
         if key in merged:
             _update_existing_entry(merged[key], item)
-        else:
-            item_exe = key[1]
-            item_ini = key[2]
-            matched_key = None
-            if item_exe or item_ini:
-                for existing_key in list(merged.keys()):
-                    if existing_key[0] == m_id:
-                        ex_exe, ex_ini = existing_key[1], existing_key[2]
-                        exe_compatible = not ex_exe or not item_exe or ex_exe == item_exe
-                        ini_compatible = not ex_ini or not item_ini or ex_ini == item_ini
-                        if (not ex_exe and item_exe) or (not ex_ini and item_ini):
-                            if exe_compatible and ini_compatible:
-                                matched_key = existing_key
-                                break
-                        elif not merged[existing_key].get("sha256") and item.get("sha256") and merged[existing_key].get("cdnUrl") == item.get("cdnUrl"):
-                            if exe_compatible and ini_compatible:
-                                matched_key = existing_key
-                                break
-                            else:
-                                print(
-                                    f"Validation error: refusing to merge {m_id} due to conflicting CRCs ({item_exe}/{item_ini} vs {ex_exe}/{ex_ini}) for same cdnUrl",
-                                    file=sys.stderr,
-                                )
+            continue
 
-            if matched_key:
-                existing_entry = merged.pop(matched_key)
-                _update_existing_entry(existing_entry, item)
-                merged[entry_key(existing_entry)] = existing_entry
-            else:
-                if any(k[0] == m_id for k in merged.keys()):
-                    print(
-                        f"Validation warning: duplicate manifestId {m_id} with distinct CRC key {key}",
-                        file=sys.stderr,
-                    )
-                merged[key] = dict(item)
+        matched_key = _find_compatible_catalog_key(merged, m_id, key, item)
+        if matched_key:
+            existing_entry = merged.pop(matched_key)
+            _update_existing_entry(existing_entry, item)
+            merged[entry_key(existing_entry)] = existing_entry
+        else:
+            if any(k[0] == m_id for k in merged):
+                print(
+                    f"Validation warning: duplicate manifestId {m_id} with distinct CRC key {key}",
+                    file=sys.stderr,
+                )
+            merged[key] = dict(item)
 
     return list(merged.values())
 
 
+def _validate_crc_fields(m_id: str, entry: dict) -> bool:
+    """Validates hex format for exeCrc and iniCrc if present."""
+    valid = True
+    for crc_name in ("exeCrc", "iniCrc"):
+        crc_val = entry.get(crc_name)
+        if crc_val and not re.match(r"^0x[0-9A-Fa-f]{8}$", crc_val):
+            print(f"Validation error at {m_id}: invalid {crc_name} format '{crc_val}'", file=sys.stderr)
+            valid = False
+    return valid
+
+
+def _validate_seen_manifest(m_id: str, entry: dict, seen_manifests: dict) -> bool:
+    """Checks for duplicate or conflicting exeCrc for previously seen manifest IDs."""
+    if m_id not in seen_manifests:
+        seen_manifests[m_id] = entry
+        return True
+
+    existing_entry = seen_manifests[m_id]
+    ex_exe = (existing_entry.get("exeCrc") or "").lower()
+    new_exe = (entry.get("exeCrc") or "").lower()
+    if ex_exe and new_exe and ex_exe != new_exe:
+        print(
+            f"Validation error at {m_id}: conflicting exeCrc {new_exe} vs {ex_exe} for the same manifestId",
+            file=sys.stderr,
+        )
+        return False
+
+    print(f"Validation notice: multiple mapping variants for manifestId {m_id}", file=sys.stderr)
+    return True
+
+
 def _validate_mapping_entry(idx: int, entry: dict, seen_manifests: dict) -> bool:
     """Validates a single mapping entry in the CRC catalog."""
-    valid = True
     m_id = entry.get("manifestId")
     if not m_id:
         print(f"Validation error at mapping index {idx}: missing manifestId", file=sys.stderr)
-        valid = False
-    elif m_id in seen_manifests:
-        existing_entry = seen_manifests[m_id]
-        ex_exe = (existing_entry.get("exeCrc") or "").lower()
-        new_exe = (entry.get("exeCrc") or "").lower()
-        if ex_exe and new_exe and ex_exe != new_exe:
-            print(
-                f"Validation error at {m_id}: conflicting exeCrc {new_exe} vs {ex_exe} for the same manifestId",
-                file=sys.stderr,
-            )
-            valid = False
-        else:
-            print(f"Validation notice: multiple mapping variants for manifestId {m_id}", file=sys.stderr)
-    else:
-        seen_manifests[m_id] = entry
+        return False
+
+    valid = _validate_seen_manifest(m_id, entry, seen_manifests)
 
     if not entry.get("publisher"):
         print(f"Validation error at {m_id}: missing publisher", file=sys.stderr)
@@ -550,11 +591,8 @@ def _validate_mapping_entry(idx: int, entry: dict, seen_manifests: dict) -> bool
         print(f"Validation error at {m_id}: invalid gameType {entry.get('gameType')}", file=sys.stderr)
         valid = False
 
-    for crc_name in ("exeCrc", "iniCrc"):
-        crc_val = entry.get(crc_name)
-        if crc_val and not re.match(r"^0x[0-9A-Fa-f]{8}$", crc_val):
-            print(f"Validation error at {m_id}: invalid {crc_name} format '{crc_val}'", file=sys.stderr)
-            valid = False
+    if not _validate_crc_fields(m_id, entry):
+        valid = False
 
     return valid
 
