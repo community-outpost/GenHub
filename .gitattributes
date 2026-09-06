@@ -1,0 +1,5 @@
+# Exclude large backdrop cover images from source archives (PURA bot 25MB cap / GitHub release tarballs)
+GenHub/GenHub/Assets/Covers/china-cover.png export-ignore
+GenHub/GenHub/Assets/Covers/gla-cover.png export-ignore
+GenHub/GenHub/Assets/Covers/usa-cover.png export-ignore
+.gitattributes export-ignore
