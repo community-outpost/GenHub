@@ -101,6 +101,7 @@ public class MarkdownTextBlock : UserControl
             },
             Foreground = Brushes.White,
             Margin = new Thickness(0, heading.Level == 1 ? 16 : 12, 0, 8),
+            TextWrapping = TextWrapping.Wrap,
         };
         return textBlock;
     }

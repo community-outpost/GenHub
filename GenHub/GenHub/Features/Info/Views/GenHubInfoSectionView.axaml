@@ -24,6 +24,7 @@
       <Setter Property="FontWeight" Value="Bold"/>
       <Setter Property="Foreground" Value="white"/>
       <Setter Property="Margin" Value="0,0,0,8"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
 
     <!-- Info Card Styles - Modern Premium Glassmorphic Look -->
@@ -76,6 +77,7 @@
       <Setter Property="FontSize" Value="22"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
       <Setter Property="Foreground" Value="#F0F0F0"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
 
     <!-- Header for demos "Interactive Element" -->
@@ -83,12 +85,14 @@
        <Setter Property="FontSize" Value="24"/>
        <Setter Property="FontWeight" Value="Bold"/>
        <Setter Property="Foreground" Value="White"/>
+       <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
 
      <Style Selector="TextBlock.demo-subtitle">
        <Setter Property="FontSize" Value="15"/>
        <Setter Property="Foreground" Value="#AAAAAA"/>
        <Setter Property="Margin" Value="0,6,0,0"/>
+       <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
 
     <Style Selector="Border.demo-container">
@@ -172,8 +176,6 @@
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
-
-
     <!-- Content container inside expandable sections -->
     <Style Selector="StackPanel.info-section-content">
         <Setter Property="Spacing" Value="12"/>
@@ -194,8 +196,6 @@
         <Setter Property="Foreground" Value="#888888"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
-
-
 
     <!-- Feature item title -->
     <Style Selector="TextBlock.info-feature-title">
@@ -221,8 +221,8 @@
 
   </UserControl.Styles>
 
-  <ScrollViewer Padding="60,40,60,40" ClipToBounds="False">
-      <StackPanel Spacing="10" MaxWidth="1000" HorizontalAlignment="Center" ClipToBounds="False">
+  <ScrollViewer Padding="20,10,20,30" ClipToBounds="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="10" MaxWidth="1000" HorizontalAlignment="Stretch" ClipToBounds="False">
 
         <!-- Main Section Header -->
         <StackPanel Margin="0,0,0,50">
@@ -257,6 +257,7 @@
           </StackPanel>
         </Border>
 
+        <!-- ============================================== -->
         <!-- DEMO: SHORTCUTS                                -->
         <!-- ============================================== -->
         <Border Margin="0,0,0,50">
@@ -268,6 +269,7 @@
                 <TextBlock Text="Shortcut creation process." Classes="demo-subtitle"/>
 
                 <Border Classes="demo-container">
+                  <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="40" VerticalAlignment="Center">
 
                          <!-- 1. The Source: Profile Card -->
@@ -305,6 +307,7 @@
                         </StackPanel>
 
                     </StackPanel>
+                  </Viewbox>
                 </Border>
             </StackPanel>
         </Border>
@@ -368,66 +371,33 @@
                 </StackPanel>
             </StackPanel>
 
-            <!-- 2. GitHub PAT & CI Artifacts -->
+            <!-- 2. Nightly / Experimental Builds -->
             <StackPanel Spacing="20">
                 <StackPanel Spacing="10">
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <material:MaterialIcon Kind="Github" Width="24" Height="24" Foreground="{StaticResource SystemAccentColorBrush}"/>
-                        <TextBlock Text="Advanced: CI Artifacts &amp; GitHub PAT" Classes="demo-title" VerticalAlignment="Center"/>
+                         <material:MaterialIcon Kind="SourceBranch" Width="24" Height="24" Foreground="#FF9900"/>
+                         <TextBlock Text="Developer &amp; Nightly Builds" Classes="demo-title" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <TextBlock Text="Subscribe to pull requests or specific branches to test new features before they are merged."
+                    <TextBlock Text="Switch between experimental channels directly from the notification UI."
                                Classes="demo-subtitle"/>
 
-                    <!-- Detailed explanations (PAT & CI) -->
-                    <StackPanel Margin="0,12,0,0" Spacing="15">
-                        <TextBlock Text="CI (Continuous Integration) Artifacts are automated builds created by GitHub for every code change. To access these protected resources, GenHub requires a Personal Access Token."
-                                   FontSize="13" Foreground="#AAAAAA" TextWrapping="Wrap" MaxWidth="1000"/>
-
-                        <Grid ColumnDefinitions="*, *">
-                             <!-- Explanations removed in favor of InfoCards -->
-                        </Grid>
+                    <!-- Detailed explanations (Nightly Updates) -->
+                     <StackPanel Margin="0,12,0,0" Spacing="12">
 
                         <Border Classes="demo-container" Margin="0,10,0,0">
-                            <Border Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="30" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" MaxWidth="600" HorizontalAlignment="Center">
-                                <StackPanel Spacing="20" DataContext="{Binding DemoGameSettingsVM}">
-                                     <StackPanel Orientation="Horizontal" Spacing="12">
-                                        <PathIcon Data="M7,14A2,2 0 0,1 5,12A2,2 0 0,1 7,10A2,2 0 0,1 9,12A2,2 0 0,1 7,14M12.65,10C11.83,7.67 9.61,6 7,6A6,6 0 0,0 1,12A6,6 0 0,0 7,18C9.61,18 11.83,16.33 12.65,14H17V18H21V14H23V10H12.65Z" Width="20" Height="20" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
-                                        <TextBlock Text="GitHub Personal Access Token"
-                                                   FontSize="18" FontWeight="SemiBold" Foreground="#FFFFFF" VerticalAlignment="Center" />
-                                     </StackPanel>
-
-                                     <!-- PAT Status -->
-                                     <Border Background="#25FFFFFF" CornerRadius="6" Padding="12,8" HorizontalAlignment="Left">
-                                         <StackPanel Orientation="Horizontal" Spacing="10">
-                                            <Ellipse Width="10" Height="10" VerticalAlignment="Center" Fill="{Binding PatStatusColor}" />
-                                            <TextBlock Text="{Binding PatStatusMessage}" Foreground="#EEE" FontSize="13" FontWeight="Medium" />
-                                         </StackPanel>
-                                     </Border>
-
-                                     <!-- PAT Input -->
-                                     <StackPanel Spacing="8">
-                                         <Grid ColumnDefinitions="*,Auto">
-                                            <TextBox Grid.Column="0"
-                                                     Text="{Binding GitHubPatInput}"
-                                                     PasswordChar=""
-                                                     Watermark="ghp_xxxxxxxxxxxxxxxxxxxx"
-                                                     IsEnabled="True"
-                                                     FontSize="14"
-                                                     Height="40"
-                                                     Margin="0,0,12,0"/>
-                                            <Button Grid.Column="1"
-                                                    Content="Save &amp; Test"
-                                                    Command="{Binding TestPatCommand}"
-                                                    Background="{StaticResource SystemAccentColorBrush}"
-                                                    Foreground="White"
-                                                    Padding="20,0"
-                                                    Height="40"
-                                                    FontWeight="SemiBold"
-                                                    CornerRadius="4" />
+                            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Background="{DynamicResource CardBackground}" ClipToBounds="True" MaxWidth="600" HorizontalAlignment="Center">
+                                <StackPanel Spacing="10" Margin="15">
+                                     <TextBlock Text="Channels Window Preview" FontWeight="Bold" Foreground="#DDD"/>
+                                     <!-- Mock Channel selector -->
+                                     <Border Background="#1A1A1A" CornerRadius="4" Padding="10">
+                                         <Grid ColumnDefinitions="*, Auto">
+                                             <StackPanel>
+                                                 <TextBlock Text="Current Channel: Release" Foreground="#AAA"/>
+                                                 <TextBlock Text="v0.4.19 (Stable)" FontSize="11" Foreground="#666"/>
+                                             </StackPanel>
+                                             <Button Grid.Column="1" Content="Switch to Beta" Background="#333" Foreground="#DDD" FontSize="11"/>
                                          </Grid>
-                                         <TextBlock Text="Try entering 'ghp_demo' and clicking Save &amp; Test to see the validation in action!"
-                                                   FontSize="11" Foreground="#666" HorizontalAlignment="Left" Margin="2,0,0,0" />
-                                     </StackPanel>
+                                     </Border>
                                 </StackPanel>
                             </Border>
                         </Border>
@@ -457,7 +427,8 @@
                   <TextBlock Text="TIP: You can resize this demo window by dragging the right or bottom edge!"
                              FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"/>
 
-                  <Grid HorizontalAlignment="Center">
+                  <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
+                    <Grid HorizontalAlignment="Center">
                       <Grid.ColumnDefinitions>
                           <ColumnDefinition Width="800" MinWidth="400" />
                           <ColumnDefinition Width="Auto"/>
@@ -505,7 +476,8 @@
 
                       <!-- Corner Resize Handle (Visual Only) -->
                       <material:MaterialIcon Grid.Row="1" Grid.Column="1" Kind="Resize" Foreground="#666" Width="12" Height="12" Margin="2" VerticalAlignment="Top" HorizontalAlignment="Left"/>
-                  </Grid>
+                    </Grid>
+                  </Viewbox>
 
                   <TextBlock Text="Try adjusting the resolution or enabling experimental features in the Game Settings tab!"
                              FontSize="13" Foreground="#666" HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="700" TextWrapping="Wrap"/>
@@ -538,7 +510,8 @@
                   <TextBlock Text="TIP: You can resize this demo window by dragging the right or bottom edge!"
                              FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"/>
 
-                  <Grid HorizontalAlignment="Center">
+                  <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
+                    <Grid HorizontalAlignment="Center">
                       <Grid.ColumnDefinitions>
                           <ColumnDefinition Width="800" MinWidth="400" />
                           <ColumnDefinition Width="Auto"/>
@@ -586,7 +559,8 @@
 
                       <!-- Corner Resize Handle (Visual Only) -->
                       <material:MaterialIcon Grid.Row="1" Grid.Column="1" Kind="Resize" Foreground="#666" Width="12" Height="12" Margin="2" VerticalAlignment="Top" HorizontalAlignment="Left"/>
-                  </Grid>
+                    </Grid>
+                  </Viewbox>
 
                   <TextBlock Text="Try clicking the filter buttons (Executable, Maps, Mods) and items to see them move between Enabled and Available!"
                              FontSize="13" Foreground="#666" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="700"/>
@@ -611,11 +585,13 @@
 
                     <!-- Interactive Demo -->
                     <Border Classes="demo-container">
-                        <Grid Width="800" MaxHeight="600" HorizontalAlignment="Center">
-                            <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
-                                <toolsRep:ReplayManagerView DataContext="{Binding DemoReplayManager}"/>
-                            </Border>
-                        </Grid>
+                        <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
+                            <Grid Width="800" MaxHeight="600" HorizontalAlignment="Center">
+                                <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                                    <toolsRep:ReplayManagerView DataContext="{Binding DemoReplayManager}"/>
+                                </Border>
+                            </Grid>
+                        </Viewbox>
                     </Border>
                 </StackPanel>
 
@@ -629,11 +605,13 @@
 
                     <!-- Interactive Demo -->
                     <Border Classes="demo-container">
-                        <Grid Width="800" MaxHeight="600" HorizontalAlignment="Center">
-                            <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
-                                <toolsMap:MapManagerView DataContext="{Binding DemoMapManager}"/>
-                            </Border>
-                        </Grid>
+                        <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
+                            <Grid Width="800" MaxHeight="600" HorizontalAlignment="Center">
+                                <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                                    <toolsMap:MapManagerView DataContext="{Binding DemoMapManager}"/>
+                                </Border>
+                            </Grid>
+                        </Viewbox>
                     </Border>
                 </StackPanel>
 
@@ -651,7 +629,9 @@
             </StackPanel>
 
             <Border Classes="demo-container">
-               <views:ScanWizardDemoView Height="450" HorizontalAlignment="Center" />
+               <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
+                   <views:ScanWizardDemoView Height="450" Width="800" HorizontalAlignment="Center" />
+               </Viewbox>
             </Border>
           </StackPanel>
         </Border>
@@ -737,7 +717,9 @@
             </StackPanel>
 
             <Border Classes="demo-container">
-               <views:WorkspaceDemoView DataContext="{Binding DemoWorkspace}" MaxWidth="800" HorizontalAlignment="Center" />
+               <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
+                   <views:WorkspaceDemoView DataContext="{Binding DemoWorkspace}" MaxWidth="800" HorizontalAlignment="Center" />
+               </Viewbox>
             </Border>
           </StackPanel>
         </Border>
@@ -781,6 +763,7 @@
                                 CornerRadius="4"
                                 Padding="10,6"
                                 Margin="12,0,0,0"
+                                VerticalAlignment="Center"
                                 IsVisible="{Binding IsExpandable}">
                           <StackPanel Orientation="Horizontal" Spacing="8">
                               <TextBlock Text="{Binding IsExpanded, Converter={StaticResource BoolToExpandTextConverter}, FallbackValue='Read More'}"
@@ -814,13 +797,14 @@
                     <ItemsControl Grid.Row="1" ItemsSource="{Binding Actions}" IsVisible="{Binding Actions.Count}">
                       <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                          <StackPanel Orientation="Horizontal" Spacing="10"/>
+                          <WrapPanel Orientation="Horizontal"/>
                         </ItemsPanelTemplate>
                       </ItemsControl.ItemsPanel>
                       <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="models:InfoAction">
                           <Button Classes="action-btn"
                                   Classes.primary="{Binding IsPrimary}"
+                                  Margin="0,0,10,8"
                                   Command="{Binding ((vm:GenHubInfoSectionViewModel)DataContext).HandleActionCommand, RelativeSource={RelativeSource AncestorType=views:GenHubInfoSectionView}}"
                                   CommandParameter="{Binding}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
@@ -863,7 +847,22 @@
                                                FontSize="16" FontWeight="SemiBold" Foreground="#F0F0F0"
                                                TextWrapping="Wrap" VerticalAlignment="Center"/>
 
-
+                                    <!-- Expand Icon (Matches main layout) -->
+                                    <Border Grid.Column="1"
+                                            Background="#2A2A2A"
+                                            BorderBrush="#444"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Padding="10,6"
+                                            Margin="12,0,0,0"
+                                            VerticalAlignment="Center">
+                                      <StackPanel Orientation="Horizontal" Spacing="8">
+                                          <TextBlock Text="{Binding IsExpanded, Converter={StaticResource BoolToExpandTextConverter}, FallbackValue='Read More'}"
+                                                     FontSize="12" Foreground="#CCC" VerticalAlignment="Center"/>
+                                          <material:MaterialIcon Kind="{Binding IsExpanded, Converter={StaticResource BoolToExpandIconConverter}}"
+                                                                 Width="16" Height="16" Foreground="#666"/>
+                                      </StackPanel>
+                                    </Border>
                                 </Grid>
 
                                 <!-- Expanded Content (Unified with standard cards) -->
@@ -903,10 +902,25 @@
                                                FontSize="16" FontWeight="SemiBold" Foreground="#F0F0F0"
                                                TextWrapping="Wrap" VerticalAlignment="Center"/>
 
-
+                                    <!-- Expand Icon (Matches main layout) -->
+                                    <Border Grid.Column="1"
+                                            Background="#2A2A2A"
+                                            BorderBrush="#444"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Padding="10,6"
+                                            Margin="12,0,0,0"
+                                            VerticalAlignment="Center">
+                                      <StackPanel Orientation="Horizontal" Spacing="8">
+                                          <TextBlock Text="{Binding IsExpanded, Converter={StaticResource BoolToExpandTextConverter}, FallbackValue='Read More'}"
+                                                     FontSize="12" Foreground="#CCC" VerticalAlignment="Center"/>
+                                          <material:MaterialIcon Kind="{Binding IsExpanded, Converter={StaticResource BoolToExpandIconConverter}}"
+                                                                 Width="16" Height="16" Foreground="#666"/>
+                                      </StackPanel>
+                                    </Border>
                                 </Grid>
 
-                                <!-- Content -->
+                                <!-- Expanded Content (Unified with standard cards) -->
                                 <StackPanel IsVisible="{Binding IsExpanded}" Margin="0,16,0,0">
                                     <infra:MarkdownTextBlock Markdown="{Binding Content}" FontSize="14" Foreground="#CCC" Margin="0,0,0,8"/>
                                     <infra:MarkdownTextBlock Markdown="{Binding DetailedContent}"
@@ -921,7 +935,6 @@
             </ItemsControl>
         </Grid>
 
-        <Border Height="120"/> <!-- Bottom padding increased to fix clipping -->
       </StackPanel>
   </ScrollViewer>
 </UserControl>
