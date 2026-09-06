@@ -19,6 +19,7 @@ namespace GenHub.Features.Info.ViewModels;
 public partial class ScanWizardDemoViewModel : ObservableObject
 {
     private readonly INotificationService? _notificationService;
+    private CancellationTokenSource? _scanCts;
 
     [ObservableProperty]
     private bool _isScanning;
@@ -71,13 +72,15 @@ public partial class ScanWizardDemoViewModel : ObservableObject
             return;
         }
 
+        _scanCts?.Dispose();
+        _scanCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
         IsScanning = true;
         try
         {
             Status = "Scanning registry, Steam, and EA App directories...";
-            Items.Clear();
 
-            await Task.Delay(1000, cancellationToken);
+            await Task.Delay(1000, _scanCts.Token);
 
             PopulateDefaultItems();
             UpdateState();
@@ -96,6 +99,8 @@ public partial class ScanWizardDemoViewModel : ObservableObject
         finally
         {
             IsScanning = false;
+            _scanCts?.Dispose();
+            _scanCts = null;
         }
     }
 
@@ -124,6 +129,11 @@ public partial class ScanWizardDemoViewModel : ObservableObject
     [RelayCommand]
     public void Cancel()
     {
+        if (IsScanning)
+        {
+            _scanCts?.Cancel();
+        }
+
         _notificationService?.Show(new NotificationMessage(
             NotificationType.Info,
             "Scan Wizard",

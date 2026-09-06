@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Info;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Messages;
@@ -14,7 +15,6 @@ using GenHub.Core.Models.Info;
 using GenHub.Features.AppUpdate.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Info.Services;
-using GenHub.Features.Info.ViewModels;
 using GenHub.Features.Tools.MapManager.ViewModels;
 using GenHub.Features.Tools.ReplayManager.ViewModels;
 
@@ -216,8 +216,8 @@ public partial class GenHubInfoSectionViewModel(
         Sections.Clear();
 
         var filtered = _currentModule == GeneralsHubModule.GeneralsOnline
-            ? _allSections.Where(s => s.Id == "faq" || s.Id == "go-changelog")
-            : _allSections.Where(s => s.Id != "faq" && s.Id != "go-changelog");
+            ? _allSections.Where(s => s.Id == InfoConstants.SectionFaq || s.Id == InfoConstants.SectionGoChangelog)
+            : _allSections.Where(s => s.Id != InfoConstants.SectionFaq && s.Id != InfoConstants.SectionGoChangelog);
 
         foreach (var section in filtered)
         {
@@ -390,67 +390,67 @@ public partial class GenHubInfoSectionViewModel(
     /// <summary>
     /// Gets a value indicating whether the Quickstart section is selected.
     /// </summary>
-    public bool IsQuickStartSelected => SelectedSection?.Id == "quickstart";
+    public bool IsQuickStartSelected => SelectedSection?.Id == InfoConstants.SectionQuickstart;
 
     /// <summary>
     /// Gets a value indicating whether the Game Profiles section is selected.
     /// </summary>
-    public bool IsGameProfilesSelected => SelectedSection?.Id == "game-profiles";
+    public bool IsGameProfilesSelected => SelectedSection?.Id == InfoConstants.SectionGameProfiles;
 
     /// <summary>
     /// Gets a value indicating whether the Game Settings section is selected.
     /// </summary>
-    public bool IsGameSettingsSelected => SelectedSection?.Id == "game-settings";
+    public bool IsGameSettingsSelected => SelectedSection?.Id == InfoConstants.SectionGameSettings;
 
     /// <summary>
     /// Gets a value indicating whether the Game Profile Content section is selected.
     /// </summary>
-    public bool IsGameProfileContentSelected => SelectedSection?.Id == "game-profile-content";
+    public bool IsGameProfileContentSelected => SelectedSection?.Id == InfoConstants.SectionGameProfileContent;
 
     /// <summary>
     /// Gets a value indicating whether the Shortcuts section is selected.
     /// </summary>
-    public bool IsShortcutsSelected => SelectedSection?.Id == "shortcuts";
+    public bool IsShortcutsSelected => SelectedSection?.Id == InfoConstants.SectionShortcuts;
 
     /// <summary>
     /// Gets a value indicating whether the Tools section is selected.
     /// </summary>
-    public bool IsToolsSelected => SelectedSection?.Id == "tools";
+    public bool IsToolsSelected => SelectedSection?.Id == InfoConstants.SectionTools;
 
     /// <summary>
     /// Gets a value indicating whether the Local Content section is selected.
     /// </summary>
-    public bool IsLocalContentSelected => SelectedSection?.Id == "local-content";
+    public bool IsLocalContentSelected => SelectedSection?.Id == InfoConstants.SectionLocalContent;
 
     /// <summary>
     /// Gets a value indicating whether the Scan for Games section is selected.
     /// </summary>
-    public bool IsScanForGamesSelected => SelectedSection?.Id == "scan-games";
+    public bool IsScanForGamesSelected => SelectedSection?.Id == InfoConstants.SectionScanGames;
 
     /// <summary>
     /// Gets a value indicating whether the App Updates section is selected.
     /// </summary>
-    public bool IsAppUpdatesSelected => SelectedSection?.Id == "app-updates";
+    public bool IsAppUpdatesSelected => SelectedSection?.Id == InfoConstants.SectionAppUpdates;
 
     /// <summary>
     /// Gets a value indicating whether the Changelogs section is selected.
     /// </summary>
-    public bool IsChangelogsSelected => SelectedSection?.Id == "changelogs";
+    public bool IsChangelogsSelected => SelectedSection?.Id == InfoConstants.SectionChangelogs;
 
     /// <summary>
     /// Gets a value indicating whether the Workspace (Filesystem Magic) section is selected.
     /// </summary>
-    public bool IsWorkspaceSelected => SelectedSection?.Id == "workspaces";
+    public bool IsWorkspaceSelected => SelectedSection?.Id == InfoConstants.SectionWorkspaces;
 
     /// <summary>
     /// Gets a value indicating whether the FAQ section is selected.
     /// </summary>
-    public bool IsFaqSelected => SelectedSection?.Id == "faq";
+    public bool IsFaqSelected => SelectedSection?.Id == InfoConstants.SectionFaq;
 
     /// <summary>
     /// Gets a value indicating whether the Generals Online Changelog section is selected.
     /// </summary>
-    public bool IsGoChangelogSelected => SelectedSection?.Id == "go-changelog";
+    public bool IsGoChangelogSelected => SelectedSection?.Id == InfoConstants.SectionGoChangelog;
 
     /// <inheritdoc/>
     public async Task InitializeAsync()
@@ -566,7 +566,6 @@ public partial class GenHubInfoSectionViewModel(
         OnPropertyChanged(nameof(IsLocalContentSelected));
         OnPropertyChanged(nameof(IsScanForGamesSelected));
         OnPropertyChanged(nameof(IsAppUpdatesSelected));
-        OnPropertyChanged(nameof(IsChangelogsSelected));
         OnPropertyChanged(nameof(IsChangelogsSelected));
         OnPropertyChanged(nameof(IsWorkspaceSelected));
         OnPropertyChanged(nameof(IsFaqSelected));

@@ -1,3 +1,4 @@
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using GenHub.Core.Interfaces.Notifications;
@@ -72,6 +73,52 @@ public class ScanWizardDemoViewModelTests
         vm.HasSelectedItems.Should().BeTrue();
         _notificationServiceMock.Verify(
             n => n.Show(It.Is<NotificationMessage>(m => m.Type == NotificationType.Success && m.Title == "Scan Wizard")),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that RescanAsync when canceled preserves items and sets canceled status.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task RescanAsync_WhenCancelled_PreservesItemsAndSetsCancelledStatus()
+    {
+        var vm = CreateVm();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await vm.RescanAsync(cts.Token);
+
+        vm.Status.Should().Be("Scan cancelled.");
+        vm.IsScanning.Should().BeFalse();
+        vm.Items.Should().HaveCount(2);
+        vm.HasSelectedItems.Should().BeTrue();
+        _notificationServiceMock.Verify(
+            n => n.Show(It.Is<NotificationMessage>(m => m.Type == NotificationType.Success)),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Tests that CancelCommand cancels active rescan operation and prevents success notification.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CancelCommand_DuringRescan_CancelsActiveScan()
+    {
+        var vm = CreateVm();
+        var scanTask = vm.RescanAsync();
+
+        // Cancel while scanning
+        vm.CancelCommand.Execute(null);
+        await scanTask;
+
+        vm.Status.Should().Be("Scan cancelled.");
+        vm.IsScanning.Should().BeFalse();
+        _notificationServiceMock.Verify(
+            n => n.Show(It.Is<NotificationMessage>(m => m.Type == NotificationType.Success)),
+            Times.Never);
+        _notificationServiceMock.Verify(
+            n => n.Show(It.Is<NotificationMessage>(m => m.Type == NotificationType.Info && m.Title == "Scan Wizard")),
             Times.Once);
     }
 
