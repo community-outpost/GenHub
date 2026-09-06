@@ -76,7 +76,7 @@ public sealed class ReplayFile : IExportableFile
             if (MatchedClient != null)
             {
                 var clientDescription = string.IsNullOrWhiteSpace(MatchedClient.Description)
-                    ? MatchedClient.Publisher ?? UnknownValue
+                    ? (string.IsNullOrWhiteSpace(MatchedClient.Publisher) ? UnknownValue : MatchedClient.Publisher)
                     : MatchedClient.Description;
 
                 if (!string.IsNullOrWhiteSpace(MatchedClient.DataPatchName))
