@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Data.Converters;
 using Avalonia.Input;
 using Avalonia.Media;
-using Avalonia.Data.Converters;
 using Markdig;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
@@ -23,6 +23,9 @@ public class MarkdownTextBlock : UserControl
     public static readonly StyledProperty<string?> MarkdownProperty =
         AvaloniaProperty.Register<MarkdownTextBlock, string?>(nameof(Markdown));
 
+    private static readonly IValueConverter PositiveWidthConverter =
+        new FuncValueConverter<double, double>(w => w > 1.0 ? w : double.PositiveInfinity);
+
     /// <summary>
     /// Gets or sets the Markdown text to render.
     /// </summary>
@@ -31,9 +34,6 @@ public class MarkdownTextBlock : UserControl
         get => GetValue(MarkdownProperty);
         set => SetValue(MarkdownProperty, value);
     }
-
-    private static readonly IValueConverter PositiveWidthConverter =
-        new FuncValueConverter<double, double>(w => w > 1.0 ? w : double.PositiveInfinity);
 
     static MarkdownTextBlock()
     {
