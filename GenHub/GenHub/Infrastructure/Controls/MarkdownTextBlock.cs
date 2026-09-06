@@ -5,6 +5,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.Data.Converters;
 using Markdig;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
@@ -30,6 +31,9 @@ public class MarkdownTextBlock : UserControl
         get => GetValue(MarkdownProperty);
         set => SetValue(MarkdownProperty, value);
     }
+
+    private static readonly IValueConverter PositiveWidthConverter =
+        new FuncValueConverter<double, double>(w => w > 1.0 ? w : double.PositiveInfinity);
 
     static MarkdownTextBlock()
     {
@@ -145,7 +149,6 @@ public class MarkdownTextBlock : UserControl
                     {
                         Cursor = new Cursor(StandardCursorType.Hand),
                         TextWrapping = TextWrapping.Wrap,
-                        TextTrimming = TextTrimming.CharacterEllipsis,
                     };
 
                     linkText.Inlines?.Add(linkRun);
@@ -160,11 +163,12 @@ public class MarkdownTextBlock : UserControl
                         new Avalonia.Data.Binding
                         {
                             Path = "Bounds.Width",
+                            Converter = PositiveWidthConverter,
                             FallbackValue = double.PositiveInfinity,
                             TargetNullValue = double.PositiveInfinity,
                             RelativeSource = new Avalonia.Data.RelativeSource(Avalonia.Data.RelativeSourceMode.FindAncestor)
                             {
-                                AncestorType = typeof(MarkdownTextBlock),
+                                AncestorType = typeof(TextBlock),
                             },
                         });
 
