@@ -492,4 +492,14 @@ public static class DemoViewModelFactory
              };
         }
     }
+
+    /// <summary>
+    /// Creates a demo ScanWizardDemoViewModel with mock detected games.
+    /// </summary>
+    /// <param name="notificationService">Optional notification service for demo actions.</param>
+    /// <returns>A configured demo scan wizard view model.</returns>
+    public static ScanWizardDemoViewModel CreateDemoScanWizard(INotificationService? notificationService = null)
+    {
+        return new ScanWizardDemoViewModel(notificationService);
+    }
 }

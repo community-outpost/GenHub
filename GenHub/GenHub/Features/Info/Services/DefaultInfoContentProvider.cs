@@ -27,6 +27,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return Task.FromResult(_sections.FirstOrDefault(s => s.Id.Equals(sectionId, System.StringComparison.OrdinalIgnoreCase)));
     }
+
     private static List<InfoSection> CreateContent()
     {
         return

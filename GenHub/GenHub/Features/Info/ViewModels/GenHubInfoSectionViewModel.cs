@@ -287,6 +287,11 @@ public partial class GenHubInfoSectionViewModel(
     public WorkspaceDemoViewModel? DemoWorkspace { get; private set; }
 
     /// <summary>
+    /// Gets the demo scan wizard view model for the game detection demonstration.
+    /// </summary>
+    public ScanWizardDemoViewModel? DemoScanWizard { get; private set; }
+
+    /// <summary>
     /// Toggles the expanded state of the replay features section.
     /// </summary>
     [RelayCommand]
@@ -541,6 +546,12 @@ public partial class GenHubInfoSectionViewModel(
         {
             DemoWorkspace = DemoViewModelFactory.CreateDemoWorkspaceViewModel(notificationService);
             OnPropertyChanged(nameof(DemoWorkspace));
+        }
+
+        if (DemoScanWizard == null)
+        {
+            DemoScanWizard = DemoViewModelFactory.CreateDemoScanWizard(notificationService);
+            OnPropertyChanged(nameof(DemoScanWizard));
         }
     }
 

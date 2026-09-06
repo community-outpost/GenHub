@@ -83,21 +83,23 @@
        <Setter Property="FontSize" Value="24"/>
        <Setter Property="FontWeight" Value="Bold"/>
        <Setter Property="Foreground" Value="White"/>
+       <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
 
      <Style Selector="TextBlock.demo-subtitle">
        <Setter Property="FontSize" Value="15"/>
        <Setter Property="Foreground" Value="#AAAAAA"/>
        <Setter Property="Margin" Value="0,6,0,0"/>
+       <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
 
     <Style Selector="Border.demo-container">
         <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}"/>
         <Setter Property="CornerRadius" Value="16"/>
-        <Setter Property="Padding" Value="40"/>
+        <Setter Property="Padding" Value="20,16"/>
         <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="Margin" Value="0,20,0,0"/>
+        <Setter Property="Margin" Value="0,16,0,0"/>
         <Setter Property="BoxShadow" Value="0 10 40 0 #80000000"/>
     </Style>
 
@@ -119,105 +121,162 @@
         <Setter Property="CornerRadius" Value="8"/>
         <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
-        <Setter Property="Padding" Value="0"/>
-        <Setter Property="Margin" Value="0,8,0,0"/>
+        <Setter Property="Padding" Value="20"/>
+        <Setter Property="Margin" Value="0,0,0,16"/>
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.2"/>
+                <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.2"/>
+            </Transitions>
+        </Setter>
     </Style>
 
-    <!-- Header button for expandable sections -->
+    <!-- Section toggle header button -->
     <Style Selector="Button.info-section-header">
-        <Setter Property="FocusAdorner" Value="{x:Null}"/>
-        <Setter Property="Template">
-          <ControlTemplate>
-            <ContentPresenter Content="{TemplateBinding Content}"
-                              Padding="{TemplateBinding Padding}"
-                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
-                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
-          </ControlTemplate>
-        </Setter>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="Padding" Value="16,12"/>
+        <Setter Property="Padding" Value="0"/>
         <Setter Property="HorizontalAlignment" Value="Stretch"/>
         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
         <Setter Property="Cursor" Value="Hand"/>
     </Style>
 
-    <Style Selector="Button.action-btn">
-       <Setter Property="FocusAdorner" Value="{x:Null}"/>
-       <Setter Property="Template">
-         <ControlTemplate>
-           <ContentPresenter Content="{TemplateBinding Content}"
-                             Padding="{TemplateBinding Padding}"
-                             HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
-                             VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
-         </ControlTemplate>
-       </Setter>
-       <Setter Property="Opacity" Value="0.8"/>
-       <Setter Property="Transitions">
-         <Transitions>
-           <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
-         </Transitions>
-       </Setter>
+    <Style Selector="Button.info-section-header:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
     </Style>
 
-    <Style Selector="Button.action-btn:pointerover">
-       <Setter Property="Opacity" Value="1"/>
-    </Style>
-
-    <!-- Title text in section headers -->
+    <!-- Section title with icon -->
     <Style Selector="TextBlock.info-section-title">
-        <Setter Property="FontSize" Value="15"/>
+        <Setter Property="FontSize" Value="18"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="Foreground" Value="#E0E0E0"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
-    <!-- Content container inside expandable sections -->
-    <Style Selector="StackPanel.info-section-content">
-        <Setter Property="Spacing" Value="12"/>
-        <Setter Property="Margin" Value="0,0,0,0"/>
+    <!-- Section icon -->
+    <Style Selector="material|MaterialIcon.info-section-icon">
+        <Setter Property="Width" Value="20"/>
+        <Setter Property="Height" Value="20"/>
+        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="0,0,12,0"/>
     </Style>
 
-    <!-- Sub-section headings -->
-    <Style Selector="TextBlock.info-subsection-title">
-        <Setter Property="FontSize" Value="13"/>
-        <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="Foreground" Value="#CCCCCC"/>
-        <Setter Property="Margin" Value="0,4,0,0"/>
+    <!-- Section subtitle/badge -->
+    <Style Selector="Border.info-section-badge">
+        <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="Padding" Value="8,3"/>
+        <Setter Property="Margin" Value="12,0,0,0"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
-    <!-- Bullet point text -->
-    <Style Selector="TextBlock.info-bullet">
-        <Setter Property="FontSize" Value="12"/>
-        <Setter Property="Foreground" Value="#888888"/>
-        <Setter Property="TextWrapping" Value="Wrap"/>
-    </Style>
-
-    <!-- Feature item title -->
-    <Style Selector="TextBlock.info-feature-title">
+    <Style Selector="TextBlock.info-section-badge-text">
+        <Setter Property="FontSize" Value="11"/>
         <Setter Property="FontWeight" Value="Medium"/>
-        <Setter Property="Foreground" Value="#CCCCCC"/>
-        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
     </Style>
 
-    <!-- Feature item description -->
-    <Style Selector="TextBlock.info-feature-desc">
-        <Setter Property="Foreground" Value="#888888"/>
-        <Setter Property="FontSize" Value="12"/>
-        <Setter Property="TextWrapping" Value="Wrap"/>
+    <!-- Expand/collapse chevron -->
+    <Style Selector="material|MaterialIcon.info-section-chevron">
+        <Setter Property="Width" Value="24"/>
+        <Setter Property="Height" Value="24"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Transitions">
+            <Transitions>
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2"/>
+            </Transitions>
+        </Setter>
     </Style>
 
-    <!-- Overview/description paragraph -->
-    <Style Selector="TextBlock.info-overview">
+    <!-- Collapsible content container -->
+    <Style Selector="StackPanel.info-section-content">
+        <Setter Property="Margin" Value="0,16,0,0"/>
+    </Style>
+
+    <!-- Subsection header within expandable area -->
+    <Style Selector="TextBlock.info-subsection-header">
         <Setter Property="FontSize" Value="14"/>
-        <Setter Property="Foreground" Value="#CCCCCC"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="Margin" Value="0,12,0,6"/>
+    </Style>
+
+    <!-- Subsection content paragraph -->
+    <Style Selector="TextBlock.info-subsection-text">
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
-        <Setter Property="LineHeight" Value="22"/>
+        <Setter Property="LineHeight" Value="20"/>
+        <Setter Property="Margin" Value="0,0,0,8"/>
+    </Style>
+
+    <!-- Feature list item container -->
+    <Style Selector="Grid.info-feature-item">
+        <Setter Property="Margin" Value="0,4,0,4"/>
+    </Style>
+
+    <!-- Feature list bullet/icon -->
+    <Style Selector="material|MaterialIcon.info-feature-icon">
+        <Setter Property="Width" Value="16"/>
+        <Setter Property="Height" Value="16"/>
+        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="VerticalAlignment" Value="Top"/>
+        <Setter Property="Margin" Value="0,2,8,0"/>
+    </Style>
+
+    <!-- Feature list text -->
+    <Style Selector="TextBlock.info-feature-text">
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="LineHeight" Value="18"/>
+    </Style>
+
+    <!-- Code/key shortcut badge -->
+    <Style Selector="Border.info-key-badge">
+        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedDarkBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="Padding" Value="6,2"/>
+        <Setter Property="Margin" Value="4,0"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="TextBlock.info-key-text">
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontFamily" Value="Consolas, monospace"/>
+        <Setter Property="Foreground" Value="{DynamicResource AccentLightBrush}"/>
+    </Style>
+
+    <!-- Tip/callout box -->
+    <Style Selector="Border.info-tip-box">
+        <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Padding" Value="12,10"/>
+        <Setter Property="Margin" Value="0,12,0,0"/>
+    </Style>
+
+    <Style Selector="TextBlock.info-tip-text">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="LineHeight" Value="18"/>
+    </Style>
+
+    <!-- Markdown Card Content Style -->
+    <Style Selector="infra|MarkdownTextBlock.card-content">
+        <Setter Property="FontSize" Value="15"/>
+        <Setter Property="Foreground" Value="#CCCCCC"/>
     </Style>
 
   </UserControl.Styles>
 
-  <ScrollViewer Padding="32,24,32,40" ClipToBounds="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+  <ScrollViewer Padding="20,16,20,100" ClipToBounds="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
       <StackPanel Spacing="10" MaxWidth="1000" HorizontalAlignment="Stretch" ClipToBounds="False">
 
         <!-- Main Section Header -->
@@ -240,19 +299,22 @@
             </StackPanel>
 
             <Border Classes="demo-container">
-              <StackPanel HorizontalAlignment="Center" Spacing="20">
-                  <!-- Scaled down profile card for better fit -->
-                  <Viewbox Stretch="Uniform" MaxHeight="400">
-                      <local:GameProfileCardView DataContext="{Binding DemoProfileCard}" Width="300" Height="400"/>
-                  </Viewbox>
+              <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
+                <StackPanel HorizontalAlignment="Center" Spacing="20">
+                    <!-- Scaled down profile card for better fit -->
+                    <Viewbox Stretch="Uniform" MaxHeight="400">
+                        <local:GameProfileCardView DataContext="{Binding DemoProfileCard}" Width="300" Height="400"/>
+                    </Viewbox>
 
-                <TextBlock Text="Try hovering or clicking the buttons above!"
-                           FontSize="13" Foreground="#666666" HorizontalAlignment="Center"/>
-              </StackPanel>
+                  <TextBlock Text="Try hovering or clicking the buttons above!"
+                             FontSize="13" Foreground="#666666" HorizontalAlignment="Center"/>
+                </StackPanel>
+              </Viewbox>
             </Border>
           </StackPanel>
         </Border>
 
+        <!-- ============================================== -->
         <!-- DEMO: SHORTCUTS                                -->
         <!-- ============================================== -->
         <Border Margin="0,0,0,50">
@@ -264,7 +326,7 @@
                 <TextBlock Text="Shortcut creation process." Classes="demo-subtitle"/>
 
                 <Border Classes="demo-container">
-                  <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
+                  <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="40" VerticalAlignment="Center">
 
                          <!-- 1. The Source: Profile Card -->
@@ -321,7 +383,7 @@
                 <Border Classes="demo-container" HorizontalAlignment="Center">
                     <StackPanel HorizontalAlignment="Center" Spacing="20">
                         <TextBlock Text="Click the highlighted Steam icon to toggle integration."
-                                   FontSize="13" Foreground="#666666" HorizontalAlignment="Center"/>
+                                   FontSize="13" Foreground="#666666" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
 
                         <Viewbox Stretch="Uniform" MaxHeight="400">
                              <local:GameProfileCardView DataContext="{Binding DemoSteamProfile}" Width="300" Height="400"/>
@@ -357,7 +419,7 @@
                                 <update:UpdateNotificationView DataContext="{Binding DemoUpdateNotification}"/>
                             </Border>
                             <TextBlock Text="Try clicking 'Browse Builds' to see experimental developer versions!"
-                                       FontSize="12" Foreground="#666" HorizontalAlignment="Center" FontStyle="Italic"/>
+                                       FontSize="12" Foreground="#666" HorizontalAlignment="Center" FontStyle="Italic" TextWrapping="Wrap" TextAlignment="Center"/>
                           </StackPanel>
                         </Border>
                     </StackPanel>
@@ -422,7 +484,7 @@
                                                     CornerRadius="4" />
                                          </Grid>
                                          <TextBlock Text="Try entering 'ghp_demo' and clicking Save &amp; Test to see the validation in action!"
-                                                   FontSize="11" Foreground="#666" HorizontalAlignment="Left" Margin="2,0,0,0" />
+                                                   FontSize="11" Foreground="#666" HorizontalAlignment="Left" Margin="2,0,0,0" TextWrapping="Wrap" />
                                      </StackPanel>
                                 </StackPanel>
                             </Border>
@@ -451,9 +513,10 @@
             <Border Classes="demo-container">
                <StackPanel Spacing="20">
                   <TextBlock Text="TIP: You can resize this demo window by dragging the right or bottom edge!"
-                             FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"/>
+                             FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"
+                             TextWrapping="Wrap" TextAlignment="Center"/>
 
-                  <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
+                  <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Stretch">
                     <Grid HorizontalAlignment="Center">
                       <Grid.ColumnDefinitions>
                           <ColumnDefinition Width="800" MinWidth="400" />
@@ -534,9 +597,10 @@
             <Border Classes="demo-container">
                <StackPanel Spacing="20">
                   <TextBlock Text="TIP: You can resize this demo window by dragging the right or bottom edge!"
-                             FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"/>
+                             FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"
+                             TextWrapping="Wrap" TextAlignment="Center"/>
 
-                  <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
+                  <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Stretch">
                     <Grid HorizontalAlignment="Center">
                       <Grid.ColumnDefinitions>
                           <ColumnDefinition Width="800" MinWidth="400" />
@@ -611,7 +675,7 @@
 
                     <!-- Interactive Demo -->
                     <Border Classes="demo-container">
-                        <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
+                        <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
                             <Grid Width="800" MaxHeight="600" HorizontalAlignment="Center">
                                 <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
                                     <toolsRep:ReplayManagerView DataContext="{Binding DemoReplayManager}"/>
@@ -631,7 +695,7 @@
 
                     <!-- Interactive Demo -->
                     <Border Classes="demo-container">
-                        <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
+                        <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
                             <Grid Width="800" MaxHeight="600" HorizontalAlignment="Center">
                                 <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
                                     <toolsMap:MapManagerView DataContext="{Binding DemoMapManager}"/>
@@ -655,7 +719,9 @@
             </StackPanel>
 
             <Border Classes="demo-container">
-               <views:ScanWizardDemoView Height="450" HorizontalAlignment="Center" />
+               <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="700">
+                  <views:ScanWizardDemoView DataContext="{Binding DemoScanWizard}" Width="700" />
+               </Viewbox>
             </Border>
           </StackPanel>
         </Border>
@@ -675,9 +741,9 @@
                 </StackPanel>
 
                 <!-- Expanded demo container with proper width -->
-                <Border Classes="demo-container" Padding="40,30">
+                <Border Classes="demo-container">
                    <!-- Use Viewbox to scale content while maintaining aspect ratio -->
-                   <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
+                   <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
                        <!-- SIMULATED WINDOW FRAME -->
                        <Panel Width="800" Height="600">
                             <!-- Acrylic Tint Layer Simulation -->
@@ -741,7 +807,9 @@
             </StackPanel>
 
             <Border Classes="demo-container">
-               <views:WorkspaceDemoView DataContext="{Binding DemoWorkspace}" MaxWidth="800" HorizontalAlignment="Center" />
+               <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Stretch" MaxWidth="800">
+                  <views:WorkspaceDemoView DataContext="{Binding DemoWorkspace}" Width="800" />
+               </Viewbox>
             </Border>
           </StackPanel>
         </Border>
@@ -753,11 +821,10 @@
         <!-- Standard Layout (Single Column) -->
         <ItemsControl ItemsSource="{Binding SelectedSection.Cards}"
                       IsVisible="{Binding !IsFaqSelected}"
-                      Padding="0,0,0,20"
-                      ClipToBounds="False">
+                      Padding="0,0,0,20">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-              <StackPanel Spacing="0" ClipToBounds="False"/>
+              <StackPanel Spacing="0"/>
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
@@ -844,12 +911,12 @@
         </ItemsControl>
 
         <!-- FAQ Layout (Independent Columns for Staggered/Masonry Look) -->
-        <Grid IsVisible="{Binding IsFaqSelected}" ColumnDefinitions="*, *" Margin="0,0,0,20" ClipToBounds="False">
+        <Grid IsVisible="{Binding IsFaqSelected}" ColumnDefinitions="*, *" Margin="0,0,0,20">
             <!-- Left Column -->
-            <ItemsControl Grid.Column="0" ItemsSource="{Binding FaqCardsLeft}" ClipToBounds="False">
+            <ItemsControl Grid.Column="0" ItemsSource="{Binding FaqCardsLeft}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <StackPanel Spacing="0" VerticalAlignment="Top" ClipToBounds="False"/>
+                        <StackPanel Spacing="0" VerticalAlignment="Top"/>
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
@@ -886,10 +953,10 @@
             </ItemsControl>
 
             <!-- Right Column -->
-            <ItemsControl Grid.Column="1" ItemsSource="{Binding FaqCardsRight}" ClipToBounds="False">
+            <ItemsControl Grid.Column="1" ItemsSource="{Binding FaqCardsRight}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <StackPanel Spacing="0" VerticalAlignment="Top" ClipToBounds="False"/>
+                        <StackPanel Spacing="0" VerticalAlignment="Top"/>
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
