@@ -15,6 +15,11 @@ namespace GenHub.Core.Extensions.GameInstallations;
 /// </summary>
 public static class InstallationExtensions
 {
+    private static readonly HashSet<string> InstallationIdentifierSet = new(
+        Enum.GetValues<GameInstallationType>().Select(t => t.ToIdentifierString())
+            .Concat(new[] { PublisherInfoConstants.Retail.Name }),
+        StringComparer.OrdinalIgnoreCase);
+
     /// <summary>
     /// Checks if a file exists in a case-insensitive manner, compatible across platforms.
     /// On Windows (NTFS), this leverages filesystem case-insensitivity.
@@ -181,11 +186,6 @@ public static class InstallationExtensions
             _ => installationType.ToString(),
         };
     }
-
-    private static readonly HashSet<string> InstallationIdentifierSet = new(
-        Enum.GetValues<GameInstallationType>().Select(t => t.ToIdentifierString())
-            .Concat(new[] { PublisherInfoConstants.Retail.Name, "retail" }),
-        StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Determines whether the specified identifier matches any known installation type identifier.
