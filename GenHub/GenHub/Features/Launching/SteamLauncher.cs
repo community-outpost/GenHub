@@ -398,9 +398,9 @@ public class SteamLauncher : ISteamLauncher
                 return true;
             }
         }
-        catch
+        catch (Exception ex) when (ex is FileNotFoundException or ArgumentException or UnauthorizedAccessException or InvalidOperationException)
         {
-            // Ignore version info inspection errors
+            // Ignore expected version info inspection errors for missing, invalid, or inaccessible executables
         }
 
         return false;
@@ -686,7 +686,7 @@ public class SteamLauncher : ISteamLauncher
                     File.Copy(_targetExePath, refreshStagingPath, overwrite: true);
                     File.Move(refreshStagingPath, _backupPath, overwrite: true);
                     _temporaryFiles.Remove(refreshStagingPath);
-                    _backupCreated = true;
+                    _backupCreated = false;
                     return;
                 }
 

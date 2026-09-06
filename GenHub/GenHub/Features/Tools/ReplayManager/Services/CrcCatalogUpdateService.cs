@@ -65,9 +65,9 @@ public sealed class CrcCatalogUpdateService(
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
             var catalog = await JsonSerializer.DeserializeAsync<CrcCatalog>(stream, JsonOptions, cancellationToken);
 
-            if (catalog == null || catalog.Mappings.Count == 0)
+            if (catalog == null || catalog.SchemaVersion != 1 || catalog.Mappings == null || catalog.Mappings.Count == 0)
             {
-                logger.LogWarning("Deserialized remote CRC catalog was empty. Attempting local fallback.");
+                logger.LogWarning("Deserialized remote CRC catalog was invalid or empty. Attempting local fallback.");
                 return await LoadLocalFallbackAsync(cancellationToken);
             }
 
@@ -88,7 +88,7 @@ public sealed class CrcCatalogUpdateService(
             return ContentUpdateCheckResult.CreateNoUpdateAvailable(
                 catalog.LastUpdated?.ToString("O") ?? "1");
         }
-        catch (Exception ex) when (ex is IOException or HttpRequestException or JsonException)
+        catch (Exception ex) when (ex is IOException or HttpRequestException or JsonException || (ex is OperationCanceledException && !cancellationToken.IsCancellationRequested))
         {
             logger.LogError(ex, "Failed to update CRC mapping catalog from remote. Attempting local fallback.");
             return await LoadLocalFallbackAsync(cancellationToken);

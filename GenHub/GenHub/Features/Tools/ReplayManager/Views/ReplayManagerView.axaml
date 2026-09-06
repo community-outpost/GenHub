@@ -111,7 +111,7 @@
             <DataGridTemplateColumn Header="Map" Width="120" MaxWidth="160">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
-                  <TextBlock Text="{Binding Metadata.MapName}"
+                  <TextBlock Text="{Binding Metadata.MapName, FallbackValue='-', TargetNullValue='-'}"
                              VerticalAlignment="Center"
                              TextTrimming="CharacterEllipsis"
                              ToolTip.Tip="{Binding Metadata.MapName}"
@@ -130,8 +130,8 @@
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
-            <DataGridTextColumn Header="Exe CRC" Binding="{Binding Metadata.FormattedExeCrc}" Width="Auto" MinWidth="85" IsReadOnly="True" />
-            <DataGridTextColumn Header="INI CRC" Binding="{Binding Metadata.FormattedIniCrc}" Width="Auto" MinWidth="85" IsReadOnly="True" />
+            <DataGridTextColumn Header="Exe CRC" Binding="{Binding Metadata.FormattedExeCrc, FallbackValue='-', TargetNullValue='-'}" Width="Auto" MinWidth="85" IsReadOnly="True" />
+            <DataGridTextColumn Header="INI CRC" Binding="{Binding Metadata.FormattedIniCrc, FallbackValue='-', TargetNullValue='-'}" Width="Auto" MinWidth="85" IsReadOnly="True" />
             <DataGridTemplateColumn Header="Compatibility" Width="Auto" MinWidth="120">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>

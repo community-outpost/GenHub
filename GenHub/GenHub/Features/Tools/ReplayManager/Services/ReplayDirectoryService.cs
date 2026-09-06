@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -94,13 +95,15 @@ public sealed class ReplayDirectoryService(
 
         var (acquiredIds, existingProfiles) = await FetchAcquiredManifestIdsAndProfilesAsync(ct);
 
-        var replayFiles = new List<ReplayFile>(files.Count);
-        foreach (var file in files)
-        {
-            ct.ThrowIfCancellationRequested();
-            var replay = await ProcessReplayFileAsync(file, version, acquiredIds, existingProfiles, ct);
-            replayFiles.Add(replay);
-        }
+        var replayFiles = new ConcurrentBag<ReplayFile>();
+        await Parallel.ForEachAsync(
+            files,
+            new ParallelOptions { MaxDegreeOfParallelism = Math.Min(Environment.ProcessorCount, 8), CancellationToken = ct },
+            async (file, token) =>
+            {
+                var replay = await ProcessReplayFileAsync(file, version, acquiredIds, existingProfiles, token);
+                replayFiles.Add(replay);
+            });
 
         return replayFiles.OrderByDescending(r => r.LastModified).ToList().AsReadOnly();
     }
@@ -223,7 +226,8 @@ public sealed class ReplayDirectoryService(
 
             var isRetailClient = isUnmappedReplay ||
                                  string.IsNullOrWhiteSpace(replay.MatchedClient?.Publisher) ||
-                                 string.Equals(replay.MatchedClient?.Publisher, PublisherTypeConstants.Ea, StringComparison.OrdinalIgnoreCase);
+                                 string.Equals(replay.MatchedClient?.Publisher, PublisherTypeConstants.Ea, StringComparison.OrdinalIgnoreCase) ||
+                                 (replay.MatchedClient?.ManifestId?.Contains(ReplayManagerConstants.RetailManifestSegment, StringComparison.OrdinalIgnoreCase) == true);
 
             var (clientManifestId, gameClient) = await ResolveReplayGameClientAsync(
                 installation, replay, defaultVersion, isRetailClient, manifestPool, contentOrchestrator, ct);
@@ -458,7 +462,7 @@ public sealed class ReplayDirectoryService(
 
         var isRetailClient = string.Equals(clientManifestId, installationManifestId, StringComparison.OrdinalIgnoreCase) ||
                              string.IsNullOrWhiteSpace(replay.MatchedClient?.Publisher) ||
-                             string.Equals(replay.MatchedClient?.Publisher, "ea", StringComparison.OrdinalIgnoreCase);
+                             string.Equals(replay.MatchedClient?.Publisher, PublisherTypeConstants.Ea, StringComparison.OrdinalIgnoreCase);
 
         if (!isRetailClient && replay.MatchedClient != null && string.IsNullOrEmpty(replay.MatchedClient.DataPatchManifestId))
         {
@@ -631,10 +635,10 @@ public sealed class ReplayDirectoryService(
         }
 
         var hasCustomDataPatch = profile.EnabledContentIds?.Any(id =>
-            id.Contains(".gamedata.", StringComparison.OrdinalIgnoreCase) ||
-            id.Contains(".datapatch.", StringComparison.OrdinalIgnoreCase) ||
-            id.Contains(".community.", StringComparison.OrdinalIgnoreCase) ||
-            id.Contains(".mod.", StringComparison.OrdinalIgnoreCase)) == true;
+            id.Contains(ManifestConstants.GameDataManifestSegment, StringComparison.OrdinalIgnoreCase) ||
+            id.Contains(ManifestConstants.DataPatchManifestSegment, StringComparison.OrdinalIgnoreCase) ||
+            id.Contains(ManifestConstants.CommunityManifestSegment, StringComparison.OrdinalIgnoreCase) ||
+            id.Contains(ManifestConstants.ModManifestSegment, StringComparison.OrdinalIgnoreCase)) == true;
 
         return !hasCustomDataPatch;
     }
@@ -708,13 +712,13 @@ public sealed class ReplayDirectoryService(
             : ExtractPublisherFromManifestId(match.ManifestId);
 
         var isRetail = string.IsNullOrWhiteSpace(publisher) ||
-                       string.Equals(publisher, "ea", StringComparison.OrdinalIgnoreCase) ||
+                       string.Equals(publisher, PublisherTypeConstants.Ea, StringComparison.OrdinalIgnoreCase) ||
                        match.ManifestId.Contains(ReplayManagerConstants.RetailManifestSegment, StringComparison.OrdinalIgnoreCase);
 
         if (isRetail)
         {
-            var gameTypeSuffix = gameVersion == GameType.ZeroHour ? "zerohour" : "generals";
-            return acquiredIds.Any(id => id.Contains(".gameinstallation.", StringComparison.OrdinalIgnoreCase) && id.EndsWith(gameTypeSuffix, StringComparison.OrdinalIgnoreCase));
+            var gameTypeSuffix = gameVersion == GameType.ZeroHour ? ManifestConstants.ZeroHourContentName : ManifestConstants.GeneralsContentName;
+            return acquiredIds.Any(id => id.Contains(ManifestConstants.BaseGameIdPrefix, StringComparison.OrdinalIgnoreCase) && id.EndsWith(gameTypeSuffix, StringComparison.OrdinalIgnoreCase));
         }
 
         return false;
@@ -945,12 +949,7 @@ public sealed class ReplayDirectoryService(
         if (allManifests.Success && allManifests.Data != null)
         {
             var alreadyExists = allManifests.Data.Any(m =>
-                string.Equals(m.Id.Value, dataPatchManifestId, StringComparison.OrdinalIgnoreCase) ||
-                (m.TargetGame == gameVersion &&
-                 !string.IsNullOrEmpty(publisher) &&
-                 (m.ContentType == ContentType.Patch || m.ContentType == ContentType.MapPack) &&
-                 (string.Equals(m.Publisher?.PublisherType, publisher, StringComparison.OrdinalIgnoreCase) ||
-                  m.Id.Value.Contains("." + publisher + ".", StringComparison.OrdinalIgnoreCase))));
+                string.Equals(m.Id.Value, dataPatchManifestId, StringComparison.OrdinalIgnoreCase));
 
             if (alreadyExists)
             {
@@ -1006,7 +1005,7 @@ public sealed class ReplayDirectoryService(
         GameClient? targetClient)
     {
         var defaultVersionInt = replay.GameVersion == GameType.ZeroHour ? 104 : 108;
-        var gameTypeName = replay.GameVersion == GameType.ZeroHour ? "zerohour" : "generals";
+        var gameTypeName = replay.GameVersion == GameType.ZeroHour ? ManifestConstants.ZeroHourContentName : ManifestConstants.GeneralsContentName;
         var clientManifestId = targetClient?.Id ?? ManifestIdGenerator.GeneratePublisherContentId(
             installation.InstallationType.ToIdentifierString(),
             ContentType.GameClient,
@@ -1145,8 +1144,7 @@ public sealed class ReplayDirectoryService(
     {
         return items.FirstOrDefault(c =>
             string.Equals(c.Id, matchedClient.ManifestId, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(c.Version, matchedClient.Version, StringComparison.OrdinalIgnoreCase))
-            ?? items.FirstOrDefault();
+            string.Equals(c.Version, matchedClient.Version, StringComparison.OrdinalIgnoreCase));
     }
 
     private async Task<(string ClientManifestId, GameClient? GameClient)> ResolveReplayGameClientAsync(
@@ -1315,7 +1313,7 @@ public sealed class ReplayDirectoryService(
             GameVersion = version,
         };
 
-        if (file.EndsWith(".rep", StringComparison.OrdinalIgnoreCase))
+        if (file.EndsWith(ReplayManagerConstants.ReplayFileExtension, StringComparison.OrdinalIgnoreCase))
         {
             var parseResult = await headerParser.ParseHeaderAsync(file, ct);
             if (parseResult.Success && parseResult.Data != null)
