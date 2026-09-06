@@ -683,3 +683,71 @@ public class ValidationIssue
 ```
 
 This ensures thread safety and prevents accidental modification of model state.
+
+---
+
+## Universal Parser Models
+
+Models used by the `IWebPageParser` system to extract rich content from provider websites.
+
+### ParsedWebPage
+
+The root container for all data extracted from a single web page.
+
+```csharp
+public record ParsedWebPage(
+    string Url,
+    GlobalContext Context,
+    List<ContentSection> Sections,
+    PageType PageType);
+```
+
+### GlobalContext
+
+Standard metadata extracted from the page header or sidebar.
+
+```csharp
+public record GlobalContext(
+    string Title,
+    string Developer,
+    DateTime? ReleaseDate,
+    string? GameName = null,
+    string? IconUrl = null,
+    string? Description = null);
+```
+
+### Content Sections
+
+All extracted content is categorized into sections that inherit from `ContentSection`.
+
+| Model     | Description                                           |
+| --------- | ----------------------------------------------------- |
+| `Article` | News posts, articles, or blog entries                 |
+| `File`    | Downloadable files with metadata (size, hash, etc.)   |
+| `Video`   | Embedded videos from YouTube, Vimeo, etc.             |
+| `Image`   | Gallery images or screenshots                         |
+| `Review`  | User reviews with ratings and content                 |
+| `Comment` | User discussion comments with karma/creator info      |
+
+#### ContentSection (Base)
+
+```csharp
+public abstract record ContentSection(
+    SectionType Type,
+    string Title);
+```
+
+### Enums
+
+#### PageType
+
+Defines the structural role of the page.
+
+- `List`: A gallery or listing of multiple items.
+- `Summary`: A news feed or overview page.
+- `Detail`: A deep-dive page for a specific mod or addon.
+- `FileDetail`: A targeted page for a specific file download.
+
+#### SectionType
+
+Identifies the type of a `ContentSection` (Article, Video, Image, File, Review, Comment).
