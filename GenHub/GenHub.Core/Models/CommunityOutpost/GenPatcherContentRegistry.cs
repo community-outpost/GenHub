@@ -304,6 +304,17 @@ public static class GenPatcherContentRegistry
             InstallTarget = ContentInstallTarget.Workspace,
         },
 
+        ["genl"] = new GenPatcherContentMetadata
+        {
+            ContentCode = "genl",
+            DisplayName = "GenLauncher",
+            Description = "GenLauncher standalone launcher utility",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Category = GenPatcherContentCategory.Tools,
+            InstallTarget = ContentInstallTarget.Workspace,
+        },
+
         // Maps
         ["maod"] = new GenPatcherContentMetadata
         {

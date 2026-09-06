@@ -36,6 +36,9 @@ public static class SharedViewModelModule
         // Register MainViewModel (critical for app startup)
         services.AddSingleton<MainViewModel>();
 
+        // Register NotificationFeedViewModel (required by MainViewModel)
+        services.AddSingleton<NotificationFeedViewModel>();
+
         // Register tab ViewModels
         services.AddSingleton<GameProfileLauncherViewModel>();
         services.AddSingleton<DownloadsBrowserViewModel>();
@@ -63,7 +66,8 @@ public static class SharedViewModelModule
             sp.GetRequiredService<IUserDataTracker>(),
             sp.GetRequiredService<IDialogService>(),
             sp.GetService<IThemeService>(),
-            sp.GetService<IGitHubTokenStorage>()));
+            sp.GetService<IGitHubTokenStorage>(),
+            sp.GetService<IGitHubApiClient>()));
         services.AddSingleton<GameProfileSettingsViewModel>();
 
         // Register ProfileSelectionViewModel as transient for profile selection scenarios

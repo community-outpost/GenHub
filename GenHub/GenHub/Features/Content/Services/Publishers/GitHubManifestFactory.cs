@@ -35,8 +35,7 @@ public class GitHubManifestFactory(
     public bool CanHandle(ContentManifest manifest)
     {
         // Handle standard "github" publisher
-        var publisherMatches = manifest.Publisher?.PublisherType?.Equals("github", StringComparison.OrdinalIgnoreCase) == true;
-        return publisherMatches;
+        return manifest.Publisher?.PublisherType?.Equals("github", StringComparison.OrdinalIgnoreCase) == true;
     }
 
     /// <inheritdoc />
@@ -63,13 +62,24 @@ public class GitHubManifestFactory(
             return [];
         }
 
-        await archivePayloadProcessor.ProcessPayloadAsync(
-            extractedDirectory,
-            originalManifest.ContentType,
-            originalManifest.TargetGame,
-            normalizeInactiveArchives: true,
-            progress: progress,
-            cancellationToken: cancellationToken);
+        if (progress != null)
+        {
+            await archivePayloadProcessor.ProcessPayloadAsync(
+                extractedDirectory,
+                originalManifest.ContentType,
+                originalManifest.TargetGame,
+                normalizeInactiveArchives: true,
+                progress: progress,
+                cancellationToken: cancellationToken);
+        }
+        else
+        {
+            await archivePayloadProcessor.ProcessPayloadAsync(
+                extractedDirectory,
+                originalManifest.ContentType,
+                originalManifest.TargetGame,
+                cancellationToken);
+        }
 
         if (controlBarProcessor?.IsControlBarContent(extractedDirectory, originalManifest) == true)
         {
@@ -77,7 +87,9 @@ public class GitHubManifestFactory(
             await controlBarProcessor.ProcessAndRepackControlBarAsync(
                 extractedDirectory,
                 originalManifest,
-                cancellationToken: cancellationToken);
+                requestedVariant: null,
+                cleanupSources: true,
+                cancellationToken);
         }
 
         var files = new List<ManifestFile>();
@@ -101,6 +113,14 @@ public class GitHubManifestFactory(
 
             bool isExecutable = ExecutableFileClassifier.RequiresExecutePermission(relativePath, filePath);
 
+            var installTarget = originalManifest.ContentType switch
+            {
+                ContentType.Map => ContentInstallTarget.UserMapsDirectory,
+                ContentType.MapPack => ContentInstallTarget.UserMapsDirectory,
+                ContentType.Replay => ContentInstallTarget.UserReplaysDirectory,
+                _ => ContentInstallTarget.Workspace,
+            };
+
             return new ManifestFile
             {
                 RelativePath = relativePath,
@@ -108,6 +128,7 @@ public class GitHubManifestFactory(
                 Hash = fileHash,
                 IsRequired = true,
                 IsExecutable = isExecutable,
+                InstallTarget = installTarget,
                 SourceType = ContentSourceType.ContentAddressable,
                 SourcePath = filePath,
             };

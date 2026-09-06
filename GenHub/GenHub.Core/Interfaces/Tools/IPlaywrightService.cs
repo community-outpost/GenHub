@@ -79,13 +79,12 @@ public interface IPlaywrightService
     Task<IDocument> FetchAndParsePersistentAsync(string profileName, string url, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Fetches and parses multiple URLs in one persistent headed page — open once, navigate each
-    /// URL in order, then close. Use this for ModDB section sweeps so Chromium does not spawn a
-    /// new window per section (and so concurrent NewPage/Close races cannot tear down the context
-    /// mid-navigation).
+    /// Fetches and parses multiple URLs within an active persistent headed browser context, using
+    /// bounded parallel tabs (up to 5 concurrent tabs) so Chromium does not churn processes, and
+    /// so context teardown cannot occur mid-batch.
     /// </summary>
     /// <param name="profileName">The on-disk profile name (scoped under the app data browser-profile root).</param>
-    /// <param name="urls">URLs to fetch in order. Duplicates are fetched once; order of first occurrence is kept.</param>
+    /// <param name="urls">URLs to fetch. Duplicates are fetched once; order of first occurrence is preserved in results.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>
     /// A map of URL → parsed document for every URL that loaded successfully. Failed URLs are omitted;

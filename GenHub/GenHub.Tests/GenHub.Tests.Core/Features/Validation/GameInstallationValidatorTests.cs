@@ -1,14 +1,27 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using GenHub.Core.Constants;
+using GenHub.Core.Features.GameInstallations;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Core.Models.Validation;
 using GenHub.Features.Validation;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Xunit;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
+using GameType = GenHub.Core.Models.Enums.GameType;
 
 namespace GenHub.Tests.Features.Validation;
 
@@ -381,6 +394,606 @@ public class GameInstallationValidatorTests
 
             Assert.False(result.IsValid);
             Assert.Contains(result.Issues, i => i.Message.Contains("Content validator error"));
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Tests that ValidateAsync validates a multi-language installation using CsvContentProvider.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateAsync_WithCsvContentProvider_ValidatesMultiLanguageInstallationSuccessfullyAsync()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var manifest = new ContentManifest
+            {
+                Id = new ManifestId("csv-generals-1.08-de"),
+                Name = "Generals 1.08 (DE)",
+                Version = "1.08",
+                ContentType = ContentType.GameInstallation,
+                TargetGame = GameType.Generals,
+                Files = new List<ManifestFile>
+                {
+                    new() { RelativePath = "generals.exe", Size = 100, Hash = "abc", SourceType = ContentSourceType.GameInstallation, IsRequired = true },
+                    new() { RelativePath = "German.big", Size = 200, Hash = "def", SourceType = ContentSourceType.GameInstallation, IsRequired = true },
+                },
+            };
+
+            var searchResult = new ContentSearchResult
+            {
+                Id = "csv-generals-1.08-de",
+                Name = "Generals 1.08 (DE)",
+                Version = "1.08",
+                ContentType = ContentType.GameInstallation,
+                TargetGame = GameType.Generals,
+            };
+            searchResult.SetData(manifest);
+
+            var mockContentProvider = new Mock<IContentProvider>();
+            mockContentProvider.Setup(p => p.SourceName).Returns(PublisherTypeConstants.CsvRegistry);
+            mockContentProvider
+                .Setup(p => p.SearchAsync(It.Is<ContentSearchQuery>(q => q.TargetGame == GameType.Generals && q.Language == CsvConstants.LanguageDe), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([searchResult]));
+
+            var mockLanguageDetector = new Mock<ILanguageDetector>();
+            mockLanguageDetector
+                .Setup(d => d.DetectAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(CsvConstants.LanguageDe);
+
+            var validator = new GameInstallationValidator(
+                _loggerMock.Object,
+                null,
+                _contentValidatorMock.Object,
+                _hashProviderMock.Object,
+                mockLanguageDetector.Object,
+                null,
+                [mockContentProvider.Object]);
+
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Steam,
+                new Mock<ILogger<GameInstallation>>().Object);
+            installation.SetPaths(tempDir.FullName, null);
+
+            var result = await validator.ValidateAsync(installation, CancellationToken.None);
+
+            Assert.True(result.IsValid);
+            Assert.Equal(2, result.TotalFilesValidated);
+            Assert.Empty(result.Issues);
+            mockContentProvider.Verify(
+                p => p.SearchAsync(It.Is<ContentSearchQuery>(q => q.TargetGame == GameType.Generals && q.Language == CsvConstants.LanguageDe), It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Tests that ValidateAsync with an explicit language overrides auto-detection.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateAsync_WithExplicitLanguage_OverridesAutoDetectionAsync()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var manifest = new ContentManifest
+            {
+                Id = new ManifestId("csv-generals-1.08-fr"),
+                Name = "Generals 1.08 (FR)",
+                Version = "1.08",
+                ContentType = ContentType.GameInstallation,
+                TargetGame = GameType.Generals,
+                Files = [new ManifestFile { RelativePath = "French.big", Size = 100, Hash = "abc", SourceType = ContentSourceType.GameInstallation }],
+            };
+
+            var searchResult = new ContentSearchResult { Id = "csv-generals-1.08-fr" };
+            searchResult.SetData(manifest);
+
+            var mockContentProvider = new Mock<IContentProvider>();
+            mockContentProvider.Setup(p => p.SourceName).Returns(PublisherTypeConstants.CsvRegistry);
+            mockContentProvider
+                .Setup(p => p.SearchAsync(It.Is<ContentSearchQuery>(q => q.Language == CsvConstants.LanguageFr), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([searchResult]));
+
+            var mockLanguageDetector = new Mock<ILanguageDetector>();
+            mockLanguageDetector
+                .Setup(d => d.DetectAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(CsvConstants.LanguageDe); // Auto-detect would say DE, but explicit is FR
+
+            var validator = new GameInstallationValidator(
+                _loggerMock.Object,
+                null,
+                _contentValidatorMock.Object,
+                _hashProviderMock.Object,
+                mockLanguageDetector.Object,
+                null,
+                [mockContentProvider.Object]);
+
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Steam,
+                new Mock<ILogger<GameInstallation>>().Object);
+            installation.SetPaths(tempDir.FullName, null);
+
+            var result = await validator.ValidateAsync(installation, "fr");
+
+            Assert.True(result.IsValid);
+            Assert.Equal(1, result.TotalFilesValidated);
+            mockContentProvider.Verify(
+                p => p.SearchAsync(It.Is<ContentSearchQuery>(q => q.Language == CsvConstants.LanguageFr), It.IsAny<CancellationToken>()),
+                Times.Once);
+            mockLanguageDetector.Verify(d => d.DetectAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Tests that ValidateInstallationAsync validates direct path and game type with language normalization.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateInstallationAsync_DirectPathAndGameType_ResolvesAndValidatesAsync()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var manifest = new ContentManifest
+            {
+                Id = new ManifestId("csv-zerohour-1.04-zh-cn"),
+                Name = "Zero Hour 1.04 (ZH-CN)",
+                Version = "1.04",
+                ContentType = ContentType.GameInstallation,
+                TargetGame = GameType.ZeroHour,
+                Files = [new ManifestFile { RelativePath = "ChineseZH.big", Size = 50, Hash = "xyz", SourceType = ContentSourceType.GameInstallation }],
+            };
+
+            var searchResult = new ContentSearchResult { Id = "csv-zerohour-1.04-zh-cn" };
+            searchResult.SetData(manifest);
+
+            var mockContentProvider = new Mock<IContentProvider>();
+            mockContentProvider.Setup(p => p.SourceName).Returns(PublisherTypeConstants.CsvRegistry);
+            mockContentProvider
+                .Setup(p => p.SearchAsync(It.Is<ContentSearchQuery>(q => q.TargetGame == GameType.ZeroHour && q.Language == CsvConstants.LanguageZhCn), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([searchResult]));
+
+            var validator = new GameInstallationValidator(
+                _loggerMock.Object,
+                null,
+                _contentValidatorMock.Object,
+                _hashProviderMock.Object,
+                new LanguageDetector(),
+                null,
+                [mockContentProvider.Object]);
+
+            var result = await validator.ValidateInstallationAsync(tempDir.FullName, GameType.ZeroHour, "zh-cn");
+
+            Assert.True(result.IsValid);
+            Assert.Equal(1, result.TotalFilesValidated);
+            mockContentProvider.Verify(
+                p => p.SearchAsync(It.Is<ContentSearchQuery>(q => q.TargetGame == GameType.ZeroHour && q.Language == CsvConstants.LanguageZhCn), It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Tests that ValidateAsync reports detailed issue counts on ValidationResult.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateAsync_DetailedCounts_ReportsCorrectMissingCorruptedAndExtraCountsAsync()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var manifest = new ContentManifest
+            {
+                Id = new ManifestId("csv-generals-1.08-en"),
+                Files =
+                [
+                    new ManifestFile { RelativePath = "missing1.txt", Size = 10, Hash = "h1" },
+                    new ManifestFile { RelativePath = "corrupted1.txt", Size = 20, Hash = "h2" },
+                    new ManifestFile { RelativePath = "valid1.txt", Size = 30, Hash = "h3" },
+                ],
+            };
+
+            var searchResult = new ContentSearchResult { Id = "csv-generals-1.08-en" };
+            searchResult.SetData(manifest);
+
+            var mockContentProvider = new Mock<IContentProvider>();
+            mockContentProvider.Setup(p => p.SourceName).Returns(PublisherTypeConstants.CsvRegistry);
+            mockContentProvider
+                .Setup(p => p.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([searchResult]));
+
+            var mockContentValidator = new Mock<IContentValidator>();
+            mockContentValidator
+                .Setup(c => c.ValidateManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ValidationResult("test", []));
+
+            mockContentValidator
+                .Setup(c => c.ValidateAllAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<ContentManifest>(),
+                    It.IsAny<IProgress<ValidationProgress>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ValidationResult(
+                    "test",
+                    [
+                        new ValidationIssue { IssueType = ValidationIssueType.MissingFile, Message = "Missing file 1", Severity = ValidationSeverity.Error },
+                        new ValidationIssue { IssueType = ValidationIssueType.CorruptedFile, Message = "Corrupted file 1", Severity = ValidationSeverity.Error },
+                        new ValidationIssue { IssueType = ValidationIssueType.MismatchedFileSize, Message = "Size mismatch", Severity = ValidationSeverity.Warning },
+                        new ValidationIssue { IssueType = ValidationIssueType.UnexpectedFile, Message = "Extra file 1", Severity = ValidationSeverity.Warning },
+                        new ValidationIssue { IssueType = ValidationIssueType.UnexpectedFile, Message = "Extra file 2", Severity = ValidationSeverity.Warning },
+                    ]));
+
+            var validator = new GameInstallationValidator(
+                _loggerMock.Object,
+                null,
+                mockContentValidator.Object,
+                _hashProviderMock.Object,
+                null,
+                null,
+                [mockContentProvider.Object]);
+
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Steam,
+                new Mock<ILogger<GameInstallation>>().Object);
+            installation.SetPaths(tempDir.FullName, null);
+
+            var result = await validator.ValidateAsync(installation, CancellationToken.None);
+
+            Assert.False(result.IsValid);
+            Assert.Equal(3, result.TotalFilesValidated);
+            Assert.Equal(1, result.MissingFilesCount);
+            Assert.Equal(2, result.CorruptedFilesCount); // CorruptedFile + MismatchedFileSize
+            Assert.Equal(2, result.ExtraFilesCount);
+            Assert.Equal(2, result.CriticalIssueCount);
+            Assert.Equal(3, result.WarningIssueCount);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Tests that ValidateAsync reports validation unavailability when the CSV catalog has no manifest.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateAsync_WithNoCsvManifest_ReportsValidationUnavailableAsync()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var mockContentProvider = new Mock<IContentProvider>();
+            mockContentProvider.Setup(p => p.SourceName).Returns(PublisherTypeConstants.CsvRegistry);
+            mockContentProvider
+                .Setup(p => p.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([]));
+
+            var validator = new GameInstallationValidator(
+                _loggerMock.Object,
+                null,
+                _contentValidatorMock.Object,
+                _hashProviderMock.Object,
+                null,
+                null,
+                [mockContentProvider.Object]);
+
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Steam,
+                new Mock<ILogger<GameInstallation>>().Object);
+            installation.SetPaths(tempDir.FullName, null);
+
+            var result = await validator.ValidateAsync(installation, "EN");
+
+            Assert.False(result.IsValid);
+            var issue = Assert.Single(result.Issues);
+            Assert.Equal(ValidationIssueType.ValidationUnavailable, issue.IssueType);
+            Assert.Equal(0, result.MissingFilesCount);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Tests that ValidateAsync reports catalog unavailability instead of a missing installation file when CSV provider search fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateAsync_WithCsvProviderFailure_ReturnsLanguageSpecificErrorMessageAsync()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var mockContentProvider = new Mock<IContentProvider>();
+            mockContentProvider.Setup(p => p.SourceName).Returns(PublisherTypeConstants.CsvRegistry);
+            mockContentProvider
+                .Setup(p => p.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure("Network timeout"));
+
+            var validator = new GameInstallationValidator(
+                _loggerMock.Object,
+                null,
+                _contentValidatorMock.Object,
+                _hashProviderMock.Object,
+                null,
+                null,
+                [mockContentProvider.Object]);
+
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Steam,
+                new Mock<ILogger<GameInstallation>>().Object);
+            installation.SetPaths(tempDir.FullName, null);
+
+            var result = await validator.ValidateAsync(installation, "PL");
+
+            Assert.False(result.IsValid);
+            var issue = Assert.Single(result.Issues);
+            Assert.Equal(ValidationIssueType.ValidationUnavailable, issue.IssueType);
+            Assert.Equal(ValidationSeverity.Error, issue.Severity);
+            Assert.Contains("PL", issue.Message);
+            Assert.Contains("Network timeout", issue.Message);
+            Assert.Equal(0, result.MissingFilesCount);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Tests that an HTTP timeout is reported as unavailable validation data rather than cancellation.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateAsync_WithCsvProviderTimeout_ReportsValidationUnavailableAsync()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var mockContentProvider = new Mock<IContentProvider>();
+            mockContentProvider.Setup(p => p.SourceName).Returns(PublisherTypeConstants.CsvRegistry);
+            mockContentProvider
+                .Setup(p => p.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new TaskCanceledException("HTTP request timed out"));
+
+            var validator = new GameInstallationValidator(
+                _loggerMock.Object,
+                null,
+                _contentValidatorMock.Object,
+                _hashProviderMock.Object,
+                null,
+                null,
+                [mockContentProvider.Object]);
+
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Steam,
+                new Mock<ILogger<GameInstallation>>().Object);
+            installation.SetPaths(tempDir.FullName, null);
+
+            var result = await validator.ValidateAsync(installation, "EN");
+
+            Assert.False(result.IsValid);
+            var issue = Assert.Single(result.Issues);
+            Assert.Equal(ValidationIssueType.ValidationUnavailable, issue.IssueType);
+            Assert.Contains("timed out", issue.Message);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Tests multi-language normalization and support for all supported language codes.
+    /// </summary>
+    /// <param name="inputLanguage">The raw input language code.</param>
+    /// <param name="expectedNormalized">The expected normalized uppercase language code.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData("en", CsvConstants.LanguageEn)]
+    [InlineData("de", CsvConstants.LanguageDe)]
+    [InlineData("fr", CsvConstants.LanguageFr)]
+    [InlineData("es", CsvConstants.LanguageEs)]
+    [InlineData("it", CsvConstants.LanguageIt)]
+    [InlineData("ko", CsvConstants.LanguageKo)]
+    [InlineData("pl", CsvConstants.LanguagePl)]
+    [InlineData("pt-br", CsvConstants.LanguagePtBr)]
+    [InlineData("zh-cn", CsvConstants.LanguageZhCn)]
+    [InlineData("zh-tw", CsvConstants.LanguageZhTw)]
+    public async Task ValidateAsync_MultiLanguageSupport_NormalizesLanguageAndValidatesAsync(string inputLanguage, string expectedNormalized)
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var manifest = new ContentManifest
+            {
+                Id = new ManifestId($"csv-generals-1.08-{inputLanguage}"),
+                Files = [new ManifestFile { RelativePath = "test.txt", Size = 10, Hash = "h" }],
+            };
+
+            var searchResult = new ContentSearchResult { Id = $"csv-generals-1.08-{inputLanguage}" };
+            searchResult.SetData(manifest);
+
+            var mockContentProvider = new Mock<IContentProvider>();
+            mockContentProvider.Setup(p => p.SourceName).Returns(PublisherTypeConstants.CsvRegistry);
+            mockContentProvider
+                .Setup(p => p.SearchAsync(It.Is<ContentSearchQuery>(q => q.Language == expectedNormalized), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([searchResult]));
+
+            var validator = new GameInstallationValidator(
+                _loggerMock.Object,
+                null,
+                _contentValidatorMock.Object,
+                _hashProviderMock.Object,
+                null,
+                null,
+                [mockContentProvider.Object]);
+
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Steam,
+                new Mock<ILogger<GameInstallation>>().Object);
+            installation.SetPaths(tempDir.FullName, null);
+
+            var result = await validator.ValidateAsync(installation, inputLanguage);
+
+            Assert.True(result.IsValid);
+            mockContentProvider.Verify(
+                p => p.SearchAsync(It.Is<ContentSearchQuery>(q => q.Language == expectedNormalized), It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Tests that ValidateAsync throws ArgumentNullException when installation is null.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateAsync_NullInstallation_ThrowsArgumentNullExceptionAsync()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(() => _validator.ValidateAsync(null!, CancellationToken.None));
+    }
+
+    /// <summary>
+    /// Tests that when CSV provider fails to find a manifest, fallback to IManifestProvider succeeds without retaining CSV failure issues.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateAsync_CsvFails_FallbackManifestProviderSucceeds_DoesNotPreserveCsvFailureAsync()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var fallbackManifest = new ContentManifest
+            {
+                Id = new ManifestId("fallback-manifest"),
+                Name = "Fallback Manifest",
+                Version = "1.0",
+                Files = [new ManifestFile { RelativePath = "test.big", Size = 50, Hash = "abc" }],
+            };
+
+            var mockManifestProvider = new Mock<IManifestProvider>();
+            mockManifestProvider
+                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(fallbackManifest);
+
+            var mockContentProvider = new Mock<IContentProvider>();
+            mockContentProvider.Setup(p => p.SourceName).Returns(PublisherTypeConstants.CsvRegistry);
+            mockContentProvider
+                .Setup(p => p.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure("Catalog not found"));
+
+            _contentValidatorMock
+                .Setup(c => c.ValidateAllAsync(It.IsAny<string>(), fallbackManifest, It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ValidationResult(tempDir.FullName, [], TimeSpan.FromSeconds(1), 1));
+
+            var validator = new GameInstallationValidator(
+                _loggerMock.Object,
+                mockManifestProvider.Object,
+                _contentValidatorMock.Object,
+                _hashProviderMock.Object,
+                null,
+                null,
+                [mockContentProvider.Object]);
+
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Steam,
+                new Mock<ILogger<GameInstallation>>().Object);
+            installation.SetPaths(tempDir.FullName, null);
+
+            var result = await validator.ValidateAsync(installation);
+
+            Assert.True(result.IsValid);
+            Assert.Empty(result.Issues);
+            Assert.Equal(1, result.TotalFilesValidated);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Tests that when content validator throws an exception, TotalFilesValidated reports 0 rather than full manifest count.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateAsync_ContentValidatorThrows_ReportsZeroTotalFilesValidatedAsync()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var manifest = new ContentManifest
+            {
+                Id = new ManifestId("test-manifest"),
+                Name = "Test Manifest",
+                Files =
+                [
+                    new ManifestFile { RelativePath = "file1.big", Size = 10, Hash = "h1" },
+                    new ManifestFile { RelativePath = "file2.big", Size = 20, Hash = "h2" },
+                ],
+            };
+
+            var mockManifestProvider = new Mock<IManifestProvider>();
+            mockManifestProvider
+                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(manifest);
+
+            _contentValidatorMock
+                .Setup(c => c.ValidateAllAsync(It.IsAny<string>(), manifest, It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new IOException("Disk read error"));
+
+            var validator = new GameInstallationValidator(
+                _loggerMock.Object,
+                mockManifestProvider.Object,
+                _contentValidatorMock.Object,
+                _hashProviderMock.Object,
+                null,
+                null,
+                null);
+
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Steam,
+                new Mock<ILogger<GameInstallation>>().Object);
+            installation.SetPaths(tempDir.FullName, null);
+
+            var result = await validator.ValidateAsync(installation);
+
+            Assert.False(result.IsValid);
+            Assert.Equal(0, result.TotalFilesValidated);
+            Assert.Contains(result.Issues, i => i.Message.Contains("Disk read error"));
         }
         finally
         {

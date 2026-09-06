@@ -81,13 +81,14 @@ public class GameProcessManager(
                 return OperationResult<GameProcessInfo>.CreateFailure(startResult.FirstError ?? "Failed to start process");
             }
 
+            var launchTimeFallback = DateTime.UtcNow;
             process = startResult.Data;
             logger.LogDebug("[Process] Process {ProcessId} started successfully", process.Id);
 
             // Read while the launcher is still alive: a Unix process that has exited can no longer
             // report its start time, and that time is the only thing separating the child this
             // launch spawned from an instance of the same game the user already had running.
-            var launcherStartTime = ReadStartTime(process);
+            var launcherStartTime = ReadStartTime(process) ?? launchTimeFallback;
 
             var capturedErrors = SetupErrorRedirection(process);
 
@@ -1345,6 +1346,7 @@ public class GameProcessManager(
     {
         try
         {
+            launcher.Refresh();
             if (!launcher.HasExited)
             {
                 return (false, null);

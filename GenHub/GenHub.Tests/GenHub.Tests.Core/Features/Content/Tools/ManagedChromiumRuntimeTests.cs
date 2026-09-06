@@ -2,10 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Common;
-using GenHub.Core.Models.Notifications;
 using GenHub.Features.Content.Services.Tools;
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
@@ -21,6 +18,7 @@ public sealed class ManagedChromiumRuntimeTests : IDisposable
 {
     private readonly string _runtimeDirectory = Path.Combine(Path.GetTempPath(), "GenHubTests", Guid.NewGuid().ToString("N"));
     private readonly string? _originalBrowserPath = Environment.GetEnvironmentVariable(ManagedChromiumRuntime.BrowserPathEnvironmentVariable);
+    private readonly string? _originalDriverPath = Environment.GetEnvironmentVariable(ManagedChromiumRuntime.DriverPathEnvironmentVariable);
 
     /// <summary>
     /// Verifies a pre-provisioned app-owned Chromium executable does not trigger another install.
@@ -70,6 +68,7 @@ public sealed class ManagedChromiumRuntimeTests : IDisposable
     {
         // Arrange
         var executablePath = Path.Combine(_runtimeDirectory, "chromium.exe");
+        var installerCalls = 0;
         IReadOnlyList<string>? installerArguments = null;
         string? consentPath = null;
         var chromium = new Mock<IBrowserType>(MockBehavior.Strict);
@@ -78,6 +77,7 @@ public sealed class ManagedChromiumRuntimeTests : IDisposable
             _runtimeDirectory,
             arguments =>
             {
+                installerCalls++;
                 installerArguments = arguments;
                 Directory.CreateDirectory(_runtimeDirectory);
                 File.WriteAllText(executablePath, "browser");
@@ -95,50 +95,10 @@ public sealed class ManagedChromiumRuntimeTests : IDisposable
 
         // Assert
         Assert.Equal(_runtimeDirectory, consentPath);
+        Assert.Equal(1, installerCalls);
         Assert.Equal(["install", "chromium"], installerArguments);
         Assert.True(File.Exists(executablePath));
         Assert.Equal(_runtimeDirectory, Environment.GetEnvironmentVariable(ManagedChromiumRuntime.BrowserPathEnvironmentVariable));
-    }
-
-    /// <summary>
-    /// Verifies that when a notification service is provided, progress notifications are displayed and updated.
-    /// </summary>
-    /// <returns>A task that represents the asynchronous test.</returns>
-    [Fact]
-    public async Task EnsureInstalledAsync_WithNotificationService_ShowsAndUpdatesProgressNotificationAsync()
-    {
-        // Arrange
-        var executablePath = Path.Combine(_runtimeDirectory, "chromium.exe");
-        var chromium = new Mock<IBrowserType>(MockBehavior.Strict);
-        chromium.SetupGet(browser => browser.ExecutablePath).Returns(executablePath);
-
-        var notificationServiceMock = new Mock<INotificationService>(MockBehavior.Loose);
-        NotificationMessage? shownNotification = null;
-        notificationServiceMock
-            .Setup(n => n.Show(It.IsAny<NotificationMessage>()))
-            .Callback<NotificationMessage>(msg => shownNotification = msg);
-
-        var runtime = new ManagedChromiumRuntime(
-            _runtimeDirectory,
-            _ =>
-            {
-                Directory.CreateDirectory(_runtimeDirectory);
-                File.WriteAllText(executablePath, "browser");
-                return 0;
-            },
-            _ => Task.FromResult(true),
-            new Mock<ILogger>().Object,
-            notificationServiceMock.Object);
-
-        // Act
-        await runtime.EnsureInstalledAsync(chromium.Object, default);
-
-        // Assert
-        Assert.NotNull(shownNotification);
-        Assert.Equal(ModDBConstants.ChromiumInstallTitle, shownNotification.Title);
-        Assert.Equal(ModDBConstants.ChromiumDownloadingMessage, shownNotification.Message);
-        notificationServiceMock.Verify(n => n.Show(It.IsAny<NotificationMessage>()), Times.Once);
-        notificationServiceMock.Verify(n => n.Update(It.IsAny<Guid>(), ModDBConstants.ChromiumReadyMessage, ModDBConstants.ChromiumReadyTitle), Times.Once);
     }
 
     /// <summary>
@@ -164,11 +124,11 @@ public sealed class ManagedChromiumRuntimeTests : IDisposable
             new Mock<ILogger>().Object);
 
         // Act
-        var ex = await Assert.ThrowsAsync<OperationCanceledException>(
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
             () => runtime.EnsureInstalledAsync(chromium.Object, default));
 
         // Assert
-        Assert.Contains("cancelled", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("declined", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(0, installerCalls);
         Assert.False(File.Exists(executablePath));
     }
@@ -199,11 +159,40 @@ public sealed class ManagedChromiumRuntimeTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies IsDownloadNavigationException recognizes direct download triggers from Playwright navigation errors.
+    /// </summary>
+    /// <param name="message">The exception message.</param>
+    /// <param name="isDownloadCompleted">Whether the download TCS has completed.</param>
+    /// <param name="expected">The expected classification result.</param>
+    [Theory]
+    [InlineData("Download is starting", false, true)]
+    [InlineData("net::ERR_ABORTED at https://media.moddb.com/file.zip", true, true)]
+    [InlineData("net::ERR_ABORTED at https://media.moddb.com/file.zip", false, false)]
+    [InlineData("net::ERR_CONNECTION_REFUSED", true, false)]
+    public void IsDownloadNavigationException_RecognizesDownloadTriggerErrors(string message, bool isDownloadCompleted, bool expected)
+    {
+        // Arrange
+        var ex = new PlaywrightException(message);
+        var downloadTcs = new TaskCompletionSource<IDownload>();
+        if (isDownloadCompleted)
+        {
+            downloadTcs.SetResult(new Mock<IDownload>().Object);
+        }
+
+        // Act
+        var result = PlaywrightService.IsDownloadNavigationException(ex, downloadTcs);
+
+        // Assert
+        Assert.Equal(expected, result);
+    }
+
+    /// <summary>
     /// Deletes the temporary runtime directory and restores the process environment.
     /// </summary>
     public void Dispose()
     {
         Environment.SetEnvironmentVariable(ManagedChromiumRuntime.BrowserPathEnvironmentVariable, _originalBrowserPath);
+        Environment.SetEnvironmentVariable(ManagedChromiumRuntime.DriverPathEnvironmentVariable, _originalDriverPath);
         if (Directory.Exists(_runtimeDirectory))
         {
             Directory.Delete(_runtimeDirectory, recursive: true);

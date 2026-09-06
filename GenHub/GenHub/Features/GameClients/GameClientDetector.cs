@@ -980,13 +980,15 @@ public class GameClientDetector(
                 InstallationId = installation.Id,
                 WorkingDirectory = installationPath,
                 SourceType = ContentType.GameClient,
+                PublisherType = manifest.Publisher?.PublisherType ?? string.Empty,
             };
 
             gameClients.Add(gameClient);
             logger.LogDebug(
-                "Created GameClient from manifest: {ManifestId} -> {GameClientName}",
+                "Created GameClient from manifest: {ManifestId} -> {GameClientName} (Publisher: {PublisherType})",
                 manifest.Id,
-                gameClient.Name);
+                gameClient.Name,
+                gameClient.PublisherType);
         }
 
         return gameClients;

@@ -66,6 +66,10 @@ public partial class ChangelogsViewModel(IGitHubApiClient gitHubApiClient, ILogg
             if (Releases.Count == 0)
             {
                 logger.LogWarning("No releases found.");
+                HasError = true;
+                ErrorMessage = gitHubApiClient.IsRateLimited
+                    ? "GitHub API rate limit exceeded. Please configure a GitHub Personal Access Token in Settings or try again later."
+                    : "No release changelogs found.";
             }
         }
         catch (Exception ex)

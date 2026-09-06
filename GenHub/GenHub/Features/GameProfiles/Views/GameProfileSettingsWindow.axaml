@@ -18,7 +18,6 @@
         WindowStartupLocation="CenterOwner"
         Background="#0F0F0F"
         Icon="avares://GenHub/Assets/Icons/generalshub-icon.png"
-        SystemDecorations="Full"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="-1">
@@ -85,7 +84,7 @@
             <Setter Property="Background" Value="#15FFFFFF" />
             <Setter Property="BorderBrush" Value="#40FFFFFF" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Foreground" Value="{DynamicResource AccentLightBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Padding" Value="14,6" />
             <Setter Property="FontSize" Value="12" />
@@ -209,22 +208,22 @@
         <Style Selector="Button.header-action-btn">
             <Setter Property="Width" Value="32" />
             <Setter Property="Height" Value="32" />
-            <Setter Property="Padding" Value="6" />
-            <Setter Property="CornerRadius" Value="16" />
             <Setter Property="Background" Value="#15FFFFFF" />
-            <Setter Property="BorderBrush" Value="#40FFFFFF" />
+            <Setter Property="BorderBrush" Value="#60FFFFFF" />
             <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="Padding" Value="6" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Foreground" Value="White" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Transitions">
-                <Setter.Value>
-                    <Transitions>
-                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-                    </Transitions>
-                </Setter.Value>
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" />
+                    <BrushTransition Property="Background" Duration="0:0:0.1" />
+                </Transitions>
             </Setter>
+        </Style>
+        <Style Selector="Button.header-action-btn PathIcon">
+             <Setter Property="Foreground" Value="White" />
         </Style>
         <Style Selector="Button.header-action-btn:pointerover">
             <Setter Property="Background" Value="#30FFFFFF" />
@@ -248,7 +247,6 @@
             <Setter Property="CornerRadius" Value="8" />
             <Setter Property="Padding" Value="12" />
             <Setter Property="Margin" Value="4" />
-            <Setter Property="MinWidth" Value="250" />
             <Setter Property="MaxWidth" Value="400" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalContentAlignment" Value="Stretch" />
@@ -405,38 +403,48 @@
                         Height="60"
                         PointerPressed="OnHeaderPointerPressed">
                     <Grid ColumnDefinitions="Auto,*,Auto" Margin="24,0">
-                        <!-- Profile Icon -->
-                        <Border Grid.Column="0"
-                                Width="36" Height="36"
-                                Background="#25FFFFFF"
-                                CornerRadius="18"
-                                ClipToBounds="True"
-                                BorderBrush="White"
-                                BorderThickness="1.5"
-                                Margin="0,0,16,0"
-                                VerticalAlignment="Center">
-                            <Image Source="{Binding IconPath, Mode=OneWay, Converter={StaticResource StringToImageConverter}}"
-                                   Width="36" Height="36"
-                                   Stretch="UniformToFill" />
-                        </Border>
-
-                        <!-- Profile Title & Subtitle -->
-                        <StackPanel Grid.Column="1"
-                                    VerticalAlignment="Center"
-                                    Margin="0,0,16,0">
-                            <TextBlock Text="{Binding Name, Mode=OneWay, FallbackValue='New Profile'}"
-                                       Foreground="White"
-                                       FontSize="18"
-                                       FontWeight="Bold"
-                                       TextTrimming="CharacterEllipsis"
-                                       TextWrapping="NoWrap"
-                                       ToolTip.Tip="{Binding Name, Mode=OneWay}" />
-                            <TextBlock Text="Profile Settings"
-                                       Foreground="{DynamicResource AccentBrush}"
-                                       FontSize="10"
-                                       FontWeight="SemiBold"
-                                       LetterSpacing="1"
-                                       Opacity="0.8" />
+                        <!-- Profile Icon & Name Group -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                            <Border Width="36" Height="36"
+                                    Background="#25FFFFFF"
+                                    CornerRadius="18"
+                                    ClipToBounds="True"
+                                    BorderBrush="White"
+                                    BorderThickness="1.5">
+                                <Image Source="{Binding IconPath, Mode=OneWay, Converter={StaticResource StringToImageConverter}}"
+                                       Width="36" Height="36"
+                                       Stretch="UniformToFill" />
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Name, Mode=OneWay, FallbackValue='New Profile'}"
+                                               Foreground="White"
+                                               FontSize="18"
+                                               FontWeight="Bold"
+                                               TextTrimming="CharacterEllipsis"
+                                               TextWrapping="NoWrap"
+                                               ToolTip.Tip="{Binding Name, Mode=OneWay}" />
+                                    <Border IsVisible="{Binding IsHotswapMode}"
+                                            Background="#254CAF50"
+                                            BorderBrush="#804CAF50"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Padding="6,2"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="HOTSWAP MODE"
+                                                   Foreground="#81C784"
+                                                   FontSize="10"
+                                                   FontWeight="Bold"
+                                                   LetterSpacing="0.5" />
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Text="Profile Settings"
+                                           Foreground="{DynamicResource AccentLightBrush}"
+                                           FontSize="10"
+                                           FontWeight="SemiBold"
+                                           LetterSpacing="1"
+                                           Opacity="0.8" />
+                            </StackPanel>
                         </StackPanel>
 
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
@@ -484,6 +492,7 @@
                     </Panel>
                 </Grid>
             </Grid>
+
 
             <!-- Add Local Content Dialog -->
             <Border IsVisible="{Binding IsAddLocalContentDialogOpen}"
@@ -621,7 +630,7 @@
             <Border ZIndex="500"
                     HorizontalAlignment="Right"
                     VerticalAlignment="Bottom"
-                    Margin="0,0,40,40"
+                    Margin="0,0,10,10"
                     BoxShadow="0 15 35 0 #80000000"
                     CornerRadius="25"
                     IsVisible="{Binding !IsSaving}"

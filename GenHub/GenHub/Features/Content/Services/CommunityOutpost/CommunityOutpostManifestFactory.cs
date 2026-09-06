@@ -28,15 +28,6 @@ public class CommunityOutpostManifestFactory(
 {
     private static readonly ConcurrentDictionary<string, Regex> RegexCache = new();
 
-    private static Regex GetCachedRegex(string pattern)
-    {
-        var normalized = pattern.ToLowerInvariant();
-        return RegexCache.GetOrAdd(normalized, p => new Regex(
-            "^" + Regex.Escape(p).Replace("\\*", ".*") + "$",
-            RegexOptions.IgnoreCase | RegexOptions.Compiled,
-            TimeSpan.FromSeconds(1)));
-    }
-
     /// <inheritdoc />
     public string PublisherId => CommunityOutpostConstants.PublisherId;
 
@@ -104,6 +95,8 @@ public class CommunityOutpostManifestFactory(
                 originalManifest.Name);
 
             var variantManifests = new List<ContentManifest>();
+            var isControlBarContent = contentMetadata.Category == GenPatcherContentCategory.ControlBar;
+            var allControlBarOutputs = isControlBarContent ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : null;
 
             foreach (var variant in contentMetadata.Variants)
             {
@@ -112,6 +105,7 @@ public class CommunityOutpostManifestFactory(
                     extractedDirectory,
                     contentMetadata,
                     variant,
+                    allControlBarOutputs,
                     cancellationToken);
 
                 if (variantManifest != null)
@@ -125,6 +119,11 @@ public class CommunityOutpostManifestFactory(
                 }
             }
 
+            if (allControlBarOutputs is { Count: > 0 })
+            {
+                controlBarProcessor.CleanupSourceDirectories(extractedDirectory, allControlBarOutputs);
+            }
+
             return variantManifests;
         }
 
@@ -133,6 +132,7 @@ public class CommunityOutpostManifestFactory(
             originalManifest,
             extractedDirectory,
             contentMetadata,
+            null,
             null,
             cancellationToken);
 
@@ -179,6 +179,15 @@ public class CommunityOutpostManifestFactory(
 
         // Default to extracted directory
         return extractedDirectory;
+    }
+
+    private static Regex GetCachedRegex(string pattern)
+    {
+        var normalized = pattern.ToLowerInvariant();
+        return RegexCache.GetOrAdd(normalized, p => new Regex(
+            "^" + Regex.Escape(p).Replace("\\*", ".*") + "$",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled,
+            TimeSpan.FromSeconds(1)));
     }
 
     /// <summary>
@@ -280,6 +289,38 @@ public class CommunityOutpostManifestFactory(
         return dependencyBigFiles;
     }
 
+    private static bool HasVariantBigFiles(
+        string[] allFiles,
+        ContentVariant variant,
+        HashSet<string> controlBarRepackedOutputs,
+        HashSet<string> alwaysIncludeFiles,
+        HashSet<string> dependencyBigFiles)
+    {
+        foreach (var path in allFiles)
+        {
+            var name = Path.GetFileName(path);
+            if (!name.EndsWith(".big", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (controlBarRepackedOutputs.Contains(name) ||
+                alwaysIncludeFiles.Contains(name) ||
+                dependencyBigFiles.Contains(name))
+            {
+                return true;
+            }
+
+            var normalized = name.ToLowerInvariant();
+            if (variant.IncludePatterns?.Any(p => GetCachedRegex(p.ToLowerInvariant()).IsMatch(normalized)) == true)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>
     /// Builds a manifest with all files from the extracted directory.
     /// If variant is provided, filters files based on variant's IncludePatterns and ExcludePatterns.
@@ -289,8 +330,13 @@ public class CommunityOutpostManifestFactory(
         string extractedDirectory,
         GenPatcherContentMetadata contentMetadata,
         ContentVariant? variant,
+        HashSet<string>? allControlBarOutputs,
         CancellationToken cancellationToken)
     {
+        var isControlBarVariant = contentMetadata.Category == GenPatcherContentCategory.ControlBar &&
+                                  contentMetadata.SupportsVariants &&
+                                  variant != null;
+
         try
         {
             // Get all files from extracted directory
@@ -317,10 +363,6 @@ public class CommunityOutpostManifestFactory(
                 alwaysIncludeFiles.Add("340_ControlBarProZH.big");
             }
 
-            var isControlBarVariant = contentMetadata.Category == GenPatcherContentCategory.ControlBar &&
-                                      contentMetadata.SupportsVariants &&
-                                      variant != null;
-
             HashSet<string> controlBarRepackedOutputs;
             if (isControlBarVariant)
             {
@@ -328,8 +370,26 @@ public class CommunityOutpostManifestFactory(
                     extractedDirectory,
                     originalManifest,
                     variant?.Id,
+                    cleanupSources: false,
                     cancellationToken);
                 controlBarRepackedOutputs = new HashSet<string>(outputs, StringComparer.OrdinalIgnoreCase);
+                if (controlBarRepackedOutputs.Count == 0 ||
+                    controlBarRepackedOutputs.All(controlBarProcessor.IsMetadataOnlyBig))
+                {
+                    logger.LogInformation(
+                        "Skipping Control Bar variant {VariantId} because no matching variant assets were found in {Directory}",
+                        variant?.Id,
+                        extractedDirectory);
+                    return null;
+                }
+
+                if (allControlBarOutputs != null)
+                {
+                    foreach (var output in outputs)
+                    {
+                        allControlBarOutputs.Add(output);
+                    }
+                }
             }
             else
             {
@@ -486,40 +546,13 @@ public class CommunityOutpostManifestFactory(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to build manifest for {Name}", originalManifest.Name);
+            if (isControlBarVariant)
+            {
+                throw;
+            }
+
             return null;
         }
-    }
-
-    private bool HasVariantBigFiles(
-        string[] allFiles,
-        ContentVariant variant,
-        HashSet<string> controlBarRepackedOutputs,
-        HashSet<string> alwaysIncludeFiles,
-        HashSet<string> dependencyBigFiles)
-    {
-        foreach (var path in allFiles)
-        {
-            var name = Path.GetFileName(path);
-            if (!name.EndsWith(".big", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            if (controlBarRepackedOutputs.Contains(name) ||
-                alwaysIncludeFiles.Contains(name) ||
-                dependencyBigFiles.Contains(name))
-            {
-                return true;
-            }
-
-            var normalized = name.ToLowerInvariant();
-            if (variant.IncludePatterns?.Any(p => GetCachedRegex(p.ToLowerInvariant()).IsMatch(normalized)) == true)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private bool ShouldIncludeFile(

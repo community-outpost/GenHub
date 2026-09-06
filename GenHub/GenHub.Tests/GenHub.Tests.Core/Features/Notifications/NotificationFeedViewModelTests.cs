@@ -198,7 +198,7 @@ public class NotificationFeedViewModelTests
     }
 
     /// <summary>
-    /// Verifies that <see cref="NotificationFeedViewModel.Dispose"/> cleans up subscriptions.
+    /// Verifies that <see cref="NotificationFeedViewModel.Dispose()"/> cleans up subscriptions.
     /// </summary>
     [Fact]
     public void Dispose_CleansUpSubscriptions()

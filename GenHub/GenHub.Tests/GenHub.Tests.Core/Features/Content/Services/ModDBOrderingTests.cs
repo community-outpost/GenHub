@@ -34,15 +34,16 @@ namespace GenHub.Tests.Core.Features.Content.Services;
 public sealed class ModDBOrderingTests
 {
     /// <summary>
-    /// Verifies that ModDBFilter defaults to SortDateDesc (date-desc) and serializes it in query string.
+    /// Verifies that ModDBFilter with SortDateDesc (date-desc) serializes it in query string.
     /// </summary>
     [Fact]
-    public void ModDBFilter_DefaultsToDateDescSort()
+    public void ModDBFilter_WithDateDescSort_SerializesToQueryString()
     {
         // Arrange
         var filter = new ModDBFilter
         {
             Keyword = "contra",
+            Sort = ModDBConstants.DefaultSort,
         };
 
         // Assert

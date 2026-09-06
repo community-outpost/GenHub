@@ -29,6 +29,7 @@ public partial class App : Application
     private readonly IServiceProvider _serviceProvider;
     private readonly IUserSettingsService _userSettingsService;
     private readonly IConfigurationProviderService _configurationProvider;
+    private readonly ILocalizationService _localizationService;
     private readonly IProfileLauncherFacade _profileLauncherFacade;
     private readonly IThemeService? _themeService;
 
@@ -41,6 +42,7 @@ public partial class App : Application
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _userSettingsService = _serviceProvider.GetService<IUserSettingsService>() ?? throw new InvalidOperationException("IUserSettingsService not registered");
         _configurationProvider = _serviceProvider.GetService<IConfigurationProviderService>() ?? throw new InvalidOperationException("IConfigurationProviderService not registered");
+        _localizationService = _serviceProvider.GetRequiredService<ILocalizationService>();
         _profileLauncherFacade = _serviceProvider.GetRequiredService<IProfileLauncherFacade>();
         _themeService = _serviceProvider.GetService<IThemeService>();
     }
@@ -55,7 +57,12 @@ public partial class App : Application
     /// </summary>
     public override void Initialize()
     {
+        // Make localization available while application XAML resources are loading.
+        Resources[LocalizationConstants.ResourceServiceKey] = _localizationService;
         AvaloniaXamlLoader.Load(this);
+
+        // App XAML replaces the resource dictionary, so restore the service for views loaded afterward.
+        Resources[LocalizationConstants.ResourceServiceKey] = _localizationService;
     }
 
     /// <summary>

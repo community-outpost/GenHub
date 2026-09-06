@@ -1,30 +1,60 @@
-using System;
-using System.IO;
+// <copyright file="ContentPathPolicyTests.cs" company="Community Outpost">
+// Copyright (c) Community Outpost. All rights reserved.
+// </copyright>
+
 using GenHub.Core.Helpers;
-using Xunit;
 
 namespace GenHub.Tests.Core.Helpers;
 
 /// <summary>
 /// Unit tests for <see cref="ContentPathPolicy"/>.
 /// </summary>
-public class ContentPathPolicyTests
+public sealed class ContentPathPolicyTests : IDisposable
 {
-    private readonly string _tempRoot = Path.Combine(Path.GetTempPath(), "GenHubTests_PathPolicy_" + Guid.NewGuid().ToString("N"));
+    private readonly string _tempRoot;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ContentPathPolicyTests"/> class.
     /// </summary>
     public ContentPathPolicyTests()
     {
+        _tempRoot = Path.Combine(Path.GetTempPath(), "GenHub_ContentPathPolicyTests_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempRoot);
     }
 
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (Directory.Exists(_tempRoot))
+        {
+            try
+            {
+                Directory.Delete(_tempRoot, recursive: true);
+            }
+            catch
+            {
+                // Best effort cleanup in tests.
+            }
+        }
+    }
+
     /// <summary>
-    /// Verifies that valid contained relative paths resolve successfully.
+    /// Verifies that valid contained relative paths resolve inside root directory.
     /// </summary>
     [Fact]
-    public void ResolveContainedFile_ValidRelativePath_ResolvesCorrectly()
+    public void ResolveContainedFile_ValidRelativePath_ReturnsFullPath()
+    {
+        var result = ContentPathPolicy.ResolveContainedFile(_tempRoot, "file.txt");
+        var expected = Path.GetFullPath(Path.Combine(_tempRoot, "file.txt"));
+        Assert.True(result.Success);
+        Assert.Equal(expected, result.Data);
+    }
+
+    /// <summary>
+    /// Verifies that nested relative paths resolve inside root directory.
+    /// </summary>
+    [Fact]
+    public void ResolveContainedFile_NestedRelativePath_ReturnsFullPath()
     {
         var result = ContentPathPolicy.ResolveContainedFile(_tempRoot, "sub/file.txt");
         var expected = Path.GetFullPath(Path.Combine(_tempRoot, "sub", "file.txt"));
@@ -33,16 +63,22 @@ public class ContentPathPolicyTests
     }
 
     /// <summary>
-    /// Verifies that directory traversal sequences return a failure result.
+    /// Verifies that path traversal attempts are detected and rejected.
     /// </summary>
     /// <param name="maliciousPath">The traversal path to test.</param>
     [Theory]
+    [InlineData(".")]
+    [InlineData("sub/..")]
     [InlineData("../outside.txt")]
     [InlineData("sub/../../outside.txt")]
-    [InlineData("..\\outside.txt")]
+    [InlineData(@"..\outside.txt")]
     [InlineData("/etc/passwd")]
-    [InlineData("C:\\Windows\\System32\\cmd.exe")]
-    [InlineData("\\\\server\\share\\file.txt")]
+    [InlineData(@"\foo")]
+    [InlineData(@"\foo\bar.txt")]
+    [InlineData("/foo/bar.txt")]
+    [InlineData(@"C:\Windows\System32\cmd.exe")]
+    [InlineData(@"\\server\share\file.txt")]
+    [InlineData("//server/share/file.txt")]
     public void ResolveContainedFile_PathEscapesRoot_ReturnsFailure(string maliciousPath)
     {
         var result = ContentPathPolicy.ResolveContainedFile(_tempRoot, maliciousPath);
@@ -50,29 +86,41 @@ public class ContentPathPolicyTests
     }
 
     /// <summary>
-    /// Verifies that null or whitespace inputs return a failure result.
+    /// Verifies that null, empty, or whitespace relative paths return failure.
     /// </summary>
-    /// <param name="invalidPath">The invalid path to test.</param>
+    /// <param name="invalidPath">The invalid relative path to test.</param>
     [Theory]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
     public void ResolveContainedFile_NullOrEmptyRelativePath_ReturnsFailure(string? invalidPath)
     {
-        var result = ContentPathPolicy.ResolveContainedFile(_tempRoot, invalidPath!);
+        var result = ContentPathPolicy.ResolveContainedFile(_tempRoot, invalidPath);
         Assert.False(result.Success);
     }
 
     /// <summary>
-    /// Verifies that <see cref="ContentPathPolicy.IsContained"/> accurately detects containment.
+    /// Verifies that paths with invalid format characters return a failure result instead of throwing.
     /// </summary>
     [Fact]
-    public void IsContained_ValidAndInvalidPaths_ReturnsExpectedBoolean()
+    public void ResolveContainedFile_PathWithInvalidCharacters_ReturnsFailure()
     {
-        var inside = Path.Combine(_tempRoot, "nested", "file.dll");
-        var outside = Path.Combine(Path.GetTempPath(), "other_dir", "file.dll");
+        var result = ContentPathPolicy.ResolveContainedFile(_tempRoot, "invalid\0file.txt");
+        Assert.False(result.Success);
+    }
 
-        Assert.True(ContentPathPolicy.IsContained(_tempRoot, inside));
-        Assert.False(ContentPathPolicy.IsContained(_tempRoot, outside));
+    /// <summary>
+    /// Verifies that IsContained accurately checks containment.
+    /// </summary>
+    [Fact]
+    public void IsContained_ValidatesCorrectly()
+    {
+        var validChild = Path.Combine(_tempRoot, "sub", "file.txt");
+        var escapingChild = Path.Combine(_tempRoot, "..", "escaped.txt");
+
+        Assert.True(ContentPathPolicy.IsContained(_tempRoot, validChild));
+        Assert.False(ContentPathPolicy.IsContained(_tempRoot, escapingChild));
+        Assert.False(ContentPathPolicy.IsContained(null, validChild));
+        Assert.False(ContentPathPolicy.IsContained(_tempRoot, null));
     }
 }

@@ -89,10 +89,7 @@ public class GameClientProfileService(
                 WorkspaceStrategy = preferredStrategy,
                 EnabledContentIds = enabledContentIds,
                 ThemeColor = themeColor ?? GetThemeColorForGameType(gameClient.GameType, gameClient),
-                IconPath = !string.IsNullOrEmpty(iconPath)
-                    ? iconPath
-                    : PublisherInfoConstants.GetPublisherLogo(gameClient.PublisherType, $"{gameClient.Id} {gameClient.Name}")
-                      ?? GetIconPathForGame(gameClient.GameType),
+                IconPath = !string.IsNullOrEmpty(iconPath) ? iconPath : GetIconPathForGame(gameClient.GameType),
                 CoverPath = !string.IsNullOrEmpty(coverPath) ? coverPath : GetCoverPathForGame(gameClient.GameType, gameClient),
                 UseSteamLaunch = installation.InstallationType == GameInstallationType.Steam,
             };
@@ -506,49 +503,90 @@ public class GameClientProfileService(
     {
         if (dependency.DependencyType == ContentType.GameInstallation)
         {
-            // For game installation dependencies, query the manifest pool for the actual manifest
-            var targetGameType = dependency.CompatibleGameTypes?.FirstOrDefault() ?? gameType;
+            return await ResolveGameInstallationDependencyAsync(dependency, installation, gameType, cancellationToken);
+        }
 
-            // Find the base game client for the target game type to calculate version
-            var baseGameClient = installation.AvailableGameClients
-                .FirstOrDefault(c => c.GameType == targetGameType && IsStandardGameClient(c));
+        return await ResolveCatalogDependencyAsync(dependency, cancellationToken);
+    }
 
-            if (baseGameClient == null)
-            {
-                logger.LogWarning(
-                    "Could not find base game client for {GameType} to resolve dependency {DependencyName}",
-                    targetGameType,
-                    dependency.Name);
-                return null;
-            }
+    private async Task<string?> ResolveGameInstallationDependencyAsync(
+        ContentDependency dependency,
+        GameInstallation installation,
+        GameType gameType,
+        CancellationToken cancellationToken)
+    {
+        // For game installation dependencies, query the manifest pool for the actual manifest
+        var targetGameType = dependency.CompatibleGameTypes?.FirstOrDefault() ?? gameType;
 
-            // Generate the expected GameInstallation manifest ID
-            var version = CalculateManifestVersion(baseGameClient);
-            var expectedInstallId = ManifestIdGenerator.GenerateGameInstallationId(
-                installation, targetGameType, version);
+        // Find the base game client for the target game type to calculate version
+        var baseGameClient = installation.AvailableGameClients
+            .FirstOrDefault(c => c.GameType == targetGameType && IsStandardGameClient(c));
 
-            // Verify this manifest actually exists in the pool
-            var manifestResult = await manifestPool.GetManifestAsync(
-                ManifestId.Create(expectedInstallId), cancellationToken);
-
-            if (manifestResult.Success && manifestResult.Data != null)
-            {
-                logger.LogDebug(
-                    "Resolved GameInstallation dependency '{DependencyName}' to manifest ID: {ManifestId}",
-                    dependency.Name,
-                    expectedInstallId);
-                return expectedInstallId;
-            }
-
+        if (baseGameClient == null)
+        {
             logger.LogWarning(
-                "GameInstallation manifest {ManifestId} for {GameType} not found in pool for dependency {DependencyName}",
-                expectedInstallId,
+                "Could not find base game client for {GameType} to resolve dependency {DependencyName}",
                 targetGameType,
                 dependency.Name);
             return null;
         }
 
-        // For non-installation dependencies (MapPack, etc.), use the dependency ID directly
+        // Generate the expected GameInstallation manifest ID
+        var version = CalculateManifestVersion(baseGameClient);
+        var expectedInstallId = ManifestIdGenerator.GenerateGameInstallationId(
+            installation, targetGameType, version);
+
+        // Verify this manifest actually exists in the pool
+        var manifestResult = await manifestPool.GetManifestAsync(
+            ManifestId.Create(expectedInstallId), cancellationToken);
+
+        if (manifestResult.Success && manifestResult.Data != null)
+        {
+            logger.LogDebug(
+                "Resolved GameInstallation dependency '{DependencyName}' to manifest ID: {ManifestId}",
+                dependency.Name,
+                expectedInstallId);
+            return expectedInstallId;
+        }
+
+        logger.LogWarning(
+            "GameInstallation manifest {ManifestId} for {GameType} not found in pool for dependency {DependencyName}",
+            expectedInstallId,
+            targetGameType,
+            dependency.Name);
+        return null;
+    }
+
+    private async Task<string?> ResolveCatalogDependencyAsync(
+        ContentDependency dependency,
+        CancellationToken cancellationToken)
+    {
+        // For non-installation dependencies (MapPack, Patches, etc.), verify against the manifest pool
+        var exactResult = await manifestPool.GetManifestAsync(dependency.Id, cancellationToken);
+        if (exactResult.Success && exactResult.Data != null)
+        {
+            return exactResult.Data.Id.Value;
+        }
+
+        // Fallback: search pool for a catalog-compatible manifest
+        var allResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
+        if (allResult.Success && allResult.Data != null)
+        {
+            var compatible = allResult.Data.FirstOrDefault(m =>
+                DependencyResolver.HasCompatibleCatalogIdentity(dependency.Id.Value, m.Id.Value));
+
+            if (compatible != null)
+            {
+                logger.LogInformation(
+                    "Resolved dependency '{DependencyName}' (ID: {DeclaredId}) to compatible pooled manifest {ResolvedId}",
+                    dependency.Name,
+                    dependency.Id.Value,
+                    compatible.Id.Value);
+                return compatible.Id.Value;
+            }
+        }
+
+        // If not found in pool, return the declared ID directly as fallback
         return dependency.Id.Value;
     }
 

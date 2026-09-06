@@ -167,22 +167,30 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     {
         using (_logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "TheSuperHackers" }))
         {
-            var optionsResult = await LoadOptionsAsync(gameType);
-            if (!optionsResult.Success || optionsResult.Data == null)
+            try
             {
-                return OperationResult<TheSuperHackersSettings>.CreateFailure(optionsResult.Errors);
+                var optionsResult = await LoadOptionsAsync(gameType);
+                if (!optionsResult.Success || optionsResult.Data == null)
+                {
+                    return OperationResult<TheSuperHackersSettings>.CreateFailure(optionsResult.Errors);
+                }
+
+                var settings = new TheSuperHackersSettings();
+                var options = optionsResult.Data;
+
+                if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshSection))
+                {
+                    ParseTheSuperHackersSection(settings, tshSection);
+                }
+
+                _logger.LogInformation("Loaded TheSuperHackers settings for {GameType}", gameType);
+                return OperationResult<TheSuperHackersSettings>.CreateSuccess(settings);
             }
-
-            var settings = new TheSuperHackersSettings();
-            var options = optionsResult.Data;
-
-            if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshSection))
+            catch (Exception ex)
             {
-                ParseTheSuperHackersSection(settings, tshSection);
+                _logger.LogError(ex, "Failed to load TheSuperHackers settings for {GameType}", gameType);
+                return OperationResult<TheSuperHackersSettings>.CreateFailure($"Failed to load TheSuperHackers settings: {ex.Message}");
             }
-
-            _logger.LogInformation("Loaded TheSuperHackers settings for {GameType}", gameType);
-            return OperationResult<TheSuperHackersSettings>.CreateSuccess(settings);
         }
     }
 
@@ -191,18 +199,37 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     {
         using (_logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "TheSuperHackers" }))
         {
-            var optionsResult = await LoadOptionsAsync(gameType);
-            if (!optionsResult.Success || optionsResult.Data == null)
+            try
             {
-                return OperationResult<bool>.CreateFailure(optionsResult.Errors);
+                var optionsResult = await LoadOptionsAsync(gameType);
+                if (!optionsResult.Success || optionsResult.Data == null)
+                {
+                    return OperationResult<bool>.CreateFailure(optionsResult.Errors);
+                }
+
+                var options = optionsResult.Data;
+                Dictionary<string, string> tshSection = [];
+                if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var existingTsh) && existingTsh != null)
+                {
+                    tshSection = new Dictionary<string, string>(existingTsh, StringComparer.OrdinalIgnoreCase);
+                }
+
+                var serializedTsh = SerializeTheSuperHackersSettings(settings);
+                foreach (var kvp in serializedTsh)
+                {
+                    tshSection[kvp.Key] = kvp.Value;
+                }
+
+                options.AdditionalSections["TheSuperHackers"] = tshSection;
+
+                var saveResult = await SaveOptionsAsync(gameType, options);
+                return saveResult;
             }
-
-            var options = optionsResult.Data;
-            var tshSection = SerializeTheSuperHackersSettings(settings);
-            options.AdditionalSections["TheSuperHackers"] = tshSection;
-
-            var saveResult = await SaveOptionsAsync(gameType, options);
-            return saveResult;
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save TheSuperHackers settings for {GameType}", gameType);
+                return OperationResult<bool>.CreateFailure($"Failed to save TheSuperHackers settings: {ex.Message}");
+            }
         }
     }
 

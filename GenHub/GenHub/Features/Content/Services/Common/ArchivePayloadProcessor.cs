@@ -81,7 +81,8 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                         EnsureValidArchivePayload(archivePath);
                         logger.LogInformation("Extracting archive safely: {ArchivePath}", archivePath);
 
-                        ExtractSingleArchive(archivePath, extractedDirectory, progress, logger, cancellationToken);
+                        var archiveTargetDirectory = Path.GetDirectoryName(archivePath) ?? extractedDirectory;
+                        ExtractSingleArchive(archivePath, archiveTargetDirectory, progress, logger, cancellationToken);
                         File.Delete(archivePath);
                         logger.LogInformation("Extracted archive and removed archive source: {ArchivePath}", archivePath);
                     }
@@ -559,7 +560,15 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         try
         {
             using var archive = ArchiveFactory.OpenArchive(archivePath);
-            ExtractSharpCompressArchive(archive, extractPath, progress, logger, cancellationToken);
+            ExtractSharpCompressArchive(archive, archivePath, extractPath, progress, logger, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (InvalidDataException)
+        {
+            throw;
         }
         catch when (isExe)
         {
@@ -569,6 +578,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
     private static void ExtractSharpCompressArchive(
         IArchive archive,
+        string archivePath,
         string extractPath,
         IProgress<ContentAcquisitionProgress>? progress,
         ILogger logger,
@@ -577,6 +587,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         var entryCount = 0;
         long totalUncompressedSize = 0;
         var extractRoot = Path.GetFullPath(extractPath);
+        var fullArchivePath = Path.GetFullPath(archivePath);
         var entries = archive.Entries.Where(e => !e.IsDirectory && !string.IsNullOrEmpty(e.Key)).ToList();
         var totalEntries = entries.Count;
 
@@ -608,6 +619,11 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             if (destinationPath == null)
             {
                 throw new InvalidDataException($"Archive entry could not be resolved: {entryKey}");
+            }
+
+            if (string.Equals(destinationPath, fullArchivePath, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException($"Archive entry cannot overwrite the archive itself: {entryKey}");
             }
 
             var destinationDir = Path.GetDirectoryName(destinationPath);
@@ -749,11 +765,12 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
             long totalUncompressedSize = 0;
             var extractRoot = Path.GetFullPath(extractPath);
+            var fullArchivePath = Path.GetFullPath(archivePath);
 
             for (var i = 0; i < totalEntries; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                ExtractSingleZipEntry(validEntries[i], extractRoot, i, totalEntries, ref totalUncompressedSize, progress, logger, cancellationToken);
+                ExtractSingleZipEntry(validEntries[i], fullArchivePath, extractRoot, i, totalEntries, ref totalUncompressedSize, progress, logger, cancellationToken);
             }
 
             return true;
@@ -775,6 +792,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Zip entry extraction requires stream coordinates, cancellation, and progress reporting.")]
     private static void ExtractSingleZipEntry(
         ZipArchiveEntry entry,
+        string fullArchivePath,
         string extractRoot,
         int index,
         int totalEntries,
@@ -795,6 +813,11 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         }
 
         var destinationPath = pathResult.Data ?? string.Empty;
+        if (string.Equals(destinationPath, fullArchivePath, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException($"Archive entry cannot overwrite the archive itself: {entry.FullName}");
+        }
+
         var destinationDir = Path.GetDirectoryName(destinationPath);
         if (!string.IsNullOrEmpty(destinationDir))
         {
@@ -869,7 +892,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             stream.Position = offset;
             using var subStream = new SubStream(stream, offset, stream.Length - offset);
             using var archive = ArchiveFactory.OpenArchive(subStream);
-            ExtractSharpCompressArchive(archive, extractPath, progress, logger, cancellationToken);
+            ExtractSharpCompressArchive(archive, archivePath, extractPath, progress, logger, cancellationToken);
             return true;
         }
         catch (OperationCanceledException)
@@ -1972,6 +1995,14 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             if (GameContentConstants.IsRecognizedGameDirectory(dirName))
             {
                 logger.LogInformation("Preserving canonical game root directory: {SingleDir}", singleDir);
+                break;
+            }
+
+            // If the single directory is a game-specific directory (e.g. ZH, Zero Hour), preserve it for game routing.
+            if (GameContentConstants.ZeroHourSubfolderAliases.Contains(dirName, StringComparer.OrdinalIgnoreCase) ||
+                GameContentConstants.GeneralsSubfolderAliases.Contains(dirName, StringComparer.OrdinalIgnoreCase))
+            {
+                logger.LogInformation("Preserving game-specific directory: {SingleDir}", singleDir);
                 break;
             }
 

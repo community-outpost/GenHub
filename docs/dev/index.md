@@ -121,6 +121,12 @@ public class ConfigurationProviderService : IConfigurationProviderService
 
 ---
 
+### Localization
+
+GenHub uses a shared [resource-based localization system](./localization.md) with English fallback, automatic satellite-language discovery, and live Avalonia binding updates.
+
+---
+
 ### Logging
 
 Structured logging is provided via `Microsoft.Extensions.Logging`:

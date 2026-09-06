@@ -58,7 +58,7 @@ public interface IWebPageParser
     /// </summary>
     /// <param name="urls">The detail page URLs to parse.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A dictionary mapping each URL to its parsed web page result.</returns>
+    /// <returns>A dictionary mapping successfully parsed URLs to their parsed web page results; failed URLs are omitted.</returns>
     async Task<IReadOnlyDictionary<string, ParsedWebPage>> ParseFileDetailsManyAsync(
         IReadOnlyList<string> urls,
         CancellationToken cancellationToken = default)

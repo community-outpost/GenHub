@@ -578,15 +578,28 @@ public class GameProfileManagerTests
 
         ProfileUpdatedMessage? receivedMessage = null;
 
-        WeakReferenceMessenger.Default.Register<ProfileUpdatedMessage>(this, (_, m) => receivedMessage = m);
+        WeakReferenceMessenger.Default.Register<ProfileUpdatedMessage>(this, (_, m) =>
+        {
+            if (m.Profile.Id == profileId)
+            {
+                receivedMessage = m;
+            }
+        });
 
-        // Act
-        var result = await _profileManager.UpdateProfileAsync(profileId, request);
+        try
+        {
+            // Act
+            var result = await _profileManager.UpdateProfileAsync(profileId, request);
 
-        // Assert
-        Assert.True(result.Success);
-        Assert.NotNull(receivedMessage);
-        Assert.Equal("Updated Name", receivedMessage.Profile.Name);
+            // Assert
+            Assert.True(result.Success);
+            Assert.NotNull(receivedMessage);
+            Assert.Equal("Updated Name", receivedMessage.Profile.Name);
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.Unregister<ProfileUpdatedMessage>(this);
+        }
     }
 
     private static GameInstallation CreateTestInstallation(string clientId)

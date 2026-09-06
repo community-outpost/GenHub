@@ -423,9 +423,15 @@ public partial class GameProfileLauncherViewModel(
 
                 if (existingItem != null)
                 {
-                    // Use UpdateFromProfile to refresh the existing ViewModel in-place
-                    // This preserves running state and just updates displayed properties (especially GameVersion)
                     existingItem.UpdateFromProfile(profile);
+
+                    var gameType = profile.GameClient?.GameType.ToString() ?? "ZeroHour";
+                    existingItem.IconPath = !string.IsNullOrEmpty(profile.IconPath)
+                        ? profile.IconPath
+                        : UriConstants.DefaultIconUri;
+                    existingItem.CoverPath = !string.IsNullOrEmpty(profile.CoverPath)
+                        ? profile.CoverPath
+                        : profileResourceService.GetDefaultCoverPath(gameType);
 
                     logger.LogInformation("Refreshed profile {ProfileId} in-place (Running: {IsRunning})", profileId, existingItem.IsProcessRunning);
                 }
@@ -697,13 +703,12 @@ public partial class GameProfileLauncherViewModel(
     [RelayCommand]
     private void StartHeaderTimer()
     {
-        _isHovering = false;
-
         if (IsScanning)
         {
             return; // Don't collapse header while scanning
         }
 
+        _isHovering = false;
         _headerCollapseTimer.Stop();
         _headerExpansionTimer.Stop(); // Cancel any pending expansion
 

@@ -10,7 +10,7 @@ public static class ModDBCategoryMapper
     /// <summary>
     /// Maps a ModDB category code to a ContentType.
     /// </summary>
-    /// <param name="categoryCode">The ModDB category code (e.g., "2" for Full Version).</param>
+    /// <param name="categoryCode">The ModDB category code (e.g., &quot;2&quot; for Full Version).</param>
     /// <returns>The mapped ContentType.</returns>
     public static ContentType MapCategory(string? categoryCode)
     {
@@ -20,7 +20,7 @@ public static class ModDBCategoryMapper
             "2" => ContentType.Mod,  // Full Version
             "3" => ContentType.Mod,  // Demo
             "4" => ContentType.Patch, // Patch
-            "28" => ContentType.Mod, // Script (mod script/release)
+            "28" => ContentType.Patch, // Script
             "29" => ContentType.Addon, // Trainer
 
             // Media
@@ -60,11 +60,11 @@ public static class ModDBCategoryMapper
             "131" => ContentType.Addon, // Model Pack
 
             // Addons - Skins
-            "112" => ContentType.Addon, // Player Skin
-            "133" => ContentType.Addon, // Prop Skin
-            "113" => ContentType.Addon, // Vehicle Skin
-            "114" => ContentType.Addon, // Weapon Skin
-            "134" => ContentType.Addon, // Skin Pack
+            "112" => ContentType.Skin, // Player Skin
+            "133" => ContentType.Skin, // Prop Skin
+            "113" => ContentType.Skin, // Vehicle Skin
+            "114" => ContentType.Skin, // Weapon Skin
+            "134" => ContentType.Skin, // Skin Pack
 
             // Addons - Audio
             "117" => ContentType.Addon, // Music
@@ -75,8 +75,8 @@ public static class ModDBCategoryMapper
             // Addons - Graphics
             "124" => ContentType.Addon, // Decal
             "136" => ContentType.Addon, // Effects GFX
-            "125" => ContentType.Addon, // GUI
-            "126" => ContentType.Addon, // HUD
+            "125" => ContentType.Skin, // GUI
+            "126" => ContentType.Skin, // HUD
             "128" => ContentType.Addon, // Sprite
             "129" => ContentType.Addon, // Texture
 
@@ -88,7 +88,7 @@ public static class ModDBCategoryMapper
     /// <summary>
     /// Maps a friendly category name (from text scraping) to ContentType.
     /// </summary>
-    /// <param name="categoryName">The category name (e.g., "Full Version", "Multiplayer Map").</param>
+    /// <param name="categoryName">The category name (e.g., &quot;Full Version&quot;, &quot;Multiplayer Map&quot;).</param>
     /// <returns>The mapped ContentType.</returns>
     public static ContentType MapCategoryByName(string? categoryName)
     {
@@ -103,27 +103,27 @@ public static class ModDBCategoryMapper
         {
             var s when s.Contains("full version") => ContentType.Mod,
             var s when s.Contains("demo") => ContentType.Mod,
-            var s when s.Contains("patch") || s.Contains("hotfix") => ContentType.Patch,
-            var s when s.Contains("script") => ContentType.Mod,
+            var s when s.Contains("patch") => ContentType.Patch,
+            var s when s.Contains("script") => ContentType.Patch,
             var s when s.Contains("trainer") => ContentType.Addon,
-
-            var s when s.Contains("tool") => ContentType.ModdingTool,
-            var s when s.Contains("sdk") => ContentType.ModdingTool,
-            var s when s.Contains("ide") => ContentType.ModdingTool,
-            var s when s.Contains("source code") => ContentType.ModdingTool,
 
             var s when s.Contains("trailer") => ContentType.Video,
             var s when s.Contains("movie") => ContentType.Video,
             var s when s.Contains("video") => ContentType.Video,
+
+            var s when s.Contains("tool") => ContentType.ModdingTool,
+            var s when s.Contains("sdk") => ContentType.ModdingTool,
+            var s when s == "ide" || s.Contains(" ide") || s.Contains("ide ") || s.Contains("-ide") || s.Contains("ide-") => ContentType.ModdingTool,
+            var s when s.Contains("source code") => ContentType.ModdingTool,
 
             var s when s.Contains("multiplayer map") => ContentType.Map,
             var s when s.Contains("singleplayer map") => ContentType.Map,
             var s when s.Contains("map") => ContentType.Map,
             var s when s.Contains("prefab") => ContentType.Map,
 
-            var s when s.Contains("skin") => ContentType.Addon,
-            var s when s.Contains("gui") => ContentType.Addon,
-            var s when s.Contains("hud") => ContentType.Addon,
+            var s when s.Contains("skin") => ContentType.Skin,
+            var s when s.Contains("gui") => ContentType.Skin,
+            var s when s.Contains("hud") => ContentType.Skin,
 
             var s when s.Contains("language") => ContentType.LanguagePack,
 

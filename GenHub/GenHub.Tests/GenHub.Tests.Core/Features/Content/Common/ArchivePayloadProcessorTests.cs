@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.IO.Compression;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.Content.Services.Common;
 using Microsoft.Extensions.Logging;
@@ -50,6 +51,112 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         Assert.False(File.Exists(zipPath));
         Assert.True(File.Exists(Path.Combine(_stagingDirectory, "Data", "INI", "GameData.ini")));
         Assert.True(File.Exists(Path.Combine(_stagingDirectory, "Art", "Textures", "test.tga")));
+    }
+
+    /// <summary>
+    /// Verifies that a nested archive located in a subfolder extracts into that subfolder and not into the payload root.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_NestedArchiveInSubfolder_ExtractsIntoSubfolderAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var subDir = Path.Combine(_stagingDirectory, "Maps");
+        Directory.CreateDirectory(subDir);
+        var subZip = Path.Combine(subDir, "campaign.zip");
+
+        using (var archive = ZipFile.Open(subZip, ZipArchiveMode.Create))
+        {
+            var entry = archive.CreateEntry("campaign.map");
+            using var writer = new StreamWriter(entry.Open());
+            await writer.WriteAsync("map-content");
+        }
+
+        var processor = CreateProcessor();
+
+        // Act
+        await processor.ExtractArchivesSafelyAsync(_stagingDirectory);
+
+        // Assert: campaign.map should be in Maps/, not in _stagingDirectory
+        Assert.False(File.Exists(subZip));
+        Assert.True(File.Exists(Path.Combine(subDir, "campaign.map")));
+        Assert.False(File.Exists(Path.Combine(_stagingDirectory, "campaign.map")));
+    }
+
+    /// <summary>
+    /// Verifies that an archive exceeding the maximum allowed entry count throws an InvalidDataException.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_ExceedsMaxZipEntryCount_ThrowsInvalidDataExceptionAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var zipPath = Path.Combine(_stagingDirectory, "many_entries.zip");
+        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            for (var i = 0; i <= CatalogConstants.MaxZipEntryCount; i++)
+            {
+                archive.CreateEntry($"file_{i}.txt");
+            }
+        }
+
+        var processor = CreateProcessor();
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            processor.ExtractArchivesSafelyAsync(_stagingDirectory));
+    }
+
+    /// <summary>
+    /// Verifies that extracting an archive containing an entry that matches the archive path throws an InvalidDataException to prevent self-clobbering.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_WithArchiveContainingSelfEntry_ThrowsInvalidDataExceptionAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var zipPath = Path.Combine(_stagingDirectory, "conflict.zip");
+        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            var entry = archive.CreateEntry("conflict.zip");
+            using var writer = new StreamWriter(entry.Open());
+            await writer.WriteAsync("clobber content");
+        }
+
+        var processor = CreateProcessor();
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            processor.ExtractArchivesSafelyAsync(_stagingDirectory));
+    }
+
+    /// <summary>
+    /// Verifies that an archive with a Zip-Slip path entry targeting outside the extract directory throws InvalidDataException.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_ZipSlipEntry_ThrowsInvalidDataExceptionAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var zipPath = Path.Combine(_stagingDirectory, "malicious.zip");
+
+        using (var stream = File.Create(zipPath))
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create))
+        {
+            var entry = archive.CreateEntry("../evil.txt");
+            using var writer = new StreamWriter(entry.Open());
+            await writer.WriteAsync("evil content");
+        }
+
+        var processor = CreateProcessor();
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            processor.ExtractArchivesSafelyAsync(_stagingDirectory));
     }
 
     /// <summary>

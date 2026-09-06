@@ -32,36 +32,49 @@ public static class ContentPathPolicy
             return OperationResult<string>.CreateFailure("Relative path cannot be null or empty.");
         }
 
-        if (Path.IsPathRooted(relativePath) ||
-            (relativePath.Length >= 2 && relativePath[1] == ':' && char.IsLetter(relativePath[0])) ||
-            relativePath.StartsWith("\\\\", StringComparison.Ordinal) ||
-            relativePath.StartsWith("//", StringComparison.Ordinal))
+        try
         {
-            return OperationResult<string>.CreateFailure($"Relative path cannot be rooted or absolute: {relativePath}");
+            if (Path.IsPathRooted(relativePath) ||
+                relativePath.StartsWith('/') ||
+                relativePath.StartsWith('\\') ||
+                (relativePath.Length >= 2 && relativePath[1] == ':' && char.IsLetter(relativePath[0])))
+            {
+                return OperationResult<string>.CreateFailure($"Relative path cannot be rooted or absolute: {relativePath}");
+            }
+
+            // Normalize directory separators
+            var normalizedRelative = relativePath.Replace('/', Path.DirectorySeparatorChar)
+                                                 .Replace('\\', Path.DirectorySeparatorChar);
+
+            if (string.IsNullOrWhiteSpace(normalizedRelative))
+            {
+                return OperationResult<string>.CreateFailure("Normalized relative path cannot be empty.");
+            }
+
+            var normalizedRoot = rootDirectory.Replace('\\', Path.DirectorySeparatorChar)
+                                              .Replace('/', Path.DirectorySeparatorChar);
+            var fullRoot = Path.GetFullPath(normalizedRoot);
+            var fullCandidate = Path.GetFullPath(Path.Combine(fullRoot, normalizedRelative));
+
+            if (fullCandidate.Equals(fullRoot, PathHelper.PathComparison))
+            {
+                return OperationResult<string>.CreateFailure(
+                    $"Path '{relativePath}' resolves to target root directory '{rootDirectory}'.");
+            }
+
+            if (!IsContainedInternal(fullRoot, fullCandidate))
+            {
+                return OperationResult<string>.CreateFailure(
+                    $"Path '{relativePath}' escapes target root directory '{rootDirectory}'.");
+            }
+
+            return OperationResult<string>.CreateSuccess(fullCandidate);
         }
-
-        // Normalize directory separators
-        var normalizedRelative = relativePath.Replace('/', Path.DirectorySeparatorChar)
-                                             .Replace('\\', Path.DirectorySeparatorChar)
-                                             .TrimStart(Path.DirectorySeparatorChar);
-
-        if (string.IsNullOrWhiteSpace(normalizedRelative))
-        {
-            return OperationResult<string>.CreateFailure("Normalized relative path cannot be empty.");
-        }
-
-        var normalizedRoot = rootDirectory.Replace('\\', Path.DirectorySeparatorChar)
-                                          .Replace('/', Path.DirectorySeparatorChar);
-        var fullRoot = Path.GetFullPath(normalizedRoot);
-        var fullCandidate = Path.GetFullPath(Path.Combine(fullRoot, normalizedRelative));
-
-        if (!IsContainedInternal(fullRoot, fullCandidate))
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         {
             return OperationResult<string>.CreateFailure(
-                $"Path '{relativePath}' escapes target root directory '{rootDirectory}'.");
+                $"Invalid path format for relative path '{relativePath}': {ex.Message}");
         }
-
-        return OperationResult<string>.CreateSuccess(fullCandidate);
     }
 
     /// <summary>
@@ -89,23 +102,7 @@ public static class ContentPathPolicy
 
             return IsContainedInternal(fullRoot, fullCandidate);
         }
-        catch (ArgumentException)
-        {
-            return false;
-        }
-        catch (NotSupportedException)
-        {
-            return false;
-        }
-        catch (PathTooLongException)
-        {
-            return false;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
+        catch
         {
             return false;
         }
@@ -141,10 +138,9 @@ public static class ContentPathPolicy
             var current = path;
             while (!string.IsNullOrEmpty(current))
             {
-                var resolved = TryResolveFileSystemLink(current, path);
-                if (resolved != null)
+                if (TryResolveLink(current, path, out var resolvedPath))
                 {
-                    return resolved;
+                    return resolvedPath;
                 }
 
                 if (File.Exists(current))
@@ -163,32 +159,26 @@ public static class ContentPathPolicy
         return path;
     }
 
-    private static string? TryResolveFileSystemLink(string current, string originalPath)
+    private static bool TryResolveLink(string current, string originalPath, out string resolvedPath)
     {
-        FileSystemInfo? info = null;
-        if (File.Exists(current))
+        resolvedPath = originalPath;
+        if (!Directory.Exists(current) && !File.Exists(current))
         {
-            info = new FileInfo(current);
-        }
-        else if (Directory.Exists(current))
-        {
-            info = new DirectoryInfo(current);
+            return false;
         }
 
-        if (info?.LinkTarget == null)
+        var fileInfo = new FileInfo(current);
+        if (fileInfo.LinkTarget != null)
         {
-            return null;
+            var target = fileInfo.ResolveLinkTarget(returnFinalTarget: true);
+            if (target != null)
+            {
+                var relativeSuffix = Path.GetRelativePath(current, originalPath);
+                resolvedPath = Path.GetFullPath(Path.Combine(target.FullName, relativeSuffix));
+                return true;
+            }
         }
 
-        var target = info.ResolveLinkTarget(returnFinalTarget: true);
-        if (target == null)
-        {
-            return null;
-        }
-
-        var relativeSuffix = Path.GetRelativePath(current, originalPath);
-        return relativeSuffix == "."
-            ? target.FullName
-            : Path.GetFullPath(Path.Combine(target.FullName, relativeSuffix));
+        return false;
     }
 }

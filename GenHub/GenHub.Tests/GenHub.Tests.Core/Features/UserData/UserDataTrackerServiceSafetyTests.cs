@@ -578,6 +578,79 @@ public sealed partial class UserDataTrackerServiceSafetyTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that if a deployed file without a backup fails to delete (e.g. because it is locked or held
+    /// by another process), UninstallUserDataAsync reports failure and retains its tracking metadata so the
+    /// uninstall can be safely retried once the process closes.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task UninstallUserDataAsync_WhenFileDeleteFails_ReportsFailureAndKeepsTrackingDataAsync()
+    {
+        // Arrange
+        var deployedPath = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData", "splash.bmp");
+        var deployedDir = Path.GetDirectoryName(deployedPath)!;
+
+        var installResult = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            TestProfileId,
+            GameType.ZeroHour,
+            BuildFiles(),
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+        Assert.True(installResult.Success);
+        Assert.True(File.Exists(deployedPath));
+
+        FileStream? openFileHandle = null;
+        UnixFileMode? originalDirectoryMode = null;
+        string? probePath = null;
+        if (OperatingSystem.IsWindows())
+        {
+            openFileHandle = new FileStream(deployedPath, System.IO.FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        }
+        else
+        {
+            probePath = Path.Combine(deployedDir, "delete-permission-probe");
+            File.WriteAllText(probePath, string.Empty);
+
+            originalDirectoryMode = File.GetUnixFileMode(deployedDir);
+            File.SetUnixFileMode(deployedDir, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+
+            if (DeleteSucceeds(probePath))
+            {
+                File.SetUnixFileMode(deployedDir, originalDirectoryMode.Value);
+                return;
+            }
+        }
+
+        try
+        {
+            // Act
+            var uninstallResult = await _trackerService.UninstallUserDataAsync(TestManifestId, TestProfileId, CancellationToken.None);
+
+            // Assert
+            Assert.False(uninstallResult.Success);
+
+            var manifestResult = await _trackerService.GetUserDataManifestAsync(TestManifestId, TestProfileId, CancellationToken.None);
+            Assert.True(manifestResult.Success);
+            Assert.NotNull(manifestResult.Data);
+        }
+        finally
+        {
+            openFileHandle?.Dispose();
+            if (!OperatingSystem.IsWindows() && originalDirectoryMode.HasValue)
+            {
+                File.SetUnixFileMode(deployedDir, originalDirectoryMode.Value);
+            }
+
+            if (probePath is not null && File.Exists(probePath))
+            {
+                File.Delete(probePath);
+            }
+        }
+    }
+
+    /// <summary>
     /// A cancelled delete-all must abort before any tracking metadata is destroyed. Swallowing the
     /// cancellation and carrying on wipes the manifests and the index while the backups they describe
     /// are still on disk, leaving the user's originals unrecoverable by anything but hand.

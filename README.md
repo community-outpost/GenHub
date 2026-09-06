@@ -7,6 +7,8 @@ Launcher for C&C: Generals and Zero Hour with patch management and mod support
 - [ ] Easy launching of both C&C: Generals and Zero Hour
 - [ ] Automatic patch management and updates
 - [ ] Comprehensive mod support with easy installation
+- [ ] Authoritative vanilla game installation validation via [CSV Registry](docs/GameInstallationFilesRegistry/)
+- [ ] Multi-language installation detection and verification across 10 official game locales
 - [ ] Compatibility fixes for Windows 10/11
 
 ## Installing on macOS

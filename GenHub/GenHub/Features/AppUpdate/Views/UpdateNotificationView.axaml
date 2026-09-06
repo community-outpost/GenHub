@@ -81,7 +81,7 @@
             <Setter Property="Foreground" Value="White"/>
         </Style>
         <Style Selector="Button.SubscribeState[Tag=True]">
-            <Setter Property="Content" Value="✓ Subscribed"/>
+            <Setter Property="Content" Value="Subscribed"/>
             <Setter Property="IsEnabled" Value="False"/>
             <Setter Property="Background" Value="#1F22C55E"/>
             <Setter Property="Foreground" Value="#4ADE80"/>

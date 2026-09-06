@@ -541,9 +541,9 @@ public partial class GameProfileItemViewModel : ViewModelBase
     public bool IsWorkspacePrepared => !string.IsNullOrEmpty(ActiveWorkspaceId);
 
     /// <summary>
-    /// Gets a value indicating whether the profile can be edited (not running and not being prepared).
+    /// Gets a value indicating whether the profile can be edited (not being prepared).
     /// </summary>
-    public bool CanEdit => !IsProcessRunning && !IsPreparingWorkspace;
+    public bool CanEdit => !IsPreparingWorkspace;
 
     /// <summary>
     /// Gets a value indicating whether the profile can be launched (not running).
@@ -612,6 +612,22 @@ public partial class GameProfileItemViewModel : ViewModelBase
         OnPropertyChanged(nameof(WorkspaceStatus));
     }
 
+    private static string MapPublisherName(string publisherSegment, string fallback) =>
+        publisherSegment switch
+        {
+            PublisherTypeConstants.Steam => "Steam",
+            PublisherTypeConstants.EaApp => "EA App",
+            "thefirstdecade" => "The First Decade",
+            PublisherTypeConstants.Retail => "Retail",
+            "cdiso" => "CD/ISO",
+            "wine" => "Wine",
+            PublisherTypeConstants.GeneralsOnline => "Generals Online",
+            PublisherTypeConstants.TheSuperHackers => "The Super Hackers",
+            CommunityOutpostConstants.PublisherType => "Community Outpost",
+            "local" => "Local",
+            _ => fallback,
+        };
+
     private static string GetPublisherNameFromId(string manifestId)
     {
         if (string.IsNullOrEmpty(manifestId))
@@ -626,19 +642,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
         }
 
         var publisher = segments[2].ToLowerInvariant();
-        return publisher switch
-        {
-            PublisherTypeConstants.Steam => "Steam",
-            PublisherTypeConstants.EaApp => "EA App",
-            "thefirstdecade" => "The First Decade",
-            PublisherTypeConstants.Retail => "Retail",
-            "cdiso" => "CD/ISO",
-            "wine" => "Wine",
-            PublisherTypeConstants.GeneralsOnline => "Generals Online",
-            PublisherTypeConstants.TheSuperHackers => "The Super Hackers",
-            CommunityOutpostConstants.PublisherType => "Community Outpost",
-            _ => System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(publisher),
-        };
+        return MapPublisherName(publisher, System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(publisher));
     }
 
     private static string GetFriendlyGameTypeName(GameType? gameType)
@@ -697,6 +701,23 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 p.Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase),
             _ => coverPath,
         };
+    }
+
+    /// <summary>
+    /// Checks if the version is zero or a placeholder.
+    /// </summary>
+    /// <param name="version">The version string to check.</param>
+    private static bool IsZeroOrPlaceholderVersion(string version)
+    {
+        return version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase) ||
+               version.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
+               version.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
+               version.Contains("Automatically", StringComparison.OrdinalIgnoreCase) ||
+               version == "0" ||
+               version == "0.0" ||
+               version == "0.0.0" ||
+               version == "0.0.0.0" ||
+               version.Equals("v0", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string FormatManifestGameVersion(string publisherSegment, string versionSegment)
@@ -916,23 +937,6 @@ public partial class GameProfileItemViewModel : ViewModelBase
         }
 
         Description = string.Join(" • ", parts);
-    }
-
-    /// <summary>
-    /// Checks if the version is zero or a placeholder.
-    /// </summary>
-    /// <param name="version">The version string to check.</param>
-    private bool IsZeroOrPlaceholderVersion(string version)
-    {
-        return version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase) ||
-               version.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
-               version.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
-               version.Contains("Automatically", StringComparison.OrdinalIgnoreCase) ||
-               version == "0" ||
-               version == "0.0" ||
-               version == "0.0.0" ||
-               version == "0.0.0.0" ||
-               version.Equals("v0", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

@@ -104,7 +104,7 @@ public sealed class GitHubManifestFactoryTests : IDisposable
             }
 
             {
-                await using var writer2 = new StreamWriter(archive.CreateEntry("ZH/1080p/BIG/Art/test.tga").Open());
+                await using var writer2 = new StreamWriter(archive.CreateEntry("ZH/1080p/BIG/Art/cb.tga").Open());
                 await writer2.WriteAsync("art data");
             }
         }

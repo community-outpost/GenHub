@@ -14,6 +14,12 @@ public static class GitHubConstants
     /// <summary>Default rate limit reset period in hours.</summary>
     public const int DefaultRateLimitResetHours = 1;
 
+    /// <summary>Environment variable name for standard GitHub token.</summary>
+    public const string GitHubTokenEnvVar = "GITHUB_TOKEN";
+
+    /// <summary>Environment variable name for GenHub-specific GitHub token.</summary>
+    public const string GenHubTokenEnvVar = "GENHUB_GITHUB_TOKEN";
+
     // Build parsing constants
 
     /// <summary>String identifier for Zero Hour game variant.</summary>

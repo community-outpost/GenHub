@@ -13,6 +13,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Helpers;
+using GenHub.Features.GitHub.Services;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentDiscoverers;
@@ -24,7 +25,8 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 /// </summary>
 public partial class GitHubTopicsDiscoverer(
     IGitHubApiClient gitHubApiClient,
-    ILogger<GitHubTopicsDiscoverer> logger) : IContentDiscoverer
+    ILogger<GitHubTopicsDiscoverer> logger,
+    GitHubRateLimitTracker? rateLimitTracker = null) : IContentDiscoverer
 {
     [System.Text.RegularExpressions.GeneratedRegex(@"[^\d]")]
     private static partial System.Text.RegularExpressions.Regex NonDigitRegex();
@@ -142,6 +144,12 @@ public partial class GitHubTopicsDiscoverer(
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
+                if (IsRateLimitExhausted())
+                {
+                    logger.LogWarning("GitHub API rate limit exhausted. Halting discovery early.");
+                    break;
+                }
+
                 var searchResponse = await gitHubApiClient.SearchRepositoriesByTopicAsync(
                     topic,
                     perPage: GitHubTopicsConstants.DefaultPerPage,
@@ -180,27 +188,30 @@ public partial class GitHubTopicsDiscoverer(
 
                     // Try to get latest release for version info
                     GitHubRelease? latestRelease = null;
-                    try
+                    if (!IsRateLimitExhausted())
                     {
-                        // Apply rate limiting
-                        await _rateLimitSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                         try
                         {
-                            latestRelease = await gitHubApiClient.GetLatestReleaseAsync(
-                                repo.Owner.Login,
-                                repo.Name,
-                                cancellationToken).ConfigureAwait(false);
+                            // Apply rate limiting
+                            await _rateLimitSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                            try
+                            {
+                                latestRelease = await gitHubApiClient.GetLatestReleaseAsync(
+                                    repo.Owner.Login,
+                                    repo.Name,
+                                    cancellationToken).ConfigureAwait(false);
+                            }
+                            finally
+                            {
+                                // Add delay before releasing semaphore to maintain rate limit
+                                await Task.Delay(RateLimitDelay, cancellationToken).ConfigureAwait(false);
+                                _rateLimitSemaphore.Release();
+                            }
                         }
-                        finally
+                        catch (Exception ex)
                         {
-                            // Add delay before releasing semaphore to maintain rate limit
-                            await Task.Delay(RateLimitDelay, cancellationToken).ConfigureAwait(false);
-                            _rateLimitSemaphore.Release();
+                            logger.LogDebug(ex, "No releases found for {Repo}, will use repo info", repo.FullName);
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogDebug(ex, "No releases found for {Repo}, will use repo info", repo.FullName);
                     }
 
                     // Create search results (may return multiple for multi-asset releases)
@@ -584,6 +595,21 @@ public partial class GitHubTopicsDiscoverer(
         }
 
         return "variant";
+    }
+
+    private bool IsRateLimitExhausted()
+    {
+        if (gitHubApiClient.IsRateLimited)
+        {
+            return true;
+        }
+
+        if (rateLimitTracker != null && rateLimitTracker.IsAtLimit && rateLimitTracker.TimeUntilReset > TimeSpan.Zero)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>

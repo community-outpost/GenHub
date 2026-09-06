@@ -206,28 +206,36 @@ public class GeneralsOnlineProfileReconciler(
             return lastPart.ToLowerInvariant();
         }
 
-        // Check for legacy ID formats
-        if (lastPart.Equals("generalsonlinezh-60", StringComparison.OrdinalIgnoreCase))
+        // Check if any segment is gamedata
+        if (parts.Any(p => p.Equals(GeneralsOnlineConstants.GameDataPatchSuffix, StringComparison.OrdinalIgnoreCase)))
         {
-            return GeneralsOnlineConstants.Variant60HzSuffix;
+            return GeneralsOnlineConstants.GameDataPatchSuffix;
         }
 
-        if (lastPart.Equals("generalsonlinezh", StringComparison.OrdinalIgnoreCase))
+        // Check for legacy ID formats
+        if (lastPart.Equals("generalsonlinezh-60", StringComparison.OrdinalIgnoreCase) ||
+            lastPart.Equals("generalsonlinezh", StringComparison.OrdinalIgnoreCase))
         {
             return GeneralsOnlineConstants.Variant60HzSuffix;
         }
 
         // Check for map pack variations
-        if (lastPart.Contains("quickmatchmaps", StringComparison.OrdinalIgnoreCase) ||
-            lastPart.Contains("generalsonlinemaps", StringComparison.OrdinalIgnoreCase))
+        if (parts.Any(p => p.Contains("quickmatchmaps", StringComparison.OrdinalIgnoreCase) ||
+                           p.Contains("generalsonlinemaps", StringComparison.OrdinalIgnoreCase) ||
+                           p.Contains("mappack", StringComparison.OrdinalIgnoreCase)))
         {
             return GeneralsOnlineConstants.QuickMatchMapPackSuffix;
         }
 
+        // If it's a gameclient ID with zerohour
+        if (parts.Any(p => p.Equals("gameclient", StringComparison.OrdinalIgnoreCase)) &&
+            parts.Any(p => p.Equals("zerohour", StringComparison.OrdinalIgnoreCase)))
+        {
+            return GeneralsOnlineConstants.Variant60HzSuffix;
+        }
+
         // Fallback for legacy ID formats or unrecognized patterns.
         // We take the last dot-separated segment as the variant.
-        // While this could theoretically cause collisions (e.g. foo.bar.baz and qux.baz),
-        // it provides necessary backward compatibility for earlier manifest ID schemes.
         return parts.Length > 1 ? lastPart.ToLowerInvariant() : null;
     }
 

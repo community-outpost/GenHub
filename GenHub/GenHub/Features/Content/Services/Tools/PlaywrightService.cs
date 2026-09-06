@@ -35,77 +35,6 @@ public sealed class PlaywrightService(
     IDialogService dialogService,
     INotificationService? notificationService = null) : IPlaywrightService, IDisposable, IAsyncDisposable
 {
-    private const string StealthInitScript = """
-        // 1. Mask navigator.webdriver
-        try {
-            Object.defineProperty(navigator, 'webdriver', {
-                get: () => undefined,
-                configurable: true,
-            });
-        } catch (e) {}
-
-        // 2. Ensure window.chrome runtime object exists
-        try {
-            if (!window.chrome) {
-                window.chrome = {
-                    app: {
-                        isInstalled: false,
-                        InstallState: { DISABLED: 'disabled', INSTALLED: 'installed', NOT_INSTALLED: 'not_installed' },
-                        RunningState: { CANNOT_RUN: 'cannot_run', READY_TO_RUN: 'ready_to_run', RUNNING: 'running' }
-                    },
-                    runtime: {
-                        OnInstalledReason: { CHROME_UPDATE: 'chrome_update', INSTALL: 'install', SHARED_MODULE_UPDATE: 'shared_module_update', UPDATE: 'update' },
-                        OnRestartRequiredReason: { APP_UPDATE: 'app_update', OS_UPDATE: 'os_update', PERIODIC: 'periodic' },
-                        PlatformArch: { ARM: 'arm', ARM64: 'arm64', MIPS: 'mips', MIPS64: 'mips64', X86_32: 'x86-32', X86_64: 'x86-64' },
-                        PlatformNaclArch: { ARM: 'arm', MIPS: 'mips', MIPS64: 'mips64', X86_32: 'x86-32', X86_64: 'x86-64' },
-                        PlatformOs: { ANDROID: 'android', CROS: 'cros', LINUX: 'linux', MAC: 'mac', OPENBSD: 'openbsd', WIN: 'win' },
-                        RequestUpdateCheckStatus: { NO_UPDATE: 'no_update', THROTTLED: 'throttled', UPDATE_AVAILABLE: 'update_available' }
-                    },
-                    loadTimes: function() {},
-                    csi: function() {}
-                };
-            }
-        } catch (e) {}
-
-        // 3. Ensure navigator.plugins is non-empty
-        try {
-            if (!navigator.plugins || navigator.plugins.length === 0) {
-                const dummyPlugin = {
-                    name: 'PDF Viewer',
-                    filename: 'internal-pdf-viewer',
-                    description: 'Portable Document Format'
-                };
-                Object.defineProperty(navigator, 'plugins', {
-                    get: () => [dummyPlugin],
-                    configurable: true,
-                });
-            }
-        } catch (e) {}
-
-        // 4. Ensure navigator.languages is properly populated
-        try {
-            if (!navigator.languages || navigator.languages.length === 0) {
-                Object.defineProperty(navigator, 'languages', {
-                    get: () => ['en-US', 'en'],
-                    configurable: true,
-                });
-            }
-        } catch (e) {}
-
-        // 5. Mock notification permissions
-        try {
-            if (navigator.permissions && navigator.permissions.query) {
-                const originalQuery = navigator.permissions.query;
-                navigator.permissions.query = function(parameters) {
-                    if (parameters && parameters.name === 'notifications') {
-                        return Promise.resolve({ state: Notification.permission });
-                    }
-                    return originalQuery.apply(this, arguments);
-                };
-            }
-        } catch (e) {}
-        """;
-
     private static readonly HashSet<string> UnsafeExtraHeaders = new(StringComparer.OrdinalIgnoreCase)
     {
         "Connection",
@@ -116,6 +45,8 @@ public sealed class PlaywrightService(
         "Transfer-Encoding",
         "Upgrade",
     };
+
+    private static readonly TimeSpan KeptOpenChallengePageTimeout = TimeSpan.FromMinutes(5);
 
     private readonly SemaphoreSlim _browserLock = new(1, 1);
     private readonly SemaphoreSlim _persistentLock = new(1, 1);
@@ -128,6 +59,8 @@ public sealed class PlaywrightService(
     private readonly SemaphoreSlim _persistentFetchLock = new(1, 1);
     private readonly AsyncLocal<bool> _isInPersistentSession = new();
     private readonly HashSet<IPage> _inUsePersistentPages = [];
+    private readonly ConcurrentDictionary<IPage, CancellationTokenSource> _keptOpenCleanupTokens = new();
+    private readonly CancellationTokenSource _cleanupCts = new();
 
     private IPlaywright? _playwright;
     private IBrowser? _browser;
@@ -137,7 +70,7 @@ public sealed class PlaywrightService(
 
     private ManagedChromiumRuntime? managedChromiumRuntime;
 
-    private bool _disposed;
+    private int _disposeState;
 
     /// <inheritdoc />
     public async Task<IPage> CreatePageAsync(BrowserNewContextOptions? options = null, CancellationToken cancellationToken = default)
@@ -151,13 +84,12 @@ public sealed class PlaywrightService(
 
         var contextOptions = options ?? new BrowserNewContextOptions
         {
-            UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            UserAgent = ModDBConstants.BrowserUserAgent,
             ViewportSize = new ViewportSize { Width = 1366, Height = 768 },
             Locale = "en-US",
         };
 
         var context = await _browser.NewContextAsync(contextOptions);
-        await context.AddInitScriptAsync(StealthInitScript);
 
         try
         {
@@ -171,7 +103,7 @@ public sealed class PlaywrightService(
             }
             catch (PlaywrightException ex)
             {
-                logger.LogDebug(ex, "Failed to close context on page creation error.");
+                logger.LogDebug(ex, "Failed to close context during page creation failure.");
             }
 
             throw;
@@ -181,6 +113,7 @@ public sealed class PlaywrightService(
     /// <inheritdoc />
     public async Task<IPage> CreatePersistentPageAsync(string profileName, CancellationToken cancellationToken = default)
     {
+        ValidateProfileName(profileName);
         var profileDir = Path.Combine(
             configurationProvider.GetApplicationDataPath(),
             DirectoryNames.BrowserProfiles,
@@ -207,21 +140,22 @@ public sealed class PlaywrightService(
 
         if (keepOpen)
         {
+            ScheduleKeptOpenPageCleanup(page);
             return;
         }
 
-        await _persistentLock.WaitAsync();
+        await _persistentLock.WaitAsync(CancellationToken.None);
         try
         {
-            _inUsePersistentPages.Remove(page);
+            UntrackPersistentPage(page);
 
             if (_persistentContext != null && IsPersistentContextAlive())
             {
-                await HandlePersistentPageCloseUnderLockAsync(page);
+                await HandlePageCloseUnderActiveContextAsync(page);
             }
             else
             {
-                await TryClosePageAsync(page);
+                await SafeClosePageAsync(page);
             }
         }
         finally
@@ -233,6 +167,12 @@ public sealed class PlaywrightService(
     /// <inheritdoc />
     public async Task<string> FetchHtmlAsync(string url, CancellationToken cancellationToken = default)
     {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            throw new ArgumentException($"Invalid or unsupported URL scheme: {url}", nameof(url));
+        }
+
         logger.LogDebug("Fetching HTML from {Url}", url);
 
         var page = await CreatePageAsync(cancellationToken: cancellationToken);
@@ -254,13 +194,30 @@ public sealed class PlaywrightService(
             var context = page.Context;
             try
             {
-                await page.CloseAsync();
+                if (!page.IsClosed)
+                {
+                    try
+                    {
+                        await page.CloseAsync();
+                    }
+                    catch (PlaywrightException ex)
+                    {
+                        logger.LogDebug(ex, "Failed to close page during cleanup.");
+                    }
+                }
             }
             finally
             {
                 if (context != null)
                 {
-                    await context.CloseAsync();
+                    try
+                    {
+                        await context.CloseAsync();
+                    }
+                    catch (PlaywrightException ex)
+                    {
+                        logger.LogDebug(ex, "Failed to close context during cleanup.");
+                    }
                 }
             }
         }
@@ -295,6 +252,7 @@ public sealed class PlaywrightService(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(operation);
+        ValidateProfileName(profileName);
 
         var profileDir = Path.Combine(
             configurationProvider.GetApplicationDataPath(),
@@ -341,6 +299,7 @@ public sealed class PlaywrightService(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(urls);
+        ValidateProfileName(profileName);
 
         var results = new Dictionary<string, IDocument>(StringComparer.Ordinal);
         if (urls.Count == 0)
@@ -348,56 +307,44 @@ public sealed class PlaywrightService(
             return results;
         }
 
-        var orderedUnique = GetOrderedUniqueUrls(urls);
+        ValidatePersistentUrls(profileName, urls);
+
+        var orderedUnique = FilterUniqueUrls(urls);
         if (orderedUnique.Count == 0)
         {
             return results;
         }
 
-        var isOuterSession = !_isInPersistentSession.Value;
-        if (isOuterSession)
-        {
-            await _persistentFetchLock.WaitAsync(cancellationToken);
-            _isInPersistentSession.Value = true;
-        }
-
-        try
-        {
-            logger.LogDebug(
-                "Fetching {Count} URL(s) in parallel on persistent context (profile '{Profile}')",
-                orderedUnique.Count,
-                profileName);
-
-            var profileDir = Path.Combine(
-                configurationProvider.GetApplicationDataPath(),
-                DirectoryNames.BrowserProfiles,
-                profileName);
-
-            await EnsurePersistentContextAsync(profileDir, cancellationToken);
-            if (_persistentContext == null)
+        return await ExecuteInPersistentContextAsync(
+            profileName,
+            async () =>
             {
-                throw new InvalidOperationException("Persistent browser context not initialized");
-            }
+                logger.LogDebug(
+                    "Fetching {Count} URL(s) in parallel on persistent context (profile '{Profile}')",
+                    orderedUnique.Count,
+                    profileName);
 
-            var concurrentResults = new ConcurrentDictionary<string, IDocument>(StringComparer.Ordinal);
-            using var tabSemaphore = new SemaphoreSlim(Math.Min(orderedUnique.Count, 5));
+                var concurrentResults = new System.Collections.Concurrent.ConcurrentDictionary<string, IDocument>(StringComparer.Ordinal);
 
-            var tasks = orderedUnique.Select(url =>
-                FetchSinglePersistentUrlAsync(profileName, url, tabSemaphore, concurrentResults, cancellationToken));
+                // Limit parallel tabs to avoid overwhelming system resources (max 5 parallel tabs)
+                using var tabSemaphore = new SemaphoreSlim(Math.Min(orderedUnique.Count, 5));
 
-            await Task.WhenAll(tasks);
+                var tasks = orderedUnique.Select(url =>
+                    FetchSinglePersistentDocumentAsync(profileName, url, concurrentResults, tabSemaphore, cancellationToken));
 
-            foreach (var kvp in concurrentResults)
-            {
-                results[kvp.Key] = kvp.Value;
-            }
-        }
-        finally
-        {
-            await ReleasePersistentOuterSessionAsync(isOuterSession);
-        }
+                await Task.WhenAll(tasks);
 
-        return results;
+                foreach (var url in orderedUnique)
+                {
+                    if (concurrentResults.TryGetValue(url, out var doc))
+                    {
+                        results[url] = doc;
+                    }
+                }
+
+                return (IReadOnlyDictionary<string, IDocument>)results;
+            },
+            cancellationToken);
     }
 
     /// <inheritdoc />
@@ -416,53 +363,25 @@ public sealed class PlaywrightService(
     /// <inheritdoc />
     public void Dispose()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposeState, 1) != 0)
         {
             return;
         }
 
-        Task.Run(() => DisposeAsync().AsTask()).GetAwaiter().GetResult();
+        Task.Run(() => DisposeCoreAsync(), CancellationToken.None).GetAwaiter().GetResult();
+        GC.SuppressFinalize(this);
     }
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposeState, 1) != 0)
         {
             return;
         }
 
-        if (_persistentContext != null)
-        {
-            try
-            {
-                await _persistentContext.CloseAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogDebug(ex, "Failed to close persistent context cleanly during teardown");
-            }
-            finally
-            {
-                _inUsePersistentPages.Clear();
-                _persistentContext = null;
-                _persistentProfileName = null;
-            }
-        }
-
-        if (_browser != null)
-        {
-            await _browser.CloseAsync();
-            _browser = null;
-        }
-
-        if (_playwright != null)
-        {
-            _playwright.Dispose();
-            _playwright = null;
-        }
-
-        _disposed = true;
+        await DisposeCoreAsync().ConfigureAwait(false);
+        GC.SuppressFinalize(this);
     }
 
     /// <inheritdoc />
@@ -473,8 +392,13 @@ public sealed class PlaywrightService(
             logger.LogInformation("Starting Playwright download from {Url}", configuration.Url);
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
-            var usePersistentModDbProfile = configuration.Url.Host.Equals("moddb.com", StringComparison.OrdinalIgnoreCase) ||
-                                            configuration.Url.Host.EndsWith(".moddb.com", StringComparison.OrdinalIgnoreCase);
+            var isModDb = IsModDbHost(configuration.Url);
+            var usePersistentModDbProfile = isModDb && configuration.Url.Scheme == Uri.UriSchemeHttps;
+
+            if (isModDb && !usePersistentModDbProfile)
+            {
+                logger.LogDebug("Download URL {Url} uses HTTP; persistent ModDB profile will not be used.", configuration.Url);
+            }
 
             // Headed ModDB profile is shared with FetchPersistentHtmlAsync / multi-URL sweeps —
             // serialize so a download cannot relaunch Chromium while a section page is mid-Goto.
@@ -493,17 +417,14 @@ public sealed class PlaywrightService(
             {
                 if (isOuterSession)
                 {
-                    if (_activePersistentSessions == 0 && _inUsePersistentPages.Count == 0)
-                    {
-                        await ClosePersistentContextCoreAsync();
-                    }
+                    await ClosePersistentContextCoreAsync().ConfigureAwait(false);
 
                     _isInPersistentSession.Value = false;
                     _persistentFetchLock.Release();
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Playwright download failed for {Url}", configuration.Url);
             var message = ex.Message.Contains("Executable doesn't exist", StringComparison.OrdinalIgnoreCase)
@@ -514,7 +435,8 @@ public sealed class PlaywrightService(
     }
 
     /// <summary>
-    /// Builds headers safe to apply to a Playwright page.
+    /// Builds browser-safe request headers from a download configuration. Headers which Chromium
+    /// owns itself are ignored, while site-required headers such as <c>Referer</c> are preserved.
     /// </summary>
     /// <param name="configuration">Download configuration containing optional request headers.</param>
     /// <returns>Headers safe to apply to a Playwright page.</returns>
@@ -558,11 +480,45 @@ public sealed class PlaywrightService(
         ex.Message.Contains("Target frame was detached", StringComparison.OrdinalIgnoreCase) ||
         ex.Message.Contains("Target.createTarget", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Determines whether a navigation exception from Playwright indicates that navigation was aborted
+    /// because a direct file download started.
+    /// </summary>
+    /// <param name="ex">The navigation exception to classify.</param>
+    /// <param name="downloadTcs">The task completion source tracking whether a download event has fired.</param>
+    /// <returns><see langword="true"/> if the exception was caused by download initiation; otherwise <see langword="false"/>.</returns>
+    internal static bool IsDownloadNavigationException(PlaywrightException ex, TaskCompletionSource<IDownload> downloadTcs)
+    {
+        if (ex.Message.Contains("Download is starting", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (downloadTcs.Task.IsCompleted && ex.Message.Contains("net::ERR_ABORTED", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
     private static bool IsBlankStartupUrl(string url) =>
         string.IsNullOrWhiteSpace(url) ||
         url.Equals("about:blank", StringComparison.OrdinalIgnoreCase) ||
         url.StartsWith("chrome://newtab", StringComparison.OrdinalIgnoreCase) ||
         url.StartsWith("chrome://new-tab", StringComparison.OrdinalIgnoreCase);
+
+    private static void ValidateProfileName(string profileName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(profileName);
+        if (profileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
+            profileName.Contains("..", StringComparison.Ordinal) ||
+            profileName.Contains('/') ||
+            profileName.Contains('\\'))
+        {
+            throw new ArgumentException($"Invalid profile name '{profileName}': contains invalid path characters.", nameof(profileName));
+        }
+    }
 
     private static bool IsModDbVerificationPage(string? title) =>
         !string.IsNullOrWhiteSpace(title) &&
@@ -572,16 +528,71 @@ public sealed class PlaywrightService(
          title.Contains("Verify you are human", StringComparison.OrdinalIgnoreCase) ||
          title.Contains("Cloudflare", StringComparison.OrdinalIgnoreCase));
 
+    private static bool IsModDbHost(Uri uri) =>
+        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) &&
+        (uri.Host.Equals("moddb.com", StringComparison.OrdinalIgnoreCase) ||
+         uri.Host.EndsWith(".moddb.com", StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsModDbHost(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) && IsModDbHost(uri);
+
+    private static bool IsHttpsModDbUrl(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+        uri.Scheme == Uri.UriSchemeHttps &&
+        IsModDbHost(uri);
+
     private static async Task<IDocument> OpenDocumentAsync(string html, CancellationToken cancellationToken)
     {
         var browsingContext = BrowsingContext.New(Configuration.Default);
         return await browsingContext.OpenAsync(req => req.Content(html), cancellationToken);
     }
 
-    private static List<string> GetOrderedUniqueUrls(IReadOnlyList<string> urls)
+    private static async Task<(bool Ready, bool IsVerification)> ProbeForModDbContentOrVerificationAsync(IPage page)
     {
+        var title = await page.TitleAsync();
+        if (IsModDbVerificationPage(title))
+        {
+            return (false, true);
+        }
+
+        var contentMarker = await page.QuerySelectorAsync(
+            "#downloadsinfo, .row.rowcontent, .headerbox, #articlebrowse, #profile");
+        return (contentMarker != null, false);
+    }
+
+    private static void ValidatePersistentUrls(string profileName, IReadOnlyList<string> urls)
+    {
+        foreach (var url in urls)
+        {
+            if (string.IsNullOrWhiteSpace(url) ||
+                !Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            {
+                throw new ArgumentException($"Invalid URL (must be absolute HTTP/HTTPS): {url}", nameof(urls));
+            }
+
+            if (string.Equals(profileName, ModDBConstants.BrowserProfileName, StringComparison.OrdinalIgnoreCase) && !IsHttpsModDbUrl(url))
+            {
+                throw new ArgumentException($"URL is not permitted for profile '{profileName}' (must be HTTPS ModDB): {url}", nameof(urls));
+            }
+        }
+    }
+
+    private static List<string> FilterUniqueUrls(IReadOnlyList<string> urls)
+    {
+        var orderedUnique = new List<string>(urls.Count);
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        return urls.Where(url => !string.IsNullOrWhiteSpace(url) && seen.Add(url)).ToList();
+        foreach (var url in urls)
+        {
+            if (string.IsNullOrWhiteSpace(url) || !seen.Add(url))
+            {
+                continue;
+            }
+
+            orderedUnique.Add(url);
+        }
+
+        return orderedUnique;
     }
 
     /// <summary>
@@ -592,7 +603,8 @@ public sealed class PlaywrightService(
     /// </summary>
     private bool IsPersistentContextAlive()
     {
-        if (_persistentContext == null)
+        var context = _persistentContext;
+        if (context == null)
         {
             return false;
         }
@@ -600,7 +612,7 @@ public sealed class PlaywrightService(
         try
         {
             // Any property/method round-trip to the dead channel raises TargetClosedException.
-            _ = _persistentContext.Pages;
+            _ = context.Pages;
             return true;
         }
         catch (PlaywrightException ex) when (IsContextClosedError(ex))
@@ -609,58 +621,88 @@ public sealed class PlaywrightService(
         }
     }
 
-    private async Task FetchSinglePersistentUrlAsync(
-        string profileName,
-        string url,
-        SemaphoreSlim tabSemaphore,
-        ConcurrentDictionary<string, IDocument> concurrentResults,
-        CancellationToken cancellationToken)
+    private async Task DisposeCoreAsync()
     {
-        await tabSemaphore.WaitAsync(cancellationToken);
-        IPage? page = null;
         try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            page = await CreatePersistentPageAsync(profileName, cancellationToken);
-            var html = await NavigatePersistentPageAsync(page, url, cancellationToken);
-            var doc = await OpenDocumentAsync(html, cancellationToken);
-            concurrentResults[url] = doc;
+            await _cleanupCts.CancelAsync().ConfigureAwait(false);
+            _cleanupCts.Dispose();
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex)
         {
-            // Soft-fail per URL so one dead section does not abort the rest of the sweep.
-            logger.LogWarning(ex, "Failed to fetch persistent URL in parallel batch: {Url}", url);
-        }
-        finally
-        {
-            if (page != null)
-            {
-                await ClosePersistentPageAsync(page);
-            }
-
-            tabSemaphore.Release();
-        }
-    }
-
-    private async Task ReleasePersistentOuterSessionAsync(bool isOuterSession)
-    {
-        if (!isOuterSession)
-        {
-            return;
+            logger.LogDebug(ex, "Failed to cancel or dispose cleanup token source.");
         }
 
+        await _persistentLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
-            if (_activePersistentSessions == 0 && _inUsePersistentPages.Count == 0)
+            if (_persistentContext != null)
             {
-                await ClosePersistentContextCoreAsync();
+                try
+                {
+                    await _persistentContext.CloseAsync().ConfigureAwait(false);
+                }
+                catch (PlaywrightException ex)
+                {
+                    logger.LogDebug(ex, "Persistent context closed during disposal.");
+                }
+                finally
+                {
+                    ResetPersistentContextState();
+                }
             }
         }
         finally
         {
-            _isInPersistentSession.Value = false;
-            _persistentFetchLock.Release();
+            _persistentLock.Release();
+        }
+
+        await _browserLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        try
+        {
+            if (_browser != null)
+            {
+                try
+                {
+                    await _browser.CloseAsync().ConfigureAwait(false);
+                }
+                catch (PlaywrightException ex)
+                {
+                    logger.LogDebug(ex, "Browser closed during disposal.");
+                }
+                finally
+                {
+                    _browser = null;
+                }
+            }
+        }
+        finally
+        {
+            _browserLock.Release();
+        }
+
+        await _playwrightLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        try
+        {
+            if (_playwright != null)
+            {
+                try
+                {
+                    _playwright.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug(ex, "Playwright disposed during disposal.");
+                }
+                finally
+                {
+                    _playwright = null;
+                }
+            }
+        }
+        finally
+        {
+            _playwrightLock.Release();
         }
     }
 
@@ -669,17 +711,126 @@ public sealed class PlaywrightService(
     /// </summary>
     private async Task InvalidatePersistentContextAsync()
     {
-        await _persistentLock.WaitAsync();
+        await _persistentLock.WaitAsync(CancellationToken.None);
         try
         {
-            _inUsePersistentPages.Clear();
-            _persistentContext = null;
-            _persistentProfileName = null;
+            ResetPersistentContextState();
         }
         finally
         {
             _persistentLock.Release();
         }
+    }
+
+    private void TrackPersistentPage(IPage page)
+    {
+        if (_inUsePersistentPages.Add(page))
+        {
+            page.Close += OnPersistentPageClosed;
+        }
+    }
+
+    private void UntrackPersistentPage(IPage page)
+    {
+        page.Close -= OnPersistentPageClosed;
+        _inUsePersistentPages.Remove(page);
+
+        if (_keptOpenCleanupTokens.TryRemove(page, out var cts))
+        {
+            cts.Cancel();
+            cts.Dispose();
+        }
+    }
+
+    private void OnPersistentPageClosed(object? sender, IPage page)
+    {
+        _ = Task.Run(
+            async () =>
+            {
+                await _persistentLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                try
+                {
+                    UntrackPersistentPage(page);
+
+                    if (Volatile.Read(ref _activePersistentSessions) == 0 && _inUsePersistentPages.Count == 0)
+                    {
+                        await ClosePersistentContextCoreUnderLockAsync().ConfigureAwait(false);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug(ex, "Error handling persistent page close event.");
+                }
+                finally
+                {
+                    _persistentLock.Release();
+                }
+            },
+            CancellationToken.None);
+    }
+
+    private void ScheduleKeptOpenPageCleanup(IPage page)
+    {
+        if (_disposeState != 0)
+        {
+            return;
+        }
+
+        var pageCts = CancellationTokenSource.CreateLinkedTokenSource(_cleanupCts.Token);
+        if (!_keptOpenCleanupTokens.TryAdd(page, pageCts))
+        {
+            pageCts.Dispose();
+            return;
+        }
+
+        _ = Task.Run(
+            async () =>
+            {
+                try
+                {
+                    await Task.Delay(KeptOpenChallengePageTimeout, pageCts.Token);
+                    await ClosePersistentPageAsync(page, keepOpen: false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Disposed or manually closed earlier
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug(ex, "Failed to automatically clean up kept-open persistent page.");
+                }
+                finally
+                {
+                    if (_keptOpenCleanupTokens.TryRemove(page, out var cts))
+                    {
+                        cts.Dispose();
+                    }
+                }
+            },
+            CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Resets tracked persistent pages, unhooks page close events, cancels pending cleanup timers,
+    /// and resets cached context state.
+    /// </summary>
+    private void ResetPersistentContextState()
+    {
+        foreach (var page in _inUsePersistentPages)
+        {
+            page.Close -= OnPersistentPageClosed;
+        }
+
+        foreach (var cts in _keptOpenCleanupTokens.Values)
+        {
+            cts.Cancel();
+            cts.Dispose();
+        }
+
+        _keptOpenCleanupTokens.Clear();
+        _inUsePersistentPages.Clear();
+        _persistentContext = null;
+        _persistentProfileName = null;
     }
 
     /// <summary>
@@ -698,36 +849,37 @@ public sealed class PlaywrightService(
                     {
                         await page.CloseAsync();
                     }
-                    catch (PlaywrightException ex)
+                    catch (PlaywrightException)
                     {
-                        logger.LogDebug(ex, "Failed to close open page during context teardown");
+                        // Ignore errors if the page was already closed or detached.
                     }
                 }
 
                 await _persistentContext.CloseAsync();
             }
-            catch (PlaywrightException ex)
+            catch (PlaywrightException)
             {
-                logger.LogDebug(ex, "Failed to close persistent context cleanly");
+                // Ignore errors if the persistent context was already closed or disposed.
             }
             finally
             {
-                _inUsePersistentPages.Clear();
-                _persistentContext = null;
-                _persistentProfileName = null;
+                ResetPersistentContextState();
             }
         }
     }
 
     /// <summary>
-    /// Closes the persistent browser context and acquires _persistentLock.
+    /// Closes the persistent browser context under _persistentLock if no active sessions or leased pages remain.
     /// </summary>
     private async Task ClosePersistentContextCoreAsync()
     {
-        await _persistentLock.WaitAsync();
+        await _persistentLock.WaitAsync(CancellationToken.None);
         try
         {
-            await ClosePersistentContextCoreUnderLockAsync();
+            if (Volatile.Read(ref _activePersistentSessions) == 0 && _inUsePersistentPages.Count == 0)
+            {
+                await ClosePersistentContextCoreUnderLockAsync();
+            }
         }
         finally
         {
@@ -735,87 +887,7 @@ public sealed class PlaywrightService(
         }
     }
 
-    private async Task HandlePersistentPageCloseUnderLockAsync(IPage page)
-    {
-        try
-        {
-            var otherPages = _persistentContext?.Pages.Where(p => !p.IsClosed && p != page).ToList() ?? [];
-
-            if (_activePersistentSessions > 0)
-            {
-                await HandleActiveSessionPageCloseAsync(page, otherPages);
-            }
-            else
-            {
-                await HandleNonSessionPageCloseAsync(page);
-            }
-        }
-        catch (PlaywrightException ex) when (IsContextClosedError(ex))
-        {
-            ResetPersistentContextState();
-        }
-        catch (Exception ex)
-        {
-            logger.LogDebug(ex, "Failed to inspect persistent context after page close.");
-            ResetPersistentContextState();
-        }
-    }
-
-    private async Task HandleActiveSessionPageCloseAsync(IPage page, List<IPage> otherPages)
-    {
-        if (otherPages.Count == 0 && _inUsePersistentPages.Count == 0)
-        {
-            if (!page.IsClosed)
-            {
-                try
-                {
-                    await page.GotoAsync("about:blank");
-                }
-                catch (PlaywrightException ex)
-                {
-                    logger.LogDebug(ex, "Failed to navigate to about:blank during active session cleanup.");
-                }
-            }
-        }
-        else
-        {
-            await TryClosePageAsync(page);
-        }
-    }
-
-    private async Task HandleNonSessionPageCloseAsync(IPage page)
-    {
-        await TryClosePageAsync(page);
-
-        if (_inUsePersistentPages.Count == 0)
-        {
-            await ClosePersistentContextCoreUnderLockAsync();
-        }
-    }
-
-    private async Task TryClosePageAsync(IPage page)
-    {
-        if (!page.IsClosed)
-        {
-            try
-            {
-                await page.CloseAsync();
-            }
-            catch (PlaywrightException ex)
-            {
-                logger.LogDebug(ex, "Persistent page already closed during cleanup.");
-            }
-        }
-    }
-
-    private void ResetPersistentContextState()
-    {
-        _inUsePersistentPages.Clear();
-        _persistentContext = null;
-        _persistentProfileName = null;
-    }
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Browser automation download workflow requires sequential steps and error handling.")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("csharpsquid", "S4158", Justification = "Populated asynchronously via page.Popup event handler.")]
     private async Task<DownloadResult> DownloadFileCoreAsync(
         GenHub.Core.Models.Common.DownloadConfiguration configuration,
         bool usePersistentModDbProfile,
@@ -826,7 +898,7 @@ public sealed class PlaywrightService(
             ? await CreatePersistentPageAsync(ModDBConstants.BrowserProfileName, cancellationToken)
             : await CreatePageAsync(cancellationToken: cancellationToken);
 
-        List<IPage> popups = [];
+        System.Collections.Concurrent.ConcurrentBag<IPage> popups = [];
         var downloadTcs = new TaskCompletionSource<IDownload>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         void OnDownload(object? sender, IDownload download) => downloadTcs.TrySetResult(download);
@@ -861,25 +933,24 @@ public sealed class PlaywrightService(
             page.Popup += OnPopup;
 
             // Trigger the download by navigating to the URL.
-            await page.GotoAsync(configuration.Url.ToString(), new PageGotoOptions
+            try
             {
-                Timeout = (float)configuration.Timeout.TotalMilliseconds,
-                WaitUntil = WaitUntilState.DOMContentLoaded,
-            });
-
-            // Race the download TCS against a short delay to check if it auto-started. If not,
-            // try to click a fallback download link on the page (mirrors, manual Download btn).
-            var waitTask = Task.Delay(5000, cancellationToken);
-            var completedTask = await Task.WhenAny(downloadTcs.Task, waitTask);
-
-            if (completedTask != downloadTcs.Task)
-            {
-                await TryTriggerFallbackDownloadLinkAsync(page, downloadTcs, cancellationToken);
+                await page.GotoAsync(configuration.Url.ToString(), new PageGotoOptions
+                {
+                    Timeout = (float)configuration.Timeout.TotalMilliseconds,
+                    WaitUntil = WaitUntilState.DOMContentLoaded,
+                });
             }
+            catch (PlaywrightException ex) when (IsDownloadNavigationException(ex, downloadTcs))
+            {
+                logger.LogDebug(ex, "Navigation initiated a direct download for {Url}", configuration.Url);
+            }
+
+            await TryTriggerFallbackDownloadAsync(page, downloadTcs, cancellationToken);
 
             // Wait for the download to START (not finish) with a generous timeout. ModDB's
             // redirect chain plus Cloudflare can take a while before the binary begins streaming.
-            var waitTimeout = TimeSpan.FromMilliseconds(Math.Max(60000, configuration.Timeout.TotalMilliseconds));
+            var waitTimeout = TimeSpan.FromMilliseconds(Math.Max(ValidationLimits.MinDownloadSaveTimeoutMs, configuration.Timeout.TotalMilliseconds));
             var download = await downloadTcs.Task.WaitAsync(waitTimeout, cancellationToken);
 
             if (download == null)
@@ -887,79 +958,41 @@ public sealed class PlaywrightService(
                 return DownloadResult.CreateFailure("Download failed to initialize (null download object).");
             }
 
-            if (File.Exists(configuration.DestinationPath) && configuration.OverwriteExisting)
-            {
-                File.Delete(configuration.DestinationPath);
-            }
-
-            var dir = Path.GetDirectoryName(configuration.DestinationPath);
-            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-            {
-                Directory.CreateDirectory(dir);
-            }
-
-            // Wait for the full byte stream to land on disk before reporting success. SaveAsAsync
-            // streams the download into the destination; without awaiting it the file would be
-            // incomplete (or missing) and downstream extraction would fail.
-            await download.SaveAsAsync(configuration.DestinationPath);
-
-            var fileInfo = new FileInfo(configuration.DestinationPath);
-            logger.LogInformation("Playwright download completed: {Path}, Size: {Size}", configuration.DestinationPath, fileInfo.Length);
-
-            return DownloadResult.CreateSuccess(
-                configuration.DestinationPath,
-                fileInfo.Length,
-                stopwatch.Elapsed,
-                hashVerified: false);
+            return await SaveDownloadFileAsync(download, configuration, usePersistentModDbProfile, stopwatch, cancellationToken);
         }
         finally
         {
             page.Popup -= OnPopup;
             page.Download -= OnDownload;
             await CleanupPopupsAsync(popups, OnDownload);
-
-            if (usePersistentModDbProfile)
-            {
-                await ClosePersistentPageAsync(page);
-            }
-            else
-            {
-                var context = page.Context;
-                try
-                {
-                    if (!page.IsClosed)
-                    {
-                        await page.CloseAsync();
-                    }
-                }
-                finally
-                {
-                    if (context != null)
-                    {
-                        try
-                        {
-                            await context.CloseAsync();
-                        }
-                        catch (PlaywrightException ex)
-                        {
-                            logger.LogDebug(ex, "Context already closed during download cleanup.");
-                        }
-                    }
-                }
-            }
+            await CleanupDownloadPageAsync(page, usePersistentModDbProfile);
         }
     }
 
-    private async Task TryTriggerFallbackDownloadLinkAsync(
-        IPage page,
-        TaskCompletionSource<IDownload> downloadTcs,
-        CancellationToken cancellationToken)
+    private async Task TryTriggerFallbackDownloadAsync(IPage page, TaskCompletionSource<IDownload> downloadTcs, CancellationToken cancellationToken)
     {
+        var waitTask = Task.Delay(5000, cancellationToken);
+        var completedTask = await Task.WhenAny(downloadTcs.Task, waitTask);
+
+        if (completedTask == downloadTcs.Task)
+        {
+            return;
+        }
+
         logger.LogInformation("Download did not start automatically within 5s. Attempting to find fallback link...");
 
-        const string FallbackSelector = "a[href*='media.moddb.com'], a[href*='files.moddb.com'], a:has-text('click here'), a:has-text('Click here'), a:has-text('here'), a#download, a.download, a.btn-download, a.buttondownload, a[href*='/mirror/'], a[href*='/downloads/start/'], a[href*='/addons/start/'], a:has-text('Download Now'), a:has-text('download now'), a:has-text('Download'), a:has-text('download'), a:has-text('mirror')";
+        const string FallbackSelector = "a[href*='media.moddb.com'], a[href*='files.moddb.com'], a#download, a.download, a.btn-download, a.buttondownload, a[href*='/mirror/'], a[href*='/downloads/start/'], a[href*='/addons/start/']";
 
-        var fallbackLink = await page.QuerySelectorAsync(FallbackSelector);
+        IElementHandle? fallbackLink = null;
+        try
+        {
+            fallbackLink = await page.QuerySelectorAsync(FallbackSelector);
+        }
+        catch (PlaywrightException ex)
+        {
+            logger.LogDebug(ex, "Failed to query fallback download selector.");
+        }
+
         if (fallbackLink == null)
         {
             logger.LogWarning("No fallback download link found. Continuing to wait for download event...");
@@ -971,34 +1004,38 @@ public sealed class PlaywrightService(
         try
         {
             await fallbackLink.ClickAsync(new ElementHandleClickOptions { Timeout = 5000 });
-            await TryClickStartPageMirrorLinkAsync(page, downloadTcs, cancellationToken);
+            await CheckStartPageFallbackAsync(page, downloadTcs, cancellationToken);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "Failed to click fallback link.");
         }
     }
 
-    private async Task TryClickStartPageMirrorLinkAsync(
-        IPage page,
-        TaskCompletionSource<IDownload> downloadTcs,
-        CancellationToken cancellationToken)
+    private async Task CheckStartPageFallbackAsync(IPage page, TaskCompletionSource<IDownload> downloadTcs, CancellationToken cancellationToken)
     {
         var secondWait = Task.Delay(4000, cancellationToken);
         var secondCompleted = await Task.WhenAny(downloadTcs.Task, secondWait);
         if (secondCompleted != downloadTcs.Task && !string.IsNullOrWhiteSpace(page.Url) && page.Url.Contains("/start/", StringComparison.OrdinalIgnoreCase))
         {
-            var startPageFallback = await page.QuerySelectorAsync("a:has-text('click here'), a:has-text('Click here'), a[href*='media.moddb.com'], a[href*='files.moddb.com'], a[href*='/mirror/']");
-            if (startPageFallback != null)
+            try
             {
-                var startText = await startPageFallback.InnerTextAsync();
-                logger.LogInformation("Found start-page mirror link '{Text}', clicking...", startText);
-                await startPageFallback.ClickAsync(new ElementHandleClickOptions { Timeout = 5000 });
+                var startPageFallback = await page.QuerySelectorAsync("a:has-text('click here'), a:has-text('Click here'), a[href*='media.moddb.com'], a[href*='files.moddb.com'], a[href*='/mirror/']");
+                if (startPageFallback != null)
+                {
+                    var startText = await startPageFallback.InnerTextAsync();
+                    logger.LogInformation("Found start-page mirror link '{Text}', clicking...", startText);
+                    await startPageFallback.ClickAsync(new ElementHandleClickOptions { Timeout = 5000 });
+                }
+            }
+            catch (PlaywrightException ex)
+            {
+                logger.LogDebug(ex, "Failed to query or click start-page fallback link.");
             }
         }
     }
 
-    private async Task CleanupPopupsAsync(IReadOnlyList<IPage> popups, EventHandler<IDownload> onDownload)
+    private async Task CleanupPopupsAsync(System.Collections.Concurrent.ConcurrentBag<IPage> popups, EventHandler<IDownload> onDownload)
     {
         foreach (var popup in popups)
         {
@@ -1022,20 +1059,31 @@ public sealed class PlaywrightService(
     /// </summary>
     private async Task EnsurePlaywrightInitializedAsync(CancellationToken cancellationToken)
     {
-        if (_browser != null) return;
+        if (_browser != null && _browser.IsConnected) return;
 
         await _browserLock.WaitAsync(cancellationToken);
         try
         {
-            if (_browser != null) return;
+            if (_browser != null && _browser.IsConnected) return;
 
-            await EnsureManagedPlaywrightAsync(cancellationToken);
-            if (_playwright == null)
+            if (_browser != null)
             {
-                throw new InvalidOperationException("Playwright is not initialized");
+                try
+                {
+                    await _browser.DisposeAsync();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug(ex, "Disposing disconnected browser instance.");
+                }
+                finally
+                {
+                    _browser = null;
+                }
             }
 
-            _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+            var playwright = await EnsureManagedPlaywrightAsync(cancellationToken);
+            _browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
             {
                 // The shared browser is headless for ordinary parsing/fetching. Bot-protected
                 // sites that need a visible window use the persistent context instead.
@@ -1081,9 +1129,7 @@ public sealed class PlaywrightService(
             // drop a cached-but-dead context so the relaunch below actually runs.
             if (!IsPersistentContextAlive())
             {
-                _inUsePersistentPages.Clear();
-                _persistentContext = null;
-                _persistentProfileName = null;
+                ResetPersistentContextState();
             }
             else if (string.Equals(_persistentProfileName, profileDir, StringComparison.Ordinal))
             {
@@ -1094,15 +1140,10 @@ public sealed class PlaywrightService(
                 await ClosePersistentContextCoreUnderLockAsync();
             }
 
-            await EnsureManagedPlaywrightAsync(cancellationToken);
-            if (_playwright == null)
-            {
-                throw new InvalidOperationException("Playwright is not initialized");
-            }
-
+            var playwright = await EnsureManagedPlaywrightAsync(cancellationToken);
             Directory.CreateDirectory(profileDir);
 
-            var context = await _playwright.Chromium.LaunchPersistentContextAsync(
+            var context = await playwright.Chromium.LaunchPersistentContextAsync(
                 profileDir,
                 new BrowserTypeLaunchPersistentContextOptions
                 {
@@ -1128,23 +1169,32 @@ public sealed class PlaywrightService(
                         "--password-store=basic",
                         "--use-mock-keychain",
                     ],
-                    UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+                    UserAgent = ModDBConstants.BrowserUserAgent,
                     ViewportSize = new ViewportSize { Width = 1366, Height = 768 },
                     Locale = "en-US",
                     IgnoreDefaultArgs = ["--enable-automation"],
                 });
 
-            await context.AddInitScriptAsync(StealthInitScript);
-
             var ctx = context;
             context.Close += (_, _) =>
             {
-                if (ReferenceEquals(_persistentContext, ctx))
-                {
-                    _inUsePersistentPages.Clear();
-                    _persistentContext = null;
-                    _persistentProfileName = null;
-                }
+                Task.Run(
+                    async () =>
+                    {
+                        await _persistentLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                        try
+                        {
+                            if (ReferenceEquals(_persistentContext, ctx))
+                            {
+                                ResetPersistentContextState();
+                            }
+                        }
+                        finally
+                        {
+                            _persistentLock.Release();
+                        }
+                    },
+                    CancellationToken.None);
             };
 
             _persistentContext = context;
@@ -1164,7 +1214,7 @@ public sealed class PlaywrightService(
     /// </summary>
     private async Task<IPage> CreatePersistentPageWithRecoveryAsync(string profileDir, CancellationToken cancellationToken)
     {
-        IPage? page = null;
+        IPage page = null!;
         try
         {
             await _persistentLock.WaitAsync(cancellationToken);
@@ -1199,7 +1249,7 @@ public sealed class PlaywrightService(
             }
         }
 
-        return page ?? throw new InvalidOperationException("Failed to get or create persistent page");
+        return page;
     }
 
     private async Task<IPage> GetOrCreatePersistentPageCoreAsync()
@@ -1213,14 +1263,14 @@ public sealed class PlaywrightService(
         {
             if (!existing.IsClosed && IsBlankStartupUrl(existing.Url) && !_inUsePersistentPages.Contains(existing))
             {
-                _inUsePersistentPages.Add(existing);
+                TrackPersistentPage(existing);
                 await CloseOrphanStartupPagesAsync(existing);
                 return existing;
             }
         }
 
         var newPage = await _persistentContext.NewPageAsync();
-        _inUsePersistentPages.Add(newPage);
+        TrackPersistentPage(newPage);
         await CloseOrphanStartupPagesAsync(newPage);
         return newPage;
     }
@@ -1236,22 +1286,14 @@ public sealed class PlaywrightService(
             return;
         }
 
-        List<IPage> GetPersistentPages()
+        List<IPage> pages;
+        try
         {
-            try
-            {
-                return [.. _persistentContext.Pages];
-            }
-            catch (PlaywrightException ex) when (IsContextClosedError(ex))
-            {
-                logger.LogDebug(ex, "Persistent context closed while collecting orphan startup pages.");
-                return [];
-            }
+            pages = [.. _persistentContext.Pages];
         }
-
-        var pages = GetPersistentPages();
-        if (pages.Count == 0)
+        catch (PlaywrightException ex) when (IsContextClosedError(ex))
         {
+            logger.LogDebug(ex, "Persistent context closed while collecting orphan startup pages.");
             return;
         }
 
@@ -1299,41 +1341,52 @@ public sealed class PlaywrightService(
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the browser runtime initialization.</returns>
-    private async Task EnsureManagedPlaywrightAsync(CancellationToken cancellationToken)
+    private async Task<IPlaywright> EnsureManagedPlaywrightAsync(CancellationToken cancellationToken)
     {
+        var runtime = GetOrCreateManagedChromiumRuntime();
+        runtime.ConfigureEnvironment();
+
+        IPlaywright playwright;
         await _playwrightLock.WaitAsync(cancellationToken);
         try
         {
-            var runtime = GetOrCreateManagedChromiumRuntime();
-            runtime.ConfigureEnvironment();
             _playwright ??= await Playwright.CreateAsync();
-            await runtime.EnsureInstalledAsync(_playwright.Chromium, cancellationToken);
+            playwright = _playwright;
         }
         finally
         {
             _playwrightLock.Release();
         }
+
+        await runtime.EnsureInstalledAsync(playwright.Chromium, cancellationToken);
+        return playwright;
     }
 
     private ManagedChromiumRuntime GetOrCreateManagedChromiumRuntime()
     {
-        return managedChromiumRuntime ??= new ManagedChromiumRuntime(
+        if (managedChromiumRuntime != null)
+        {
+            return managedChromiumRuntime;
+        }
+
+        var newRuntime = new ManagedChromiumRuntime(
             Path.Combine(configurationProvider.GetApplicationDataPath(), DirectoryNames.BrowserRuntime),
             Microsoft.Playwright.Program.Main,
             RequestManagedChromiumInstallConsentAsync,
-            logger,
-            notificationService);
+            logger);
+
+        return Interlocked.CompareExchange(ref managedChromiumRuntime, newRuntime, null) ?? newRuntime;
     }
 
     /// <summary>
-    /// Asks the user (via the same confirmation dialog used for profile deletion) whether to
-    /// download GenHub's managed Playwright Chromium runtime for ModDB. System Chrome/Edge is
-    /// not used — Playwright requires its own patched build under the app data directory.
+    /// Asks the user whether to download GenHub's managed Playwright Chromium runtime for web scraping
+    /// and bot-protected content. System Chrome/Edge is not used — Playwright requires its own patched
+    /// build under the app data directory.
     /// </summary>
     private async Task<bool> RequestManagedChromiumInstallConsentAsync(string runtimeDirectory)
     {
         var message =
-            "ModDB requires GenHub's managed Chromium runtime (Playwright). " +
+            "GenHub requires a managed Chromium runtime (Playwright) for web scraping and downloads. " +
             "This is separate from any Chrome or Edge browser already installed on your PC — those cannot be used.\n\n" +
             "What will be installed (~240 MB download):\n" +
             "• Playwright Chromium browser\n" +
@@ -1343,7 +1396,7 @@ public sealed class PlaywrightService(
 
         async Task<bool> ShowAsync() =>
             await dialogService.ShowConfirmationAsync(
-                "Install Chromium Runtime for ModDB",
+                "Install Web Browser Runtime",
                 message,
                 confirmText: "Install",
                 cancelText: "Cancel");
@@ -1366,35 +1419,36 @@ public sealed class PlaywrightService(
     /// <returns>The page HTML.</returns>
     private async Task<string> FetchPersistentHtmlAsync(string profileName, string url, CancellationToken cancellationToken)
     {
+        ValidateProfileName(profileName);
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            throw new ArgumentException($"Invalid URL (must be absolute HTTP/HTTPS): {url}", nameof(url));
+        }
+
+        if (string.Equals(profileName, ModDBConstants.BrowserProfileName, StringComparison.OrdinalIgnoreCase) && !IsHttpsModDbUrl(url))
+        {
+            throw new ArgumentException($"URL is not permitted for profile '{profileName}' (must be HTTPS ModDB): {url}", nameof(url));
+        }
+
         logger.LogDebug("Fetching HTML (persistent profile '{Profile}') from {Url}", profileName, url);
 
-        var isOuterSession = !_isInPersistentSession.Value;
-        if (isOuterSession)
-        {
-            await _persistentFetchLock.WaitAsync(cancellationToken);
-            _isInPersistentSession.Value = true;
-        }
-
-        try
-        {
-            var page = await CreatePersistentPageAsync(profileName, cancellationToken);
-            try
+        return await ExecuteInPersistentContextAsync(
+            profileName,
+            async () =>
             {
-                return await NavigatePersistentPageAsync(page, url, cancellationToken);
-            }
-            finally
-            {
-                await ClosePersistentPageAsync(page);
-            }
-        }
-        finally
-        {
-            if (isOuterSession)
-            {
-                _isInPersistentSession.Value = false;
-                _persistentFetchLock.Release();
-            }
-        }
+                var page = await CreatePersistentPageAsync(profileName, cancellationToken);
+                try
+                {
+                    return await NavigatePersistentPageAsync(page, url, cancellationToken);
+                }
+                finally
+                {
+                    await ClosePersistentPageAsync(page);
+                }
+            },
+            cancellationToken);
     }
 
     /// <summary>
@@ -1409,7 +1463,7 @@ public sealed class PlaywrightService(
             WaitUntil = WaitUntilState.DOMContentLoaded,
         });
 
-        if (url.Contains("moddb.com", StringComparison.OrdinalIgnoreCase))
+        if (IsModDbHost(url))
         {
             await WaitForModDbContentAsync(page, url, cancellationToken);
         }
@@ -1449,18 +1503,25 @@ public sealed class PlaywrightService(
 
             try
             {
-                if (await CheckModDbContentReadyAsync(page, url, verificationObserved))
+                var (ready, isVerification) = await ProbeForModDbContentOrVerificationAsync(page);
+                if (isVerification)
                 {
-                    return;
+                    if (!verificationObserved)
+                    {
+                        logger.LogInformation(
+                            "ModDB verification is open in Chromium for {Url}. Waiting for the user to complete it.",
+                            url);
+                        verificationObserved = true;
+                    }
                 }
-
-                var title = await page.TitleAsync();
-                if (IsModDbVerificationPage(title) && !verificationObserved)
+                else if (ready)
                 {
-                    logger.LogInformation(
-                        "ModDB verification is open in Chromium for {Url}. Waiting for the user to complete it.",
-                        url);
-                    verificationObserved = true;
+                    if (verificationObserved)
+                    {
+                        logger.LogInformation("ModDB verification completed; parsing content from {Url}", url);
+                    }
+
+                    return;
                 }
             }
             catch (PlaywrightException ex) when (IsContextClosedError(ex))
@@ -1480,25 +1541,235 @@ public sealed class PlaywrightService(
                 : $"ModDB did not expose parseable content for {url}.");
     }
 
-    private async Task<bool> CheckModDbContentReadyAsync(IPage page, string url, bool verificationObserved)
+    private async Task HandlePageCloseUnderActiveContextAsync(IPage page)
     {
-        var title = await page.TitleAsync();
-        if (IsModDbVerificationPage(title))
+        try
         {
-            return false;
+            var otherPages = _persistentContext!.Pages.Where(p => !p.IsClosed && p != page).ToList();
+
+            if (_activePersistentSessions > 0)
+            {
+                await HandlePageCloseInActiveSessionAsync(page, otherPages.Count);
+            }
+            else
+            {
+                await HandlePageCloseOutsideActiveSessionAsync(page);
+            }
+        }
+        catch (PlaywrightException ex) when (IsContextClosedError(ex))
+        {
+            ResetPersistentContextState();
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to inspect persistent context after page close.");
+            ResetPersistentContextState();
+        }
+    }
+
+    private async Task HandlePageCloseInActiveSessionAsync(IPage page, int otherPageCount)
+    {
+        if (otherPageCount == 0 && _inUsePersistentPages.Count == 0)
+        {
+            if (!page.IsClosed)
+            {
+                try
+                {
+                    await page.GotoAsync("about:blank");
+                }
+                catch (PlaywrightException ex)
+                {
+                    logger.LogDebug(ex, "Failed navigating persistent page to blank.");
+                }
+            }
+        }
+        else
+        {
+            await SafeClosePageAsync(page);
+        }
+    }
+
+    private async Task HandlePageCloseOutsideActiveSessionAsync(IPage page)
+    {
+        await SafeClosePageAsync(page);
+
+        if (_inUsePersistentPages.Count == 0)
+        {
+            await ClosePersistentContextCoreUnderLockAsync();
+        }
+    }
+
+    private async Task SafeClosePageAsync(IPage page)
+    {
+        if (!page.IsClosed)
+        {
+            try
+            {
+                await page.CloseAsync();
+            }
+            catch (PlaywrightException ex)
+            {
+                logger.LogDebug(ex, "Persistent page already closed during cleanup.");
+            }
+        }
+    }
+
+    private async Task FetchSinglePersistentDocumentAsync(
+        string profileName,
+        string url,
+        System.Collections.Concurrent.ConcurrentDictionary<string, IDocument> concurrentResults,
+        SemaphoreSlim tabSemaphore,
+        CancellationToken cancellationToken)
+    {
+        await tabSemaphore.WaitAsync(cancellationToken);
+        IPage? page = null;
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            page = await CreatePersistentPageAsync(profileName, cancellationToken);
+
+            var html = await NavigatePersistentPageAsync(page, url, cancellationToken);
+            var doc = await OpenDocumentAsync(html, cancellationToken);
+            concurrentResults[url] = doc;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Soft-fail per URL so one dead section does not abort the rest of the sweep.
+            logger.LogWarning(ex, "Failed to fetch persistent URL in parallel batch: {Url}", url);
+        }
+        finally
+        {
+            if (page != null)
+            {
+                await ClosePersistentPageAsync(page);
+            }
+
+            tabSemaphore.Release();
+        }
+    }
+
+    private async Task<DownloadResult> SaveDownloadFileAsync(
+        IDownload download,
+        GenHub.Core.Models.Common.DownloadConfiguration configuration,
+        bool usePersistentModDbProfile,
+        System.Diagnostics.Stopwatch stopwatch,
+        CancellationToken cancellationToken)
+    {
+        if (usePersistentModDbProfile && !IsHttpsModDbUrl(download.Url))
+        {
+            logger.LogWarning("Download URL {DownloadUrl} is not a valid HTTPS ModDB URL. Aborting download.", download.Url);
+            throw new InvalidOperationException($"Download URL '{download.Url}' must be an HTTPS ModDB URL for persistent profile.");
         }
 
-        var contentMarker = await page.QuerySelectorAsync("#downloadsinfo, .row.rowcontent, .headerbox, #articlebrowse, #profile");
-        if (contentMarker == null)
+        if (File.Exists(configuration.DestinationPath) && configuration.OverwriteExisting)
         {
-            return false;
+            File.Delete(configuration.DestinationPath);
         }
 
-        if (verificationObserved)
+        var dir = Path.GetDirectoryName(configuration.DestinationPath);
+        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
         {
-            logger.LogInformation("ModDB verification completed; parsing content from {Url}", url);
+            Directory.CreateDirectory(dir);
         }
 
-        return true;
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var saveTimeout = configuration.Timeout > TimeSpan.Zero && configuration.Timeout != Timeout.InfiniteTimeSpan
+            ? TimeSpan.FromMilliseconds(Math.Max(ValidationLimits.MinDownloadSaveTimeoutMs, configuration.Timeout.TotalMilliseconds))
+            : Timeout.InfiniteTimeSpan;
+
+        if (saveTimeout != Timeout.InfiniteTimeSpan)
+        {
+            linkedCts.CancelAfter(saveTimeout);
+        }
+
+        var cancelTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var registration = linkedCts.Token.Register(() => cancelTcs.TrySetResult(true));
+
+        var saveTask = download.SaveAsAsync(configuration.DestinationPath);
+        var completedTask = await Task.WhenAny(saveTask, cancelTcs.Task);
+
+        if (completedTask != saveTask)
+        {
+            try
+            {
+                await download.CancelAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Failed to cancel download after timeout or cancellation.");
+            }
+
+            CleanPartialOutputFile(configuration.DestinationPath);
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new TimeoutException($"Download timed out after {saveTimeout.TotalSeconds} seconds.");
+        }
+
+        try
+        {
+            await saveTask;
+        }
+        catch (Exception)
+        {
+            CleanPartialOutputFile(configuration.DestinationPath);
+            throw;
+        }
+
+        var fileInfo = new FileInfo(configuration.DestinationPath);
+        logger.LogInformation("Playwright download completed: {Path}, Size: {Size}", configuration.DestinationPath, fileInfo.Length);
+
+        return DownloadResult.CreateSuccess(
+            configuration.DestinationPath,
+            fileInfo.Length,
+            stopwatch.Elapsed,
+            hashVerified: false);
+    }
+
+    private void CleanPartialOutputFile(string destinationPath)
+    {
+        try
+        {
+            if (File.Exists(destinationPath))
+            {
+                File.Delete(destinationPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to clean partial output file at {DestinationPath}", destinationPath);
+        }
+    }
+
+    private async Task CleanupDownloadPageAsync(IPage page, bool usePersistentModDbProfile)
+    {
+        if (usePersistentModDbProfile)
+        {
+            await ClosePersistentPageAsync(page);
+        }
+        else
+        {
+            var context = page.Context;
+            try
+            {
+                if (!page.IsClosed)
+                {
+                    await page.CloseAsync();
+                }
+            }
+            finally
+            {
+                if (context != null)
+                {
+                    try
+                    {
+                        await context.CloseAsync();
+                    }
+                    catch (PlaywrightException ex)
+                    {
+                        logger.LogDebug(ex, "Context already closed during download cleanup.");
+                    }
+                }
+            }
+        }
     }
 }

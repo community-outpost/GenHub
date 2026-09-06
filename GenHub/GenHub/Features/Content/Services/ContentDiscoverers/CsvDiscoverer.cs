@@ -14,6 +14,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentDiscoverers;
@@ -25,7 +26,8 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 public class CsvDiscoverer(
     ILogger<CsvDiscoverer> logger,
     IConfigurationProviderService configProvider,
-    IHttpClientFactory httpClientFactory) : IContentDiscoverer, IDisposable
+    IHttpClientFactory httpClientFactory,
+    CsvCatalogCache? catalogCache = null) : IContentDiscoverer, IDisposable
 {
     private enum CsvCatalogSourceKind
     {
@@ -48,6 +50,8 @@ public class CsvDiscoverer(
             return new CsvCatalogSource(CsvCatalogSourceKind.ConfiguredCatalogs, "CsvValidationCatalogs configuration", entries);
         }
     }
+
+    private sealed record CsvIndexContent(string Content, bool ShouldCache);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -145,6 +149,12 @@ public class CsvDiscoverer(
                 _cacheLock.Dispose();
             }
         }
+    }
+
+    private static bool IsRecoverableRemoteFailure(Exception exception, CancellationToken cancellationToken)
+    {
+        return exception is HttpRequestException or IOException ||
+            (exception is OperationCanceledException && !cancellationToken.IsCancellationRequested);
     }
 
     private static List<CsvCatalogRegistryEntry> GetValidCatalogEntries(IEnumerable<CsvCatalogRegistryEntry>? entries)
@@ -330,8 +340,8 @@ public class CsvDiscoverer(
 
     private async Task<List<CsvCatalogRegistryEntry>> LoadEntriesFromIndexAsync(string indexSource, CancellationToken cancellationToken)
     {
-        var json = await LoadIndexJsonAsync(indexSource, cancellationToken);
-        var index = JsonSerializer.Deserialize<CsvCatalogRegistryIndex>(json, JsonOptions);
+        var indexContent = await LoadIndexJsonAsync(indexSource, cancellationToken);
+        var index = JsonSerializer.Deserialize<CsvCatalogRegistryIndex>(indexContent.Content, JsonOptions);
 
         if (index?.Entries == null || index.Entries.Count == 0)
         {
@@ -339,23 +349,60 @@ public class CsvDiscoverer(
             return [];
         }
 
-        return GetValidCatalogEntries(index.Entries);
+        var entries = GetValidCatalogEntries(index.Entries);
+        if (entries.Count > 0 && indexContent.ShouldCache && catalogCache != null)
+        {
+            await catalogCache.StoreAsync(indexSource, indexContent.Content, cancellationToken);
+        }
+
+        return entries;
     }
 
-    private async Task<string> LoadIndexJsonAsync(string indexPath, CancellationToken cancellationToken)
+    private async Task<CsvIndexContent> LoadIndexJsonAsync(string indexPath, CancellationToken cancellationToken)
     {
         if (Uri.TryCreate(indexPath, UriKind.Absolute, out var indexUri) &&
             (indexUri.Scheme == Uri.UriSchemeHttp || indexUri.Scheme == Uri.UriSchemeHttps))
         {
-            var httpClient = httpClientFactory.CreateClient(string.Empty);
-            return await httpClient.GetStringAsync(indexUri, cancellationToken);
+            if (indexUri.Scheme != Uri.UriSchemeHttps)
+            {
+                throw new HttpRequestException($"CSV index must use HTTPS: {indexUri}");
+            }
+
+            var cached = catalogCache == null
+                ? null
+                : await catalogCache.ReadAsync(indexPath, cancellationToken);
+            if (cached?.IsFresh == true)
+            {
+                return new CsvIndexContent(cached.Content, false);
+            }
+
+            try
+            {
+                var httpClient = httpClientFactory.CreateClient(string.Empty);
+                using var response = await httpClient.GetAsync(indexUri, cancellationToken);
+                response.EnsureSuccessStatusCode();
+                var responseUri = response.RequestMessage?.RequestUri;
+                if (responseUri?.Scheme != Uri.UriSchemeHttps)
+                {
+                    throw new HttpRequestException($"CSV index redirect must use HTTPS: {responseUri}");
+                }
+
+                var content = await response.Content.ReadAsStringAsync(cancellationToken);
+                return new CsvIndexContent(content, true);
+            }
+            catch (Exception ex) when (cached != null && IsRecoverableRemoteFailure(ex, cancellationToken))
+            {
+                logger.LogWarning(ex, "Remote CSV index {IndexPath} is unavailable; using stale cached content", indexPath);
+                return new CsvIndexContent(cached.Content, false);
+            }
         }
 
         var resolvedPath = Path.IsPathRooted(indexPath)
             ? indexPath
             : Path.GetFullPath(indexPath);
 
-        return await File.ReadAllTextAsync(resolvedPath, cancellationToken);
+        var localContent = await File.ReadAllTextAsync(resolvedPath, cancellationToken);
+        return new CsvIndexContent(localContent, false);
     }
 
     private ContentSearchResult? CreateSearchResult(CsvCatalogRegistryEntry entry, string language)

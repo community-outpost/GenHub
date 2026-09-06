@@ -157,7 +157,7 @@ public static class ModDBParserConstants
     public const string VideoTitleSelector = ".title, h3, h4, h5, .caption";
 
     /// <summary>Selector for recommendation and related content sections.</summary>
-    public const string RecommendationsSelector = "#recommendations, .recommendations, #related, .related, #similar, .similar, #fansalsoviewed, .fansalsoviewed, .youmayalso, [class*='recommend'], [id*='recommend'], [class*='similar'], [id*='similar']";
+    public const string RecommendationsSelector = "#recommendations, .recommendations, #related, .related, #similar, .similar, #fansalsoviewed, .fansalsoviewed, .youmayalso";
 
     // ===== Images Section Selectors =====
 
@@ -333,7 +333,7 @@ public static class ModDBParserConstants
     /// <summary>Metadata key for MD5 hash.</summary>
     public const string MetadataMd5Hash = "md5 hash";
 
-    /// <summary>Metadata key for MD5 hash (alternative).</summary>
+    /// <summary>Alternative metadata key for MD5 hash (alternative).</summary>
     public const string MetadataMd5HashAlt = "md5hash";
 
     /// <summary>Alternative metadata key for MD5 checksum.</summary>
@@ -373,6 +373,38 @@ public static class ModDBParserConstants
 
     /// <summary>Selector for file description container elements.</summary>
     public const string FileDescriptionContainerSelector = "#downloaddescription, #downloadsummary, #description, .description, .articlebody, #profiletotal";
+
+    // ===== Regex Patterns =====
+
+    /// <summary>Regex pattern for removing image crop and thumbnail URL segments.</summary>
+    public const string ImageCropPattern = @"/(?:crop|thumb)_[^/]+/";
+
+    /// <summary>Regex pattern for splitting camel case strings.</summary>
+    public const string CamelCaseSplitPattern = @"(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])";
+
+    /// <summary>Regex pattern for matching file size expressions (handles comma grouping like 1,234.56 MB).</summary>
+    public const string FileSizePattern = @"(?:\b|\()((?:\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?)\s*(?:gigabytes|megabytes|kilobytes|GB|MB|KB|bytes|byte|B)(?:\s*\([^)]+\))?)";
+
+    /// <summary>Regex pattern for matching exact byte counts.</summary>
+    public const string ExactBytesPattern = @"(?:\(|\b)(\d[\d,\s]*)\s*bytes";
+
+    /// <summary>Regex pattern for matching numeric size with unit (handles comma grouping like 1,234.56 MB).</summary>
+    public const string NumericSizeWithUnitPattern = @"((?:\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?))\s*([a-zA-Z]+)";
+
+    /// <summary>Regex pattern for extracting YouTube video IDs.</summary>
+    public const string YouTubeVideoIdPattern = @"(?:(?:v|embed|shorts|vi)/|(?:\?|&)v=|youtu\.be/)([a-zA-Z0-9_-]{11})";
+
+    /// <summary>Regex pattern for extracting Vimeo video IDs.</summary>
+    public const string VimeoVideoIdPattern = @"vimeo\.com/(?:video/)?(\d+)";
+
+    /// <summary>Regex pattern for extracting ModDB page title.</summary>
+    public const string ModDBPageTitlePattern = @"^(?<title>.+?)\s+(?:file|addon|patch|demo|mod)\s+-";
+
+    /// <summary>Regex pattern for whitespace.</summary>
+    public const string WhitespacePattern = @"\s+";
+
+    /// <summary>Regex pattern for digits with commas.</summary>
+    public const string DigitsPattern = @"[\d,]+";
 
     /// <summary>Regex pattern for extracting parent mod path.</summary>
     public const string ParentModPathRegex = @"(/mods/[^/]+)/(?:downloads|addons)/";

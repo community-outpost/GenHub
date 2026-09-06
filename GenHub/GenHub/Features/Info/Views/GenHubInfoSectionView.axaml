@@ -68,7 +68,7 @@
 
     <Style Selector="Button.info-card-btn:pointerover Border.info-card">
       <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-      <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
+      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
       <Setter Property="BoxShadow" Value="0 15 45 0 #80000000"/>
     </Style>
 
@@ -92,7 +92,7 @@
     </Style>
 
     <Style Selector="Border.demo-container">
-        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedDarkBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}"/>
         <Setter Property="CornerRadius" Value="16"/>
         <Setter Property="Padding" Value="40"/>
         <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
@@ -221,7 +221,7 @@
 
   </UserControl.Styles>
 
-  <ScrollViewer Padding="60,40,60,40" ClipToBounds="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+  <ScrollViewer Padding="60,40,60,40" ClipToBounds="False">
       <StackPanel Spacing="10" MaxWidth="1000" HorizontalAlignment="Center" ClipToBounds="False">
 
         <!-- Main Section Header -->
@@ -391,7 +391,7 @@
                             <Border Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="30" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" MaxWidth="600" HorizontalAlignment="Center">
                                 <StackPanel Spacing="20" DataContext="{Binding DemoGameSettingsVM}">
                                      <StackPanel Orientation="Horizontal" Spacing="12">
-                                        <TextBlock Text="🔑" FontSize="20" VerticalAlignment="Center" />
+                                        <PathIcon Data="M7,14A2,2 0 0,1 5,12A2,2 0 0,1 7,10A2,2 0 0,1 9,12A2,2 0 0,1 7,14M12.65,10C11.83,7.67 9.61,6 7,6A6,6 0 0,0 1,12A6,6 0 0,0 7,18C9.61,18 11.83,16.33 12.65,14H17V18H21V14H23V10H12.65Z" Width="20" Height="20" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
                                         <TextBlock Text="GitHub Personal Access Token"
                                                    FontSize="18" FontWeight="SemiBold" Foreground="#FFFFFF" VerticalAlignment="Center" />
                                      </StackPanel>
@@ -454,7 +454,7 @@
 
             <Border Classes="demo-container">
                <StackPanel Spacing="20">
-                  <TextBlock Text="💡 TIP: You can resize this demo window by dragging the right or bottom edge!"
+                  <TextBlock Text="TIP: You can resize this demo window by dragging the right or bottom edge!"
                              FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"/>
 
                   <Grid HorizontalAlignment="Center">
@@ -535,7 +535,7 @@
 
             <Border Classes="demo-container">
                <StackPanel Spacing="20">
-                  <TextBlock Text="💡 TIP: You can resize this demo window by dragging the right or bottom edge!"
+                  <TextBlock Text="TIP: You can resize this demo window by dragging the right or bottom edge!"
                              FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"/>
 
                   <Grid HorizontalAlignment="Center">
@@ -733,7 +733,7 @@
           <StackPanel>
             <StackPanel HorizontalAlignment="Left">
                 <TextBlock Text="Workspace Simulator" Classes="demo-title"/>
-                <TextBlock Text="Visualizes virtual file system construction using hardlinks, symlinks, and copies." Classes="demo-subtitle"/>
+                <TextBlock Text="Visualizes virtual file system construction via symlinks." Classes="demo-subtitle"/>
             </StackPanel>
 
             <Border Classes="demo-container">

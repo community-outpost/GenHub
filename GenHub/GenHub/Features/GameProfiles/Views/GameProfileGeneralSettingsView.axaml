@@ -206,12 +206,12 @@
                         <TextBlock Classes="section-header" Text="Launch Configuration" />
                         <StackPanel Spacing="8">
                             <TextBlock Classes="form-label" Text="Workspace Strategy" />
-                            <ComboBox ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableWorkspaceStrategies}" SelectedItem="{Binding SelectedWorkspaceStrategy}" HorizontalAlignment="Stretch" />
+                            <ComboBox ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableWorkspaceStrategies}" SelectedItem="{Binding SelectedWorkspaceStrategy}" IsEnabled="{Binding CanEditImmutableMetadata}" HorizontalAlignment="Stretch" />
                             <TextBlock Text="Determines how content files are mapped into the game folder." FontSize="11" Opacity="0.5" />
                         </StackPanel>
                         <StackPanel Spacing="8">
                             <TextBlock Classes="form-label" Text="Command Line Arguments" />
-                            <TextBox Text="{Binding CommandLineArguments, Mode=TwoWay}" Watermark="-win -quickstart -mod GenEvo" />
+                            <TextBox Text="{Binding CommandLineArguments, Mode=TwoWay}" IsEnabled="{Binding CanEditImmutableMetadata}" Watermark="-win -quickstart -mod GenEvo" />
                         </StackPanel>
                     </StackPanel>
                 </Border>

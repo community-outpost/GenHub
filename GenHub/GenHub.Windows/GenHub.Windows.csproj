@@ -12,6 +12,10 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="GenHub.Tests.Windows" />
+    </ItemGroup>
+
+    <ItemGroup>
         <PackageReference Include="Avalonia.Desktop" />
         <PackageReference Include="DotNetEnv" />
         <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
@@ -22,6 +26,7 @@
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
         <PackageReference Include="Microsoft.Playwright" />
         <PackageReference Include="StyleCop.Analyzers" />
+        <PackageReference Include="System.Management" />
         <PackageReference Include="System.Security.Cryptography.ProtectedData" />
     </ItemGroup>
 
