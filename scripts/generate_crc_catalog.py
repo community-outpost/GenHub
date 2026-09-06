@@ -468,6 +468,37 @@ def _is_crc_field_compatible(item_crc: str, existing_crc: str) -> bool:
     return not existing_crc or not item_crc or existing_crc == item_crc
 
 
+def _has_partial_crc_match(item_exe: str, item_ini: str, ex_exe: str, ex_ini: str) -> bool:
+    """Returns True if the crawled item provides a missing CRC without conflict."""
+    return bool((not ex_exe and item_exe) or (not ex_ini and item_ini))
+
+
+def _has_same_cdn_url(item: dict, existing_entry: dict) -> bool:
+    """Returns True if both entries share the same CDN URL and existing has no sha256."""
+    return bool(
+        not existing_entry.get("sha256")
+        and item.get("sha256")
+        and existing_entry.get("cdnUrl") == item.get("cdnUrl")
+    )
+
+
+def _check_catalog_entry_match(
+    item: dict,
+    existing_entry: dict,
+    item_exe: str,
+    item_ini: str,
+    ex_exe: str,
+    ex_ini: str,
+) -> tuple[bool, bool]:
+    """Determines whether an existing catalog entry matches or conflicts with the crawled item."""
+    is_crc_compatible = _is_crc_field_compatible(item_exe, ex_exe) and _is_crc_field_compatible(item_ini, ex_ini)
+    same_cdn = _has_same_cdn_url(item, existing_entry)
+    has_partial = _has_partial_crc_match(item_exe, item_ini, ex_exe, ex_ini)
+    is_match = is_crc_compatible and (has_partial or same_cdn)
+    is_conflict = same_cdn and not is_crc_compatible
+    return is_match, is_conflict
+
+
 def _find_compatible_catalog_key(
     merged: dict,
     m_id: str,
@@ -476,7 +507,7 @@ def _find_compatible_catalog_key(
 ) -> tuple[str, str, str] | None:
     """Finds an existing catalog key compatible with the crawled item to merge CRCs/hashes."""
     item_exe, item_ini = key[1], key[2]
-    if not item_exe and not item_ini:
+    if not (item_exe or item_ini):
         return None
 
     for existing_key, existing_entry in merged.items():
@@ -484,21 +515,14 @@ def _find_compatible_catalog_key(
             continue
 
         ex_exe, ex_ini = existing_key[1], existing_key[2]
-        exe_compatible = _is_crc_field_compatible(item_exe, ex_exe)
-        ini_compatible = _is_crc_field_compatible(item_ini, ex_ini)
-        is_crc_compatible = exe_compatible and ini_compatible
-
-        has_partial_crc_match = (not ex_exe and item_exe) or (not ex_ini and item_ini)
-        same_cdn = (
-            not existing_entry.get("sha256")
-            and item.get("sha256")
-            and existing_entry.get("cdnUrl") == item.get("cdnUrl")
+        is_match, is_conflict = _check_catalog_entry_match(
+            item, existing_entry, item_exe, item_ini, ex_exe, ex_ini
         )
 
-        if is_crc_compatible and (has_partial_crc_match or same_cdn):
+        if is_match:
             return existing_key
 
-        if same_cdn and not is_crc_compatible:
+        if is_conflict:
             print(
                 f"Validation error: refusing to merge {m_id} due to conflicting CRCs ({item_exe}/{item_ini} vs {ex_exe}/{ex_ini}) for same cdnUrl",
                 file=sys.stderr,
