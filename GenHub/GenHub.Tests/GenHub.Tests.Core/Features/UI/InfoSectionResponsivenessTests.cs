@@ -13,8 +13,8 @@ public class InfoSectionResponsivenessTests
     [Fact]
     public void GenHubInfoSectionView_DisablesHorizontalScrollBar()
     {
-        var repoRoot = FindRepositoryRoot();
-        var viewPath = Path.Combine(repoRoot, "GenHub", "GenHub", "Features", "Info", "Views", "GenHubInfoSectionView.axaml");
+        var solutionDir = FindSolutionDirectory();
+        var viewPath = Path.Combine(solutionDir, "GenHub", "Features", "Info", "Views", "GenHubInfoSectionView.axaml");
         Assert.True(File.Exists(viewPath), $"File not found at: {viewPath}");
 
         var content = File.ReadAllText(viewPath);
@@ -25,8 +25,8 @@ public class InfoSectionResponsivenessTests
     [Fact]
     public void ChangelogsView_DisablesHorizontalScrollBar()
     {
-        var repoRoot = FindRepositoryRoot();
-        var viewPath = Path.Combine(repoRoot, "GenHub", "GenHub", "Features", "Info", "Views", "ChangelogsView.axaml");
+        var solutionDir = FindSolutionDirectory();
+        var viewPath = Path.Combine(solutionDir, "GenHub", "Features", "Info", "Views", "ChangelogsView.axaml");
         Assert.True(File.Exists(viewPath), $"File not found at: {viewPath}");
 
         var content = File.ReadAllText(viewPath);
@@ -37,8 +37,8 @@ public class InfoSectionResponsivenessTests
     [Fact]
     public void GenHubInfoSectionView_StylesIncludeTextWrapping()
     {
-        var repoRoot = FindRepositoryRoot();
-        var viewPath = Path.Combine(repoRoot, "GenHub", "GenHub", "Features", "Info", "Views", "GenHubInfoSectionView.axaml");
+        var solutionDir = FindSolutionDirectory();
+        var viewPath = Path.Combine(solutionDir, "GenHub", "Features", "Info", "Views", "GenHubInfoSectionView.axaml");
         var content = File.ReadAllText(viewPath);
 
         // Section header and card title styles must wrap text to prevent off-screen truncation
@@ -46,13 +46,12 @@ public class InfoSectionResponsivenessTests
         Assert.Contains("TextBlock.card-title", content);
     }
 
-    private static string FindRepositoryRoot()
+    private static string FindSolutionDirectory()
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);
         while (current != null)
         {
-            if (File.Exists(Path.Combine(current.FullName, "GenHub.sln")) ||
-                Directory.Exists(Path.Combine(current.FullName, ".git")))
+            if (File.Exists(Path.Combine(current.FullName, "GenHub.sln")))
             {
                 return current.FullName;
             }
@@ -63,8 +62,7 @@ public class InfoSectionResponsivenessTests
         current = new DirectoryInfo(Directory.GetCurrentDirectory());
         while (current != null)
         {
-            if (File.Exists(Path.Combine(current.FullName, "GenHub.sln")) ||
-                Directory.Exists(Path.Combine(current.FullName, ".git")))
+            if (File.Exists(Path.Combine(current.FullName, "GenHub.sln")))
             {
                 return current.FullName;
             }
@@ -72,6 +70,6 @@ public class InfoSectionResponsivenessTests
             current = current.Parent;
         }
 
-        throw new DirectoryNotFoundException("Could not locate repository root from: " + AppContext.BaseDirectory);
+        throw new DirectoryNotFoundException("Could not locate directory containing GenHub.sln from: " + AppContext.BaseDirectory);
     }
 }
