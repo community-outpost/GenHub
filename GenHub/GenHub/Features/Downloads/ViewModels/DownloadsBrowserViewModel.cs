@@ -275,6 +275,19 @@ public sealed partial class DownloadsBrowserViewModel(
         }
     }
 
+    /// <summary>
+    /// Gets the number of cached items for a given publisher.
+    /// </summary>
+    /// <param name="publisherId">The publisher ID.</param>
+    /// <returns>The number of items cached for the publisher.</returns>
+    internal int GetCachedItemCount(string publisherId)
+    {
+        lock (_cacheLock)
+        {
+            return _browseCache.TryGetValue(publisherId, out var state) ? state.Items.Count : 0;
+        }
+    }
+
     [RelayCommand]
     private static void GoBack()
     {

@@ -502,9 +502,14 @@ public class DownloadsBrowserViewModelTests
         Assert.Equal(publisherA, viewModel.SelectedPublisher);
         viewModel.SelectedPublisher = publisherB;
 
-        // Act 2: Complete Publisher A's background fetch and allow background task to commit to cache
+        // Act 2: Complete Publisher A's background fetch and wait for background task to commit to cache
         tcsA.SetResult(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = itemsA, TotalItems = 3 }));
-        await Task.Delay(250);
+
+        var cacheTimeout = DateTime.UtcNow.AddSeconds(5);
+        while (viewModel.GetCachedItemCount("sub-a") < 3 && DateTime.UtcNow < cacheTimeout)
+        {
+            await Task.Delay(25);
+        }
 
         // Verify currently on B
         Assert.Single(viewModel.ContentItems);
@@ -512,7 +517,12 @@ public class DownloadsBrowserViewModelTests
 
         // Act 3: Switch back to Publisher A
         viewModel.SelectedPublisher = publisherA;
-        await Task.Delay(50);
+
+        var timeoutA = DateTime.UtcNow.AddSeconds(5);
+        while (viewModel.ContentItems.Count != 3 && DateTime.UtcNow < timeoutA)
+        {
+            await Task.Delay(25);
+        }
 
         // Assert: All 3 items from Publisher A are restored from cache
         Assert.Equal(3, viewModel.ContentItems.Count);

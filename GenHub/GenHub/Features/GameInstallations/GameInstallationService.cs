@@ -743,6 +743,7 @@ public class GameInstallationService(
                 var sourcePath = group.Key;
                 if (string.IsNullOrEmpty(sourcePath))
                 {
+                    logger.LogWarning("Skipping manifest group with empty or null SourcePath key");
                     continue;
                 }
 

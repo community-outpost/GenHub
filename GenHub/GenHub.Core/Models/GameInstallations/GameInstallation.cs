@@ -250,13 +250,9 @@ public class GameInstallation(
                 }
             }
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or ArgumentException or PathTooLongException)
         {
             // Directory probe failure fallback
-        }
-        catch (UnauthorizedAccessException)
-        {
-            // Directory access denied fallback
         }
 
         return false;
