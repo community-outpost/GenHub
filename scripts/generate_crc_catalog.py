@@ -132,9 +132,9 @@ BASELINE_ENTRIES = [
         "dataPatchCdnUrl": "https://strata.gamereplays.org/storage/versions/ini/500_900_CommunityPatch_CoreINI_81FB5632.big",
     },
     {
-        "exeCrc": "0x64344E83",
-        "iniCrc": "0xFEAAE3F3",
-        "sha256": None,
+        "exeCrc": "0xD431009C",
+        "iniCrc": "0x5CB7992C",
+        "sha256": "fa95e504426b139535b06d2e173f5c7297d668b26f2b36aa76ec674fbcaec71d",
         "manifestId": "1.605260.generalsonline.gameclient.zerohour",
         "dataPatchManifestId": "1.605260.generalsonline.patch.gamedata",
         "dataPatchName": "GeneralsOnline Game Data",
@@ -142,7 +142,7 @@ BASELINE_ENTRIES = [
         "gameType": "ZeroHour",
         "version": "060526",
         "buildDate": "2026-06-05",
-        "description": "GeneralsOnline 060526",
+        "description": "GeneralsOnline 060526 portable release",
         "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_060526.zip",
         "dataPatchCdnUrl": None,
     },
@@ -495,6 +495,9 @@ def merge_catalogs(existing: list[dict], crawled: list[dict]) -> list[dict]:
                             if exe_compatible and ini_compatible:
                                 matched_key = existing_key
                                 break
+                        elif not merged[existing_key].get("sha256") and item.get("sha256") and merged[existing_key].get("cdnUrl") == item.get("cdnUrl"):
+                            matched_key = existing_key
+                            break
 
             if matched_key:
                 existing_entry = merged.pop(matched_key)
@@ -511,16 +514,27 @@ def merge_catalogs(existing: list[dict], crawled: list[dict]) -> list[dict]:
     return list(merged.values())
 
 
-def _validate_mapping_entry(idx: int, entry: dict, seen_manifest_ids: set) -> bool:
+def _validate_mapping_entry(idx: int, entry: dict, seen_manifests: dict) -> bool:
     """Validates a single mapping entry in the CRC catalog."""
     valid = True
     m_id = entry.get("manifestId")
     if not m_id:
         print(f"Validation error at mapping index {idx}: missing manifestId", file=sys.stderr)
         valid = False
-    elif m_id in seen_manifest_ids:
-        print(f"Validation warning: duplicate manifestId {m_id}", file=sys.stderr)
-    seen_manifest_ids.add(m_id)
+    elif m_id in seen_manifests:
+        existing_entry = seen_manifests[m_id]
+        ex_exe = (existing_entry.get("exeCrc") or "").lower()
+        new_exe = (entry.get("exeCrc") or "").lower()
+        if ex_exe and new_exe and ex_exe != new_exe:
+            print(
+                f"Validation error at {m_id}: conflicting exeCrc {new_exe} vs {ex_exe} for the same manifestId",
+                file=sys.stderr,
+            )
+            valid = False
+        else:
+            print(f"Validation notice: multiple mapping variants for manifestId {m_id}", file=sys.stderr)
+    else:
+        seen_manifests[m_id] = entry
 
     if not entry.get("publisher"):
         print(f"Validation error at {m_id}: missing publisher", file=sys.stderr)
@@ -550,9 +564,9 @@ def validate_catalog(catalog: dict) -> bool:
         return False
 
     valid = True
-    seen_manifest_ids = set()
+    seen_manifests = {}
     for idx, entry in enumerate(catalog["mappings"]):
-        if not _validate_mapping_entry(idx, entry, seen_manifest_ids):
+        if not _validate_mapping_entry(idx, entry, seen_manifests):
             valid = False
 
     return valid

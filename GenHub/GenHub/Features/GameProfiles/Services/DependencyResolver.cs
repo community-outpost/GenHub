@@ -286,17 +286,9 @@ public class DependencyResolver(
 
     private static bool IsZeroHourIdentifier(string name)
     {
-        if (string.Equals(name, ZeroHourName, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(name, ZeroHourShortName, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(name, GeneralsZeroHourName, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (name.StartsWith(ZeroHourName, StringComparison.OrdinalIgnoreCase) ||
+        if (name.Contains(ZeroHourName, StringComparison.OrdinalIgnoreCase) ||
             name.StartsWith(GeneralsZeroHourName, StringComparison.OrdinalIgnoreCase) ||
-            name.EndsWith(ZeroHourShortName, StringComparison.OrdinalIgnoreCase) ||
-            name.Contains(ZeroHourName, StringComparison.OrdinalIgnoreCase))
+            name.EndsWith(ZeroHourShortName, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
@@ -306,10 +298,7 @@ public class DependencyResolver(
     }
 
     private static bool IsZeroHourToken(string token) =>
-        string.Equals(token, ZeroHourName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(token, ZeroHourShortName, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(token, GeneralsZeroHourName, StringComparison.OrdinalIgnoreCase) ||
-        token.StartsWith(ZeroHourName, StringComparison.OrdinalIgnoreCase) ||
         token.EndsWith(ZeroHourShortName, StringComparison.OrdinalIgnoreCase);
 
     private static bool IsGeneralsIdentifier(string name)

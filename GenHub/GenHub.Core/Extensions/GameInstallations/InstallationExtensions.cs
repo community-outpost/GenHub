@@ -17,7 +17,7 @@ public static class InstallationExtensions
 {
     private static readonly HashSet<string> InstallationIdentifierSet = new(
         Enum.GetValues<GameInstallationType>().Select(t => t.ToIdentifierString())
-            .Concat(new[] { PublisherInfoConstants.Retail.Name, "retail" }),
+            .Concat(new[] { PublisherInfoConstants.Retail.Name }),
         StringComparer.OrdinalIgnoreCase);
 
     /// <summary>

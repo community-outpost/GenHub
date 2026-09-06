@@ -1381,7 +1381,9 @@
       "version": "060526",
       "buildDate": "2026-06-05",
       "description": "GeneralsOnline 060526 portable release",
-      "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_060526.zip"
+      "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_060526.zip",
+      "dataPatchManifestId": "1.605260.generalsonline.patch.gamedata",
+      "dataPatchName": "GeneralsOnline Game Data"
     },
     {
       "exeCrc": "0xA95C6D2E",
@@ -1565,20 +1567,6 @@
       "buildDate": "2026-08-28",
       "description": "GeneralsOnline 082826",
       "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_082826.zip"
-    },
-    {
-      "exeCrc": "0x64344E83",
-      "iniCrc": "0xFEAAE3F3",
-      "sha256": null,
-      "manifestId": "1.605260.generalsonline.gameclient.zerohour",
-      "dataPatchManifestId": "1.605260.generalsonline.patch.gamedata",
-      "dataPatchName": "GeneralsOnline Game Data",
-      "publisher": "generalsonline",
-      "gameType": "ZeroHour",
-      "version": "060526",
-      "buildDate": "2026-06-05",
-      "description": "GeneralsOnline 060526",
-      "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_060526.zip"
     }
   ],
   "version": "2026.08.30.3"

@@ -367,7 +367,7 @@ public sealed class ReplayDirectoryService(
         if (!isRetailClient && replay.MatchedClient != null && string.IsNullOrEmpty(replay.MatchedClient.DataPatchManifestId))
         {
             await AddThirdPartyCompanionManifestsAsync(
-                manifestPool, replay.MatchedClient.Publisher, replay.GameVersion, replay.MatchedClient.Version, enabledContentIds, ct);
+                manifestPool, clientManifestId, replay.MatchedClient.Publisher, replay.GameVersion, replay.MatchedClient.Version, enabledContentIds, ct);
         }
 
         if (replay.MatchedClient != null &&
@@ -500,7 +500,7 @@ public sealed class ReplayDirectoryService(
 
             return isRetailClient
                 ? IsProfileMatchingRetail(p, dataPatchManifestId)
-                : IsProfileMatchingThirdParty(p, clientManifestId, dataPatchManifestId);
+                : IsProfileMatchingThirdParty(p, clientManifestId, dataPatchManifestId, replay?.MatchedClient?.Version);
         });
     }
 
@@ -542,12 +542,19 @@ public sealed class ReplayDirectoryService(
         return !hasCustomDataPatch;
     }
 
-    private static bool IsProfileMatchingThirdParty(GameProfile profile, string clientManifestId, string? dataPatchManifestId)
+    private static bool IsProfileMatchingThirdParty(
+        GameProfile profile,
+        string clientManifestId,
+        string? dataPatchManifestId,
+        string? expectedVersion = null)
     {
         var clientMatches = string.Equals(profile.GameClient?.Id, clientManifestId, StringComparison.OrdinalIgnoreCase) ||
                             profile.EnabledContentIds?.Any(id => string.Equals(id, clientManifestId, StringComparison.OrdinalIgnoreCase)) == true ||
-                            DependencyResolver.HasCompatibleCatalogIdentity(clientManifestId, profile.GameClient?.Id) ||
-                            profile.EnabledContentIds?.Any(id => DependencyResolver.HasCompatibleCatalogIdentity(clientManifestId, id)) == true;
+                            (DependencyResolver.HasCompatibleCatalogIdentity(clientManifestId, profile.GameClient?.Id) &&
+                             HasMatchingClientVersion(clientManifestId, profile.GameClient?.Id, expectedVersion, profile.GameClient?.Version)) ||
+                            profile.EnabledContentIds?.Any(id =>
+                                DependencyResolver.HasCompatibleCatalogIdentity(clientManifestId, id) &&
+                                HasMatchingClientVersion(clientManifestId, id, expectedVersion, null)) == true;
 
         if (!clientMatches)
         {
@@ -620,7 +627,10 @@ public sealed class ReplayDirectoryService(
         }
 
         if (!string.IsNullOrEmpty(match.ManifestId) &&
-            acquiredIds.Any(id => DependencyResolver.HasCompatibleCatalogIdentity(match.ManifestId, id)))
+            acquiredIds.Any(id =>
+                string.Equals(match.ManifestId, id, StringComparison.OrdinalIgnoreCase) ||
+                (DependencyResolver.HasCompatibleCatalogIdentity(match.ManifestId, id) &&
+                 HasMatchingClientVersion(match.ManifestId, id, match.Version, null))))
         {
             return true;
         }
@@ -714,6 +724,7 @@ public sealed class ReplayDirectoryService(
 
     private static async Task AddThirdPartyCompanionManifestsAsync(
         IContentManifestPool manifestPool,
+        string clientManifestId,
         string? publisher,
         GameType targetGame,
         string? clientVersion,
@@ -723,6 +734,16 @@ public sealed class ReplayDirectoryService(
         if (string.IsNullOrEmpty(publisher) || string.IsNullOrEmpty(clientVersion))
         {
             return;
+        }
+
+        ContentManifest? clientManifest = null;
+        if (!string.IsNullOrEmpty(clientManifestId))
+        {
+            var clientManifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(clientManifestId), ct);
+            if (clientManifestResult != null && clientManifestResult.Success)
+            {
+                clientManifest = clientManifestResult.Data;
+            }
         }
 
         var allManifests = await manifestPool.GetAllManifestsAsync(ct);
@@ -736,9 +757,10 @@ public sealed class ReplayDirectoryService(
             (m.ContentType == ContentType.Patch || m.ContentType == ContentType.MapPack) &&
             (string.Equals(m.Publisher?.PublisherType, publisher, StringComparison.OrdinalIgnoreCase) ||
              m.Id.Value.Contains("." + publisher + ".", StringComparison.OrdinalIgnoreCase)) &&
-            !string.IsNullOrEmpty(clientVersion) &&
             !string.IsNullOrEmpty(m.Version) &&
-            string.Equals(m.Version, clientVersion, StringComparison.OrdinalIgnoreCase));
+            string.Equals(m.Version, clientVersion, StringComparison.OrdinalIgnoreCase) &&
+            (clientManifest?.Dependencies?.Any(d => string.Equals(d.Id.Value, m.Id.Value, StringComparison.OrdinalIgnoreCase)) == true ||
+             m.Dependencies?.Any(d => string.Equals(d.Id.Value, clientManifestId, StringComparison.OrdinalIgnoreCase)) == true));
 
         foreach (var companion in companionManifests.Where(companion => !enabledContentIds.Contains(companion.Id.Value, StringComparer.OrdinalIgnoreCase)))
         {
@@ -906,11 +928,54 @@ public sealed class ReplayDirectoryService(
             string.Equals(m.Id.Value, matchedClient.ManifestId, StringComparison.OrdinalIgnoreCase) ||
             (m.ContentType == ContentType.GameClient &&
              (m.TargetGame == gameVersion || m.TargetGame == GameType.Unknown) &&
+             HasMatchingClientVersion(matchedClient, m) &&
              (DependencyResolver.HasCompatibleCatalogIdentity(matchedClient.ManifestId, m.Id.Value) ||
               (!string.IsNullOrEmpty(matchedClient.Publisher) &&
                (string.Equals(m.Publisher?.PublisherType, matchedClient.Publisher, StringComparison.OrdinalIgnoreCase) ||
-                m.Id.Value.Contains("." + matchedClient.Publisher + ".", StringComparison.OrdinalIgnoreCase)) &&
-               (!string.IsNullOrEmpty(matchedClient.Version) && string.Equals(m.Version, matchedClient.Version, StringComparison.OrdinalIgnoreCase))))));
+                m.Id.Value.Contains("." + matchedClient.Publisher + ".", StringComparison.OrdinalIgnoreCase))))));
+    }
+
+    private static bool HasMatchingClientVersion(CrcMappingEntry matchedClient, ContentManifest manifest)
+    {
+        if (!string.IsNullOrEmpty(matchedClient.Version) && !string.IsNullOrEmpty(manifest.Version))
+        {
+            return string.Equals(matchedClient.Version, manifest.Version, StringComparison.OrdinalIgnoreCase) ||
+                   matchedClient.Version.TrimStart('0').Equals(manifest.Version.TrimStart('0'), StringComparison.OrdinalIgnoreCase);
+        }
+
+        return HasMatchingVersionSegment(matchedClient.ManifestId, manifest.Id.Value);
+    }
+
+    private static bool HasMatchingClientVersion(string declaredId, string? candidateId, string? expectedVersion, string? candidateVersion)
+    {
+        if (!string.IsNullOrWhiteSpace(expectedVersion) && !string.IsNullOrWhiteSpace(candidateVersion))
+        {
+            return string.Equals(expectedVersion, candidateVersion, StringComparison.OrdinalIgnoreCase) ||
+                   expectedVersion.TrimStart('0').Equals(candidateVersion.TrimStart('0'), StringComparison.OrdinalIgnoreCase);
+        }
+
+        return HasMatchingVersionSegment(declaredId, candidateId);
+    }
+
+    private static bool HasMatchingVersionSegment(string? id1, string? id2)
+    {
+        if (string.IsNullOrEmpty(id1) || string.IsNullOrEmpty(id2))
+        {
+            return false;
+        }
+
+        var parts1 = id1.Split('.');
+        var parts2 = id2.Split('.');
+        if (parts1.Length >= 2 && parts2.Length >= 2)
+        {
+            var v1 = parts1[1].TrimStart('0');
+            var v2 = parts2[1].TrimStart('0');
+            return string.Equals(v1, v2, StringComparison.OrdinalIgnoreCase) ||
+                   v1.StartsWith(v2, StringComparison.OrdinalIgnoreCase) ||
+                   v2.StartsWith(v1, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
     }
 
     private static ContentSearchResult? FindBestMatchingContentSearchResult(
