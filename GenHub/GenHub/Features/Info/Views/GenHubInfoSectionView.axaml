@@ -371,35 +371,66 @@
                 </StackPanel>
             </StackPanel>
 
-            <!-- 2. Nightly / Experimental Builds -->
+            <!-- 2. GitHub PAT & CI Artifacts -->
             <StackPanel Spacing="20">
                 <StackPanel Spacing="10">
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                         <material:MaterialIcon Kind="SourceBranch" Width="24" Height="24" Foreground="#FF9900"/>
-                         <TextBlock Text="Developer &amp; Nightly Builds" Classes="demo-title" VerticalAlignment="Center"/>
+                        <material:MaterialIcon Kind="Github" Width="24" Height="24" Foreground="{DynamicResource SystemAccentColorBrush}"/>
+                        <TextBlock Text="Advanced: CI Artifacts &amp; GitHub PAT" Classes="demo-title" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <TextBlock Text="Switch between experimental channels directly from the notification UI."
+                    <TextBlock Text="Subscribe to pull requests or specific branches to test new features before they are merged."
                                Classes="demo-subtitle"/>
 
-                    <!-- Detailed explanations (Nightly Updates) -->
-                     <StackPanel Margin="0,12,0,0" Spacing="12">
+                    <!-- Detailed explanations (PAT & CI) -->
+                    <StackPanel Margin="0,12,0,0" Spacing="15">
+                        <TextBlock Text="CI (Continuous Integration) Artifacts are automated builds created by GitHub for every code change. To access these protected resources, GenHub requires a Personal Access Token."
+                                   FontSize="13" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" MaxWidth="1000"/>
 
                         <Border Classes="demo-container" Margin="0,10,0,0">
-                            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Background="{DynamicResource CardBackground}" ClipToBounds="True" MaxWidth="600" HorizontalAlignment="Center">
-                                <StackPanel Spacing="10" Margin="15">
-                                     <TextBlock Text="Channels Window Preview" FontWeight="Bold" Foreground="#DDD"/>
-                                     <!-- Mock Channel selector -->
-                                     <Border Background="#1A1A1A" CornerRadius="4" Padding="10">
-                                         <Grid ColumnDefinitions="*, Auto">
-                                             <StackPanel>
-                                                 <TextBlock Text="Current Channel: Release" Foreground="#AAA"/>
-                                                 <TextBlock Text="v0.4.19 (Stable)" FontSize="11" Foreground="#666"/>
-                                             </StackPanel>
-                                             <Button Grid.Column="1" Content="Switch to Beta" Background="#333" Foreground="#DDD" FontSize="11"/>
-                                         </Grid>
+                          <Viewbox StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Center">
+                            <Border Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="30" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" MaxWidth="600" HorizontalAlignment="Center">
+                                <StackPanel Spacing="20" DataContext="{Binding DemoGameSettingsVM}">
+                                     <StackPanel Orientation="Horizontal" Spacing="12">
+                                        <TextBlock Text="🔑" FontSize="20" VerticalAlignment="Center" />
+                                        <TextBlock Text="GitHub Personal Access Token"
+                                                   FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center" />
+                                     </StackPanel>
+
+                                     <!-- PAT Status -->
+                                     <Border Background="#25FFFFFF" CornerRadius="6" Padding="12,8" HorizontalAlignment="Left">
+                                         <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <Ellipse Width="10" Height="10" VerticalAlignment="Center" Fill="{Binding PatStatusColor}" />
+                                            <TextBlock Text="{Binding PatStatusMessage}" Foreground="{DynamicResource TextPrimary}" FontSize="13" FontWeight="Medium" />
+                                         </StackPanel>
                                      </Border>
+
+                                     <!-- PAT Input -->
+                                     <StackPanel Spacing="8">
+                                         <Grid ColumnDefinitions="*,Auto">
+                                            <TextBox Grid.Column="0"
+                                                     Text="{Binding GitHubPatInput}"
+                                                     PasswordChar=""
+                                                     Watermark="ghp_xxxxxxxxxxxxxxxxxxxx"
+                                                     IsEnabled="True"
+                                                     FontSize="14"
+                                                     Height="40"
+                                                     Margin="0,0,12,0"/>
+                                            <Button Grid.Column="1"
+                                                    Content="Save &amp; Test"
+                                                    Command="{Binding TestPatCommand}"
+                                                    Background="{DynamicResource SystemAccentColorBrush}"
+                                                    Foreground="White"
+                                                    Padding="20,0"
+                                                    Height="40"
+                                                    FontWeight="SemiBold"
+                                                    CornerRadius="4" />
+                                         </Grid>
+                                         <TextBlock Text="Try entering 'ghp_demo' and clicking Save &amp; Test to see the validation in action!"
+                                                   FontSize="11" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Left" Margin="2,0,0,0" />
+                                     </StackPanel>
                                 </StackPanel>
                             </Border>
+                          </Viewbox>
                         </Border>
                     </StackPanel>
                 </StackPanel>
@@ -757,8 +788,8 @@
 
                         <!-- Expand Icon -->
                         <Border Grid.Column="1"
-                                Background="#2A2A2A"
-                                BorderBrush="#444"
+                                Background="{DynamicResource SurfaceHoverBrush}"
+                                BorderBrush="{DynamicResource BorderSubtleBrush}"
                                 BorderThickness="1"
                                 CornerRadius="4"
                                 Padding="10,6"
@@ -767,9 +798,9 @@
                                 IsVisible="{Binding IsExpandable}">
                           <StackPanel Orientation="Horizontal" Spacing="8">
                               <TextBlock Text="{Binding IsExpanded, Converter={StaticResource BoolToExpandTextConverter}, FallbackValue='Read More'}"
-                                         FontSize="12" Foreground="#CCC" VerticalAlignment="Center"/>
+                                         FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
                               <material:MaterialIcon Kind="{Binding IsExpanded, Converter={StaticResource BoolToExpandIconConverter}}"
-                                                     Width="16" Height="16" Foreground="#666"/>
+                                                     Width="16" Height="16" Foreground="{DynamicResource TextMuted}"/>
                           </StackPanel>
                         </Border>
                       </Grid>
@@ -849,18 +880,19 @@
 
                                     <!-- Expand Icon (Matches main layout) -->
                                     <Border Grid.Column="1"
-                                            Background="#2A2A2A"
-                                            BorderBrush="#444"
+                                            Background="{DynamicResource SurfaceHoverBrush}"
+                                            BorderBrush="{DynamicResource BorderSubtleBrush}"
                                             BorderThickness="1"
                                             CornerRadius="4"
                                             Padding="10,6"
                                             Margin="12,0,0,0"
-                                            VerticalAlignment="Center">
+                                            VerticalAlignment="Center"
+                                            IsVisible="{Binding IsExpandable}">
                                       <StackPanel Orientation="Horizontal" Spacing="8">
                                           <TextBlock Text="{Binding IsExpanded, Converter={StaticResource BoolToExpandTextConverter}, FallbackValue='Read More'}"
-                                                     FontSize="12" Foreground="#CCC" VerticalAlignment="Center"/>
+                                                     FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
                                           <material:MaterialIcon Kind="{Binding IsExpanded, Converter={StaticResource BoolToExpandIconConverter}}"
-                                                                 Width="16" Height="16" Foreground="#666"/>
+                                                                 Width="16" Height="16" Foreground="{DynamicResource TextMuted}"/>
                                       </StackPanel>
                                     </Border>
                                 </Grid>
@@ -904,18 +936,19 @@
 
                                     <!-- Expand Icon (Matches main layout) -->
                                     <Border Grid.Column="1"
-                                            Background="#2A2A2A"
-                                            BorderBrush="#444"
+                                            Background="{DynamicResource SurfaceHoverBrush}"
+                                            BorderBrush="{DynamicResource BorderSubtleBrush}"
                                             BorderThickness="1"
                                             CornerRadius="4"
                                             Padding="10,6"
                                             Margin="12,0,0,0"
-                                            VerticalAlignment="Center">
+                                            VerticalAlignment="Center"
+                                            IsVisible="{Binding IsExpandable}">
                                       <StackPanel Orientation="Horizontal" Spacing="8">
                                           <TextBlock Text="{Binding IsExpanded, Converter={StaticResource BoolToExpandTextConverter}, FallbackValue='Read More'}"
-                                                     FontSize="12" Foreground="#CCC" VerticalAlignment="Center"/>
+                                                     FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
                                           <material:MaterialIcon Kind="{Binding IsExpanded, Converter={StaticResource BoolToExpandIconConverter}}"
-                                                                 Width="16" Height="16" Foreground="#666"/>
+                                                                 Width="16" Height="16" Foreground="{DynamicResource TextMuted}"/>
                                       </StackPanel>
                                     </Border>
                                 </Grid>
@@ -935,6 +968,7 @@
             </ItemsControl>
         </Grid>
 
+        <Border Height="120"/> <!-- Bottom padding to prevent clipping of card drop-shadows and hover scaling -->
       </StackPanel>
   </ScrollViewer>
 </UserControl>

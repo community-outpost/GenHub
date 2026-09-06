@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.UI;
@@ -8,77 +9,63 @@ namespace GenHub.Tests.Core.Features.UI;
 /// Regression tests verifying that Info section views and Markdown rendering controls
 /// enforce text wrapping and disable horizontal scrolling to prevent content truncation on smaller viewports.
 /// </summary>
-public class InfoSectionResponsivenessTests
+public partial class InfoSectionResponsivenessTests
 {
+    [GeneratedRegex(@"\bHorizontalScrollBarVisibility\s*=\s*[""']Auto[""']", RegexOptions.IgnoreCase)]
+    private static partial Regex AutoScrollBarRegex();
+
+    [GeneratedRegex(@"\bHorizontalScrollBarVisibility\s*=\s*[""']Disabled[""']", RegexOptions.IgnoreCase)]
+    private static partial Regex DisabledScrollBarRegex();
+
+    [GeneratedRegex(@"<Style\s+Selector\s*=\s*""TextBlock\.section-header"">[\s\S]*?<Setter\s+Property\s*=\s*""TextWrapping""\s+Value\s*=\s*""Wrap""\s*/>", RegexOptions.IgnoreCase)]
+    private static partial Regex SectionHeaderWrappingRegex();
+
+    [GeneratedRegex(@"<Style\s+Selector\s*=\s*""TextBlock\.card-title"">[\s\S]*?<Setter\s+Property\s*=\s*""TextWrapping""\s+Value\s*=\s*""Wrap""\s*/>", RegexOptions.IgnoreCase)]
+    private static partial Regex CardTitleWrappingRegex();
+
     /// <summary>
-    /// Verifies that <c>GenHubInfoSectionView</c> sets <c>HorizontalScrollBarVisibility="Disabled"</c>.
+    /// Verifies that <c>GenHubInfoSectionView</c> disables horizontal scroll bars and does not allow Auto horizontal scrolling.
     /// </summary>
     [Fact]
     public void GenHubInfoSectionView_DisablesHorizontalScrollBar()
     {
-        var solutionDir = FindSolutionDirectory();
+        var solutionDir = UiTestPathHelper.FindSolutionDirectory();
         var viewPath = Path.Combine(solutionDir, "GenHub", "Features", "Info", "Views", "GenHubInfoSectionView.axaml");
         Assert.True(File.Exists(viewPath), $"File not found at: {viewPath}");
 
         var content = File.ReadAllText(viewPath);
-        Assert.Contains("HorizontalScrollBarVisibility=\"Disabled\"", content);
-        Assert.DoesNotContain("HorizontalScrollBarVisibility=\"Auto\"", content);
+        Assert.Matches(DisabledScrollBarRegex(), content);
+        Assert.DoesNotMatch(AutoScrollBarRegex(), content);
     }
 
     /// <summary>
-    /// Verifies that <c>ChangelogsView</c> sets <c>HorizontalScrollBarVisibility="Disabled"</c>.
+    /// Verifies that <c>ChangelogsView</c> disables horizontal scroll bars and does not allow Auto horizontal scrolling.
     /// </summary>
     [Fact]
     public void ChangelogsView_DisablesHorizontalScrollBar()
     {
-        var solutionDir = FindSolutionDirectory();
+        var solutionDir = UiTestPathHelper.FindSolutionDirectory();
         var viewPath = Path.Combine(solutionDir, "GenHub", "Features", "Info", "Views", "ChangelogsView.axaml");
         Assert.True(File.Exists(viewPath), $"File not found at: {viewPath}");
 
         var content = File.ReadAllText(viewPath);
-        Assert.Contains("HorizontalScrollBarVisibility=\"Disabled\"", content);
-        Assert.DoesNotContain("HorizontalScrollBarVisibility=\"Auto\"", content);
+        Assert.Matches(DisabledScrollBarRegex(), content);
+        Assert.DoesNotMatch(AutoScrollBarRegex(), content);
     }
 
     /// <summary>
-    /// Verifies that <c>GenHubInfoSectionView</c> styles define text wrapping for headers and titles.
+    /// Verifies that <c>GenHubInfoSectionView</c> styles explicitly define <c>TextWrapping="Wrap"</c>
+    /// on section headers and card titles to prevent off-screen truncation.
     /// </summary>
     [Fact]
     public void GenHubInfoSectionView_StylesIncludeTextWrapping()
     {
-        var solutionDir = FindSolutionDirectory();
+        var solutionDir = UiTestPathHelper.FindSolutionDirectory();
         var viewPath = Path.Combine(solutionDir, "GenHub", "Features", "Info", "Views", "GenHubInfoSectionView.axaml");
         var content = File.ReadAllText(viewPath);
 
-        // Section header and card title styles must wrap text to prevent off-screen truncation
-        Assert.Contains("TextBlock.section-header", content);
-        Assert.Contains("TextBlock.card-title", content);
-    }
-
-    private static string FindSolutionDirectory()
-    {
-        var current = new DirectoryInfo(AppContext.BaseDirectory);
-        while (current != null)
-        {
-            if (File.Exists(Path.Combine(current.FullName, "GenHub.sln")))
-            {
-                return current.FullName;
-            }
-
-            current = current.Parent;
-        }
-
-        current = new DirectoryInfo(Directory.GetCurrentDirectory());
-        while (current != null)
-        {
-            if (File.Exists(Path.Combine(current.FullName, "GenHub.sln")))
-            {
-                return current.FullName;
-            }
-
-            current = current.Parent;
-        }
-
-        throw new DirectoryNotFoundException("Could not locate directory containing GenHub.sln from: " + AppContext.BaseDirectory);
+        // Section header and card title styles must explicitly set TextWrapping="Wrap"
+        Assert.Matches(SectionHeaderWrappingRegex(), content);
+        Assert.Matches(CardTitleWrappingRegex(), content);
     }
 }
