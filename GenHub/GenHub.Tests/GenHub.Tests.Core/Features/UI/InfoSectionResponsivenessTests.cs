@@ -17,10 +17,10 @@ public partial class InfoSectionResponsivenessTests
     [GeneratedRegex(@"\bHorizontalScrollBarVisibility\s*=\s*[""']Disabled[""']", RegexOptions.IgnoreCase)]
     private static partial Regex DisabledScrollBarRegex();
 
-    [GeneratedRegex(@"<Style\s+Selector\s*=\s*""TextBlock\.section-header"">[\s\S]*?<Setter\s+Property\s*=\s*""TextWrapping""\s+Value\s*=\s*""Wrap""\s*/>", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"<Style\s+Selector\s*=\s*""TextBlock\.section-header"">(?:(?!</Style>)[\s\S])*?<Setter\s+Property\s*=\s*""TextWrapping""\s+Value\s*=\s*""Wrap""\s*/>", RegexOptions.IgnoreCase)]
     private static partial Regex SectionHeaderWrappingRegex();
 
-    [GeneratedRegex(@"<Style\s+Selector\s*=\s*""TextBlock\.card-title"">[\s\S]*?<Setter\s+Property\s*=\s*""TextWrapping""\s+Value\s*=\s*""Wrap""\s*/>", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"<Style\s+Selector\s*=\s*""TextBlock\.card-title"">(?:(?!</Style>)[\s\S])*?<Setter\s+Property\s*=\s*""TextWrapping""\s+Value\s*=\s*""Wrap""\s*/>", RegexOptions.IgnoreCase)]
     private static partial Regex CardTitleWrappingRegex();
 
     /// <summary>
@@ -64,7 +64,7 @@ public partial class InfoSectionResponsivenessTests
         var viewPath = Path.Combine(solutionDir, "GenHub", "Features", "Info", "Views", "GenHubInfoSectionView.axaml");
         var content = File.ReadAllText(viewPath);
 
-        // Section header and card title styles must explicitly set TextWrapping="Wrap"
+        // Section header and card title styles must explicitly set TextWrapping="Wrap" within the style block
         Assert.Matches(SectionHeaderWrappingRegex(), content);
         Assert.Matches(CardTitleWrappingRegex(), content);
     }
