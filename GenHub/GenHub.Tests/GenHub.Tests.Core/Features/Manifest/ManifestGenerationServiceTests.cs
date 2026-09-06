@@ -556,6 +556,57 @@ public class ManifestGenerationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync skips symbolic links and reparse points during fallback directory scan.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_FallbackScan_SkipsReparsePointsAndSymbolicLinksAsync()
+    {
+        // Arrange
+        var installationPath = Path.Combine(_tempDirectory, "ReparseFallbackInstall");
+        Directory.CreateDirectory(installationPath);
+
+        var exePath = Path.Combine(installationPath, "generals.exe");
+        await File.WriteAllTextAsync(exePath, "legacy exe");
+
+        var normalFile = Path.Combine(installationPath, "normal.ini");
+        await File.WriteAllTextAsync(normalFile, "normal content");
+
+        // External directory and file outside the installation
+        var outsideDir = Path.Combine(_tempDirectory, "OutsideTargetFolder");
+        Directory.CreateDirectory(outsideDir);
+        var outsideFile = Path.Combine(outsideDir, "outside.big");
+        await File.WriteAllTextAsync(outsideFile, "outside content");
+
+        // Create symlinked file and symlinked directory under installation
+        var symlinkFile = Path.Combine(installationPath, "linked_file.big");
+        var symlinkDir = Path.Combine(installationPath, "linked_dir");
+
+        try
+        {
+            File.CreateSymbolicLink(symlinkFile, outsideFile);
+            Directory.CreateSymbolicLink(symlinkDir, outsideDir);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            // Skip symlink assertions if runtime lacks permissions to create symbolic links
+            return;
+        }
+
+        // Act - version "1.02" has no authoritative CSV catalog
+        var builder = await _service.CreateGameInstallationManifestAsync(
+            installationPath, GameType.Generals, GameInstallationType.Retail, "1.02");
+        var manifest = builder.Build();
+
+        // Assert - symlinks/reparse points are excluded from manifest
+        Assert.NotNull(manifest);
+        Assert.Contains(manifest.Files, f => f.RelativePath == "generals.exe");
+        Assert.Contains(manifest.Files, f => f.RelativePath == "normal.ini");
+        Assert.DoesNotContain(manifest.Files, f => f.RelativePath == "linked_file.big");
+        Assert.DoesNotContain(manifest.Files, f => f.RelativePath.Contains("outside.big"));
+    }
+
+    /// <summary>
     /// Tests that CreateGameInstallationManifestAsync resolves int-like versions consistently between basic info and catalog.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>

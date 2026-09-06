@@ -776,20 +776,7 @@ public class ManifestGenerationService(
         logger.LogInformation("Starting fallback directory scan manifest generation for {GameType} at {InstallationPath}", gameType, installationPath);
 
         var executableName = gameType == GameType.Generals ? GameClientConstants.GeneralsExecutable : GameClientConstants.ZeroHourExecutable;
-        var executablePath = Path.Combine(installationPath, executableName);
-
-        if (File.Exists(executablePath))
-        {
-            var sourcePath = ResolveSourcePathWithBackup(executablePath, executableName);
-            try
-            {
-                await builder.AddGameInstallationFileAsync(executableName, sourcePath, isExecutable: true);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                logger.LogWarning(ex, "Failed to add primary executable {ExecutableName} to manifest from {SourcePath}", executableName, sourcePath);
-            }
-        }
+        await TryAddPrimaryExecutableAsync(builder, installationPath, executableName);
 
         try
         {
@@ -797,45 +784,77 @@ public class ManifestGenerationService(
             {
                 IgnoreInaccessible = true,
                 RecurseSubdirectories = true,
-                AttributesToSkip = FileAttributes.None,
+                AttributesToSkip = FileAttributes.ReparsePoint,
             };
 
             foreach (var file in Directory.EnumerateFiles(installationPath, "*", options))
             {
-                var relativePath = Path.GetRelativePath(installationPath, file).Replace('\\', '/');
-
-                if (ShouldSkipFile(relativePath))
-                {
-                    continue;
-                }
-
-                if (relativePath.Equals(executableName, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                var extension = Path.GetExtension(file);
-                if (!FallbackFileExtensions.Contains(extension))
-                {
-                    continue;
-                }
-
-                var sourcePath = ResolveSourcePathWithBackup(file, relativePath);
-                var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(relativePath, sourcePath);
-
-                try
-                {
-                    await builder.AddGameInstallationFileAsync(relativePath, sourcePath, isExecutable);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    logger.LogWarning(ex, "Failed to add fallback file {RelativePath} to manifest", relativePath);
-                }
+                await TryAddFallbackFileAsync(builder, installationPath, file, executableName);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(ex, "Failed to enumerate files during directory scan at {InstallationPath}", installationPath);
+        }
+    }
+
+    private async Task TryAddPrimaryExecutableAsync(
+        IContentManifestBuilder builder,
+        string installationPath,
+        string executableName)
+    {
+        var executablePath = Path.Combine(installationPath, executableName);
+
+        if (!File.Exists(executablePath))
+        {
+            return;
+        }
+
+        var sourcePath = ResolveSourcePathWithBackup(executablePath, executableName);
+        try
+        {
+            await builder.AddGameInstallationFileAsync(executableName, sourcePath, isExecutable: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to add primary executable {ExecutableName} to manifest from {SourcePath}", executableName, sourcePath);
+        }
+    }
+
+    private async Task TryAddFallbackFileAsync(
+        IContentManifestBuilder builder,
+        string installationPath,
+        string file,
+        string executableName)
+    {
+        var relativePath = Path.GetRelativePath(installationPath, file).Replace('\\', '/');
+
+        if (ShouldSkipFile(relativePath))
+        {
+            return;
+        }
+
+        if (relativePath.Equals(executableName, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var extension = Path.GetExtension(file);
+        if (!FallbackFileExtensions.Contains(extension))
+        {
+            return;
+        }
+
+        var sourcePath = ResolveSourcePathWithBackup(file, relativePath);
+        var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(relativePath, sourcePath);
+
+        try
+        {
+            await builder.AddGameInstallationFileAsync(relativePath, sourcePath, isExecutable);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to add fallback file {RelativePath} to manifest", relativePath);
         }
     }
 
