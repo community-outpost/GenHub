@@ -10,7 +10,7 @@ public static class ReplayManagerConstants
     /// <summary>
     /// Maximum size for a single replay file in bytes (10 MB).
     /// </summary>
-    public const long MaxReplaySizeBytes = 10 * 1024 * 1024;
+    public const long MaxReplaySizeBytes = 10 * ConversionConstants.BytesPerMegabyte;
 
     /// <summary>
     /// Maximum allowed entries in a replay ZIP archive.
@@ -20,7 +20,7 @@ public static class ReplayManagerConstants
     /// <summary>
     /// Maximum aggregate uncompressed bytes for a replay ZIP archive (50 MB).
     /// </summary>
-    public const long MaxAggregateUncompressedBytes = 50 * 1024 * 1024;
+    public const long MaxAggregateUncompressedBytes = 50 * ConversionConstants.BytesPerMegabyte;
 
     /// <summary>
     /// Maximum compression ratio allowed for replay ZIP archives.
@@ -30,7 +30,7 @@ public static class ReplayManagerConstants
     /// <summary>
     /// Maximum upload bytes per period (10 MB).
     /// </summary>
-    public const long MaxUploadBytesPerPeriod = 10 * 1024 * 1024;
+    public const long MaxUploadBytesPerPeriod = 10 * ConversionConstants.BytesPerMegabyte;
 
     /// <summary>
     /// Prefix for temporary import files.

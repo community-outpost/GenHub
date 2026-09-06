@@ -293,12 +293,24 @@ public class DependencyResolver(
             return true;
         }
 
+        if (name.StartsWith(ZeroHourName, StringComparison.OrdinalIgnoreCase) ||
+            name.StartsWith(GeneralsZeroHourName, StringComparison.OrdinalIgnoreCase) ||
+            name.EndsWith(ZeroHourShortName, StringComparison.OrdinalIgnoreCase) ||
+            name.Contains(ZeroHourName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
         var tokens = name.Split(ManifestConstants.VariantSeparator);
-        return tokens.Any(t =>
-            string.Equals(t, ZeroHourName, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(t, ZeroHourShortName, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(t, GeneralsZeroHourName, StringComparison.OrdinalIgnoreCase));
+        return tokens.Any(IsZeroHourToken);
     }
+
+    private static bool IsZeroHourToken(string token) =>
+        string.Equals(token, ZeroHourName, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(token, ZeroHourShortName, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(token, GeneralsZeroHourName, StringComparison.OrdinalIgnoreCase) ||
+        token.StartsWith(ZeroHourName, StringComparison.OrdinalIgnoreCase) ||
+        token.EndsWith(ZeroHourShortName, StringComparison.OrdinalIgnoreCase);
 
     private static bool IsGeneralsIdentifier(string name)
     {
@@ -307,13 +319,17 @@ public class DependencyResolver(
             return false;
         }
 
-        if (string.Equals(name, GeneralsName, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(name, GeneralsName, StringComparison.OrdinalIgnoreCase) ||
+            name.StartsWith(GeneralsName, StringComparison.OrdinalIgnoreCase) ||
+            name.Contains(GeneralsName, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
         var tokens = name.Split(ManifestConstants.VariantSeparator);
-        return tokens.Any(t => string.Equals(t, GeneralsName, StringComparison.OrdinalIgnoreCase));
+        return tokens.Any(t =>
+            string.Equals(t, GeneralsName, StringComparison.OrdinalIgnoreCase) ||
+            t.StartsWith(GeneralsName, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool AreGameVariantsCompatible(string declaredName, string acquiredName)

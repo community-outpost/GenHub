@@ -1,4 +1,7 @@
+using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
@@ -179,6 +182,21 @@ public static class InstallationExtensions
         };
     }
 
+    private static readonly HashSet<string> InstallationIdentifierSet = new(
+        Enum.GetValues<GameInstallationType>().Select(t => t.ToIdentifierString())
+            .Concat(new[] { PublisherInfoConstants.Retail.Name, "retail" }),
+        StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Determines whether the specified identifier matches any known installation type identifier.
+    /// </summary>
+    /// <param name="identifier">The identifier to check.</param>
+    /// <returns>True if the identifier represents an installation source; otherwise, false.</returns>
+    public static bool IsInstallationIdentifier(string? identifier)
+    {
+        return !string.IsNullOrEmpty(identifier) && InstallationIdentifierSet.Contains(identifier);
+    }
+
     /// <summary>
     /// Gets a normalized string representation for the installation type, suitable for manifest IDs and identifiers.
     /// Returns lowercase identifiers for consistency with the manifest ID system.
@@ -195,6 +213,7 @@ public static class InstallationExtensions
             GameInstallationType.CDISO => "cdiso",
             GameInstallationType.Wine => "wine",
             GameInstallationType.Retail => "retail",
+            GameInstallationType.Lutris => "lutris",
             GameInstallationType.Unknown => "unknown",
             _ => throw new ArgumentOutOfRangeException(nameof(installationType), installationType, "Unknown installation type"),
         };

@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Models.GameClients;
@@ -70,10 +71,7 @@ public class GameClient
     /// </summary>
     public bool IsPublisherClient =>
         !string.IsNullOrEmpty(PublisherType) &&
-        !string.Equals(PublisherType, PublisherTypeConstants.Retail, StringComparison.OrdinalIgnoreCase) &&
-        !string.Equals(PublisherType, PublisherInfoConstants.Retail.Name, StringComparison.OrdinalIgnoreCase) &&
-        !string.Equals(PublisherType, PublisherTypeConstants.Steam, StringComparison.OrdinalIgnoreCase) &&
-        !string.Equals(PublisherType, PublisherTypeConstants.EaApp, StringComparison.OrdinalIgnoreCase);
+        !InstallationExtensions.IsInstallationIdentifier(PublisherType);
 
     /// <summary>Gets or sets additional command line arguments.</summary>
     public string CommandLineArgs { get; set; } = string.Empty;

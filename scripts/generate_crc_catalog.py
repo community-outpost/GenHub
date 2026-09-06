@@ -481,13 +481,31 @@ def merge_catalogs(existing: list[dict], crawled: list[dict]) -> list[dict]:
         key = entry_key(item)
         if key in merged:
             _update_existing_entry(merged[key], item)
-        elif item.get("exeCrc"):
-            empty_crc_key = (m_id, "", "")
-            if empty_crc_key in merged:
-                existing_entry = merged.pop(empty_crc_key)
+        else:
+            item_exe = key[1]
+            item_ini = key[2]
+            matched_key = None
+            if item_exe or item_ini:
+                for existing_key in list(merged.keys()):
+                    if existing_key[0] == m_id:
+                        ex_exe, ex_ini = existing_key[1], existing_key[2]
+                        exe_compatible = not ex_exe or not item_exe or ex_exe == item_exe
+                        ini_compatible = not ex_ini or not item_ini or ex_ini == item_ini
+                        if (not ex_exe and item_exe) or (not ex_ini and item_ini):
+                            if exe_compatible and ini_compatible:
+                                matched_key = existing_key
+                                break
+
+            if matched_key:
+                existing_entry = merged.pop(matched_key)
                 _update_existing_entry(existing_entry, item)
                 merged[entry_key(existing_entry)] = existing_entry
             else:
+                if any(k[0] == m_id for k in merged.keys()):
+                    print(
+                        f"Validation warning: duplicate manifestId {m_id} with distinct CRC key {key}",
+                        file=sys.stderr,
+                    )
                 merged[key] = dict(item)
 
     return list(merged.values())
