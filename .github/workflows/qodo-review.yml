@@ -1,7 +1,7 @@
 name: Qodo PR Review (Z.AI Coding Plan)
 
 on:
-  pull_request_target:
+  pull_request:
     branches: [main, development]
     types: [opened, reopened, ready_for_review, synchronize]
   issue_comment:
@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: Run Qodo PR-Agent
-        uses: the-pr-agent/pr-agent@main
+        uses: the-pr-agent/pr-agent@97169bcab8943d457b99256d357b856c68e0c61e # main
         env:
           # --- Z.AI Coding Plan Credentials ---
           OPENAI_KEY: ${{ secrets.ZAI_API_KEY }}
