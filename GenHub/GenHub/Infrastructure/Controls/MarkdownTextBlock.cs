@@ -140,14 +140,33 @@ public class MarkdownTextBlock : UserControl
                         TextDecorations = TextDecorations.Underline,
                     };
 
-                    // Make the link clickable and wrap text for responsive layout
+                    // Make the link clickable and constrain width to prevent paragraph overflow on unbroken URLs
                     var linkText = new TextBlock
                     {
                         Cursor = new Cursor(StandardCursorType.Hand),
                         TextWrapping = TextWrapping.Wrap,
+                        TextTrimming = TextTrimming.CharacterEllipsis,
                     };
 
                     linkText.Inlines?.Add(linkRun);
+
+                    if (!string.IsNullOrEmpty(link.Url))
+                    {
+                        ToolTip.SetTip(linkText, link.Url);
+                    }
+
+                    linkText.Bind(
+                        TextBlock.MaxWidthProperty,
+                        new Avalonia.Data.Binding
+                        {
+                            Path = "Bounds.Width",
+                            FallbackValue = double.PositiveInfinity,
+                            TargetNullValue = double.PositiveInfinity,
+                            RelativeSource = new Avalonia.Data.RelativeSource(Avalonia.Data.RelativeSourceMode.FindAncestor)
+                            {
+                                AncestorType = typeof(MarkdownTextBlock),
+                            },
+                        });
 
                     linkText.PointerPressed += (s, e) =>
                     {
