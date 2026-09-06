@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Core.Constants;
@@ -174,6 +175,16 @@ public static class CsvConstants
     public const string EmbeddedResourceNamespace = "GenHub.Core.Assets.Registries";
 
     /// <summary>
+    /// Environment variable name for overriding Generals CSV URL.
+    /// </summary>
+    public const string GeneralsCsvUrlEnvVar = "GENHUB_GENERALS_CSV_URL";
+
+    /// <summary>
+    /// Environment variable name for overriding Zero Hour CSV URL.
+    /// </summary>
+    public const string ZeroHourCsvUrlEnvVar = "GENHUB_ZEROHOUR_CSV_URL";
+
+    /// <summary>
     /// Default remote URL for Generals 1.08 CSV.
     /// </summary>
     public const string DefaultGeneralsCsvUrl = "https://raw.githubusercontent.com/community-outpost/GenHub/main/docs/GameInstallationFilesRegistry/Generals-1.08.csv";
@@ -182,4 +193,20 @@ public static class CsvConstants
     /// Default remote URL for Zero Hour 1.04 CSV.
     /// </summary>
     public const string DefaultZeroHourCsvUrl = "https://raw.githubusercontent.com/community-outpost/GenHub/main/docs/GameInstallationFilesRegistry/ZeroHour-1.04.csv";
+
+    /// <summary>
+    /// Gets the remote URL for Generals 1.08 CSV, checking environment variable overrides first.
+    /// </summary>
+    public static string GeneralsCsvUrl =>
+        Environment.GetEnvironmentVariable(GeneralsCsvUrlEnvVar) is { Length: > 0 } customUrl
+            ? customUrl
+            : DefaultGeneralsCsvUrl;
+
+    /// <summary>
+    /// Gets the remote URL for Zero Hour 1.04 CSV, checking environment variable overrides first.
+    /// </summary>
+    public static string ZeroHourCsvUrl =>
+        Environment.GetEnvironmentVariable(ZeroHourCsvUrlEnvVar) is { Length: > 0 } customUrl
+            ? customUrl
+            : DefaultZeroHourCsvUrl;
 }

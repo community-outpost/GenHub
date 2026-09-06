@@ -1192,7 +1192,7 @@ public class ManifestGenerationService(
             return [];
         }
 
-        var csvRemoteUrl = gameType == GameType.ZeroHour ? CsvConstants.DefaultZeroHourCsvUrl : CsvConstants.DefaultGeneralsCsvUrl;
+        var csvRemoteUrl = gameType == GameType.ZeroHour ? CsvConstants.ZeroHourCsvUrl : CsvConstants.GeneralsCsvUrl;
 
         // 1. Try CSV resolver if available
         if (_resolvedCsvResolver != null)
