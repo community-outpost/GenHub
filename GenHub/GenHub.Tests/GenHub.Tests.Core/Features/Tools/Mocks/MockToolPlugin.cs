@@ -69,6 +69,18 @@ public class MockToolPlugin : IToolPlugin
     public Control CreateControl()
     {
         CreateControlCallCount++;
+        try
+        {
+            if (Avalonia.Threading.Dispatcher.UIThread is { } dispatcher && !dispatcher.CheckAccess())
+            {
+                return dispatcher.Invoke(() => new TextBlock { Text = $"Mock Control for {Metadata.Name}" });
+            }
+        }
+        catch
+        {
+            // If dispatcher is unavailable, fall through to direct creation
+        }
+
         return new TextBlock { Text = $"Mock Control for {Metadata.Name}" };
     }
 
