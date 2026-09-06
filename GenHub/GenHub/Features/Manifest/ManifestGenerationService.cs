@@ -865,6 +865,15 @@ public class ManifestGenerationService(
         }
 
         var sourcePath = ResolveSourcePathWithBackup(file, relativePath);
+        if (sourcePath != file && IsReparsePoint(sourcePath))
+        {
+            logger.LogWarning(
+                "Backup source {SourcePath} for {RelativePath} is a reparse point or symbolic link and will be skipped",
+                sourcePath,
+                relativePath);
+            return;
+        }
+
         var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(relativePath, sourcePath);
 
         try
@@ -1367,22 +1376,48 @@ public class ManifestGenerationService(
     }
 
     /// <summary>
+    /// Determines whether the specified file path is a symbolic link or reparse point.
+    /// </summary>
+    private static bool IsReparsePoint(string path)
+    {
+        try
+        {
+            return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return true;
+        }
+    }
+
+    /// <summary>
     /// Resolves the source path for a file, checking for a backup (.bak) version first.
+    /// Rejects candidate backup files that are symbolic links or reparse points.
     /// </summary>
     private string ResolveSourcePathWithBackup(string filePath, string manifestFileName)
     {
         var backupPath = filePath + SteamConstants.BackupExtension;
         if (File.Exists(backupPath))
         {
-            logger.LogInformation("Using backup file {Backup} as source for {File} in manifest", Path.GetFileName(backupPath), manifestFileName);
-            return backupPath;
+            if (!IsReparsePoint(backupPath))
+            {
+                logger.LogInformation("Using backup file {Backup} as source for {File} in manifest", Path.GetFileName(backupPath), manifestFileName);
+                return backupPath;
+            }
+
+            logger.LogWarning("Backup source {Backup} for {File} is a reparse point or symbolic link and will be skipped", Path.GetFileName(backupPath), manifestFileName);
         }
 
         var legacyBackupPath = filePath + FileTypes.LegacyBackupExtension;
         if (File.Exists(legacyBackupPath))
         {
-            logger.LogInformation("Using backup file {Backup} as source for {File} in manifest", Path.GetFileName(legacyBackupPath), manifestFileName);
-            return legacyBackupPath;
+            if (!IsReparsePoint(legacyBackupPath))
+            {
+                logger.LogInformation("Using backup file {Backup} as source for {File} in manifest", Path.GetFileName(legacyBackupPath), manifestFileName);
+                return legacyBackupPath;
+            }
+
+            logger.LogWarning("Backup source {Backup} for {File} is a reparse point or symbolic link and will be skipped", Path.GetFileName(legacyBackupPath), manifestFileName);
         }
 
         return filePath;

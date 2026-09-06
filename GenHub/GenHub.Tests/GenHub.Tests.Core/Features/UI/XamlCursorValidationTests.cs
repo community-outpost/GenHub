@@ -42,6 +42,25 @@ public partial class XamlCursorValidationTests
     }
 
     /// <summary>
+    /// Verifies that <see cref="IsValidCursor"/> rejects undefined numeric values and unrecognized names,
+    /// while accepting valid defined named cursor values.
+    /// </summary>
+    /// <param name="cursorValue">The cursor value string to validate.</param>
+    /// <param name="expectedValid">Whether the cursor value is expected to be recognized as valid.</param>
+    [Theory]
+    [InlineData("Hand", true)]
+    [InlineData("Arrow", true)]
+    [InlineData("9999", false)]
+    [InlineData("-1", false)]
+    [InlineData("Default", false)]
+    [InlineData("NonExistentCursor", false)]
+    public void IsValidCursor_ValidatesDefinedEnumMembers(string cursorValue, bool expectedValid)
+    {
+        var result = IsValidCursor(cursorValue);
+        Assert.Equal(expectedValid, result);
+    }
+
+    /// <summary>
     /// Scans every AXAML file in the solution and asserts that all cursor attributes and setters
     /// specify valid Avalonia <see cref="StandardCursorType"/> values.
     /// </summary>
@@ -102,7 +121,8 @@ public partial class XamlCursorValidationTests
     /// </summary>
     private static bool IsValidCursor(string cursorValue)
     {
-        return Enum.TryParse<StandardCursorType>(cursorValue, ignoreCase: true, out _);
+        return Enum.TryParse<StandardCursorType>(cursorValue, ignoreCase: true, out var cursor) &&
+               Enum.IsDefined(typeof(StandardCursorType), cursor);
     }
 
     /// <summary>
