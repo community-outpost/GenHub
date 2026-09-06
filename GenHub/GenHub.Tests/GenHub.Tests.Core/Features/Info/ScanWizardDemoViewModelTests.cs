@@ -33,6 +33,17 @@ public class ScanWizardDemoViewModelTests
     }
 
     /// <summary>
+    /// Tests that the constructor throws ArgumentOutOfRangeException when scanDelayMs is negative.
+    /// </summary>
+    [Fact]
+    public void Constructor_NegativeScanDelay_ThrowsArgumentOutOfRangeException()
+    {
+        var act = () => new ScanWizardDemoViewModel(scanDelayMs: -1);
+
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    /// <summary>
     /// Tests that selecting and deselecting items dynamically updates the confirm label and selection state.
     /// </summary>
     [Fact]

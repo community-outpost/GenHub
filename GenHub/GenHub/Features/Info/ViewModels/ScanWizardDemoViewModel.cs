@@ -46,6 +46,7 @@ public partial class ScanWizardDemoViewModel : ObservableObject
         int scanDelayMs = 1000,
         Func<CancellationToken, Task>? delayProvider = null)
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(scanDelayMs);
         _notificationService = notificationService;
         _scanDelayMs = scanDelayMs;
         _delayProvider = delayProvider;
@@ -115,7 +116,8 @@ public partial class ScanWizardDemoViewModel : ObservableObject
         finally
         {
             IsScanning = false;
-            _scanCts = null;
+            var cts = Interlocked.Exchange(ref _scanCts, null);
+            cts?.Dispose();
         }
     }
 
