@@ -25,6 +25,11 @@ DEFAULT_OUTPUT_PATH = os.path.join(
     os.path.dirname(__file__), "..", "GenHub", "GenHub", "Resources", "crc-mapping.json"
 )
 
+
+class CatalogConflictError(Exception):
+    """Raised when conflicting CRCs are encountered for the same manifest/cdnUrl."""
+    pass
+
 BASELINE_ENTRIES = [
     {
         "exeCrc": "0xDA2B4B18",
@@ -527,7 +532,7 @@ def _find_compatible_catalog_key(
                 f"Validation error: refusing to merge {m_id} due to conflicting CRCs ({item_exe}/{item_ini} vs {ex_exe}/{ex_ini}) for same cdnUrl",
                 file=sys.stderr,
             )
-            raise ValueError(
+            raise CatalogConflictError(
                 f"Conflicting CRCs ({item_exe}/{item_ini} vs {ex_exe}/{ex_ini}) for same cdnUrl in manifestId {m_id}"
             )
 
@@ -661,17 +666,24 @@ def build_catalog(output_path: str = DEFAULT_OUTPUT_PATH, crawl: bool = False, i
                 loaded = json.load(f)
                 if isinstance(loaded, dict) and "mappings" in loaded:
                     existing_mappings = merge_catalogs(existing_mappings, loaded["mappings"])
+        except CatalogConflictError as e:
+            print(f"Error: Catalog conflict detected in existing catalog: {e}", file=sys.stderr)
+            sys.exit(1)
         except (OSError, ValueError) as e:
             print(f"Warning: could not read existing catalog: {e}", file=sys.stderr)
 
     if crawl:
-        sh_crawled = crawl_superhackers_releases(inspect_binaries=inspect_binaries)
-        if sh_crawled:
-            existing_mappings = merge_catalogs(existing_mappings, sh_crawled)
+        try:
+            sh_crawled = crawl_superhackers_releases(inspect_binaries=inspect_binaries)
+            if sh_crawled:
+                existing_mappings = merge_catalogs(existing_mappings, sh_crawled)
 
-        go_crawled = crawl_generalsonline_releases(inspect_binaries=inspect_binaries)
-        if go_crawled:
-            existing_mappings = merge_catalogs(existing_mappings, go_crawled)
+            go_crawled = crawl_generalsonline_releases(inspect_binaries=inspect_binaries)
+            if go_crawled:
+                existing_mappings = merge_catalogs(existing_mappings, go_crawled)
+        except CatalogConflictError as e:
+            print(f"Error: Crawled catalog conflict detected: {e}", file=sys.stderr)
+            sys.exit(1)
 
     catalog = {
         "schemaVersion": 1,
