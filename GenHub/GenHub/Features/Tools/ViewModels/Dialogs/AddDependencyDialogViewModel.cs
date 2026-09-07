@@ -101,7 +101,7 @@ public partial class AddDependencyDialogViewModel : ObservableValidator
         // Auto-select first available if any
         if (AvailableContent.Count > 0)
         {
-            SelectedContent = AvailableContent.First();
+            SelectedContent = AvailableContent[0];
             IsFromMyCatalog = true;
         }
         else
@@ -242,7 +242,7 @@ public partial class AddDependencyDialogViewModel : ObservableValidator
     [RelayCommand]
     private async Task DiscoverContentAsync()
     {
-        if (string.IsNullOrWhiteSpace(_externalCatalogUrl))
+        if (string.IsNullOrWhiteSpace(ExternalCatalogUrl))
         {
             ValidationError = "Please enter a Catalog or Provider Definition URL first";
             return;
@@ -255,7 +255,7 @@ public partial class AddDependencyDialogViewModel : ObservableValidator
         try
         {
             using var client = new System.Net.Http.HttpClient();
-            var json = await client.GetStringAsync(_externalCatalogUrl);
+            var json = await client.GetStringAsync(ExternalCatalogUrl);
             await TryParseCatalogOrDefinitionAsync(client, json);
 
             if (DiscoveredContent.Count == 0)
@@ -332,9 +332,9 @@ public partial class AddDependencyDialogViewModel : ObservableValidator
     {
         var errors = new List<string>();
 
-        if (_isFromMyCatalog)
+        if (IsFromMyCatalog)
         {
-            if (_selectedContent == null && AvailableContent.Count > 0)
+            if (SelectedContent == null && AvailableContent.Count > 0)
             {
                 errors.Add("Please select a content item from your catalog");
             }
@@ -345,12 +345,12 @@ public partial class AddDependencyDialogViewModel : ObservableValidator
         }
         else
         {
-            if (string.IsNullOrWhiteSpace(_externalPublisherId))
+            if (string.IsNullOrWhiteSpace(ExternalPublisherId))
             {
                 errors.Add("Publisher ID is required for external dependencies");
             }
 
-            if (string.IsNullOrWhiteSpace(_externalContentId))
+            if (string.IsNullOrWhiteSpace(ExternalContentId))
             {
                 errors.Add("Content ID is required for external dependencies");
             }
