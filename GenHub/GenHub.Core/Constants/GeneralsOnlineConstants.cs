@@ -65,6 +65,9 @@ public static class GeneralsOnlineConstants
 
     // ===== File Extensions =====
 
+    /// <summary>Prefix for portable archive filenames.</summary>
+    public const string PortableFilePrefix = "GeneralsOnline_portable_";
+
     /// <summary>File extension for portable downloads.</summary>
     public const string PortableExtension = ".zip";
 

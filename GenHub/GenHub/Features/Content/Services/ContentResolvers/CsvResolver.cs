@@ -72,7 +72,7 @@ public class CsvResolver(
             if (discoveredItem.ResolverMetadata.TryGetValue(CsvConstants.Sha256MetadataKey, out var expectedSha256) &&
                 !string.IsNullOrWhiteSpace(expectedSha256))
             {
-                var actualHash = Convert.ToHexString(SHA256.HashData(loadResult.Data.RawBytes)).ToLowerInvariant();
+                var actualHash = Convert.ToHexString(SHA256.HashData(loadResult.Data.RawBytes));
                 if (!string.Equals(actualHash, expectedSha256.Trim(), StringComparison.OrdinalIgnoreCase))
                 {
                     logger.LogError(
@@ -108,7 +108,7 @@ public class CsvResolver(
 
             if (loadResult.Data.ShouldCache && catalogCache != null)
             {
-                await catalogCache.StoreAsync(discoveredItem.SourceUrl, loadResult.Data.Content, cancellationToken);
+                await catalogCache.StoreAsync(discoveredItem.SourceUrl, loadResult.Data.RawBytes, cancellationToken);
             }
 
             var isRemote = Uri.TryCreate(discoveredItem.SourceUrl, UriKind.Absolute, out var uri) &&
@@ -362,8 +362,7 @@ public class CsvResolver(
                 : await catalogCache.ReadAsync(sourceUrl, cancellationToken);
             if (cached?.IsFresh == true)
             {
-                var cachedBytes = Encoding.UTF8.GetBytes(cached.Content);
-                return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(cached.Content, false, cachedBytes));
+                return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(cached.Content, false, cached.RawBytes));
             }
 
             try
@@ -384,8 +383,7 @@ public class CsvResolver(
             catch (Exception ex) when (cached != null && IsRecoverableRemoteFailure(ex, cancellationToken))
             {
                 logger.LogWarning(ex, "Remote CSV catalog {SourceUrl} is unavailable; using stale cached content", sourceUrl);
-                var cachedBytes = Encoding.UTF8.GetBytes(cached.Content);
-                return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(cached.Content, false, cachedBytes));
+                return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(cached.Content, false, cached.RawBytes));
             }
         }
 

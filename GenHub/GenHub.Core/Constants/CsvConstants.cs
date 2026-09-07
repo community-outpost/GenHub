@@ -105,16 +105,6 @@ public static class CsvConstants
     public const string AllLanguagesFilter = "All";
 
     /// <summary>
-    /// Wildcard pattern representing all languages.
-    /// </summary>
-    public const string AllLanguagesWildcard = "*";
-
-    /// <summary>
-    /// Supported language list delimiter in CSV records.
-    /// </summary>
-    public const char LanguageListDelimiter = ';';
-
-    /// <summary>
     /// Canonical language code for English.
     /// </summary>
     public const string LanguageEn = "EN";

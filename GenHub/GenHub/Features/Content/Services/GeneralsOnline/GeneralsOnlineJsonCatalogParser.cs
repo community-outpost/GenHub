@@ -76,7 +76,7 @@ public class GeneralsOnlineJsonCatalogParser(
                         dataElement.GetRawText(),
                         _jsonOptions);
 
-                    if (apiResponse != null && (!string.IsNullOrEmpty(apiResponse.Version) || !string.IsNullOrEmpty(apiResponse.DownloadUrl)))
+                    if (apiResponse != null && (!string.IsNullOrWhiteSpace(apiResponse.Version) || !string.IsNullOrWhiteSpace(apiResponse.DownloadUrl)))
                     {
                         release = CreateReleaseFromApiResponse(apiResponse);
                         logger.LogInformation(
@@ -91,7 +91,7 @@ public class GeneralsOnlineJsonCatalogParser(
                 if (root.TryGetProperty("version", out var versionElement))
                 {
                     var version = versionElement.GetString();
-                    if (!string.IsNullOrEmpty(version))
+                    if (!string.IsNullOrWhiteSpace(version))
                     {
                         release = CreateReleaseFromVersion(version, provider);
                         logger.LogInformation(
@@ -137,8 +137,9 @@ public class GeneralsOnlineJsonCatalogParser(
     }
 
     /// <summary>
-    /// Resolves the canonical release version, extracting the full version (including QFE suffix)
-    /// from the download URL if the API response version lacks it.
+    /// Resolves the canonical release version, preferring the payload package version from the download URL
+    /// (which reflects the actual binaries and preserves build tags like _EAC), falling back to the API version
+    /// when the URL does not yield a version.
     /// </summary>
     /// <param name="apiVersion">The version string from the API JSON response.</param>
     /// <param name="downloadUrl">The download URL for the portable package.</param>
@@ -146,44 +147,68 @@ public class GeneralsOnlineJsonCatalogParser(
     internal static string ResolveReleaseVersion(string? apiVersion, string? downloadUrl)
     {
         var urlVersion = ExtractVersionFromUrl(downloadUrl);
-        if (string.IsNullOrWhiteSpace(urlVersion))
+        var hasUrl = !string.IsNullOrWhiteSpace(urlVersion);
+        var hasApi = !string.IsNullOrWhiteSpace(apiVersion);
+
+        if (!hasUrl && !hasApi)
         {
-            return !string.IsNullOrWhiteSpace(apiVersion) ? apiVersion : GeneralsOnlineConstants.UnknownVersion;
+            return GeneralsOnlineConstants.UnknownVersion;
         }
 
-        if (string.IsNullOrWhiteSpace(apiVersion))
+        if (hasUrl && !hasApi)
         {
-            return urlVersion;
+            return urlVersion!;
         }
 
+        if (!hasUrl && hasApi)
+        {
+            return apiVersion!;
+        }
+
+        // Both are present.
+        // If the URL names an actual package, it represents the exact payload delivered to the user.
+        // We prefer urlVersion to preserve payload parity and build tags (e.g. _EAC).
+        // The exception is when urlVersion has no QFE marker (QfeNumber == 0) but apiVersion specifies a QFE on the same date.
         var scheme = new MmddyyQfeVersionScheme();
-        var urlParsed = scheme.TryParse(urlVersion, out var urlContentVersion);
-        var apiParsed = scheme.TryParse(apiVersion, out var apiContentVersion);
+        var urlParsed = scheme.TryParse(urlVersion!, out var urlContentVersion);
+        var apiParsed = scheme.TryParse(apiVersion!, out var apiContentVersion);
 
         if (urlParsed && apiParsed)
         {
-            return urlContentVersion > apiContentVersion ? urlVersion : apiVersion;
+            if (apiContentVersion.Date == urlContentVersion.Date &&
+                apiContentVersion.QfeNumber > urlContentVersion.QfeNumber &&
+                urlContentVersion.QfeNumber == 0)
+            {
+                return apiVersion!;
+            }
+
+            return urlVersion!;
         }
 
         if (urlParsed)
         {
-            return urlVersion;
+            return urlVersion!;
         }
 
         if (apiParsed)
         {
-            return apiVersion;
+            return apiVersion!;
         }
 
-        var urlHasQfe = urlVersion.Contains(GeneralsOnlineConstants.QfeMarkerPrefix, StringComparison.OrdinalIgnoreCase);
-        var apiHasQfe = apiVersion.Contains(GeneralsOnlineConstants.QfeMarkerPrefix, StringComparison.OrdinalIgnoreCase);
+        var urlHasQfe = urlVersion!.Contains(GeneralsOnlineConstants.QfeMarkerPrefix, StringComparison.OrdinalIgnoreCase);
+        var apiHasQfe = apiVersion!.Contains(GeneralsOnlineConstants.QfeMarkerPrefix, StringComparison.OrdinalIgnoreCase);
 
-        if (urlHasQfe && !apiHasQfe)
+        if (urlHasQfe)
         {
-            return urlVersion;
+            return urlVersion!;
         }
 
-        return apiVersion;
+        if (apiHasQfe)
+        {
+            return apiVersion!;
+        }
+
+        return urlVersion!;
     }
 
     /// <summary>
@@ -217,7 +242,7 @@ public class GeneralsOnlineJsonCatalogParser(
             return null;
         }
 
-        const string prefix = "GeneralsOnline_portable_";
+        var prefix = GeneralsOnlineConstants.PortableFilePrefix;
         var prefixIndex = fileName.IndexOf(prefix, StringComparison.OrdinalIgnoreCase);
         if (prefixIndex >= 0)
         {
@@ -265,7 +290,7 @@ public class GeneralsOnlineJsonCatalogParser(
             Version = version,
             VersionDate = versionDate,
             ReleaseDate = versionDate,
-            PortableUrl = $"{releasesUrl}/GeneralsOnline_portable_{version}{GeneralsOnlineConstants.PortableExtension}",
+            PortableUrl = $"{releasesUrl}/{GeneralsOnlineConstants.PortableFilePrefix}{version}{GeneralsOnlineConstants.PortableExtension}",
             PortableSize = null, // Size unknown when using latest.txt fallback
             Changelog = $"Generals Online {version}",
         };

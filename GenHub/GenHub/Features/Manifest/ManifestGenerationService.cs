@@ -552,50 +552,22 @@ public class ManifestGenerationService(
                normalized.EndsWith(SteamConstants.TrackingFileName, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string? GetCatalogFileName(GameType gameType, string version)
+    private static bool TryGetCatalogInfo(GameType gameType, string version, out (string FileName, string Sha256) info)
     {
-        if (gameType == GameType.Generals)
+        if (gameType == GameType.Generals && version is "1.08" or "1.8")
         {
-            return version switch
-            {
-                "1.08" or "1.8" => CsvConstants.GeneralsCsvFileName,
-                _ => null,
-            };
+            info = (CsvConstants.GeneralsCsvFileName, CsvConstants.Generals108Sha256);
+            return true;
         }
 
-        if (gameType == GameType.ZeroHour)
+        if (gameType == GameType.ZeroHour && version is "1.04" or "1.4")
         {
-            return version switch
-            {
-                "1.04" or "1.4" => CsvConstants.ZeroHourCsvFileName,
-                _ => null,
-            };
+            info = (CsvConstants.ZeroHourCsvFileName, CsvConstants.ZeroHour104Sha256);
+            return true;
         }
 
-        return null;
-    }
-
-    private static string? GetCatalogSha256(GameType gameType, string version)
-    {
-        if (gameType == GameType.Generals)
-        {
-            return version switch
-            {
-                "1.08" or "1.8" => CsvConstants.Generals108Sha256,
-                _ => null,
-            };
-        }
-
-        if (gameType == GameType.ZeroHour)
-        {
-            return version switch
-            {
-                "1.04" or "1.4" => CsvConstants.ZeroHour104Sha256,
-                _ => null,
-            };
-        }
-
-        return null;
+        info = default;
+        return false;
     }
 
     private static List<CsvCatalogEntry> FilterEntriesByGameAndLanguage(
@@ -1220,87 +1192,103 @@ public class ManifestGenerationService(
         string version,
         string language)
     {
-        var gameTypeStr = gameType == GameType.ZeroHour ? CsvConstants.ZeroHourGameType : CsvConstants.GeneralsGameType;
-        var csvFileName = GetCatalogFileName(gameType, version);
-        if (string.IsNullOrEmpty(csvFileName))
+        if (!TryGetCatalogInfo(gameType, version, out var catalogInfo))
         {
             logger.LogWarning("No authoritative CSV catalog configured for {GameType} version {Version}", gameType, version);
             return [];
         }
 
-        var csvRemoteUrl = gameType == GameType.ZeroHour ? CsvConstants.ZeroHourCsvUrl : CsvConstants.GeneralsCsvUrl;
-
-        // 1. Try CSV resolver if available
         if (csvResolver != null)
         {
-            try
-            {
-                var expectedSha256 = GetCatalogSha256(gameType, version);
-                var searchResult = new ContentSearchResult
-                {
-                    Id = string.Empty,
-                    Name = $"{gameTypeStr} {version} ({language})",
-                    Version = version,
-                    TargetGame = gameType,
-                    ContentType = ContentType.GameInstallation,
-                    SourceUrl = csvRemoteUrl,
-                    ResolverId = CsvConstants.ResolverId,
-                    ResolverMetadata =
-                    {
-                        [CsvConstants.GameTypeMetadataKey] = gameTypeStr,
-                        [CsvConstants.VersionMetadataKey] = version,
-                        [CsvConstants.LanguageMetadataKey] = language,
-                        [CsvConstants.CsvUrlMetadataKey] = csvFileName,
-                    },
-                };
+            var resolved = await TryResolveAuthoritativeEntriesAsync(
+                csvResolver,
+                gameType,
+                version,
+                language,
+                catalogInfo.FileName,
+                catalogInfo.Sha256);
 
-                if (!string.IsNullOrEmpty(expectedSha256))
-                {
-                    searchResult.ResolverMetadata[CsvConstants.Sha256MetadataKey] = expectedSha256;
-                }
-
-                var resolveResult = await csvResolver.ResolveAsync(searchResult);
-                if (resolveResult.Success && resolveResult.Data?.Files != null && resolveResult.Data.Files.Count > 0)
-                {
-                    logger.LogDebug(
-                        "Resolved {Count} authoritative files via CSV resolver for {GameType} v{Version} ({Language})",
-                        resolveResult.Data.Files.Count,
-                        gameType,
-                        version,
-                        language);
-
-                    return resolveResult.Data.Files.Select(f => new CsvCatalogEntry
-                    {
-                        RelativePath = f.RelativePath,
-                        Size = f.Size,
-                        Sha256 = f.Hash,
-                        GameType = gameTypeStr,
-                        Language = language,
-                        IsRequired = f.IsRequired,
-                        DownloadUrl = f.DownloadUrl,
-                    }).ToList();
-                }
-            }
-            catch (HttpRequestException ex)
+            if (resolved != null)
             {
-                logger.LogWarning(ex, "Failed to resolve CSV catalog via HTTP for {GameType} ({Language}), falling back to local/embedded registry", gameType, language);
-            }
-            catch (TaskCanceledException ex)
-            {
-                logger.LogWarning(ex, "Timeout resolving CSV catalog via HTTP for {GameType} ({Language}), falling back to local/embedded registry", gameType, language);
-            }
-            catch (IOException ex)
-            {
-                logger.LogWarning(ex, "Failed to resolve CSV catalog via I/O for {GameType} ({Language}), falling back to local/embedded registry", gameType, language);
-            }
-            catch (InvalidOperationException ex)
-            {
-                logger.LogWarning(ex, "Failed to resolve CSV catalog via resolver for {GameType} ({Language}), falling back to local/embedded registry", gameType, language);
+                return resolved;
             }
         }
 
-        // 2. Fallback to embedded assembly or local file
-        return LoadAuthoritativeEntriesFromFallback(gameType, language, csvFileName);
+        return LoadAuthoritativeEntriesFromFallback(gameType, language, catalogInfo.FileName);
+    }
+
+    private async Task<IReadOnlyList<CsvCatalogEntry>?> TryResolveAuthoritativeEntriesAsync(
+        IContentResolver resolver,
+        GameType gameType,
+        string version,
+        string language,
+        string csvFileName,
+        string expectedSha256)
+    {
+        var gameTypeStr = gameType == GameType.ZeroHour ? CsvConstants.ZeroHourGameType : CsvConstants.GeneralsGameType;
+        var csvRemoteUrl = gameType == GameType.ZeroHour ? CsvConstants.ZeroHourCsvUrl : CsvConstants.GeneralsCsvUrl;
+
+        try
+        {
+            var searchResult = new ContentSearchResult
+            {
+                Id = string.Empty,
+                Name = $"{gameTypeStr} {version} ({language})",
+                Version = version,
+                TargetGame = gameType,
+                ContentType = ContentType.GameInstallation,
+                SourceUrl = csvRemoteUrl,
+                ResolverId = CsvConstants.ResolverId,
+                ResolverMetadata =
+                {
+                    [CsvConstants.GameTypeMetadataKey] = gameTypeStr,
+                    [CsvConstants.VersionMetadataKey] = version,
+                    [CsvConstants.LanguageMetadataKey] = language,
+                    [CsvConstants.CsvUrlMetadataKey] = csvFileName,
+                    [CsvConstants.Sha256MetadataKey] = expectedSha256,
+                },
+            };
+
+            var resolveResult = await resolver.ResolveAsync(searchResult);
+            if (resolveResult.Success && resolveResult.Data?.Files != null && resolveResult.Data.Files.Count > 0)
+            {
+                logger.LogDebug(
+                    "Resolved {Count} authoritative files via CSV resolver for {GameType} v{Version} ({Language})",
+                    resolveResult.Data.Files.Count,
+                    gameType,
+                    version,
+                    language);
+
+                return resolveResult.Data.Files.Select(f => new CsvCatalogEntry
+                {
+                    RelativePath = f.RelativePath,
+                    Size = f.Size,
+                    Sha256 = f.Hash,
+                    GameType = gameTypeStr,
+                    Language = language,
+                    IsRequired = f.IsRequired,
+                    DownloadUrl = f.DownloadUrl,
+                }).ToList();
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Failed to resolve CSV catalog via HTTP for {GameType} ({Language}), falling back to local/embedded registry", gameType, language);
+        }
+        catch (TaskCanceledException ex)
+        {
+            logger.LogWarning(ex, "Timeout resolving CSV catalog via HTTP for {GameType} ({Language}), falling back to local/embedded registry", gameType, language);
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to resolve CSV catalog via I/O for {GameType} ({Language}), falling back to local/embedded registry", gameType, language);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex, "Failed to resolve CSV catalog via resolver for {GameType} ({Language}), falling back to local/embedded registry", gameType, language);
+        }
+
+        return null;
     }
 
     /// <summary>

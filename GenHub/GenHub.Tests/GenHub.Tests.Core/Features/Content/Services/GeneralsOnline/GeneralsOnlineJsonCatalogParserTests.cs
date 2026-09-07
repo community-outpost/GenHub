@@ -1,6 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.GeneralsOnline;
@@ -8,7 +5,6 @@ using GenHub.Core.Models.Providers;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using Xunit;
 
 namespace GenHub.Tests.Core.Features.Content.Services.GeneralsOnline;
 
@@ -138,11 +134,17 @@ public class GeneralsOnlineJsonCatalogParserTests
     [Theory]
     [InlineData("082826", "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip", "082826_QFE1")]
     [InlineData("082826_QFE1", "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip", "082826_QFE1")]
-    [InlineData("082826_QFE2", "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip", "082826_QFE2")]
+    [InlineData("082826_QFE2", "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip", "082826_QFE1")]
     [InlineData("082826_QFE1", "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE2.zip", "082826_QFE2")]
     [InlineData("082826", "https://cdn.playgenerals.online/GeneralsOnline_portable_082826.zip", "082826")]
+    [InlineData("082826_QFE1", "https://cdn.playgenerals.online/GeneralsOnline_portable_082826.zip", "082826_QFE1")]
+    [InlineData("090126_QFE1", "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE2.zip", "082826_QFE2")]
+    [InlineData("042826_QFE3", "https://cdn.playgenerals.online/GeneralsOnline_portable_042826_QFE3_EAC.zip", "042826_QFE3_EAC")]
     [InlineData(null, "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip", "082826_QFE1")]
     [InlineData("082826_QFE1", null, "082826_QFE1")]
+    [InlineData(null, null, GeneralsOnlineConstants.UnknownVersion)]
+    [InlineData("unparseable_custom", "https://cdn.playgenerals.online/GeneralsOnline_portable_custom_QFE1.zip", "custom_QFE1")]
+    [InlineData("custom_QFE2", "https://cdn.playgenerals.online/GeneralsOnline_portable_unparseable.zip", "custom_QFE2")]
     public void ResolveReleaseVersion_WithVariousInputs_ResolvesExpectedVersion(
         string? apiVersion,
         string? downloadUrl,

@@ -495,6 +495,7 @@ public class CsvResolverTests
 
         result.Success.Should().BeTrue();
         result.Data.Should().NotBeNull();
+        result.Data!.Files.Should().HaveCount(2);
     }
 
     /// <summary>
@@ -538,6 +539,7 @@ public class CsvResolverTests
 
         result.Success.Should().BeTrue();
         result.Data.Should().NotBeNull();
+        result.Data!.Files.Should().HaveCount(2);
     }
 
     /// <summary>
@@ -581,6 +583,63 @@ public class CsvResolverTests
 
         result.Success.Should().BeTrue();
         result.Data.Should().NotBeNull();
+        result.Data!.Files.Should().HaveCount(2);
+    }
+
+    /// <summary>
+    /// Verifies that a cache hit for a remote CSV served with UTF-8 BOM preserves raw bytes and passes integrity check.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenCachedWithBom_PassesIntegrityCheckOnSubsequentCallAsync()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var remoteUrl = "https://example.com/catalog.csv";
+            var contentBytes = Encoding.UTF8.GetBytes(FullSampleCsv);
+            var bomBytes = new byte[] { 0xEF, 0xBB, 0xBF }.Concat(contentBytes).ToArray();
+            var httpHandler = new StubHttpMessageHandler(expectedUrl: remoteUrl, statusCode: HttpStatusCode.OK, rawBytes: bomBytes);
+            var resolver = CreateResolver(httpHandler, tempDir.FullName);
+
+            var expectedHash = Convert.ToHexString(SHA256.HashData(bomBytes)).ToLowerInvariant();
+            var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
+            item.ResolverMetadata[CsvConstants.Sha256MetadataKey] = expectedHash;
+
+            var firstResult = await resolver.ResolveAsync(item);
+            firstResult.Success.Should().BeTrue();
+
+            var secondResult = await resolver.ResolveAsync(item);
+            secondResult.Success.Should().BeTrue();
+            secondResult.Data.Should().NotBeNull();
+            secondResult.Data!.Files.Should().HaveCount(2);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the embedded authoritative CSV registries match their pinned SHA-256 checksum constants.
+    /// </summary>
+    /// <param name="fileName">The embedded CSV catalog file name.</param>
+    /// <param name="expectedSha256">The expected pinned SHA-256 checksum.</param>
+    [Theory]
+    [InlineData(CsvConstants.GeneralsCsvFileName, CsvConstants.Generals108Sha256)]
+    [InlineData(CsvConstants.ZeroHourCsvFileName, CsvConstants.ZeroHour104Sha256)]
+    public void EmbeddedRegistries_MatchPinnedSha256Constants(string fileName, string expectedSha256)
+    {
+        var assembly = typeof(CsvConstants).Assembly;
+        var resourceName = $"{CsvConstants.EmbeddedResourceNamespace}.{fileName}";
+        using var stream = assembly.GetManifestResourceStream(resourceName);
+        stream.Should().NotBeNull($"Resource '{resourceName}' must exist in {assembly.GetName().Name}");
+
+        using var memoryStream = new MemoryStream();
+        stream!.CopyTo(memoryStream);
+        var actualHash = Convert.ToHexString(SHA256.HashData(memoryStream.ToArray())).ToLowerInvariant();
+
+        actualHash.Should().Be(expectedSha256);
     }
 
     private static CsvResolver CreateResolver(HttpMessageHandler? handler = null, string? applicationDataPath = null)
