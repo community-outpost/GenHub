@@ -356,6 +356,53 @@ public class ManifestGenerationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that when catalog entry size is unknown (zero/negative), the local hash and file size are computed and attached.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_Authoritative_UnknownCatalogSize_ComputesLocalHashAndSizeAsync()
+    {
+        // Arrange
+        var mockContentManager = new Mock<IContentManager>();
+        var manifestPoolMock = new Mock<IContentManifestPool>();
+        var hashProviderMock = new Mock<IContentHashProvider>();
+        hashProviderMock
+            .Setup(h => h.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string path, CancellationToken _) => $"hash_{Path.GetFileName(path)}");
+
+        var csvResolverMock = new Mock<ICsvCatalogManifestResolver>();
+        csvResolverMock
+            .Setup(r => r.ResolveAsync(It.IsAny<GameType>(), It.IsAny<GameInstallationType>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<string, (string Sha256, long Size)>
+            {
+                ["generals.exe"] = ("catalog_sha256", 0), // unknown size
+            });
+
+        var service = new ManifestGenerationService(
+            mockContentManager.Object,
+            manifestPoolMock.Object,
+            hashProviderMock.Object,
+            new Mock<ILogger<ManifestGenerationService>>().Object,
+            csvResolverMock.Object);
+
+        var installationPath = Path.Combine(_tempDirectory, "UnknownSizeInstall");
+        Directory.CreateDirectory(installationPath);
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "generals.exe"), "test bytes");
+
+        // Act
+        var builder = await service.CreateGameInstallationManifestAsync(
+            installationPath, GameType.Generals, GameInstallationType.Steam, "1.08", "EN");
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        var exeFile = manifest.Files.FirstOrDefault(f => f.RelativePath == "generals.exe");
+        Assert.NotNull(exeFile);
+        Assert.Equal("hash_generals.exe", exeFile.Hash);
+        Assert.Equal(10, exeFile.Size);
+    }
+
+    /// <summary>
     /// Tests that CreateGameInstallationManifestAsync generates authoritative manifest for Zero Hour.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>

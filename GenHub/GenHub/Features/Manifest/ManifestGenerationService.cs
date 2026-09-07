@@ -686,8 +686,7 @@ public class ManifestGenerationService(
     }
 
     /// <summary>
-    /// Finds a file in the installation directory using case-insensitive path resolution.
-    /// Rejects paths containing symbolic links or reparse points to prevent path traversal.
+    /// Returns true when the directory is missing or is a reparse point other than the installation root itself.
     /// </summary>
     private static bool IsInvalidIntermediateDirectory(string currentDir, string fullInstallationPath)
     {
@@ -695,6 +694,10 @@ public class ManifestGenerationService(
                (!string.Equals(currentDir, fullInstallationPath, StringComparison.OrdinalIgnoreCase) && IsReparsePoint(currentDir));
     }
 
+    /// <summary>
+    /// Finds a file in the installation directory using case-insensitive path resolution.
+    /// Rejects paths containing symbolic links or reparse points to prevent path traversal.
+    /// </summary>
     private static string? FindFileCaseInsensitive(string installationPath, string relativePath)
     {
         var exactPath = GetSafeExactPath(installationPath, relativePath);
@@ -1011,8 +1014,11 @@ public class ManifestGenerationService(
             }
 
             var fileInfo = new FileInfo(sourcePath);
-            var hasSizeDiscrepancy = entry.Size > 0 && fileInfo.Length != entry.Size;
-            if (hasSizeDiscrepancy)
+            var isAuthoritativeMatch = entry.Size > 0 &&
+                                       fileInfo.Length == entry.Size &&
+                                       !string.IsNullOrWhiteSpace(entry.Sha256);
+
+            if (entry.Size > 0 && fileInfo.Length != entry.Size)
             {
                 logger.LogWarning(
                     "Local file size ({ActualSize}) for {RelativePath} differs from catalog size ({ExpectedSize}). Attaching locally computed hash and size. Source: {SourcePath}",
@@ -1024,11 +1030,11 @@ public class ManifestGenerationService(
 
             var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(entry.RelativePath, sourcePath);
 
-            var fileHash = (!hasSizeDiscrepancy && !string.IsNullOrWhiteSpace(entry.Sha256))
+            var fileHash = isAuthoritativeMatch
                 ? entry.Sha256
                 : await hashProvider.ComputeFileHashAsync(sourcePath);
 
-            var fileSize = (!hasSizeDiscrepancy && entry.Size > 0)
+            var fileSize = isAuthoritativeMatch
                 ? entry.Size
                 : fileInfo.Length;
 
