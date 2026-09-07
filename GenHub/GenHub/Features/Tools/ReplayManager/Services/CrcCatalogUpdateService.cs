@@ -67,7 +67,11 @@ public sealed class CrcCatalogUpdateService(
 
             if (catalog == null || catalog.SchemaVersion != 1 || catalog.Mappings == null || catalog.Mappings.Count == 0)
             {
-                logger.LogWarning("Deserialized remote CRC catalog was invalid or empty. Attempting local fallback.");
+                logger.LogWarning(
+                    "Deserialized remote CRC catalog was invalid, unsupported schema (version {SchemaVersion}), or empty (mappings null: {MappingsNull}, count: {MappingCount}). Attempting local fallback.",
+                    catalog?.SchemaVersion,
+                    catalog?.Mappings == null,
+                    catalog?.Mappings?.Count ?? 0);
                 return await LoadLocalFallbackAsync(cancellationToken);
             }
 

@@ -66,6 +66,11 @@ public sealed class CrcMappingRegistryTests
         // Strict rejection when Exe CRC is completely unknown
         Assert.False(registry.TryGetEntry("0x99999999", "0xDEADBEEF", out _));
 
+        // Strict rejection when either CRC is null or whitespace
+        Assert.False(registry.TryGetEntry(string.Empty, "0x76B251A3", out _));
+        Assert.False(registry.TryGetEntry("0x27533BB0", string.Empty, out _));
+        Assert.False(registry.TryGetEntry(null!, null!, out _));
+
         // Match by ExeCrc only
         Assert.True(registry.TryGetEntryByExeCrc("0x27533BB0", out var foundByExe));
         Assert.NotNull(foundByExe);

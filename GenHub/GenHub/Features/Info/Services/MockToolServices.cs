@@ -254,6 +254,12 @@ public class MockReplayDirectoryService : IReplayDirectoryService
         };
         return Task.FromResult(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(mockLaunchInfo));
     }
+
+    /// <inheritdoc/>
+    public Task<bool> IsProfileRunningAsync(string profileId, CancellationToken ct = default)
+    {
+        return Task.FromResult(false);
+    }
 }
 
 /// <summary>

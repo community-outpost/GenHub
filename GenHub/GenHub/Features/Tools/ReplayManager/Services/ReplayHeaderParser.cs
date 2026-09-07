@@ -128,13 +128,13 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             return OperationResult<ReplayMetadata>.CreateFailure("Unterminated UTF-16 replay title string in replay header.");
         }
 
-        // 3. Skip 16 bytes (SYSTEMTIME timestamp structure)
-        if (offset + 16 > bytesRead)
+        // 3. Skip SYSTEMTIME timestamp structure
+        if (offset + ReplayManagerConstants.ReplayHeaderSystemTimeSizeBytes > bytesRead)
         {
             return OperationResult<ReplayMetadata>.CreateFailure("Truncated replay header before version string.");
         }
 
-        offset += 16;
+        offset += ReplayManagerConstants.ReplayHeaderSystemTimeSizeBytes;
 
         // 4. Read VersionString (null-terminated UTF-16LE, e.g. "Version 1.04")
         if (!TryReadNullTerminatedUtf16String(buffer, ref offset, bytesRead, out var versionString))
@@ -148,20 +148,20 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             return OperationResult<ReplayMetadata>.CreateFailure("Unterminated UTF-16 build time string in replay header.");
         }
 
-        // 6. Read numeric version, exeCRC, iniCRC (each 4 bytes uint32 LE)
-        if (offset + 12 > bytesRead)
+        // 6. Read numeric version, exeCRC, iniCRC (each uint32 LE)
+        if (offset + ReplayManagerConstants.ReplayHeaderCrcBlockSizeBytes > bytesRead)
         {
             return OperationResult<ReplayMetadata>.CreateFailure("Truncated replay header before CRC values.");
         }
 
         var versionNumber = BitConverter.ToUInt32(buffer, offset);
-        offset += 4;
+        offset += ReplayManagerConstants.ReplayHeaderUInt32SizeBytes;
 
         var exeCrc = BitConverter.ToUInt32(buffer, offset);
-        offset += 4;
+        offset += ReplayManagerConstants.ReplayHeaderUInt32SizeBytes;
 
         var iniCrc = BitConverter.ToUInt32(buffer, offset);
-        offset += 4;
+        offset += ReplayManagerConstants.ReplayHeaderUInt32SizeBytes;
 
         // 7. Read Init/Match AsciiString (null-terminated ASCII)
         if (!TryReadNullTerminatedAsciiString(buffer, ref offset, bytesRead, out var initString))
@@ -272,6 +272,12 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         }
     }
 
+    /// <summary>
+    /// Cleans a player name extracted from the replay slot string (S= token).
+    /// In the C&amp;C Generals and Zero Hour network protocol, each player slot entry in the S= token
+    /// prepends a single-character slot marker ('H' for Human, 'C' for Computer) to the player name.
+    /// Standalone slot status indicators ('H', 'C', 'X', 'O') with no name represent empty, open, or closed slots.
+    /// </summary>
     private static string CleanPlayerName(string rawName)
     {
         if (string.IsNullOrWhiteSpace(rawName))
@@ -280,11 +286,13 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         }
 
         var trimmed = rawName.Trim();
-        if (trimmed.Length <= 1)
+        if (trimmed.Length == 1)
         {
-            return string.Empty;
+            // Standalone slot status markers with no player name: 'H' (Human), 'C' (Computer), 'X' (Closed), 'O' (Open)
+            return trimmed[0] is 'H' or 'C' or 'h' or 'c' or 'X' or 'O' or 'x' or 'o' ? string.Empty : trimmed;
         }
 
+        // Strip the C&amp;C Generals slot status prefix ('H' for Human, 'C' for Computer)
         if (trimmed[0] is 'H' or 'C' or 'h' or 'c')
         {
             return trimmed[1..].Trim();

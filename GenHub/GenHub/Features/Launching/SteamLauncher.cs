@@ -398,7 +398,7 @@ public class SteamLauncher : ISteamLauncher
                 return true;
             }
         }
-        catch (Exception ex) when (ex is FileNotFoundException or ArgumentException or UnauthorizedAccessException or InvalidOperationException)
+        catch (Exception ex) when (ex is FileNotFoundException or ArgumentException or UnauthorizedAccessException)
         {
             // Ignore expected version info inspection errors for missing, invalid, or inaccessible executables
         }
@@ -634,6 +634,7 @@ public class SteamLauncher : ISteamLauncher
         private readonly List<string> _mutatedFiles = [];
         private readonly HashSet<string> _temporaryFiles = new(PathComparer);
         private bool _backupCreated;
+        private bool _backupRefreshed;
         private bool _executableMutationStarted;
         private bool _targetInitiallyExisted;
         private string? _executableRestoreSource;
@@ -687,6 +688,7 @@ public class SteamLauncher : ISteamLauncher
                     File.Move(refreshStagingPath, _backupPath, overwrite: true);
                     _temporaryFiles.Remove(refreshStagingPath);
                     _backupCreated = false;
+                    _backupRefreshed = true;
                     return;
                 }
 
@@ -838,7 +840,7 @@ public class SteamLauncher : ISteamLauncher
                     errors.Add($"Recovery file retained at '{path}'.");
                 }
 
-                if (_backupCreated && File.Exists(_backupPath))
+                if ((_backupCreated || _backupRefreshed) && File.Exists(_backupPath))
                 {
                     errors.Add($"Recovery backup retained at '{_backupPath}'.");
                 }
