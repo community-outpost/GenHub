@@ -748,6 +748,12 @@ public class SettingsViewModelTests
     [Fact]
     public async Task ClearLogsCommand_WhenSomeFilesAreLocked_ClearsAvailableFilesAndReportsSkippedAsync()
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            // Exclusive file locks via FileShare.None preventing File.Delete / Truncate are Windows-specific.
+            return;
+        }
+
         // Arrange
         var tempLogsDir = Path.Combine(Path.GetTempPath(), "GenHubTestLogsLocked_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempLogsDir);
