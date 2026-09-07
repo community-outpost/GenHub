@@ -168,22 +168,9 @@ public class GeneralsOnlineJsonCatalogParser(
         // Both are present.
         // If the URL names an actual package, it represents the exact payload delivered to the user.
         // We prefer urlVersion to preserve payload parity and build tags (e.g. _EAC).
-        // The exception is when urlVersion has no QFE marker (QfeNumber == 0) but apiVersion specifies a QFE on the same date.
         var scheme = new MmddyyQfeVersionScheme();
-        var urlParsed = scheme.TryParse(urlVersion!, out var urlContentVersion);
-        var apiParsed = scheme.TryParse(apiVersion!, out var apiContentVersion);
-
-        if (urlParsed && apiParsed)
-        {
-            if (apiContentVersion.Date == urlContentVersion.Date &&
-                apiContentVersion.QfeNumber > urlContentVersion.QfeNumber &&
-                urlContentVersion.QfeNumber == 0)
-            {
-                return apiVersion!;
-            }
-
-            return urlVersion!;
-        }
+        var urlParsed = scheme.TryParse(urlVersion!, out _);
+        var apiParsed = scheme.TryParse(apiVersion!, out _);
 
         if (urlParsed)
         {

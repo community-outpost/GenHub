@@ -953,5 +953,4 @@ public partial class ContentManifestBuilder(
         logger.LogDebug("Added file: {RelativePath} (Source: {SourceType}, Hash: {Hash})", options.RelativePath, options.SourceType, manifestFile.Hash);
         return this;
     }
-
 }
