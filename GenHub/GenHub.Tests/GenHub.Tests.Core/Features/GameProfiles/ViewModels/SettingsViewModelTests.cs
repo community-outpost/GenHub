@@ -823,6 +823,45 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that ClearLogsCommand falls back to ActiveLogFilePath directory when GetLogsPath is null or missing.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ClearLogsCommand_WhenGetLogsPathMissing_FallsBackToActiveLogDirectoryAsync()
+    {
+        var tempLogsDir = Path.Combine(Path.GetTempPath(), "GenHubTestLogsFallback_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempLogsDir);
+        var originalActiveLog = LoggingModule.ActiveLogFilePath;
+
+        try
+        {
+            var logFile = Path.Combine(tempLogsDir, "fallback.log");
+            await File.WriteAllTextAsync(logFile, "Fallback log content");
+            LoggingModule.ActiveLogFilePath = logFile;
+
+            _mockConfigurationProvider.Setup(x => x.GetLogsPath()).Returns(string.Empty);
+            var viewModel = CreateViewModel();
+
+            await viewModel.ClearLogsCommand.ExecuteAsync(null);
+
+            Assert.True(File.Exists(logFile));
+            var content = await File.ReadAllTextAsync(logFile);
+            Assert.Empty(content);
+            _mockNotificationService.Verify(
+                x => x.ShowSuccess("Logs Cleared", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+                Times.Once);
+        }
+        finally
+        {
+            LoggingModule.ActiveLogFilePath = originalActiveLog;
+            if (Directory.Exists(tempLogsDir))
+            {
+                Directory.Delete(tempLogsDir, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
     /// Verifies that SelectColorThemeCommand updates selected theme and saves user settings.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>

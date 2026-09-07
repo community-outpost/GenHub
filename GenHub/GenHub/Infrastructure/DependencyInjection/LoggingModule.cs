@@ -89,6 +89,7 @@ public static class LoggingModule
             builder.AddDebug();
 
             var logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
                 .WriteTo.Sink(new ResilientFileSink(logPath), restrictedToMinimumLevel: LogEventLevel.Debug)
                 .CreateLogger();
 

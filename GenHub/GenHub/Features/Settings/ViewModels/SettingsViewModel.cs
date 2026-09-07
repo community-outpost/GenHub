@@ -1917,47 +1917,59 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         try
         {
-            var logsPath = _configurationProvider.GetLogsPath();
-            if (string.IsNullOrWhiteSpace(logsPath) || !Directory.Exists(logsPath))
-            {
-                var activeLogDir = Path.GetDirectoryName(LoggingModule.ActiveLogFilePath);
-                if (!string.IsNullOrWhiteSpace(activeLogDir) && Directory.Exists(activeLogDir))
-                {
-                    logsPath = activeLogDir;
-                }
-            }
-
-            _logger.LogInformation("Clearing logs from: {Path}", logsPath);
-
-            if (string.IsNullOrWhiteSpace(logsPath) || !Directory.Exists(logsPath))
+            var logsPath = ResolveLogsDirectory();
+            if (string.IsNullOrWhiteSpace(logsPath))
             {
                 _notificationService.ShowInfo("Logs Empty", "No logs directory found.", 3000);
                 return;
             }
 
+            _logger.LogInformation("Clearing logs from: {Path}", logsPath);
             var (deletedCount, lockedCount, freedBytes) = await Task.Run(() => ClearLogFiles(logsPath, _logger));
-
-            if (deletedCount == 0 && lockedCount == 0)
-            {
-                _notificationService.ShowInfo("Logs Empty", "No log files found to clear.", 3000);
-            }
-            else if (deletedCount == 0)
-            {
-                _notificationService.ShowError("Error", "Could not clear active log files (files in use).", 3000);
-            }
-            else
-            {
-                var freedMb = freedBytes / (1024.0 * 1024.0);
-                var sizeText = freedMb >= 0.1 ? $" ({freedMb:F1} MB freed)" : string.Empty;
-                var skippedText = lockedCount > 0 ? $", {lockedCount} file(s) skipped (in use)" : string.Empty;
-                _notificationService.ShowSuccess("Logs Cleared", $"Successfully cleared {deletedCount} log file(s){sizeText}{skippedText}.", 3000);
-                _logger.LogInformation("Cleared {Count} log files ({Bytes} bytes freed, {Locked} locked)", deletedCount, freedBytes, lockedCount);
-            }
+            NotifyClearLogsResult(deletedCount, lockedCount, freedBytes);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to clear logs");
             _notificationService.ShowError("Error", $"Failed to clear logs: {ex.Message}", 5000);
         }
+    }
+
+    private string? ResolveLogsDirectory()
+    {
+        var logsPath = _configurationProvider.GetLogsPath();
+        if (!string.IsNullOrWhiteSpace(logsPath) && Directory.Exists(logsPath))
+        {
+            return logsPath;
+        }
+
+        var activeLogDir = Path.GetDirectoryName(LoggingModule.ActiveLogFilePath);
+        if (!string.IsNullOrWhiteSpace(activeLogDir) && Directory.Exists(activeLogDir))
+        {
+            return activeLogDir;
+        }
+
+        return null;
+    }
+
+    private void NotifyClearLogsResult(int deletedCount, int lockedCount, long freedBytes)
+    {
+        if (deletedCount == 0 && lockedCount == 0)
+        {
+            _notificationService.ShowInfo("Logs Empty", "No log files found to clear.", 3000);
+            return;
+        }
+
+        if (deletedCount == 0)
+        {
+            _notificationService.ShowError("Error", "Could not clear active log files (files in use).", 3000);
+            return;
+        }
+
+        var freedMb = freedBytes / (1024.0 * 1024.0);
+        var sizeText = freedMb >= 0.1 ? $" ({freedMb:F1} MB freed)" : string.Empty;
+        var skippedText = lockedCount > 0 ? $", {lockedCount} file(s) skipped (in use)" : string.Empty;
+        _notificationService.ShowSuccess("Logs Cleared", $"Successfully cleared {deletedCount} log file(s){sizeText}{skippedText}.", 3000);
+        _logger.LogInformation("Cleared {Count} log files ({Bytes} bytes freed, {Locked} locked)", deletedCount, freedBytes, lockedCount);
     }
 }

@@ -60,6 +60,11 @@ public sealed class ResilientFileSink : ILogEventSink, IDisposable
             {
                 lock (_fileLock)
                 {
+                    if (_disposed)
+                    {
+                        return;
+                    }
+
                     EnsureDirectoryExists();
 
                     using var stream = new FileStream(
@@ -94,7 +99,10 @@ public sealed class ResilientFileSink : ILogEventSink, IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
-        _disposed = true;
+        lock (_fileLock)
+        {
+            _disposed = true;
+        }
     }
 
     private void EnsureDirectoryExists()
