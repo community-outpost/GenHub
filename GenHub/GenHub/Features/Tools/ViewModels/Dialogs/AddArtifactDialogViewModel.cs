@@ -29,8 +29,6 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
     private string _filename = string.Empty;
 
     [ObservableProperty]
-    [NotifyDataErrorInfo]
-    [Url(ErrorMessage = "Please enter a valid URL")]
     private string _downloadUrl = string.Empty;
 
     [ObservableProperty]
@@ -87,6 +85,46 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
     /// </summary>
     public bool IsHosted => !string.IsNullOrEmpty(DownloadUrl) && !IsLocalFile;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AddArtifactDialogViewModel"/> class.
+    /// </summary>
+    /// <param name="onArtifactCreated">Callback invoked when artifact is successfully created.</param>
+    public AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifactCreated)
+    {
+        _onArtifactCreated = onArtifactCreated ?? throw new ArgumentNullException(nameof(onArtifactCreated));
+
+        PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(Filename) or nameof(DownloadUrl))
+            {
+                Validate();
+            }
+        };
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        string[] suffixes = ["B", "KB", "MB", "GB", "TB"];
+        int suffixIndex = 0;
+        double size = bytes;
+
+        while (size >= 1024 && suffixIndex < suffixes.Length - 1)
+        {
+            size /= 1024;
+            suffixIndex++;
+        }
+
+        return $"{size:0.##} {suffixes[suffixIndex]}";
+    }
+
+    private static string ComputeSha256(string filePath)
+    {
+        using var sha256 = SHA256.Create();
+        using var stream = File.OpenRead(filePath);
+        var hash = sha256.ComputeHash(stream);
+        return BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant();
+    }
+
     partial void OnUseLocalFileChanged(bool value)
     {
         OnPropertyChanged(nameof(UseExistingUrl));
@@ -115,21 +153,6 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
             ArtifactStatus = "Hosted remotely";
         else
             ArtifactStatus = "No file configured";
-    }
-
-    private static string FormatFileSize(long bytes)
-    {
-        string[] suffixes = ["B", "KB", "MB", "GB", "TB"];
-        int suffixIndex = 0;
-        double size = bytes;
-
-        while (size >= 1024 && suffixIndex < suffixes.Length - 1)
-        {
-            size /= 1024;
-            suffixIndex++;
-        }
-
-        return $"{size:0.##} {suffixes[suffixIndex]}";
     }
 
     /// <summary>
@@ -191,31 +214,6 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
         {
             ArtifactStatus = $"Error: {ex.Message}";
         }
-    }
-
-    private static string ComputeSha256(string filePath)
-    {
-        using var sha256 = SHA256.Create();
-        using var stream = File.OpenRead(filePath);
-        var hash = sha256.ComputeHash(stream);
-        return BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant();
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="AddArtifactDialogViewModel"/> class.
-    /// </summary>
-    /// <param name="onArtifactCreated">Callback invoked when artifact is successfully created.</param>
-    public AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifactCreated)
-    {
-        _onArtifactCreated = onArtifactCreated ?? throw new ArgumentNullException(nameof(onArtifactCreated));
-
-        PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName is nameof(Filename) or nameof(DownloadUrl))
-            {
-                Validate();
-            }
-        };
     }
 
     /// <summary>
@@ -302,9 +300,11 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
         else
         {
             // URL mode - require valid URL
-            if (string.IsNullOrWhiteSpace(DownloadUrl) || !Uri.TryCreate(DownloadUrl, UriKind.Absolute, out _))
+            if (string.IsNullOrWhiteSpace(DownloadUrl) ||
+                !Uri.TryCreate(DownloadUrl, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
             {
-                ValidationError = "Please enter a valid download URL";
+                ValidationError = "Please enter a valid HTTP or HTTPS download URL";
                 IsValid = false;
                 return;
             }

@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Models.Providers;
@@ -50,6 +51,12 @@ public class PublisherDefinitionService(
                 logger.LogWarning("Failed to fetch definition from {Url}: {StatusCode}", definitionUrl, response.StatusCode);
                 return OperationResult<PublisherDefinition>.CreateFailure(
                     $"Failed to fetch definition: {response.StatusCode}");
+            }
+
+            if (response.Content.Headers.ContentLength > CatalogConstants.MaxCatalogSizeBytes)
+            {
+                return OperationResult<PublisherDefinition>.CreateFailure(
+                    $"Definition exceeds maximum size of {CatalogConstants.MaxCatalogSizeBytes} bytes");
             }
 
             var json = await response.Content.ReadAsStringAsync(ct);

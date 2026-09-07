@@ -58,10 +58,12 @@ public interface IPublisherStudioService
     /// Validates a catalog for correctness.
     /// </summary>
     /// <param name="catalog">The catalog to validate.</param>
+    /// <param name="allowPendingArtifacts">Whether to allow pending local artifacts that do not yet have download URLs.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Operation result indicating if the catalog is valid.</returns>
     Task<OperationResult<bool>> ValidateCatalogAsync(
         PublisherCatalog catalog,
+        bool allowPendingArtifacts = false,
         CancellationToken cancellationToken = default);
 
     /// <summary>

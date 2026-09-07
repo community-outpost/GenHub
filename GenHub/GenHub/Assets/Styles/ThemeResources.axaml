@@ -212,6 +212,12 @@
         <GradientStop Color="#673AB7" Offset="1" />   <!-- Medium Purple -->
     </LinearGradientBrush>
 
+    <!-- Publisher Studio Primary Gradient -->
+    <LinearGradientBrush x:Key="PSPrimaryGradient" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#8B5CF6" Offset="0" />
+        <GradientStop Color="#6366F1" Offset="1" />
+    </LinearGradientBrush>
+
     <!-- Hover and Selection States -->
     <SolidColorBrush x:Key="SidebarItemHoverBinding" Color="#1AFFFFFF" />
     <SolidColorBrush x:Key="SidebarItemHoverBackground" Color="#1AFFFFFF" />

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Publishers;
 
@@ -45,8 +46,10 @@ public class HostingState
     public DateTime LastPublished { get; set; }
 
     /// <summary>
-    /// Gets or sets the encrypted or stored authentication token for the hosting provider.
+    /// Gets or sets the in-memory authentication token for the hosting provider.
+    /// Ignored during serialization to avoid plaintext credential storage on disk.
     /// </summary>
+    [JsonIgnore]
     public string? AuthToken { get; set; }
 
     /// <summary>

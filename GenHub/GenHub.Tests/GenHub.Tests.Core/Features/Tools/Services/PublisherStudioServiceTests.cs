@@ -530,6 +530,121 @@ public class PublisherStudioServiceTests
     }
 
     /// <summary>
+    /// Verifies that ValidateCatalogAsync with allowPendingArtifacts succeeds when local file exists.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateCatalogAsync_AllowPendingArtifacts_WithExistingLocalFile_Succeeds()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, "test-data");
+            var catalog = new PublisherCatalog
+            {
+                Publisher = new PublisherProfile
+                {
+                    Id = "test-publisher",
+                    Name = "Test Publisher",
+                },
+                Content = new List<CatalogContentItem>
+                {
+                    new()
+                    {
+                        Id = "test-mod",
+                        Name = "Test Mod",
+                        Releases = new List<ContentRelease>
+                        {
+                            new()
+                            {
+                                Version = "1.0.0",
+                                Artifacts = new List<ReleaseArtifact>
+                                {
+                                    new()
+                                    {
+                                        Filename = "mod.zip",
+                                        LocalFilePath = tempFile,
+                                        DownloadUrl = string.Empty,
+                                        IsPrimary = true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            };
+
+            _catalogParserMock.Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+            // Act
+            var result = await _service.ValidateCatalogAsync(catalog, allowPendingArtifacts: true);
+
+            // Assert
+            Assert.True(result.Success);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that ValidateCatalogAsync with allowPendingArtifacts fails when local file is missing.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateCatalogAsync_AllowPendingArtifacts_WithMissingLocalFile_Fails()
+    {
+        // Arrange
+        var missingFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".zip");
+        var catalog = new PublisherCatalog
+        {
+            Publisher = new PublisherProfile
+            {
+                Id = "test-publisher",
+                Name = "Test Publisher",
+            },
+            Content = new List<CatalogContentItem>
+            {
+                new()
+                {
+                    Id = "test-mod",
+                    Name = "Test Mod",
+                    Releases = new List<ContentRelease>
+                    {
+                        new()
+                        {
+                            Version = "1.0.0",
+                            Artifacts = new List<ReleaseArtifact>
+                            {
+                                new()
+                                {
+                                    Filename = "mod.zip",
+                                    LocalFilePath = missingFile,
+                                    DownloadUrl = string.Empty,
+                                    IsPrimary = true,
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        // Act
+        var result = await _service.ValidateCatalogAsync(catalog, allowPendingArtifacts: true);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Local artifact file not found", result.FirstError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Creates a temporary test file path.
     /// </summary>
     /// <returns>A temporary file path.</returns>

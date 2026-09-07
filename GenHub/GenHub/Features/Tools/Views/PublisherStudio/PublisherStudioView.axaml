@@ -351,12 +351,12 @@
 
                             <Button Classes="primary-btn"
                                     HorizontalAlignment="Center"
-                                    Command="{Binding CreateNewProjectCommand}">
+                                    Command="{Binding GoToProfileTabCommand}">
                                 <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <PathIcon Data="{StaticResource AddIcon}"
+                                    <PathIcon Data="{StaticResource PersonIcon}"
                                               Width="16" Height="16"
                                               Foreground="White"/>
-                                    <TextBlock Text="Start Setup Wizard" FontWeight="SemiBold"/>
+                                    <TextBlock Text="Configure Profile" FontWeight="SemiBold"/>
                                 </StackPanel>
                             </Button>
                         </StackPanel>

@@ -162,6 +162,7 @@ public class PublisherStudioService(
     /// <inheritdoc />
     public async Task<OperationResult<bool>> ValidateCatalogAsync(
         PublisherCatalog catalog,
+        bool allowPendingArtifacts = false,
         CancellationToken cancellationToken = default)
     {
         try
@@ -211,6 +212,18 @@ public class PublisherStudioService(
                         return OperationResult<bool>.CreateFailure(
                             $"Release {release.Version} in '{content.Name}' has no artifacts");
                     }
+
+                    if (allowPendingArtifacts)
+                    {
+                        foreach (var artifact in release.Artifacts)
+                        {
+                            if (!string.IsNullOrEmpty(artifact.LocalFilePath) && !File.Exists(artifact.LocalFilePath))
+                            {
+                                return OperationResult<bool>.CreateFailure(
+                                    $"Local artifact file not found: '{artifact.LocalFilePath}'");
+                            }
+                        }
+                    }
                 }
             }
 
@@ -222,7 +235,32 @@ public class PublisherStudioService(
             }
 
             // Use the catalog parser to validate JSON structure
-            var json = JsonSerializer.Serialize(catalog);
+            var catalogToValidate = catalog;
+            if (allowPendingArtifacts)
+            {
+                var jsonCopy = JsonSerializer.Serialize(catalog);
+                var clonedCatalog = JsonSerializer.Deserialize<PublisherCatalog>(jsonCopy);
+                if (clonedCatalog != null)
+                {
+                    foreach (var c in clonedCatalog.Content)
+                    {
+                        foreach (var r in c.Releases)
+                        {
+                            foreach (var a in r.Artifacts)
+                            {
+                                if (string.IsNullOrEmpty(a.DownloadUrl) && !string.IsNullOrEmpty(a.LocalFilePath))
+                                {
+                                    a.DownloadUrl = "https://pending-upload.genhub.local/" + Uri.EscapeDataString(a.Filename);
+                                }
+                            }
+                        }
+                    }
+
+                    catalogToValidate = clonedCatalog;
+                }
+            }
+
+            var json = JsonSerializer.Serialize(catalogToValidate);
             var parseResult = await catalogParser.ParseCatalogAsync(json, cancellationToken);
 
             if (!parseResult.Success)
@@ -238,109 +276,6 @@ public class PublisherStudioService(
             logger.LogError(ex, "Failed to validate catalog");
             return OperationResult<bool>.CreateFailure($"Validation failed: {ex.Message}");
         }
-    }
-
-    /// <summary>
-    /// Validates content references (ExtendsContentId) in the catalog.
-    /// </summary>
-    /// <param name="catalog">The catalog to validate.</param>
-    /// <returns>An operation result indicating validation success or failure.</returns>
-    private OperationResult<bool> ValidateContentReferences(PublisherCatalog catalog)
-    {
-        var errors = new List<string>();
-        var contentIds = new HashSet<string>(catalog.Content.Select(c => c.Id));
-
-        // Regex for valid ExtendsContentId format: "contentId" or "publisherId/contentId"
-        var extendsIdRegex = new System.Text.RegularExpressions.Regex(@"^([a-z0-9-]+/)?[a-z0-9-]+$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1));
-
-        foreach (var content in catalog.Content)
-        {
-            if (string.IsNullOrWhiteSpace(content.ExtendsContentId))
-            {
-                continue; // No reference to validate
-            }
-
-            // Validate format
-            if (!extendsIdRegex.IsMatch(content.ExtendsContentId))
-            {
-                errors.Add($"Content '{content.Name}' has invalid ExtendsContentId format: '{content.ExtendsContentId}'. " +
-                          "Must be 'contentId' or 'publisherId/contentId' with lowercase alphanumeric and hyphens only.");
-                continue;
-            }
-
-            // Check if it's a same-catalog reference (no slash)
-            if (!content.ExtendsContentId.Contains('/'))
-            {
-                // Validate that the referenced content exists in this catalog
-                if (!contentIds.Contains(content.ExtendsContentId))
-                {
-                    errors.Add($"Content '{content.Name}' extends '{content.ExtendsContentId}' which does not exist in this catalog.");
-                }
-            }
-
-            // Cross-publisher references are validated for format only (can't verify external catalogs)
-        }
-
-        // Check for circular dependencies
-        var circularErrors = DetectCircularDependencies(catalog);
-        errors.AddRange(circularErrors);
-
-        if (errors.Count > 0)
-        {
-            logger.LogWarning("Content reference validation failed with {ErrorCount} errors", errors.Count);
-            return OperationResult<bool>.CreateFailure(errors);
-        }
-
-        return OperationResult<bool>.CreateSuccess(true);
-    }
-
-    /// <summary>
-    /// Detects circular addon chains in the catalog.
-    /// </summary>
-    /// <param name="catalog">The catalog to check.</param>
-    /// <returns>A list of error messages for any circular dependencies found.</returns>
-    private List<string> DetectCircularDependencies(PublisherCatalog catalog)
-    {
-        var errors = new List<string>();
-        var contentMap = catalog.Content.ToDictionary(c => c.Id, c => c);
-
-        foreach (var content in catalog.Content)
-        {
-            if (string.IsNullOrWhiteSpace(content.ExtendsContentId) || content.ExtendsContentId.Contains('/'))
-            {
-                continue; // Skip if no reference or cross-publisher reference
-            }
-
-            var visited = new HashSet<string>();
-            var currentId = content.Id;
-
-            while (!string.IsNullOrWhiteSpace(currentId))
-            {
-                if (!visited.Add(currentId))
-                {
-                    // Found a cycle
-                    var chain = string.Join(" → ", visited) + $" → {currentId}";
-                    errors.Add($"Circular addon dependency detected: {chain}");
-                    break;
-                }
-
-                if (!contentMap.TryGetValue(currentId, out var currentContent))
-                {
-                    break; // Reference doesn't exist (already caught by other validation)
-                }
-
-                // Move to the next content in the chain
-                if (string.IsNullOrWhiteSpace(currentContent.ExtendsContentId) ||
-                    currentContent.ExtendsContentId.Contains('/'))
-                {
-                    break; // End of chain or cross-publisher reference
-                }
-
-                currentId = currentContent.ExtendsContentId;
-            }
-        }
-
-        return errors;
     }
 
     /// <inheritdoc />
@@ -484,5 +419,108 @@ public class PublisherStudioService(
         {
             errors.Add($"Artifact '{artifact.Filename}' in '{contentName}' {releaseVersion} has invalid URL: {artifact.DownloadUrl}");
         }
+    }
+
+    /// <summary>
+    /// Validates content references (ExtendsContentId) in the catalog.
+    /// </summary>
+    /// <param name="catalog">The catalog to validate.</param>
+    /// <returns>An operation result indicating validation success or failure.</returns>
+    private OperationResult<bool> ValidateContentReferences(PublisherCatalog catalog)
+    {
+        var errors = new List<string>();
+        var contentIds = new HashSet<string>(catalog.Content.Select(c => c.Id));
+
+        // Regex for valid ExtendsContentId format: "contentId" or "publisherId/contentId"
+        var extendsIdRegex = new System.Text.RegularExpressions.Regex(@"^([a-z0-9-]+/)?[a-z0-9-]+$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1));
+
+        foreach (var content in catalog.Content)
+        {
+            if (string.IsNullOrWhiteSpace(content.ExtendsContentId))
+            {
+                continue; // No reference to validate
+            }
+
+            // Validate format
+            if (!extendsIdRegex.IsMatch(content.ExtendsContentId))
+            {
+                errors.Add($"Content '{content.Name}' has invalid ExtendsContentId format: '{content.ExtendsContentId}'. " +
+                          "Must be 'contentId' or 'publisherId/contentId' with lowercase alphanumeric and hyphens only.");
+                continue;
+            }
+
+            // Check if it's a same-catalog reference (no slash)
+            if (!content.ExtendsContentId.Contains('/'))
+            {
+                // Validate that the referenced content exists in this catalog
+                if (!contentIds.Contains(content.ExtendsContentId))
+                {
+                    errors.Add($"Content '{content.Name}' extends '{content.ExtendsContentId}' which does not exist in this catalog.");
+                }
+            }
+
+            // Cross-publisher references are validated for format only (can't verify external catalogs)
+        }
+
+        // Check for circular dependencies
+        var circularErrors = DetectCircularDependencies(catalog);
+        errors.AddRange(circularErrors);
+
+        if (errors.Count > 0)
+        {
+            logger.LogWarning("Content reference validation failed with {ErrorCount} errors", errors.Count);
+            return OperationResult<bool>.CreateFailure(errors);
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    /// <summary>
+    /// Detects circular addon chains in the catalog.
+    /// </summary>
+    /// <param name="catalog">The catalog to check.</param>
+    /// <returns>A list of error messages for any circular dependencies found.</returns>
+    private List<string> DetectCircularDependencies(PublisherCatalog catalog)
+    {
+        var errors = new List<string>();
+        var contentMap = catalog.Content.ToDictionary(c => c.Id, c => c);
+
+        foreach (var content in catalog.Content)
+        {
+            if (string.IsNullOrWhiteSpace(content.ExtendsContentId) || content.ExtendsContentId.Contains('/'))
+            {
+                continue; // Skip if no reference or cross-publisher reference
+            }
+
+            var visited = new HashSet<string>();
+            var currentId = content.Id;
+
+            while (!string.IsNullOrWhiteSpace(currentId))
+            {
+                if (!visited.Add(currentId))
+                {
+                    // Found a cycle
+                    var chain = string.Join(" → ", visited) + $" → {currentId}";
+                    errors.Add($"Circular addon dependency detected: {chain}");
+                    break;
+                }
+
+                if (!contentMap.TryGetValue(currentId, out var currentContent))
+                {
+                    break; // Reference doesn't exist (already caught by other validation)
+                }
+
+                // Move to the next content in the chain
+                if (string.IsNullOrWhiteSpace(currentContent.ExtendsContentId) ||
+                    currentContent.ExtendsContentId.Contains('/'))
+                {
+                    break; // End of chain or cross-publisher reference
+                }
+
+                currentId = currentContent.ExtendsContentId;
+            }
+        }
+
+        return errors;
     }
 }

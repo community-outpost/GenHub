@@ -108,7 +108,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
             _driveService = new DriveService(new BaseClientService.Initializer
             {
                 HttpClientInitializer = credential,
-                ApplicationName = ApplicationName
+                ApplicationName = ApplicationName,
             });
 
             _logger.LogInformation("Successfully authenticated with Google Drive");
@@ -235,7 +235,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
                 PublicUrl = $"https://drive.google.com/file/d/{file.Id}/view",
                 DirectDownloadUrl = downloadUrl,
                 FileId = file.Id,
-                FileSize = file.Size ?? 0
+                FileSize = file.Size ?? 0,
             };
 
             _logger.LogInformation("Uploaded file {FileName} to Google Drive: {FileId}", fileName, file.Id);
@@ -288,7 +288,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
                 PublicUrl = $"https://drive.google.com/file/d/{file.Id}/view",
                 DirectDownloadUrl = downloadUrl,
                 FileId = file.Id,
-                FileSize = file.Size ?? 0
+                FileSize = file.Size ?? 0,
             };
 
             _logger.LogInformation("Updated file {FileName} on Google Drive: {FileId}", fileName, file.Id);
@@ -350,7 +350,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
             {
                 ProviderId = ProviderId,
                 FolderId = folderId,
-                FolderUrl = $"https://drive.google.com/drive/folders/{folderId}"
+                FolderUrl = $"https://drive.google.com/drive/folders/{folderId}",
             };
 
             foreach (var file in filesResult.Files)
@@ -364,7 +364,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
                     {
                         FileId = file.Id,
                         Url = downloadUrl,
-                        LastUpdated = lastUpdated
+                        LastUpdated = lastUpdated,
                     };
                 }
                 else if (file.Name.StartsWith("catalog-") && file.Name.EndsWith(".json"))

@@ -29,8 +29,6 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     private const string DropboxContentUrl = "https://content.dropboxapi.com/2";
     private const string PublisherFolderPath = "/GenHub_Publisher";
 
-    private readonly ILogger<DropboxHostingProvider> _logger = logger;
-    private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
     private readonly HttpClient _httpClient = httpClientFactory.CreateClient();
     private string? _accessToken;
     private bool _disposed;
@@ -66,7 +64,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     public Task<OperationResult<bool>> AuthenticateAsync(CancellationToken cancellationToken = default)
     {
         // Dropbox uses OAuth2 - for now, we'll use access token authentication
-        _logger.LogInformation("Dropbox authentication requires an access token.");
+        logger.LogInformation("Dropbox authentication requires an access token.");
         return Task.FromResult(OperationResult<bool>.CreateFailure(
             "Please use the access token authentication. Get a token from the Dropbox App Console."));
     }
@@ -97,19 +95,19 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             if (response.IsSuccessStatusCode)
             {
                 _accessToken = accessToken;
-                _logger.LogInformation("Successfully authenticated with Dropbox");
+                logger.LogInformation("Successfully authenticated with Dropbox");
                 return OperationResult<bool>.CreateSuccess(true);
             }
             else
             {
                 var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                _logger.LogWarning("Dropbox authentication failed: {Error}", errorContent);
+                logger.LogWarning("Dropbox authentication failed: {Error}", errorContent);
                 return OperationResult<bool>.CreateFailure("Invalid access token");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Dropbox authentication failed");
+            logger.LogError(ex, "Dropbox authentication failed");
             return OperationResult<bool>.CreateFailure($"Authentication failed: {ex.Message}");
         }
     }
@@ -119,7 +117,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     {
         _accessToken = null;
         _httpClient.DefaultRequestHeaders.Authorization = null;
-        _logger.LogInformation("Signed out from Dropbox");
+        logger.LogInformation("Signed out from Dropbox");
         return Task.CompletedTask;
     }
 
@@ -148,7 +146,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.Conflict)
             {
                 // Folder exists or was created
-                _logger.LogInformation("Dropbox publisher folder ready: {Path}", PublisherFolderPath);
+                logger.LogInformation("Dropbox publisher folder ready: {Path}", PublisherFolderPath);
                 return OperationResult<string>.CreateSuccess(PublisherFolderPath);
             }
 
@@ -157,7 +155,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get or create Dropbox publisher folder");
+            logger.LogError(ex, "Failed to get or create Dropbox publisher folder");
             return OperationResult<string>.CreateFailure($"Folder operation failed: {ex.Message}");
         }
     }
@@ -233,15 +231,15 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
                 PublicUrl = shareResult.Data!,
                 DirectDownloadUrl = ConvertToDirectDownloadUrl(shareResult.Data!),
                 FileId = filePath,
-                FileSize = fileBytes.Length
+                FileSize = fileBytes.Length,
             };
 
-            _logger.LogInformation("Uploaded file to Dropbox: {Path}", filePath);
+            logger.LogInformation("Uploaded file to Dropbox: {Path}", filePath);
             return OperationResult<HostingUploadResult>.CreateSuccess(result);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to upload file to Dropbox");
+            logger.LogError(ex, "Failed to upload file to Dropbox");
             return OperationResult<HostingUploadResult>.CreateFailure($"Upload failed: {ex.Message}");
         }
     }
@@ -301,6 +299,48 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         return ConvertToDirectDownloadUrl(shareUrl);
     }
 
+    /// <summary>
+    /// Disposes resources used by the provider.
+    /// </summary>
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Disposes resources used by the provider.
+    /// </summary>
+    /// <param name="disposing">True if disposing managed resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!_disposed)
+        {
+            if (disposing)
+            {
+                _httpClient.Dispose();
+            }
+
+            _disposed = true;
+        }
+    }
+
+    private static string ConvertToDirectDownloadUrl(string shareUrl)
+    {
+        // Convert Dropbox share URL to direct download URL
+        // From: https://www.dropbox.com/s/xxxxx/filename?dl=0
+        // To: https://dl.dropboxusercontent.com/s/xxxxx/filename
+        if (shareUrl.Contains("dropbox.com"))
+        {
+            return shareUrl
+                .Replace("www.dropbox.com", "dl.dropboxusercontent.com")
+                .Replace("?dl=0", string.Empty)
+                .Replace("?dl=1", string.Empty);
+        }
+
+        return shareUrl;
+    }
+
     private async Task<OperationResult<string>> CreateSharedLinkAsync(string path, CancellationToken cancellationToken)
     {
         try
@@ -354,48 +394,6 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         catch (Exception ex)
         {
             return OperationResult<string>.CreateFailure($"Shared link error: {ex.Message}");
-        }
-    }
-
-    private static string ConvertToDirectDownloadUrl(string shareUrl)
-    {
-        // Convert Dropbox share URL to direct download URL
-        // From: https://www.dropbox.com/s/xxxxx/filename?dl=0
-        // To: https://dl.dropboxusercontent.com/s/xxxxx/filename
-        if (shareUrl.Contains("dropbox.com"))
-        {
-            return shareUrl
-                .Replace("www.dropbox.com", "dl.dropboxusercontent.com")
-                .Replace("?dl=0", "")
-                .Replace("?dl=1", "");
-        }
-
-        return shareUrl;
-    }
-
-    /// <summary>
-    /// Disposes resources used by the provider.
-    /// </summary>
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    /// <summary>
-    /// Disposes resources used by the provider.
-    /// </summary>
-    /// <param name="disposing">True if disposing managed resources.</param>
-    protected virtual void Dispose(bool disposing)
-    {
-        if (!_disposed)
-        {
-            if (disposing)
-            {
-                // Dispose managed resources if any
-            }
-
-            _disposed = true;
         }
     }
 }
