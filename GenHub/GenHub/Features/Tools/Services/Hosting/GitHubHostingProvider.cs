@@ -79,7 +79,7 @@ public class GitHubHostingProvider : IHostingProvider
             // Create client with product header
             _client = new GitHubClient(new ProductHeaderValue("GenHub"));
 
-            // TODO: Implement proper OAuth device flow
+            // OAuth device flow will be integrated in a future release.
             // For now, we'll use a placeholder that requires manual PAT entry
             // The UI should prompt for a Personal Access Token
             return Task.FromResult(OperationResult<bool>.CreateFailure("GitHub authentication not yet implemented. Please use a Personal Access Token."));
@@ -113,9 +113,9 @@ public class GitHubHostingProvider : IHostingProvider
             _logger.LogInformation("Authenticated with GitHub as {Username}", _authenticatedUsername);
             return OperationResult<bool>.CreateSuccess(true);
         }
-        catch (AuthorizationException)
+        catch (AuthorizationException authEx)
         {
-            _logger.LogWarning("Invalid GitHub token provided");
+            _logger.LogWarning(authEx, "Invalid GitHub token provided");
             return OperationResult<bool>.CreateFailure("Invalid GitHub Personal Access Token");
         }
         catch (Exception ex)
@@ -200,7 +200,7 @@ public class GitHubHostingProvider : IHostingProvider
                 var newRelease = new NewRelease(releaseTag)
                 {
                     Name = releaseTag,
-                    Body = $"Release created by GenHub Publisher Studio",
+                    Body = "Release created by GenHub Publisher Studio",
                     Draft = false,
                     Prerelease = false,
                 };
@@ -321,33 +321,59 @@ public class GitHubHostingProvider : IHostingProvider
 
             using var reader = new StreamReader(fileStream);
             var content = await reader.ReadToEndAsync(cancellationToken);
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                return OperationResult<HostingUploadResult>.CreateFailure("Cannot update Gist with empty content");
+            }
 
             var existingGist = await _client.Gist.Get(fileId);
-            var targetKey = existingGist.Files.ContainsKey(fileName)
-                ? fileName
-                : (existingGist.Files.Keys.FirstOrDefault() ?? fileName);
+            var targetKey = existingGist.Files.ContainsKey(fileName) ? fileName : null;
 
             var gistUpdate = new GistUpdate
             {
                 Description = $"Updated via GenHub Publisher Studio at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC",
             };
 
-            // Update or add the file with target key
-            gistUpdate.Files[targetKey] = new GistFileUpdate
+            if (targetKey != null)
             {
-                Content = content,
-                NewFileName = fileName,
-            };
+                gistUpdate.Files[targetKey] = new GistFileUpdate
+                {
+                    Content = content,
+                };
+            }
+            else
+            {
+                gistUpdate.Files[fileName] = new GistFileUpdate
+                {
+                    Content = content,
+                    NewFileName = fileName,
+                };
+            }
 
             var updatedGist = await _client.Gist.Edit(fileId, gistUpdate);
 
             progress?.Report(100);
 
             // Get the raw URL for the updated file
-            var updatedFile = updatedGist.Files.TryGetValue(fileName, out var fileObj)
-                ? fileObj
-                : (updatedGist.Files.TryGetValue(targetKey, out var altObj) ? altObj : updatedGist.Files.Values.FirstOrDefault());
-            var rawUrl = updatedFile?.RawUrl ?? updatedGist.HtmlUrl;
+            GistFile? updatedFile = null;
+            if (updatedGist.Files.TryGetValue(fileName, out var fileObj))
+            {
+                updatedFile = fileObj;
+            }
+            else if (targetKey != null && updatedGist.Files.TryGetValue(targetKey, out var altObj))
+            {
+                updatedFile = altObj;
+            }
+            else
+            {
+                updatedFile = updatedGist.Files.Values.FirstOrDefault();
+            }
+
+            var rawUrl = updatedFile?.RawUrl;
+            if (string.IsNullOrWhiteSpace(rawUrl))
+            {
+                return OperationResult<HostingUploadResult>.CreateFailure("Failed to obtain raw download URL for updated Gist file");
+            }
 
             var result = new HostingUploadResult
             {

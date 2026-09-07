@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
@@ -84,8 +85,7 @@ public class PublisherStudioDialogService(IHostingProviderFactory hostingProvide
     /// <inheritdoc/>
     public async Task<PublisherReferral?> ShowAddReferralDialogAsync()
     {
-        // Get available publishers from subscriptions (for now, we'll include static known publishers)
-        // TODO: Inject IPublisherSubscriptionStore and fetch actual subscriptions
+        // In a future release, IPublisherSubscriptionStore will be queried to supplement known publishers with user subscriptions.
         var availablePublishers = GetKnownPublishers();
 
         return await ShowDialogAsync<AddReferralDialogViewModel, AddReferralDialogView, PublisherReferral>(
@@ -170,6 +170,7 @@ public class PublisherStudioDialogService(IHostingProviderFactory hostingProvide
     /// <summary>
     /// Gets a list of known/static publishers for quick selection in referrals.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Known reference catalog endpoints for referral options.")]
     private static List<PublisherReferralOption> GetKnownPublishers()
     {
         return

@@ -18,7 +18,6 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 public partial class AddDependencyDialogViewModel : ObservableValidator
 {
     private readonly PublisherCatalog _catalog;
-    private readonly CatalogContentItem _currentContent;
     private readonly Action<CatalogDependency> _onDependencyCreated;
 
     [ObservableProperty]
@@ -91,7 +90,7 @@ public partial class AddDependencyDialogViewModel : ObservableValidator
         Action<CatalogDependency> onDependencyCreated)
     {
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
-        _currentContent = currentContent ?? throw new ArgumentNullException(nameof(currentContent));
+        ArgumentNullException.ThrowIfNull(currentContent);
         _onDependencyCreated = onDependencyCreated ?? throw new ArgumentNullException(nameof(onDependencyCreated));
 
         // Filter out current content to prevent self-dependency
@@ -102,7 +101,7 @@ public partial class AddDependencyDialogViewModel : ObservableValidator
         // Auto-select first available if any
         if (AvailableContent.Count > 0)
         {
-            SelectedContent = AvailableContent.FirstOrDefault();
+            SelectedContent = AvailableContent.First();
             IsFromMyCatalog = true;
         }
         else
@@ -171,61 +170,70 @@ public partial class AddDependencyDialogViewModel : ObservableValidator
     {
         if (IsFromMyCatalog)
         {
-            if (SelectedContent == null)
-            {
-                ValidationError = "Please select a content item from your catalog";
-                IsValid = false;
-                return;
-            }
-
-            var dependency = new CatalogDependency
-            {
-                PublisherId = _catalog.Publisher.Id,
-                ContentId = SelectedContent.Id,
-                VersionConstraint = string.IsNullOrWhiteSpace(VersionConstraint) ? null : VersionConstraint.Trim(),
-                IsOptional = IsOptional,
-                CatalogUrl = null, // Same catalog, no URL needed
-            };
-
-            _onDependencyCreated(dependency);
+            CreateInternalDependency();
         }
         else
         {
-            // Validate external dependency fields
-            if (string.IsNullOrWhiteSpace(ExternalPublisherId))
-            {
-                ValidationError = "Publisher ID is required for external dependencies";
-                IsValid = false;
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(ExternalContentId))
-            {
-                ValidationError = "Content ID is required for external dependencies";
-                IsValid = false;
-                return;
-            }
-
-            if (!string.IsNullOrWhiteSpace(ExternalCatalogUrl) &&
-                !Uri.TryCreate(ExternalCatalogUrl, UriKind.Absolute, out _))
-            {
-                ValidationError = "Please enter a valid catalog URL";
-                IsValid = false;
-                return;
-            }
-
-            var dependency = new CatalogDependency
-            {
-                PublisherId = ExternalPublisherId.ToLowerInvariant().Trim(),
-                ContentId = ExternalContentId.ToLowerInvariant().Trim(),
-                VersionConstraint = string.IsNullOrWhiteSpace(VersionConstraint) ? null : VersionConstraint.Trim(),
-                IsOptional = IsOptional,
-                CatalogUrl = string.IsNullOrWhiteSpace(ExternalCatalogUrl) ? null : ExternalCatalogUrl.Trim(),
-                ConflictsWith = ConflictsWithIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
-            };
-
-            _onDependencyCreated(dependency);
+            CreateExternalDependency();
         }
+    }
+
+    private void CreateInternalDependency()
+    {
+        if (SelectedContent == null)
+        {
+            ValidationError = "Please select a content item from your catalog";
+            IsValid = false;
+            return;
+        }
+
+        var dependency = new CatalogDependency
+        {
+            PublisherId = _catalog.Publisher.Id,
+            ContentId = SelectedContent.Id,
+            VersionConstraint = string.IsNullOrWhiteSpace(VersionConstraint) ? null : VersionConstraint.Trim(),
+            IsOptional = IsOptional,
+            CatalogUrl = null, // Same catalog, no URL needed
+        };
+
+        _onDependencyCreated(dependency);
+    }
+
+    private void CreateExternalDependency()
+    {
+        if (string.IsNullOrWhiteSpace(ExternalPublisherId))
+        {
+            ValidationError = "Publisher ID is required for external dependencies";
+            IsValid = false;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(ExternalContentId))
+        {
+            ValidationError = "Content ID is required for external dependencies";
+            IsValid = false;
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(ExternalCatalogUrl) &&
+            !Uri.TryCreate(ExternalCatalogUrl, UriKind.Absolute, out _))
+        {
+            ValidationError = "Please enter a valid catalog URL";
+            IsValid = false;
+            return;
+        }
+
+        var dependency = new CatalogDependency
+        {
+            PublisherId = ExternalPublisherId.ToLowerInvariant().Trim(),
+            ContentId = ExternalContentId.ToLowerInvariant().Trim(),
+            VersionConstraint = string.IsNullOrWhiteSpace(VersionConstraint) ? null : VersionConstraint.Trim(),
+            IsOptional = IsOptional,
+            CatalogUrl = string.IsNullOrWhiteSpace(ExternalCatalogUrl) ? null : ExternalCatalogUrl.Trim(),
+            ConflictsWith = ConflictsWithIds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
+        };
+
+        _onDependencyCreated(dependency);
     }
 
     /// <summary>
@@ -234,7 +242,7 @@ public partial class AddDependencyDialogViewModel : ObservableValidator
     [RelayCommand]
     private async Task DiscoverContentAsync()
     {
-        if (string.IsNullOrWhiteSpace(ExternalCatalogUrl))
+        if (string.IsNullOrWhiteSpace(_externalCatalogUrl))
         {
             ValidationError = "Please enter a Catalog or Provider Definition URL first";
             return;
@@ -247,7 +255,7 @@ public partial class AddDependencyDialogViewModel : ObservableValidator
         try
         {
             using var client = new System.Net.Http.HttpClient();
-            var json = await client.GetStringAsync(ExternalCatalogUrl);
+            var json = await client.GetStringAsync(_externalCatalogUrl);
             await TryParseCatalogOrDefinitionAsync(client, json);
 
             if (DiscoveredContent.Count == 0)
@@ -265,6 +273,7 @@ public partial class AddDependencyDialogViewModel : ObservableValidator
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "Modifies instance state")]
     private async Task TryParseCatalogOrDefinitionAsync(System.Net.Http.HttpClient client, string json)
     {
         try
@@ -323,9 +332,9 @@ public partial class AddDependencyDialogViewModel : ObservableValidator
     {
         var errors = new List<string>();
 
-        if (IsFromMyCatalog)
+        if (_isFromMyCatalog)
         {
-            if (SelectedContent == null && AvailableContent.Count > 0)
+            if (_selectedContent == null && AvailableContent.Count > 0)
             {
                 errors.Add("Please select a content item from your catalog");
             }
@@ -336,12 +345,12 @@ public partial class AddDependencyDialogViewModel : ObservableValidator
         }
         else
         {
-            if (string.IsNullOrWhiteSpace(ExternalPublisherId))
+            if (string.IsNullOrWhiteSpace(_externalPublisherId))
             {
                 errors.Add("Publisher ID is required for external dependencies");
             }
 
-            if (string.IsNullOrWhiteSpace(ExternalContentId))
+            if (string.IsNullOrWhiteSpace(_externalContentId))
             {
                 errors.Add("Content ID is required for external dependencies");
             }

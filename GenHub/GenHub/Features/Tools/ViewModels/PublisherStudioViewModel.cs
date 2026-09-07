@@ -54,12 +54,14 @@ public partial class PublisherStudioViewModel : ObservableObject
     /// <summary>
     /// Gets a value indicating whether the selected catalog can be removed.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel property bound in XAML")]
     public bool CanRemoveCatalog => Catalogs.Count > 1;
 
     /// <summary>
     /// Gets a value indicating whether the publisher setup is complete.
     /// Setup is complete when Publisher ID and Name are configured.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel property bound in XAML")]
     public bool IsSetupComplete =>
         CurrentProject != null &&
         !string.IsNullOrWhiteSpace(CurrentProject.Catalog.Publisher.Id) &&
@@ -353,14 +355,10 @@ public partial class PublisherStudioViewModel : ObservableObject
     [RelayCommand]
     private async Task CreateNewProjectAsync()
     {
-        // Check for unsaved changes
-        if (HasUnsavedChanges && CurrentProject != null)
+        // Check for unsaved changes and auto-save before creating new if project has been saved before
+        if (HasUnsavedChanges && CurrentProject != null && !string.IsNullOrEmpty(CurrentProject.ProjectPath))
         {
-            // Auto-save before creating new if project has been saved before
-            if (!string.IsNullOrEmpty(CurrentProject.ProjectPath))
-            {
-                await SaveProjectAsync();
-            }
+            await SaveProjectAsync();
         }
 
         await CreateNewProjectInternalAsync(showWizard: true);

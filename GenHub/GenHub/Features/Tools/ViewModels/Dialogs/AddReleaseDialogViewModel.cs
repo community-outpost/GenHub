@@ -23,7 +23,7 @@ public partial class AddReleaseDialogViewModel : ObservableValidator
     private readonly PublisherCatalog _catalog;
     private readonly Action<ContentRelease> _onReleaseCreated;
     private readonly IPublisherStudioDialogService _dialogService;
-    private string? _originalVersion;
+    private readonly string? _originalVersion;
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
@@ -71,11 +71,13 @@ public partial class AddReleaseDialogViewModel : ObservableValidator
     /// <summary>
     /// Gets the dialog title based on the current mode.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel property bound to XAML view")]
     public string DialogTitle => IsEditMode ? "Edit Release" : "Add New Release";
 
     /// <summary>
     /// Gets the submit button text based on the current mode.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel property bound to XAML view")]
     public string SubmitButtonText => IsEditMode ? "Save Changes" : "Create Release";
 
     /// <summary>

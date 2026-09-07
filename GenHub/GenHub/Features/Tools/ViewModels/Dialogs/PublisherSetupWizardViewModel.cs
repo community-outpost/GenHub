@@ -42,16 +42,19 @@ public partial class PublisherSetupWizardViewModel : ObservableValidator
     /// <summary>
     /// Gets a value indicating whether the current step is the publisher identity step.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel property bound to XAML view")]
     public bool IsStep0 => CurrentStep == 0;
 
     /// <summary>
     /// Gets a value indicating whether the current step is the contact information step.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel property bound to XAML view")]
     public bool IsStep1 => CurrentStep == 1;
 
     /// <summary>
     /// Gets a value indicating whether the current step is the setup complete step.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel property bound to XAML view")]
     public bool IsStep2 => CurrentStep == 2;
 
     /// <summary>

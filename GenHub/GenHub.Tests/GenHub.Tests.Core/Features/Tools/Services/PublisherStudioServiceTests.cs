@@ -1,11 +1,16 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
-using System.Collections.ObjectModel;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Tools.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Xunit;
 using Xunit.Abstractions;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 using GameType = GenHub.Core.Models.Enums.GameType;
@@ -69,7 +74,9 @@ public class PublisherStudioServiceTests
     public async Task CreateProjectAsync_InvalidName_ReturnsFailure(string? projectName)
     {
         // Act
-        var result = await _service.CreateProjectAsync(projectName!);
+#pragma warning disable CS8604
+        var result = await _service.CreateProjectAsync(projectName);
+#pragma warning restore CS8604
 
         // Assert
         Assert.False(result.Success);
@@ -523,7 +530,9 @@ public class PublisherStudioServiceTests
         string? catalogUrl = null;
 
         // Act
-        var result = _service.GenerateSubscriptionUrl(catalogUrl!);
+#pragma warning disable CS8604
+        var result = _service.GenerateSubscriptionUrl(catalogUrl);
+#pragma warning restore CS8604
 
         // Assert
         Assert.Equal(string.Empty, result);
@@ -575,7 +584,9 @@ public class PublisherStudioServiceTests
                 },
             };
 
-            _catalogParserMock.Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            _catalogParserMock.Setup(p => p.ParseCatalogAsync(
+                    It.Is<string>(json => json.Contains("pending-upload.genhub.local")),
+                    It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
 
             // Act
@@ -583,6 +594,11 @@ public class PublisherStudioServiceTests
 
             // Assert
             Assert.True(result.Success);
+            _catalogParserMock.Verify(
+                p => p.ParseCatalogAsync(
+                    It.Is<string>(json => json.Contains("pending-upload.genhub.local")),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
         }
         finally
         {
@@ -648,7 +664,7 @@ public class PublisherStudioServiceTests
     /// Creates a temporary test file path.
     /// </summary>
     /// <returns>A temporary file path.</returns>
-    private string GetTempFilePath()
+    private static string GetTempFilePath()
     {
         return Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json");
     }

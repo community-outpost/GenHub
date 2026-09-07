@@ -18,7 +18,6 @@ namespace GenHub.Features.Tools.ViewModels;
 /// </summary>
 public partial class ContentLibraryViewModel : ObservableObject
 {
-    private readonly PublisherStudioProject _project;
     private readonly NamedCatalog _activeCatalog;
     private readonly PublisherStudioViewModel _parentViewModel;
     private readonly ILogger _logger;
@@ -50,7 +49,7 @@ public partial class ContentLibraryViewModel : ObservableObject
         ILogger logger,
         IPublisherStudioDialogService dialogService)
     {
-        _project = project;
+        ArgumentNullException.ThrowIfNull(project);
         _activeCatalog = activeCatalog;
         _parentViewModel = parentViewModel;
         _logger = logger;
