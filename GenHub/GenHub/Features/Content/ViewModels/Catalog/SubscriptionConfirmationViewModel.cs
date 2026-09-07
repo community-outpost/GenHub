@@ -301,14 +301,12 @@ public partial class SubscriptionConfirmationViewModel(
         {
             throw;
         }
-        catch (HttpRequestException ex)
+        catch (HttpRequestException)
         {
-            logger.LogError(ex, "Network error fetching catalog from definition at {Url}", catalogUrl);
             throw;
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException)
         {
-            logger.LogError(ex, "Timeout fetching catalog from definition at {Url}", catalogUrl);
             throw;
         }
         catch (System.Text.Json.JsonException jsonEx)
