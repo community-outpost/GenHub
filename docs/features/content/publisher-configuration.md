@@ -437,6 +437,23 @@ Static publishers have a fixed publisher identity. All content discovered from t
 }
 ```
 
+#### AODMaps Configuration
+
+AODMaps uses a static publisher provider configuration definition (content discovery itself is driven by `AODMapsDiscoverer` and `AODMapsPageParser` rather than a static JSON catalog):
+
+```json
+{
+  "publisherId": "aodmaps",
+  "publisherType": "aodmaps",
+  "displayName": "Age of Defense Maps",
+  "providerType": "Static",
+  "endpoints": {
+    "catalogUrl": "https://aodmaps.com",
+    "websiteUrl": "https://aodmaps.com"
+  }
+}
+```
+
 ### Dynamic Publishers
 
 Dynamic publishers support multiple publishers where content authors become individual publishers. Each discovered author gets their own publisher identity.

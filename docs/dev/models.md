@@ -97,7 +97,7 @@ Comprehensive manifest for content distribution in GenHub ecosystem.
 ```csharp
 public class ContentManifest
 {
-    public string SchemaVersion { get; set; }
+    public string ManifestVersion { get; set; }
     public ManifestId Id { get; set; }
     public string Name { get; set; }
     public string Version { get; set; }
@@ -696,9 +696,9 @@ The root container for all data extracted from a single web page.
 
 ```csharp
 public record ParsedWebPage(
-    string Url,
+    Uri Url,
     GlobalContext Context,
-    List<ContentSection> Sections,
+    IReadOnlyList<ContentSection> Sections,
     PageType PageType);
 ```
 
@@ -743,6 +743,7 @@ public abstract record ContentSection(
 
 Defines the structural role of the page.
 
+- `Unknown`: Page type could not be determined.
 - `List`: A gallery or listing of multiple items.
 - `Summary`: A news feed or overview page.
 - `Detail`: A deep-dive page for a specific mod or addon.

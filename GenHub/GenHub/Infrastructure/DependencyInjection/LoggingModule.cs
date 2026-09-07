@@ -21,9 +21,13 @@ public static class LoggingModule
     private static string? _activeLogFilePath;
 
     /// <summary>
-    /// Gets the active log file path for the running application instance.
+    /// Gets or sets the active log file path for the running application instance.
     /// </summary>
-    public static string ActiveLogFilePath => _activeLogFilePath ??= GetLogFilePath();
+    public static string ActiveLogFilePath
+    {
+        get => _activeLogFilePath ??= GetLogFilePath();
+        set => _activeLogFilePath = value;
+    }
 
     /// <summary>
     /// Adds logging configuration to the service collection.
@@ -85,6 +89,7 @@ public static class LoggingModule
             builder.AddDebug();
 
             var logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
                 .WriteTo.Sink(new ResilientFileSink(logPath), restrictedToMinimumLevel: LogEventLevel.Debug)
                 .CreateLogger();
 

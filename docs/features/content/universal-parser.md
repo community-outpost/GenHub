@@ -1,5 +1,8 @@
 # Universal Web Page Parser Architecture
 
+> [!NOTE]
+> This document details the **Universal Web Page Parser Architecture** integrated into PR #265 (`feat/ui-downloads`), providing standardized web extraction across providers (ModDB, AOD Maps) to populate `ContentDetailViewModel` and enrich manifests.
+
 ## Overview
 
 The Universal Web Page Parser is a provider-agnostic architecture for extracting rich content from web pages. It enables content providers like ModDB, AODMaps, and others to parse web pages and extract structured data including articles, videos, images, files, reviews, and comments.
@@ -142,9 +145,9 @@ The complete result of parsing a web page:
 
 ```csharp
 public record ParsedWebPage(
-    string Url,
+    Uri Url,
     GlobalContext Context,
-    List<ContentSection> Sections,
+    IReadOnlyList<ContentSection> Sections,
     PageType PageType
 );
 ```
@@ -269,33 +272,32 @@ Updated to use the universal parser:
 
 ```csharp
 public class ModDBResolver(
-    HttpClient httpClient,
     ModDBManifestFactory manifestFactory,
-    IWebPageParser webPageParser,  // Injected via DI
+    ModDBPageParser webPageParser,
     ILogger<ModDBResolver> logger) : IContentResolver
 {
+    public string ResolverId => "ModDB";
+
     public async Task<OperationResult<ContentManifest>> ResolveAsync(
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken = default)
     {
-        // Parse the web page
-        var parsedPage = await _webPageParser.ParseAsync(
-            discoveredItem.SourceUrl,
-            cancellationToken);
+        // Parse or retrieve cached page data
+        var parsedPage = await EnsureParsedPageAsync(discoveredItem, cancellationToken);
 
-        // Store parsed page in search result for UI display
-        discoveredItem.SetData(parsedPage);
+        // Extract downloadable files and select primary file
+        var allFiles = parsedPage.Sections.OfType<DownloadableFile>()
+            .OrderByDescending(GetFileFormatPriority)
+            .ToList();
 
-        // Extract primary download URL
-        var primaryDownloadUrl = ExtractPrimaryDownloadUrl(parsedPage);
-
-        // Convert to MapDetails for manifest factory
-        var mapDetails = ConvertToMapDetails(parsedPage, discoveredItem, primaryDownloadUrl);
+        var primaryFile = SelectPrimaryFile(allFiles, discoveredItem);
+        var mapDetails = ConvertFileToMapDetails(primaryFile, parsedPage, discoveredItem);
 
         // Create manifest
-        var manifest = await _manifestFactory.CreateManifestAsync(
+        var manifest = await manifestFactory.CreateManifestAsync(
             mapDetails,
-            discoveredItem.SourceUrl);
+            discoveredItem.SourceUrl,
+            cancellationToken);
 
         return OperationResult<ContentManifest>.CreateSuccess(manifest);
     }
@@ -303,6 +305,9 @@ public class ModDBResolver(
 ```
 
 ##### `ContentDetailViewModel` (`GenHub/GenHub/Features/Downloads/ViewModels/ContentDetailViewModel.cs`)
+
+> [!NOTE]
+> `ContentDetailViewModel` is part of the Unified Downloads Browser introduced in PR #265 (`feat/ui-downloads`), rendering the rich metadata, images, and videos parsed by `IWebPageParser` for detail inspection.
 
 Updated to display rich content from parsed pages:
 
@@ -341,7 +346,8 @@ private static void AddModDBPipeline(IServiceCollection services)
     services.AddSingleton<IPlaywrightService, PlaywrightService>();
 
     // Register ModDB page parser
-    services.AddTransient<IWebPageParser, ModDBPageParser>();
+    services.AddSingleton<ModDBPageParser>();
+    services.AddSingleton<IWebPageParser>(sp => sp.GetRequiredService<ModDBPageParser>());
 
     // ... other ModDB services
 }
@@ -371,19 +377,25 @@ To create a parser for a new provider (e.g., AODMaps):
 2. **Implement IWebPageParser**:
 
    ```csharp
-   public class AODMapsPageParser : IWebPageParser
+   public class AODMapsPageParser(
+       IPlaywrightService playwrightService,
+       ILogger<AODMapsPageParser> logger) : IWebPageParser
    {
        public string ParserId => "AODMaps";
 
-       private readonly IPlaywrightService _playwrightService;
-       private readonly ILogger<AODMapsPageParser> _logger;
-
        public bool CanParse(string url) =>
-           url.Contains("aodmaps.com", StringComparison.OrdinalIgnoreCase);
+           Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+           uri.Scheme == Uri.UriSchemeHttps &&
+           string.Equals(uri.Host, "aodmaps.com", StringComparison.OrdinalIgnoreCase);
 
        public async Task<ParsedWebPage> ParseAsync(string url, CancellationToken cancellationToken = default)
        {
-           var document = await _playwrightService.FetchAndParseAsync(url, cancellationToken);
+           if (!CanParse(url))
+           {
+               throw new ArgumentException("Invalid or untrusted AODMaps URL", nameof(url));
+           }
+
+           var document = await playwrightService.FetchAndParseAsync(url, cancellationToken);
            // Parse and return ParsedWebPage
        }
    }

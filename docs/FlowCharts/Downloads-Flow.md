@@ -5,6 +5,9 @@ description: Complete user flow for downloading and installing content in GenHub
 
 ## Flowchart: Downloads User Flow
 
+> [!NOTE]
+> This document details the **Unified Downloads Flow** designed and implemented in PR #265 (`feat/ui-downloads`), illustrating how user interaction in `DownloadsBrowserViewModel` connects with discovery, resolution, state tracking via `ContentStateService`, and content acquisition.
+
 This flowchart details the complete user journey from browsing publishers to downloading and installing content, including state management, profile selection, and caching.
 
 ## Table of Contents
@@ -132,7 +135,7 @@ The service uses the 5-segment manifest ID format to detect content versions:
 
 ```text
 Format: schemaVersion.userVersion.publisher.contentType.contentName
-Example: 1.20240315.moddb.mod.releasename
+Example: 1.20240315.moddbauthor.mod.releasename
 ```
 
 **Detection Logic**:
@@ -184,7 +187,7 @@ sequenceDiagram
 
     VM->>CSS: GetStateAsync(searchResult)
     CSS->>MIG: GeneratePublisherContentId(publisher, type, name, date)
-    MIG-->>CSS: "1.20240315.moddb.mod.mycontent"
+    MIG-->>CSS: "1.20240315.moddbauthor.mod.mycontent"
     CSS->>Pool: IsManifestAcquiredAsync(prospectiveId)
 
     alt Exact Match Found
@@ -193,7 +196,7 @@ sequenceDiagram
     else No Exact Match
         Pool-->>CSS: false
         CSS->>Pool: GetAllManifestsAsync()
-        Pool-->>CSS: List<ContentManifest>
+        Pool-->>CSS: List&lt;ContentManifest&gt;
         CSS->>CSS: FindOlderVersionsAsync()
 
         alt Older Version Found
@@ -266,10 +269,12 @@ sequenceDiagram
     participant UI as ContentCardView
     participant VM as ContentGridItemViewModel
     participant BVM as DownloadsBrowserViewModel
+    participant CO as ContentOrchestrator
     participant CSS as ContentStateService
     participant R as Resolver
     participant MIG as ManifestIdGenerator
     participant MF as ManifestFactory
+    participant DS as DownloadService
     participant CAS as CAS Service
     participant Pool as ManifestPool
     participant PS as ProfileSelectionViewModel
@@ -279,8 +284,9 @@ sequenceDiagram
     UI->>VM: DownloadCommand / UpdateCommand
     VM->>BVM: DownloadContentAsync(item)
 
-    Note over BVM: Get resolver for publisher
-    BVM->>R: ResolveAsync(searchResult)
+    Note over BVM: Resolve manifest via Orchestrator
+    BVM->>CO: ResolveManifestAsync(searchResult)
+    CO->>R: ResolveAsync(searchResult)
 
     alt ModDB Content
         R->>R: Parse page (Playwright + AngleSharp)
@@ -292,22 +298,17 @@ sequenceDiagram
     MIG-->>R: Manifest ID
 
     R->>MF: CreateManifestAsync(details)
-    MF-->>BVM: ContentManifest
+    MF-->>R: ContentManifest
+    R-->>CO: ContentManifest
+    CO-->>BVM: ContentManifest
 
     Note over BVM: Download files to temp
-    BVM->>CAS: DownloadFileAsync(url, tempPath)
+    BVM->>DS: DownloadFileAsync(url, tempPath)
 
-    alt Archive File
-        BVM->>BVM: Extract all files
-        loop Each file
-            BVM->>CAS: StoreContentAsync(file, hash)
-        end
-    else Single File
-        BVM->>CAS: StoreContentAsync(file, hash)
-    end
-
-    Note over BVM: Store manifest in pool
+    Note over BVM: Store manifest in pool (pool delegates to CAS)
     BVM->>Pool: AddManifestAsync(manifest, tempDir)
+    Pool->>CAS: StoreContentAsync for each file (via ContentStorageService)
+    CAS-->>Pool: ContentAddress references
     Pool-->>BVM: Success
 
     Note over BVM: Update item state
@@ -579,7 +580,7 @@ The `ContentCacheService` provides an in-memory cache for parsed web page conten
 
 flowchart LR
     subgraph Cache["ContentCacheService"]
-        CacheStore["ConcurrentDictionary<string, CacheEntry>"]
+        CacheStore["ConcurrentDictionary&lt;string, CacheEntry&gt;"]
         TTL["Default TTL: 1 Hour"]
     end
 

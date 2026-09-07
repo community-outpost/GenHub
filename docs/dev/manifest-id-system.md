@@ -1,5 +1,8 @@
 # Manifest ID System
 
+> [!NOTE]
+> This document details the **Manifest ID System** and prefix-matching state detection logic utilized by the Unified Downloads Browser introduced in PR #265 (`feat/ui-downloads`).
+
 ## Overview
 
 The Manifest ID system provides **deterministic, human-readable, and type-safe identifiers** for all content in the GenHub ecosystem. This system ensures consistent content identification across platforms, prevents ID collisions, and provides robust validation with proper error handling.
@@ -70,20 +73,28 @@ This normalization ensures the manifest ID schema remains valid (dots separate s
 
 ### ModDB Format
 
-**Format**: `{schemaVersion}.{dateVersion}.{publisher}.{contentType}.{contentName}`
+**Format**: `{schemaVersion}.{dateVersion}.moddb-{author}.{contentType}.{contentName}`
+
+**Components**:
+
+- **schemaVersion**: Always `1`
+- **dateVersion**: Release date in `YYYYMMDD` format (extracted from ModDB's "Added" field)
+- **publisher**: Uses `moddb-{author}` as the publisher segment (e.g., `moddb-westwood`)
+- **contentType**: Content type (mod, addon, map, etc.)
+- **contentName**: Normalized content name
 
 **Examples**:
 
-- ModDB Addon (release date 2025-01-20): `1.20250120.moddb.addon.supercolors-newcolors`
-- ModDB Mod (release date 2024-12-15): `1.20241215.moddb.mod.contra-007`
-- ModDB Map Pack (release date 2025-01-10): `1.20250110.moddb.mappack.desert-storm-collection`
+- ModDB Addon (release date 2025-01-20, author `westwood`): `1.20250120.moddbwestwood.addon.supercolorsnewcolors`
+- ModDB Mod (release date 2024-12-15, author `contra-team`): `1.20241215.moddbcontrateam.mod.contra007`
+- ModDB Map Pack (release date 2025-01-10, author `mappackers`): `1.20250110.moddbmappackers.mappack.desertstormcollection`
 
 **Key Points**:
 
 - **Date-based versioning**: Uses the release date (YYYYMMDD format) as the version component
 - **No semantic version parsing**: ModDB content titles are not parsed for semantic versions (v1.0, etc.)
 - **Deterministic**: Same content + same release date = same manifest ID
-- **Publisher identifier**: Always uses "moddb" as the publisher
+- **Publisher identifier**: Uses `moddb-{author}` as the publisher segment
 - **Date source**: Extracted from the ModDB page's release date metadata during content discovery
 
 **Version Fallback Priority**:
@@ -96,36 +107,6 @@ When generating manifest IDs for content, the version is determined by the follo
 4. **Discovery date** (fallback when no other date information is available)
 
 This fallback hierarchy ensures that content always has a valid version component for the manifest ID, with preference given to publisher-provided semantic versions when available.
-
-## ModDB Manifest IDs
-
-ModDB content uses a deterministic ID format based on release dates.
-
-### Format
-
-```text
-{schemaVersion}.{dateVersion}.{publisher}.{contentType}.{contentName}
-```
-
-### Example
-
-```text
-1.20250120.moddb.addon.supercolors-newcolors
-```
-
-### Components
-
-- **schemaVersion**: Always `1`
-- **dateVersion**: Release date in `YYYYMMDD` format
-- **publisher**: Always `moddb`
-- **contentType**: Content type (mod, addon, map, etc.)
-- **contentName**: Normalized content name
-
-### Key Points
-
-- Release date is extracted from ModDB's "Added" field
-- No semantic version parsing from titles (conservative approach)
-- Deterministic: same content + same date = same ID
 
 ## API Reference
 
@@ -261,17 +242,17 @@ if (clientResult.Success)
 }
 
 // Generate ID for ModDB content with date-based version
-var moddbResult = _manifestIdService.GeneratePublisherContentId("moddb", ContentType.Addon, "supercolors-newcolors", 20250120);
+var moddbResult = _manifestIdService.GeneratePublisherContentId("moddb-westwood", ContentType.Addon, "supercolors-newcolors", 20250120);
 if (moddbResult.Success)
 {
-    ManifestId id = moddbResult.Data; // 1.20250120.moddb.addon.supercolors-newcolors
+    ManifestId id = moddbResult.Data; // 1.20250120.moddbwestwood.addon.supercolorsnewcolors
 }
 
 // Generate ID for ModDB modpack with date version
-var moddbModResult = _manifestIdService.GeneratePublisherContentId("moddb", ContentType.Mod, "contra-007", 20241215);
+var moddbModResult = _manifestIdService.GeneratePublisherContentId("moddb-contra-team", ContentType.Mod, "contra-007", 20241215);
 if (moddbModResult.Success)
 {
-    ManifestId id = moddbModResult.Data; // 1.20241215.moddb.mod.contra-007
+    ManifestId id = moddbModResult.Data; // 1.20241215.moddbcontrateam.mod.contra007
 }
 ```
 
@@ -378,9 +359,9 @@ The Manifest ID system is deeply integrated with the ContentState tracking syste
 
 ContentState uses manifest IDs as the primary key for tracking content across different publishers. The system supports:
 
-- **Installed state**: Content that has been downloaded and installed
-- **UpdateAvailable state**: A newer version of existing content is available
-- **Available state**: Content that can be installed but is not currently installed
+- **Downloaded state** (`ContentState.Downloaded`): Content that has been acquired and stored in the manifest pool
+- **UpdateAvailable state** (`ContentState.UpdateAvailable`): A newer version of existing content is available
+- **NotDownloaded state** (`ContentState.NotDownloaded`): Content that is discovered or available in a publisher catalog but not currently downloaded
 
 ### Prefix Matching for Update Detection
 
@@ -388,14 +369,14 @@ The system uses prefix matching to detect updates for content with date-based ve
 
 ```csharp
 // Example: Detecting updates for ModDB content
-// Installed: 1.20250110.moddb.addon.supercolors-newcolors
-// Available:  1.20250120.moddb.addon.supercolors-newcolors
+// Downloaded (current): 1.20250110.moddbwestwood.addon.supercolorsnewcolors
+// Discovered (newer):   1.20250120.moddbwestwood.addon.supercolorsnewcolors
 
 // The system compares:
 // - Schema version (1) - must match
-// - Publisher (moddb) - must match
+// - Publisher (moddbwestwood) - must match
 // - Content type (addon) - must match
-// - Content name (supercolors-newcolors) - must match
+// - Content name (supercolorsnewcolors) - must match
 // - Version (20250110 vs 20250120) - used to determine if newer
 
 // Since the base ID (excluding version) matches and the available version
@@ -407,8 +388,8 @@ The system uses prefix matching to detect updates for content with date-based ve
 The manifest ID comparison for update detection follows this logic:
 
 1. **Extract base ID**: Remove the version component to get the content signature
-   - From `1.20250110.moddb.addon.supercolors-newcolors`
-   - Base: `moddb.addon.supercolors-newcolors`
+   - From `1.20250110.moddbwestwood.addon.supercolorsnewcolors`
+   - Base: `moddbwestwood.addon.supercolorsnewcolors`
 
 2. **Compare signatures**: Check if installed and available content have the same base
    - If base IDs match → same content, compare versions
@@ -424,30 +405,20 @@ The manifest ID comparison for update detection follows this logic:
 ```csharp
 // Scenario: ModDB content update detection
 
-// 1. User installs "Super Colors" addon on January 10, 2025
-var installedId = "1.20250110.moddb.addon.supercolors-newcolors";
-var manifest = new ContentManifest
-{
-    Id = installedId,
-    State = ContentState.Installed,
-    // ... other properties
-};
+// 1. User downloads "Super Colors" addon on January 10, 2025
+// Manifest is stored in IContentManifestPool:
+// Manifest ID: "1.20250110.moddbwestwood.addon.supercolorsnewcolors"
 
 // 2. System discovers updated version released on January 20, 2025
-var availableId = "1.20250120.moddb.addon.supercolors-newcolors";
-var discoveredManifest = new ContentManifest
-{
-    Id = availableId,
-    State = ContentState.Available,
-    // ... other properties
-};
+// Discovered ContentSearchResult generates prospective ID:
+// "1.20250120.moddbwestwood.addon.supercolorsnewcolors"
 
-// 3. ContentStateService detects update:
-//    - Base IDs match: "moddb.addon.supercolors-newcolors"
-//    - Version comparison: 20250120 > 20250110
-//    - Result: State set to ContentState.UpdateAvailable
+// 3. ContentStateService (GenHub.Features.Downloads.Services, introduced in PR #265) detects update:
+//    - Inspects IContentManifestPool for matching base signature: "moddbwestwood.addon.supercolorsnewcolors"
+//    - Compares date versions: 20250120 > 20250110
+//    - Returns: ContentState.UpdateAvailable
 
-// 4. UI shows "Update Available" indicator on the content card
+// 4. UI shows "Update" button on the content card (DownloadsBrowserViewModel)
 //    User can click to download and install the newer version
 ```
 

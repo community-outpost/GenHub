@@ -88,12 +88,10 @@
     </controls:SidebarLayout.ItemTemplate>
 
     <!-- Content Area -->
-    <Border Background="Transparent" Padding="20">
-        <Panel>
-            <!-- Main Content (Guide or Zero Hour) -->
-            <ContentControl Content="{Binding SelectedSection}" />
-        </Panel>
-    </Border>
+    <Panel>
+        <!-- Main Content (Guide or Zero Hour) -->
+        <ContentControl Content="{Binding SelectedSection}" />
+    </Panel>
   </controls:SidebarLayout>
 
 </UserControl>

@@ -5,6 +5,9 @@ description: Detailed documentation of the GenHub three-tier content pipeline fo
 
 # Content Pipeline Architecture
 
+> [!NOTE]
+> This document details the **Content Pipeline Architecture** specified and enhanced in PR #265 (`feat/ui-downloads`), linking discovery, universal parsing, resolution, delivery, and post-extraction manifest factories with the Unified Downloads Browser.
+
 The GenHub content system uses a **three-tier pipeline architecture** that transforms external content sources into installable content with full manifest and CAS (Content-Addressable Storage) integration.
 
 ## Pipeline Overview
@@ -39,10 +42,10 @@ flowchart TB
     BP --> D
     D --> P
     P --> R
-    R --> DEL
-    DEL --> MF
-    MF --> CAS
-    MF --> MP
+    R --> MF
+    MF --> DEL
+    DEL --> CAS
+    DEL --> MP
 ```
 
 ## Tier 1: ContentOrchestrator
@@ -160,9 +163,16 @@ Parsers transform raw data (HTML, JSON, `.dat` files) into `ContentSearchResult`
 Resolvers transform lightweight search results into complete `ContentManifest` blueprints.
 
 ```csharp
-public interface IContentResolver : IContentSource
+public interface IContentResolver
 {
+    string ResolverId { get; }
+
     Task<OperationResult<ContentManifest>> ResolveAsync(
+        ContentSearchResult discoveredItem,
+        CancellationToken cancellationToken = default);
+
+    Task<OperationResult<ContentManifest>> ResolveAsync(
+        ProviderDefinition? provider,
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken = default);
 }
@@ -186,18 +196,24 @@ public interface IContentDeliverer : IContentSource
 {
     bool CanDeliver(ContentManifest manifest);
 
-    Task<OperationResult<DeliveryResult>> DeliverContentAsync(
-        ContentManifest manifest,
+    Task<OperationResult<ContentManifest>> DeliverContentAsync(
+        ContentManifest packageManifest,
         string targetDirectory,
+        IProgress<ContentAcquisitionProgress>? progress = null,
+        CancellationToken cancellationToken = default);
+
+    Task<OperationResult<bool>> ValidateContentAsync(
+        ContentManifest manifest,
         CancellationToken cancellationToken = default);
 }
 ```
 
 #### CAS-Resident Content (Skip Delivery)
 
-Several publisher manifest factories (`AODMapsManifestFactory`, `CNCLabsManifestFactory`,
-`ModDBManifestFactory`) download the file into CAS **during resolution** and register it as a
-`ContentAddressable` file with a hash but no `DownloadUrl`. The HTTP deliverer cannot handle such
+Publisher manifest factories like `AODMapsManifestFactory` and `CNCLabsManifestFactory`
+download the file into CAS **during resolution** and register it as a `ContentAddressable` file with
+a hash but no `DownloadUrl`. (In contrast, `ModDBManifestFactory` registers files with `RemoteDownload`
+and `DownloadUrl` via `AddRemoteFileAsync`, leaving acquisition to the deliverer stage). The HTTP deliverer cannot handle such
 files (`CanDeliver` requires an http download URL), so the matching content providers short-circuit
 preparation: when **every** file is already `ContentAddressable` with a hash, the provider returns the
 manifest as-is and the orchestrator's delivery stage is skipped. `ContentValidator` and
@@ -213,7 +229,7 @@ Factories create proper `ContentManifest` objects after downloading, handling pu
 
 | Factory | Publisher | Features |
 |---------|-----------|----------|
-| `ModDBManifestFactory` | ModDB | ID format: `1.YYYYMMDD.moddb.{type}.{name}` |
+| `ModDBManifestFactory` | ModDB | ID format: `1.YYYYMMDD.moddb-{author}.{type}.{name}` |
 | `CNCLabsManifestFactory` | CNC Labs | Map-specific metadata |
 | `AODMapsManifestFactory` | AOD Maps | Referer header handling |
 | `GitHubManifestFactory` | GitHub | Release asset handling |
@@ -296,8 +312,8 @@ IDs follow a deterministic format:
 
 **Examples**:
 
-- `1.20190826.moddb.mod.hanpatchv32` - ModDB mod
-- `1.0.zerohour.gameinstallation` - Base game
+- `1.20190826.moddbhan.mod.hanpatchv32` - ModDB mod
+- `1.104.ea.gameinstallation.zerohour` - Base game
 
 ---
 

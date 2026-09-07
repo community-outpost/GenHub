@@ -20,6 +20,7 @@ using GenHub.Core.Models.Theming;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Settings.ViewModels;
+using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -714,6 +715,7 @@ public class SettingsViewModelTests
         // Arrange
         var tempLogsDir = Path.Combine(Path.GetTempPath(), "GenHubTestLogs_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempLogsDir);
+        var originalActiveLog = LoggingModule.ActiveLogFilePath;
 
         try
         {
@@ -723,6 +725,7 @@ public class SettingsViewModelTests
             var logFile2 = Path.Combine(tempLogsDir, todayLogName);
             await File.WriteAllTextAsync(logFile1, "Sample log content 1");
             await File.WriteAllTextAsync(logFile2, "Sample log content 2");
+            LoggingModule.ActiveLogFilePath = logFile2;
 
             _mockConfigurationProvider.Setup(x => x.GetLogsPath()).Returns(tempLogsDir);
             var viewModel = CreateViewModel();
@@ -736,6 +739,55 @@ public class SettingsViewModelTests
             Assert.Equal(0, new FileInfo(logFile2).Length);
             _mockNotificationService.Verify(
                 x => x.ShowSuccess("Logs Cleared", It.Is<string>(s => s.Contains("2 log file(s)")), It.IsAny<int?>(), It.IsAny<bool>()),
+                Times.Once);
+        }
+        finally
+        {
+            LoggingModule.ActiveLogFilePath = originalActiveLog;
+            if (Directory.Exists(tempLogsDir))
+            {
+                Directory.Delete(tempLogsDir, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that ClearLogsCommand reports skipped locked files when some files cannot be cleared.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ClearLogsCommand_WhenSomeFilesAreLocked_ClearsAvailableFilesAndReportsSkippedAsync()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            // Exclusive file locks via FileShare.None preventing File.Delete / Truncate are Windows-specific.
+            return;
+        }
+
+        // Arrange
+        var tempLogsDir = Path.Combine(Path.GetTempPath(), "GenHubTestLogsLocked_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempLogsDir);
+
+        try
+        {
+            var logFile1 = Path.Combine(tempLogsDir, "genhub-2025-01-01.log");
+            var logFile2 = Path.Combine(tempLogsDir, "genhub-2025-01-02.log");
+            await File.WriteAllTextAsync(logFile1, "Sample log content 1");
+            await File.WriteAllTextAsync(logFile2, "Sample log content 2");
+
+            _mockConfigurationProvider.Setup(x => x.GetLogsPath()).Returns(tempLogsDir);
+            var viewModel = CreateViewModel();
+
+            // Lock logFile2 exclusively
+            using var lockStream = new FileStream(logFile2, System.IO.FileMode.Open, System.IO.FileAccess.ReadWrite, System.IO.FileShare.None);
+
+            // Act
+            await viewModel.ClearLogsCommand.ExecuteAsync(null);
+
+            // Assert
+            Assert.False(File.Exists(logFile1));
+            _mockNotificationService.Verify(
+                x => x.ShowSuccess("Logs Cleared", It.Is<string>(s => s.Contains("1 log file(s)") && s.Contains("1 file(s) skipped")), It.IsAny<int?>(), It.IsAny<bool>()),
                 Times.Once);
         }
         finally
@@ -773,6 +825,45 @@ public class SettingsViewModelTests
         }
         finally
         {
+            if (Directory.Exists(tempLogsDir))
+            {
+                Directory.Delete(tempLogsDir, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that ClearLogsCommand falls back to ActiveLogFilePath directory when GetLogsPath is null or missing.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ClearLogsCommand_WhenGetLogsPathMissing_FallsBackToActiveLogDirectoryAsync()
+    {
+        var tempLogsDir = Path.Combine(Path.GetTempPath(), "GenHubTestLogsFallback_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempLogsDir);
+        var originalActiveLog = LoggingModule.ActiveLogFilePath;
+
+        try
+        {
+            var logFile = Path.Combine(tempLogsDir, "fallback.log");
+            await File.WriteAllTextAsync(logFile, "Fallback log content");
+            LoggingModule.ActiveLogFilePath = logFile;
+
+            _mockConfigurationProvider.Setup(x => x.GetLogsPath()).Returns(string.Empty);
+            var viewModel = CreateViewModel();
+
+            await viewModel.ClearLogsCommand.ExecuteAsync(null);
+
+            Assert.True(File.Exists(logFile));
+            var content = await File.ReadAllTextAsync(logFile);
+            Assert.Empty(content);
+            _mockNotificationService.Verify(
+                x => x.ShowSuccess("Logs Cleared", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+                Times.Once);
+        }
+        finally
+        {
+            LoggingModule.ActiveLogFilePath = originalActiveLog;
             if (Directory.Exists(tempLogsDir))
             {
                 Directory.Delete(tempLogsDir, recursive: true);

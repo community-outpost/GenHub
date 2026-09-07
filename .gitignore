@@ -10,6 +10,7 @@
 !.agents/
 !.claude/
 !.pr_agent.toml
+!.sonarcloud.properties
 
 *.suo
 *.user

@@ -15,9 +15,6 @@
 
   <UserControl.Resources>
     <ResourceDictionary>
-      <ResourceDictionary.MergedDictionaries>
-        <ResourceInclude Source="avares://GenHub/Features/Tools/Views/ToolIcons.axaml" />
-      </ResourceDictionary.MergedDictionaries>
       <converters:EqualityConverter x:Key="EqualityConverter" />
       <converters:EnumToBoolConverter x:Key="EnumToBoolConverter" />
     </ResourceDictionary>
