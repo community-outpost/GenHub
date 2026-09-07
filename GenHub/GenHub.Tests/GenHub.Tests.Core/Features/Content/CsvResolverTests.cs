@@ -637,7 +637,16 @@ public class CsvResolverTests
 
         using var memoryStream = new MemoryStream();
         stream!.CopyTo(memoryStream);
-        var actualHash = Convert.ToHexString(SHA256.HashData(memoryStream.ToArray())).ToLowerInvariant();
+        var bytes = memoryStream.ToArray();
+
+        // Ensure CRLF line endings from platform git checkouts do not diverge from the canonical LF checksum
+        var text = Encoding.UTF8.GetString(bytes);
+        if (text.Contains("\r\n"))
+        {
+            bytes = Encoding.UTF8.GetBytes(text.Replace("\r\n", "\n"));
+        }
+
+        var actualHash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
 
         actualHash.Should().Be(expectedSha256);
     }
