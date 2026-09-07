@@ -19,9 +19,6 @@ public static class ModDBConstants
     /// <summary>Base URL for ModDB website.</summary>
     public const string BaseUrl = "https://www.moddb.com";
 
-    /// <summary>Web domain name for ModDB.</summary>
-    public const string Domain = "moddb.com";
-
     /// <summary>
     /// URL to the ModDB icon.
     /// </summary>
