@@ -80,6 +80,7 @@
       <Setter Property="FontSize" Value="22"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
       <Setter Property="Foreground" Value="#F0F0F0"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
 
     <!-- Header for demos "Interactive Element" -->
