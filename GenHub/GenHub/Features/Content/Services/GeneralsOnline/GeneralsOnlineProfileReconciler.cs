@@ -151,7 +151,7 @@ public class GeneralsOnlineProfileReconciler(
     /// Builds a mapping from old manifest IDs to new manifest IDs based on variant matching.
     /// Handles 30hz, 60hz, quickmatch-maps, and gamedata variants.
     /// </summary>
-    private static Dictionary<string, string> BuildManifestMapping(
+    private Dictionary<string, string> BuildManifestMapping(
         List<ContentManifest> oldManifests,
         List<ContentManifest> newManifests,
         IComparer<string>? versionComparer = null)
