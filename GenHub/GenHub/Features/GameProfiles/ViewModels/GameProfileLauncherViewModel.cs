@@ -410,9 +410,9 @@ public partial class GameProfileLauncherViewModel(
                 await tcs.Task;
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("Profile import cancelled from source: {Source}", safeSource);
+            logger.LogInformation(ex, "Profile import cancelled from source: {Source}", safeSource);
         }
         catch (Exception ex)
         {

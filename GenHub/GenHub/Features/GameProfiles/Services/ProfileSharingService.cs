@@ -1615,14 +1615,13 @@ public class ProfileSharingService(
         }
     }
 
-    private async Task<OperationResult<bool>> TryRegisterFromExistingCasBlobsAsync(
-        ManifestId validatedManifestId,
+    private async Task<bool> AreAllCasBlobsAvailableAsync(
         SharedManifestDependency dependency,
         CancellationToken cancellationToken)
     {
         if (casService == null || dependency.Files is not { Count: > 0 } || dependency.Files.Any(f => string.IsNullOrWhiteSpace(f.Hash)))
         {
-            return OperationResult<bool>.CreateSuccess(false);
+            return false;
         }
 
         foreach (var file in dependency.Files)
@@ -1630,8 +1629,61 @@ public class ProfileSharingService(
             var blobPathResult = await casService.GetContentPathAsync(file.Hash, dependency.ContentType, cancellationToken);
             if (!blobPathResult.Success || !File.Exists(blobPathResult.Data))
             {
-                return OperationResult<bool>.CreateSuccess(false);
+                return false;
             }
+        }
+
+        return true;
+    }
+
+    private async Task<OperationResult<bool>> MaterializeCasBlobsToStagingAsync(
+        SharedManifestDependency dependency,
+        string stagingDir,
+        CancellationToken cancellationToken)
+    {
+        if (casService == null || dependency.Files == null)
+        {
+            return OperationResult<bool>.CreateFailure("CAS service or dependency files unavailable.");
+        }
+
+        var canonicalStagingPrefix = Path.GetFullPath(stagingDir) + Path.DirectorySeparatorChar;
+        foreach (var file in dependency.Files)
+        {
+            var blobPathResult = await casService.GetContentPathAsync(file.Hash, dependency.ContentType, cancellationToken);
+            var normalizedRelativePath = file.RelativePath.Replace('\\', '/');
+            var destinationPath = Path.GetFullPath(Path.Combine(stagingDir, normalizedRelativePath));
+            if (!destinationPath.StartsWith(canonicalStagingPrefix, StringComparison.Ordinal))
+            {
+                return OperationResult<bool>.CreateFailure($"Invalid relative path escapes staging directory: {file.RelativePath}");
+            }
+
+            var directory = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            if (blobPathResult.Success && !string.IsNullOrWhiteSpace(blobPathResult.Data) && File.Exists(blobPathResult.Data))
+            {
+                File.Copy(blobPathResult.Data, destinationPath, true);
+            }
+            else
+            {
+                return OperationResult<bool>.CreateFailure($"Failed to locate local CAS content for: {file.RelativePath}");
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private async Task<OperationResult<bool>> TryRegisterFromExistingCasBlobsAsync(
+        ManifestId validatedManifestId,
+        SharedManifestDependency dependency,
+        CancellationToken cancellationToken)
+    {
+        if (!await AreAllCasBlobsAvailableAsync(dependency, cancellationToken))
+        {
+            return OperationResult<bool>.CreateSuccess(false);
         }
 
         var stagingBase = Path.Combine(Path.GetTempPath(), AppConstants.AppName, "CasMaterializeStaging");
@@ -1640,31 +1692,10 @@ public class ProfileSharingService(
         try
         {
             Directory.CreateDirectory(stagingDir);
-            var canonicalStagingPrefix = Path.GetFullPath(stagingDir) + Path.DirectorySeparatorChar;
-            foreach (var file in dependency.Files)
+            var materializeResult = await MaterializeCasBlobsToStagingAsync(dependency, stagingDir, cancellationToken);
+            if (!materializeResult.Success)
             {
-                var blobPathResult = await casService.GetContentPathAsync(file.Hash, dependency.ContentType, cancellationToken);
-                var normalizedRelativePath = file.RelativePath.Replace('\\', '/');
-                var destinationPath = Path.GetFullPath(Path.Combine(stagingDir, normalizedRelativePath));
-                if (!destinationPath.StartsWith(canonicalStagingPrefix, StringComparison.Ordinal))
-                {
-                    return OperationResult<bool>.CreateFailure($"Invalid relative path escapes staging directory: {file.RelativePath}");
-                }
-
-                var directory = Path.GetDirectoryName(destinationPath);
-                if (!string.IsNullOrEmpty(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                if (blobPathResult.Success && !string.IsNullOrWhiteSpace(blobPathResult.Data) && File.Exists(blobPathResult.Data))
-                {
-                    File.Copy(blobPathResult.Data, destinationPath, true);
-                }
-                else
-                {
-                    return OperationResult<bool>.CreateFailure($"Failed to locate local CAS content for: {file.RelativePath}");
-                }
+                return materializeResult;
             }
 
             return await RegisterExtractedManifestAsync(validatedManifestId, dependency, stagingDir, cancellationToken);

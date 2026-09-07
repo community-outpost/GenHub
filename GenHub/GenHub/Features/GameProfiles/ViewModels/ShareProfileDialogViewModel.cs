@@ -30,10 +30,10 @@ public partial class ShareProfileDialogViewModel : ViewModelBase, IDisposable
     private readonly ILogger _logger;
     private readonly string _profileId;
     private readonly System.Threading.CancellationTokenSource _cts = new();
+    private readonly Task? _quotaTask;
     private bool _disposed;
     private Task? _generateShareLinkTask;
     private Task? _exportFileTask;
-    private Task? _quotaTask;
 
     [ObservableProperty]
     private string _profileName = string.Empty;
@@ -168,59 +168,72 @@ public partial class ShareProfileDialogViewModel : ViewModelBase, IDisposable
     /// </summary>
     public void Dispose()
     {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases unmanaged and - optionally - managed resources.
+    /// </summary>
+    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
         if (_disposed)
         {
             return;
         }
 
         _disposed = true;
-        try
-        {
-            _cts.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
-            // Ignore if already cancelled or disposed
-        }
-
-        // Defer CTS disposal until in-flight tasks observe cancellation and complete,
-        // avoiding ObjectDisposedException when registering callbacks or tokens in transit.
-        _ = Task.Run(async () =>
+        if (disposing)
         {
             try
             {
-                var tasks = new List<Task>();
-                if (_generateShareLinkTask != null)
-                {
-                    tasks.Add(_generateShareLinkTask);
-                }
-
-                if (_exportFileTask != null)
-                {
-                    tasks.Add(_exportFileTask);
-                }
-
-                if (_quotaTask != null)
-                {
-                    tasks.Add(_quotaTask);
-                }
-
-                if (tasks.Count > 0)
-                {
-                    await Task.WhenAll(tasks).ConfigureAwait(false);
-                }
+                _cts.Cancel();
             }
-            catch
+            catch (ObjectDisposedException)
             {
-                // Suppress task cancellation / failures on dispose
+                // Ignore if already cancelled or disposed
             }
-            finally
-            {
-                _cts.Dispose();
-            }
-        });
 
-        GC.SuppressFinalize(this);
+            // Defer CTS disposal until in-flight tasks observe cancellation and complete,
+            // avoiding ObjectDisposedException when registering callbacks or tokens in transit.
+            _ = Task.Run(
+                async () =>
+                {
+                    try
+                    {
+                        var tasks = new List<Task>();
+                        if (_generateShareLinkTask != null)
+                        {
+                            tasks.Add(_generateShareLinkTask);
+                        }
+
+                        if (_exportFileTask != null)
+                        {
+                            tasks.Add(_exportFileTask);
+                        }
+
+                        if (_quotaTask != null)
+                        {
+                            tasks.Add(_quotaTask);
+                        }
+
+                        if (tasks.Count > 0)
+                        {
+                            await Task.WhenAll(tasks).ConfigureAwait(false);
+                        }
+                    }
+                    catch
+                    {
+                        // Suppress task cancellation / failures on dispose
+                    }
+                    finally
+                    {
+                        _cts.Dispose();
+                    }
+                },
+                System.Threading.CancellationToken.None);
+        }
     }
 
     private static TopLevel? GetMainWindowTopLevel()
@@ -302,9 +315,9 @@ public partial class ShareProfileDialogViewModel : ViewModelBase, IDisposable
                 await LoadUploadQuotaAsync();
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            _logger.LogInformation("Profile share link generation cancelled for profile {ProfileId}", _profileId);
+            _logger.LogInformation(ex, "Profile share link generation cancelled for profile {ProfileId}", _profileId);
         }
         catch (Exception ex)
         {
@@ -372,9 +385,9 @@ public partial class ShareProfileDialogViewModel : ViewModelBase, IDisposable
                 ShowStatus($"Export failed: {result.FirstError}");
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            _logger.LogInformation("Profile file export cancelled for profile {ProfileId}", _profileId);
+            _logger.LogInformation(ex, "Profile file export cancelled for profile {ProfileId}", _profileId);
         }
         catch (Exception ex)
         {
