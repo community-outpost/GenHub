@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Media;
+using Avalonia.VisualTree;
 using FluentAssertions;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GitHub;
@@ -187,7 +189,8 @@ public class InfoTabResponsivenessTests
     }
 
     /// <summary>
-    /// Verifies that AddLocalContentView with a long status message wraps properly and does not overflow parent width.
+    /// Verifies that AddLocalContentView with a long status message wraps properly within the left column
+    /// and does not overflow parent width.
     /// </summary>
     [AvaloniaFact]
     public void AddLocalContentView_WithLongStatusMessage_LayoutConstrainedToParentWidth()
@@ -200,5 +203,14 @@ public class InfoTabResponsivenessTests
         window.Show();
 
         view.DesiredSize.Width.Should().BeLessOrEqualTo(800);
+
+        var statusTextBlock = view.GetVisualDescendants()
+            .OfType<TextBlock>()
+            .FirstOrDefault(tb => tb.Text == vm.StatusMessage);
+
+        statusTextBlock.Should().NotBeNull();
+        statusTextBlock!.TextWrapping.Should().Be(TextWrapping.Wrap);
+        statusTextBlock.DesiredSize.Width.Should().BeGreaterThan(0).And.BeLessThan(300);
+        statusTextBlock.DesiredSize.Height.Should().BeGreaterThan(20);
     }
 }
