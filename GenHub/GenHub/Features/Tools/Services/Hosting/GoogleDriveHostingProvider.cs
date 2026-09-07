@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -168,7 +169,14 @@ public class GoogleDriveHostingProvider : IHostingProvider
             var folderId = createdFolder.Id;
 
             // Make the folder publicly readable so files are accessible
-            await MakeFilePublicAsync(folderId, cancellationToken);
+            try
+            {
+                await MakeFilePublicAsync(folderId, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to set public permissions on Google Drive folder {FolderId}", folderId);
+            }
 
             _logger.LogInformation("Created new publisher folder: {FolderId}", folderId);
             return OperationResult<string>.CreateSuccess(folderId);
@@ -216,7 +224,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
             // Determine MIME type
             var mimeType = fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
                 ? HostingConstants.JsonContentType
-                : "application/octet-stream";
+                : HostingConstants.BinaryContentType;
 
             var request = _driveService.Files.Create(fileMetadata, fileStream, mimeType);
             request.Fields = "id, webViewLink, webContentLink, size";
@@ -227,7 +235,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
             if (uploadProgress.Status != Google.Apis.Upload.UploadStatus.Completed)
             {
                 var error = uploadProgress.Exception?.Message ?? "Unknown upload error";
-                _logger.LogError("Google Drive upload failed: {Error}", error);
+                _logger.LogError(uploadProgress.Exception, "Google Drive upload failed: {Error}", error);
                 return OperationResult<HostingUploadResult>.CreateFailure($"Upload failed: {error}");
             }
 
@@ -241,8 +249,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
             progress?.Report(100);
 
             // Direct download link for Google Drive files
-            // Format: https://drive.google.com/uc?export=download&id={fileId}
-            var directDownloadUrl = $"https://drive.google.com/uc?export=download&id={file.Id}";
+            var directDownloadUrl = string.Format(CultureInfo.InvariantCulture, HostingConstants.GoogleDriveDownloadUrlTemplate, file.Id);
             var publicUrl = file.WebViewLink ?? directDownloadUrl;
 
             var result = new HostingUploadResult
@@ -281,7 +288,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
             progress?.Report(10);
 
             var fileMetadata = new Google.Apis.Drive.v3.Data.File();
-            var request = _driveService.Files.Update(fileMetadata, fileId, fileStream, "application/octet-stream");
+            var request = _driveService.Files.Update(fileMetadata, fileId, fileStream, HostingConstants.BinaryContentType);
             request.Fields = "id, size";
 
             progress?.Report(30);
@@ -290,13 +297,14 @@ public class GoogleDriveHostingProvider : IHostingProvider
             if (uploadProgress.Status != Google.Apis.Upload.UploadStatus.Completed)
             {
                 var error = uploadProgress.Exception?.Message ?? "Unknown update error";
+                _logger.LogError(uploadProgress.Exception, "Google Drive update failed: {Error}", error);
                 return OperationResult<HostingUploadResult>.CreateFailure($"Update failed: {error}");
             }
 
             progress?.Report(100);
 
             var file = request.ResponseBody;
-            var directDownloadUrl = $"https://drive.google.com/uc?export=download&id={fileId}";
+            var directDownloadUrl = string.Format(CultureInfo.InvariantCulture, HostingConstants.GoogleDriveDownloadUrlTemplate, fileId);
 
             var result = new HostingUploadResult
             {
@@ -371,7 +379,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
 
             foreach (var file in filesResult.Files)
             {
-                var downloadUrl = $"https://drive.google.com/uc?export=download&id={file.Id}";
+                var downloadUrl = string.Format(CultureInfo.InvariantCulture, HostingConstants.GoogleDriveDownloadUrlTemplate, file.Id);
                 var lastUpdated = file.ModifiedTimeDateTimeOffset?.DateTime ?? DateTime.UtcNow;
 
                 if (file.Name == "publisher.json")
@@ -467,7 +475,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
             if (endIndex == -1) endIndex = shareUrl.Length;
 
             var fileId = shareUrl[startIndex..endIndex];
-            return $"https://drive.google.com/uc?export=download&id={fileId}";
+            return string.Format(CultureInfo.InvariantCulture, HostingConstants.GoogleDriveDownloadUrlTemplate, fileId);
         }
 
         return shareUrl;

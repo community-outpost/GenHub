@@ -252,7 +252,9 @@ public partial class SubscriptionConfirmationViewModel(
         var catResult = await definitionService.FetchCatalogFromDefinitionAsync(definition, cancellationToken);
         if (catResult.Success && catResult.Data != null)
         {
-            var targetCatalogUrl = definition.CatalogUrl ?? definition.Catalogs?.FirstOrDefault()?.Url;
+            var targetCatalogUrl = !string.IsNullOrWhiteSpace(definition.CatalogUrl)
+                ? definition.CatalogUrl
+                : definition.Catalogs?.FirstOrDefault()?.Url;
             return (catResult.Data, catalogUrl, targetCatalogUrl);
         }
 
@@ -297,6 +299,16 @@ public partial class SubscriptionConfirmationViewModel(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogError(ex, "Network error fetching catalog from definition at {Url}", catalogUrl);
+            throw;
+        }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogError(ex, "Timeout fetching catalog from definition at {Url}", catalogUrl);
             throw;
         }
         catch (System.Text.Json.JsonException jsonEx)

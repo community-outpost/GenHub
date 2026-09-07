@@ -171,6 +171,12 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
                 return OperationResult<string>.CreateSuccess(PublisherFolderPath);
             }
 
+            if (createResponse.StatusCode == System.Net.HttpStatusCode.Conflict)
+            {
+                logger.LogInformation("Publisher folder already exists (conflict): {Path}", PublisherFolderPath);
+                return OperationResult<string>.CreateSuccess(PublisherFolderPath);
+            }
+
             var error = await createResponse.Content.ReadAsStringAsync(cancellationToken);
             logger.LogWarning("Failed to create folder: {Error}", error);
             return OperationResult<string>.CreateFailure($"Failed to create folder: {error}");
@@ -224,7 +230,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             using var request = new HttpRequestMessage(HttpMethod.Post, $"{DropboxContentUrl}/files/upload");
             request.Headers.Add("Dropbox-API-Arg", JsonSerializer.Serialize(uploadArgs));
             request.Content = new ByteArrayContent(fileBytes);
-            request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+            request.Content.Headers.ContentType = new MediaTypeHeaderValue(HostingConstants.BinaryContentType);
 
             var response = await _httpClient.SendAsync(request, cancellationToken);
 

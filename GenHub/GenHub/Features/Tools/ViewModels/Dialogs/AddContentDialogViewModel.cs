@@ -22,6 +22,7 @@ public partial class AddContentDialogViewModel : ObservableValidator
     [ObservableProperty]
     [NotifyDataErrorInfo]
     [Required(ErrorMessage = "Content ID is required")]
+    [MinLength(2, ErrorMessage = "Content ID must be at least 2 characters")]
     [RegularExpression(@"^[a-z0-9-]+$", ErrorMessage = "Content ID must contain only lowercase letters, numbers, and hyphens")]
     private string _contentId = string.Empty;
 

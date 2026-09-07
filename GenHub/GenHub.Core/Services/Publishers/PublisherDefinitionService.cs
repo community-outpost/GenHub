@@ -63,7 +63,7 @@ public class PublisherDefinitionService(
 
             using var stream = await response.Content.ReadAsStreamAsync(ct);
             using var memoryStream = new MemoryStream();
-            var buffer = new byte[8192];
+            var buffer = new byte[HostingConstants.StreamCopyBufferSize];
             long totalBytesRead = 0;
             int bytesRead;
 
@@ -123,50 +123,37 @@ public class PublisherDefinitionService(
     {
         try
         {
-            var urlsToTry = new System.Collections.Generic.List<string> { definition.CatalogUrl };
+            var urlsToTry = new List<string> { definition.CatalogUrl };
             if (definition.CatalogMirrors != null)
             {
                 urlsToTry.AddRange(definition.CatalogMirrors);
             }
 
             using var client = httpClientFactory.CreateClient("PublisherCatalog");
-            var errors = new System.Collections.Generic.List<string>();
+            var errors = new List<string>();
 
             foreach (var url in urlsToTry)
             {
-                if (string.IsNullOrWhiteSpace(url)) continue;
-
-                try
+                if (string.IsNullOrWhiteSpace(url))
                 {
-                    logger.LogInformation("Attempting to fetch catalog from: {Url}", url);
-
-                    var response = await client.GetAsync(url, ct);
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        errors.Add($"Failed to fetch from {url}: {response.StatusCode}");
-                        continue;
-                    }
-
-                    var json = await response.Content.ReadAsStringAsync(ct);
-                    var parseResult = await catalogParser.ParseCatalogAsync(json, ct);
-
-                    if (parseResult.Success)
-                    {
-                        return parseResult;
-                    }
-                    else
-                    {
-                        errors.Add($"Failed to parse catalog from {url}: {string.Join(", ", parseResult.Errors)}");
-                    }
+                    continue;
                 }
-                catch (Exception ex)
+
+                logger.LogInformation("Attempting to fetch catalog from: {Url}", url);
+                var result = await FetchAndParseCatalogAsync(client, url, ct);
+                if (result.Success && result.Data != null)
                 {
-                    logger.LogWarning(ex, "Exception fetching/parsing catalog from {Url}", url);
-                    errors.Add($"Exception processing {url}: {ex.Message}");
+                    return result;
                 }
+
+                errors.AddRange(result.Errors);
             }
 
             return OperationResult<PublisherCatalog>.CreateFailure(errors);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -212,6 +199,10 @@ public class PublisherDefinitionService(
             // Potentially update other metadata here if we expand PublisherSubscription
             // e.g. Name, Description updates could be propagated
             return OperationResult<bool>.CreateSuccess(updated);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -269,10 +260,76 @@ public class PublisherDefinitionService(
 
             return OperationResult<Dictionary<string, PublisherCatalog>>.CreateSuccess(results);
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Critical error in FetchAllCatalogsAsync");
             return OperationResult<Dictionary<string, PublisherCatalog>>.CreateFailure($"Critical error: {ex.Message}");
+        }
+    }
+
+    private async Task<OperationResult<PublisherCatalog>> FetchAndParseCatalogAsync(
+        HttpClient client,
+        string url,
+        CancellationToken ct)
+    {
+        try
+        {
+            using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                return OperationResult<PublisherCatalog>.CreateFailure($"Failed to fetch from {url}: {response.StatusCode}");
+            }
+
+            if (response.Content.Headers.ContentLength is { } headerLength &&
+                headerLength > CatalogConstants.MaxCatalogSizeBytes)
+            {
+                return OperationResult<PublisherCatalog>.CreateFailure(
+                    $"Catalog from {url} exceeds maximum size of {CatalogConstants.MaxCatalogSizeBytes} bytes");
+            }
+
+            using var stream = await response.Content.ReadAsStreamAsync(ct);
+            using var memoryStream = new MemoryStream();
+            var buffer = new byte[HostingConstants.StreamCopyBufferSize];
+            long totalBytesRead = 0;
+            int bytesRead;
+
+            while ((bytesRead = await stream.ReadAsync(buffer, ct)) > 0)
+            {
+                totalBytesRead += bytesRead;
+                if (totalBytesRead > CatalogConstants.MaxCatalogSizeBytes)
+                {
+                    return OperationResult<PublisherCatalog>.CreateFailure(
+                        $"Catalog from {url} exceeds maximum size of {CatalogConstants.MaxCatalogSizeBytes} bytes");
+                }
+
+                await memoryStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
+            }
+
+            memoryStream.Position = 0;
+            using var reader = new StreamReader(memoryStream, System.Text.Encoding.UTF8);
+            var json = await reader.ReadToEndAsync(ct);
+
+            var parseResult = await catalogParser.ParseCatalogAsync(json, ct);
+            if (!parseResult.Success)
+            {
+                return OperationResult<PublisherCatalog>.CreateFailure(
+                    $"Failed to parse catalog from {url}: {string.Join(", ", parseResult.Errors)}");
+            }
+
+            return parseResult;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Exception fetching/parsing catalog from {Url}", url);
+            return OperationResult<PublisherCatalog>.CreateFailure($"Exception processing {url}: {ex.Message}");
         }
     }
 
@@ -289,26 +346,16 @@ public class PublisherDefinitionService(
 
         foreach (var url in urlsToTry)
         {
-            if (string.IsNullOrWhiteSpace(url)) continue;
-
-            try
+            if (string.IsNullOrWhiteSpace(url))
             {
-                logger.LogInformation("Fetching catalog '{CatalogId}' from: {Url}", catalogEntry.Id, url);
-
-                var response = await client.GetAsync(url, ct);
-                if (!response.IsSuccessStatusCode) continue;
-
-                var json = await response.Content.ReadAsStringAsync(ct);
-                var parseResult = await catalogParser.ParseCatalogAsync(json, ct);
-
-                if (parseResult.Success && parseResult.Data != null)
-                {
-                    return (catalogEntry.Id, parseResult.Data, null);
-                }
+                continue;
             }
-            catch (Exception ex)
+
+            logger.LogInformation("Fetching catalog '{CatalogId}' from: {Url}", catalogEntry.Id, url);
+            var result = await FetchAndParseCatalogAsync(client, url, ct);
+            if (result.Success && result.Data != null)
             {
-                logger.LogWarning(ex, "Failed to fetch catalog '{CatalogId}' from {Url}", catalogEntry.Id, url);
+                return (catalogEntry.Id, result.Data, null);
             }
         }
 

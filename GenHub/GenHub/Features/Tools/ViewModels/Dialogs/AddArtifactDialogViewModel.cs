@@ -368,6 +368,15 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
                 return;
             }
         }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(_localFilePath))
+            {
+                IsValid = false;
+                ValidationError = "Please select a local file to upload";
+                return;
+            }
+        }
 
         IsValid = true;
         ValidationError = null;

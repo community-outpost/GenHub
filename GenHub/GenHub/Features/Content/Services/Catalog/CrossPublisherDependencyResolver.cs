@@ -82,6 +82,10 @@ public class CrossPublisherDependencyResolver(
 
             return OperationResult<IEnumerable<MissingDependency>>.CreateSuccess(missingDependencies);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to check missing dependencies");
@@ -282,6 +286,10 @@ public class CrossPublisherDependencyResolver(
                 searchResult.Version);
 
             return OperationResult<ContentSearchResult?>.CreateSuccess(searchResult);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
