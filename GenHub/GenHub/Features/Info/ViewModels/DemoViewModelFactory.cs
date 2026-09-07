@@ -316,7 +316,7 @@ public static class DemoViewModelFactory
     /// </summary>
     /// <param name="notificationService">Optional notification service for demo actions.</param>
     /// <returns>A configured demo add local content view model.</returns>
-    public static AddLocalContentViewModel CreateDemoAddLocalContent(INotificationService? notificationService = null)
+    public static DemoAddLocalContentViewModel CreateDemoAddLocalContent(INotificationService? notificationService = null)
     {
         var mockService = new MockLocalContentService();
         var mockLogger = new MockLogger<AddLocalContentViewModel>();

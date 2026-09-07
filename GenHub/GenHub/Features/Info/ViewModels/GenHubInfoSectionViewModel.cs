@@ -279,7 +279,7 @@ public partial class GenHubInfoSectionViewModel(
     /// <summary>
     /// Gets the demo add local content view model.
     /// </summary>
-    public AddLocalContentViewModel? DemoAddLocalContent { get; private set; }
+    public DemoAddLocalContentViewModel? DemoAddLocalContent { get; private set; }
 
     /// <summary>
     /// Gets the demo workspace view model for the Filesystem Magic section.

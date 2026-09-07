@@ -561,51 +561,81 @@ public class DefaultInfoContentProvider : IInfoContentProvider
         {
             Id = InfoConstants.SectionLocalContent,
             Title = "Local Content",
-            Description = "Import external mods, maps, and tools from your PC.",
+            Description = "Import external mods, custom engine builds, modding tools, and maps.",
             Order = 5,
             Cards =
             [
                 new InfoCard
                 {
-                    Title = "Universal Import",
-                    Content = "Add ZIP archives, folders, and executables into GenHub.",
+                    Title = "Importing local content into your library",
+                    Content = "Add folders, ZIP archives, and executables as reusable content items.",
                     Type = InfoCardType.Concept,
                     IsExpandable = true,
                     DetailedContent = """
-                    **The 'Add Local' Button:**
-                    Use the **Add Local** button to import content from anywhere on your computer:
+                    **The Add Local workflow**
+                    Use the **Add Local** button in the profile Content tab or library view to register external files into GenHub:
 
-                    *   **ZIP Archives:** Drag and drop a mod or map pack ZIP archive. GenHub unpacks and registers it automatically.
-                    *   **Folders:** Link directly to an unpacked mod folder on your drive without duplicating files.
-                    *   **Executables:** Link standalone tools, map editors, or custom game binaries.
+                    * **Folders:** Select an unpacked mod directory or community tool folder on your drive.
+                    * **ZIP archives:** Select or drop an archive. GenHub extracts files into an isolated staging area for inspection.
+                    * **Executables:** Choose a standalone `.exe` such as WorldBuilder or an engine binary.
+
+                    **Central content storage**
+                    When you confirm an import, GenHub registers the item into your local content pool and creates an immutable manifest. The content item is stored once on disk and can be attached to any number of game profiles without copying or duplicating files.
                     """,
                 },
                 new InfoCard
                 {
-                    Title = "Endless Possibilities",
-                    Content = "Map packs, total conversions, and community utilities.",
+                    Title = "Content types and executable selection",
+                    Content = "Configure mods, addons, maps, modding tools, and game clients.",
                     Type = InfoCardType.Feature,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Supported Content:**
-                    *   **Map Packs:** Large map collections are automatically cataloged and indexed into individual maps.
-                    *   **Total Conversions:** Full game modifications like Rise of the Reds, ShockWave, or Contra can be imported directly.
-                    *   **Community Utilities:** Access classic editing tools and utilities right from your profile dashboard.
+                    **Selecting the correct content type**
+                    The content type determines how GenHub mounts and runs your files:
+
+                    * **Mods:** Full game modifications containing `.big` archives (such as ShockWave, Rise of the Reds, or Contra), INI overrides, and custom art assets.
+                    * **Addons and patches:** Incremental additions such as camera height adjustments, texture packs, or balance patches that layer over base games or mods.
+                    * **Maps and map packs:** Loose `.map` files with `.tga` preview images or bundled map archives. GenHub indexes map metadata and makes them available across profiles.
+                    * **Modding tools:** Utilities like GenHotkeys, FinalBIG, or BigViewer. For modding tools, the content preview tree displays a **Select** button next to each `.exe`. Clicking **Select** designates the primary executable so GenHub can launch the tool directly from the profile tool tray.
+                    * **Game clients and executables:** Custom game binaries, such as community test builds from TheSuperHackers, or standalone editors like WorldBuilder. Marking the main executable tells GenHub which binary starts the game client or editor.
                     """,
                 },
                 new InfoCard
                 {
-                    Title = "Smart Management",
-                    Content = "Validation and isolated storage for imported files.",
+                    Title = "GenLauncher file normalisation",
+                    Content = "Detect and repair scrambled .gib archives and suffix-renamed files.",
                     Type = InfoCardType.HowTo,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Safe Organization:**
-                    GenHub verifies and isolates imported content:
+                    **Why normalisation is necessary**
+                    GenLauncher modifies files directly inside the game directory when activating and deactivating mods. It renames active `.big` files to `.gib` to scramble them, appends `.GLR` (replaced files), `.GOF` (original file backups), and `.GLTC` (temporary copies) suffixes, and creates stray symbolic links. Importing a directory left in this state prevents the game engine from reading mod archives.
 
-                    1.  **File Verification:** Checks for valid `.map`, `.big`, and executable files before adding them to your library.
-                    2.  **Non-Destructive Storage:** Imported files are kept in isolated storage and will never overwrite or alter your base game installation.
-                    3.  **Flexibility:** Combine imported map packs, patches, and mods on any profile.
+                    **Automated normalisation in GenHub**
+                    When you select a folder or archive containing GenLauncher files, GenHub's normalisation service identifies these artifacts automatically during staging:
+
+                    1. Renames all scrambled `.gib` archives back to standard `.big` files so the game engine can mount them.
+                    2. Strips `.GLR`, `.GOF`, and `.GLTC` suffixes to restore standard file names.
+                    3. Cleans up broken or invalid symbolic links left by previous installations.
+
+                    Normalisation runs safely in the staging area before registration, ensuring your imported content item contains clean standard assets.
+                    """,
+                },
+                new InfoCard
+                {
+                    Title = "Profile linking and workspace isolation",
+                    Content = "Link local items to game profiles without modifying base game files.",
+                    Type = InfoCardType.Feature,
+                    IsExpandable = true,
+                    DetailedContent = """
+                    **Linking content to game profiles**
+                    After registering a local content item, open any profile in **Profile Settings** and navigate to the **Content** tab:
+
+                    * Enable the checkbox next to any mod, addon, tool, or map pack to attach it to that profile.
+                    * Reorder items in the list to configure load priority when multiple items override the same INI settings or art assets.
+                    * Assign custom game clients (such as a test build from TheSuperHackers) in the Client selector.
+
+                    **Workspace isolation**
+                    GenHub never writes modded files into your original Command & Conquer installation directory. When launching a profile, GenHub creates an isolated workspace using symbolic links or hardlinks to combine your base game with the specific content items assigned to that profile. Your base game files remain untouched, and profiles run independently without file conflicts.
                     """,
                 },
             ],

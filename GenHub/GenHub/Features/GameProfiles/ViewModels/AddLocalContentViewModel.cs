@@ -679,7 +679,7 @@ public partial class AddLocalContentViewModel(
     }
 
     [RelayCommand]
-    private async Task AddContentAsync()
+    protected virtual async Task AddContentAsync()
     {
         if (string.IsNullOrWhiteSpace(ContentName))
         {

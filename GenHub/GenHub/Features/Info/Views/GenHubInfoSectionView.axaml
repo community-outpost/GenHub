@@ -142,6 +142,38 @@
        <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
 
+    <!-- Demo Preset Switcher Button Styles -->
+    <Style Selector="Button.preset-btn">
+       <Setter Property="Background" Value="#18FFFFFF"/>
+       <Setter Property="BorderBrush" Value="#30FFFFFF"/>
+       <Setter Property="BorderThickness" Value="1"/>
+       <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+       <Setter Property="FontSize" Value="11.5"/>
+       <Setter Property="Padding" Value="12,7"/>
+       <Setter Property="CornerRadius" Value="6"/>
+       <Setter Property="Cursor" Value="Hand"/>
+       <Setter Property="Transitions">
+         <Transitions>
+           <BrushTransition Property="Background" Duration="0:0:0.15"/>
+           <BrushTransition Property="Foreground" Duration="0:0:0.15"/>
+           <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+         </Transitions>
+       </Setter>
+    </Style>
+
+    <Style Selector="Button.preset-btn:pointerover">
+       <Setter Property="Background" Value="#25FFFFFF"/>
+       <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+       <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+    </Style>
+
+    <Style Selector="Button.preset-btn.preset-active">
+       <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+       <Setter Property="Foreground" Value="White"/>
+       <Setter Property="FontWeight" Value="SemiBold"/>
+       <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}"/>
+    </Style>
+
     <!-- Markdown Card Content Style -->
     <Style Selector="infra|MarkdownTextBlock.card-content">
         <Setter Property="FontSize" Value="15"/>
@@ -589,55 +621,102 @@
         <!-- DEMO: LOCAL CONTENT                            -->
         <!-- ============================================== -->
         <Border IsVisible="{Binding IsLocalContentSelected}" Margin="0,0,0,50">
-             <StackPanel Spacing="20">
-                <StackPanel HorizontalAlignment="Left" Spacing="8">
-                    <TextBlock Text="Content Import" Classes="demo-title"/>
-                    <TextBlock Text="Add external files for profile usage." Classes="demo-subtitle"/>
-
-                    <!-- detailed explanations removed in favor of info cards -->
-                    <StackPanel Margin="0,12,0,0" Spacing="6">
-                    </StackPanel>
+             <StackPanel Spacing="18">
+                <StackPanel HorizontalAlignment="Left" Spacing="6">
+                    <TextBlock Text="Interactive Demo: Add Local Content" Classes="demo-title"/>
+                    <TextBlock Text="Explore real use cases: mods with .big archives and maps, custom engine builds, modding tools with executable selection, and standalone editors." Classes="demo-subtitle"/>
                 </StackPanel>
 
-                <!-- Expanded demo container with proper width -->
-                <Border Classes="demo-container">
-                   <!-- Use Viewbox to scale content while maintaining aspect ratio -->
-                   <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
-                       <!-- SIMULATED WINDOW FRAME -->
-                       <Panel Width="800" Height="600">
-                            <!-- Acrylic Tint Layer Simulation -->
-                            <ExperimentalAcrylicBorder IsHitTestVisible="False">
-                                <ExperimentalAcrylicBorder.Material>
-                                    <ExperimentalAcrylicMaterial
-                                        BackgroundSource="Digger"
-                                        TintColor="Black"
-                                        TintOpacity="0.85"
-                                        MaterialOpacity="0.65" />
-                                </ExperimentalAcrylicBorder.Material>
-                            </ExperimentalAcrylicBorder>
-
-                            <!-- Main Content Border and Title Bar -->
-                            <Border BorderBrush="#30FFFFFF" BorderThickness="1" CornerRadius="0" Background="#CC000000">
-                                <Grid RowDefinitions="30,*" Margin="20,10,20,20">
-                                    <!-- Custom Title Bar Drag Area Simulation -->
-                                    <Grid Grid.Row="0" Background="Transparent" IsHitTestVisible="False">
-                                        <TextBlock Text="Add Local Content"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center"
-                                                   Foreground="#80FFFFFF"
-                                                   FontSize="12"
-                                                   IsHitTestVisible="False"/>
-                                    </Grid>
-
-                                    <!-- Extracted Content View -->
-                                    <local:AddLocalContentView Grid.Row="1" DataContext="{Binding DemoAddLocalContent}"/>
-                                </Grid>
-                            </Border>
-                       </Panel>
-                   </Viewbox>
+                <!-- Demo Presets Switcher Bar -->
+                <Border Background="{DynamicResource SurfaceElevatedDarkBrush}"
+                        BorderBrush="{DynamicResource BorderSubtleBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="14,10">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,14,0">
+                            <material:MaterialIcon Kind="TuneVariant" Width="18" Height="18" Foreground="{DynamicResource AccentLightBrush}"/>
+                            <TextBlock Text="Real Use Cases:" FontWeight="SemiBold" FontSize="12.5" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}"/>
+                        </StackPanel>
+                        <WrapPanel Grid.Column="1" HorizontalAlignment="Right" Orientation="Horizontal">
+                            <Button Content="Mod (.BIG Archives &amp; Assets)"
+                                    Command="{Binding DemoAddLocalContent.LoadModPresetCommand}"
+                                    Classes.preset-active="{Binding DemoAddLocalContent.IsModPresetActive}"
+                                    Classes="preset-btn"
+                                    Margin="0,0,8,0"
+                                    ToolTip.Tip="ShockWave mod package with .big archives, INIs, and maps. No executable needed."/>
+                            <Button Content="Game Client (TheSuperHackers)"
+                                    Command="{Binding DemoAddLocalContent.LoadGameClientPresetCommand}"
+                                    Classes.preset-active="{Binding DemoAddLocalContent.IsGameClientPresetActive}"
+                                    Classes="preset-btn"
+                                    Margin="0,0,8,0"
+                                    ToolTip.Tip="Custom engine client build with generals.exe marked as the game binary."/>
+                            <Button Content="Modding Tool (GenHotkeys)"
+                                    Command="{Binding DemoAddLocalContent.LoadModdingToolPresetCommand}"
+                                    Classes.preset-active="{Binding DemoAddLocalContent.IsModdingToolPresetActive}"
+                                    Classes="preset-btn"
+                                    Margin="0,0,8,0"
+                                    ToolTip.Tip="Modding utility showing interactive executable selection in the preview tree."/>
+                            <Button Content="Executable (WorldBuilder)"
+                                    Command="{Binding DemoAddLocalContent.LoadExecutablePresetCommand}"
+                                    Classes.preset-active="{Binding DemoAddLocalContent.IsExecutablePresetActive}"
+                                    Classes="preset-btn"
+                                    ToolTip.Tip="Standalone editor executable configured as a launch target."/>
+                        </WrapPanel>
+                    </Grid>
                 </Border>
 
+                <!-- Interactive Window Frame Mockup with Pure Native Theme Colors -->
+                <Border Classes="demo-container" Padding="0">
+                   <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="840">
+                       <Border Width="820"
+                               Height="580"
+                               Background="{DynamicResource SurfaceElevatedDarkBrush}"
+                               BorderBrush="{DynamicResource BorderSubtleBrush}"
+                               BorderThickness="1"
+                               CornerRadius="10"
+                               ClipToBounds="True">
+                            <Grid RowDefinitions="36,*">
+                                <!-- Simulated Title Bar with Native Palette -->
+                                <Border Grid.Row="0"
+                                        Background="#0C0C14"
+                                        BorderBrush="{DynamicResource BorderSubtleBrush}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="14,0">
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <!-- Window control dots -->
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                            <Ellipse Width="10" Height="10" Fill="#ED6A5E" Opacity="0.85"/>
+                                            <Ellipse Width="10" Height="10" Fill="#F4BF4F" Opacity="0.85"/>
+                                            <Ellipse Width="10" Height="10" Fill="#61C554" Opacity="0.85"/>
+                                        </StackPanel>
 
+                                        <!-- Window Title -->
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <material:MaterialIcon Kind="PlusCircleOutline" Width="14" Height="14" Foreground="{DynamicResource TextSecondary}"/>
+                                            <TextBlock Text="Add Local Content"
+                                                       Foreground="{DynamicResource TextSecondary}"
+                                                       FontSize="12"
+                                                       FontWeight="SemiBold"/>
+                                        </StackPanel>
+
+                                        <!-- Subtitle Hint -->
+                                        <TextBlock Grid.Column="2"
+                                                   Text="Interactive Preview"
+                                                   Foreground="{DynamicResource TextMuted}"
+                                                   FontSize="11"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Extracted Content View with pure native colors and padding -->
+                                <Border Grid.Row="1" Padding="16,14">
+                                    <local:AddLocalContentView DataContext="{Binding DemoAddLocalContent}"/>
+                                </Border>
+                            </Grid>
+                       </Border>
+                   </Viewbox>
+                </Border>
              </StackPanel>
         </Border>
 

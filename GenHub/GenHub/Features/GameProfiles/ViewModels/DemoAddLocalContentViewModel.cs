@@ -2,22 +2,78 @@ using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Notifications;
 using GenHub.Features.Info.Services;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
 
 /// <summary>
+/// Preset scenarios available for the interactive Add Local Content demo.
+/// </summary>
+public enum LocalContentDemoPreset
+{
+    /// <summary>
+    /// Mod package with .big archives, INI overrides, and map assets.
+    /// </summary>
+    Mod,
+
+    /// <summary>
+    /// Custom game engine client (e.g. TheSuperHackers test build) with executable entry point.
+    /// </summary>
+    GameClient,
+
+    /// <summary>
+    /// Community modding tool (e.g. GenHotkeys) with selectable executable entry point.
+    /// </summary>
+    ModdingTool,
+
+    /// <summary>
+    /// Standalone executable (e.g. WorldBuilder map editor).
+    /// </summary>
+    Executable,
+}
+
+/// <summary>
 /// A specialized ViewModel for the Add Local Content Demo.
-/// This bypasses complex service logic and guarantees static mock data is loaded.
+/// This bypasses complex service logic and provides interactive presets representing real-world C&amp;C modding workflows.
 /// </summary>
 [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized URI constants / mock demo paths")]
 public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
 {
     private readonly INotificationService? _notificationService;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsModPresetActive))]
+    [NotifyPropertyChangedFor(nameof(IsGameClientPresetActive))]
+    [NotifyPropertyChangedFor(nameof(IsModdingToolPresetActive))]
+    [NotifyPropertyChangedFor(nameof(IsExecutablePresetActive))]
+    private LocalContentDemoPreset _activePreset = LocalContentDemoPreset.Mod;
+
+    /// <summary>
+    /// Gets a value indicating whether the Mod preset is currently active.
+    /// </summary>
+    public bool IsModPresetActive => ActivePreset == LocalContentDemoPreset.Mod;
+
+    /// <summary>
+    /// Gets a value indicating whether the Game Client preset is currently active.
+    /// </summary>
+    public bool IsGameClientPresetActive => ActivePreset == LocalContentDemoPreset.GameClient;
+
+    /// <summary>
+    /// Gets a value indicating whether the Modding Tool preset is currently active.
+    /// </summary>
+    public bool IsModdingToolPresetActive => ActivePreset == LocalContentDemoPreset.ModdingTool;
+
+    /// <summary>
+    /// Gets a value indicating whether the Executable preset is currently active.
+    /// </summary>
+    public bool IsExecutablePresetActive => ActivePreset == LocalContentDemoPreset.Executable;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DemoAddLocalContentViewModel"/> class.
@@ -38,121 +94,267 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
         // Enable demo mode to hide Cancel button and enable demo-specific behavior
         IsDemoMode = true;
 
-        // Initialize with demo data
-        InitializeDemoData();
+        // Initialize with default Mod preset
+        LoadModPreset();
+
+        // Listen for executable selection changes to provide feedback
+        PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(SelectedExecutableItem) && SelectedExecutableItem != null)
+            {
+                StatusMessage = $"Designated '{SelectedExecutableItem.Name}' as primary launch target.";
+                _notificationService?.Show(new NotificationMessage(
+                    NotificationType.Info,
+                    "Executable Selected",
+                    $"'{SelectedExecutableItem.Name}' designated as the entry point for this {SelectedContentType}.",
+                    3500));
+                CanAdd = true;
+            }
+        };
 
         // Set up demo actions that return demo paths and show notifications
         SetupDemoActions();
     }
 
     /// <summary>
-    /// Initializes the demo with static mock data.
+    /// Loads the Mod preset showcasing .big archives, INI overrides, and custom maps.
     /// </summary>
-    private void InitializeDemoData()
+    [RelayCommand]
+    public void LoadModPreset()
     {
-        // Set default values
-        ContentName = "Rise of the Reds v1.87";
+        ActivePreset = LocalContentDemoPreset.Mod;
+        ContentName = "ShockWave v1.201";
         SelectedContentType = ContentType.Mod;
         SelectedGameType = GameType.ZeroHour;
-        SourcePath = "C:\\Downloads\\RiseOfTheReds_v1.87.zip";
-
-        // CRITICAL: Ensure IsBusy is false to prevent infinite processing spinner
-        // This overrides any state left by base constructor or mock services
+        SourcePath = @"C:\Downloads\ShockWave_v1.201.zip";
         IsBusy = false;
 
-        // Build demo file tree structure
         FileTree.Clear();
 
-        // Create a realistic mod structure with better organization
         var modFolder = new FileTreeItem
         {
-            Name = "RiseOfTheReds_v1.87",
+            Name = "ShockWave_v1.201",
             IsFile = false,
-            FullPath = "C:\\Demo\\RiseOfTheReds_v1.87",
+            FullPath = @"C:\Demo\ShockWave_v1.201",
             Children =
             [
-
-                // Core Game Files
-                new()
-                {
-                    Name = "Core Files",
-                    IsFile = false,
-                    FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Core",
-                    Children =
-                    [
-                         new() { Name = "ROTR_Installer.exe", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\ROTR_Installer.exe" },
-                         new() { Name = "README.txt", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\README.txt" },
-                         new() { Name = "License.rtf", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\License.rtf" },
-                    ],
-                },
-
-                // Data Folder
+                new() { Name = "!000_ShockWave.big", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\!000_ShockWave.big" },
+                new() { Name = "!000_ShockWave_Audio.big", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\!000_ShockWave_Audio.big" },
+                new() { Name = "!000_ShockWave_Textures.big", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\!000_ShockWave_Textures.big" },
+                new() { Name = "!000_ShockWave_English.big", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\!000_ShockWave_English.big" },
                 new()
                 {
                     Name = "Data",
                     IsFile = false,
-                    FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Data",
+                    FullPath = @"C:\Demo\ShockWave_v1.201\Data",
                     Children =
                     [
-                        new() { Name = "INI", IsFile = false, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Data\\INI" },
-                        new() { Name = "Art", IsFile = false, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Data\\Art" },
-                        new() { Name = "Audio", IsFile = false, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Data\\Audio" },
-                        new() { Name = "Scripts", IsFile = false, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Data\\Scripts" },
+                        new()
+                        {
+                            Name = "INI",
+                            IsFile = false,
+                            FullPath = @"C:\Demo\ShockWave_v1.201\Data\INI",
+                            Children =
+                            [
+                                new() { Name = "GameData.ini", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\Data\INI\GameData.ini" },
+                                new() { Name = "CommandCard.ini", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\Data\INI\CommandCard.ini" },
+                            ],
+                        },
                     ],
                 },
-
-                // Maps Folder (Organized)
                 new()
                 {
                     Name = "Maps",
                     IsFile = false,
-                    FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Maps",
+                    FullPath = @"C:\Demo\ShockWave_v1.201\Maps",
                     Children =
                     [
                         new()
                         {
-                            Name = "Tournament Desert II",
+                            Name = "ShockWave Tournament Desert",
                             IsFile = false,
-                            FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Maps\\Tournament Desert II",
+                            FullPath = @"C:\Demo\ShockWave_v1.201\Maps\ShockWave Tournament Desert",
                             Children =
                             [
-                                new() { Name = "Tournament Desert II.map", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Maps\\Tournament Desert II\\Tournament Desert II.map" },
-                                new() { Name = "Tournament Desert II.str", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Maps\\Tournament Desert II\\Tournament Desert II.str" },
-                                new() { Name = "Preview.tga", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Maps\\Tournament Desert II\\Preview.tga" },
+                                new() { Name = "ShockWave Tournament Desert.map", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\Maps\ShockWave Tournament Desert\ShockWave Tournament Desert.map" },
+                                new() { Name = "ShockWave Tournament Desert.tga", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\Maps\ShockWave Tournament Desert\ShockWave Tournament Desert.tga" },
                             ],
                         },
-                        new()
-                        {
-                            Name = "Alpine Assault",
-                            IsFile = false,
-                            FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Maps\\Alpine Assault",
-                            Children =
-                            [
-                                new() { Name = "Alpine Assault.map", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Maps\\Alpine Assault\\Alpine Assault.map" },
-                            ],
-                        },
-                    ],
-                },
-
-                // Addons/extras
-                new()
-                {
-                    Name = "Optional Addons",
-                    IsFile = false,
-                    FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Addons",
-                    Children =
-                    [
-                         new() { Name = "HD_Textures.big", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Addons\\HD_Textures.big" },
                     ],
                 },
             ],
         };
 
         FileTree.Add(modFolder);
-        ExecutableCount = CountExecutables(FileTree);
+        ExecutableCount = 0;
+        SelectedExecutableItem = null;
+        CanAdd = true;
+        StatusMessage = "Mod preset loaded. Contains standard .big archives and maps. No executable needed.";
+    }
 
-        // Set status message
-        StatusMessage = "Demo content ready. Click buttons to see what they do!";
+    /// <summary>
+    /// Loads the Game Client preset showcasing custom test builds (e.g. TheSuperHackers).
+    /// </summary>
+    [RelayCommand]
+    public void LoadGameClientPreset()
+    {
+        ActivePreset = LocalContentDemoPreset.GameClient;
+        ContentName = "TheSuperHackers Engine Build (v1.06 Beta)";
+        SelectedContentType = ContentType.GameClient;
+        SelectedGameType = GameType.ZeroHour;
+        SourcePath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build";
+        IsBusy = false;
+
+        FileTree.Clear();
+
+        var generalsExe = new FileTreeItem
+        {
+            Name = "generals.exe",
+            IsFile = true,
+            FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\generals.exe",
+            IsSelectedExecutable = true,
+        };
+
+        var clientFolder = new FileTreeItem
+        {
+            Name = "TheSuperHackers_ZeroHour_test_build",
+            IsFile = false,
+            FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build",
+            Children =
+            [
+                generalsExe,
+                new() { Name = "game.dat", IsFile = true, FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\game.dat" },
+                new() { Name = "binkw32.dll", IsFile = true, FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\binkw32.dll" },
+                new() { Name = "d3d8.dll", IsFile = true, FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\d3d8.dll" },
+                new() { Name = "dbghelp.dll", IsFile = true, FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\dbghelp.dll" },
+                new() { Name = "Shaders.big", IsFile = true, FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\Shaders.big" },
+            ],
+        };
+
+        FileTree.Add(clientFolder);
+        ExecutableCount = 1;
+        SelectedExecutableItem = generalsExe;
+        CanAdd = true;
+        StatusMessage = "Custom engine build loaded. 'generals.exe' is designated as the client binary for profile launches.";
+    }
+
+    /// <summary>
+    /// Loads the Modding Tool preset showcasing tools like GenHotkeys with selectable executables.
+    /// </summary>
+    [RelayCommand]
+    public void LoadModdingToolPreset()
+    {
+        ActivePreset = LocalContentDemoPreset.ModdingTool;
+        ContentName = "GenHotkeys v2.1";
+        SelectedContentType = ContentType.ModdingTool;
+        SelectedGameType = GameType.ZeroHour;
+        SourcePath = @"C:\Tools\GenHotkeys_v2.1";
+        IsBusy = false;
+
+        FileTree.Clear();
+
+        var genHotkeysExe = new FileTreeItem
+        {
+            Name = "GenHotkeys.exe",
+            IsFile = true,
+            FullPath = @"C:\Tools\GenHotkeys_v2.1\GenHotkeys.exe",
+            IsSelectedExecutable = true,
+        };
+
+        var updaterExe = new FileTreeItem
+        {
+            Name = "GenHotkeys_Updater.exe",
+            IsFile = true,
+            FullPath = @"C:\Tools\GenHotkeys_v2.1\GenHotkeys_Updater.exe",
+            IsSelectedExecutable = false,
+        };
+
+        var toolFolder = new FileTreeItem
+        {
+            Name = "GenHotkeys_v2.1",
+            IsFile = false,
+            FullPath = @"C:\Tools\GenHotkeys_v2.1",
+            Children =
+            [
+                genHotkeysExe,
+                updaterExe,
+                new() { Name = "Hotkeys.ini", IsFile = true, FullPath = @"C:\Tools\GenHotkeys_v2.1\Hotkeys.ini" },
+                new() { Name = "DefaultBindings.cfg", IsFile = true, FullPath = @"C:\Tools\GenHotkeys_v2.1\DefaultBindings.cfg" },
+                new()
+                {
+                    Name = "Docs",
+                    IsFile = false,
+                    FullPath = @"C:\Tools\GenHotkeys_v2.1\Docs",
+                    Children =
+                    [
+                        new() { Name = "Readme.txt", IsFile = true, FullPath = @"C:\Tools\GenHotkeys_v2.1\Docs\Readme.txt" },
+                    ],
+                },
+            ],
+        };
+
+        FileTree.Add(toolFolder);
+        ExecutableCount = 2;
+        SelectedExecutableItem = genHotkeysExe;
+        CanAdd = true;
+        StatusMessage = "Modding tool loaded. Notice the 'Select' button next to executables. Click 'Select' on an .exe to designate the launch target.";
+    }
+
+    /// <summary>
+    /// Loads the Executable preset showcasing standalone editors like WorldBuilder.
+    /// </summary>
+    [RelayCommand]
+    public void LoadExecutablePreset()
+    {
+        ActivePreset = LocalContentDemoPreset.Executable;
+        ContentName = "WorldBuilder Zero Hour 1.04";
+        SelectedContentType = ContentType.Executable;
+        SelectedGameType = GameType.ZeroHour;
+        SourcePath = @"C:\Games\Command & Conquer Generals Zero Hour\WorldBuilder.exe";
+        IsBusy = false;
+
+        FileTree.Clear();
+
+        var wbExe = new FileTreeItem
+        {
+            Name = "WorldBuilder.exe",
+            IsFile = true,
+            FullPath = @"C:\Demo\WorldBuilder_ZH\WorldBuilder.exe",
+            IsSelectedExecutable = true,
+        };
+
+        var wbFolder = new FileTreeItem
+        {
+            Name = "WorldBuilder_ZH",
+            IsFile = false,
+            FullPath = @"C:\Demo\WorldBuilder_ZH",
+            Children =
+            [
+                wbExe,
+                new() { Name = "WorldBuilder.ini", IsFile = true, FullPath = @"C:\Demo\WorldBuilder_ZH\WorldBuilder.ini" },
+                new() { Name = "ObjectEditor.dll", IsFile = true, FullPath = @"C:\Demo\WorldBuilder_ZH\ObjectEditor.dll" },
+            ],
+        };
+
+        FileTree.Add(wbFolder);
+        ExecutableCount = 1;
+        SelectedExecutableItem = wbExe;
+        CanAdd = true;
+        StatusMessage = "Standalone executable loaded. WorldBuilder.exe is marked as the launch target.";
+    }
+
+    /// <inheritdoc/>
+    protected override async Task AddContentAsync()
+    {
+        _notificationService?.Show(new NotificationMessage(
+            NotificationType.Success,
+            "Local Content Registered",
+            $"'{ContentName}' ({SelectedContentType}) was added to your local library. You can now link it to any profile under Profile Settings > Content.",
+            4500));
+
+        StatusMessage = $"'{ContentName}' registered in library. Ready to link to any game profile!";
+        CanAdd = true;
+        await Task.CompletedTask;
     }
 
     /// <summary>
@@ -160,28 +362,26 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
     /// </summary>
     private void SetupDemoActions()
     {
-        // Set up BrowseFolderAction to return demo path and show notification
         BrowseFolderAction = async () =>
         {
-            _notificationService?.Show(new Core.Models.Notifications.NotificationMessage(
-                Core.Models.Enums.NotificationType.Info,
+            _notificationService?.Show(new NotificationMessage(
+                NotificationType.Info,
                 "Demo - Browse Folder",
-                "In the actual dialog, this opens a folder picker to select a mod or map directory.",
-                4000));
+                "Opens a folder picker on your PC to select an unpacked mod, tool, or engine directory.",
+                3500));
             await Task.Delay(100);
-            return "C:\\Demo\\ExampleMod";
+            return @"C:\Downloads\CustomModFolder";
         };
 
-        // Set up BrowseFileAction to return demo paths and show notification
         BrowseFileAction = async () =>
         {
-            _notificationService?.Show(new Core.Models.Notifications.NotificationMessage(
+            _notificationService?.Show(new NotificationMessage(
                 NotificationType.Info,
                 "Demo - Browse Files",
-                "In the actual dialog, this opens a file picker to select .zip archives or individual files.",
-                4000));
+                "Opens a file picker on your PC to select .zip archives, .big files, or standalone .exe binaries.",
+                3500));
             await Task.Delay(100);
-            return ["C:\\Downloads\\ExampleMod.zip"];
+            return [@"C:\Downloads\CustomModArchive.zip"];
         };
     }
 
