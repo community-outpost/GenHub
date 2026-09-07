@@ -1218,7 +1218,7 @@ public class ManifestGenerationService(
     }
 
     private async Task<IReadOnlyList<CsvCatalogEntry>?> TryResolveAuthoritativeEntriesAsync(
-        IContentResolver resolver,
+        CsvResolver resolver,
         GameType gameType,
         string version,
         string language,
