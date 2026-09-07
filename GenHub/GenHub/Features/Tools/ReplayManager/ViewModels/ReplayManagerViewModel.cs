@@ -230,7 +230,7 @@ public partial class ReplayManagerViewModel(
     /// <inheritdoc />
     public void Dispose()
     {
-        WeakReferenceMessenger.Default.UnregisterAll(this);
+        Dispose(true);
         GC.SuppressFinalize(this);
     }
 
@@ -282,6 +282,18 @@ public partial class ReplayManagerViewModel(
         {
             IsBusy = false;
             IsIndeterminate = false;
+        }
+    }
+
+    /// <summary>
+    /// Releases unmanaged and - optionally - managed resources.
+    /// </summary>
+    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            WeakReferenceMessenger.Default.UnregisterAll(this);
         }
     }
 

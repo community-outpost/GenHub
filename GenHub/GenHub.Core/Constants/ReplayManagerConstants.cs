@@ -155,6 +155,26 @@ public static class ReplayManagerConstants
     public const string RetailManifestSegment = ".retail.";
 
     /// <summary>
+    /// Manifest segment pattern indicating Steam distribution.
+    /// </summary>
+    public const string SteamManifestSegment = ".steam.";
+
+    /// <summary>
+    /// Manifest segment pattern indicating EA App distribution.
+    /// </summary>
+    public const string EaAppManifestSegment = ".eaapp.";
+
+    /// <summary>
+    /// Default integer version number for Command &amp; Conquer Generals: Zero Hour retail manifests (1.04).
+    /// </summary>
+    public const int DefaultZeroHourVersionNumber = 104;
+
+    /// <summary>
+    /// Default integer version number for Command &amp; Conquer Generals retail manifests (1.08).
+    /// </summary>
+    public const int DefaultGeneralsVersionNumber = 108;
+
+    /// <summary>
     /// Default update polling interval for checking new CRC catalog releases (24 hours).
     /// </summary>
     public static readonly TimeSpan DefaultCatalogUpdateInterval = TimeSpan.FromHours(24);
