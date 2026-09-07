@@ -635,6 +635,31 @@ public class DownloadsBrowserViewModelTests
         Assert.Equal("mod-b1", viewModel.ContentItems[0].SearchResult.Id);
     }
 
+    /// <summary>
+    /// Verifies that typing a ModDB direct URL while on another publisher switches to ModDB and retains the URL.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SearchCommand_WithModDbUrlOnDifferentPublisher_SwitchesToModDbAndRetainsSearchTermAsync()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+        await viewModel.InitializeAsync();
+
+        var nonModDbPublisher = viewModel.Publishers.First(p => p.PublisherId != PublisherTypeConstants.ModDB);
+        viewModel.SelectedPublisher = nonModDbPublisher;
+
+        const string modDbUrl = "https://www.moddb.com/mods/rise-of-the-reds";
+        viewModel.SearchTerm = modDbUrl;
+
+        // Act
+        await viewModel.SearchCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.Equal(PublisherTypeConstants.ModDB, viewModel.SelectedPublisher?.PublisherId);
+        Assert.Equal(modDbUrl, viewModel.SearchTerm);
+    }
+
     private static DownloadsBrowserViewModel CreateViewModel()
     {
         var subscriptionStore = new Mock<IPublisherSubscriptionStore>();

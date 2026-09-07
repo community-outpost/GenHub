@@ -235,6 +235,51 @@ public sealed class ProfileLauncherFacadeWorkspaceNotificationTests
         Assert.Contains(prepNotification.Id, dismissedNotifications);
     }
 
+    /// <summary>
+    /// Verifies that when launch throws an exception while workspace is initializing, the persistent notification is dismissed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WhenLaunchThrowsDuringWorkspaceInit_DismissesPersistentNotificationAsync()
+    {
+        // Arrange
+        var shownNotifications = new List<NotificationMessage>();
+        _notificationServiceMock
+            .Setup(n => n.Show(It.IsAny<NotificationMessage>()))
+            .Callback<NotificationMessage>(shownNotifications.Add);
+
+        var dismissedNotifications = new List<Guid>();
+        _notificationServiceMock
+            .Setup(n => n.Dismiss(It.IsAny<Guid>()))
+            .Callback<Guid>(dismissedNotifications.Add);
+
+        _gameLauncherMock
+            .Setup(g => g.LaunchProfileAsync(It.IsAny<GameProfile>(), It.IsAny<IProgress<LaunchProgress>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Callback<GameProfile, IProgress<LaunchProgress>?, bool, CancellationToken>((_, progress, _, _) =>
+            {
+                progress?.Report(new LaunchProgress
+                {
+                    Phase = LaunchPhase.PreparingWorkspace,
+                    PercentComplete = 40,
+                    IsInitializingWorkspace = true,
+                    TotalFiles = 10,
+                    FilesProcessed = 4,
+                });
+                throw new OperationCanceledException();
+            });
+
+        var facade = CreateFacade();
+
+        // Act
+        var result = await facade.LaunchProfileAsync("test-profile");
+
+        // Assert
+        Assert.False(result.Success);
+        var prepNotification = shownNotifications.FirstOrDefault(n => n.Title == "Preparing Workspace");
+        Assert.NotNull(prepNotification);
+        Assert.Contains(prepNotification.Id, dismissedNotifications);
+    }
+
     private ProfileLauncherFacade CreateFacade() => new(
         _profileManagerMock.Object,
         _gameLauncherMock.Object,

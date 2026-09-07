@@ -696,7 +696,13 @@ public sealed partial class DownloadsBrowserViewModel(
             var moddbPublisher = Publishers.FirstOrDefault(p => p.PublisherId == PublisherTypeConstants.ModDB);
             if (moddbPublisher != null)
             {
+                var targetUrl = SearchTerm;
                 SelectedPublisher = moddbPublisher;
+                SearchTerm = targetUrl;
+                _hasCustomQuery = true;
+                CurrentPage = 1;
+                Interlocked.Increment(ref _activeRequestId);
+                await RefreshContentAsync();
                 return;
             }
         }
@@ -1443,7 +1449,7 @@ public sealed partial class DownloadsBrowserViewModel(
             return;
         }
 
-        CancellationToken cancellationToken = default; // We might want to support cancellation later
+        var cancellationToken = _vmCts.Token;
 
         try
         {
@@ -1498,7 +1504,7 @@ public sealed partial class DownloadsBrowserViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error downloading content: {Name}", item.Name);
-            item.DownloadStatus = $"Error: {ex.Message}";
+            item.DownloadStatus = "Download failed due to an unexpected error";
         }
         finally
         {

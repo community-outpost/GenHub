@@ -308,7 +308,21 @@ public class ProfileLauncherFacade(
                 }
             });
 
-            var prepareResult = await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, workspaceProgress, cancellationToken: cancellationToken);
+            OperationResult<WorkspaceInfo> prepareResult;
+            try
+            {
+                prepareResult = await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, workspaceProgress, cancellationToken: cancellationToken);
+            }
+            catch (Exception)
+            {
+                if (notificationTracker.NotificationId.HasValue)
+                {
+                    notificationService.Dismiss(notificationTracker.NotificationId.Value);
+                }
+
+                throw;
+            }
+
             if (notificationTracker.NotificationId.HasValue)
             {
                 if (prepareResult.Success)
@@ -681,20 +695,31 @@ public class ProfileLauncherFacade(
 
         var toolDirectoryPath = toolWorkspacePath;
 
-        // Find the executable file in the tool manifest
-        // Priority 1: File marked as IsExecutable
-        // Priority 2: File ending with .exe
-        var toolExecutable = toolManifest.Files?.FirstOrDefault(f => f.IsExecutable)
-            ?? toolManifest.Files?.FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
+        // Find the executable file in the tool manifest:
+        // Priority 1: ManifestVariantResolver (variant-aware, declared entry point, executable classifier)
+        // Priority 2: File marked as IsExecutable
+        // Priority 3: File ending with .exe
+        string? toolRelativePath = null;
+        var entryPointResolution = ManifestVariantResolver.ResolveEntryPoint(toolManifest);
+        if (entryPointResolution.Success && !string.IsNullOrEmpty(entryPointResolution.RelativePath))
+        {
+            toolRelativePath = entryPointResolution.RelativePath;
+        }
+        else
+        {
+            var fallbackExecutable = toolManifest.Files?.FirstOrDefault(f => f.IsExecutable)
+                ?? toolManifest.Files?.FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
+            toolRelativePath = fallbackExecutable?.RelativePath;
+        }
 
-        if (toolExecutable == null)
+        if (string.IsNullOrEmpty(toolRelativePath))
         {
             logger.LogError("[Launch] Tool manifest {ManifestId} does not specify an executable file", toolManifest.Id);
             return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
                 ProfileValidationConstants.ToolManifestMissingExecutable);
         }
 
-        var toolExecutablePath = Path.Combine(toolDirectoryPath, toolExecutable.RelativePath);
+        var toolExecutablePath = Path.Combine(toolDirectoryPath, toolRelativePath);
         if (!File.Exists(toolExecutablePath))
         {
             logger.LogError("[Launch] Tool executable not found at path: {Path}", toolExecutablePath);
@@ -1044,7 +1069,20 @@ public class ProfileLauncherFacade(
             }
         });
 
-        var launchResult = await gameLauncher.LaunchProfileAsync(profile, progress: launchProgress, skipUserDataCleanup: skipUserDataCleanup, cancellationToken: cancellationToken);
+        LaunchOperationResult<GameLaunchInfo> launchResult;
+        try
+        {
+            launchResult = await gameLauncher.LaunchProfileAsync(profile, progress: launchProgress, skipUserDataCleanup: skipUserDataCleanup, cancellationToken: cancellationToken);
+        }
+        catch (Exception)
+        {
+            if (workspaceNotificationHolder.Value.HasValue)
+            {
+                notificationService.Dismiss(workspaceNotificationHolder.Value.Value);
+            }
+
+            throw;
+        }
 
         if (workspaceNotificationHolder.Value.HasValue)
         {
