@@ -343,25 +343,24 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
         StatusMessage = "Standalone executable loaded. WorldBuilder.exe is marked as the launch target.";
     }
 
-    /// <inheritdoc/>
-    protected override async Task AddContentAsync()
-    {
-        _notificationService?.Show(new NotificationMessage(
-            NotificationType.Success,
-            "Local Content Registered",
-            $"'{ContentName}' ({SelectedContentType}) was added to your local library. You can now link it to any profile under Profile Settings > Content.",
-            4500));
-
-        StatusMessage = $"'{ContentName}' registered in library. Ready to link to any game profile!";
-        CanAdd = true;
-        await Task.CompletedTask;
-    }
-
     /// <summary>
     /// Sets up demo actions that return demo paths and show notifications.
     /// </summary>
     private void SetupDemoActions()
     {
+        DemoAddAction = async () =>
+        {
+            _notificationService?.Show(new NotificationMessage(
+                NotificationType.Success,
+                "Local Content Registered",
+                $"'{ContentName}' ({SelectedContentType}) was added to your local library. You can now link it to any profile under Profile Settings > Content.",
+                4500));
+
+            StatusMessage = $"'{ContentName}' registered in library. Ready to link to any game profile!";
+            CanAdd = true;
+            await Task.CompletedTask;
+        };
+
         BrowseFolderAction = async () =>
         {
             _notificationService?.Show(new NotificationMessage(

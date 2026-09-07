@@ -7,7 +7,6 @@ using Avalonia.Headless.XUnit;
 using FluentAssertions;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GitHub;
-using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GitHub;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Info.Services;
@@ -16,6 +15,7 @@ using GenHub.Features.Info.Views;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Info;
 
@@ -107,6 +107,7 @@ public class InfoTabResponsivenessTests
     /// <summary>
     /// Verifies that AddContentCommand succeeds in demo mode and updates the status message.
     /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
     public async Task DemoAddLocalContent_AddContentCommand_ExecutesSuccessfully()
     {
@@ -122,11 +123,12 @@ public class InfoTabResponsivenessTests
     /// Verifies that Local Content info cards contain real-world details on GenLauncher normalisation,
     /// profile linking, modding tools, and custom engine test builds.
     /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public void DefaultInfoContentProvider_CreateLocalContentSection_ContainsDetailedUnslopCards()
+    public async Task DefaultInfoContentProvider_CreateLocalContentSection_ContainsDetailedUnslopCards()
     {
         var provider = new DefaultInfoContentProvider();
-        var sections = provider.GetSections();
+        var sections = await provider.GetAllSectionsAsync();
         var localContentSection = sections.FirstOrDefault(s => s.Id == InfoConstants.SectionLocalContent);
 
         localContentSection.Should().NotBeNull();

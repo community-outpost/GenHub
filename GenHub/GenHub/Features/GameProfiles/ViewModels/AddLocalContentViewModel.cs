@@ -248,6 +248,11 @@ public partial class AddLocalContentViewModel(
     public Func<Task<IReadOnlyList<string>?>>? BrowseFileAction { get; set; }
 
     /// <summary>
+    /// Gets or sets an optional custom action to execute during AddContentAsync in demo mode.
+    /// </summary>
+    public Func<Task>? DemoAddAction { get; set; }
+
+    /// <summary>
     /// Loads existing content for editing.
     /// </summary>
     /// <param name="item">The item to load.</param>
@@ -679,8 +684,23 @@ public partial class AddLocalContentViewModel(
     }
 
     [RelayCommand]
-    protected virtual async Task AddContentAsync()
+    private async Task AddContentAsync()
     {
+        if (IsDemoMode)
+        {
+            if (DemoAddAction != null)
+            {
+                await DemoAddAction();
+            }
+            else
+            {
+                StatusMessage = $"'{ContentName}' registered in library. Ready to link to any game profile!";
+                CanAdd = true;
+            }
+
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(ContentName))
         {
             StatusMessage = "Please enter a name for the content.";
