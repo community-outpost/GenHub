@@ -218,12 +218,14 @@ public class InfoTabResponsivenessTests
         statusBorder.Should().NotBeNull();
         statusBorder!.DesiredSize.Width.Should().BeLessOrEqualTo(320);
 
-        // Verify wrapping occurs: height must exceed a single-line TextBlock with the same font properties
+        // Verify wrapping occurs: height must exceed a single-line TextBlock with identical typography properties
         var referenceTextBlock = new TextBlock
         {
             Text = "Single line",
             FontSize = statusTextBlock.FontSize,
             FontFamily = statusTextBlock.FontFamily,
+            FontWeight = statusTextBlock.FontWeight,
+            FontStyle = statusTextBlock.FontStyle,
         };
         referenceTextBlock.Measure(Size.Infinity);
         statusTextBlock.DesiredSize.Height.Should().BeGreaterThan(referenceTextBlock.DesiredSize.Height);

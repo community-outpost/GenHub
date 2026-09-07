@@ -110,7 +110,7 @@
                             Command="{Binding ImportCommand}"
                             IsEnabled="{Binding HasSelectedItems}"
                             Background="{DynamicResource AccentBrush}"
-                            Foreground="{DynamicResource TextPrimary}"
+                            Foreground="{DynamicResource PrimaryButtonForeground}"
                             CornerRadius="6"
                             FontWeight="Medium"
                             Padding="20,8"
