@@ -57,14 +57,13 @@ public partial class GameProfileLauncherViewModel(
     IDialogService dialogService,
     ILogger<GameProfileLauncherViewModel> logger,
     ILoggerFactory? loggerFactory = null,
-    IProfileSharingService? profileSharingService = null,
     IUploadHistoryService? uploadHistoryService = null,
     Func<IProfileSharingService>? profileSharingServiceFactory = null) : ViewModelBase,
     IRecipient<ProfileCreatedMessage>,
     IRecipient<ProfileUpdatedMessage>,
     IRecipient<ProfileListUpdatedMessage>
 {
-    private IProfileSharingService? SharingService => profileSharingService ?? profileSharingServiceFactory?.Invoke();
+    private IProfileSharingService? SharingService => profileSharingServiceFactory?.Invoke();
 
     private readonly SemaphoreSlim _launchSemaphore = new(1, 1);
     private readonly SemaphoreSlim _importDialogSemaphore = new(1, 1);
@@ -369,8 +368,8 @@ public partial class GameProfileLauncherViewModel(
             return;
         }
 
-        var safeSource = shareUriOrPath.StartsWith("genhub://", StringComparison.OrdinalIgnoreCase)
-            ? "genhub:// URI"
+        var safeSource = shareUriOrPath.StartsWith(CommandLineConstants.UriScheme, StringComparison.OrdinalIgnoreCase)
+            ? $"{CommandLineConstants.UriScheme} URI"
             : Path.GetFileName(shareUriOrPath);
 
         try
@@ -1855,7 +1854,8 @@ public partial class GameProfileLauncherViewModel(
 
     private async Task ShareProfileFromCardAsync(GameProfileItemViewModel item)
     {
-        if (profileSharingService == null || string.IsNullOrEmpty(item.ProfileId))
+        var service = SharingService;
+        if (service == null || string.IsNullOrEmpty(item.ProfileId))
         {
             return;
         }
@@ -1872,7 +1872,7 @@ public partial class GameProfileLauncherViewModel(
             var shareViewModel = new ShareProfileDialogViewModel(
                 item.ProfileId,
                 profileResult.Data,
-                profileSharingService,
+                service,
                 loggerFactory?.CreateLogger<ShareProfileDialogViewModel>() ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ShareProfileDialogViewModel>.Instance,
                 uploadHistoryService);
 

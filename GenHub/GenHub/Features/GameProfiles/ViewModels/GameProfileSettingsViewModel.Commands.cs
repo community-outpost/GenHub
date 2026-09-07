@@ -1287,7 +1287,8 @@ public partial class GameProfileSettingsViewModel
             return;
         }
 
-        if (_profileSharingService == null || _gameProfileManager == null)
+        var sharingService = ProfileSharingService;
+        if (sharingService == null || _gameProfileManager == null)
         {
             _localNotificationService.ShowError("Error", "Profile sharing service is not available.");
             return;
@@ -1305,7 +1306,7 @@ public partial class GameProfileSettingsViewModel
             var shareViewModel = new ShareProfileDialogViewModel(
                 CurrentProfileId,
                 profileResult.Data,
-                _profileSharingService,
+                sharingService,
                 _loggerFactory?.CreateLogger<ShareProfileDialogViewModel>() ?? NullLogger<ShareProfileDialogViewModel>.Instance,
                 _uploadHistoryService);
 

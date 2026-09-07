@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
@@ -30,6 +31,9 @@ public partial class ShareProfileDialogViewModel : ViewModelBase, IDisposable
     private readonly string _profileId;
     private readonly System.Threading.CancellationTokenSource _cts = new();
     private bool _disposed;
+    private Task? _generateShareLinkTask;
+    private Task? _exportFileTask;
+    private Task? _quotaTask;
 
     [ObservableProperty]
     private string _profileName = string.Empty;
@@ -130,7 +134,7 @@ public partial class ShareProfileDialogViewModel : ViewModelBase, IDisposable
         {
             if (_uploadHistoryService != null)
             {
-                _ = LoadUploadQuotaAsync();
+                _quotaTask = LoadUploadQuotaAsync();
             }
         }
         else if (string.IsNullOrEmpty(ShareUri))
@@ -170,8 +174,52 @@ public partial class ShareProfileDialogViewModel : ViewModelBase, IDisposable
         }
 
         _disposed = true;
-        _cts.Cancel();
-        _cts.Dispose();
+        try
+        {
+            _cts.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Ignore if already cancelled or disposed
+        }
+
+        // Defer CTS disposal until in-flight tasks observe cancellation and complete,
+        // avoiding ObjectDisposedException when registering callbacks or tokens in transit.
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var tasks = new List<Task>();
+                if (_generateShareLinkTask != null)
+                {
+                    tasks.Add(_generateShareLinkTask);
+                }
+
+                if (_exportFileTask != null)
+                {
+                    tasks.Add(_exportFileTask);
+                }
+
+                if (_quotaTask != null)
+                {
+                    tasks.Add(_quotaTask);
+                }
+
+                if (tasks.Count > 0)
+                {
+                    await Task.WhenAll(tasks).ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+                // Suppress task cancellation / failures on dispose
+            }
+            finally
+            {
+                _cts.Dispose();
+            }
+        });
+
         GC.SuppressFinalize(this);
     }
 
@@ -218,6 +266,12 @@ public partial class ShareProfileDialogViewModel : ViewModelBase, IDisposable
 
     [RelayCommand]
     private async Task GenerateShareLinkAsync()
+    {
+        _generateShareLinkTask = GenerateShareLinkInternalAsync();
+        await _generateShareLinkTask;
+    }
+
+    private async Task GenerateShareLinkInternalAsync()
     {
         if (IsGeneratingLink)
         {
@@ -285,6 +339,12 @@ public partial class ShareProfileDialogViewModel : ViewModelBase, IDisposable
 
     [RelayCommand]
     private async Task ExportFileAsync()
+    {
+        _exportFileTask = ExportFileInternalAsync();
+        await _exportFileTask;
+    }
+
+    private async Task ExportFileInternalAsync()
     {
         try
         {
