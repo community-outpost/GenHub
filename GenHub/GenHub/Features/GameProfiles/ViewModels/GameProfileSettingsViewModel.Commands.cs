@@ -403,6 +403,7 @@ public partial class GameProfileSettingsViewModel
         return true;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Accesses SelectedGameInstallation and instance collections in partial view model")]
     private List<string> CollectEnabledContentIds()
     {
         var enabledContentIds = EnabledContent.Where(c => c.IsEnabled).Select(c => c.ManifestId.Value).ToList();
