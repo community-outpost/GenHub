@@ -17,11 +17,12 @@ namespace GenHub.Features.Content.Services;
 public sealed class CsvCatalogCache
 {
     /// <summary>
-    /// Cached catalog content and whether it remains within the normal refresh interval.
+    /// Cached catalog content, freshness, and original raw bytes.
     /// </summary>
     /// <param name="Content">Cached text content.</param>
     /// <param name="IsFresh">Whether the cache entry is fresh enough to use without a network request.</param>
-    internal sealed record CsvCatalogCacheEntry(string Content, bool IsFresh);
+    /// <param name="RawBytes">The raw bytes originally received and stored in cache.</param>
+    internal sealed record CsvCatalogCacheEntry(string Content, bool IsFresh, byte[] RawBytes);
 
     private static readonly TimeSpan Freshness = TimeSpan.FromHours(CatalogConstants.DefaultCatalogCacheExpirationHours);
     private static readonly TimeSpan Retention = TimeSpan.FromDays(CsvConstants.CacheRetentionDays);
@@ -65,9 +66,10 @@ public sealed class CsvCatalogCache
                 return null;
             }
 
-            var content = await File.ReadAllTextAsync(cachePath, cancellationToken);
+            var rawBytes = await File.ReadAllBytesAsync(cachePath, cancellationToken);
+            var content = Encoding.UTF8.GetString(rawBytes).TrimStart('\uFEFF');
             var isFresh = DateTime.UtcNow - fileInfo.LastWriteTimeUtc <= Freshness;
-            return new CsvCatalogCacheEntry(content, isFresh);
+            return new CsvCatalogCacheEntry(content, isFresh, rawBytes);
         }
         catch (IOException ex)
         {
@@ -85,15 +87,28 @@ public sealed class CsvCatalogCache
     /// Stores content for a remote source using an atomic file replacement.
     /// </summary>
     /// <param name="sourceUrl">Remote source URL.</param>
-    /// <param name="content">Downloaded content.</param>
+    /// <param name="content">Downloaded text content.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    internal Task StoreAsync(
+        string sourceUrl,
+        string content,
+        CancellationToken cancellationToken) =>
+        StoreAsync(sourceUrl, Encoding.UTF8.GetBytes(content), cancellationToken);
+
+    /// <summary>
+    /// Stores raw bytes for a remote source using an atomic file replacement.
+    /// </summary>
+    /// <param name="sourceUrl">Remote source URL.</param>
+    /// <param name="rawBytes">Downloaded raw bytes.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     internal async Task StoreAsync(
         string sourceUrl,
-        string content,
+        byte[] rawBytes,
         CancellationToken cancellationToken)
     {
-        if (Encoding.UTF8.GetByteCount(content) > CatalogConstants.MaxCatalogSizeBytes)
+        if (rawBytes.Length > CatalogConstants.MaxCatalogSizeBytes)
         {
             Logger.LogWarning("CSV catalog from {SourceUrl} exceeds the cache size limit", sourceUrl);
             return;
@@ -104,7 +119,7 @@ public sealed class CsvCatalogCache
         try
         {
             Directory.CreateDirectory(_cacheDirectory);
-            await File.WriteAllTextAsync(tempPath, content, cancellationToken);
+            await File.WriteAllBytesAsync(tempPath, rawBytes, cancellationToken);
             File.Move(tempPath, cachePath, true);
             PruneExpiredEntries();
         }

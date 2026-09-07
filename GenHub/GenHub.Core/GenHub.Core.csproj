@@ -18,5 +18,7 @@
 
     <ItemGroup>
         <EmbeddedResource Include="Assets\Manifests\*.csv" />
+        <EmbeddedResource Include="Assets\Registries\*.csv" />
+        <EmbeddedResource Include="Assets\Registries\*.json" />
     </ItemGroup>
 </Project>

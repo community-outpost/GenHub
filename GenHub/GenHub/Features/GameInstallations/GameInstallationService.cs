@@ -647,7 +647,8 @@ public class GameInstallationService(
             gamePath,
             gameType,
             installation.InstallationType,
-            versionForManifest);
+            versionForManifest,
+            cancellationToken: cancellationToken);
 
         var manifest = manifestBuilder.Build();
         manifest.ContentType = ContentType.GameInstallation;
@@ -1017,7 +1018,8 @@ public class GameInstallationService(
                 installationPath,
                 gameType,
                 installation.InstallationType,
-                version);
+                version,
+                cancellationToken: cancellationToken);
 
             var manifest = manifestBuilder.Build();
 

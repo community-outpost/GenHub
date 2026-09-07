@@ -3,3 +3,6 @@ GenHub/GenHub/Assets/Covers/china-cover.png export-ignore
 GenHub/GenHub/Assets/Covers/gla-cover.png export-ignore
 GenHub/GenHub/Assets/Covers/usa-cover.png export-ignore
 .gitattributes export-ignore
+
+# Ensure CSV files retain LF line endings across all platforms
+*.csv text eol=lf

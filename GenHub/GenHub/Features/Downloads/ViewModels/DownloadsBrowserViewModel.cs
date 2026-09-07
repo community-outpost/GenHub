@@ -77,6 +77,7 @@ public sealed partial class DownloadsBrowserViewModel(
     private int _activeRequestId;
     private string? _lastPopulatedPublisherId;
     private bool _hasCustomQuery;
+    private bool _suppressPublisherAutoRefresh;
     private bool _disposed;
     private bool _builtInPublishersInitialized;
 
@@ -599,6 +600,17 @@ public sealed partial class DownloadsBrowserViewModel(
             }
         }
 
+        if (_suppressPublisherAutoRefresh)
+        {
+            _hasCustomQuery = false;
+            SearchTerm = string.Empty;
+            CurrentPage = 1;
+            CanLoadMore = false;
+            SelectedContent = null;
+            _lastPopulatedPublisherId = value.PublisherId;
+            return;
+        }
+
         _hasCustomQuery = false;
         SearchTerm = string.Empty;
         CurrentPage = 1;
@@ -697,7 +709,16 @@ public sealed partial class DownloadsBrowserViewModel(
             if (moddbPublisher != null)
             {
                 var targetUrl = SearchTerm;
-                SelectedPublisher = moddbPublisher;
+                _suppressPublisherAutoRefresh = true;
+                try
+                {
+                    SelectedPublisher = moddbPublisher;
+                }
+                finally
+                {
+                    _suppressPublisherAutoRefresh = false;
+                }
+
                 SearchTerm = targetUrl;
                 _hasCustomQuery = true;
                 CurrentPage = 1;

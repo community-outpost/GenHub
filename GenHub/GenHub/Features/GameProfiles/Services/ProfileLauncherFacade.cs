@@ -696,20 +696,45 @@ public class ProfileLauncherFacade(
         var toolDirectoryPath = toolWorkspacePath;
 
         // Find the executable file in the tool manifest:
-        // Priority 1: ManifestVariantResolver (variant-aware, declared entry point, executable classifier)
-        // Priority 2: File marked as IsExecutable
-        // Priority 3: File ending with .exe
+        // Priority 1: Declared entry point (variant or manifest)
+        // Priority 2: File marked with IsExecutable = true (author intent)
+        // Priority 3: ManifestVariantResolver heuristic resolution
+        // Priority 4: Fallback to file ending with .exe
         string? toolRelativePath = null;
-        var entryPointResolution = ManifestVariantResolver.ResolveEntryPoint(toolManifest);
-        if (entryPointResolution.Success && !string.IsNullOrEmpty(entryPointResolution.RelativePath))
+        var declaredEntryPoint = toolManifest.Variants.Count == 0
+            ? toolManifest.EntryPoint
+            : ManifestVariantResolver.ResolveVariant(toolManifest)?.EntryPoint ?? toolManifest.EntryPoint;
+
+        var resolvedFiles = ManifestVariantResolver.ResolveFiles(toolManifest);
+
+        if (!string.IsNullOrWhiteSpace(declaredEntryPoint))
         {
-            toolRelativePath = entryPointResolution.RelativePath;
+            var matched = resolvedFiles?.FirstOrDefault(f => ManifestVariantResolver.PathsMatch(f.RelativePath, declaredEntryPoint));
+            toolRelativePath = matched?.RelativePath ?? declaredEntryPoint;
         }
         else
         {
-            var fallbackExecutable = toolManifest.Files?.FirstOrDefault(f => f.IsExecutable)
-                ?? toolManifest.Files?.FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
-            toolRelativePath = fallbackExecutable?.RelativePath;
+            var markedExecutable = resolvedFiles?.FirstOrDefault(f => f.IsExecutable)
+                ?? toolManifest.Files?.FirstOrDefault(f => f.IsExecutable);
+
+            if (markedExecutable != null)
+            {
+                toolRelativePath = markedExecutable.RelativePath;
+            }
+            else
+            {
+                var entryPointResolution = ManifestVariantResolver.ResolveEntryPoint(toolManifest);
+                if (entryPointResolution.Success && !string.IsNullOrEmpty(entryPointResolution.RelativePath))
+                {
+                    toolRelativePath = entryPointResolution.RelativePath;
+                }
+                else
+                {
+                    var fallbackExecutable = resolvedFiles?.FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                        ?? toolManifest.Files?.FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
+                    toolRelativePath = fallbackExecutable?.RelativePath;
+                }
+            }
         }
 
         if (string.IsNullOrEmpty(toolRelativePath))
@@ -1353,11 +1378,19 @@ public class ProfileLauncherFacade(
                 contentDirResult.Data);
             return;
         }
+        else if (contentDirResult.Success)
+        {
+            logger.LogDebug(
+                "[Workspace] Manifest {ManifestId} ({ContentType}) is CAS-managed (no external source directory required)",
+                manifest.Id.Value,
+                manifest.ContentType);
+            return;
+        }
 
-        LogUnresolvedManifestPath(manifest);
+        LogUnresolvedManifestPath(manifest, contentDirResult.FirstError);
     }
 
-    private void LogUnresolvedManifestPath(ContentManifest manifest)
+    private void LogUnresolvedManifestPath(ContentManifest manifest, string? error = null)
     {
         bool isCasBacked = manifest.Files is { Count: > 0 } &&
             manifest.Files.All(f => f.SourceType == ContentSourceType.ContentAddressable || !string.IsNullOrEmpty(f.Hash));
@@ -1372,9 +1405,10 @@ public class ProfileLauncherFacade(
         else
         {
             logger.LogWarning(
-                "[Workspace] Could not resolve source path for manifest {ManifestId} ({ContentType})",
+                "[Workspace] Could not resolve source path for manifest {ManifestId} ({ContentType}): {Error}",
                 manifest.Id.Value,
-                manifest.ContentType);
+                manifest.ContentType,
+                error);
         }
     }
 

@@ -1447,6 +1447,13 @@ public class GameLauncher(
                     manifest.Id.Value,
                     profile.GameClient.WorkingDirectory);
             }
+            else if (contentDirResult.Success)
+            {
+                logger.LogDebug(
+                    "[GameLauncher] Manifest {ManifestId} ({ContentType}) is CAS-managed (no external source directory required)",
+                    manifest.Id.Value,
+                    manifest.ContentType);
+            }
             else
             {
                 bool isCasBacked = manifest.Files is { Count: > 0 } &&
@@ -1462,9 +1469,10 @@ public class GameLauncher(
                 else
                 {
                     logger.LogWarning(
-                        "[GameLauncher] Could not resolve source path for manifest {ManifestId} ({ContentType})",
+                        "[GameLauncher] Could not resolve source path for manifest {ManifestId} ({ContentType}): {Error}",
                         manifest.Id.Value,
-                        manifest.ContentType);
+                        manifest.ContentType,
+                        contentDirResult.FirstError);
                 }
             }
         }
