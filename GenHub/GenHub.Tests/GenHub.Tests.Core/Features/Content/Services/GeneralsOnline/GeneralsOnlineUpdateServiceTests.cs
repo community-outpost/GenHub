@@ -2,6 +2,7 @@ using System.Net;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
@@ -68,11 +69,59 @@ public class GeneralsOnlineUpdateServiceTests
         Assert.Equal("060526_QFE1", result.LatestVersion);
     }
 
+    /// <summary>
+    /// Verifies that when Generals Online is not installed, CheckForUpdatesAsync returns
+    /// IsUpdateAvailable = false instead of prompting for an update.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CheckForUpdatesAsync_WhenNotInstalled_ReturnsNoUpdateAvailableAsync()
+    {
+        var manifestPool = new Mock<IContentManifestPool>();
+        manifestPool
+            .Setup(pool => pool.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        var providerLoader = new Mock<IProviderDefinitionLoader>();
+        providerLoader
+            .Setup(loader => loader.GetProvider(GeneralsOnlineConstants.PublisherType))
+            .Returns(new ProviderDefinition
+            {
+                ProviderId = GeneralsOnlineConstants.PublisherType,
+                PublisherType = GeneralsOnlineConstants.PublisherType,
+                VersionScheme = VersionSchemeConstants.MmddyyQfe,
+                Endpoints = new ProviderEndpoints
+                {
+                    LatestVersionUrl = "https://example.test/latest.txt",
+                },
+            });
+
+        var httpClientFactory = new Mock<IHttpClientFactory>();
+        httpClientFactory
+            .Setup(factory => factory.CreateClient(GeneralsOnlineConstants.PublisherType))
+            .Returns(new HttpClient(new StaticResponseHandler("082826_QFE1")));
+
+        using var service = new GeneralsOnlineUpdateService(
+            NullLogger<GeneralsOnlineUpdateService>.Instance,
+            manifestPool.Object,
+            httpClientFactory.Object,
+            providerLoader.Object,
+            TestVersionComparer.CreateDefault());
+
+        var result = await service.CheckForUpdatesAsync(CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.False(result.IsUpdateAvailable);
+        Assert.Null(result.CurrentVersion);
+        Assert.Equal("082826_QFE1", result.LatestVersion);
+    }
+
     private static ContentManifest CreateManifest(string id, string version) => new()
     {
         Id = ManifestId.Create(id),
         Name = "Generals Online",
         Version = version,
+        ContentType = ContentType.GameClient,
         Publisher = new PublisherInfo
         {
             PublisherType = GeneralsOnlineConstants.PublisherType,

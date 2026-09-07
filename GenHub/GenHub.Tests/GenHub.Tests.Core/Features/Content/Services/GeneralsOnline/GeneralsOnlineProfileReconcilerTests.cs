@@ -276,4 +276,48 @@ public class GeneralsOnlineProfileReconcilerTests
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
+
+    /// <summary>
+    /// Verifies that when the triggering profile is already using the latest version,
+    /// the reconciler skips the update prompt and avoids re-downloading.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CheckAndReconcileIfNeededAsync_WhenTriggeringProfileAlreadyAtLatest_SkipsUpdatePromptAsync()
+    {
+        // Arrange
+        const string latestVersion = "082826_QFE1";
+        _updateServiceMock.Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentUpdateCheckResult.CreateUpdateAvailable(latestVersion, latestVersion));
+
+        var profile = new GameProfile
+        {
+            Id = "profile-go",
+            Name = "Generals Online",
+            GameClient = new GenHub.Core.Models.GameClients.GameClient
+            {
+                Id = "1.82826.generalsonline.gameclient.60hz",
+                PublisherType = GeneralsOnlineConstants.PublisherType,
+                Version = latestVersion,
+            },
+        };
+
+        _profileManagerMock.Setup(x => x.GetProfileAsync("profile-go", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        // Act
+        var result = await _reconciler.CheckAndReconcileIfNeededAsync("profile-go", CancellationToken.None);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.False(result.Data);
+
+        _dialogServiceMock.Verify(
+            x => x.ShowUpdateOptionDialogAsync(It.IsAny<string>(), It.IsAny<string>()),
+            Times.Never);
+
+        _contentOrchestratorMock.Verify(
+            x => x.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
 }

@@ -54,7 +54,7 @@ public class GeneralsOnlineDiscoverer(
     /// <param name="query">The search query.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Operation result containing discovered content.</returns>
-    public Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
+    public virtual Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
     {

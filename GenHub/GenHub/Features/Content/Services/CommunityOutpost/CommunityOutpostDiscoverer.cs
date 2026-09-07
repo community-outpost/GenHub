@@ -54,7 +54,7 @@ public partial class CommunityOutpostDiscoverer(
         ContentSourceCapabilities.SupportsPackageAcquisition;
 
     /// <inheritdoc/>
-    public Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
+    public virtual Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
     {

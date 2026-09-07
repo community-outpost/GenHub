@@ -8,6 +8,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
 
@@ -64,8 +65,21 @@ public class GeneralsOnlineUpdateService(
                     currentVersion);
             }
 
-            var updateAvailable = string.IsNullOrEmpty(currentVersion)
-                || versionComparer.IsNewer(latestVersion, currentVersion, GeneralsOnlineConstants.PublisherType);
+            if (string.IsNullOrEmpty(currentVersion))
+            {
+                logger.LogInformation("Generals Online is not installed in manifest pool; skipping update check");
+                return ContentUpdateCheckResult.CreateNoUpdateAvailable(
+                    currentVersion: null,
+                    latestVersion: latestVersion);
+            }
+
+            var updateAvailable = versionComparer.IsNewer(latestVersion, currentVersion, GeneralsOnlineConstants.PublisherType);
+
+            logger.LogInformation(
+                "Generals Online update check: Current={CurrentVersion}, Latest={LatestVersion}, UpdateAvailable={UpdateAvailable}",
+                currentVersion,
+                latestVersion,
+                updateAvailable);
 
             if (updateAvailable)
             {
@@ -97,14 +111,19 @@ public class GeneralsOnlineUpdateService(
 
             var versionScheme = versionComparer.GetScheme(GeneralsOnlineConstants.PublisherType);
 
-            return manifests.Data
+            var installed = manifests.Data
                 .Where(m =>
-                    m.Publisher?.PublisherType?.Equals(
-                        GeneralsOnlineConstants.PublisherType,
-                        StringComparison.OrdinalIgnoreCase) == true)
+                    m.ContentType == ContentType.GameClient &&
+                    (string.Equals(m.Publisher?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
+                     m.Id.Value.Contains(".generalsonline.", StringComparison.OrdinalIgnoreCase) ||
+                     (m.Name is { } name && name.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase))))
                 .Select(m => m.Version)
+                .Where(v => !string.IsNullOrEmpty(v))
                 .OrderByDescending(version => version, versionScheme)
                 .FirstOrDefault();
+
+            logger.LogDebug("[GeneralsOnlineUpdateService] Found installed version: {Version}", installed ?? "(none)");
+            return installed;
         }
         catch (Exception ex)
         {
