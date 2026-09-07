@@ -2,7 +2,7 @@ using System.Net;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Providers;
-using GenHub.Core.Models.Enums;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;

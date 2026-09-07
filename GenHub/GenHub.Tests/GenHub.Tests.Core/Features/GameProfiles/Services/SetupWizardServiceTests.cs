@@ -6,7 +6,6 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Content;
-using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -18,6 +17,7 @@ using GenHub.Features.GameProfiles.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.Services;
 
@@ -31,6 +31,9 @@ public class SetupWizardServiceTests
     private readonly Mock<GeneralsOnlineDiscoverer> _goDiscovererMock;
     private readonly Mock<CommunityOutpostDiscoverer> _cpDiscovererMock;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SetupWizardServiceTests"/> class.
+    /// </summary>
     public SetupWizardServiceTests()
     {
         _goDiscovererMock = new Mock<GeneralsOnlineDiscoverer>(
@@ -46,17 +49,11 @@ public class SetupWizardServiceTests
             Mock.Of<Microsoft.Extensions.Logging.ILogger<CommunityOutpostDiscoverer>>());
     }
 
-    private SetupWizardService CreateService()
-    {
-        return new SetupWizardService(
-            _profileServiceMock.Object,
-            _cpDiscovererMock.Object,
-            _goDiscovererMock.Object,
-            null!, // superHackersProvider caught by null check / try-catch
-            _manifestPoolMock.Object,
-            NullLogger<SetupWizardService>.Instance);
-    }
-
+    /// <summary>
+    /// Verifies that when a managed client manifest is up-to-date in the manifest pool
+    /// and a corresponding profile exists, the setup wizard skips and returns Decline.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
     public async Task RunSetupWizardAsync_WhenManagedClientUpToDateAndProfileExists_SkipsWizardWithDeclineAsync()
     {
@@ -101,6 +98,11 @@ public class SetupWizardServiceTests
         Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.GeneralsOnlineAction);
     }
 
+    /// <summary>
+    /// Verifies that when a managed client manifest is up-to-date in the pool but its profile is missing,
+    /// the setup wizard auto-accepts CreateProfile without prompting the user.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
     public async Task RunSetupWizardAsync_WhenManagedClientUpToDateAndProfileMissing_AutoAcceptsCreateProfileAsync()
     {
@@ -143,5 +145,16 @@ public class SetupWizardServiceTests
 
         // Assert: Up-to-date manifest found in pool, profile missing -> auto-accept CreateProfile
         Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, result.GeneralsOnlineAction);
+    }
+
+    private SetupWizardService CreateService()
+    {
+        return new SetupWizardService(
+            _profileServiceMock.Object,
+            _cpDiscovererMock.Object,
+            _goDiscovererMock.Object,
+            null!, // superHackersProvider caught by null check / try-catch
+            _manifestPoolMock.Object,
+            NullLogger<SetupWizardService>.Instance);
     }
 }

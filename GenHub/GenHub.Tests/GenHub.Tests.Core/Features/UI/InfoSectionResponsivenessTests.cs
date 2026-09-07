@@ -11,18 +11,6 @@ namespace GenHub.Tests.Core.Features.UI;
 /// </summary>
 public partial class InfoSectionResponsivenessTests
 {
-    [GeneratedRegex(@"\bHorizontalScrollBarVisibility\s*=\s*[""']Auto[""']", RegexOptions.IgnoreCase)]
-    private static partial Regex AutoScrollBarRegex();
-
-    [GeneratedRegex(@"\bHorizontalScrollBarVisibility\s*=\s*[""']Disabled[""']", RegexOptions.IgnoreCase)]
-    private static partial Regex DisabledScrollBarRegex();
-
-    [GeneratedRegex(@"<Style\s+Selector\s*=\s*""TextBlock\.section-header"">(?:(?!</Style>)[\s\S])*?<Setter\s+Property\s*=\s*""TextWrapping""\s+Value\s*=\s*""Wrap""\s*/>", RegexOptions.IgnoreCase)]
-    private static partial Regex SectionHeaderWrappingRegex();
-
-    [GeneratedRegex(@"<Style\s+Selector\s*=\s*""TextBlock\.card-title"">(?:(?!</Style>)[\s\S])*?<Setter\s+Property\s*=\s*""TextWrapping""\s+Value\s*=\s*""Wrap""\s*/>", RegexOptions.IgnoreCase)]
-    private static partial Regex CardTitleWrappingRegex();
-
     /// <summary>
     /// Verifies that <c>GenHubInfoSectionView</c> disables horizontal scroll bars and does not allow Auto horizontal scrolling.
     /// </summary>
@@ -68,4 +56,16 @@ public partial class InfoSectionResponsivenessTests
         Assert.Matches(SectionHeaderWrappingRegex(), content);
         Assert.Matches(CardTitleWrappingRegex(), content);
     }
+
+    [GeneratedRegex(@"\bHorizontalScrollBarVisibility\s*=\s*[""']Auto[""']", RegexOptions.IgnoreCase)]
+    private static partial Regex AutoScrollBarRegex();
+
+    [GeneratedRegex(@"\bHorizontalScrollBarVisibility\s*=\s*[""']Disabled[""']", RegexOptions.IgnoreCase)]
+    private static partial Regex DisabledScrollBarRegex();
+
+    [GeneratedRegex(@"<Style\s+Selector\s*=\s*""TextBlock\.section-header"">(?:(?!</Style>)[\s\S])*?<Setter\s+Property\s*=\s*""TextWrapping""\s+Value\s*=\s*""Wrap""\s*/>", RegexOptions.IgnoreCase)]
+    private static partial Regex SectionHeaderWrappingRegex();
+
+    [GeneratedRegex(@"<Style\s+Selector\s*=\s*""TextBlock\.card-title"">(?:(?!</Style>)[\s\S])*?<Setter\s+Property\s*=\s*""TextWrapping""\s+Value\s*=\s*""Wrap""\s*/>", RegexOptions.IgnoreCase)]
+    private static partial Regex CardTitleWrappingRegex();
 }
