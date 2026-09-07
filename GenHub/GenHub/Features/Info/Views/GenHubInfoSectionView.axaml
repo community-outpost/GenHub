@@ -144,8 +144,8 @@
 
     <!-- Demo Preset Switcher Button Styles -->
     <Style Selector="Button.preset-btn">
-       <Setter Property="Background" Value="#18FFFFFF"/>
-       <Setter Property="BorderBrush" Value="#30FFFFFF"/>
+       <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
+       <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}"/>
        <Setter Property="BorderThickness" Value="1"/>
        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
        <Setter Property="FontSize" Value="11.5"/>
@@ -162,14 +162,14 @@
     </Style>
 
     <Style Selector="Button.preset-btn:pointerover">
-       <Setter Property="Background" Value="#25FFFFFF"/>
+       <Setter Property="Background" Value="{DynamicResource SurfaceHoverDarkBrush}"/>
        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-       <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+       <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}"/>
     </Style>
 
     <Style Selector="Button.preset-btn.preset-active">
        <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
-       <Setter Property="Foreground" Value="White"/>
+       <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
        <Setter Property="FontWeight" Value="SemiBold"/>
        <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}"/>
     </Style>
@@ -679,16 +679,16 @@
                             <Grid RowDefinitions="36,*">
                                 <!-- Simulated Title Bar with Native Palette -->
                                 <Border Grid.Row="0"
-                                        Background="#0C0C14"
+                                        Background="{DynamicResource SurfaceBackgroundBrush}"
                                         BorderBrush="{DynamicResource BorderSubtleBrush}"
                                         BorderThickness="0,0,0,1"
                                         Padding="14,0">
                                     <Grid ColumnDefinitions="Auto,*,Auto">
                                         <!-- Window control dots -->
                                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                            <Ellipse Width="10" Height="10" Fill="#ED6A5E" Opacity="0.85"/>
-                                            <Ellipse Width="10" Height="10" Fill="#F4BF4F" Opacity="0.85"/>
-                                            <Ellipse Width="10" Height="10" Fill="#61C554" Opacity="0.85"/>
+                                            <Ellipse Width="10" Height="10" Fill="{DynamicResource ErrorBrush}" Opacity="0.85"/>
+                                            <Ellipse Width="10" Height="10" Fill="{DynamicResource WarningBrush}" Opacity="0.85"/>
+                                            <Ellipse Width="10" Height="10" Fill="{DynamicResource SuccessBrush}" Opacity="0.85"/>
                                         </StackPanel>
 
                                         <!-- Window Title -->

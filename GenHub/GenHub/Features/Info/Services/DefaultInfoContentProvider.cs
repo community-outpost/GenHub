@@ -24,16 +24,6 @@ public class DefaultInfoContentProvider : IInfoContentProvider
     {
     }
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="DefaultInfoContentProvider"/> class.
-    /// </summary>
-    /// <param name="patchNotesService">Optional patch notes service.</param>
-    public DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService? patchNotesService)
-        : this()
-    {
-        _ = patchNotesService;
-    }
-
     /// <inheritdoc/>
     public Task<IEnumerable<InfoSection>> GetAllSectionsAsync()
     {
@@ -602,22 +592,22 @@ public class DefaultInfoContentProvider : IInfoContentProvider
                 },
                 new InfoCard
                 {
-                    Title = "GenLauncher file normalisation",
+                    Title = "GenLauncher file normalization",
                     Content = "Detect and repair scrambled .gib archives and suffix-renamed files.",
                     Type = InfoCardType.HowTo,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Why normalisation is necessary**
+                    **Why normalization is necessary**
                     GenLauncher modifies files directly inside the game directory when activating and deactivating mods. It renames active `.big` files to `.gib` to scramble them, appends `.GLR` (replaced files), `.GOF` (original file backups), and `.GLTC` (temporary copies) suffixes, and creates stray symbolic links. Importing a directory left in this state prevents the game engine from reading mod archives.
 
-                    **Automated normalisation in GenHub**
-                    When you select a folder or archive containing GenLauncher files, GenHub's normalisation service identifies these artifacts automatically during staging:
+                    **Automated normalization in GenHub**
+                    When you select a folder or archive containing GenLauncher files, GenHub's normalization service identifies these artifacts automatically during staging:
 
                     1. Renames all scrambled `.gib` archives back to standard `.big` files so the game engine can mount them.
                     2. Strips `.GLR`, `.GOF`, and `.GLTC` suffixes to restore standard file names.
                     3. Cleans up broken or invalid symbolic links left by previous installations.
 
-                    Normalisation runs safely in the staging area before registration, ensuring your imported content item contains clean standard assets.
+                    Normalization runs safely in the staging area before registration, ensuring your imported content item contains clean standard assets.
                     """,
                 },
                 new InfoCard

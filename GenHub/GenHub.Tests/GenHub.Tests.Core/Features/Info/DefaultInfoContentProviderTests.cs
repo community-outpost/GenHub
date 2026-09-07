@@ -2,9 +2,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
 using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Info;
 using GenHub.Features.Info.Services;
-using Moq;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Info;
@@ -14,7 +12,6 @@ namespace GenHub.Tests.Core.Features.Info;
 /// </summary>
 public class DefaultInfoContentProviderTests
 {
-    private readonly Mock<IGeneralsOnlinePatchNotesService> _patchNotesServiceMock = new();
     private readonly DefaultInfoContentProvider _provider;
 
     /// <summary>
@@ -22,7 +19,7 @@ public class DefaultInfoContentProviderTests
     /// </summary>
     public DefaultInfoContentProviderTests()
     {
-        _provider = new DefaultInfoContentProvider(_patchNotesServiceMock.Object);
+        _provider = new DefaultInfoContentProvider();
     }
 
     /// <summary>

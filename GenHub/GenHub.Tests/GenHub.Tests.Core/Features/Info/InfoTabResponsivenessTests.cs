@@ -120,7 +120,7 @@ public class InfoTabResponsivenessTests
     }
 
     /// <summary>
-    /// Verifies that Local Content info cards contain real-world details on GenLauncher normalisation,
+    /// Verifies that Local Content info cards contain real-world details on GenLauncher normalization,
     /// profile linking, modding tools, and custom engine test builds.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
@@ -136,7 +136,7 @@ public class InfoTabResponsivenessTests
 
         var allContent = string.Join(" ", localContentSection.Cards.Select(c => $"{c.Title} {c.Content} {c.DetailedContent}"));
 
-        // Normalisation details
+        // Normalization details
         allContent.Should().Contain("GenLauncher");
         allContent.Should().Contain(".gib");
         allContent.Should().Contain(".big");

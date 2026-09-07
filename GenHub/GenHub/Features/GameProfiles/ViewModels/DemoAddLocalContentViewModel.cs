@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
@@ -48,6 +49,7 @@ public enum LocalContentDemoPreset
 public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
 {
     private readonly INotificationService? _notificationService;
+    private bool _isLoadingPreset;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsModPresetActive))]
@@ -55,6 +57,47 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
     [NotifyPropertyChangedFor(nameof(IsModdingToolPresetActive))]
     [NotifyPropertyChangedFor(nameof(IsExecutablePresetActive))]
     private LocalContentDemoPreset _activePreset = LocalContentDemoPreset.Mod;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DemoAddLocalContentViewModel"/> class.
+    /// </summary>
+    /// <param name="localContentService">Service for handling local content operations.</param>
+    /// <param name="contentStorageService">Service for content storage operations.</param>
+    /// <param name="notificationService">Optional notification service for demo actions.</param>
+    /// <param name="logger">Logger instance.</param>
+    public DemoAddLocalContentViewModel(
+        ILocalContentService? localContentService,
+        IContentStorageService? contentStorageService,
+        INotificationService? notificationService,
+        ILogger<AddLocalContentViewModel>? logger = null)
+        : base(localContentService ?? new MockLocalContentService(), contentStorageService, null, null, logger)
+    {
+        _notificationService = notificationService;
+
+        // Enable demo mode to hide Cancel button and enable demo-specific behavior
+        IsDemoMode = true;
+
+        // Listen for executable selection changes to provide feedback
+        PropertyChanged += (s, e) =>
+        {
+            if (!_isLoadingPreset && e.PropertyName == nameof(SelectedExecutableItem) && SelectedExecutableItem != null)
+            {
+                StatusMessage = $"Designated '{SelectedExecutableItem.Name}' as primary launch target.";
+                _notificationService?.Show(new NotificationMessage(
+                    NotificationType.Info,
+                    "Executable Selected",
+                    $"'{SelectedExecutableItem.Name}' designated as the entry point for this {SelectedContentType}.",
+                    NotificationDurations.Short));
+                CanAdd = true;
+            }
+        };
+
+        // Initialize with default Mod preset
+        LoadModPreset();
+
+        // Set up demo actions that return demo paths and show notifications
+        SetupDemoActions();
+    }
 
     /// <summary>
     /// Gets a value indicating whether the Mod preset is currently active.
@@ -81,53 +124,15 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
     public bool IsExecutablePresetActive => ActivePreset == LocalContentDemoPreset.Executable;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="DemoAddLocalContentViewModel"/> class.
-    /// </summary>
-    /// <param name="localContentService">Service for handling local content operations.</param>
-    /// <param name="contentStorageService">Service for content storage operations.</param>
-    /// <param name="notificationService">Optional notification service for demo actions.</param>
-    /// <param name="logger">Logger instance.</param>
-    public DemoAddLocalContentViewModel(
-        ILocalContentService? localContentService,
-        IContentStorageService? contentStorageService,
-        INotificationService? notificationService,
-        ILogger<AddLocalContentViewModel>? logger = null)
-        : base(localContentService ?? new MockLocalContentService(), contentStorageService, null, null, logger)
-    {
-        _notificationService = notificationService;
-
-        // Enable demo mode to hide Cancel button and enable demo-specific behavior
-        IsDemoMode = true;
-
-        // Initialize with default Mod preset
-        LoadModPreset();
-
-        // Listen for executable selection changes to provide feedback
-        PropertyChanged += (s, e) =>
-        {
-            if (e.PropertyName == nameof(SelectedExecutableItem) && SelectedExecutableItem != null)
-            {
-                StatusMessage = $"Designated '{SelectedExecutableItem.Name}' as primary launch target.";
-                _notificationService?.Show(new NotificationMessage(
-                    NotificationType.Info,
-                    "Executable Selected",
-                    $"'{SelectedExecutableItem.Name}' designated as the entry point for this {SelectedContentType}.",
-                    3500));
-                CanAdd = true;
-            }
-        };
-
-        // Set up demo actions that return demo paths and show notifications
-        SetupDemoActions();
-    }
-
-    /// <summary>
     /// Loads the Mod preset showcasing .big archives, INI overrides, and custom maps.
     /// </summary>
     [RelayCommand]
     public void LoadModPreset()
     {
-        ActivePreset = LocalContentDemoPreset.Mod;
+        try
+        {
+            _isLoadingPreset = true;
+            ActivePreset = LocalContentDemoPreset.Mod;
         ContentName = "ShockWave v1.201";
         SelectedContentType = ContentType.Mod;
         SelectedGameType = GameType.ZeroHour;
@@ -195,6 +200,11 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
         SelectedExecutableItem = null;
         CanAdd = true;
         StatusMessage = "Mod preset loaded. Contains standard .big archives and maps. No executable needed.";
+        }
+        finally
+        {
+            _isLoadingPreset = false;
+        }
     }
 
     /// <summary>
@@ -203,7 +213,10 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
     [RelayCommand]
     public void LoadGameClientPreset()
     {
-        ActivePreset = LocalContentDemoPreset.GameClient;
+        try
+        {
+            _isLoadingPreset = true;
+            ActivePreset = LocalContentDemoPreset.GameClient;
         ContentName = "TheSuperHackers Engine Build (v1.06 Beta)";
         SelectedContentType = ContentType.GameClient;
         SelectedGameType = GameType.ZeroHour;
@@ -241,6 +254,11 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
         SelectedExecutableItem = generalsExe;
         CanAdd = true;
         StatusMessage = "Custom engine build loaded. 'generals.exe' is designated as the client binary for profile launches.";
+        }
+        finally
+        {
+            _isLoadingPreset = false;
+        }
     }
 
     /// <summary>
@@ -249,7 +267,10 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
     [RelayCommand]
     public void LoadModdingToolPreset()
     {
-        ActivePreset = LocalContentDemoPreset.ModdingTool;
+        try
+        {
+            _isLoadingPreset = true;
+            ActivePreset = LocalContentDemoPreset.ModdingTool;
         ContentName = "GenHotkeys v2.1";
         SelectedContentType = ContentType.ModdingTool;
         SelectedGameType = GameType.ZeroHour;
@@ -303,6 +324,11 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
         SelectedExecutableItem = genHotkeysExe;
         CanAdd = true;
         StatusMessage = "Modding tool loaded. Notice the 'Select' button next to executables. Click 'Select' on an .exe to designate the launch target.";
+        }
+        finally
+        {
+            _isLoadingPreset = false;
+        }
     }
 
     /// <summary>
@@ -311,7 +337,10 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
     [RelayCommand]
     public void LoadExecutablePreset()
     {
-        ActivePreset = LocalContentDemoPreset.Executable;
+        try
+        {
+            _isLoadingPreset = true;
+            ActivePreset = LocalContentDemoPreset.Executable;
         ContentName = "WorldBuilder Zero Hour 1.04";
         SelectedContentType = ContentType.Executable;
         SelectedGameType = GameType.ZeroHour;
@@ -346,6 +375,11 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
         SelectedExecutableItem = wbExe;
         CanAdd = true;
         StatusMessage = "Standalone executable loaded. WorldBuilder.exe is marked as the launch target.";
+        }
+        finally
+        {
+            _isLoadingPreset = false;
+        }
     }
 
     /// <summary>
@@ -359,7 +393,7 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
                 NotificationType.Success,
                 "Local Content Registered",
                 $"'{ContentName}' ({SelectedContentType}) was added to your local library. You can now link it to any profile under Profile Settings > Content.",
-                4500));
+                NotificationDurations.Medium));
 
             StatusMessage = $"'{ContentName}' registered in library. Ready to link to any game profile!";
             CanAdd = true;
@@ -372,7 +406,7 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
                 NotificationType.Info,
                 "Demo - Browse Folder",
                 "Opens a folder picker on your PC to select an unpacked mod, tool, or engine directory.",
-                3500));
+                NotificationDurations.Short));
             await Task.Delay(100);
             return null;
         };
@@ -383,7 +417,7 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
                 NotificationType.Info,
                 "Demo - Browse Files",
                 "Opens a file picker on your PC to select .zip archives, .big files, or standalone .exe binaries.",
-                3500));
+                NotificationDurations.Short));
             await Task.Delay(100);
             return null;
         };
