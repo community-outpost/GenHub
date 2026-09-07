@@ -150,52 +150,44 @@ public class GeneralsOnlineJsonCatalogParser(
         var hasUrl = !string.IsNullOrWhiteSpace(urlVersion);
         var hasApi = !string.IsNullOrWhiteSpace(apiVersion);
 
-        if (!hasUrl && !hasApi)
+        if (!hasUrl)
         {
-            return GeneralsOnlineConstants.UnknownVersion;
+            return hasApi ? apiVersion! : GeneralsOnlineConstants.UnknownVersion;
         }
 
-        if (hasUrl && !hasApi)
+        if (!hasApi)
         {
             return urlVersion!;
         }
 
-        if (!hasUrl && hasApi)
-        {
-            return apiVersion!;
-        }
-
-        // Both are present.
+        // Both are present and not empty.
         // If the URL names an actual package, it represents the exact payload delivered to the user.
         // We prefer urlVersion to preserve payload parity and build tags (e.g. _EAC).
         var scheme = new MmddyyQfeVersionScheme();
-        var urlParsed = scheme.TryParse(urlVersion!, out _);
-        var apiParsed = scheme.TryParse(apiVersion!, out _);
-
-        if (urlParsed)
+        if (scheme.TryParse(urlVersion, out _))
         {
-            return urlVersion!;
+            return urlVersion;
         }
 
-        if (apiParsed)
+        if (scheme.TryParse(apiVersion, out _))
         {
-            return apiVersion!;
+            return apiVersion;
         }
 
-        var urlHasQfe = urlVersion!.Contains(GeneralsOnlineConstants.QfeMarkerPrefix, StringComparison.OrdinalIgnoreCase);
-        var apiHasQfe = apiVersion!.Contains(GeneralsOnlineConstants.QfeMarkerPrefix, StringComparison.OrdinalIgnoreCase);
+        var urlHasQfe = urlVersion.Contains(GeneralsOnlineConstants.QfeMarkerPrefix, StringComparison.OrdinalIgnoreCase);
+        var apiHasQfe = apiVersion.Contains(GeneralsOnlineConstants.QfeMarkerPrefix, StringComparison.OrdinalIgnoreCase);
 
         if (urlHasQfe)
         {
-            return urlVersion!;
+            return urlVersion;
         }
 
         if (apiHasQfe)
         {
-            return apiVersion!;
+            return apiVersion;
         }
 
-        return urlVersion!;
+        return urlVersion;
     }
 
     /// <summary>
