@@ -578,10 +578,16 @@ public class GameProfileManagerTests
 
         ProfileUpdatedMessage? receivedMessage = null;
 
+        WeakReferenceMessenger.Default.Register<ProfileUpdatedMessage>(this, (_, m) =>
+        {
+            if (m.Profile.Id == profileId)
+            {
+                receivedMessage = m;
+            }
+        });
+
         try
         {
-            WeakReferenceMessenger.Default.Register<ProfileUpdatedMessage>(this, (_, m) => receivedMessage = m);
-
             // Act
             var result = await _profileManager.UpdateProfileAsync(profileId, request);
 
@@ -592,7 +598,7 @@ public class GameProfileManagerTests
         }
         finally
         {
-            WeakReferenceMessenger.Default.UnregisterAll(this);
+            WeakReferenceMessenger.Default.Unregister<ProfileUpdatedMessage>(this);
         }
     }
 

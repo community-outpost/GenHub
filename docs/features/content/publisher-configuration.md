@@ -428,12 +428,29 @@ public interface IPublisherDefinitionLoader
 
 Static publishers have a fixed publisher identity. All content discovered from the source is attributed to a single known publisher.
 
-**Examples**: Community Outpost, Generals Online, TheSuperHackers
+**Examples**: Community Outpost, AODMaps, Generals Online, TheSuperHackers
 
 ```json
 {
   "providerType": "Static",
   "publisherType": "communityoutpost"
+}
+```
+
+#### AODMaps Configuration
+
+AODMaps uses a static publisher provider configuration definition (content discovery itself is driven by `AODMapsDiscoverer` and `AODMapsPageParser` rather than a static JSON catalog):
+
+```json
+{
+  "publisherId": "aodmaps",
+  "publisherType": "aodmaps",
+  "displayName": "Age of Defense Maps",
+  "providerType": "Static",
+  "endpoints": {
+    "catalogUrl": "https://aodmaps.com",
+    "websiteUrl": "https://aodmaps.com"
+  }
 }
 ```
 

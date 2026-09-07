@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
@@ -313,13 +314,14 @@ public static class DemoViewModelFactory
     /// <summary>
     /// Creates a demo AddLocalContentViewModel with mock data.
     /// </summary>
+    /// <param name="notificationService">Optional notification service for demo actions.</param>
     /// <returns>A configured demo add local content view model.</returns>
-    public static AddLocalContentViewModel CreateDemoAddLocalContent()
+    public static DemoAddLocalContentViewModel CreateDemoAddLocalContent(INotificationService? notificationService = null)
     {
         var mockService = new MockLocalContentService();
         var mockLogger = new MockLogger<AddLocalContentViewModel>();
 
-        return new AddLocalContentViewModel(mockService, null, null, null, mockLogger);
+        return new DemoAddLocalContentViewModel(mockService, null, notificationService, mockLogger);
     }
 
     /// <summary>
@@ -491,5 +493,20 @@ public static class DemoViewModelFactory
                  IsAddLocalContentDialogOpen = false,
              };
         }
+    }
+
+    /// <summary>
+    /// Creates a demo ScanWizardDemoViewModel with mock detected games.
+    /// </summary>
+    /// <param name="notificationService">Optional notification service for demo actions.</param>
+    /// <param name="scanDelayMs">Simulated scan delay in milliseconds.</param>
+    /// <param name="delayProvider">Optional custom delay provider for deterministic testing.</param>
+    /// <returns>A configured demo scan wizard view model.</returns>
+    public static ScanWizardDemoViewModel CreateDemoScanWizard(
+        INotificationService? notificationService = null,
+        int scanDelayMs = 1000,
+        Func<CancellationToken, Task>? delayProvider = null)
+    {
+        return new ScanWizardDemoViewModel(notificationService, scanDelayMs, delayProvider);
     }
 }

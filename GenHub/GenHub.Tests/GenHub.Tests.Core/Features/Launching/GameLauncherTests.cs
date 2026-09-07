@@ -123,6 +123,8 @@ public class GameLauncherTests : IDisposable
 
         _profileContentLinkerMock.Setup(x => x.GetActiveProfileId())
             .Returns((string?)null);
+        _profileContentLinkerMock.Setup(x => x.GetActiveProfileId(It.IsAny<GameType>()))
+            .Returns((string?)null);
 
         // Setup dependency resolver mock - returns resolved manifests including dependencies
         _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
@@ -331,6 +333,59 @@ public class GameLauncherTests : IDisposable
         // Assert
         Assert.False(result.Success);
         Assert.Contains("Process start failed", result.FirstError);
+    }
+
+    /// <summary>
+    /// Launches a profile asynchronously and asserts failure when user data preparation fails.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WhenUserDataPreparationFails_ShouldFailAndUnregisterLaunchAsync()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = profile.Id,
+            WorkspacePath = @"C:\workspace",
+            ExecutablePath = @"C:\workspace\generals.exe",
+        };
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.test", Name = "Test Content" };
+
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("1.0.genhub.mod.test", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
+
+        _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
+                It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(TestContentIds)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DependencyResolutionResult.CreateSuccess(
+                TestContentIds,
+                [manifest],
+                []));
+
+        _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
+
+        _profileContentLinkerMock.Setup(x => x.SwitchProfileUserDataAsync(
+                It.IsAny<string?>(),
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<ContentManifest>>(),
+                It.IsAny<GameType>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("User data preparation failed due to locked files"));
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("User data preparation failed due to locked files", result.FirstError);
+        _launchRegistryMock.Verify(x => x.UnregisterLaunchAsync(It.IsAny<string>()), Times.Once);
+        _processManagerMock.Verify(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     /// <summary>

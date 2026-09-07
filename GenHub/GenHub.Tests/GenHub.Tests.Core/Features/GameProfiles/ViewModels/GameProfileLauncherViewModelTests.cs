@@ -284,6 +284,52 @@ public class GameProfileLauncherViewModelTests
     }
 
     /// <summary>
+    /// Verifies that ScanForGamesCommand handles exceptions thrown by the setup wizard gracefully and resets scanning state.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ScanForGamesCommand_WhenSetupWizardThrows_ResetsScanningAndSetsErrorMessageAsync()
+    {
+        var installationService = new Mock<IGameInstallationService>();
+        var installations = new List<GameInstallation>
+        {
+            new("C:\\Steam\\Games", GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object),
+        };
+
+        installationService.Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess(installations));
+
+        var setupWizardService = new Mock<ISetupWizardService>();
+        const string expectedError = "Unrecognized cursor type 'Default'.";
+        setupWizardService.Setup(x => x.RunSetupWizardAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ArgumentException(expectedError));
+
+        var vm = new GameProfileLauncherViewModel(
+            installationService.Object,
+            new Mock<IGameProfileManager>().Object,
+            new Mock<IProfileLauncherFacade>().Object,
+            null!,
+            new Mock<IProfileEditorFacade>().Object,
+            new Mock<IConfigurationProviderService>().Object,
+            new Mock<IGameProcessManager>().Object,
+            new Mock<IShortcutService>().Object,
+            new Mock<IPublisherProfileOrchestrator>().Object,
+            new Mock<ISteamManifestPatcher>().Object,
+            CreateProfileResourceService(),
+            new Mock<IGameClientDetector>().Object,
+            new Mock<INotificationService>().Object,
+            setupWizardService.Object,
+            new Mock<IDialogService>().Object,
+            NullLogger<GameProfileLauncherViewModel>.Instance);
+
+        await vm.ScanForGamesCommand.ExecuteAsync(null);
+
+        Assert.False(vm.IsScanning);
+        Assert.Equal("Error during scan", vm.StatusMessage);
+        Assert.Equal(expectedError, vm.ErrorMessage);
+    }
+
+    /// <summary>
     /// Verifies that CopyProfile generates a unique name for the copied profile.
     /// </summary>
     [Fact]

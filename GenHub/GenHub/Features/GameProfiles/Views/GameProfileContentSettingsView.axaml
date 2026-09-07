@@ -49,13 +49,7 @@
 
                 <!-- Enabled Content Section -->
                 <Control x:Name="SelectionSection" Height="1" Margin="0,-1,0,0" />
-                <Border Classes="settings-card"
-                        Background="{DynamicResource SurfaceCardBrush}"
-                        BorderBrush="{DynamicResource BorderBrush}"
-                        BorderThickness="1"
-                        CornerRadius="12"
-                        Padding="18"
-                        Margin="0,0,0,16">
+                <Border Classes="settings-card">
                     <StackPanel Spacing="16">
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBlock Grid.Column="0" Classes="section-header" Text="Enabled Content" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}"/>
@@ -136,13 +130,7 @@
 
                 <!-- Discovery Section -->
                 <Control x:Name="DiscoverySection" Height="1" Margin="0,-1,0,0" />
-                <Border Classes="settings-card"
-                        Background="{DynamicResource SurfaceCardBrush}"
-                        BorderBrush="{DynamicResource BorderBrush}"
-                        BorderThickness="1"
-                        CornerRadius="12"
-                        Padding="18"
-                        Margin="0,0,0,16">
+                <Border Classes="settings-card">
                     <StackPanel Spacing="20">
                         <TextBlock Classes="section-header" Text="Available Content" Foreground="{DynamicResource TextPrimary}"/>
 
@@ -193,7 +181,7 @@
                         </Grid>
 
                         <!-- List Background -->
-                        <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="12">
+                        <Border Background="#10FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="12" Padding="12">
                              <ItemsControl ItemsSource="{Binding AvailableContent}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>

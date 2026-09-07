@@ -525,9 +525,9 @@ public partial class GameProfileItemViewModel : ViewModelBase
     public bool IsWorkspacePrepared => !string.IsNullOrEmpty(ActiveWorkspaceId);
 
     /// <summary>
-    /// Gets a value indicating whether the profile can be edited (not running and not being prepared).
+    /// Gets a value indicating whether the profile can be edited (not being prepared).
     /// </summary>
-    public bool CanEdit => !IsProcessRunning && !IsPreparingWorkspace;
+    public bool CanEdit => !IsPreparingWorkspace;
 
     /// <summary>
     /// Gets a value indicating whether the profile can be launched (not running).
@@ -625,6 +625,22 @@ public partial class GameProfileItemViewModel : ViewModelBase
         OnPropertyChanged(nameof(CommandLineArguments));
     }
 
+    private static string MapPublisherName(string publisherSegment, string fallback) =>
+        publisherSegment switch
+        {
+            PublisherTypeConstants.Steam => "Steam",
+            PublisherTypeConstants.EaApp => "EA App",
+            "thefirstdecade" => "The First Decade",
+            PublisherTypeConstants.Retail => "Retail",
+            "cdiso" => "CD/ISO",
+            "wine" => "Wine",
+            PublisherTypeConstants.GeneralsOnline => "Generals Online",
+            PublisherTypeConstants.TheSuperHackers => "The Super Hackers",
+            CommunityOutpostConstants.PublisherType => "Community Outpost",
+            "local" => "Local",
+            _ => fallback,
+        };
+
     private static string GetPublisherNameFromId(string manifestId)
     {
         if (string.IsNullOrEmpty(manifestId))
@@ -639,19 +655,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
         }
 
         var publisher = segments[2].ToLowerInvariant();
-        return publisher switch
-        {
-            PublisherTypeConstants.Steam => "Steam",
-            PublisherTypeConstants.EaApp => "EA App",
-            "thefirstdecade" => "The First Decade",
-            PublisherTypeConstants.Retail => "Retail",
-            "cdiso" => "CD/ISO",
-            "wine" => "Wine",
-            PublisherTypeConstants.GeneralsOnline => "Generals Online",
-            PublisherTypeConstants.TheSuperHackers => "The Super Hackers",
-            CommunityOutpostConstants.PublisherType => "Community Outpost",
-            _ => System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(publisher),
-        };
+        return MapPublisherName(publisher, System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(publisher));
     }
 
     /// <summary>
@@ -737,6 +741,72 @@ public partial class GameProfileItemViewModel : ViewModelBase
         };
     }
 
+    /// <summary>
+    /// Checks if the version is zero or a placeholder.
+    /// </summary>
+    /// <param name="version">The version string to check.</param>
+    private static bool IsZeroOrPlaceholderVersion(string version)
+    {
+        return version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase) ||
+               version.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
+               version.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
+               version.Contains("Automatically", StringComparison.OrdinalIgnoreCase) ||
+               version == "0" ||
+               version == "0.0" ||
+               version == "0.0.0" ||
+               version == "0.0.0.0" ||
+               version.Equals("v0", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ParsePublisherName(string publisherSegment, string originalSegment) =>
+        MapPublisherName(publisherSegment, originalSegment.ToUpperInvariant());
+
+    private static string ParseManifestVersion(string publisherSegment, string versionSegment)
+    {
+        if (publisherSegment == "local")
+        {
+            return string.Empty;
+        }
+
+        if (int.TryParse(versionSegment, out var versionNumber) && versionNumber > 0)
+        {
+            if (publisherSegment == PublisherTypeConstants.GeneralsOnline)
+            {
+                return versionNumber.ToString("D6");
+            }
+
+            return versionNumber >= 100
+                ? $"v{versionNumber / 100}.{versionNumber % 100:D2}"
+                : $"v{versionNumber}";
+        }
+
+        return string.Empty;
+    }
+
+    private static string ParseContentType(string gameTypeSegment)
+    {
+        if (!gameTypeSegment.Contains('-'))
+        {
+            return string.Empty;
+        }
+
+        var parts = gameTypeSegment.Split('-');
+        return parts[1] switch
+        {
+            "gameinstallation" => "Game Installation",
+            "gameclient" => "Game Client",
+            "mod" => "Mod",
+            "patch" => "Patch",
+            "addon" => "Add-on",
+            "map" => "Map",
+            "mappack" => "Map Pack",
+            "executable" => "Executable",
+            "moddingtool" => "Modding Tool",
+            "mission" => "Mission",
+            _ => parts[1].ToUpperInvariant(),
+        };
+    }
+
     private void UpdateDescription(GameProfile gameProfile)
     {
         // Use actual profile description if available
@@ -801,23 +871,6 @@ public partial class GameProfileItemViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Checks if the version is zero or a placeholder.
-    /// </summary>
-    /// <param name="version">The version string to check.</param>
-    private bool IsZeroOrPlaceholderVersion(string version)
-    {
-        return version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase) ||
-               version.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
-               version.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
-               version.Contains("Automatically", StringComparison.OrdinalIgnoreCase) ||
-               version == "0" ||
-               version == "0.0" ||
-               version == "0.0.0" ||
-               version == "0.0.0.0" ||
-               version.Equals("v0", StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>
     /// Extracts version, publisher, and content type information from a manifest ID.
     /// Expected format: schemaVersion.userVersion.publisher.contentType.contentName.
     /// Example: 1.104.steam.gameclient.zerohour → version=104 (1.04), publisher=Steam, contentType=Game Client.
@@ -850,22 +903,6 @@ public partial class GameProfileItemViewModel : ViewModelBase
         }
     }
 
-    private string ParsePublisherName(string publisherSegment, string originalSegment) =>
-        publisherSegment switch
-        {
-            PublisherTypeConstants.Steam => "Steam",
-            PublisherTypeConstants.EaApp => "EA App",
-            "thefirstdecade" => "The First Decade",
-            PublisherTypeConstants.Retail => "Retail",
-            "cdiso" => "CD/ISO",
-            "wine" => "Wine",
-            PublisherTypeConstants.GeneralsOnline => "Generals Online",
-            PublisherTypeConstants.TheSuperHackers => "The Super Hackers",
-            CommunityOutpostConstants.PublisherType => "Community Outpost",
-            "local" => "Local",
-            _ => originalSegment.ToUpperInvariant(),
-        };
-
     private void ApplyPublisherBranding(string publisherSegment)
     {
         if (publisherSegment == PublisherTypeConstants.TheSuperHackers)
@@ -883,51 +920,5 @@ public partial class GameProfileItemViewModel : ViewModelBase
             ColorValue = CommunityOutpostConstants.ThemeColor;
             CoverImagePath = CommunityOutpostConstants.CoverSource;
         }
-    }
-
-    private string ParseManifestVersion(string publisherSegment, string versionSegment)
-    {
-        if (publisherSegment == "local")
-        {
-            return string.Empty;
-        }
-
-        if (int.TryParse(versionSegment, out var versionNumber) && versionNumber > 0)
-        {
-            if (publisherSegment == PublisherTypeConstants.GeneralsOnline)
-            {
-                return versionNumber.ToString("D6");
-            }
-
-            return versionNumber >= 100
-                ? $"v{versionNumber / 100}.{versionNumber % 100:D2}"
-                : $"v{versionNumber}";
-        }
-
-        return string.Empty;
-    }
-
-    private string ParseContentType(string gameTypeSegment)
-    {
-        if (!gameTypeSegment.Contains('-'))
-        {
-            return string.Empty;
-        }
-
-        var parts = gameTypeSegment.Split('-');
-        return parts[1] switch
-        {
-            "gameinstallation" => "Game Installation",
-            "gameclient" => "Game Client",
-            "mod" => "Mod",
-            "patch" => "Patch",
-            "addon" => "Add-on",
-            "map" => "Map",
-            "mappack" => "Map Pack",
-            "executable" => "Executable",
-            "moddingtool" => "Modding Tool",
-            "mission" => "Mission",
-            _ => parts[1].ToUpperInvariant(),
-        };
     }
 }

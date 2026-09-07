@@ -8,11 +8,13 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
+using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Workspace;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.GameProfiles.Services;
@@ -25,7 +27,8 @@ public class GameProfileManager(
     IGameInstallationService installationService,
     IContentManifestPool manifestPool,
     IGameSettingsService gameSettingsService,
-    ILogger<GameProfileManager> logger) : IGameProfileManager
+    ILogger<GameProfileManager> logger,
+    ILaunchRegistry? launchRegistry = null) : IGameProfileManager
 {
     /// <inheritdoc/>
     public async Task<ProfileOperationResult<GameProfile>> CreateProfileAsync(CreateProfileRequest request, CancellationToken cancellationToken = default)
@@ -190,35 +193,31 @@ public class GameProfileManager(
             var previousEnabledContentIds = profile.EnabledContentIds?.ToList() ?? [];
             var previousGameClientId = profile.GameClient?.Id;
 
-            if (request.Name != null)
+            // Check if profile is currently running
+            var isRunning = await CheckIsProfileRunningAsync(profileId);
+            if (isRunning)
             {
-                if (!TryValidateProfileName(request.Name, out var nameValidationError))
+                var validationResult = await ValidateRunningProfileUpdateAsync(profileId, profile, request, previousEnabledContentIds, cancellationToken);
+                if (validationResult != null)
                 {
-                    return ProfileOperationResult<GameProfile>.CreateFailure(nameValidationError!);
+                    return validationResult;
                 }
-
-                profile.Name = request.Name;
             }
 
-            CheckAndHandleContentChanges(profile, request, previousEnabledContentIds, previousGameClientId);
+            if (request.Name != null)
+            {
+                var nameValidationResult = ValidateAndApplyProfileName(profile, request.Name);
+                if (nameValidationResult != null)
+                {
+                    return nameValidationResult;
+                }
+            }
+
+            CheckAndHandleContentChanges(profile, request, previousEnabledContentIds, previousGameClientId, isRunning);
             ApplyUpdateRequestToProfile(profile, request);
             GameSettingsMapper.UpdateFromRequest(profile, request);
 
-            var saveResult = await profileRepository.SaveProfileAsync(profile, cancellationToken);
-            if (saveResult.Success)
-            {
-                logger.LogInformation("Successfully updated game profile: {ProfileName}", profile.Name);
-
-                // Send notification after successful update so UI can refresh
-                // This is critical for GameProfileLauncherViewModel.RefreshSingleProfileAsync to work
-                WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(profile));
-            }
-            else
-            {
-                logger.LogError("Failed to update game profile: {ProfileName}", profile.Name);
-            }
-
-            return saveResult;
+            return await SaveAndNotifyProfileUpdatedAsync(profile, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -316,6 +315,63 @@ public class GameProfileManager(
         }
     }
 
+    private static ProfileOperationResult<GameProfile>? ValidateRunningProfileImmutableSettings(GameProfile profile, UpdateProfileRequest request)
+    {
+        if ((request.WorkspaceStrategy.HasValue && request.WorkspaceStrategy.Value != profile.WorkspaceStrategy) ||
+            (request.ClearWorkspaceStrategy && profile.WorkspaceStrategy.HasValue))
+        {
+            return ProfileOperationResult<GameProfile>.CreateFailure("Cannot change workspace strategy while profile is running.");
+        }
+
+        if (request.GameInstallationId != null && !string.Equals(request.GameInstallationId, profile.GameInstallationId, StringComparison.OrdinalIgnoreCase))
+        {
+            return ProfileOperationResult<GameProfile>.CreateFailure("Cannot change game installation while profile is running.");
+        }
+
+        if (request.ActiveWorkspaceId != null && !string.Equals(request.ActiveWorkspaceId, profile.ActiveWorkspaceId, StringComparison.OrdinalIgnoreCase))
+        {
+            return ProfileOperationResult<GameProfile>.CreateFailure("Cannot change active workspace while profile is running.");
+        }
+
+        if (request.CustomExecutablePath != null && !string.Equals(request.CustomExecutablePath, profile.CustomExecutablePath, StringComparison.OrdinalIgnoreCase))
+        {
+            return ProfileOperationResult<GameProfile>.CreateFailure("Cannot change custom executable path while profile is running.");
+        }
+
+        if (request.WorkingDirectory != null && !string.Equals(request.WorkingDirectory, profile.WorkingDirectory, StringComparison.OrdinalIgnoreCase))
+        {
+            return ProfileOperationResult<GameProfile>.CreateFailure("Cannot change working directory while profile is running.");
+        }
+
+        if (request.CommandLineArguments != null && !string.Equals(request.CommandLineArguments, profile.CommandLineArguments, StringComparison.Ordinal))
+        {
+            return ProfileOperationResult<GameProfile>.CreateFailure("Cannot change command line arguments while profile is running.");
+        }
+
+        return null;
+    }
+
+    private static ProfileOperationResult<GameProfile>? ValidateRunningProfileGameClient(GameProfile profile, GameClient? requestedClient)
+    {
+        if (requestedClient == null)
+        {
+            return null;
+        }
+
+        if (profile.GameClient == null ||
+            !string.Equals(requestedClient.Id, profile.GameClient.Id, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(requestedClient.ExecutablePath, profile.GameClient.ExecutablePath, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(requestedClient.Version, profile.GameClient.Version, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(requestedClient.WorkingDirectory, profile.GameClient.WorkingDirectory, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(requestedClient.InstallationId, profile.GameClient.InstallationId, StringComparison.OrdinalIgnoreCase) ||
+            requestedClient.GameType != profile.GameClient.GameType)
+        {
+            return ProfileOperationResult<GameProfile>.CreateFailure("Cannot change game client while profile is running.");
+        }
+
+        return null;
+    }
+
     /// <summary>
     /// Validates the profile name.
     /// </summary>
@@ -339,6 +395,17 @@ public class GameProfileManager(
         // TODO: Add more rules as needed (e.g., invalid characters)
         errorMessage = null;
         return true;
+    }
+
+    private static ProfileOperationResult<GameProfile>? ValidateAndApplyProfileName(GameProfile profile, string name)
+    {
+        if (!TryValidateProfileName(name, out var nameValidationError))
+        {
+            return ProfileOperationResult<GameProfile>.CreateFailure(nameValidationError!);
+        }
+
+        profile.Name = name;
+        return null;
     }
 
     /// <summary>
@@ -373,12 +440,121 @@ public class GameProfileManager(
         }
     }
 
+    private async Task<bool> CheckIsProfileRunningAsync(string profileId)
+    {
+        if (launchRegistry == null)
+        {
+            return false;
+        }
+
+        var activeLaunches = await launchRegistry.GetAllActiveLaunchesAsync();
+        return activeLaunches.Any(l => string.Equals(l.ProfileId, profileId, StringComparison.OrdinalIgnoreCase) && !l.TerminatedAt.HasValue);
+    }
+
+    private async Task<ProfileOperationResult<GameProfile>?> ValidateRunningProfileUpdateAsync(
+        string profileId,
+        GameProfile profile,
+        UpdateProfileRequest request,
+        List<string> previousEnabledContentIds,
+        CancellationToken cancellationToken)
+    {
+        if (request.IsRollback)
+        {
+            logger.LogInformation(
+                "UpdateProfileAsync for running profile {ProfileId} is flagged as rollback; bypassing running profile immutability validation to restore snapshot.",
+                profileId);
+            return null;
+        }
+
+        return await ValidateRunningProfileUpdateRequestAsync(profile, request, previousEnabledContentIds, cancellationToken);
+    }
+
+    private async Task<ProfileOperationResult<GameProfile>> SaveAndNotifyProfileUpdatedAsync(GameProfile profile, CancellationToken cancellationToken)
+    {
+        var saveResult = await profileRepository.SaveProfileAsync(profile, cancellationToken);
+        if (saveResult.Success)
+        {
+            logger.LogInformation("Successfully updated game profile: {ProfileName}", profile.Name);
+
+            // Send notification after successful update so UI can refresh
+            // This is critical for GameProfileLauncherViewModel.RefreshSingleProfileAsync to work
+            WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(profile));
+        }
+        else
+        {
+            logger.LogError("Failed to update game profile: {ProfileName}", profile.Name);
+        }
+
+        return saveResult;
+    }
+
+    private async Task<ProfileOperationResult<GameProfile>?> ValidateRunningProfileUpdateRequestAsync(
+        GameProfile profile,
+        UpdateProfileRequest request,
+        List<string> previousEnabledContentIds,
+        CancellationToken cancellationToken)
+    {
+        var settingsError = ValidateRunningProfileImmutableSettings(profile, request);
+        if (settingsError != null)
+        {
+            return settingsError;
+        }
+
+        var clientError = ValidateRunningProfileGameClient(profile, request.GameClient);
+        if (clientError != null)
+        {
+            return clientError;
+        }
+
+        return await ValidateRunningProfileContentChangesAsync(previousEnabledContentIds, request.EnabledContentIds, cancellationToken);
+    }
+
+    private async Task<ProfileOperationResult<GameProfile>?> ValidateRunningProfileContentChangesAsync(
+        List<string> previousEnabledContentIds,
+        List<string>? requestedContentIds,
+        CancellationToken cancellationToken)
+    {
+        if (requestedContentIds == null)
+        {
+            return null;
+        }
+
+        var newContentIds = requestedContentIds.ToList();
+        var addedIds = newContentIds.Except(previousEnabledContentIds, StringComparer.OrdinalIgnoreCase).ToList();
+        var removedIds = previousEnabledContentIds.Except(newContentIds, StringComparer.OrdinalIgnoreCase).ToList();
+        var changedIds = addedIds.Concat(removedIds).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+        foreach (var id in changedIds)
+        {
+            if (!ManifestId.TryCreate(id, out var manifestId))
+            {
+                return ProfileOperationResult<GameProfile>.CreateFailure($"Cannot modify content '{id}' while profile is running: invalid manifest ID format.");
+            }
+
+            var manifestResult = await manifestPool.GetManifestAsync(manifestId, cancellationToken);
+            if (!manifestResult.Success || manifestResult.Data == null)
+            {
+                return ProfileOperationResult<GameProfile>.CreateFailure($"Cannot modify content '{id}' while profile is running: manifest not found.");
+            }
+
+            var manifest = manifestResult.Data;
+            if (!ContentHotswapClassification.IsHotswappable(manifest))
+            {
+                return ProfileOperationResult<GameProfile>.CreateFailure($"Cannot modify content '{manifest.Name}' while profile is running. Only content targeting user documents (such as maps and replays) can be hot swapped during an active game session.");
+            }
+        }
+
+        return null;
+    }
+
     private void ApplyUpdateRequestToProfile(GameProfile profile, UpdateProfileRequest request)
     {
         profile.Description = request.Description ?? profile.Description;
         profile.EnabledContentIds = request.EnabledContentIds ?? profile.EnabledContentIds ?? [];
         profile.GameClient = request.GameClient ?? profile.GameClient;
-        profile.WorkspaceStrategy = request.WorkspaceStrategy ?? profile.WorkspaceStrategy;
+        profile.WorkspaceStrategy = request.ClearWorkspaceStrategy
+            ? null
+            : request.WorkspaceStrategy ?? profile.WorkspaceStrategy;
         profile.LaunchOptions = request.LaunchArguments ?? profile.LaunchOptions ?? [];
         profile.CustomExecutablePath = request.CustomExecutablePath ?? profile.CustomExecutablePath;
         profile.WorkingDirectory = request.WorkingDirectory ?? profile.WorkingDirectory;
@@ -399,7 +575,8 @@ public class GameProfileManager(
         GameProfile profile,
         UpdateProfileRequest request,
         List<string> previousEnabledContentIds,
-        string? previousGameClientId)
+        string? previousGameClientId,
+        bool isRunning)
     {
         bool contentChanged = false;
         if (request.EnabledContentIds != null)
@@ -414,7 +591,7 @@ public class GameProfileManager(
             contentChanged = contentChanged || !string.Equals(previousGameClientId, newGameClientId, StringComparison.OrdinalIgnoreCase);
         }
 
-        if (contentChanged && !string.IsNullOrEmpty(profile.ActiveWorkspaceId))
+        if (contentChanged && !isRunning && !string.IsNullOrEmpty(profile.ActiveWorkspaceId))
         {
             logger.LogDebug(
                 "Profile '{ProfileName}' content changed - clearing ActiveWorkspaceId '{WorkspaceId}' to force workspace rebuild on next launch",

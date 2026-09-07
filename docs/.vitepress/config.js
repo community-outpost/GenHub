@@ -36,7 +36,8 @@ export default withMermaid(
                         { text: 'Introduction', link: '/' },
                         { text: 'Developer Onboarding', link: '/onboarding' },
                         { text: 'Architecture Overview', link: '/architecture' },
-                        { text: 'Velopack Integration', link: '/velopack-integration' }
+                        { text: 'Velopack Integration', link: '/velopack-integration' },
+                        { text: 'Contributor Guidelines', link: '/dev/contribution-guidelines' }
                     ]
                 },
                 {
@@ -45,6 +46,7 @@ export default withMermaid(
                         { text: 'Overview', link: '/features/index' },
                         { text: 'App Update & Installer', link: '/velopack-integration' },
                         { text: 'Content System', link: '/features/content' },
+                        { text: 'Downloads Browser', link: '/features/downloads' },
                         { text: 'Content Reconciliation', link: '/features/reconciliation' },
                         { text: 'Manifest Service', link: '/features/manifest' },
                         { text: 'Storage & CAS', link: '/features/storage' },
@@ -54,7 +56,6 @@ export default withMermaid(
                         { text: 'GameProfiles System', link: '/features/gameprofiles' },
                         { text: 'Game Installations', link: '/features/game-installations/' },
                         { text: 'User Data Management', link: '/features/userdata' },
-                        { text: 'Downloads UI', link: '/features/downloads-ui' },
                         { text: 'Notifications', link: '/features/notifications' },
                         { text: 'Desktop Shortcuts', link: '/features/desktop-shortcuts' },
                         { text: 'Steam Proxy Launcher', link: '/features/steam-proxy-launcher' },
@@ -99,6 +100,7 @@ export default withMermaid(
                         { text: 'Content Acquisition', link: '/FlowCharts/Acquisition-Flow' },
                         { text: 'Workspace Assembly', link: '/FlowCharts/Assembly-Flow' },
                         { text: 'Manifest Creation', link: '/FlowCharts/Manifest-Creation-Flow' },
+                        { text: 'Downloads User Flow', link: '/FlowCharts/Downloads-Flow' },
                         { text: 'Complete User Flow', link: '/FlowCharts/Complete-User-Flow' },
                         { text: 'CAS Storage Flow', link: '/FlowCharts/CAS-Storage-Flow' },
                         { text: 'Dependency Resolution', link: '/FlowCharts/Dependency-Resolution-Flow' },

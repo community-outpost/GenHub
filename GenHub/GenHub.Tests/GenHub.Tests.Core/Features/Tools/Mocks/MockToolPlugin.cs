@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Threading;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Tools;
 
@@ -69,6 +70,11 @@ public class MockToolPlugin : IToolPlugin
     public Control CreateControl()
     {
         CreateControlCallCount++;
+        if (Dispatcher.UIThread is { } dispatcher && !dispatcher.CheckAccess())
+        {
+            return dispatcher.Invoke(() => new TextBlock { Text = $"Mock Control for {Metadata.Name}" });
+        }
+
         return new TextBlock { Text = $"Mock Control for {Metadata.Name}" };
     }
 

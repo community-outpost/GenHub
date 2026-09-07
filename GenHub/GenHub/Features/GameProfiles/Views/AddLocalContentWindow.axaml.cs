@@ -32,13 +32,6 @@ public partial class AddLocalContentWindow : Window
     }
 
     /// <inheritdoc />
-    protected override void OnClosed(EventArgs e)
-    {
-        base.OnClosed(e);
-        (DataContext as IDisposable)?.Dispose();
-    }
-
-    /// <inheritdoc />
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
@@ -54,13 +47,12 @@ public partial class AddLocalContentWindow : Window
                     return null;
                 }
 
-                var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+                var result = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
                 {
                     Title = "Select Content Folder",
                     AllowMultiple = false,
                 });
-
-                return folders.Count > 0 ? folders[0].Path.LocalPath : null;
+                return result.Count > 0 ? result[0].Path.LocalPath : null;
             };
 
             vm.BrowseFileAction = async () =>
@@ -70,45 +62,23 @@ public partial class AddLocalContentWindow : Window
                     return null;
                 }
 
-                var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
-                    Title = "Select Archive File",
+                    Title = "Select Files",
                     AllowMultiple = true,
                     FileTypeFilter =
                     [
-                        new FilePickerFileType("Archive Files")
+                        new("Supported Content Files (*.zip, *.7z, *.rar, *.tar, *.gz, *.big)")
                         {
                             Patterns = ["*.zip", "*.7z", "*.rar", "*.tar", "*.gz", "*.big"],
                         },
-                        new FilePickerFileType("All Files")
-                        {
-                            Patterns = ["*.*"],
-                        },
+                        new("Zip Archives (*.zip)") { Patterns = ["*.zip"] },
+                        new("BIG Files (*.big)") { Patterns = ["*.big"] },
+                        FilePickerFileTypes.All,
                     ],
                 });
-
-                return files.Count > 0 ? files.Select(f => f.Path.LocalPath).ToList() : null;
+                return result.Count > 0 ? result.Select(f => f.Path.LocalPath).ToList() : null;
             };
-        }
-    }
-
-    /// <summary>
-    /// Handles pointer pressed on the title bar for dragging and maximizing.
-    /// </summary>
-    /// <param name="sender">The sender.</param>
-    /// <param name="e">The event arguments.</param>
-    private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
-        {
-            if (e.ClickCount == 2 && CanResize)
-            {
-                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-            }
-            else
-            {
-                BeginMoveDrag(e);
-            }
         }
     }
 
@@ -162,6 +132,20 @@ public partial class AddLocalContentWindow : Window
                     await vm.ImportContentAsync(path);
                 }
             }
+        }
+    }
+
+    private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            if (e.ClickCount == 2 && CanResize)
+            {
+                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+                return;
+            }
+
+            BeginMoveDrag(e);
         }
     }
 }

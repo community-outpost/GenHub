@@ -197,4 +197,14 @@ public partial class GameProfileSettingsViewModel
 
     [ObservableProperty]
     private GameType _selectedLocalGameType = Core.Models.Enums.GameType.ZeroHour;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanEditImmutableMetadata))]
+    private bool _isHotswapMode;
+
+    /// <summary>
+    /// Gets a value indicating whether immutable profile metadata can be edited (i.e. not in hotswap mode).
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Observable property accessed via property binding on ViewModel instance")]
+    public bool CanEditImmutableMetadata => !IsHotswapMode;
 }

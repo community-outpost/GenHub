@@ -116,6 +116,9 @@ public class ReconciliationIntegrationTests : IDisposable
         };
 
         // Setup profile manager to return the test profile
+        _profileManagerMock.Setup(x => x.GetProfileAsync("go-profile", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
         _profileManagerMock.Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
 

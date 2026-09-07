@@ -540,4 +540,68 @@ public class GameProfileSettingsViewModelDependencyTests
         Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == mapPackId.Value);
         Assert.True(_viewModel.EnabledContent.First(c => c.ManifestId.Value == mapPackId.Value).IsEnabled);
     }
+
+    /// <summary>
+    /// Verifies that enabling content requiring a GameInstallation does not auto switch when a compatible installation is already selected.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task EnableContent_DoesNotAutoSwitch_WhenMatchingGameInstallationAlreadySelectedAsync()
+    {
+        // Arrange
+        var mapPackManifestId = new ManifestId("1.813262.generalsonline.mappack.quickmatchmaps");
+        var zeroHourInstallId = new ManifestId("1.104.steam.gameinstallation.zerohour");
+
+        var mapPackManifest = new ContentManifest
+        {
+            Id = mapPackManifestId,
+            Name = "GeneralsOnline QuickMatch Maps",
+            ContentType = ContentType.MapPack,
+            TargetGame = GameType.ZeroHour,
+            Dependencies =
+            [
+                new()
+                {
+                    DependencyType = ContentType.GameInstallation,
+                    CompatibleGameTypes = [GameType.ZeroHour],
+                },
+            ],
+        };
+
+        _mockManifestPool.Setup(x => x.GetManifestAsync(It.Is<ManifestId>(id => id.Value == mapPackManifestId.Value), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(mapPackManifest));
+
+        var zeroHourInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = zeroHourInstallId,
+            DisplayName = "Zero Hour v1.04",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+            IsEnabled = true,
+        };
+
+        _viewModel.AvailableGameInstallations = [zeroHourInstall];
+        _viewModel.SelectedGameInstallation = zeroHourInstall;
+        _viewModel.EnabledContent.Add(zeroHourInstall);
+
+        var mapPackItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = mapPackManifestId,
+            DisplayName = "GeneralsOnline QuickMatch Maps",
+            ContentType = ContentType.MapPack,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+            IsEnabled = false,
+        };
+        _viewModel.AvailableContent.Add(mapPackItem);
+
+        // Act
+        await _viewModel.EnableContentCommand.ExecuteAsync(mapPackItem);
+
+        // Assert
+        Assert.Equal(zeroHourInstall, _viewModel.SelectedGameInstallation);
+        Assert.Single(_viewModel.EnabledContent, c => c.ContentType == ContentType.GameInstallation);
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == mapPackManifestId.Value);
+    }
 }

@@ -15,9 +15,6 @@
 
   <UserControl.Resources>
     <ResourceDictionary>
-      <ResourceDictionary.MergedDictionaries>
-        <ResourceInclude Source="avares://GenHub/Features/Tools/Views/ToolIcons.axaml" />
-      </ResourceDictionary.MergedDictionaries>
       <converters:FileSizeConverter x:Key="FileSizeConverter" />
       <converters:BoolToTypeConverter x:Key="BoolToTypeConverter" />
       <converters:AssetCountConverter x:Key="AssetCountConverter" />

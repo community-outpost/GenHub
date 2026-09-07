@@ -13,6 +13,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Helpers;
+using GenHub.Features.GitHub.Services;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentDiscoverers;
@@ -24,7 +25,8 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 /// </summary>
 public partial class GitHubTopicsDiscoverer(
     IGitHubApiClient gitHubApiClient,
-    ILogger<GitHubTopicsDiscoverer> logger) : IContentDiscoverer
+    ILogger<GitHubTopicsDiscoverer> logger,
+    GitHubRateLimitTracker? rateLimitTracker = null) : IContentDiscoverer
 {
     [System.Text.RegularExpressions.GeneratedRegex(@"[^\d]")]
     private static partial System.Text.RegularExpressions.Regex NonDigitRegex();
@@ -52,39 +54,39 @@ public partial class GitHubTopicsDiscoverer(
     private static partial class VariantPatterns
     {
         /// <summary>
-        /// Regex to match resolution patterns like 1920x1080, 2560x1440, etc.
-        /// </summary>
-        [System.Text.RegularExpressions.GeneratedRegex(@"\d{3,4}x\d{3,4}", System.Text.RegularExpressions.RegexOptions.Compiled)]
-        public static partial System.Text.RegularExpressions.Regex ResolutionPattern();
-
-        /// <summary>
-        /// Regex to match non-digit characters.
-        /// </summary>
-        [System.Text.RegularExpressions.GeneratedRegex(@"[^\d]", System.Text.RegularExpressions.RegexOptions.Compiled)]
-        public static partial System.Text.RegularExpressions.Regex NonDigitPattern();
-
-        /// <summary>
-        /// Common resolution display names for user-friendly output.
-        /// </summary>
-        public static readonly Dictionary<string, string> ResolutionDisplayNames = new(StringComparer.OrdinalIgnoreCase)
-        {
-            { "1280x720", "720p" },
-            { "1366x768", "768p" },
-            { "1600x900", "900p" },
-            { "1920x1080", "1080p" },
-            { "2560x1440", "1440p" },
-            { "3840x2160", "4K" },
-            { "5120x2880", "5K" },
-            { "7680x4320", "8K" },
-        };
-
-        /// <summary>
-        /// File extensions that are archives and should be checked for variants.
+        /// Common archive extensions to check for variants.
         /// </summary>
         public static readonly string[] ArchiveExtensions =
         [
             ".zip", ".7z", ".rar", ".tar.gz", ".tgz",
         ];
+
+        /// <summary>
+        /// Resolution patterns commonly used in filenames (e.g., 1080p, 1440p, 4k, 1920x1080).
+        /// </summary>
+        [System.Text.RegularExpressions.GeneratedRegex(
+            @"(?:1080p|1440p|2160p|4k|720p|\d{3,4}x\d{3,4})",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+        public static partial System.Text.RegularExpressions.Regex ResolutionPattern();
+
+        /// <summary>
+        /// Display names for common resolutions.
+        /// </summary>
+        public static readonly Dictionary<string, string> ResolutionDisplayNames =
+            new(StringComparer.OrdinalIgnoreCase)
+            {
+                { "1080p", "1080p" },
+                { "1920x1080", "1080p" },
+                { "1440p", "1440p" },
+                { "2560x1440", "1440p" },
+                { "2160p", "4K" },
+                { "4k", "4K" },
+                { "3840x2160", "4K" },
+                { "5120x2880", "5K" },
+                { "7680x4320", "8K" },
+                { "720p", "720p" },
+                { "1280x720", "720p" },
+            };
 
         /// <summary>
         /// Filenames to exclude from variant splitting (source code, etc.).
@@ -125,6 +127,12 @@ public partial class GitHubTopicsDiscoverer(
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
+                if (IsRateLimitExhausted())
+                {
+                    logger.LogWarning("GitHub API rate limit exhausted. Halting discovery early.");
+                    break;
+                }
+
                 var searchResponse = await gitHubApiClient.SearchRepositoriesByTopicAsync(
                     topic,
                     perPage: GitHubTopicsConstants.DefaultPerPage,
@@ -163,27 +171,53 @@ public partial class GitHubTopicsDiscoverer(
 
                     // Try to get latest release for version info
                     GitHubRelease? latestRelease = null;
-                    try
+                    if (!IsRateLimitExhausted())
                     {
-                        // Apply rate limiting
-                        await _rateLimitSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                         try
                         {
-                            latestRelease = await gitHubApiClient.GetLatestReleaseAsync(
-                                repo.Owner.Login,
-                                repo.Name,
-                                cancellationToken).ConfigureAwait(false);
+                            // Apply rate limiting
+                            await _rateLimitSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                            try
+                            {
+                                try
+                                {
+                                    latestRelease = await gitHubApiClient.GetLatestReleaseAsync(
+                                        repo.Owner.Login,
+                                        repo.Name,
+                                        cancellationToken).ConfigureAwait(false);
+                                }
+                                finally
+                                {
+                                    // Add delay before releasing semaphore to maintain rate limit
+                                    try
+                                    {
+                                        await Task.Delay(RateLimitDelay, cancellationToken).ConfigureAwait(false);
+                                    }
+                                    catch (OperationCanceledException)
+                                    {
+                                        // Ignore cancellation during the delay so semaphore release executes cleanly
+                                    }
+                                }
+                            }
+                            finally
+                            {
+                                _rateLimitSemaphore.Release();
+                            }
+
+                            cancellationToken.ThrowIfCancellationRequested();
                         }
-                        finally
+                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                         {
-                            // Add delay before releasing semaphore to maintain rate limit
-                            await Task.Delay(RateLimitDelay, cancellationToken).ConfigureAwait(false);
-                            _rateLimitSemaphore.Release();
+                            throw;
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogDebug(ex, "No releases found for {Repo}, will use repo info", repo.FullName);
                         }
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        logger.LogDebug(ex, "No releases found for {Repo}, will use repo info", repo.FullName);
+                        logger.LogDebug("GitHub API rate limit exhausted. Skipping release fetch for {Repo}", repo.FullName);
                     }
 
                     // Create search results (may return multiple for multi-asset releases)
@@ -330,7 +364,7 @@ public partial class GitHubTopicsDiscoverer(
             return true;
 
         // Check for source-related patterns
-        if (VariantPatterns.ExcludedPatterns.Any(p => lowerName.Contains(p)))
+        if (VariantPatterns.ExcludedPatterns.Any(lowerName.Contains))
             return true;
 
         return false;
@@ -342,7 +376,7 @@ public partial class GitHubTopicsDiscoverer(
     private static bool IsArchiveAsset(string assetName)
     {
         var lowerName = assetName.ToLowerInvariant();
-        return VariantPatterns.ArchiveExtensions.Any(ext => lowerName.EndsWith(ext));
+        return VariantPatterns.ArchiveExtensions.Any(lowerName.EndsWith);
     }
 
     /// <summary>
@@ -406,7 +440,7 @@ public partial class GitHubTopicsDiscoverer(
             { "portuguese", "Portuguese" },
         };
 
-        // Check if filename contains a resolution (e.g., 1920x1080)
+        // Check if filename contains a resolution (e.g., 1920x1080).
         // Note: Resolution matching is already handled by VariantPatterns.ResolutionPattern() above.
         foreach (var (pattern, displayName) in languagePatterns)
         {
@@ -423,6 +457,21 @@ public partial class GitHubTopicsDiscoverer(
         }
 
         return nameWithoutExt;
+    }
+
+    private bool IsRateLimitExhausted()
+    {
+        if (gitHubApiClient.IsRateLimited)
+        {
+            return true;
+        }
+
+        if (rateLimitTracker != null && rateLimitTracker.IsAtLimit && rateLimitTracker.TimeUntilReset > TimeSpan.Zero)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>

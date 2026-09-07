@@ -707,7 +707,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                     // Query the manifest pool for all GameClient manifests matching the version
                     // and publisher type that was just acquired.
                     var installedVersion = result.Data.Version;
-                    var publisherType = result.Data.Publisher?.PublisherType;
+                    var publisherType = result.Data.Publisher?.PublisherType ?? PublisherId;
 
                     var allManifests = await _manifestPool.GetAllManifestsAsync(_cts.Token);
                     if (allManifests.Success && allManifests.Data != null)
@@ -715,8 +715,9 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                         // Find all GameClient manifests with matching version and publisher
                         var justInstalledGameClients = allManifests.Data.Where(m =>
                             m.Version == installedVersion &&
-                            m.Publisher?.PublisherType == publisherType &&
-                            m.ContentType == ContentType.GameClient).ToList();
+                            m.ContentType == ContentType.GameClient &&
+                            (string.Equals(m.Publisher?.PublisherType, publisherType, StringComparison.OrdinalIgnoreCase) ||
+                             m.Id.Value.Contains($".{publisherType}.", StringComparison.OrdinalIgnoreCase))).ToList();
 
                         _logger.LogInformation(
                             "Found {Count} GameClient variants for {Publisher} v{Version}",
@@ -731,14 +732,14 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                             {
                                 _logger.LogInformation(
                                     "Created profile for {ManifestId}: {ProfileName}",
-                                    manifest.Id,
+                                    m.Id,
                                     profileResult.Data?.Name);
                             }
                             else
                             {
                                 _logger.LogWarning(
                                     "Failed to create profile for {ManifestId}: {Errors}",
-                                    manifest.Id,
+                                    m.Id,
                                     string.Join(", ", profileResult.Errors));
                             }
                         }

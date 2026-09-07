@@ -32,6 +32,9 @@ public partial class GameProfileSettingsWindow : Window
 
         // Subscribe to property changes to save window size
         PropertyChanged += OnPropertyChanged;
+
+        // Refresh hotswap state when window is focused/activated
+        Activated += OnWindowActivated;
     }
 
     /// <summary>
@@ -70,6 +73,8 @@ public partial class GameProfileSettingsWindow : Window
     /// <param name="e">The event arguments.</param>
     protected override void OnClosed(EventArgs e)
     {
+        Activated -= OnWindowActivated;
+
         if (DataContext is GameProfileSettingsViewModel viewModel)
         {
             viewModel.CloseRequested -= OnCloseRequested;
@@ -79,6 +84,14 @@ public partial class GameProfileSettingsWindow : Window
         SaveWindowSize();
 
         base.OnClosed(e);
+    }
+
+    private async void OnWindowActivated(object? sender, EventArgs e)
+    {
+        if (DataContext is GameProfileSettingsViewModel viewModel)
+        {
+            await viewModel.RefreshHotswapStateAsync();
+        }
     }
 
     private void InitializeComponent()

@@ -1,20 +1,26 @@
 using CsvHelper;
 using CsvHelper.Configuration;
 using GenHub.Core.Constants;
+using GenHub.Core.Features.GameInstallations;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Tools;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Core.Utilities;
+using GenHub.Features.Content.Services.ContentResolvers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Reflection;
+using System.Net.Http;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Manifest;
@@ -31,17 +37,55 @@ public class ManifestGenerationService(
     IFileHashProvider hashProvider,
     IManifestIdService manifestIdService,
     IDownloadService downloadService,
-    IConfigurationProviderService configurationProvider) : IManifestGenerationService
+    IConfigurationProviderService configurationProvider,
+    ILanguageDetector? languageDetector = null,
+    CsvResolver? csvResolver = null) : IManifestGenerationService
 {
-    private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
+    private static readonly CsvConfiguration CsvConfig = new(CultureInfo.InvariantCulture)
+    {
+        HasHeaderRecord = true,
+        MissingFieldFound = null,
+        HeaderValidated = null,
+        BadDataFound = null,
+    };
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    private static readonly string[] SupportedLanguages = ["EN", "DE", "FR", "ES", "IT", "KO", "PL", "PT-BR", "ZH-CN", "ZH-TW"];
+    private static readonly HashSet<string> FallbackFileExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".016",
+        ".256",
+        ".ani",
+        ".asi",
+        ".big",
+        ".bik",
+        ".bmp",
+        ".cfg",
+        ".csf",
+        ".dat",
+        ".dll",
+        ".exe",
+        ".flt",
+        ".ico",
+        ".ini",
+        ".lcf",
+        ".m3d",
+        ".map",
+        ".scb",
+        ".str",
+        ".sys",
+        ".tga",
+        ".txt",
+        ".vp6",
+        ".w3d",
+        ".wav",
+    };
 
-    private int _fileCount = 0;
+    private readonly ILanguageDetector _languageDetector = languageDetector ?? new LanguageDetector();
 
     /// <summary>
     /// Creates a manifest builder for a game installation with string version normalization.
@@ -50,15 +94,21 @@ public class ManifestGenerationService(
     /// <param name="gameType">The game type (Generals, ZeroHour).</param>
     /// <param name="installationType">The installation type (Steam, EaApp).</param>
     /// <param name="manifestVersion">The manifest version (e.g., "1.08", "1.04", or integer like 0, 1, 2). If null, defaults to 0.</param>
+    /// <param name="language">Optional explicit language code (e.g., "EN", "DE"). If null, language is detected automatically.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
     public async Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
         string gameInstallationPath,
         GameType gameType,
         GameInstallationType installationType,
-        string? manifestVersion = null)
+        string? manifestVersion = null,
+        string? language = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
+            var resolvedVersion = ResolveManifestVersion(gameType, manifestVersion);
+
             logger.LogDebug(
                 "Creating GameInstallation manifest for {GameType} at {GameInstallationPath}",
                 gameType,
@@ -66,7 +116,7 @@ public class ManifestGenerationService(
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
             var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, downloadService, configurationProvider)
-                .WithBasicInfo(installationType, gameType, manifestVersion)
+                .WithBasicInfo(installationType, gameType, resolvedVersion)
                 .WithContentType(ContentType.GameInstallation, gameType);
 
             // Add publisher info with user-friendly display names matching InstallationTypeDisplayConverter
@@ -81,7 +131,7 @@ public class ManifestGenerationService(
             builder.WithPublisher(publisher.Name, publisher.Website, publisher.SupportUrl, string.Empty, publisher.PublisherType);
 
             // Add essential game files
-            await AddGameFilesToManifest(builder, gameInstallationPath, gameType);
+            await AddGameFilesToManifest(builder, gameInstallationPath, gameType, resolvedVersion, language, cancellationToken);
 
             logger.LogInformation(
                 "Created GameInstallation manifest for {InstallationType} {GameType} (Publisher: {PublisherName})",
@@ -90,6 +140,10 @@ public class ManifestGenerationService(
                 publisher.Name);
 
             return builder;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -109,14 +163,18 @@ public class ManifestGenerationService(
     /// <param name="gameType">The game type (Generals, ZeroHour).</param>
     /// <param name="installationType">The installation type (Steam, EaApp).</param>
     /// <param name="manifestVersion">The manifest version (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
+    /// <param name="language">Optional explicit language code (e.g., "EN", "DE"). If null, language is detected automatically.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
     public async Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
         string gameInstallationPath,
         GameType gameType,
         GameInstallationType installationType,
-        int manifestVersion = 0)
+        int manifestVersion = 0,
+        string? language = null,
+        CancellationToken cancellationToken = default)
     {
-        return await CreateGameInstallationManifestAsync(gameInstallationPath, gameType, installationType, manifestVersion.ToString());
+        return await CreateGameInstallationManifestAsync(gameInstallationPath, gameType, installationType, manifestVersion.ToString(), language, cancellationToken);
     }
 
     /// <summary>
@@ -333,7 +391,7 @@ public class ManifestGenerationService(
                 Directory.CreateDirectory(directory);
             }
 
-            var options = _jsonSerializerOptions;
+            var options = JsonOptions;
 
             await using var stream = File.Create(outputPath);
             await JsonSerializer.SerializeAsync(stream, manifest, options);
@@ -494,139 +552,533 @@ public class ManifestGenerationService(
     /// </summary>
     private static bool ShouldSkipFile(string relativePath)
     {
-        return relativePath.EndsWith(SteamConstants.BackupExtension, StringComparison.OrdinalIgnoreCase) ||
-               relativePath.EndsWith(SteamConstants.ProxyLauncherFileName, StringComparison.OrdinalIgnoreCase);
+        var normalized = relativePath.Replace('\\', '/');
+        return normalized.StartsWith(SteamConstants.BackupDirName + "/", StringComparison.OrdinalIgnoreCase) ||
+               normalized.StartsWith(FileTypes.GitDirectoryName + "/", StringComparison.OrdinalIgnoreCase) ||
+               normalized.EndsWith(SteamConstants.BackupExtension, StringComparison.OrdinalIgnoreCase) ||
+               normalized.EndsWith(FileTypes.LegacyBackupExtension, StringComparison.OrdinalIgnoreCase) ||
+               normalized.EndsWith(SteamConstants.ProxyLauncherFileName, StringComparison.OrdinalIgnoreCase) ||
+               normalized.EndsWith(SteamConstants.TrackingFileName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryGetCatalogInfo(GameType gameType, string version, out (string FileName, string Sha256) info)
+    {
+        if (gameType == GameType.Generals && version is "1.08" or "1.8")
+        {
+            info = (CsvConstants.GeneralsCsvFileName, CsvConstants.Generals108Sha256);
+            return true;
+        }
+
+        if (gameType == GameType.ZeroHour && version is "1.04" or "1.4")
+        {
+            info = (CsvConstants.ZeroHourCsvFileName, CsvConstants.ZeroHour104Sha256);
+            return true;
+        }
+
+        info = default;
+        return false;
+    }
+
+    private static List<CsvCatalogEntry> FilterEntriesByGameAndLanguage(
+        IEnumerable<CsvCatalogEntry> records,
+        string targetGame,
+        string targetLanguage)
+    {
+        var result = new List<CsvCatalogEntry>();
+        foreach (var record in records)
+        {
+            if (string.IsNullOrWhiteSpace(record.RelativePath))
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(targetGame) &&
+                !string.Equals(record.GameType, targetGame, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (MatchesLanguage(record.Language, targetLanguage))
+            {
+                result.Add(record);
+            }
+        }
+
+        return result;
+    }
+
+    private static bool MatchesLanguage(string? entryLanguage, string targetLanguage)
+    {
+        if (string.Equals(targetLanguage, CsvConstants.AllLanguagesFilter, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(entryLanguage) ||
+            string.Equals(entryLanguage, CsvConstants.AllLanguagesFilter, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var normalizedEntryLang = ContentSearchQuery.NormalizeLanguage(entryLanguage);
+        return string.Equals(normalizedEntryLang, targetLanguage, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
-    /// Adds game files to a manifest builder.
+    /// Validates that a relative path stays within the base installation directory and returns its exact path.
+    /// </summary>
+    private static string? GetSafeExactPath(string installationPath, string relativePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativePath) || Path.IsPathRooted(relativePath))
+        {
+            return null;
+        }
+
+        var normalizedRelative = relativePath.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
+        if (normalizedRelative.Contains(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+            normalizedRelative.StartsWith("..", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var fullInstallationPath = Path.GetFullPath(installationPath);
+        var candidatePath = Path.GetFullPath(Path.Combine(fullInstallationPath, normalizedRelative));
+
+        var rootWithSeparator = Path.TrimEndingDirectorySeparator(fullInstallationPath) + Path.DirectorySeparatorChar;
+        if (!candidatePath.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return candidatePath;
+    }
+
+    /// <summary>
+    /// Resolves a single directory child segment case-insensitively while skipping reparse points.
+    /// </summary>
+    private static string? ResolveChildDirectory(string currentDir, string segment, EnumerationOptions options)
+    {
+        if (segment == "." || segment == "..")
+        {
+            return null;
+        }
+
+        try
+        {
+            var match = Directory.EnumerateDirectories(currentDir, "*", options)
+                .FirstOrDefault(d => string.Equals(Path.GetFileName(d), segment, StringComparison.OrdinalIgnoreCase));
+
+            return (match != null && !IsReparsePoint(match)) ? match : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Resolves a file child segment case-insensitively while skipping reparse points.
+    /// </summary>
+    private static string? ResolveChildFile(string currentDir, string fileName, EnumerationOptions options)
+    {
+        try
+        {
+            var match = Directory.EnumerateFiles(currentDir, "*", options)
+                .FirstOrDefault(f => string.Equals(Path.GetFileName(f), fileName, StringComparison.OrdinalIgnoreCase));
+
+            return (match != null && !IsReparsePoint(match)) ? match : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Returns true when the directory is missing or is a reparse point other than the installation root itself.
+    /// </summary>
+    private static bool IsInvalidIntermediateDirectory(string currentDir, string fullInstallationPath)
+    {
+        return !Directory.Exists(currentDir) ||
+               (!string.Equals(currentDir, fullInstallationPath, StringComparison.OrdinalIgnoreCase) && IsReparsePoint(currentDir));
+    }
+
+    /// <summary>
+    /// Finds a file in the installation directory using case-insensitive path resolution.
+    /// Rejects paths containing symbolic links or reparse points to prevent path traversal.
+    /// </summary>
+    private static string? FindFileCaseInsensitive(string installationPath, string relativePath)
+    {
+        var exactPath = GetSafeExactPath(installationPath, relativePath);
+        if (exactPath == null)
+        {
+            return null;
+        }
+
+        var fullInstallationPath = Path.GetFullPath(installationPath);
+        if (File.Exists(exactPath))
+        {
+            return HasReparsePointInPath(fullInstallationPath, exactPath) ? null : exactPath;
+        }
+
+        var segments = relativePath.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries);
+        var currentDir = fullInstallationPath;
+
+        var enumOptions = new EnumerationOptions
+        {
+            IgnoreInaccessible = true,
+            RecurseSubdirectories = false,
+            AttributesToSkip = FileAttributes.ReparsePoint,
+        };
+
+        for (int i = 0; i < segments.Length - 1; i++)
+        {
+            if (IsInvalidIntermediateDirectory(currentDir, fullInstallationPath))
+            {
+                return null;
+            }
+
+            var nextDir = ResolveChildDirectory(currentDir, segments[i], enumOptions);
+            if (nextDir == null)
+            {
+                return null;
+            }
+
+            currentDir = nextDir;
+        }
+
+        if (IsInvalidIntermediateDirectory(currentDir, fullInstallationPath))
+        {
+            return null;
+        }
+
+        return ResolveChildFile(currentDir, segments[^1], enumOptions);
+    }
+
+    /// <summary>
+    /// Checks whether the target path or any intermediate directory beneath the base path is a reparse point or symlink.
+    /// </summary>
+    private static bool HasReparsePointInPath(string basePath, string targetPath)
+    {
+        try
+        {
+            var normalizedBase = Path.TrimEndingDirectorySeparator(Path.GetFullPath(basePath));
+            var currentPath = Path.GetFullPath(targetPath);
+
+            while (!string.IsNullOrEmpty(currentPath) && !string.Equals(currentPath, normalizedBase, StringComparison.OrdinalIgnoreCase))
+            {
+                if ((File.Exists(currentPath) || Directory.Exists(currentPath)) && IsReparsePoint(currentPath))
+                {
+                    return true;
+                }
+
+                currentPath = Path.GetDirectoryName(currentPath);
+            }
+
+            return false;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return true;
+        }
+    }
+
+    private static string ResolveManifestVersion(GameType gameType, string? manifestVersion)
+    {
+        if (!string.IsNullOrWhiteSpace(manifestVersion) && !int.TryParse(manifestVersion, out _))
+        {
+            return manifestVersion;
+        }
+
+        return gameType == GameType.Generals
+            ? ManifestConstants.GeneralsManifestVersion
+            : ManifestConstants.ZeroHourManifestVersion;
+    }
+
+    /// <summary>
+    /// Determines whether the specified file path is a symbolic link or reparse point.
+    /// </summary>
+    private static bool IsReparsePoint(string path)
+    {
+        try
+        {
+            return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Adds authoritative vanilla game files to a manifest builder using the CSV catalog authority.
     /// </summary>
     /// <param name="builder">The manifest builder.</param>
     /// <param name="installationPath">The installation path.</param>
     /// <param name="gameType">The game type.</param>
+    /// <param name="manifestVersion">Optional manifest version.</param>
+    /// <param name="language">Optional explicit language code.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    /// <remarks>
-    /// Scans the game installation directory and adds all files to the manifest,
-    /// excluding known non-game directories (RedistInstallers, Manuals, etc.).
-    /// This will be used for manual content packaging of game installations until we have CSV feature implemented that will act as a source of truth to generate the manifest.
-    /// </remarks>
-    private async Task AddGameFilesToManifest(IContentManifestBuilder builder, string installationPath, GameType gameType)
+    private async Task AddGameFilesToManifest(
+        IContentManifestBuilder builder,
+        string installationPath,
+        GameType gameType,
+        string? manifestVersion,
+        string? language,
+        CancellationToken cancellationToken = default)
     {
-        try
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var detectedLanguage = string.IsNullOrWhiteSpace(language)
+            ? await _languageDetector.DetectAsync(installationPath, cancellationToken)
+            : language;
+
+        var normalizedLanguage = ContentSearchQuery.NormalizeLanguage(detectedLanguage);
+        var version = ResolveManifestVersion(gameType, manifestVersion);
+
+        logger.LogInformation(
+            "Starting authoritative manifest generation for {GameType} v{Version} ({Language}) at {InstallationPath}",
+            gameType,
+            version,
+            normalizedLanguage,
+            installationPath);
+
+        var authoritativeEntries = await GetAuthoritativeEntriesAsync(gameType, version, normalizedLanguage, cancellationToken);
+
+        if (authoritativeEntries.Count == 0)
         {
-            // Reset file counter for this manifest generation
-            _fileCount = 0;
+            logger.LogWarning(
+                "No authoritative CSV entries found for {GameType} v{Version} ({Language}). Falling back to directory scan manifest generation.",
+                gameType,
+                version,
+                normalizedLanguage);
 
-            logger.LogInformation("Starting manifest generation for {GameType} at {InstallationPath}", gameType, installationPath);
-
-            // Add essential executable files
-            var executableName = gameType == GameType.Generals ? GameClientConstants.GeneralsExecutable : GameClientConstants.ZeroHourExecutable;
-            var executablePath = Path.Combine(installationPath, executableName);
-
-            if (File.Exists(executablePath))
-            {
-                var sourcePath = ResolveSourcePathWithBackup(executablePath, executableName);
-                await builder.AddGameInstallationFileAsync(executableName, sourcePath, isExecutable: true);
-            }
-
-            // Add common game files including DLLs and .big archives which are required for the game to run
-            var commonFiles = new[]
-            {
-                "*.exe",
-                "*.dll",
-                "*.dat",
-                "*.ini",
-                "*.cfg",
-                "*.big", // Essential: Archive files containing game assets, textures, audio, etc.
-                "*.txt", // Essential: Text files like steam_appid.txt
-            };
-
-            foreach (var pattern in commonFiles)
-            {
-                try
-                {
-                    var files = Directory.GetFiles(installationPath, pattern, SearchOption.TopDirectoryOnly);
-                    foreach (var file in files)
-                    {
-                        var relativePath = Path.GetFileName(file);
-
-                        // Skip backup files and the proxy launcher itself
-                        if (ShouldSkipFile(relativePath))
-                        {
-                            continue;
-                        }
-
-                        // Skip the main executable as it was already added with backup handling
-                        if (relativePath.Equals(executableName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            continue;
-                        }
-
-                        await builder.AddGameInstallationFileAsync(relativePath, file);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to enumerate files with pattern {Pattern} at {InstallationPath}", pattern, installationPath);
-                }
-            }
-
-            // Add all subdirectories except known non-game directories
-            // PRIORITY: Use CSV-based manifest generation if available
-            await AddFilesFromCsvAsync(builder, installationPath, gameType);
-
-            logger.LogInformation("Completed manifest generation for {GameType}: {TotalFiles} files added", gameType, _fileCount);
-            logger.LogDebug("Added game files to manifest for {GameType} at {InstallationPath}", gameType, installationPath);
+            await AddGameFilesFromDirectoryScanAsync(builder, installationPath, gameType, cancellationToken);
+            return;
         }
-        catch (Exception ex)
+
+        var fileCount = 0;
+
+        foreach (var entry in authoritativeEntries)
         {
-            logger.LogError(ex, "Error adding game files to manifest");
+            cancellationToken.ThrowIfCancellationRequested();
+            if (await TryAddAuthoritativeEntryAsync(builder, installationPath, entry, cancellationToken))
+            {
+                fileCount++;
+            }
         }
+
+        logger.LogInformation(
+            "Completed authoritative manifest generation for {GameType}: {TotalFiles} vanilla files added",
+            gameType,
+            fileCount);
     }
 
     /// <summary>
-    /// Recursively adds all files from a directory to the manifest.
+    /// Fallback method that scans the game installation directory and adds common files to the manifest
+    /// when no authoritative CSV catalog is available (e.g., unpatched, custom, or legacy versions).
     /// </summary>
-    /// <param name="builder">The manifest builder.</param>
-    /// <param name="installationPath">The root installation path.</param>
-    /// <param name="directoryPath">The directory to scan.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task AddDirectoryFilesRecursivelyAsync(IContentManifestBuilder builder, string installationPath, string directoryPath)
+    private async Task AddGameFilesFromDirectoryScanAsync(
+        IContentManifestBuilder builder,
+        string installationPath,
+        GameType gameType,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        logger.LogInformation("Starting fallback directory scan manifest generation for {GameType} at {InstallationPath}", gameType, installationPath);
+
+        var executableName = gameType == GameType.Generals ? GameClientConstants.GeneralsExecutable : GameClientConstants.ZeroHourExecutable;
+        await TryAddPrimaryExecutableAsync(builder, installationPath, executableName);
+
         try
         {
-            // Add all files in this directory (run synchronously on background thread)
-            var files = await Task.Run(() => Directory.GetFiles(directoryPath, "*.*", SearchOption.TopDirectoryOnly));
-            foreach (var file in files)
+            var options = new EnumerationOptions
             {
-                var relativePath = Path.GetRelativePath(installationPath, file);
+                IgnoreInaccessible = true,
+                RecurseSubdirectories = true,
+                AttributesToSkip = FileAttributes.ReparsePoint,
+            };
 
-                // Skip backup files and the proxy launcher itself
-                if (ShouldSkipFile(relativePath))
-                {
-                    continue;
-                }
-
-                await builder.AddGameInstallationFileAsync(relativePath, file);
-
-                // Report progress every 50 files
-                _fileCount++;
-                if (_fileCount % 50 == 0)
-                {
-                    logger.LogInformation("Scanning game files: {FileCount} files processed...", _fileCount);
-                }
-            }
-
-            // Recursively process subdirectories (run synchronously on background thread)
-            var subdirectories = await Task.Run(() => Directory.GetDirectories(directoryPath, "*", SearchOption.TopDirectoryOnly));
-            foreach (var subdir in subdirectories)
+            foreach (var file in Directory.EnumerateFiles(installationPath, "*", options))
             {
-                await AddDirectoryFilesRecursivelyAsync(builder, installationPath, subdir);
+                cancellationToken.ThrowIfCancellationRequested();
+                await TryAddFallbackFileAsync(builder, installationPath, file, executableName);
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            logger.LogWarning(ex, "Failed to recursively add files from {DirectoryPath}", directoryPath);
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to enumerate files during directory scan at {InstallationPath}", installationPath);
+        }
+    }
+
+    private async Task TryAddPrimaryExecutableAsync(
+        IContentManifestBuilder builder,
+        string installationPath,
+        string executableName)
+    {
+        var executablePath = Path.Combine(installationPath, executableName);
+
+        if (!File.Exists(executablePath))
+        {
+            return;
+        }
+
+        var sourcePath = ResolveSourcePathWithBackup(executablePath, executableName);
+
+        try
+        {
+            if (File.GetAttributes(executablePath).HasFlag(FileAttributes.ReparsePoint) ||
+                (sourcePath != executablePath && File.GetAttributes(sourcePath).HasFlag(FileAttributes.ReparsePoint)))
+            {
+                logger.LogWarning(
+                    "Primary executable {ExecutableName} at {ExecutablePath} is a reparse point or symbolic link and will be skipped",
+                    executableName,
+                    executablePath);
+                return;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to read attributes for primary executable {ExecutableName} at {ExecutablePath}", executableName, executablePath);
+            return;
+        }
+
+        try
+        {
+            await builder.AddGameInstallationFileAsync(executableName, sourcePath, isExecutable: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to add primary executable {ExecutableName} to manifest from {SourcePath}", executableName, sourcePath);
+        }
+    }
+
+    private async Task TryAddFallbackFileAsync(
+        IContentManifestBuilder builder,
+        string installationPath,
+        string file,
+        string executableName)
+    {
+        var relativePath = Path.GetRelativePath(installationPath, file).Replace('\\', '/');
+
+        if (ShouldSkipFile(relativePath))
+        {
+            return;
+        }
+
+        if (relativePath.Equals(executableName, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var extension = Path.GetExtension(file);
+        if (!FallbackFileExtensions.Contains(extension))
+        {
+            return;
+        }
+
+        var sourcePath = ResolveSourcePathWithBackup(file, relativePath);
+        var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(relativePath, sourcePath);
+
+        try
+        {
+            await builder.AddGameInstallationFileAsync(relativePath, sourcePath, isExecutable);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to add fallback file {RelativePath} to manifest", relativePath);
+        }
+    }
+
+    private async Task<bool> TryAddAuthoritativeEntryAsync(
+        IContentManifestBuilder builder,
+        string installationPath,
+        CsvCatalogEntry entry,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(entry.RelativePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var resolvedFilePath = FindFileCaseInsensitive(installationPath, entry.RelativePath);
+            if (resolvedFilePath == null || !File.Exists(resolvedFilePath))
+            {
+                if (entry.IsRequired)
+                {
+                    logger.LogWarning(
+                        "Required vanilla file missing from installation: {RelativePath}",
+                        entry.RelativePath);
+                }
+
+                return false;
+            }
+
+            var sourcePath = ResolveSourcePathWithBackup(resolvedFilePath, entry.RelativePath);
+            if (IsReparsePoint(sourcePath))
+            {
+                logger.LogWarning(
+                    "Source path {SourcePath} for {RelativePath} is a reparse point or symbolic link and will be skipped",
+                    sourcePath,
+                    entry.RelativePath);
+                return false;
+            }
+
+            var fileInfo = new FileInfo(sourcePath);
+            var computedHash = await hashProvider.ComputeFileHashAsync(sourcePath, cancellationToken);
+            var isAuthoritativeMatch = entry.Size > 0 &&
+                                       fileInfo.Length == entry.Size &&
+                                       !string.IsNullOrWhiteSpace(entry.Sha256) &&
+                                       string.Equals(computedHash, entry.Sha256, StringComparison.OrdinalIgnoreCase);
+
+            if (entry.Size > 0 && !isAuthoritativeMatch)
+            {
+                logger.LogWarning(
+                    "Local file ({ActualSize} bytes, hash: {ActualHash}) for {RelativePath} differs from catalog (size: {ExpectedSize}, hash: {ExpectedHash}). Attaching locally computed hash and size. Source: {SourcePath}",
+                    fileInfo.Length,
+                    computedHash,
+                    entry.RelativePath,
+                    entry.Size,
+                    entry.Sha256,
+                    sourcePath);
+            }
+
+            var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(entry.RelativePath, sourcePath);
+
+            var fileHash = computedHash;
+            var fileSize = fileInfo.Length;
+
+            await builder.AddGameInstallationFileAsync(
+                entry.RelativePath,
+                sourcePath,
+                isExecutable,
+                permissions: null,
+                hash: fileHash,
+                size: fileSize,
+                isRequired: entry.IsRequired);
+
+            return true;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(
+                ex,
+                "Failed to add authoritative vanilla file {RelativePath} to manifest",
+                entry.RelativePath);
+            return false;
         }
     }
 
@@ -760,7 +1212,7 @@ public class ManifestGenerationService(
     /// <param name="installationPath">The installation path.</param>
     /// <param name="gameType">The game type.</param>
     /// <param name="executablePath">The full path to the game executable.</param>
-    /// <param name="publisherName">The publisher name.</param>
+    /// <param name="publisherName">The publisher name (for publisher-specific logic).</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     private async Task AddClientFilesToManifest(IContentManifestBuilder builder, string installationPath, GameType gameType, string executablePath, string publisherName)
     {
@@ -881,128 +1333,259 @@ public class ManifestGenerationService(
     }
 
     /// <summary>
-    /// Adds files to the manifest using a CSV source of truth.
+    /// Resolves authoritative CSV entries for the specified game type, version, and language.
     /// </summary>
-    private async Task<bool> AddFilesFromCsvAsync(IContentManifestBuilder builder, string installationPath, GameType gameType)
+    private async Task<IReadOnlyList<CsvCatalogEntry>> GetAuthoritativeEntriesAsync(
+        GameType gameType,
+        string version,
+        string language,
+        CancellationToken cancellationToken = default)
     {
+        if (!TryGetCatalogInfo(gameType, version, out var catalogInfo))
+        {
+            logger.LogWarning("No authoritative CSV catalog configured for {GameType} version {Version}", gameType, version);
+            return [];
+        }
+
+        if (csvResolver != null)
+        {
+            var resolved = await TryResolveAuthoritativeEntriesAsync(
+                csvResolver,
+                gameType,
+                version,
+                language,
+                catalogInfo.FileName,
+                catalogInfo.Sha256,
+                cancellationToken);
+
+            if (resolved != null)
+            {
+                return resolved;
+            }
+        }
+
+        return LoadAuthoritativeEntriesFromFallback(gameType, language, catalogInfo.FileName);
+    }
+
+    private async Task<IReadOnlyList<CsvCatalogEntry>?> TryResolveAuthoritativeEntriesAsync(
+        CsvResolver resolver,
+        GameType gameType,
+        string version,
+        string language,
+        string csvFileName,
+        string expectedSha256,
+        CancellationToken cancellationToken = default)
+    {
+        var gameTypeStr = gameType == GameType.ZeroHour ? CsvConstants.ZeroHourGameType : CsvConstants.GeneralsGameType;
+        var csvRemoteUrl = gameType == GameType.ZeroHour ? CsvConstants.ZeroHourCsvUrl : CsvConstants.GeneralsCsvUrl;
+
         try
         {
-            var csvResourceName = gameType == GameType.Generals ? "GenHub.Core.Assets.Manifests.generals.csv" : "GenHub.Core.Assets.Manifests.zerohour.csv";
-            var assembly = Assembly.Load("GenHub.Core");
-            using var stream = assembly.GetManifestResourceStream(csvResourceName);
-
-            if (stream == null)
+            var searchResult = new ContentSearchResult
             {
-                logger.LogWarning("Embedded resource {ResourceName} not found", csvResourceName);
-                return false;
-            }
-
-            using var reader = new StreamReader(stream);
-            var config = new CsvConfiguration(CultureInfo.InvariantCulture)
-            {
-                HasHeaderRecord = true,
+                Id = string.Empty,
+                Name = $"{gameTypeStr} {version} ({language})",
+                Version = version,
+                TargetGame = gameType,
+                ContentType = ContentType.GameInstallation,
+                SourceUrl = csvRemoteUrl,
+                ResolverId = CsvConstants.ResolverId,
+                ResolverMetadata =
+                {
+                    [CsvConstants.GameTypeMetadataKey] = gameTypeStr,
+                    [CsvConstants.VersionMetadataKey] = version,
+                    [CsvConstants.LanguageMetadataKey] = language,
+                    [CsvConstants.CsvUrlMetadataKey] = csvFileName,
+                    [CsvConstants.Sha256MetadataKey] = expectedSha256,
+                },
             };
-            using var csv = new CsvReader(reader, config);
 
-            var records = csv.GetRecords<ManifestFileEntry>().ToList();
-            var installationFiles = Directory.GetFiles(installationPath, "*", SearchOption.AllDirectories)
-                .Select(f => Path.GetRelativePath(installationPath, f))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            logger.LogInformation("Processing {Count} entries from CSV for {GameType}", records.Count, gameType);
-
-            foreach (var record in records)
+            var resolveResult = await resolver.ResolveAsync(searchResult, cancellationToken);
+            if (resolveResult.Success && resolveResult.Data?.Files != null && resolveResult.Data.Files.Count > 0)
             {
-                if (string.IsNullOrEmpty(record.RelativePath)) continue;
+                logger.LogDebug(
+                    "Resolved {Count} authoritative files via CSV resolver for {GameType} v{Version} ({Language})",
+                    resolveResult.Data.Files.Count,
+                    gameType,
+                    version,
+                    language);
 
-                var finalPath = record.RelativePath;
-                var found = false;
-
-                // 1. Check if the exact file exists
-                if (installationFiles.Contains(finalPath))
+                return resolveResult.Data.Files.Select(f => new CsvCatalogEntry
                 {
-                    found = true;
-                }
-
-                // 2. If it's language-specific and exact file NOT found, try to resolve other language variants
-                else if (!string.IsNullOrEmpty(record.Language))
-                {
-                    // Attempt to find any language-pivoted version of this file
-                    foreach (var lang in SupportedLanguages)
-                    {
-                        var pivotedPath = record.RelativePath.Replace(record.Language, lang, StringComparison.OrdinalIgnoreCase);
-                        if (installationFiles.Contains(pivotedPath))
-                        {
-                            finalPath = pivotedPath;
-                            found = true;
-                            logger.LogDebug("Resolved language file {Original} to {Pivoted}", record.RelativePath, pivotedPath);
-                            break;
-                        }
-                    }
-                }
-
-                if (found)
-                {
-                    var fullPath = Path.Combine(installationPath, finalPath);
-
-                    fullPath = ResolveSourcePathWithBackup(fullPath, finalPath);
-
-                    // .dat is data, not code. It was previously marked executable because
-                    // the Steam layout launches game.dat through a proxy, which is a launch
-                    // strategy rather than a property of the file, and it forced
-                    // SteamManifestPatcher to keep flipping the flag by hand.
-                    var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(finalPath, fullPath);
-
-                    await builder.AddGameInstallationFileAsync(finalPath, fullPath, isExecutable);
-                    _fileCount++;
-                }
-                else
-                {
-                    // If it's a core file (no language), log as missing
-                    if (string.IsNullOrEmpty(record.Language))
-                    {
-                        logger.LogDebug("Core file {File} missing from installation", finalPath);
-                    }
-                }
+                    RelativePath = f.RelativePath,
+                    Size = f.Size,
+                    Sha256 = f.Hash,
+                    GameType = gameTypeStr,
+                    Language = language,
+                    IsRequired = f.IsRequired,
+                    DownloadUrl = f.DownloadUrl,
+                }).ToList();
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Failed to resolve CSV catalog via HTTP for {GameType} ({Language}), falling back to local/embedded registry", gameType, language);
+        }
+        catch (TaskCanceledException ex)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
 
-            return true;
+            logger.LogWarning(ex, "Timeout resolving CSV catalog via HTTP for {GameType} ({Language}), falling back to local/embedded registry", gameType, language);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            logger.LogError(ex, "Failed to add files from CSV for {GameType}", gameType);
-            return false;
+            throw;
         }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to resolve CSV catalog via I/O for {GameType} ({Language}), falling back to local/embedded registry", gameType, language);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex, "Failed to resolve CSV catalog via resolver for {GameType} ({Language}), falling back to local/embedded registry", gameType, language);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Loads authoritative CSV entries from embedded assembly assets or local registry files.
+    /// </summary>
+    private IReadOnlyList<CsvCatalogEntry> LoadAuthoritativeEntriesFromFallback(
+        GameType gameType,
+        string language,
+        string csvFileName)
+    {
+        var gameTypeStr = gameType == GameType.ZeroHour ? CsvConstants.ZeroHourGameType : CsvConstants.GeneralsGameType;
+
+        var embeddedEntries = TryLoadAuthoritativeEntriesFromEmbeddedResource(gameType, gameTypeStr, language, csvFileName);
+        if (embeddedEntries.Count > 0)
+        {
+            return embeddedEntries;
+        }
+
+        return TryLoadAuthoritativeEntriesFromLocalDisk(gameType, gameTypeStr, language, csvFileName);
+    }
+
+    private IReadOnlyList<CsvCatalogEntry> TryLoadAuthoritativeEntriesFromEmbeddedResource(
+        GameType gameType,
+        string gameTypeStr,
+        string language,
+        string csvFileName)
+    {
+        // Try embedded resource from GenHub.Core
+        try
+        {
+            var assembly = typeof(CsvConstants).Assembly;
+            var resourceName = $"{CsvConstants.EmbeddedResourceNamespace}.{csvFileName}";
+            using var stream = assembly.GetManifestResourceStream(resourceName);
+            if (stream != null)
+            {
+                using var reader = new StreamReader(stream);
+                using var csv = new CsvReader(reader, CsvConfig);
+                var records = csv.GetRecords<CsvCatalogEntry>().ToList();
+                var filtered = FilterEntriesByGameAndLanguage(records, gameTypeStr, language);
+                if (filtered.Count > 0)
+                {
+                    logger.LogDebug("Loaded {Count} authoritative entries from embedded resource {Resource}", filtered.Count, resourceName);
+                    return filtered;
+                }
+            }
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "I/O failure loading authoritative CSV from embedded resource for {GameType}", gameType);
+        }
+        catch (FormatException ex)
+        {
+            logger.LogWarning(ex, "Format error loading authoritative CSV from embedded resource for {GameType}", gameType);
+        }
+        catch (CsvHelperException ex)
+        {
+            logger.LogWarning(ex, "CSV parse error loading authoritative CSV from embedded resource for {GameType}", gameType);
+        }
+
+        return [];
+    }
+
+    private IReadOnlyList<CsvCatalogEntry> TryLoadAuthoritativeEntriesFromLocalDisk(
+        GameType gameType,
+        string gameTypeStr,
+        string language,
+        string csvFileName)
+    {
+        // Try local disk path if running from repo or development tree
+        try
+        {
+            var possiblePaths = new[]
+            {
+                Path.Combine(AppContext.BaseDirectory, "docs", CsvConstants.RegistryDocsFolder, csvFileName),
+                Path.Combine(Directory.GetCurrentDirectory(), "docs", CsvConstants.RegistryDocsFolder, csvFileName),
+                Path.Combine(AppContext.BaseDirectory, csvFileName),
+            };
+
+            foreach (var path in possiblePaths.Where(File.Exists))
+            {
+                using var reader = new StreamReader(path);
+                using var csv = new CsvReader(reader, CsvConfig);
+                var records = csv.GetRecords<CsvCatalogEntry>().ToList();
+                var filtered = FilterEntriesByGameAndLanguage(records, gameTypeStr, language);
+                if (filtered.Count > 0)
+                {
+                    logger.LogDebug("Loaded {Count} authoritative entries from local path {Path}", filtered.Count, path);
+                    return filtered;
+                }
+            }
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "I/O failure loading authoritative CSV from local disk for {GameType}", gameType);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Access denied loading authoritative CSV from local disk for {GameType}", gameType);
+        }
+        catch (CsvHelperException ex)
+        {
+            logger.LogWarning(ex, "CSV parse error loading authoritative CSV from local disk for {GameType}", gameType);
+        }
+
+        return [];
     }
 
     /// <summary>
     /// Resolves the source path for a file, checking for a backup (.bak) version first.
+    /// Rejects candidate backup files that are symbolic links or reparse points.
     /// </summary>
     private string ResolveSourcePathWithBackup(string filePath, string manifestFileName)
     {
         var backupPath = filePath + SteamConstants.BackupExtension;
         if (File.Exists(backupPath))
         {
-            logger.LogInformation("Using backup file {Backup} as source for {File} in manifest", Path.GetFileName(backupPath), manifestFileName);
-            return backupPath;
+            if (!IsReparsePoint(backupPath))
+            {
+                logger.LogInformation("Using backup file {Backup} as source for {File} in manifest", Path.GetFileName(backupPath), manifestFileName);
+                return backupPath;
+            }
+
+            logger.LogWarning("Backup source {Backup} for {File} is a reparse point or symbolic link and will be skipped", Path.GetFileName(backupPath), manifestFileName);
+        }
+
+        var legacyBackupPath = filePath + FileTypes.LegacyBackupExtension;
+        if (File.Exists(legacyBackupPath))
+        {
+            if (!IsReparsePoint(legacyBackupPath))
+            {
+                logger.LogInformation("Using backup file {Backup} as source for {File} in manifest", Path.GetFileName(legacyBackupPath), manifestFileName);
+                return legacyBackupPath;
+            }
+
+            logger.LogWarning("Backup source {Backup} for {File} is a reparse point or symbolic link and will be skipped", Path.GetFileName(legacyBackupPath), manifestFileName);
         }
 
         return filePath;
-    }
-
-    /// <summary>
-    /// Represents a file entry in the manifest CSV.
-    /// </summary>
-    private class ManifestFileEntry
-    {
-        /// <summary>
-        /// Gets or sets the relative path of the file.
-        /// </summary>
-        public string RelativePath { get; set; } = string.Empty;
-
-        /// <summary>
-        /// Gets or sets the language of the file (optional).
-        /// </summary>
-        public string Language { get; set; } = string.Empty;
     }
 }

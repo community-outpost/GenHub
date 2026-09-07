@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Storage;
 using GenHub.Features.Content.Services.Reconciliation;
@@ -88,6 +89,85 @@ public class ContentReconciliationOrchestratorGarbageCollectionTests
         var auditEntry = Assert.Single(auditEntries);
         Assert.NotNull(auditEntry.Metadata);
         Assert.Contains(CasDefaults.GarbageCollectionDisabledMessage, auditEntry.Metadata["warnings"]);
+    }
+
+    /// <summary>
+    /// Verifies that when reconciliation fails for a manifest (e.g. active profile), untracking is not called for it.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ExecuteContentRemovalAsync_WhenReconciliationFails_DoesNotUntrackBlockedManifestAsync()
+    {
+        var reconciliationService = new Mock<IContentReconciliationService>();
+        reconciliationService
+            .Setup(r => r.ReconcileManifestRemovalAsync(
+                It.IsAny<ManifestId>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ReconciliationResult>.CreateFailure("Cannot remove manifest because active profile references it."));
+
+        var lifecycleManager = new Mock<ICasLifecycleManager>();
+        var orchestrator = CreateOrchestrator(reconciliationService, lifecycleManager);
+
+        var result = await orchestrator.ExecuteContentRemovalAsync(["blocked-manifest-id"]);
+
+        Assert.False(result.Success);
+        lifecycleManager.Verify(
+            manager => manager.UntrackManifestsAsync(
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+        lifecycleManager.Verify(
+            manager => manager.RunGarbageCollectionAsync(
+                It.IsAny<bool>(),
+                It.IsAny<TimeSpan?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that when bulk replacement fails or partially fails for profiles, untracking, removal, and GC are skipped.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ExecuteContentReplacementAsync_WhenReconciliationFails_DoesNotUntrackBlockedManifestAsync()
+    {
+        var reconciliationService = new Mock<IContentReconciliationService>();
+        reconciliationService
+            .Setup(r => r.OrchestrateBulkUpdateAsync(
+                It.IsAny<IReadOnlyDictionary<string, string>>(),
+                false,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ReconciliationResult>.CreateSuccess(
+                new ReconciliationResult(0, 0, 1))); // 1 profile failed to update
+
+        var lifecycleManager = new Mock<ICasLifecycleManager>();
+        var orchestrator = CreateOrchestrator(reconciliationService, lifecycleManager);
+
+        var request = new ContentReplacementRequest
+        {
+            ManifestMapping = new Dictionary<string, string>
+            {
+                ["old-manifest-id"] = "new-manifest-id",
+            },
+            RemoveOldManifests = true,
+            RunGarbageCollection = true,
+        };
+
+        var result = await orchestrator.ExecuteContentReplacementAsync(request);
+
+        Assert.False(result.Success);
+        lifecycleManager.Verify(
+            manager => manager.UntrackManifestsAsync(
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+        lifecycleManager.Verify(
+            manager => manager.RunGarbageCollectionAsync(
+                It.IsAny<bool>(),
+                It.IsAny<TimeSpan?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     private static Mock<ICasLifecycleManager> CreateDisabledLifecycleManager()

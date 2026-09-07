@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Text.Json;
 using GenHub.Core.Constants;
+using GenHub.Infrastructure.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -17,6 +18,16 @@ namespace GenHub.Infrastructure.DependencyInjection;
 public static class LoggingModule
 {
     private static LoggingLevelSwitch? _levelSwitch;
+    private static string? _activeLogFilePath;
+
+    /// <summary>
+    /// Gets or sets the active log file path for the running application instance.
+    /// </summary>
+    public static string ActiveLogFilePath
+    {
+        get => _activeLogFilePath ??= GetLogFilePath();
+        set => _activeLogFilePath = value;
+    }
 
     /// <summary>
     /// Adds logging configuration to the service collection.
@@ -26,7 +37,7 @@ public static class LoggingModule
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddLoggingModule(this IServiceCollection services)
     {
-        var logPath = GetLogFilePath();
+        var logPath = ActiveLogFilePath;
         var enableDetailedLogging = ReadEnableDetailedLoggingFromSettings();
         var logLevel = enableDetailedLogging ? LogEventLevel.Debug : LogEventLevel.Information;
         var minLogLevel = enableDetailedLogging ? LogLevel.Debug : LogLevel.Information;
@@ -37,14 +48,15 @@ public static class LoggingModule
         services.AddLogging(builder =>
         {
             builder.ClearProviders();
+            builder.AddConsole();
             builder.AddDebug();
 
             var logger = new LoggerConfiguration()
                 .MinimumLevel.ControlledBy(_levelSwitch)
-                .WriteTo.File(logPath, shared: true)
+                .WriteTo.Sink(new ResilientFileSink(logPath))
                 .CreateLogger();
 
-            builder.AddSerilog(logger);
+            builder.AddSerilog(logger, dispose: true);
             builder.SetMinimumLevel(minLogLevel);
         });
 
@@ -69,19 +81,37 @@ public static class LoggingModule
     /// <returns>An <see cref="ILoggerFactory"/> instance.</returns>
     public static ILoggerFactory CreateBootstrapLoggerFactory()
     {
-        var logPath = GetLogFilePath();
+        var logPath = ActiveLogFilePath;
 
         return LoggerFactory.Create(builder =>
         {
+            builder.AddConsole();
             builder.AddDebug();
 
             var logger = new LoggerConfiguration()
-                .WriteTo.File(logPath, restrictedToMinimumLevel: LogEventLevel.Debug, shared: true)
+                .MinimumLevel.Debug()
+                .WriteTo.Sink(new ResilientFileSink(logPath), restrictedToMinimumLevel: LogEventLevel.Debug)
                 .CreateLogger();
 
-            builder.AddSerilog(logger);
+            builder.AddSerilog(logger, dispose: true);
             builder.SetMinimumLevel(LogLevel.Debug);
         });
+    }
+
+    /// <summary>
+    /// Gets the path to the current day's log file.
+    /// </summary>
+    /// <returns>The full path to the log file.</returns>
+    public static string GetLogFilePath()
+    {
+        var logDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            AppConstants.AppName,
+            DirectoryNames.Logs);
+
+        Directory.CreateDirectory(logDir);
+        var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        return Path.Combine(logDir, $"{AppConstants.AppName.ToLowerInvariant()}-{timestamp}.log");
     }
 
     private static bool ReadEnableDetailedLoggingFromSettings()
@@ -116,18 +146,6 @@ public static class LoggingModule
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             AppConstants.AppName,
             FileTypes.SettingsFileName);
-    }
-
-    private static string GetLogFilePath()
-    {
-        var logDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            AppConstants.AppName,
-            DirectoryNames.Logs);
-
-        Directory.CreateDirectory(logDir);
-        var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-        return Path.Combine(logDir, $"{AppConstants.AppName.ToLowerInvariant()}-{timestamp}.log");
     }
 
     private static string ToCamelCase(this string str)

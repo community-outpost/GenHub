@@ -166,12 +166,20 @@ public class ProfileEditorFacade(
                                 manifest.ContentType,
                                 contentDirResult.Data);
                         }
+                        else if (contentDirResult.Success)
+                        {
+                            _logger.LogDebug(
+                                "[ProfileEditor] Manifest {ManifestId} ({ContentType}) is CAS-managed (no external source directory required)",
+                                manifest.Id.Value,
+                                manifest.ContentType);
+                        }
                         else
                         {
                             _logger.LogWarning(
-                                "[ProfileEditor] Could not resolve source path for manifest {ManifestId} ({ContentType})",
+                                "[ProfileEditor] Could not resolve source path for manifest {ManifestId} ({ContentType}): {Error}",
                                 manifest.Id.Value,
-                                manifest.ContentType);
+                                manifest.ContentType,
+                                contentDirResult.FirstError);
                         }
                     }
 

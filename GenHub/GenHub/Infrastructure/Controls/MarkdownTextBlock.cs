@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Data.Converters;
 using Avalonia.Input;
 using Avalonia.Media;
 using Markdig;
@@ -21,6 +22,9 @@ public class MarkdownTextBlock : UserControl
     /// </summary>
     public static readonly StyledProperty<string?> MarkdownProperty =
         AvaloniaProperty.Register<MarkdownTextBlock, string?>(nameof(Markdown));
+
+    private static readonly IValueConverter PositiveWidthConverter =
+        new FuncValueConverter<double, double>(w => w > 1.0 ? w : double.PositiveInfinity);
 
     /// <summary>
     /// Gets or sets the Markdown text to render.
@@ -101,6 +105,7 @@ public class MarkdownTextBlock : UserControl
             },
             Foreground = Brushes.White,
             Margin = new Thickness(0, heading.Level == 1 ? 16 : 12, 0, 8),
+            TextWrapping = TextWrapping.Wrap,
         };
         return textBlock;
     }
@@ -139,13 +144,33 @@ public class MarkdownTextBlock : UserControl
                         TextDecorations = TextDecorations.Underline,
                     };
 
-                    // Make the link clickable
+                    // Make the link clickable and constrain width to prevent paragraph overflow on unbroken URLs
                     var linkText = new TextBlock
                     {
                         Cursor = new Cursor(StandardCursorType.Hand),
+                        TextWrapping = TextWrapping.Wrap,
                     };
 
                     linkText.Inlines?.Add(linkRun);
+
+                    if (!string.IsNullOrEmpty(link.Url))
+                    {
+                        ToolTip.SetTip(linkText, link.Url);
+                    }
+
+                    linkText.Bind(
+                        TextBlock.MaxWidthProperty,
+                        new Avalonia.Data.Binding
+                        {
+                            Path = "Bounds.Width",
+                            Converter = PositiveWidthConverter,
+                            FallbackValue = double.PositiveInfinity,
+                            TargetNullValue = double.PositiveInfinity,
+                            RelativeSource = new Avalonia.Data.RelativeSource(Avalonia.Data.RelativeSourceMode.FindAncestor)
+                            {
+                                AncestorType = typeof(TextBlock),
+                            },
+                        });
 
                     linkText.PointerPressed += (s, e) =>
                     {

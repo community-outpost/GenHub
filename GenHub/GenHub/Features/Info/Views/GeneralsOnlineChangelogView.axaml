@@ -93,10 +93,10 @@
                             <ItemsControl ItemsSource="{Binding Changes}" IsVisible="{Binding IsDetailsLoaded}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <StackPanel Orientation="Horizontal" Margin="0,2" Spacing="8">
-                                            <TextBlock Text="•" Foreground="{StaticResource SystemAccentColorBrush}" VerticalAlignment="Top"/>
-                                            <TextBlock Text="{Binding}" Foreground="#CCCCCC" TextWrapping="Wrap" FontSize="13"/>
-                                        </StackPanel>
+                                        <Grid ColumnDefinitions="Auto, *" Margin="0,2">
+                                            <TextBlock Grid.Column="0" Text="•" Foreground="{StaticResource SystemAccentColorBrush}" VerticalAlignment="Top" Margin="0,0,8,0"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding}" Foreground="#CCCCCC" TextWrapping="Wrap" FontSize="13"/>
+                                        </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>

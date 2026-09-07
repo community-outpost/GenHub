@@ -1,3 +1,4 @@
+using Avalonia.Headless.XUnit;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Common;
@@ -320,7 +321,7 @@ public class ToolSystemIntegrationTests
     /// <summary>
     /// Tests the complete lifecycle of a tool plugin.
     /// </summary>
-    [Fact]
+    [AvaloniaFact]
     public void ToolLifecycle_ActivationDeactivationDisposal()
     {
         // Arrange

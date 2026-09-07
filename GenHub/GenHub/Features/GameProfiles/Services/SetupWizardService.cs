@@ -8,7 +8,9 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Features.Content.Services.CommunityOutpost;
@@ -28,6 +30,7 @@ public class SetupWizardService(
     CommunityOutpostDiscoverer communityOutpostDiscoverer,
     GeneralsOnlineDiscoverer generalsOnlineDiscoverer,
     SuperHackersProvider superHackersProvider,
+    IContentManifestPool manifestPool,
     ILogger<SetupWizardService> logger) : ISetupWizardService
 {
     /// <inheritdoc/>
@@ -36,12 +39,18 @@ public class SetupWizardService(
         var installationsList = installations.ToList();
         var result = new SetupWizardResult();
 
-        // 1. Determine Scenarios for each component across all installations
+        // 1. Pre-fetch all manifests from pool once to avoid redundant pool scans
+        var allManifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
+        var allPoolManifests = allManifestsResult.Success && allManifestsResult.Data != null
+            ? allManifestsResult.Data.ToList()
+            : [];
+
+        // 2. Determine Scenarios for each component across all installations
         var cpGlobal = installationsList.Select(inst => new { Inst = inst, Client = inst.AvailableGameClients.FirstOrDefault(c => c.PublisherType == CommunityOutpostConstants.PublisherType) }).Where(x => x.Client != null).ToList();
         var goGlobal = installationsList.Select(inst => new { Inst = inst, Client = inst.AvailableGameClients.FirstOrDefault(c => c.PublisherType == PublisherTypeConstants.GeneralsOnline) }).Where(x => x.Client != null).ToList();
         var shGlobal = installationsList.Select(inst => new { Inst = inst, Client = inst.AvailableGameClients.FirstOrDefault(c => c.PublisherType == PublisherTypeConstants.TheSuperHackers) }).Where(x => x.Client != null).ToList();
 
-        // 2. Collection Phase: Build Wizard Items
+        // 3. Collection Phase: Build Wizard Items
         var wizardItems = new List<SetupWizardItemViewModel>();
 
         // Pre-fetch latest versions
@@ -56,6 +65,7 @@ public class SetupWizardService(
 
         // Helper to check for managed/up-to-date client for a specific global list
         async Task<(bool SkipWizard, string FinalAction)> ProcessComponentAsync(
+            string publisherType,
             System.Collections.IEnumerable componentGlobalEnu,
             string latestVersion,
             string title,
@@ -65,44 +75,77 @@ public class SetupWizardService(
         {
             var componentGlobal = componentGlobalEnu.Cast<dynamic>().ToList();
 
-            // 1. Identify managed clients (have valid manifest IDs)
-            // Detected publisher clients have empty IDs and are excluded
-            var managedClients = componentGlobal
-                .Where(x => x.Client != null &&
-                    !string.IsNullOrEmpty((string)x.Client.Id))
+            // 1. Identify managed clients in the manifest pool
+            var managedManifests = allPoolManifests
+                .Where(m => m.ContentType == ContentType.GameClient &&
+                            (string.Equals(m.Publisher?.PublisherType, publisherType, StringComparison.OrdinalIgnoreCase) ||
+                             m.Id.Value.Contains($".{publisherType}.", StringComparison.OrdinalIgnoreCase)))
                 .ToList();
 
-            // 2. Look for an up-to-date managed client
-            var upToDateManaged = managedClients
-                .FirstOrDefault(x => x.Client != null && string.Equals(CleanVersionString((string)x.Client.Version), latestVersion, StringComparison.OrdinalIgnoreCase));
+            // 2. Check if any managed client in the pool is up-to-date
+            var upToDateManagedManifest = managedManifests
+                .FirstOrDefault(m => string.Equals(CleanVersionString(m.Version), latestVersion, StringComparison.OrdinalIgnoreCase));
 
-            if (upToDateManaged != null)
+            if (upToDateManagedManifest != null)
             {
-                // Managed and up-to-date exists!
-                bool profileExists = await gameClientProfileService.ProfileExistsForGameClientAsync((string)upToDateManaged.Client.Id, cancellationToken);
-
+                bool profileExists = await gameClientProfileService.ProfileExistsForGameClientAsync(upToDateManagedManifest.Id.Value, cancellationToken);
                 if (profileExists)
                 {
-                    // Everything is perfect. Skip wizard, no action.
+                    logger.LogInformation("[SetupWizard] Managed up-to-date manifest and profile found for {Title} ({Version})", title, latestVersion);
                     return (true, GameClientConstants.WizardActionTypes.Decline);
                 }
 
-                // Content is there, just needs a profile. Skip wizard, auto-accept.
+                logger.LogInformation("[SetupWizard] Managed up-to-date manifest found for {Title} ({Version}), but profile missing. Creating profile.", title, latestVersion);
                 return (true, GameClientConstants.WizardActionTypes.CreateProfile);
             }
 
-            // If we reach here, we don't have a managed up-to-date client.
-            // Check if any profiles exist for this component (managed or unmanaged)
-            bool anyProfileExists = false;
-            foreach (var x in componentGlobal)
+            // Also check unmanaged clients from installations in case an unmanaged client is managed/has ID
+            var managedClientsFromInstallations = componentGlobal
+                .Where(x => x.Client != null && !string.IsNullOrEmpty((string)x.Client.Id))
+                .ToList();
+
+            var upToDateFromInstallations = managedClientsFromInstallations
+                .FirstOrDefault(x => x.Client != null && string.Equals(CleanVersionString((string)x.Client.Version), latestVersion, StringComparison.OrdinalIgnoreCase));
+
+            if (upToDateFromInstallations != null)
             {
-                if (x.Client != null && await gameClientProfileService.ProfileExistsForGameClientAsync((string)x.Client.Id, cancellationToken))
+                bool profileExists = await gameClientProfileService.ProfileExistsForGameClientAsync((string)upToDateFromInstallations.Client.Id, cancellationToken);
+                if (profileExists)
+                {
+                    logger.LogInformation("[SetupWizard] Up-to-date client and profile found in installations for {Title} ({Version})", title, latestVersion);
+                    return (true, GameClientConstants.WizardActionTypes.Decline);
+                }
+
+                logger.LogInformation("[SetupWizard] Up-to-date client found in installations for {Title} ({Version}), profile missing. Creating profile.", title, latestVersion);
+                return (true, GameClientConstants.WizardActionTypes.CreateProfile);
+            }
+
+            // 3. Check if any profiles exist for this component (managed or unmanaged)
+            bool anyProfileExists = false;
+            foreach (var manifest in managedManifests)
+            {
+                if (await gameClientProfileService.ProfileExistsForGameClientAsync(manifest.Id.Value, cancellationToken))
                 {
                     anyProfileExists = true;
+                    break;
+                }
+            }
+
+            if (!anyProfileExists)
+            {
+                foreach (var x in componentGlobal)
+                {
+                    if (x.Client != null && !string.IsNullOrEmpty((string)x.Client.Id) &&
+                        await gameClientProfileService.ProfileExistsForGameClientAsync((string)x.Client.Id, cancellationToken))
+                    {
+                        anyProfileExists = true;
+                        break;
+                    }
                 }
             }
 
             var isDetected = componentGlobal.Count > 0;
+            var isInstalled = managedManifests.Count > 0 || anyProfileExists;
 
             // Construct Wizard Item
             var item = new SetupWizardItemViewModel
@@ -114,13 +157,14 @@ public class SetupWizardService(
                 Version = latestVersion,
             };
 
-            if (anyProfileExists)
+            if (isInstalled)
             {
-                // Profile exists but it is not the latest managed version
+                // Profile or older managed manifest exists, but it is not the latest managed version
                 item.Status = "Installed";
                 item.Description = $"Update existing {title} profiles to {latestVersion}.";
                 item.ActionLabel = "Update / Reinstall";
                 item.ActionType = GameClientConstants.WizardActionTypes.Update;
+                item.IsSelected = false;
             }
             else if (isDetected)
             {
@@ -150,6 +194,7 @@ public class SetupWizardService(
 
         // Process all components
         var cpRes = await ProcessComponentAsync(
+            CommunityOutpostConstants.PublisherType,
             cpGlobal,
             cpCleanVersion,
             "Community Patch",
@@ -159,6 +204,7 @@ public class SetupWizardService(
         result.CommunityPatchAction = cpRes.FinalAction;
 
         var goRes = await ProcessComponentAsync(
+            PublisherTypeConstants.GeneralsOnline,
             goGlobal,
             goCleanVersion,
             "Generals Online",
@@ -168,6 +214,7 @@ public class SetupWizardService(
         result.GeneralsOnlineAction = goRes.FinalAction;
 
         var shRes = await ProcessComponentAsync(
+            PublisherTypeConstants.TheSuperHackers,
             shGlobal,
             shCleanVersion,
             "The Super Hackers",
@@ -176,7 +223,7 @@ public class SetupWizardService(
             PublisherTypeConstants.TheSuperHackers);
         result.SuperHackersAction = shRes.FinalAction;
 
-        // 3. Presentation Phase: Show Wizard
+        // 4. Presentation Phase: Show Wizard
         if (wizardItems.Count > 0)
         {
             var wizardVm = new SetupWizardViewModel(wizardItems);
@@ -204,7 +251,7 @@ public class SetupWizardService(
              result.Confirmed = true;
         }
 
-        // 4. Final decisions: If item was in wizard, override with user selection
+        // 5. Final decisions: If item was in wizard, override with user selection
         string FinalizeAction(string metadata, string currentAction)
         {
             var item = wizardItems.FirstOrDefault(x => x.Metadata as string == metadata);

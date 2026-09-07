@@ -633,7 +633,8 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
             gamePath,
             gameType,
             installation.InstallationType,
-            versionForManifest);
+            versionForManifest,
+            cancellationToken: cancellationToken);
 
         var manifest = manifestBuilder.Build();
         manifest.ContentType = ContentType.GameInstallation;
@@ -1023,7 +1024,8 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                 installationPath,
                 gameType,
                 installation.InstallationType,
-                version);
+                version,
+                cancellationToken: cancellationToken);
 
             var manifest = manifestBuilder.Build();
 

@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -29,10 +31,19 @@ public class CsvResolverTests
 {
     private sealed class TempCsvFile : IDisposable
     {
-        public TempCsvFile(string csvContent)
+        public TempCsvFile(string csvContent, bool writeUtf8Bom = false)
         {
             FilePath = Path.GetTempFileName();
-            File.WriteAllText(FilePath, csvContent);
+            if (writeUtf8Bom)
+            {
+                var contentBytes = Encoding.UTF8.GetBytes(csvContent);
+                var bomBytes = new byte[] { 0xEF, 0xBB, 0xBF }.Concat(contentBytes).ToArray();
+                File.WriteAllBytes(FilePath, bomBytes);
+            }
+            else
+            {
+                File.WriteAllText(FilePath, csvContent);
+            }
         }
 
         public string FilePath { get; }
@@ -50,18 +61,20 @@ public class CsvResolverTests
         string? expectedUrl = null,
         string content = "",
         HttpStatusCode statusCode = HttpStatusCode.NotFound,
-        string? responseUrl = null) : HttpMessageHandler
+        string? responseUrl = null,
+        byte[]? rawBytes = null) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             var code = expectedUrl == null || request.RequestUri?.AbsoluteUri == expectedUrl
                 ? statusCode
                 : HttpStatusCode.NotFound;
-            var responseContent = code == HttpStatusCode.OK ? content : string.Empty;
             var response = new HttpResponseMessage(code)
             {
                 RequestMessage = responseUrl == null ? request : new HttpRequestMessage(HttpMethod.Get, responseUrl),
-                Content = new StringContent(responseContent),
+                Content = rawBytes != null
+                    ? new ByteArrayContent(rawBytes)
+                    : new StringContent(code == HttpStatusCode.OK ? content : string.Empty),
             };
 
             return Task.FromResult(response);
@@ -461,6 +474,177 @@ public class CsvResolverTests
 
         result.Success.Should().BeTrue();
         result.Data.Should().NotBeNull();
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> succeeds when SHA-256 matches.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithMatchingSha256_SucceedsAsync()
+    {
+        var remoteUrl = "https://example.com/catalog.csv";
+        var httpHandler = new StubHttpMessageHandler(expectedUrl: remoteUrl, content: FullSampleCsv, statusCode: HttpStatusCode.OK);
+        var resolver = CreateResolver(httpHandler);
+
+        var expectedHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(FullSampleCsv))).ToLowerInvariant();
+        var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
+        item.ResolverMetadata[CsvConstants.Sha256MetadataKey] = expectedHash;
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Files.Should().HaveCount(2);
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> fails when SHA-256 does not match.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithMismatchedSha256_FailsIntegrityCheckAsync()
+    {
+        var remoteUrl = "https://example.com/catalog.csv";
+        var httpHandler = new StubHttpMessageHandler(expectedUrl: remoteUrl, content: FullSampleCsv, statusCode: HttpStatusCode.OK);
+        var resolver = CreateResolver(httpHandler);
+
+        var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
+        item.ResolverMetadata[CsvConstants.Sha256MetadataKey] = "0000000000000000000000000000000000000000000000000000000000000000";
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Contains("integrity check failed"));
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> hashes raw bytes including UTF-8 BOM.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithBomBytes_HashesRawBytesIncludingBomAsync()
+    {
+        var remoteUrl = "https://example.com/catalog.csv";
+        var contentBytes = Encoding.UTF8.GetBytes(FullSampleCsv);
+        var bomBytes = new byte[] { 0xEF, 0xBB, 0xBF }.Concat(contentBytes).ToArray();
+        var httpHandler = new StubHttpMessageHandler(expectedUrl: remoteUrl, statusCode: HttpStatusCode.OK, rawBytes: bomBytes);
+        var resolver = CreateResolver(httpHandler);
+
+        var expectedHash = Convert.ToHexString(SHA256.HashData(bomBytes)).ToLowerInvariant();
+        var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
+        item.ResolverMetadata[CsvConstants.Sha256MetadataKey] = expectedHash;
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Files.Should().HaveCount(2);
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> strictly rejects altered line endings.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithAlteredLineEndings_FailsIntegrityCheckAsync()
+    {
+        var remoteUrl = "https://example.com/catalog.csv";
+        var lfCsv = FullSampleCsv.Replace("\r\n", "\n");
+        var crlfCsv = lfCsv.Replace("\n", "\r\n");
+
+        var crlfBytes = Encoding.UTF8.GetBytes(crlfCsv);
+        var lfHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(lfCsv))).ToLowerInvariant();
+
+        var httpHandler = new StubHttpMessageHandler(expectedUrl: remoteUrl, statusCode: HttpStatusCode.OK, rawBytes: crlfBytes);
+        var resolver = CreateResolver(httpHandler);
+
+        var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
+        item.ResolverMetadata[CsvConstants.Sha256MetadataKey] = lfHash;
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Contains("integrity check failed"));
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> successfully resolves a local CSV file with UTF-8 BOM.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenLocalCsvFileHasBom_ResolvesManifestAsync()
+    {
+        using var tempCsv = new TempCsvFile(FullSampleCsv, writeUtf8Bom: true);
+        var resolver = CreateResolver();
+        var item = CreateDiscoveredItem(tempCsv.FilePath, GameType.Generals, CsvConstants.LanguageEn);
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Files.Should().HaveCount(2);
+    }
+
+    /// <summary>
+    /// Verifies that a cache hit for a remote CSV served with UTF-8 BOM preserves raw bytes and passes integrity check.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenCachedWithBom_PassesIntegrityCheckOnSubsequentCallAsync()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var remoteUrl = "https://example.com/catalog.csv";
+            var contentBytes = Encoding.UTF8.GetBytes(FullSampleCsv);
+            var bomBytes = new byte[] { 0xEF, 0xBB, 0xBF }.Concat(contentBytes).ToArray();
+            var httpHandler = new StubHttpMessageHandler(expectedUrl: remoteUrl, statusCode: HttpStatusCode.OK, rawBytes: bomBytes);
+            var resolver = CreateResolver(httpHandler, tempDir.FullName);
+
+            var expectedHash = Convert.ToHexString(SHA256.HashData(bomBytes)).ToLowerInvariant();
+            var item = CreateDiscoveredItem(remoteUrl, GameType.Generals, CsvConstants.LanguageEn);
+            item.ResolverMetadata[CsvConstants.Sha256MetadataKey] = expectedHash;
+
+            var firstResult = await resolver.ResolveAsync(item);
+            firstResult.Success.Should().BeTrue();
+
+            var secondResult = await resolver.ResolveAsync(item);
+            secondResult.Success.Should().BeTrue();
+            secondResult.Data.Should().NotBeNull();
+            secondResult.Data!.Files.Should().HaveCount(2);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the embedded authoritative CSV registries match their pinned SHA-256 checksum constants.
+    /// </summary>
+    /// <param name="fileName">The embedded CSV catalog file name.</param>
+    /// <param name="expectedSha256">The expected pinned SHA-256 checksum.</param>
+    [Theory]
+    [InlineData(CsvConstants.GeneralsCsvFileName, CsvConstants.Generals108Sha256)]
+    [InlineData(CsvConstants.ZeroHourCsvFileName, CsvConstants.ZeroHour104Sha256)]
+    public void EmbeddedRegistries_MatchPinnedSha256Constants(string fileName, string expectedSha256)
+    {
+        var assembly = typeof(CsvConstants).Assembly;
+        var resourceName = $"{CsvConstants.EmbeddedResourceNamespace}.{fileName}";
+        using var stream = assembly.GetManifestResourceStream(resourceName);
+        stream.Should().NotBeNull($"Resource '{resourceName}' must exist in {assembly.GetName().Name}");
+
+        using var memoryStream = new MemoryStream();
+        stream!.CopyTo(memoryStream);
+        var bytes = memoryStream.ToArray();
+
+        var text = Encoding.UTF8.GetString(bytes);
+        text.Should().NotContain("\r", "embedded CSV registries must use canonical LF line endings");
+
+        var actualHash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+
+        actualHash.Should().Be(expectedSha256);
     }
 
     private static CsvResolver CreateResolver(HttpMessageHandler? handler = null, string? applicationDataPath = null)

@@ -5,8 +5,10 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
+using Xunit;
 
 [assembly: AvaloniaTestApplication(typeof(GenHub.Tests.Core.App.TestAppBuilder))]
+[assembly: CollectionBehavior(CollectionBehavior.CollectionPerAssembly, DisableTestParallelization = true)]
 
 namespace GenHub.Tests.Core.App;
 
