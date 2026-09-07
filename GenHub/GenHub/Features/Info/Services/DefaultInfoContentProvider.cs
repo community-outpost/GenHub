@@ -11,28 +11,36 @@ using GenHub.Core.Models.Info;
 namespace GenHub.Features.Info.Services;
 
 /// <summary>
-/// Default implementation of the info content provider, providing complete user guide content.
+/// Provides default information sections, guides, and documentation for GenHub.
 /// </summary>
-public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNotesService) : IInfoContentProvider
+public class DefaultInfoContentProvider : IInfoContentProvider
 {
     private readonly List<InfoSection> _sections = CreateContent();
-    private readonly IGeneralsOnlinePatchNotesService _patchNotesService = patchNotesService;
 
     /// <summary>
-    /// Gets all info sections asynchronously.
+    /// Initializes a new instance of the <see cref="DefaultInfoContentProvider"/> class.
     /// </summary>
-    /// <returns>A task representing the asynchronous operation containing the collection of info sections.</returns>
-    public Task<IEnumerable<InfoSection>> GetAllSectionsAsync()
+    public DefaultInfoContentProvider()
     {
-        // Return the pre-loaded sections
-        return Task.FromResult(_sections.OrderBy(s => s.Order).AsEnumerable());
     }
 
     /// <summary>
-    /// Gets a specific info section by its identifier asynchronously.
+    /// Initializes a new instance of the <see cref="DefaultInfoContentProvider"/> class.
     /// </summary>
-    /// <param name="sectionId">The section identifier.</param>
-    /// <returns>A task representing the asynchronous operation containing the info section or null if not found.</returns>
+    /// <param name="patchNotesService">Optional patch notes service.</param>
+    public DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService? patchNotesService)
+        : this()
+    {
+        _ = patchNotesService;
+    }
+
+    /// <inheritdoc/>
+    public Task<IEnumerable<InfoSection>> GetAllSectionsAsync()
+    {
+        return Task.FromResult(_sections.OrderBy(s => s.Order).AsEnumerable());
+    }
+
+    /// <inheritdoc/>
     public Task<InfoSection?> GetSectionAsync(string sectionId)
     {
         return Task.FromResult(_sections.FirstOrDefault(s => s.Id.Equals(sectionId, StringComparison.OrdinalIgnoreCase)));
@@ -59,11 +67,25 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
         ];
     }
 
+    private static InfoCard CreateCard(
+        string title,
+        string content,
+        InfoCardType type,
+        string? detailedContent = null) =>
+        new()
+        {
+            Title = title,
+            Content = content,
+            Type = type,
+            IsExpandable = !string.IsNullOrEmpty(detailedContent),
+            DetailedContent = detailedContent,
+        };
+
     private static InfoSection CreateQuickStartSection()
     {
         return new InfoSection
         {
-            Id = "quickstart",
+            Id = InfoConstants.SectionQuickstart,
             Title = "Quickstart Guide",
             Description = "Getting started with GenHub.",
             Order = -1,
@@ -72,42 +94,42 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                 new InfoCard
                 {
                     Title = "Welcome to GenHub",
-                    Content = "Your central hub for Command & Conquer: Generals & Zero Hour.",
+                    Content = "Your central launcher for Command & Conquer: Generals and Zero Hour.",
                     Type = InfoCardType.Concept,
                     IsExpandable = true,
                     DetailedContent = """
                     **What is GenHub?**
-                    GenHub is a unified launcher designed to make managing your **Command & Conquer: Generals & Zero Hour** experience simple. It solves the mess of having multiple mods, maps, and patches by keeping everything isolated and organized.
+                    GenHub is a modern launcher and manager for **Command & Conquer: Generals** and **Zero Hour**. It keeps your game, mods, custom maps, and multiplayer services organized and isolated so you can switch setups instantly without breaking your original game installation.
 
                     **Platform Overview:**
-                    *   **Game Profiles:** This is your main dashboard. Use it to automatically scan for your game installation, create isolated workspaces for different mods, and launch the game.
-                    *   **Downloads:** The built-in browser for downloading essential community patches, multiplayer services, and mod updates.
-                    *   **Tools:** A suite of utilities for managing Replays and Maps without leaving the app.
+                    *   **Game Profiles:** Your primary hub. Scan for your game installation, set up mod configurations, and launch the game.
+                    *   **Downloads:** Direct, one-click downloads for community patches, multiplayer services, and community mods.
+                    *   **Tools:** Built-in managers for inspecting replays and organizing custom maps.
                     """,
                 },
                 new InfoCard
                 {
                     Title = "Step 1: Scan for Games",
-                    Content = "Detect your installation to get started.",
+                    Content = "Locate and link your game installation.",
                     Type = InfoCardType.HowTo,
                     IsExpandable = true,
                     DetailedContent = """
                     **Detecting Your Game:**
-                    GenHub needs to know where your game is installed before it can do anything.
+                    GenHub connects to your existing game files before launching profiles.
 
                     1.  Navigate to the **Game Profiles** tab.
-                    2.  Click the **SCAN** button in the top toolbar.
-                    3.  GenHub will search your system and detect your Steam, EA App, or CD installation automatically.
+                    2.  Click the **SCAN** button in the toolbar.
+                    3.  GenHub automatically searches standard Steam, EA App, Origin, and CD install directories.
 
-                    *Once detected, you can detect profiles based on this installation.*
+                    *Once detected, you can create and launch profiles based on this installation.*
                     """,
                     Actions =
                     [
                         new InfoAction
                         {
                             Label = "Go to Detection Guide",
-                            ActionId = "NAV_INFO_scan-games",
-                            IconKey = "Magnify",
+                            ActionId = InfoConstants.ActionNavScanGames,
+                            IconKey = InfoConstants.IconMagnify,
                             IsPrimary = true,
                         },
                     ],
@@ -115,60 +137,58 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                 new InfoCard
                 {
                     Title = "Step 2: Essential Downloads",
-                    Content = "Get the community recommended updates.",
+                    Content = "Recommended community updates for modern systems.",
                     Type = InfoCardType.Feature,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Recommended Setup:**
-                    Head over to the **Downloads** tab to grab the essential updates that every player should have. We recommend installing:
+                    **Recommended Community Additions:**
+                    Visit the **Downloads** tab to get recommended updates for modern hardware and online play:
 
-                    *   **Generals Online:** The modern replacement for GameSpy to play online.
-                    *   **TheSuperHackers:** Provides weekly code fixes and mission content.
-                    *   **Community Patch:** Critical stability fixes for the base game.
-
-                    *You can also browse and download other mods and tools in this section.*
+                    *   **Generals Online:** Modern online multiplayer lobby and matchmaking, replacing the discontinued GameSpy service.
+                    *   **TheSuperHackers Engine:** Active community engine updates offering widescreen support, high-DPI scaling, and crash fixes.
+                    *   **Community Patches:** Game balance, memory enhancements, and stability fixes.
                     """,
                     Actions =
                     [
                         new InfoAction
                         {
                             Label = "Go to Downloads",
-                            ActionId = "NAV_Downloads",
-                            IconKey = "CloudDownload",
+                            ActionId = InfoConstants.ActionNavDownloads,
+                            IconKey = InfoConstants.IconCloudDownload,
                             IsPrimary = true,
                         },
-                         new InfoAction
+                        new InfoAction
                         {
                             Label = "Learn about Content",
-                            ActionId = "NAV_INFO_game-profile-content",
-                            IconKey = "BookOpenVariant",
+                            ActionId = InfoConstants.ActionNavGameProfileContent,
+                            IconKey = InfoConstants.IconBookOpenVariant,
                         },
                     ],
                 },
                 new InfoCard
                 {
                     Title = "Step 3: Add Local Content",
-                    Content = "Importing your own Mods and Maps.",
+                    Content = "Import your existing mods and maps.",
                     Type = InfoCardType.HowTo,
                     IsExpandable = true,
                     DetailedContent = """
-                    **How to add your own files:**
-                    If you have mods, maps, or mappacks already on your computer, you can add them to specific profiles without cluttering your main game folder.
+                    **Adding Your Own Files:**
+                    If you already have mod files, standalone maps, or map packs on your PC, you can attach them directly to specific profiles:
 
                     1.  Go to the **Game Profiles** tab.
-                    2.  Click the **Pencil Icon (Edit)** on any profile card.
-                    3.  Click the **Add Local Content** button.
-                    4.  Select your Mod folder, Map zip, or Mappack.
+                    2.  Click the **Edit Profile** button (pencil icon) on any profile card.
+                    3.  Click **Add Local Content**.
+                    4.  Select your mod folder, map archive, or map pack.
 
-                    *This content will only be active for that specific profile.*
+                    *This content remains linked to that specific profile without touching other profiles or your base game files.*
                     """,
                     Actions =
                     [
                         new InfoAction
                         {
                             Label = "Learn how to Import",
-                            ActionId = "NAV_INFO_local-content",
-                            IconKey = "FolderUpload",
+                            ActionId = InfoConstants.ActionNavLocalContent,
+                            IconKey = InfoConstants.IconFolderUpload,
                             IsPrimary = true,
                         },
                     ],
@@ -176,51 +196,48 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                 new InfoCard
                 {
                     Title = "The Core: Manifests & CAS",
-                    Content = "How GenHub handles your game data efficiently.",
+                    Content = "How GenHub manages files and saves disk space.",
                     Type = InfoCardType.Concept,
                     IsExpandable = true,
                     DetailedContent = """
-                    **The Engine Under the Hood:**
-                    GenHub uses a sophisticated storage system to keep your installation clean and fast.
+                    **How Storage Works:**
+                    GenHub uses content manifests and a shared storage cache to keep your files organized and fast:
 
-                    *   **Content Manifests**: Every mod or update is defined by a `ContentManifest`. Think of this as the "DNA" of the package—it lists every file, its exact version, and its dependencies.
-                    *   **Declarative Packages**: Content in GenHub is "declarative." Instead of messy installers, GenHub reads the manifest and reconciles your game folder to match exactly what is defined.
-                    *   **CAS (Content Addressable Storage)**: Files are stored in a central "Pool" based on their digital fingerprint (hash), not their filename.
-                    *   **Deduplication**: If three different mods use the same 1GB texture file, GenHub only stores it **once** in the CAS, saving you massive amounts of disk space.
-                    *   **Integrity**: Because everything is hash-based, GenHub can instantly verify if a file is corrupted or modified and fix it automatically.
-
-                    *This system ensures that your profiles remain isolated and your disk usage stays optimal.*
+                    *   **Content Manifests:** Package manifests clearly list every file, version, and dependency for each mod or patch.
+                    *   **Central Storage Pool (CAS):** Files are stored by content hash in a central cache rather than duplicated across multiple folders.
+                    *   **Deduplication:** When multiple mods use identical textures or game assets, GenHub stores that file once, saving gigabytes of disk space.
+                    *   **Integrity Verification:** Files are verified with checksums before launch to automatically detect and repair corrupted or missing assets.
                     """,
                     Actions =
                     [
                         new InfoAction
                         {
                             Label = "Storage Settings",
-                            ActionId = "NAV_Settings",
-                            IconKey = "Harddisk",
+                            ActionId = InfoConstants.ActionNavSettings,
+                            IconKey = InfoConstants.IconHarddisk,
                         },
                     ],
                 },
                 new InfoCard
                 {
                     Title = "Automated Maintenance",
-                    Content = "Updates and compatibility checks.",
+                    Content = "Automatic updates and version compatibility.",
                     Type = InfoCardType.Feature,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Keeps your game clean:**
-                    GenHub handles the messy parts of game management for you.
+                    **Background Maintenance:**
+                    GenHub handles routine background maintenance automatically:
 
-                    *   **Auto-Updates:** When you launch the game, GenHub automatically checks for updates to services like GeneralsOnline.
-                    *   **Version Control:** It automatically cleans up old versions of patches and ensures all your profiles are using the latest compatible files, so you don't have to manually update each one.
+                    *   **Update Checks:** Automatically checks for service and engine updates before launching your game.
+                    *   **Clean Version Management:** Removes outdated patch files cleanly so your profiles always stay on compatible, tested versions.
                     """,
                     Actions =
                     [
                         new InfoAction
                         {
-                            Label = "App Utils",
-                            ActionId = "NAV_INFO_app-updates",
-                            IconKey = "Update",
+                            Label = "App Updates",
+                            ActionId = InfoConstants.ActionNavAppUpdates,
+                            IconKey = InfoConstants.IconUpdate,
                         },
                     ],
                 },
@@ -230,71 +247,59 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
 
     private static InfoSection CreateGameProfilesSection()
     {
+        (string Title, string Content, InfoCardType Type, string Detailed)[] cardData =
+        [
+            ("Your Personal Sandbox",
+             "Keep your mods, maps, and game settings isolated and safe.",
+             InfoCardType.Concept,
+             """
+             **Isolated Game Profiles:**
+             A profile is an independent configuration for your game. Instead of reinstalling or swapping files manually:
+
+             1.  **Safety:** Mod files never overwrite your original game installation. If a mod causes problems, your base game remains completely untouched.
+             2.  **Multiple Configurations:** Keep separate profiles for vanilla Zero Hour, Rise of the Reds, ShockWave, or custom balance patches, and switch between them instantly.
+             3.  **Speed:** Workspaces build in milliseconds using file linking, requiring almost zero extra storage on your drive.
+             """),
+            ("Controls",
+             "Quick reference for profile card buttons.",
+             InfoCardType.HowTo,
+             """
+             **Profile Card Controls:**
+             1.  **Play:** Launches the game with this profile's active mods, settings, and workspace.
+             2.  **Edit Profile (Pencil):** Opens the profile editor to select mods, maps, and adjust game settings.
+             3.  **Copy Profile (Duplicate):** Clones the profile, including all settings and enabled content, into a new profile.
+             4.  **Desktop Shortcut:** Creates a desktop shortcut to launch this profile directly.
+             5.  **Delete Profile:** Removes the profile and its dedicated workspace configuration.
+
+             **Copy Profile Feature:**
+             Cloning creates a complete, independent copy of the profile:
+             -   **Identical Settings:** Video, audio, and control options are duplicated.
+             -   **Identical Content:** All active mods, maps, and patches carry over.
+             -   **Independent Workspace:** Modifying the cloned profile never alters the original.
+
+             **Steam Status:**
+             -   **Gray Icon:** Steam integration is inactive.
+             -   **Blue Icon:** Steam integration is active. Playtime will log to Steam and the Steam Overlay will work in-game.
+             """),
+            ("Advanced Profile Options",
+             "Custom launch arguments and troubleshooting.",
+             InfoCardType.Feature,
+             """
+             **Launch Arguments:**
+             GenHub passes custom command-line arguments directly to the game. For example, use `-quickstart` to skip introduction videos, or `-win` to force windowed mode.
+
+             **Troubleshooting Logs:**
+             Profile startup and launch logs are recorded in the GenHub AppData directory to help diagnose issues if a game closes unexpectedly.
+             """),
+        ];
+
         return new InfoSection
         {
-            Id = "game-profiles",
+            Id = InfoConstants.SectionGameProfiles,
             Title = "Game Profiles",
-            Description = "Manage isolation-based game configurations.",
+            Description = "Create and manage isolated game configurations.",
             Order = 0,
-            Cards =
-            [
-                new InfoCard
-                {
-                    Title = "Your Personal Sandbox",
-                    Content = "Keeping your game version, mods, and maps separate.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Your Personal Sandbox:**
-                    A Profile is like a container that keeps your game version, mods, and maps separate from everything else.
-
-                    **Why use them?**
-                    1.  **Safety:** You can mess up a profile completely, and your actual game installation remains untouched.
-                    2.  **Variety:** Have one profile for *Rise of the Reds*, another for *ShockWave*, and switch instantly.
-                    3.  **Speed:** Profiles are virtual. They take up almost no space and build in milliseconds.
-                    """,
-                },
-                new InfoCard
-                {
-                    Title = "Controls",
-                    Content = "Managing your profiles.",
-                    Type = InfoCardType.HowTo,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Button Guide:**
-                    1.  **Play:** Launches the game using this profile's specific mod configuration.
-                    2.  **Edit Content (Pencil):** Choose which Mods, Maps, and Patches are active for this profile.
-                    3.  **Copy (Duplicate):** Creates a new profile with identical settings, content, and workspace configuration.
-                    4.  **Shortcut (Desktop):** Creates a desktop shortcut to launch this profile directly.
-                    5.  **Settings (Gear):** Configure game options (Resolution, Audio) specifically for this profile.
-
-                    **Copy Profile Feature:**
-                    The copy button creates a complete duplicate of the selected profile with all settings preserved:
-                    -   **Same Settings:** Video, audio, and control settings are copied exactly.
-                    -   **Same Content:** All enabled mods, maps, and patches are included in the copy.
-                    -   **New Workspace:** The copied profile generates its own isolated workspace.
-                    -   **Unique Name:** Automatically named "Original Name (Copy)" or "Original Name (Copy 2)" etc.
-
-                    **Steam Status:**
-                    -   **Gray Icon:** Steam is not connected. Time tracking is off.
-                    -   **Color Icon:** Steam is active. Your playtime will be tracked, and the Overlay will work.
-                    """,
-                },
-                new InfoCard
-                {
-                    Title = "Advanced Profile Options",
-                    Content = "Startup arguments and debugging.",
-                    Type = InfoCardType.Feature,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Launch Arguments:**
-                    GenHub passes arguments directly to the game. Use `-quickstart` to skip intros or `-win` for windowed mode (if not set in settings).
-
-                    **Debugging:**
-                    Check the "Logs" folder in AppData for profile startup traces.
-                    """,
-                },
-            ],
+            Cards = cardData.Select(c => CreateCard(c.Title, c.Content, c.Type, c.Detailed)).ToList(),
         };
     }
 
@@ -302,72 +307,71 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return new InfoSection
         {
-            Id = "game-settings",
+            Id = InfoConstants.SectionGameSettings,
             Title = "Game Settings",
-            Description = "Configure `Options.ini` settings per profile.",
+            Description = "Configure display, audio, and engine settings per profile.",
             Order = 1,
             Cards =
             [
                 new InfoCard
                 {
                     Title = "Standard Audio & Video",
-                    Content = "Configuration for the base Generals engine (Options.ini).",
+                    Content = "Display and audio settings for the Generals engine (Options.ini).",
                     Type = InfoCardType.Concept,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Display Settings**
-                    *   **Resolution:** Select your screen size. Supports modern presets up to 4K and Ultrawide.
-                    *   **Windowed Mode:** Essential for multi-monitor setups to prevent crashes during Alt-Tabbing.
-                    *   **Anti-Aliasing:** Smooths jagged edges on 3D models.
-                    *   **Gamma:** Adjusts in-game brightness.
+                    **Display Settings:**
+                    *   **Resolution:** Select your screen resolution. Supports modern widescreen, 1440p, 4K, and Ultrawide displays.
+                    *   **Windowed Mode:** Run in a borderless or standard window for smooth Alt-Tabbing on multi-monitor setups.
+                    *   **Anti-Aliasing & Gamma:** Smooth jagged 3D edges and fine-tune in-game brightness.
 
-                    **Audio & Gameplay**
-                    *   **Volume Sliders:** Master, SFX, Music, and Speech levels.
-                    *   **Sound Channels:** Max simultaneous sounds (Default is 16, up to 128 for high-end PCs).
-                    *   **Right-Click Attack:** Switch from classic Left-Click to modern RTS Right-Click controls.
-                    *   **Scroll Speed:** Edge-scrolling sensitivity.
+                    **Audio & Controls:**
+                    *   **Volume Sliders:** Individual controls for Master, Sound Effects, Music, and Voice levels.
+                    *   **Sound Channels:** Maximum simultaneous audio channels (supports up to 128 channels on modern systems).
+                    *   **Right-Click Attack:** Switch between classic left-click and modern RTS right-click command schemes.
+                    *   **Scroll Speed:** Customize camera movement speed at screen borders.
                     """,
                 },
                 new InfoCard
                 {
                     Title = "TheSuperHackers Engine",
-                    Content = "Advanced client extensions and stability fixes.",
+                    Content = "Modern client extensions and stability improvements.",
                     Type = InfoCardType.Feature,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Active Development Build**
-                    TheSuperHackers (TSH) is the **primary build being worked on actively** by the community developers. It provides the base for all modern feature testing and stability improvements.
+                    **Community Engine Enhancements:**
+                    TheSuperHackers (TSH) engine is the active community codebase improving Zero Hour stability and modern feature support.
 
-                    **Engine Enhancements**
-                    *   **Cursor Capture:** Locks the mouse inside the game window. Configurable for Menus vs Gameplay and Fullscreen vs Windowed.
-                    *   **Edge Scrolling:** Enables camera movement at screen edges even in windowed mode.
-                    *   **Font Scaling:** Adjust resolution-based font sizes for better readability on high-DPI displays.
+                    **Engine Improvements:**
+                    *   **Cursor Clip:** Restricts the mouse to the game window during matches to prevent accidental clicks on a second monitor.
+                    *   **Windowed Edge Scrolling:** Enables smooth camera scrolling at window edges even in windowed mode.
+                    *   **Font Scaling:** Automatically scales in-game text and UI for high-DPI and 4K displays.
 
-                    **In-Game Information**
-                    *   **Money per Minute:** Real-time income rate display.
-                    *   **Time & Performance:** Overlays for System Time, FPS, and Network Latency.
-                    *   **Auto-Replay Archiving:** Automatically organizes replay files into a structured directory.
+                    **In-Game Overlays:**
+                    *   **Economy Stats:** Live resources-per-minute income rate display.
+                    *   **Performance Metrics:** On-screen clock, FPS counter, and network latency indicators.
+                    *   **Replay Archiving:** Automatically saves and structures match replays into categorized folders.
                     """,
                 },
                 new InfoCard
                 {
                     Title = "GeneralsOnline Features",
-                    Content = "Social, Networking, and Lobby integration.",
+                    Content = "Online multiplayer lobby and matchmaking features.",
                     Type = InfoCardType.Feature,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Integrated Evolution**
-                    GeneralsOnline is the modern lobby service that powers online play. **Any Generals online settings inherit directly from TSH changes**, ensuring a unified experience between offline and online play.
+                    **Modern Multiplayer Integration:**
+                    Generals Online provides dedicated online matchmaking, lobbies, and community rankings for Command & Conquer: Generals and Zero Hour.
 
-                    **Network & Social**
-                    *   **Ping & Ranks:** Displays player latency and ladder rankings in the lobby.
-                    *   **Auto-Login/Remember Me:** Streamlines the connection process.
-                    *   **Smart Notifications:** Desktop-style alerts when friends come online or send requests.
-                    *   **Chat Customization:** Adjustable font sizes and fade-out durations for the lobby chat.
+                    **Lobby & Networking:**
+                    *   **Ping & Ranks:** View player latency and competitive ladder rankings directly in the lobby.
+                    *   **Seamless Login:** Connect securely using Steam, Discord, or GameReplays authentication.
+                    *   **Desktop Notifications:** Receive alerts when friends come online or invite you to matches.
+                    *   **Chat Options:** Adjust lobby text size and fade delays to your preference.
 
-                    **Game Camera**
-                    *   **Camera Height:** Specialized logic to handle zoom limits.
-                    *   **Move Speed Ratio:** Sensitivity of camera movement in the online engine.
+                    **In-Game Camera:**
+                    *   **Camera Zoom Height:** Customize maximum camera zoom distance for broader battlefield visibility.
+                    *   **Camera Pan Speed:** Tune panning sensitivity during multiplayer matches.
                     """,
                 },
             ],
@@ -378,95 +382,83 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return new InfoSection
         {
-            Id = "game-profile-content",
+            Id = InfoConstants.SectionGameProfileContent,
             Title = "Profile Content",
-            Description = "Manage Mods, Maps, and Patches.",
+            Description = "Manage mods, maps, and patches enabled for each profile.",
             Order = 2,
             Cards =
             [
                 new InfoCard
                 {
                     Title = "Content Types & Hierarchy",
-                    Content = "Definitions and load-order priority.",
+                    Content = "Understand the roles and priority of each content type.",
                     Type = InfoCardType.Concept,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Game Client**
-                    The root game content. This is the unmodified version of C&C Generals or Zero Hour installed on your system.
-                    *Use Case:* Used as the base for every profile. You might switch this if you have multiple game versions (e.g., a "Clean" Install vs a "Modded" Install).
+                    **Game Client:**
+                    The base game files (Generals or Zero Hour) installed on your system. Every profile uses a client as its base foundation.
 
-                    **Mod**
-                    A major game modification that alters gameplay, factions, and units.
-                    *Use Case:* Activate "Rise of the Reds" to play with new factions like the ECA, or "ShockWave" for enhanced generals. Mods serve as the core experience for a profile.
+                    **Mod:**
+                    A major modification changing gameplay, factions, and units (e.g. Rise of the Reds, ShockWave). A profile typically centers around one primary mod.
 
-                    **Map**
-                    A custom battlefield for Skirmish or Multiplayer modes.
-                    *Use Case:* Add individual maps like "Tournament Desert" or custom mission maps that you downloaded from community sites.
+                    **Map:**
+                    An individual custom map file for skirmish and multiplayer battles.
 
-                    **Map Pack**
-                    A curated collection of multiple maps bundled together.
-                    *Use Case:* Instead of cluttering your list with 100 separate map files, use a Map Pack to enable an entire tournament pool or "6-Player Maps" collection with a single checkbox.
+                    **Map Pack:**
+                    A bundled collection of maps. Using a map pack lets you toggle an entire tournament pool or custom map collection with a single checkbox.
 
-                    **Patch**
-                    A system-level enhancement that runs alongside the game engine.
-                    *Use Case:* Essential for modern stability. Use the "4GB Patch" to stop out-of-memory crashes, or "GenTool" for wide-screen support and anti-cheat features online.
+                    **Patch:**
+                    An engine or system-level enhancement that improves stability (such as the 4GB Memory Patch or GenTool).
 
-                    **Addon**
-                    Supplementary files that add cosmetic or audio changes without breaking game compatibility.
-                    *Use Case:* Enable an "Original Soundtrack Remaster" or "HD Texture Pack" that works safely on top of the base game or other mods.
+                    **Addon:**
+                    Supplementary visual or audio packs (such as remastered music or HD textures) that sit on top of mods safely.
 
-                    **Tool**
-                    Standalone executables that perform specific tasks outside the game.
-                    *Use Case:* Link "World Builder" to edit maps, or "FinalBig" to inspect game files, making them accessible directly from your profile dashboard.
+                    **Tool:**
+                    External utilities (such as World Builder or FinalBIG) that can be opened directly from your profile dashboard.
                     """,
                 },
                 new InfoCard
                 {
                     Title = "Cloning Content",
-                    Content = "How copying profiles handles your mods and maps.",
+                    Content = "How copying profiles preserves your content setup.",
                     Type = InfoCardType.Concept,
                     IsExpandable = true,
                     DetailedContent = """
-                    **What gets copied?**
-                    When you use the **Copy Profile** feature, GenHub creates a 'deep copy' of your content configuration.
+                    **How Content Duplication Works:**
+                    When you use **Copy Profile**, GenHub duplicates your profile's content configuration:
 
-                    *   **Enabled Manifests:** All Mods, Maps, and Patches currently enabled for the source profile will be automatically enabled for the copy.
-                    *   **Custom Selection:** The copy is independent. After cloning, you can enable or disable content in the copy without affecting the original profile.
-                    *   **Workspace Efficiency:** Thanks to our CAS (Content Addressable Storage) system, copying a profile doesn't duplicate the actual mod files on your disk. Both profiles point to the same files in the central pool, preserving disk space.
-
-                    **Common Use Case:**
-                    Create a base "ShockWave" profile with your favorite map pack, then copy it to test different game patches or resolution settings while keeping your core mod choice consistent.
+                    *   **Preserved Content:** All active mods, maps, and patches are mirrored into the new profile.
+                    *   **Independent Editing:** The clone is fully independent. Adding or removing content in the clone will not change the original profile.
+                    *   **Zero Storage Waste:** File linking ensures that cloning a profile does not copy large mod files on your disk. Both profiles reference the shared storage cache.
                     """,
                 },
                 new InfoCard
                 {
                     Title = "Content Editor",
-                    Content = "Assignment and ordering of content processing.",
+                    Content = "Adding and ordering content in a profile.",
                     Type = InfoCardType.HowTo,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Workflow:**
-                    1.  **Add Content (Bottom Pane):** Lists all available content matches.
-                    2.  **Enabled Content (Top Pane):** Lists content active for this profile.
-                    3.  **Ordering:** Content is applied Top-to-Bottom. Higher items overwrite lower items.
-
-                    **Importing:**
-                    Use **"Add Local"** to register external folders without copying.
+                    **Content Workflow:**
+                    1.  **Available Content (Bottom):** Shows installed mods, maps, and patches you can add to this profile.
+                    2.  **Enabled Content (Top):** Shows content currently active for this profile.
+                    3.  **Load Priority:** Content is applied from top to bottom. Items higher in the list take priority if two packages contain conflicting files.
+                    4.  **Add Local:** Link external folders or archives without copying them into GenHub.
                     """,
                 },
                 new InfoCard
                 {
                     Title = "Virtual File System",
-                    Content = "How content is merged at runtime.",
+                    Content = "How files are merged when launching.",
                     Type = InfoCardType.Feature,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Layered Execution:**
-                    When you launch the game, GenHub creates a 'Union' of all enabled content.
+                    **Layered File Merging:**
+                    When you click Play, GenHub combines all active content into a unified workspace:
 
-                    1.  **Bottom Layer:** Game Client files.
-                    2.  **Middle Layer:** Mod files (overwriting client).
-                    3.  **Top Layer:** User maps and patches (highest priority).
+                    1.  **Base Layer:** Game client files form the foundation.
+                    2.  **Mod Layer:** Mod files overlay and replace base game assets.
+                    3.  **Top Layer:** Custom maps, addons, and patches apply with highest priority.
                     """,
                 },
             ],
@@ -475,109 +467,91 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
 
     private static InfoSection CreateShortcutsSection()
     {
+        (string Title, string Content, InfoCardType Type, string Detailed)[] cardData =
+        [
+            ("Headless Mode Launcher",
+             "Launch profiles directly from your desktop.",
+             InfoCardType.Concept,
+             """
+             **Direct Desktop Launching:**
+             Shortcuts allow you to start any mod configuration straight from your desktop without keeping the main launcher window open:
+
+             1.  **Direct Launch:** Double-click the shortcut to start the game immediately.
+             2.  **Silent Setup:** GenHub runs briefly in the background to prepare the profile workspace, then hands off to the game.
+             3.  **Clean Exit:** Workspace temporary files are automatically cleaned up when the game closes.
+             """),
+            ("Shortcut Creation",
+             "How to add a profile shortcut to your desktop.",
+             InfoCardType.HowTo,
+             """
+             **Creating a Shortcut:**
+             1.  In **Game Profiles**, right-click any profile card (or click the Desktop shortcut icon).
+             2.  Select **Create Desktop Shortcut**.
+             3.  A standard Windows shortcut (`.lnk`) appears on your desktop.
+             4.  Double-clicking this shortcut launches that specific profile configuration immediately.
+             """),
+            ("Icon Customization",
+             "Visual icons for your desktop shortcuts.",
+             InfoCardType.Feature,
+             """
+             **Shortcut Icons:**
+             GenHub extracts official high-resolution icon resources from the game executable (`generals.exe` or `game.dat`).
+             If your profile uses custom metadata or mod artwork, GenHub converts that image into an icon embedded directly in the shortcut.
+             """),
+        ];
+
         return new InfoSection
         {
-            Id = "shortcuts",
+            Id = InfoConstants.SectionShortcuts,
             Title = "Desktop Shortcuts",
-            Description = "Create direct-launch shortcuts.",
+            Description = "Create one-click desktop shortcuts for your profiles.",
             Order = 3,
-            Cards =
-            [
-                new InfoCard
-                {
-                    Title = "Headless Mode Launcher",
-                    Content = "Architecture for non-GUI game execution.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Direct Game Launch:**
-                    Shortcuts let you launch a specific mod or game version straight from your desktop, skipping the GenHub window entirely.
-                    1.  **Instant Play:** Double-click the icon, and the game starts in seconds.
-                    2.  **Background Magic:** GenHub briefly wakes up in the background to set up your mod, then disappears.
-                    3.  **Clean Exit:** When you quit the game, GenHub quietly cleans up the temporary files.
-                    """,
-                },
-                new InfoCard
-                {
-                    Title = "Shortcut Creation",
-                    Content = "Generating linkage files.",
-                    Type = InfoCardType.HowTo,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Process:**
-                    1.  **Right-Click** any Profile Card and select **Create Desktop Shortcut**.
-                    2.  **Result:** GenHub creates a standard Windows Shortcut (`.lnk`) on your Desktop.
-                    3.  **Behavior:** Double-clicking this shortcut launches GenHub in the background to build your profile, then instantly starts the game.
-                    """,
-                },
-                new InfoCard
-                {
-                    Title = "Icon Customization",
-                    Content = "Visual identification of shortcuts.",
-                    Type = InfoCardType.Feature,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Source:**
-                    GenHub extracts high-resolution `.ico` resources directly from the game executable (`generals.exe` or `generals.zh.exe`).
-                    If a custom icon is set in the Profile Metadata, that image is converted to an ICO container and embedded in the shortcut file.
-                    """,
-                },
-            ],
+            Cards = cardData.Select(c => CreateCard(c.Title, c.Content, c.Type, c.Detailed)).ToList(),
         };
     }
 
     private static InfoSection CreateSteamIntegrationSection()
     {
+        (string Title, string Content, InfoCardType Type, string Detailed)[] cardData =
+        [
+            ("AppID Injection",
+             "Use Steam playtime tracking and the overlay with any mod.",
+             InfoCardType.Concept,
+             """
+             **Steam Integration:**
+             GenHub connects your mod launches with Steam so you can take advantage of Steam community features:
+
+             *   **Steam Overlay:** Chat with friends, join invites, and take screenshots in-game.
+             *   **Friend Status:** Displays Command & Conquer: Generals as your current game.
+             *   **Playtime Tracking:** Hours played with mods count toward your official Steam library stats.
+             """),
+            ("Usage Requirements",
+             "Requirements for Steam integration.",
+             InfoCardType.HowTo,
+             """
+             **Prerequisites:**
+             To use Steam features:
+             1.  The **Steam desktop application** must be running before launching the game.
+             2.  The active Steam account must own *Command & Conquer: The Ultimate Collection*.
+
+             *Note: If Steam is not running, GenHub will launch the profile in standard mode without interruption.*
+             """),
+            ("Time Tracking",
+             "Steam playtime logging across mod profiles.",
+             InfoCardType.Feature,
+             """
+             **Playtime Tracking:**
+             Because Steam recognizes the game through GenHub's launcher, all playtime across your various mods, map packs, and profiles is logged to your Steam library.
+             """),
+        ];
+
         return new InfoSection
         {
-            Id = "steam-integration",
+            Id = InfoConstants.SectionSteam,
             Title = "Steam Integration",
-            Description = "Enable Steam Overlay and Time Tracking.",
+            Description = "Track playtime and use the Steam Overlay with mods.",
             Order = 4,
-            Cards =
-            [
-                new InfoCard
-                {
-                    Title = "AppID Injection",
-                    Content = "Environment variable spoofing for Steam.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Steam Connection:**
-                    GenHub bridges the gap between your retail/CD/Digital copy and Steam.
-                    *   **Overlay:** Chat with friends and take screenshots while playing mods.
-                    *   **Status:** Show your friends you are playing *"Command & Conquer: Generals"*.
-                    *   **Time Tracking:** Log your hours on your official Steam profile.
-                    """,
-                },
-                new InfoCard
-                {
-                    Title = "Usage Requirements",
-                    Content = "Prerequisites for successful injection.",
-                    Type = InfoCardType.HowTo,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Prerequisites:**
-                    For the injection hook to succeed:
-                    1.  **Process:** `Steam.exe` MUST be running in the background before launch.
-                    2.  **Entitlement:** The logged-in Steam account MUST own a valid license for *Command & Conquer: The Ultimate Collection*.
-
-                    *Note: Returns to "Non-Steam" mode gracefully if Steam is not detected.*
-                    """,
-                },
-                new InfoCard
-                {
-                    Title = "Time Tracking",
-                    Content = "Steam playtime logging.",
-                    Type = InfoCardType.Feature,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Mechanism:**
-                    Because Steam detects the AppID, it logs playtime as if you were running the official version.
-                    This allows you to track hours even when playing Mods or Total Conversions.
-                    """,
-                },
-            ],
+            Cards = cardData.Select(c => CreateCard(c.Title, c.Content, c.Type, c.Detailed)).ToList(),
         };
     }
 
@@ -585,53 +559,83 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return new InfoSection
         {
-            Id = "local-content",
+            Id = InfoConstants.SectionLocalContent,
             Title = "Local Content",
-            Description = "Import external Mods, Maps, and Tools.",
+            Description = "Import external mods, custom engine builds, modding tools, and maps.",
             Order = 5,
             Cards =
             [
                 new InfoCard
                 {
-                    Title = "Universal Import",
-                    Content = "Import Zips, Folders, and Executables.",
+                    Title = "Importing local content into your library",
+                    Content = "Add folders, ZIP archives, and executables as reusable content items.",
                     Type = InfoCardType.Concept,
                     IsExpandable = true,
                     DetailedContent = """
-                    **The 'Add Local' Gateway:**
-                    GenHub is designed to be your central command center. Use the **Add Local** button to import content from anywhere on your PC.
+                    **The Add Local workflow**
+                    Use the **Add Local** button in the profile Content tab or library view to register external files into GenHub:
 
-                    **Supported Imports:**
-                    *   **ZIP Archives:** Drag & Drop a Mod or Map Pack ZIP. GenHub extracts, organizes, and installs it automatically.
-                    *   **Folders:** Point to an existing mod folder to import it without copying (if it's already extracted).
-                    *   **Executables:** Add standalone tools, trainers, or specific game versions.
+                    * **Folders:** Select an unpacked mod directory or community tool folder on your drive.
+                    * **ZIP archives:** Select or drop an archive. GenHub extracts files into an isolated staging area for inspection.
+                    * **Executables:** Choose a standalone `.exe` such as WorldBuilder or an engine binary.
+
+                    **Central content storage**
+                    When you confirm an import, GenHub registers the item into your local content pool and creates an immutable manifest. The content item is stored once on disk and can be attached to any number of game profiles without copying or duplicating files.
                     """,
                 },
                 new InfoCard
                 {
-                    Title = "Endless Possibilities",
-                    Content = "Map Packs, Total Conversions, and Utilities.",
+                    Title = "Content types and executable selection",
+                    Content = "Configure mods, addons, maps, modding tools, and game clients.",
                     Type = InfoCardType.Feature,
                     IsExpandable = true,
                     DetailedContent = """
-                    **What can you add?**
-                    *   **Map Packs:** Download a massive map pack (e.g., "6000 Maps.zip")? Import it, and GenHub will validate and list *every single map* individually.
-                    *   **Total Conversions:** Install massive mods like *Rise of the Reds* or *ShockWave* by simply importing their folder or installer.
-                    *   **Legacy Tools:** Keep your favorite classic modding tools reachable from the same dashboard.
+                    **Selecting the correct content type**
+                    The content type determines how GenHub mounts and runs your files:
+
+                    * **Mods:** Full game modifications containing `.big` archives (such as ShockWave, Rise of the Reds, or Contra), INI overrides, and custom art assets.
+                    * **Addons and patches:** Incremental additions such as camera height adjustments, texture packs, or balance patches that layer over base games or mods.
+                    * **Maps and map packs:** Loose `.map` files with `.tga` preview images or bundled map archives. GenHub indexes map metadata and makes them available across profiles.
+                    * **Modding tools:** Utilities like GenHotkeys, FinalBIG, or BigViewer. For modding tools, the content preview tree displays a **Select** button next to each `.exe`. Clicking **Select** designates the primary executable so GenHub can launch the tool directly from the profile tool tray.
+                    * **Game clients and executables:** Custom game binaries, such as community test builds from TheSuperHackers, or standalone editors like WorldBuilder. Marking the main executable tells GenHub which binary starts the game client or editor.
                     """,
                 },
                 new InfoCard
                 {
-                    Title = "Smart Management",
-                    Content = "Auto-validation and safe storage.",
+                    Title = "GenLauncher file normalisation",
+                    Content = "Detect and repair scrambled .gib archives and suffix-renamed files.",
                     Type = InfoCardType.HowTo,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Intelligent Processing:**
-                    GenHub doesn't just blindly copy files.
-                    1.  **Validation:** It checks for valid `.map` files, Game Data `.big` files, and Executables.
-                    2.  **Safety:** Imported content is stored in a way that prevents it from overwriting or corrupting your base game.
-                    3.  **Mix & Match:** Once imported, you can enable a Map Pack *and* a Mod on the same profile instantly.
+                    **Why normalisation is necessary**
+                    GenLauncher modifies files directly inside the game directory when activating and deactivating mods. It renames active `.big` files to `.gib` to scramble them, appends `.GLR` (replaced files), `.GOF` (original file backups), and `.GLTC` (temporary copies) suffixes, and creates stray symbolic links. Importing a directory left in this state prevents the game engine from reading mod archives.
+
+                    **Automated normalisation in GenHub**
+                    When you select a folder or archive containing GenLauncher files, GenHub's normalisation service identifies these artifacts automatically during staging:
+
+                    1. Renames all scrambled `.gib` archives back to standard `.big` files so the game engine can mount them.
+                    2. Strips `.GLR`, `.GOF`, and `.GLTC` suffixes to restore standard file names.
+                    3. Cleans up broken or invalid symbolic links left by previous installations.
+
+                    Normalisation runs safely in the staging area before registration, ensuring your imported content item contains clean standard assets.
+                    """,
+                },
+                new InfoCard
+                {
+                    Title = "Profile linking and workspace isolation",
+                    Content = "Link local items to game profiles without modifying base game files.",
+                    Type = InfoCardType.Feature,
+                    IsExpandable = true,
+                    DetailedContent = """
+                    **Linking content to game profiles**
+                    After registering a local content item, open any profile in **Profile Settings** and navigate to the **Content** tab:
+
+                    * Enable the checkbox next to any mod, addon, tool, or map pack to attach it to that profile.
+                    * Reorder items in the list to configure load priority when multiple items override the same INI settings or art assets.
+                    * Assign custom game clients (such as a test build from TheSuperHackers) in the Client selector.
+
+                    **Workspace isolation**
+                    GenHub never writes modded files into your original Command & Conquer installation directory. When launching a profile, GenHub creates an isolated workspace using symbolic links or hardlinks to combine your base game with the specific content items assigned to that profile. Your base game files remain untouched, and profiles run independently without file conflicts.
                     """,
                 },
             ],
@@ -642,97 +646,91 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return new InfoSection
         {
-            Id = "tools",
+            Id = InfoConstants.SectionTools,
             Title = "Tools & Utilities",
-            Description = "Replay and Map management.",
+            Description = "Inspect replays and manage custom maps directly.",
             Order = 6,
             Cards =
             [
                 new InfoCard
                 {
                     Title = "Replay Manager: Import & Parse",
-                    Content = "Importing game recordings.",
+                    Content = "Import and inspect game recordings.",
                     Type = InfoCardType.Concept,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Import Methods:**
-                    *   **Quick Import (URL):** Paste a Match ID (e.g., `151553`), a GenTool URL, or a direct download link into the text box and click **Download**.
-                    *   **Browse (Paperclip):** Select `.rep` files or `.zip` archives from your computer.
-                    *   **Drag & Drop:** Simply drag files directly onto the Replay list.
+                    **Importing Replays:**
+                    *   **Match ID or URL:** Paste a Match ID, GenTool URL, or replay download link and click **Download**.
+                    *   **Browse:** Select `.rep` files or `.zip` archives from your PC.
+                    *   **Drag & Drop:** Drop replay files directly into the Replay Manager window.
 
-                    **Parsing:**
-                    *   GenHub reads the binary header of replay files to show you the Map, Players, and Game Version without launching the game.
-                    *   *Note: Detailed match statistics parsing is coming soon.*
+                    **Replay Details:**
+                    *   GenHub inspects replay file headers to show the map name, players, and game version before you watch.
                     """,
                 },
                 new InfoCard
                 {
                     Title = "Replay Manager: Cloud & Sharing",
-                    Content = "Upload and share replays.",
+                    Content = "Upload and share replays with other players.",
                     Type = InfoCardType.Feature,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Cloud Upload (Cloud Icon):**
-                    *   Select replays and click **Upload** to send them to *UploadThing* cloud storage.
-                    *   **Limits:** Max 10MB per upload. Files are retained for **14 days**.
-                    *   **Share:** A download link is automatically copied to your clipboard.
+                    **Cloud Sharing:**
+                    *   Select replays and click **Upload** to upload them to secure cloud storage.
+                    *   A shareable download link is automatically copied to your clipboard.
 
-                    **Upload History (Down Arrow):**
-                    *   View your recently uploaded files.
-                    *   **Status:** "Active" (available for download) or "Expired" (deleted from cloud).
-                    *   **Actions:** Copy links again or remove items from your local history list.
+                    **Upload History:**
+                    *   Review recently uploaded replays.
+                    *   Copy download links again or remove expired entries from your list.
                     """,
                 },
                 new InfoCard
                 {
                     Title = "Replay Manager: Archiving",
-                    Content = "Zip and Unzip functionality.",
+                    Content = "Zip and unzip replay collections.",
                     Type = InfoCardType.HowTo,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Packaging (Zip Icon):**
-                    *   Select multiple replays and click **Zip** to create a compressed archive in your Replay folder.
-                    *   Useful for backing up tournaments or sharing bundles manually.
+                    **Creating Archives:**
+                    *   Select multiple replays and click **Zip** to compress them into an archive for sharing or tournament submissions.
 
-                    **Extraction (Uncompress):**
-                    *   Select a `.zip` file in the list and click **Uncompress**.
-                    *   GenHub extracts all valid `.rep` files directly into your Replay folder.
+                    **Extracting Archives:**
+                    *   Select a `.zip` archive in the replay list and click **Uncompress** to extract all `.rep` files directly into your replay folder.
                     """,
                 },
                 new InfoCard
                 {
                     Title = "Map Manager: Library",
-                    Content = "Organizing custom maps.",
+                    Content = "Browse and organize custom maps.",
                     Type = InfoCardType.Concept,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Management:**
-                    *   **Search:** Filter maps instantly by name or folder using the search bar.
-                    *   **Thumbnails:** GenHub automatically generates previews from the map's `.tga` file (if available).
-                    *   **Import:** Supports dragging & dropping entire map folders or `.zip` archives.
+                    **Map Management:**
+                    *   **Search:** Filter custom maps quickly by name or folder.
+                    *   **Minimap Previews:** Displays map preview thumbnails extracted directly from map files.
+                    *   **Import:** Drag and drop map folders or `.zip` archives to install them instantly.
 
-                    **Context Actions:**
-                    *   **Delete (Trash):** Permanently removes the map from your disk.
-                    *   **Open Folder:** Opens the specific map folder in Windows Explorer.
+                    **Actions:**
+                    *   **Delete:** Remove unused maps from your drive.
+                    *   **Open Folder:** Open the specific map folder in Windows Explorer.
                     """,
                 },
                 new InfoCard
                 {
                     Title = "Map Manager: Map Packs",
-                    Content = "Creating map collections.",
+                    Content = "Organize maps into reusable collections.",
                     Type = InfoCardType.Feature,
                     IsExpandable = true,
                     DetailedContent = """
                     **What is a Map Pack?**
-                    A Map Pack is a logical grouping of maps (e.g., "Standard Tournament Set" or "4-Player FFA Maps").
+                    A Map Pack bundles multiple maps together (such as a tournament map pool or 4-player FFA collection).
 
-                    **How to Create:**
-                    1.  Select multiple maps using `Ctrl+Click` or `Shift+Click`.
-                    2.  Click the **"Pack"** button (top right).
-                    3.  Enter a name for your collection under "Create New" and click **Create MapPack**.
+                    **Creating a Map Pack:**
+                    1.  Select multiple maps with `Ctrl+Click` or `Shift+Click`.
+                    2.  Click **Pack** in the top-right toolbar.
+                    3.  Enter a name and click **Create MapPack**.
 
-                    **Usage:**
-                    You can quickly see which maps belong to a pack and manage them as a group.
+                    Once created, you can toggle the entire map collection on or off for any profile in one click.
                     """,
                 },
             ],
@@ -743,39 +741,39 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return new InfoSection
         {
-            Id = "scan-games",
+            Id = InfoConstants.SectionScanGames,
             Title = "Game Detection",
-            Description = "Detect or register game installations.",
+            Description = "Automatically detect and verify game installations.",
             Order = 7,
             Cards =
             [
                 new InfoCard
                 {
                     Title = "Auto-Detection",
-                    Content = "Heuristic scanning for installed games.",
+                    Content = "How GenHub locates installed games on your computer.",
                     Type = InfoCardType.Concept,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Heuristic Scanner:**
-                    GenHub searches for valid `generals.exe` binaries by querying:
-                    1.  **Windows Registry:**
-                        *   `HKLM\SOFTWARE\WOW6432Node\Electronic Arts\EA Games\Generals`
-                        *   `HKLM\SOFTWARE\WOW6432Node\EA Games\Command and Conquer Generals Zero Hour`
-                    2.  **Library Paths:** `C:\Program Files\EA Games`, `SteamLibrary\steamapps\common`.
+                    **Detection Methods:**
+                    GenHub locates game installations by scanning:
+                    1.  **Steam Libraries:** Automatically detects Steam installations of Command & Conquer: The Ultimate Collection.
+                    2.  **EA App / Origin:** Locates official EA App install directories and registry records.
+                    3.  **Classic CD & Retail:** Checks standard installation paths and registry keys for classic disk editions.
+
+                    If your game is installed in a custom location, click **Browse** to link its folder manually.
                     """,
                 },
-
                 new InfoCard
                 {
                     Title = "Signature Verification",
-                    Content = "Anti-piracy and integrity checks.",
+                    Content = "Integrity checks and version verification.",
                     Type = InfoCardType.Feature,
                     IsExpandable = true,
                     DetailedContent = """
-                    **SHA-256 Hashing:**
-                    GenHub validates game integrity by computing the SHA-256 checksum of `generals.exe` and `game.dat`.
-                    *   **Known Good:** Matches against an internal database of No-CD patches, v1.04 officials, and The First Decade binaries.
-                    *   **Unknown:** Unknown hashes are flagged as "Unverified" but still usable.
+                    **Binary Verification:**
+                    GenHub calculates SHA-256 hashes of `generals.exe` and `game.dat` to confirm game versions and file integrity.
+                    *   **Verified:** Matches known official releases (such as Steam edition, EA App, The First Decade, or v1.04).
+                    *   **Unverified:** Custom or unrecognized binaries are labeled as Unverified, but remain fully launchable.
                     """,
                 },
             ],
@@ -786,7 +784,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return new InfoSection
         {
-            Id = "workspaces",
+            Id = InfoConstants.SectionWorkspaces,
             Title = "Virtual Workspaces",
             Description = "Workspace strategies, file linking techniques, and isolation mechanics.",
             Order = 8,
@@ -795,54 +793,54 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                 new InfoCard
                 {
                     Title = "The Magic Mirror",
-                    Content = "Understanding the localized file system.",
+                    Content = "Understanding how isolated game workspaces work.",
                     Type = InfoCardType.Concept,
                     IsExpandable = true,
                     DetailedContent = """
-                    **The "Magic Mirror":**
-                    When you hit Play, GenHub creates an isolated virtual workspace for your profile (taking milliseconds in linked modes).
+                    **How Workspaces Work:**
+                    When you click Play, GenHub instantly prepares a dedicated workspace folder for that specific profile.
 
-                    **Why is this cool?**
-                    1.  **Zero Space:** In linked modes (HardLink and SymlinkOnly), it acts like a full multi-gigabyte game folder while consuming virtually 0 MB of extra disk space.
-                    2.  **Profile Isolation:** Mods and configurations live in dedicated profile workspaces without manually shuffling files in your main game directory. (Note: In direct linked modes, file data is shared with the underlying source; choose Hybrid or Full Copy if mods modify game binaries in-place).
-                    3.  **Instant Mod Switching:** Switch between massive total conversions like *Rise of the Reds* and *ShockWave* without reinstalling or moving files.
+                    **Key Benefits:**
+                    1.  **Zero Extra Disk Space:** In linked modes (HardLink and SymlinkOnly), the workspace functions as a complete multi-gigabyte game folder while consuming virtually 0 MB of extra disk space.
+                    2.  **Complete Profile Isolation:** Mods and configurations live in dedicated profile workspaces. Your main game directory remains untouched, so files never get mixed up. (For mods that modify game binaries in-place, select Hybrid or Full Copy mode).
+                    3.  **Instant Switching:** Switch between large total conversions like *Rise of the Reds* and *ShockWave* in seconds without reinstalling or moving files.
                     """,
                 },
                 new InfoCard
                 {
                     Title = "Workspace Strategies Compared",
-                    Content = "Comparing Hardlink, Symlink, Hybrid, and Full Copy strategies.",
+                    Content = "Comparing HardLink, SymlinkOnly, HybridCopySymlink, and FullCopy strategies.",
                     Type = InfoCardType.Concept,
                     IsExpandable = true,
                     DetailedContent = """
                     **Choosing the Right Strategy:**
-                    GenHub supports four file deployment strategies under **Settings -> Game Configuration**:
+                    GenHub supports four file linking strategies under **Settings -> Game Configuration**:
 
                     *   **HardLink (Default & Recommended):**
-                        *   *How it works:* Creates direct filesystem pointers (hard links) on the same drive. If the workspace is on a different drive than the game installation, it automatically falls back to copying files.
-                        *   *Disk Space:* **0 bytes** extra storage when on the same drive (full file size if copying across drives).
+                        *   *How it works:* Creates direct filesystem pointers (hard links) on the same drive. If your workspace and game files are on different drives, GenHub automatically falls back to copying files.
+                        *   *Disk Space:* **0 bytes** extra storage when on the same drive (copies if across different drives).
                         *   *Speed:* Instant (< 50ms) on the same volume.
-                        *   *Privileges:* No administrator privileges or developer mode needed.
-                        *   *Recommendation:* Place workspaces and game files on the **same drive/volume** (e.g. both on `C:` or both on `D:`) for optimal zero-space operation.
+                        *   *Privileges:* No administrator privileges or Developer Mode required.
+                        *   *Recommendation:* Keep your workspaces and game installation on the **same drive** (e.g. both on `C:` or both on `D:`) for optimal zero-space performance.
 
                     *   **SymlinkOnly:**
-                        *   *How it works:* Creates symbolic link pointers referencing target files and directories.
-                        *   *Disk Space:* **Negligible** (~few KB of pointer metadata).
+                        *   *How it works:* Creates symbolic links pointing to source files and directories.
+                        *   *Disk Space:* **Negligible** (~a few KB of link pointers).
                         *   *Speed:* Instant (< 50ms).
                         *   *Advantage:* Links seamlessly across **different drives and partitions**.
-                        *   *Limitation:* On Windows, requires **Administrator rights** or **Developer Mode** enabled in Windows Settings.
+                        *   *Requirement:* On Windows, requires **Administrator rights** or **Developer Mode** enabled in Windows Settings.
 
                     *   **HybridCopySymlink (Balanced Compatibility):**
-                        *   *How it works:* Copies essential engine files, scripts, and mod configurations into the workspace while symlinking non-essential media assets (such as textures, audio, and video).
-                        *   *Disk Space:* Balanced (copies essential assets, links media assets).
+                        *   *How it works:* Copies essential engine files, scripts, and configuration files into the workspace while symlinking large media files (textures, audio, and video).
+                        *   *Disk Space:* Balanced footprint (copies key configs, links media).
                         *   *Speed:* Fast (1-2 seconds).
-                        *   *Advantage:* Protects essential configs from cross-profile conflicts while reducing overall workspace footprint.
+                        *   *Advantage:* Protects configuration files from cross-profile conflicts while keeping disk usage low.
 
                     *   **FullCopy (Universal Fallback):**
-                        *   *How it works:* Physically duplicates every game and mod file into the workspace directory.
-                        *   *Disk Space:* Uses full game size (**2-5+ GB** per profile).
+                        *   *How it works:* Physically copies every game and mod file into the workspace directory.
+                        *   *Disk Space:* Uses the full game size (**2-5+ GB** per profile).
                         *   *Speed:* Slower (10-30+ seconds depending on drive speed).
-                        *   *Advantage:* Unconditional compatibility across external drives, network drives, and restricted environments.
+                        *   *Advantage:* Maximum compatibility across external drives, network drives, and restricted environments.
                     """,
                 },
                 new InfoCard
@@ -852,19 +850,19 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Type = InfoCardType.Feature,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Under the Hood:**
+                    **How Linking Works Under the Hood:**
 
                     *   **Hardlink:**
-                        A hardlink is a directory entry that points directly to an existing file's data cluster on disk (the NTFS file record / inode). The file data is shared, so creating a hardlink takes zero disk space. Because it points directly to physical drive sectors, hardlinks cannot cross drive partitions.
+                        A hardlink points directly to the existing file data on disk at the filesystem level. Because the underlying file data is shared, creating a hardlink takes zero extra storage. Hardlinks must reside on the same drive partition as the original file.
 
                     *   **Symlink (Symbolic Link):**
-                        A symlink is a special small file that contains a text path pointing to another file or folder (like a transparent shortcut at the operating system level). Because it stores a path, it can point across different drives, but Windows security policies require elevated privileges or Developer Mode to create symlinks.
+                        A symlink is a lightweight pointer that stores a path to the target file or folder, similar to a transparent operating system shortcut. Symlinks can cross different drives, but Windows security policies require elevated privileges or Developer Mode to create them.
 
                     *   **Full Copy:**
-                        A physical byte-for-byte duplicate of the source file. It allocates new disk clusters and writes the entire file contents again.
+                        A complete duplicate of the file written to a new location on disk.
 
                     **Automatic Fallback:**
-                    If you configure Symlink mode but run GenHub without administrator rights or Developer Mode, GenHub automatically falls back to hardlinks when files reside on the same drive, ensuring your game launches seamlessly without interruptions.
+                    If you configure Symlink mode but run GenHub without administrator rights or Developer Mode, GenHub automatically falls back to hardlinks when files reside on the same drive, ensuring your game launches without interruption.
                     """,
                 },
                 new InfoCard
@@ -876,14 +874,14 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     DetailedContent = """
                     **Common Issues & Solutions:**
 
-                    *   **"Access Denied" / Privilege Errors:**
-                        *   If using Symlink strategy on Windows, enable **Developer Mode** in *Windows Settings -> System -> For developers*, or run GenHub as Administrator.
+                    *   **"Access Denied" or Privilege Errors:**
+                        *   If using the Symlink strategy on Windows, enable **Developer Mode** in *Windows Settings -> System -> For developers*, or run GenHub as Administrator.
                         *   Alternatively, switch your Default Workspace Strategy to **HardLink** in GenHub Settings.
                     *   **Cross-Drive Linking & Storage:**
-                        *   Hardlinks require the same drive/volume to achieve zero-space linking; across different drives, HardLink strategy falls back to copying files.
-                        *   To maintain instant, zero-space workspaces, keep your CAS pool and workspace directories on the same drive as your game installation in **Settings -> Data Directories**, or enable Symlink mode with Developer Mode turned on.
-                    *   **"File In Use" / Locked Files:**
-                        *   Ensure all instances of `generals.exe` or `game.dat` are completely closed before switching profiles or rebuilding workspaces.
+                        *   Hardlinks require both the game files and workspace to be on the same drive volume to achieve zero-space linking. If they are on different drives, GenHub falls back to copying files.
+                        *   To keep workspaces fast and zero-space, place your CAS pool and workspace directories on the same drive as your game installation in **Settings -> Data Directories**, or enable Developer Mode for symlinks.
+                    *   **"File In Use" / Locked File Warnings:**
+                        *   Make sure all instances of `generals.exe` and `game.dat` are closed before switching profiles or rebuilding workspaces.
                     """,
                 },
                 new InfoCard
@@ -893,24 +891,24 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Type = InfoCardType.Feature,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Strategy Metrics:**
+                    **Strategy Performance Summary:**
 
                     *   **HardLink:**
-                        *   *Creation Time:* < 50ms on same volume (Metadata only)
-                        *   *Disk Overhead:* 0 MB on same volume (copies on cross-volume)
-                        *   *Integrity:* Shared data clusters (CAS objects remain immutable in CAS pool; direct writes affect linked file).
+                        *   *Creation Time:* < 50ms on same volume
+                        *   *Disk Overhead:* 0 MB on same volume (copies if across different drives)
+                        *   *Integrity:* Shared data clusters (CAS objects remain immutable in the cache)
                     *   **SymlinkOnly:**
-                        *   *Creation Time:* < 50ms (Pointer creation)
+                        *   *Creation Time:* < 50ms
                         *   *Disk Overhead:* < 1 MB
-                        *   *Integrity:* Transparent pointer redirection across volumes.
+                        *   *Integrity:* Pointer redirection across drives
                     *   **Hybrid:**
                         *   *Creation Time:* 1-2 seconds
-                        *   *Disk Overhead:* Copies essential configs, links media assets
-                        *   *Integrity:* Physical copies for essential configs, shared links for media assets.
+                        *   *Disk Overhead:* Small (copies essential configs, links media assets)
+                        *   *Integrity:* Isolated configs, shared media links
                     *   **Full Copy:**
                         *   *Creation Time:* 10-30 seconds
-                        *   *Disk Overhead:* Full size (2,000 - 5,000+ MB)
-                        *   *Integrity:* Total physical file isolation.
+                        *   *Disk Overhead:* Full game size (2,000 - 5,000+ MB)
+                        *   *Integrity:* Total physical file separation
                     """,
                 },
             ],
@@ -919,54 +917,40 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
 
     private static InfoSection CreateAppUpdatesSection()
     {
+        (string Title, string Content, InfoCardType Type, string Detailed)[] cardData =
+        [
+            ("Version Control",
+             "Official releases and update checking.",
+             InfoCardType.Concept,
+             """
+             **How Updates Work:**
+             GenHub checks for updates automatically from official GitHub releases. When a new version is published, GenHub verifies the release and displays an update notification.
+             """),
+            ("Update Workflow",
+             "Applying updates seamlessly.",
+             InfoCardType.HowTo,
+             """
+             **Update Process:**
+             1.  **Notification:** An update banner appears when a new release is available.
+             2.  **Background Download:** Updates download quietly in the background without interrupting your gameplay.
+             3.  **Fast Restart:** Clicking **Restart** applies the update in seconds and restores your launcher session.
+             """),
+            ("Rollback Capability",
+             "How to revert to an earlier release if needed.",
+             InfoCardType.Feature,
+             """
+             **Reverting to Previous Versions:**
+             GenHub automatically preserves your profile configurations and settings during updates. If you ever need to use an earlier build, download the previous release archive from GitHub and extract it into your GenHub installation directory.
+             """),
+        ];
+
         return new InfoSection
         {
-            Id = "app-updates",
+            Id = InfoConstants.SectionAppUpdates,
             Title = "App Updates",
-            Description = "Update mechanism.",
+            Description = "Manage launcher updates and release channels.",
             Order = 9,
-            Cards =
-            [
-                new InfoCard
-                {
-                    Title = "Version Control",
-                    Content = "GitHub Releases integration.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Source:**
-                    Updates are fetched directly from the public GitHub repository.
-
-                    **Verification:**
-                    Release tags are compared against local assembly versions.
-                    """,
-                },
-                new InfoCard
-                {
-                    Title = "Update Workflow",
-                    Content = "Applying patches.",
-                    Type = InfoCardType.HowTo,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Update Process:**
-                    1.  **Notification:** A bar appears at the bottom when an update is found (checked every 4 hours).
-                    2.  **Background Download:** Updates download incrementally to save bandwidth while you play.
-                    3.  **Instant Apply:** Clicking "Restart" applies the update in ~5 seconds and restores your session.
-                    """,
-                },
-                new InfoCard
-                {
-                    Title = "Rollback Capability",
-                    Content = "Reverting to previous versions.",
-                    Type = InfoCardType.Feature,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Manual Rollback:**
-                    GenHub does not support automatic rollbacks.
-                    To revert, download an older release `.zip` from GitHub and overwrite the installation folder manually.
-                    """,
-                },
-            ],
+            Cards = cardData.Select(c => CreateCard(c.Title, c.Content, c.Type, c.Detailed)).ToList(),
         };
     }
 
@@ -974,7 +958,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return new InfoSection
         {
-            Id = "changelogs",
+            Id = InfoConstants.SectionChangelogs,
             Title = "Changelog",
             Description = "Version history.",
             Order = 10,
@@ -984,199 +968,39 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
 
     private static InfoSection CreateGeneralsOnlineFAQSection()
     {
+        var faqData = new (string Title, string Content, InfoCardType Type, string Detailed)[]
+        {
+            ("What is Generals Online?", "Generals Online is a modern multiplayer and lobby platform for Command & Conquer: Generals and Zero Hour.", InfoCardType.Concept, "Generals Online replaces the discontinued GameSpy service with modern multiplayer matchmaking, lobby features, automatic updates, and ladder rankings—preserving classic gameplay while delivering stable online play on modern PCs."),
+            ("Do I need a clean install of Zero Hour?", "No. Generals Online works alongside your existing installation.", InfoCardType.HowTo, "You do not need a fresh game installation or to delete existing files. GenHub isolates Generals Online so your base game files remain untouched."),
+            ("Can I play Generals Online if I have GenTool or GenPatcher installed?", "Yes. Generals Online is fully compatible with GenTool and GenPatcher.", InfoCardType.Concept, "Generals Online runs in its own profile environment and works alongside GenTool widescreen and anti-cheat features without conflicts."),
+            ("Can I use custom UI or control bars?", "Yes. Custom UI assets and control bars are supported.", InfoCardType.Concept, "Custom UI modifications, such as HUD control bars, work normally in Generals Online."),
+            ("Does Generals Online modify my original game files?", "No. Your original installation files are never modified.", InfoCardType.Concept, "Generals Online runs from an isolated profile workspace. Your main game folder remains clean and untouched."),
+            ("Are custom maps supported?", "Yes. Custom maps and in-lobby map transfers are supported.", InfoCardType.Feature, "Generals Online supports in-game and lobby map downloads so you can play custom maps with other players seamlessly."),
+            ("How do I launch Generals Online?", "Launch through GenHub or your profile desktop shortcut.", InfoCardType.HowTo, "Select your Generals Online profile in GenHub and click Play, or launch it directly with a desktop shortcut created from that profile."),
+            ("Which game versions are supported?", "Developed and tested for official Steam and EA App / Origin releases.", InfoCardType.Concept, "Generals Online is designed for official Steam and EA releases. For the best experience and easiest setup, the Steam release of Command & Conquer: The Ultimate Collection is recommended."),
+            ("How do I log in?", "Sign in securely using Steam, Discord, or GameReplays.", InfoCardType.HowTo, "Generals Online uses OpenID authentication. You authenticate directly through Steam, Discord, or GameReplays—your account passwords are never seen or stored by Generals Online."),
+            ("Is logging in safe?", "Yes. OpenID ensures your account password remains completely private.", InfoCardType.Concept, "OpenID only transmits a secure account identifier to verify your identity. Your login credentials are handled directly by Steam, Discord, or GameReplays."),
+            ("How do I check if the service is online?", "Check the in-game status, the community Discord, or the status page.", InfoCardType.Feature, "Live service status is shown on the login screen, with real-time announcements available on the community Discord."),
+            ("How do I report bugs or suggest features?", "Join the community Discord to submit feedback.", InfoCardType.HowTo, "The development team actively tracks issues and community suggestions in dedicated Discord channels."),
+            ("How are updates delivered?", "Updates download automatically through the launcher.", InfoCardType.Feature, "When an update is released, GenHub detects and applies it so you are always on the latest version."),
+            ("Do I need third-party VPN tools (Hamachi, Radmin, GameRanger)?", "No. Online matchmaking is built directly into the service.", InfoCardType.Concept, "Generals Online includes native networking and matchmaking. You do not need third-party virtual LAN software or external wrappers to play online."),
+            ("Do I need to forward router ports?", "No. Built-in NAT traversal connects players automatically.", InfoCardType.Concept, "Modern NAT traversal handles player connections automatically without requiring manual port forwarding on your home router."),
+            ("Is network communication secure?", "Yes. Game traffic is encrypted using AES-256.", InfoCardType.Feature, "Network traffic uses industry-standard AES-256-GCM encryption, providing significantly better security than the original game engine's unencrypted packets."),
+            ("Why did Windows Firewall prompt for permission?", "Windows prompts when a new app accesses the network for the first time.", InfoCardType.HowTo, "When connecting to multiplayer servers for the first time, Windows Firewall asks to allow network access. Click Allow to enable online connectivity."),
+            ("What are connection relays?", "Relays route traffic when direct peer-to-peer connections are blocked.", InfoCardType.Concept, "If two players have strict firewalls that prevent direct peer-to-peer connection, traffic routes seamlessly through community relay servers (similar to Steam networking or CNCNet tunnels)."),
+            ("Do relays cause lag or performance drops?", "Typically no. Relays use high-bandwidth, low-latency backbone servers.", InfoCardType.Concept, "Relay servers are hosted on high-speed backbones and often provide comparable or better latency than congested direct peer-to-peer routes."),
+            ("How does the game select which relay to use?", "Relay connections are formed dynamically on a player-to-player basis.", InfoCardType.Feature, "Relay connections are established dynamically per player pair, selecting the server location with the lowest latency for that match. Users in the same lobby can connect through different regional edge nodes to achieve optimal ping."),
+            ("Are relays secure?", "Yes. Relays cannot decrypt match traffic.", InfoCardType.Feature, "Relay servers forward encrypted packets and do not have access to the encryption keys required to read or inspect traffic."),
+            ("Can I host a relay?", "Community relay hosting is not needed at this time.", InfoCardType.Concept, "Generals Online operates on global edge infrastructure spanning hundreds of data centers worldwide, delivering low latency without requiring community relay hosting."),
+        };
+
         return new InfoSection
         {
-            Id = "faq",
+            Id = InfoConstants.SectionFaq,
             Title = "Frequently Asked Questions",
             Description = "Common questions about the Generals Online service.",
             Order = 7,
-            Cards =
-            [
-                new InfoCard
-                {
-                    Title = "What is Generals Online?",
-                    Content = "Generals Online is not just another GameSpy emulator - it's a complete reimagining of multiplayer services for Command & Conquer: Generals - Zero Hour.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = "Built upon the source code released by Electronic Arts, this community-driven project revitalizes and modernizes the game's multiplayer experience, improving stability, client functionality, and overall service reliability - all while preserving the original gameplay you know and love.",
-                },
-                new InfoCard
-                {
-                    Title = "Do I need a clean install of Zero Hour?",
-                    Content = "No. GeneralsOnline can be installed onto your current Generals installation.",
-                    Type = InfoCardType.HowTo,
-                    IsExpandable = true,
-                    DetailedContent = "The installer handles everything for you. You do not need to delete your existing game data.",
-                },
-                new InfoCard
-                {
-                    Title = "Can I play GeneralsOnline if I have GenTool/GenPatcher installed?",
-                    Content = "Yes.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = "GeneralsOnline is designed to be compatible with GenTool and GenPatcher. It lives in its own subspace.",
-                },
-                new InfoCard
-                {
-                    Title = "Can I play GeneralsOnline if I have custom UI / control bars installed?",
-                    Content = "Yes.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = "Custom UI asests like control bars are fully supported and will work just like they do in standard Zero Hour.",
-                },
-                new InfoCard
-                {
-                    Title = "Does GeneralsOnline modify my game installation?",
-                    Content = "No. GeneralsOnline is standalone and does not modify your installation.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = "You can continue to run the 'standard' Generals game alongside GeneralsOnline.",
-                },
-                new InfoCard
-                {
-                    Title = "Are custom maps & map transfers supported?",
-                    Content = "Yes.",
-                    Type = InfoCardType.Feature,
-                    IsExpandable = true,
-                    DetailedContent = "GeneralsOnline supports high-speed map transfers in-lobby, so you can play your favorite custom maps with others effortlessly.",
-                },
-                new InfoCard
-                {
-                    Title = "How do I run Generals Online?",
-                    Content = "Use the desktop shortcut or run GeneralsOnlineZH.exe",
-                    Type = InfoCardType.HowTo,
-                    IsExpandable = true,
-                    DetailedContent = "The launcher provides a streamlined way to start the game, Manage your profile, and join the lobby.",
-                },
-                new InfoCard
-                {
-                    Title = "Does GeneralsOnline work with cracked games?",
-                    Content = "GeneralsOnline is only tested and developed against the Steam and EA Origin/Play versions of the game.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    We do not modify the protections which Electronic Arts has applied to the game in any way, shape or form.
-
-                    We recommend buying the game on Steam as this is the best place to play at this time and supports the developers.
-                    """,
-                },
-                new InfoCard
-                {
-                    Title = "How do I login?",
-                    Content = "Generals Online supports 3 login methods. Steam, Discord and GameReplays.",
-                    Type = InfoCardType.HowTo,
-                    IsExpandable = true,
-                    DetailedContent = "Choose the platform you are most comfortable with. Your progress and stats will be linked to that specific account.",
-                },
-                new InfoCard
-                {
-                    Title = "Is it safe to login with my Steam/Discord/GameReplays account?",
-                    Content = "Yes. We utilize OpenID, which means we never see your credentials.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = "We utilize OpenID, which means we never see your credentials - just a unique identifier that identifies your account. You can read more about this technology on Wikipedia.",
-                },
-                new InfoCard
-                {
-                    Title = "How do I know if the service is online?",
-                    Content = "You can check the service-status channel in our Discord, or on our Status Page.",
-                    Type = InfoCardType.Feature,
-                    IsExpandable = true,
-                    DetailedContent = "The live status is also reflected in the login screen of the client.",
-                },
-                new InfoCard
-                {
-                    Title = "How do I report bugs or give feedback?",
-                    Content = "Please visit our Discord!",
-                    Type = InfoCardType.HowTo,
-                    IsExpandable = true,
-                    DetailedContent = "We have dedicated channels for bug reporting and feedback. Our development team is active and listens to the community.",
-                },
-                new InfoCard
-                {
-                    Title = "How do I get updates?",
-                    Content = "We release updates regularly. Your game will automatically update itself.",
-                    Type = InfoCardType.Feature,
-                    IsExpandable = true,
-                    DetailedContent = "We release updates regularly. Your game will automatically update itself when you enter the multiplayer section of the game.",
-                },
-                new InfoCard
-                {
-                    Title = "Do I need software like Radmin, Hamachi, GameRanger etc?",
-                    Content = "No. Generals Online is standalone and needs no additional software.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = "All networking is handled natively by the service, providing a true modern multiplayer experience without third-party wrappers.",
-                },
-                new InfoCard
-                {
-                    Title = "Do I need to forward ports and configure my router/network?",
-                    Content = "No. Generals Online solves this issue on your behalf.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = "Our NAT traversal technology handles connectivity automatically, so you can focus on the game.",
-                },
-                new InfoCard
-                {
-                    Title = "Is GeneralsOnline secure?",
-                    Content = "Yes. We utilize the latest industry standard encryption (AES256-GCM) for network traffic.",
-                    Type = InfoCardType.Feature,
-                    IsExpandable = true,
-                    DetailedContent = "We utilize the latest industry standard encryption (AES256-GCM) for network traffic. This is more secure than the original C&C Generals game.",
-                },
-                new InfoCard
-                {
-                    Title = "I get a Windows Firewall pop-up, what does that mean?",
-                    Content = "This is because the application is a 'new application' to the firewall and is attempting network communication.",
-                    Type = InfoCardType.HowTo,
-                    IsExpandable = true,
-                    DetailedContent = "The first time you access the multiplayer menu you may get a Windows firewall pop-up. This is because the application is a 'new application' to the firewall and is attempting network/internet communication. Hitting allow will enable you to proceed.",
-                },
-                new InfoCard
-                {
-                    Title = "What are relays?",
-                    Content = "Relays allow users who would otherwise be unable to connect to each other to do just that.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = "Relays allow users who would otherwise be unable to connect to each other to do just that. It is a commonly used mechanism in modern retail games and platforms such as Steam and behaves similar to the Tunnels system utilized on CNCNet for earlier C&C games.",
-                },
-                new InfoCard
-                {
-                    Title = "Do relays impact the experience?",
-                    Content = "Typically not.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = "Typically not. In certain environments, a relayed connection may even be faster than a direct connection due to the premium backbone being used.",
-                },
-                new InfoCard
-                {
-                    Title = "How does the game select which relay to use?",
-                    Content = "Relays connections are formed dynamically on a player-to-player basis.",
-                    Type = InfoCardType.Feature,
-                    IsExpandable = true,
-                    DetailedContent = """
-                    Relays connections are formed dynamically on a player-to-player basis, ensuring each P2P connection utilizes the server location with the lowest latency for that particular pair of players.
-
-                    Users within one lobby/match can utilize different servers in different regions to achieve optimal latency.
-                    """,
-                },
-                new InfoCard
-                {
-                    Title = "Are relays secure?",
-                    Content = "Yes.",
-                    Type = InfoCardType.Feature,
-                    IsExpandable = true,
-                    DetailedContent = "The relay servers do not have access to the encryption keys that would be required to read the traffic they are relaying.",
-                },
-                new InfoCard
-                {
-                    Title = "Can I host a relay?",
-                    Content = "We thank you for your interest, however, we do not have a need for community relays at this time.",
-                    Type = InfoCardType.Concept,
-                    IsExpandable = true,
-                    DetailedContent = "We thank you for your interest, however, we do not have a need for community relays at this time. Generals Online utilizes the CloudFlare backend which is available in 330 cities in 125 countries and has a latency of ~50ms from 95% of the worlds population.",
-                },
-            ],
+            Cards = faqData.Select(c => CreateCard(c.Title, c.Content, c.Type, c.Detailed)).ToList(),
         };
     }
 
@@ -1184,7 +1008,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return new InfoSection
         {
-            Id = "go-changelog",
+            Id = InfoConstants.SectionGoChangelog,
             Title = "Changelog",
             Description = "View the latest changes and updates to the Generals Online service.",
             Order = 8,
