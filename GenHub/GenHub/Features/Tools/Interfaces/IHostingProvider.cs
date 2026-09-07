@@ -187,8 +187,16 @@ public sealed class HostingUploadResult : IEquatable<HostingUploadResult>
     /// <inheritdoc />
     public bool Equals(HostingUploadResult? other)
     {
-        if (other is null) return false;
-        if (ReferenceEquals(this, other)) return true;
+        if (other is null)
+        {
+            return false;
+        }
+
+        if (ReferenceEquals(this, other))
+        {
+            return true;
+        }
+
         return PublicUrl == other.PublicUrl
             && DirectDownloadUrl == other.DirectDownloadUrl
             && FileId == other.FileId

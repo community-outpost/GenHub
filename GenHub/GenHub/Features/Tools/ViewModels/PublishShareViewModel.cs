@@ -936,7 +936,8 @@ public partial class PublishShareViewModel : ObservableObject
             // Build catalog hosting info dictionary from hosting state
             var catalogHostingInfo = _currentHostingState.Catalogs
                 .Where(c => !string.IsNullOrEmpty(c.Url))
-                .ToDictionary(c => c.CatalogId, c => c.Url);
+                .GroupBy(c => c.CatalogId)
+                .ToDictionary(g => g.Key, g => g.Last().Url);
 
             if (catalogHostingInfo.Count == 0)
             {
@@ -1206,12 +1207,12 @@ public partial class PublishShareViewModel : ObservableObject
     private string BuildPublishSummary()
     {
         var sb = new System.Text.StringBuilder();
-        if (!string.IsNullOrEmpty(_catalogUrl))
-            sb.AppendLine($"Catalog URL: {_catalogUrl}");
-        if (!string.IsNullOrEmpty(_providerDefinitionUrl))
-            sb.AppendLine($"Definition URL: {_providerDefinitionUrl}");
-        if (!string.IsNullOrEmpty(_subscriptionUrl))
-            sb.AppendLine($"Subscription URL: {_subscriptionUrl}");
+        if (!string.IsNullOrEmpty(CatalogUrl))
+            sb.AppendLine($"Catalog URL: {CatalogUrl}");
+        if (!string.IsNullOrEmpty(ProviderDefinitionUrl))
+            sb.AppendLine($"Definition URL: {ProviderDefinitionUrl}");
+        if (!string.IsNullOrEmpty(SubscriptionUrl))
+            sb.AppendLine($"Subscription URL: {SubscriptionUrl}");
         return sb.ToString();
     }
 

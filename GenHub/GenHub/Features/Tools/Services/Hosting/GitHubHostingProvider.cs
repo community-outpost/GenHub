@@ -166,7 +166,7 @@ public class GitHubHostingProvider : IHostingProvider
                 var gist = await _client.Gist.Create(newGist);
                 progress?.Report(100);
 
-                var file = gist.Files.TryGetValue(fileName, out var gistFile) ? gistFile : gist.Files.Values.FirstOrDefault();
+                var file = gist.Files.TryGetValue(fileName, out var gistFile) ? gistFile : null;
                 var downloadUrl = file?.RawUrl ?? gist.HtmlUrl;
 
                 return OperationResult<HostingUploadResult>.CreateSuccess(new HostingUploadResult
@@ -188,42 +188,36 @@ public class GitHubHostingProvider : IHostingProvider
             var repo = parts[1];
             var releaseTag = parts[2];
 
-            // Get or create the release
-            Release release;
-            try
+            progress?.Report(10);
+
+            // Get the release by tag
+            var release = await _client.Repository.Release.Get(owner, repo, releaseTag);
+            if (release == null)
             {
-                release = await _client.Repository.Release.Get(owner, repo, releaseTag);
-            }
-            catch (NotFoundException)
-            {
-                // Create a new release
-                var newRelease = new NewRelease(releaseTag)
-                {
-                    Name = releaseTag,
-                    Body = "Release created by GenHub Publisher Studio",
-                    Draft = false,
-                    Prerelease = false,
-                };
-                release = await _client.Repository.Release.Create(owner, repo, newRelease);
+                return OperationResult<HostingUploadResult>.CreateFailure($"Release '{releaseTag}' not found in {owner}/{repo}");
             }
 
-            progress?.Report(20);
+            progress?.Report(30);
 
-            // Read the stream into memory for upload
-            using var memoryStream = new MemoryStream();
-            await fileStream.CopyToAsync(memoryStream, cancellationToken);
-            var fileData = memoryStream.ToArray();
+            // Check if asset already exists and delete it if so
+            var existingAsset = release.Assets.FirstOrDefault(a => a.Name == fileName);
+            if (existingAsset != null)
+            {
+                _logger.LogInformation("Deleting existing release asset: {FileName}", fileName);
+                await _client.Repository.Release.DeleteAsset(owner, repo, existingAsset.Id);
+            }
 
             progress?.Report(50);
 
-            // Upload as release asset
-            var assetUpload = new ReleaseAssetUpload(
-                fileName,
-                "application/octet-stream",
-                new MemoryStream(fileData),
-                TimeSpan.FromMinutes(10));
+            // Upload the asset
+            var uploadAsset = new ReleaseAssetUpload
+            {
+                FileName = fileName,
+                ContentType = "application/octet-stream",
+                RawData = fileStream,
+            };
 
-            var asset = await _client.Repository.Release.UploadAsset(release, assetUpload, cancellationToken);
+            var asset = await _client.Repository.Release.UploadAsset(release, uploadAsset, cancellationToken);
 
             progress?.Report(100);
 
@@ -235,12 +229,17 @@ public class GitHubHostingProvider : IHostingProvider
                 FileSize = asset.Size,
             };
 
-            _logger.LogInformation("Uploaded {FileName} to GitHub release {ReleaseTag}", fileName, releaseTag);
+            _logger.LogInformation("Uploaded release asset {FileName} to {Owner}/{Repo} release {Tag}", fileName, owner, repo, releaseTag);
             return OperationResult<HostingUploadResult>.CreateSuccess(result);
+        }
+        catch (ApiException apiEx)
+        {
+            _logger.LogError(apiEx, "GitHub API error uploading file: {FileName}", fileName);
+            return OperationResult<HostingUploadResult>.CreateFailure($"GitHub API error: {apiEx.Message}");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to upload file to GitHub");
+            _logger.LogError(ex, "Failed to upload file to GitHub: {FileName}", fileName);
             return OperationResult<HostingUploadResult>.CreateFailure($"Upload failed: {ex.Message}");
         }
     }
@@ -278,8 +277,13 @@ public class GitHubHostingProvider : IHostingProvider
             progress?.Report(100);
 
             // Get the raw URL for the catalog file
-            var file = gist.Files[gistName];
-            var rawUrl = file.RawUrl;
+            var file = gist.Files.TryGetValue(gistName, out var gistFile) ? gistFile : null;
+            var rawUrl = file?.RawUrl;
+
+            if (string.IsNullOrWhiteSpace(rawUrl))
+            {
+                return OperationResult<HostingUploadResult>.CreateFailure("Failed to retrieve raw URL from created Gist");
+            }
 
             var result = new HostingUploadResult
             {
@@ -291,6 +295,11 @@ public class GitHubHostingProvider : IHostingProvider
 
             _logger.LogInformation("Created GitHub Gist {GistId} for catalog", gist.Id);
             return OperationResult<HostingUploadResult>.CreateSuccess(result);
+        }
+        catch (ApiException apiEx)
+        {
+            _logger.LogError(apiEx, "GitHub API error uploading catalog to Gist");
+            return OperationResult<HostingUploadResult>.CreateFailure($"GitHub API error: {apiEx.Message}");
         }
         catch (Exception ex)
         {
@@ -314,25 +323,25 @@ public class GitHubHostingProvider : IHostingProvider
 
         try
         {
-            // fileId is the Gist ID
-            _logger.LogInformation("Updating GitHub Gist: {GistId}", fileId);
+            progress?.Report(20);
+            using var streamReader = new StreamReader(fileStream);
+            var content = await streamReader.ReadToEndAsync(cancellationToken);
 
-            progress?.Report(30);
+            var gistUpdate = new GistUpdate();
 
-            using var reader = new StreamReader(fileStream);
-            var content = await reader.ReadToEndAsync(cancellationToken);
-            if (string.IsNullOrWhiteSpace(content))
+            // Check if the file already exists in the gist under the current or an older name
+            var currentGist = await _client.Gist.Get(fileId);
+            string? targetKey = null;
+
+            if (currentGist.Files.ContainsKey(fileName))
             {
-                return OperationResult<HostingUploadResult>.CreateFailure("Cannot update Gist with empty content");
+                targetKey = fileName;
             }
-
-            var existingGist = await _client.Gist.Get(fileId);
-            var targetKey = existingGist.Files.ContainsKey(fileName) ? fileName : null;
-
-            var gistUpdate = new GistUpdate
+            else if (fileName.Equals("catalog.json", StringComparison.OrdinalIgnoreCase))
             {
-                Description = $"Updated via GenHub Publisher Studio at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC",
-            };
+                // Fallback: look for any existing .json file if we're writing a catalog
+                targetKey = currentGist.Files.Keys.FirstOrDefault(k => k.EndsWith(".json", StringComparison.OrdinalIgnoreCase));
+            }
 
             if (targetKey != null)
             {
@@ -363,10 +372,6 @@ public class GitHubHostingProvider : IHostingProvider
             else if (targetKey != null && updatedGist.Files.TryGetValue(targetKey, out var altObj))
             {
                 updatedFile = altObj;
-            }
-            else
-            {
-                updatedFile = updatedGist.Files.Values.FirstOrDefault();
             }
 
             var rawUrl = updatedFile?.RawUrl;

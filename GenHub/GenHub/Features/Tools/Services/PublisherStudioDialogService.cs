@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Features.Tools.Interfaces;
@@ -170,13 +171,12 @@ public class PublisherStudioDialogService(IHostingProviderFactory hostingProvide
     /// <summary>
     /// Gets a list of known/static publishers for quick selection in referrals.
     /// </summary>
-    [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Known reference catalog endpoints for referral options.")]
     private static List<PublisherReferralOption> GetKnownPublishers()
     {
         return
         [
-            new() { PublisherId = "moddb", PublisherName = "ModDB", CatalogUrl = "https://api.moddb.com/catalog.json" },
-            new() { PublisherId = "cnclabs", PublisherName = "CNC Labs", CatalogUrl = "https://github.com/CnC-Labs/mods-catalog/raw/main/catalog.json" },
+            new() { PublisherId = "moddb", PublisherName = "ModDB", CatalogUrl = CatalogConstants.ModDbCatalogUrl },
+            new() { PublisherId = "cnclabs", PublisherName = "CNC Labs", CatalogUrl = CatalogConstants.CncLabsCatalogUrl },
         ];
     }
 

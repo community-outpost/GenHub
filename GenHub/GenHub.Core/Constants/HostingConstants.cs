@@ -47,6 +47,22 @@ public static class HostingConstants
     public const string JsonContentType = "application/json";
 
     /// <summary>
+    /// MIME content type for arbitrary binary data.
+    /// </summary>
+    public const string BinaryContentType = "application/octet-stream";
+
+    /// <summary>
+    /// URL template for Google Drive direct file download.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "URL template constant")]
+    public const string GoogleDriveDownloadUrlTemplate = "https://drive.google.com/uc?export=download&id={0}";
+
+    /// <summary>
+    /// Buffer size for stream copy operations in bytes.
+    /// </summary>
+    public const int StreamCopyBufferSize = 8192;
+
+    /// <summary>
     /// Error message returned when Google Drive provider is not authenticated.
     /// </summary>
     public const string GoogleDriveNotAuthenticated = "Not authenticated with Google Drive";

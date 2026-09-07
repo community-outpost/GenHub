@@ -451,8 +451,7 @@ public class PublisherStudioService(
             if (allowPendingArtifacts)
             {
                 var missingArtifact = release.Artifacts.FirstOrDefault(artifact =>
-                    string.IsNullOrEmpty(artifact.DownloadUrl) &&
-                    !string.IsNullOrEmpty(artifact.LocalFilePath) &&
+                    IsPendingLocalArtifact(artifact) &&
                     !File.Exists(artifact.LocalFilePath));
 
                 if (missingArtifact != null)
@@ -465,10 +464,14 @@ public class PublisherStudioService(
         return OperationResult<bool>.CreateSuccess(true);
     }
 
+    private static bool IsPendingLocalArtifact(ReleaseArtifact artifact) =>
+        string.IsNullOrEmpty(artifact.DownloadUrl) && !string.IsNullOrEmpty(artifact.LocalFilePath);
+
     private static PublisherCatalog PrepareCatalogForPendingArtifactValidation(PublisherCatalog catalog)
     {
         var jsonCopy = JsonSerializer.Serialize(catalog);
-        var clonedCatalog = JsonSerializer.Deserialize<PublisherCatalog>(jsonCopy) ?? catalog;
+        var clonedCatalog = JsonSerializer.Deserialize<PublisherCatalog>(jsonCopy)
+            ?? throw new InvalidOperationException("Failed to clone publisher catalog for validation.");
 
         ApplyPendingArtifactUrls(catalog, clonedCatalog);
         return clonedCatalog;
@@ -476,21 +479,36 @@ public class PublisherStudioService(
 
     private static void ApplyPendingArtifactUrls(PublisherCatalog source, PublisherCatalog target)
     {
+        if (source?.Content == null || target?.Content == null)
+        {
+            return;
+        }
+
         for (var cIdx = 0; cIdx < source.Content.Count && cIdx < target.Content.Count; cIdx++)
         {
-            var srcReleases = source.Content[cIdx].Releases;
-            var tgtReleases = target.Content[cIdx].Releases;
-            for (var rIdx = 0; rIdx < srcReleases.Count && rIdx < tgtReleases.Count; rIdx++)
+            var srcContent = source.Content[cIdx];
+            var tgtContent = target.Content[cIdx];
+            if (srcContent?.Releases == null || tgtContent?.Releases == null)
             {
-                var srcArtifacts = srcReleases[rIdx].Artifacts;
-                var tgtArtifacts = tgtReleases[rIdx].Artifacts;
-                for (var aIdx = 0; aIdx < srcArtifacts.Count && aIdx < tgtArtifacts.Count; aIdx++)
+                continue;
+            }
+
+            for (var rIdx = 0; rIdx < srcContent.Releases.Count && rIdx < tgtContent.Releases.Count; rIdx++)
+            {
+                var srcRelease = srcContent.Releases[rIdx];
+                var tgtRelease = tgtContent.Releases[rIdx];
+                if (srcRelease?.Artifacts == null || tgtRelease?.Artifacts == null)
                 {
-                    var srcArtifact = srcArtifacts[aIdx];
-                    var tgtArtifact = tgtArtifacts[aIdx];
-                    if (string.IsNullOrEmpty(tgtArtifact.DownloadUrl) && !string.IsNullOrEmpty(srcArtifact.LocalFilePath))
+                    continue;
+                }
+
+                for (var aIdx = 0; aIdx < srcRelease.Artifacts.Count && aIdx < tgtRelease.Artifacts.Count; aIdx++)
+                {
+                    var srcArtifact = srcRelease.Artifacts[aIdx];
+                    var tgtArtifact = tgtRelease.Artifacts[aIdx];
+                    if (srcArtifact != null && tgtArtifact != null && IsPendingLocalArtifact(srcArtifact))
                     {
-                        tgtArtifact.DownloadUrl = HostingConstants.PendingUploadBaseUrl + Uri.EscapeDataString(tgtArtifact.Filename);
+                        tgtArtifact.DownloadUrl = HostingConstants.PendingUploadBaseUrl + Uri.EscapeDataString(tgtArtifact.Filename ?? string.Empty);
                     }
                 }
             }
