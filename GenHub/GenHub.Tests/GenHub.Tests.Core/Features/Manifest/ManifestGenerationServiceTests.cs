@@ -680,6 +680,91 @@ public class ManifestGenerationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync skips authoritative files when an intermediate directory is a symbolic link or reparse point.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_IntermediateDirectoryIsReparsePoint_SkipsAuthoritativeFileAsync()
+    {
+        // Arrange
+        var installationPath = Path.Combine(_tempDirectory, "IntermediateReparseTest");
+        Directory.CreateDirectory(installationPath);
+
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "generals.exe"), "exe");
+
+        var outsideDir = Path.Combine(_tempDirectory, "OutsideDataTarget");
+        Directory.CreateDirectory(outsideDir);
+        var outsideCursorsDir = Path.Combine(outsideDir, "Cursors");
+        Directory.CreateDirectory(outsideCursorsDir);
+        await File.WriteAllTextAsync(Path.Combine(outsideCursorsDir, "cursor.ani"), "cursor data");
+
+        // Intermediate linked directory: installationPath/Data -> outsideDir
+        var intermediateSymlink = Path.Combine(installationPath, "Data");
+
+        try
+        {
+            Directory.CreateSymbolicLink(intermediateSymlink, outsideDir);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            _testOutput?.WriteLine($"Skipping intermediate symlink test: symbolic link creation requires elevated privileges or Developer Mode ({ex.Message}).");
+            return;
+        }
+
+        // Act
+        var builder = await _service.CreateGameInstallationManifestAsync(
+            installationPath, GameType.Generals, GameInstallationType.Steam, "1.08", "EN");
+        var manifest = builder.Build();
+
+        // Assert - Data/Cursors/cursor.ani or any file under intermediate symlink Data must not be in manifest
+        Assert.NotNull(manifest);
+        Assert.Contains(manifest.Files, f => f.RelativePath == "generals.exe");
+        Assert.DoesNotContain(manifest.Files, f => f.RelativePath.StartsWith("Data/", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Tests that an I/O or security exception on a single file during authoritative generation does not abort remaining files.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_Authoritative_SingleFileInaccessible_ContinuesWithRemainingFilesAsync()
+    {
+        // Arrange
+        var installationPath = Path.Combine(_tempDirectory, "AuthoritativeInaccessibleTest");
+        Directory.CreateDirectory(installationPath);
+
+        var normalFile = Path.Combine(installationPath, "generals.exe");
+        await File.WriteAllTextAsync(normalFile, "exe content");
+
+        var inaccessibleFile = Path.Combine(installationPath, "binkw32.dll");
+        await File.WriteAllTextAsync(inaccessibleFile, "restricted content");
+
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(inaccessibleFile, UnixFileMode.None);
+        }
+
+        try
+        {
+            // Act
+            var builder = await _service.CreateGameInstallationManifestAsync(
+                installationPath, GameType.Generals, GameInstallationType.Steam, "1.08", "EN");
+            var manifest = builder.Build();
+
+            // Assert - generals.exe should still be added even if an individual file encounters an access failure
+            Assert.NotNull(manifest);
+            Assert.Contains(manifest.Files, f => f.RelativePath == "generals.exe");
+        }
+        finally
+        {
+            if (!OperatingSystem.IsWindows() && File.Exists(inaccessibleFile))
+            {
+                File.SetUnixFileMode(inaccessibleFile, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
+        }
+    }
+
+    /// <summary>
     /// Cleans up temporary test files.
     /// </summary>
     public void Dispose()

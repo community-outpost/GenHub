@@ -617,6 +617,7 @@ public class ManifestGenerationService(
 
     /// <summary>
     /// Finds a file in the installation directory using case-insensitive path resolution.
+    /// Rejects paths containing symbolic links or reparse points to prevent path traversal.
     /// </summary>
     private static string? FindFileCaseInsensitive(string installationPath, string relativePath)
     {
@@ -644,15 +645,22 @@ public class ManifestGenerationService(
 
         if (File.Exists(exactPath))
         {
-            return exactPath;
+            return HasReparsePointInPath(fullInstallationPath, exactPath) ? null : exactPath;
         }
 
         var segments = relativePath.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries);
         var currentDir = fullInstallationPath;
 
+        var enumOptions = new EnumerationOptions
+        {
+            IgnoreInaccessible = true,
+            RecurseSubdirectories = false,
+            AttributesToSkip = FileAttributes.ReparsePoint,
+        };
+
         for (int i = 0; i < segments.Length - 1; i++)
         {
-            if (!Directory.Exists(currentDir))
+            if (!Directory.Exists(currentDir) || IsReparsePoint(currentDir))
             {
                 return null;
             }
@@ -663,10 +671,18 @@ public class ManifestGenerationService(
                 return null;
             }
 
-            var matchingDir = Directory.EnumerateDirectories(currentDir)
-                .FirstOrDefault(d => string.Equals(Path.GetFileName(d), segment, StringComparison.OrdinalIgnoreCase));
+            string? matchingDir = null;
+            try
+            {
+                matchingDir = Directory.EnumerateDirectories(currentDir, "*", enumOptions)
+                    .FirstOrDefault(d => string.Equals(Path.GetFileName(d), segment, StringComparison.OrdinalIgnoreCase));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return null;
+            }
 
-            if (matchingDir == null)
+            if (matchingDir == null || IsReparsePoint(matchingDir))
             {
                 return null;
             }
@@ -674,14 +690,56 @@ public class ManifestGenerationService(
             currentDir = matchingDir;
         }
 
-        if (!Directory.Exists(currentDir))
+        if (!Directory.Exists(currentDir) || IsReparsePoint(currentDir))
         {
             return null;
         }
 
         var targetFileName = segments[^1];
-        return Directory.EnumerateFiles(currentDir)
-            .FirstOrDefault(f => string.Equals(Path.GetFileName(f), targetFileName, StringComparison.OrdinalIgnoreCase));
+        try
+        {
+            var matchingFile = Directory.EnumerateFiles(currentDir, "*", enumOptions)
+                .FirstOrDefault(f => string.Equals(Path.GetFileName(f), targetFileName, StringComparison.OrdinalIgnoreCase));
+
+            if (matchingFile != null && !IsReparsePoint(matchingFile))
+            {
+                return matchingFile;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Checks whether the target path or any intermediate directory beneath the base path is a reparse point or symlink.
+    /// </summary>
+    private static bool HasReparsePointInPath(string basePath, string targetPath)
+    {
+        try
+        {
+            var normalizedBase = Path.TrimEndingDirectorySeparator(Path.GetFullPath(basePath));
+            var currentPath = Path.GetFullPath(targetPath);
+
+            while (!string.IsNullOrEmpty(currentPath) && !string.Equals(currentPath, normalizedBase, StringComparison.OrdinalIgnoreCase))
+            {
+                if ((File.Exists(currentPath) || Directory.Exists(currentPath)) && IsReparsePoint(currentPath))
+                {
+                    return true;
+                }
+
+                currentPath = Path.GetDirectoryName(currentPath);
+            }
+
+            return false;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return true;
+        }
     }
 
     private static string ResolveManifestVersion(GameType gameType, string? manifestVersion)
@@ -898,40 +956,71 @@ public class ManifestGenerationService(
 
         authoritativePathSet.Add(entry.RelativePath);
 
-        var resolvedFilePath = FindFileCaseInsensitive(installationPath, entry.RelativePath);
-        if (resolvedFilePath == null || !File.Exists(resolvedFilePath))
+        try
         {
-            if (entry.IsRequired)
+            var resolvedFilePath = FindFileCaseInsensitive(installationPath, entry.RelativePath);
+            if (resolvedFilePath == null || !File.Exists(resolvedFilePath))
             {
-                logger.LogWarning(
-                    "Required vanilla file missing from installation: {RelativePath}",
-                    entry.RelativePath);
+                if (entry.IsRequired)
+                {
+                    logger.LogWarning(
+                        "Required vanilla file missing from installation: {RelativePath}",
+                        entry.RelativePath);
+                }
+
+                return false;
             }
 
+            var sourcePath = ResolveSourcePathWithBackup(resolvedFilePath, entry.RelativePath);
+            if (IsReparsePoint(sourcePath))
+            {
+                logger.LogWarning(
+                    "Source path {SourcePath} for {RelativePath} is a reparse point or symbolic link and will be skipped",
+                    sourcePath,
+                    entry.RelativePath);
+                return false;
+            }
+
+            var fileInfo = new FileInfo(sourcePath);
+            if (entry.Size > 0 && fileInfo.Length != entry.Size)
+            {
+                logger.LogWarning(
+                    "Local file size ({ActualSize}) for {RelativePath} differs from catalog size ({ExpectedSize}). Source: {SourcePath}",
+                    fileInfo.Length,
+                    entry.RelativePath,
+                    entry.Size,
+                    sourcePath);
+            }
+
+            var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(entry.RelativePath, sourcePath);
+
+            var catalogHash = !string.IsNullOrWhiteSpace(entry.Sha256)
+                ? entry.Sha256
+                : await hashProvider.ComputeFileHashAsync(sourcePath);
+
+            var catalogSize = entry.Size > 0
+                ? entry.Size
+                : fileInfo.Length;
+
+            await builder.AddGameInstallationFileAsync(
+                entry.RelativePath,
+                sourcePath,
+                isExecutable,
+                permissions: null,
+                hash: catalogHash,
+                size: catalogSize,
+                isRequired: entry.IsRequired);
+
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(
+                ex,
+                "Failed to add authoritative file {RelativePath} to manifest",
+                entry.RelativePath);
             return false;
         }
-
-        var sourcePath = ResolveSourcePathWithBackup(resolvedFilePath, entry.RelativePath);
-        var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(entry.RelativePath, sourcePath);
-
-        var catalogHash = !string.IsNullOrWhiteSpace(entry.Sha256)
-            ? entry.Sha256
-            : await hashProvider.ComputeFileHashAsync(sourcePath);
-
-        var catalogSize = entry.Size > 0
-            ? entry.Size
-            : new FileInfo(sourcePath).Length;
-
-        await builder.AddGameInstallationFileAsync(
-            entry.RelativePath,
-            sourcePath,
-            isExecutable,
-            permissions: null,
-            hash: catalogHash,
-            size: catalogSize,
-            isRequired: entry.IsRequired);
-
-        return true;
     }
 
     /// <summary>
