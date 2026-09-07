@@ -29,6 +29,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Theming;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Settings.Models;
+using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Settings.ViewModels;
@@ -407,6 +408,98 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
             _disposed = true;
         }
+    }
+
+    private static (int DeletedCount, int LockedCount, long FreedBytes) ClearLogFiles(
+        string logsPath,
+        ILogger logger)
+    {
+        var files = Directory.GetFiles(logsPath, "*.log", SearchOption.TopDirectoryOnly);
+        var activeLogPath = LoggingModule.ActiveLogFilePath;
+        var activeLogFileName = Path.GetFileName(activeLogPath);
+        var todayUtcLogFileName = $"{AppConstants.AppName.ToLowerInvariant()}-{DateTime.UtcNow:yyyy-MM-dd}.log";
+
+        var deleted = 0;
+        var locked = 0;
+        long freed = 0;
+
+        foreach (var file in files)
+        {
+            var (fileDeleted, fileLocked, fileFreed) = ProcessSingleLogFile(file, activeLogPath, activeLogFileName, todayUtcLogFileName, logger);
+            if (fileDeleted)
+            {
+                deleted++;
+                freed += fileFreed;
+            }
+            else if (fileLocked)
+            {
+                locked++;
+            }
+        }
+
+        return (deleted, locked, freed);
+    }
+
+    private static (bool Deleted, bool Locked, long FreedBytes) ProcessSingleLogFile(
+        string file,
+        string activeLogPath,
+        string activeLogFileName,
+        string todayUtcLogFileName,
+        ILogger logger)
+    {
+        try
+        {
+            var fileName = Path.GetFileName(file);
+            var length = new FileInfo(file).Length;
+
+            var isActiveLog = string.Equals(fileName, activeLogFileName, StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(fileName, todayUtcLogFileName, StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(Path.GetFullPath(file), Path.GetFullPath(activeLogPath), StringComparison.OrdinalIgnoreCase);
+
+            if (isActiveLog)
+            {
+                TruncateFileInPlace(file);
+            }
+            else
+            {
+                DeleteOrTruncateFile(file);
+            }
+
+            return (true, false, length);
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Could not clear log file: {File}", file);
+            return (false, true, 0);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Could not clear log file: {File}", file);
+            return (false, true, 0);
+        }
+    }
+
+    private static void DeleteOrTruncateFile(string file)
+    {
+        try
+        {
+            File.Delete(file);
+        }
+        catch (IOException)
+        {
+            TruncateFileInPlace(file);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            TruncateFileInPlace(file);
+        }
+    }
+
+    private static void TruncateFileInPlace(string file)
+    {
+        using var stream = new FileStream(file, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite);
+        stream.SetLength(0);
+        stream.Flush();
     }
 
     // Handle text property changes with validation
@@ -1802,6 +1895,45 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             _logger.LogError(ex, "Failed to copy latest log file");
             _notificationService.ShowError("Error", "Failed to copy latest log.", 3000);
+        }
+    }
+
+    [RelayCommand]
+    private async Task ClearLogs()
+    {
+        try
+        {
+            var logsPath = _configurationProvider.GetLogsPath();
+            _logger.LogInformation("Clearing logs from: {Path}", logsPath);
+
+            if (string.IsNullOrWhiteSpace(logsPath) || !Directory.Exists(logsPath))
+            {
+                _notificationService.ShowInfo("Logs Empty", "No logs directory found.", 3000);
+                return;
+            }
+
+            var (deletedCount, lockedCount, freedBytes) = await Task.Run(() => ClearLogFiles(logsPath, _logger));
+
+            if (deletedCount == 0 && lockedCount == 0)
+            {
+                _notificationService.ShowInfo("Logs Empty", "No log files found to clear.", 3000);
+            }
+            else if (deletedCount == 0)
+            {
+                _notificationService.ShowError("Error", "Could not clear active log files (files in use).", 3000);
+            }
+            else
+            {
+                var freedMb = freedBytes / (1024.0 * 1024.0);
+                var sizeText = freedMb >= 0.1 ? $" ({freedMb:F1} MB freed)" : string.Empty;
+                _notificationService.ShowSuccess("Logs Cleared", $"Successfully cleared {deletedCount} log file(s){sizeText}.", 3000);
+                _logger.LogInformation("Cleared {Count} log files ({Bytes} bytes freed)", deletedCount, freedBytes);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to clear logs");
+            _notificationService.ShowError("Error", $"Failed to clear logs: {ex.Message}", 5000);
         }
     }
 }
