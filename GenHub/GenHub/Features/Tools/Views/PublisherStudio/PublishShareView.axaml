@@ -51,7 +51,7 @@
         </Style>
         <Style Selector="TextBox:focus">
             <Setter Property="Background" Value="#18FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#AA00FF"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
         </Style>
         <Style Selector="TextBox.readonly">
             <Setter Property="Background" Value="#0AFFFFFF"/>
@@ -170,7 +170,7 @@
                             Background="#15AA00FF" CornerRadius="4" Padding="8,4" Margin="8,0,0,0"
                             VerticalAlignment="Center">
                         <TextBlock Text="{Binding ActiveCatalog.Id}"
-                                   FontSize="11" Foreground="#AA00FF" FontWeight="SemiBold"/>
+                                   FontSize="11" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold"/>
                     </Border>
                 </Grid>
             </Border>
@@ -248,7 +248,7 @@
                                          RevealPassword="True"/>
                                 <TextBlock FontSize="11" Foreground="#666666" TextWrapping="Wrap">
                                     <Run Text="Create a token at"/>
-                                    <Run Text=" github.com/settings/tokens " Foreground="#AA00FF"/>
+                                    <Run Text=" github.com/settings/tokens " Foreground="{DynamicResource AccentColorBrush}"/>
                                     <Run Text="with 'gist' and 'repo' permissions."/>
                                 </TextBlock>
                             </StackPanel>
@@ -272,7 +272,7 @@
                                          RevealPassword="True"/>
                                 <TextBlock FontSize="11" Foreground="#666666" TextWrapping="Wrap">
                                     <Run Text="Create an app at"/>
-                                    <Run Text=" dropbox.com/developers/apps " Foreground="#AA00FF"/>
+                                    <Run Text=" dropbox.com/developers/apps " Foreground="{DynamicResource AccentColorBrush}"/>
                                     <Run Text="and generate an access token."/>
                                 </TextBlock>
                             </StackPanel>
@@ -472,14 +472,14 @@
 
                             <!-- Subscription URL (prominent) -->
                             <StackPanel Spacing="4" IsVisible="{Binding SubscriptionUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                <TextBlock Text="Subscription URL (share this!)" FontSize="11" Foreground="#AA00FF" FontWeight="Bold"/>
+                                <TextBlock Text="Subscription URL (share this!)" FontSize="11" Foreground="{DynamicResource AccentColorBrush}" FontWeight="Bold"/>
                                 <Grid ColumnDefinitions="*,Auto">
                                     <TextBox Text="{Binding SubscriptionUrl}" IsReadOnly="True" FontSize="13"
                                              FontFamily="Consolas, Courier New, monospace"
                                              Background="#15AA00FF" BorderBrush="#30AA00FF" Foreground="White" FontWeight="Bold"/>
                                     <Button Grid.Column="1" Command="{Binding CopySubscriptionUrlCommand}"
                                             Margin="8,0,0,0" Background="#20AA00FF" Padding="8" CornerRadius="6">
-                                        <PathIcon Data="{StaticResource CopyIcon}" Width="14" Height="14" Foreground="#AA00FF"/>
+                                        <PathIcon Data="{StaticResource CopyIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}"/>
                                     </Button>
                                 </Grid>
                             </StackPanel>
@@ -517,7 +517,7 @@
                                                     CornerRadius="6"
                                                     Padding="12,6"
                                                     Margin="8,0,0,0">
-                                                <TextBlock Text="Publish" FontSize="11" FontWeight="SemiBold" Foreground="#AA00FF"/>
+                                                <TextBlock Text="Publish" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentColorBrush}"/>
                                             </Button>
 
                                             <!-- URL Copy Button (if published) -->

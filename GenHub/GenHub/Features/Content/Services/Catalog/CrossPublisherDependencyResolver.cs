@@ -29,12 +29,6 @@ public class CrossPublisherDependencyResolver(
     IPublisherCatalogParser catalogParser,
     IHttpClientFactory httpClientFactory) : ICrossPublisherDependencyResolver
 {
-    private readonly ILogger<CrossPublisherDependencyResolver> _logger = logger;
-    private readonly IContentManifestPool _manifestPool = manifestPool;
-    private readonly IPublisherSubscriptionStore _subscriptionStore = subscriptionStore;
-    private readonly IPublisherCatalogParser _catalogParser = catalogParser;
-    private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
-
     /// <inheritdoc />
     public async Task<OperationResult<IEnumerable<MissingDependency>>> CheckMissingDependenciesAsync(
         ContentManifest manifest,
@@ -47,11 +41,11 @@ public class CrossPublisherDependencyResolver(
             foreach (var dependency in manifest.Dependencies)
             {
                 // Check if dependency is already installed
-                var existingManifest = await _manifestPool.GetManifestAsync(dependency.Id, cancellationToken);
+                var existingManifest = await manifestPool.GetManifestAsync(dependency.Id, cancellationToken);
                 if (existingManifest.Success && existingManifest.Data != null)
                 {
                     // Dependency is already installed, skip
-                    _logger.LogDebug("Dependency {DependencyId} is already installed", dependency.Id);
+                    logger.LogDebug("Dependency {DependencyId} is already installed", dependency.Id);
                     continue;
                 }
 
@@ -66,14 +60,14 @@ public class CrossPublisherDependencyResolver(
                 if (findResult.Success && findResult.Data != null)
                 {
                     missingDep.ResolvableContent = findResult.Data;
-                    _logger.LogInformation(
+                    logger.LogInformation(
                         "Found resolvable content for dependency {DependencyId}: {ContentName}",
                         dependency.Id,
                         findResult.Data.Name);
                 }
                 else
                 {
-                    _logger.LogWarning(
+                    logger.LogWarning(
                         "Could not find resolvable content for dependency {DependencyId}",
                         dependency.Id);
                 }
@@ -81,7 +75,7 @@ public class CrossPublisherDependencyResolver(
                 missingDependencies.Add(missingDep);
             }
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Found {MissingCount} missing dependencies out of {TotalCount} total",
                 missingDependencies.Count,
                 manifest.Dependencies.Count);
@@ -90,7 +84,7 @@ public class CrossPublisherDependencyResolver(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to check missing dependencies");
+            logger.LogError(ex, "Failed to check missing dependencies");
             return OperationResult<IEnumerable<MissingDependency>>.CreateFailure(
                 $"Failed to check dependencies: {ex.Message}");
         }
@@ -103,12 +97,14 @@ public class CrossPublisherDependencyResolver(
     {
         try
         {
-            var httpClient = _httpClientFactory.CreateClient();
-            httpClient.Timeout = TimeSpan.FromSeconds(30);
+            var httpClient = httpClientFactory.CreateClient();
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(30));
+            var ct = timeoutCts.Token;
 
-            _logger.LogDebug("Fetching external catalog from: {CatalogUrl}", catalogUrl);
+            logger.LogDebug("Fetching external catalog from: {CatalogUrl}", catalogUrl);
 
-            var response = await httpClient.GetAsync(catalogUrl, cancellationToken);
+            var response = await httpClient.GetAsync(catalogUrl, ct);
             response.EnsureSuccessStatusCode();
 
             // Check size limit with bounded stream read
@@ -118,12 +114,12 @@ public class CrossPublisherDependencyResolver(
                     $"Catalog exceeds maximum size of {CatalogConstants.MaxCatalogSizeBytes} bytes");
             }
 
-            using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            using var stream = await response.Content.ReadAsStreamAsync(ct);
             using var memoryStream = new System.IO.MemoryStream();
             var buffer = new byte[81920];
             int bytesRead;
             long totalBytesRead = 0;
-            while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0)
+            while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, ct)) > 0)
             {
                 totalBytesRead += bytesRead;
                 if (totalBytesRead > CatalogConstants.MaxCatalogSizeBytes)
@@ -131,18 +127,20 @@ public class CrossPublisherDependencyResolver(
                     return OperationResult<PublisherCatalog>.CreateFailure(
                         $"Catalog exceeds maximum size of {CatalogConstants.MaxCatalogSizeBytes} bytes");
                 }
+
                 memoryStream.Write(buffer, 0, bytesRead);
             }
+
             var catalogJson = System.Text.Encoding.UTF8.GetString(memoryStream.ToArray());
 
             // Parse catalog
-            var parseResult = await _catalogParser.ParseCatalogAsync(catalogJson, cancellationToken);
+            var parseResult = await catalogParser.ParseCatalogAsync(catalogJson, ct);
             if (!parseResult.Success)
             {
                 return OperationResult<PublisherCatalog>.CreateFailure(parseResult);
             }
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Successfully fetched catalog for publisher {PublisherId}",
                 parseResult.Data!.Publisher.Id);
 
@@ -150,17 +148,17 @@ public class CrossPublisherDependencyResolver(
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex, "HTTP error fetching external catalog");
+            logger.LogError(ex, "HTTP error fetching external catalog");
             return OperationResult<PublisherCatalog>.CreateFailure($"Failed to fetch catalog: {ex.Message}");
         }
         catch (TaskCanceledException ex)
         {
-            _logger.LogWarning(ex, "Catalog fetch timed out");
+            logger.LogWarning(ex, "Catalog fetch timed out");
             return OperationResult<PublisherCatalog>.CreateFailure("Catalog fetch timed out");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error fetching external catalog");
+            logger.LogError(ex, "Unexpected error fetching external catalog");
             return OperationResult<PublisherCatalog>.CreateFailure($"Unexpected error: {ex.Message}");
         }
     }
@@ -184,16 +182,16 @@ public class CrossPublisherDependencyResolver(
             var publisherId = idParts[2];
             var contentName = idParts[4];
 
-            _logger.LogDebug(
+            logger.LogDebug(
                 "Searching for dependency: Publisher={PublisherId}, Content={ContentName}",
                 publisherId,
                 contentName);
 
             // Check if we're subscribed to this publisher
-            var subscriptionResult = await _subscriptionStore.GetSubscriptionAsync(publisherId, cancellationToken);
+            var subscriptionResult = await subscriptionStore.GetSubscriptionAsync(publisherId, cancellationToken);
             if (!subscriptionResult.Success || subscriptionResult.Data == null)
             {
-                _logger.LogWarning(
+                logger.LogWarning(
                     "Not subscribed to publisher {PublisherId} for dependency {DependencyId}",
                     publisherId,
                     dependency.Id);
@@ -218,7 +216,7 @@ public class CrossPublisherDependencyResolver(
 
             if (matchingContent == null)
             {
-                _logger.LogWarning(
+                logger.LogWarning(
                     "Content {ContentName} not found in publisher {PublisherId} catalog",
                     contentName,
                     publisherId);
@@ -240,7 +238,7 @@ public class CrossPublisherDependencyResolver(
 
             if (latestRelease == null)
             {
-                _logger.LogWarning(
+                logger.LogWarning(
                     "No stable release found for content {ContentName}",
                     contentName);
                 return OperationResult<ContentSearchResult?>.CreateSuccess(null);
@@ -249,7 +247,7 @@ public class CrossPublisherDependencyResolver(
             // Create ContentSearchResult
             var searchResult = new ContentSearchResult
             {
-                Id = dependency.Id.Value,
+                Id = dependency.Id.Value ?? string.Empty,
                 Name = matchingContent.Name,
                 Description = matchingContent.Description,
                 Version = latestRelease.Version,
@@ -269,7 +267,7 @@ public class CrossPublisherDependencyResolver(
             searchResult.ResolverMetadata["releaseJson"] = System.Text.Json.JsonSerializer.Serialize(latestRelease);
             searchResult.ResolverMetadata["publisherProfileJson"] = System.Text.Json.JsonSerializer.Serialize(catalog.Publisher);
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Found dependency content: {ContentName} v{Version}",
                 searchResult.Name,
                 searchResult.Version);
@@ -278,7 +276,7 @@ public class CrossPublisherDependencyResolver(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to find dependency content");
+            logger.LogError(ex, "Failed to find dependency content");
             return OperationResult<ContentSearchResult?>.CreateFailure($"Failed to find dependency: {ex.Message}");
         }
     }

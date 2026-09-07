@@ -61,27 +61,18 @@ public partial class AddContentDialogViewModel : ObservableValidator
     /// </summary>
     public IReadOnlyList<ContentType> AvailableContentTypes { get; } =
     [
-        // Primary content types
         ContentType.Mod,
         ContentType.Map,
         ContentType.MapPack,
         ContentType.Mission,
         ContentType.Addon,
         ContentType.Patch,
-
-        // Media types
         ContentType.Video,
         ContentType.Replay,
         ContentType.Skin,
-
-        // Tools and utilities
         ContentType.ModdingTool,
         ContentType.Executable,
-
-        // Localization
         ContentType.LanguagePack,
-
-        // Collections
         ContentType.ContentBundle,
     ];
 

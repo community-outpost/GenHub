@@ -10,6 +10,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
@@ -41,12 +42,16 @@ public partial class SubscriptionConfirmationViewModel(
     IPublisherSubscriptionStore subscriptionStore,
     IPublisherCatalogParser catalogParser,
     HttpClient httpClient,
-    ILogger<SubscriptionConfirmationViewModel> logger) : ObservableObject
+    ILogger<SubscriptionConfirmationViewModel> logger,
+    IPublisherDefinitionService? definitionService = null) : ObservableObject
 {
     private const string DefaultCategoryKey = "All";
     private const string DefaultPublisherName = "Loading...";
     private const string FallbackPublisherInitial = "P";
     private PublisherCatalog? _parsedCatalog;
+
+    private string? _resolvedDefinitionUrl;
+    private string? _resolvedCatalogUrl;
 
     /// <summary>
     /// Gets or sets an action that occurs when a request is made to close the dialog.
@@ -164,15 +169,80 @@ public partial class SubscriptionConfirmationViewModel(
             CanConfirm = false;
             IsAlreadySubscribed = false;
 
-            // catalog-direct path: treat the shared URL as PublisherCatalog JSON.
-            // future: sniff Provider Definition and branch before this parse.
             logger.LogInformation("Fetching catalog subscription");
             var response = await CatalogDocumentReader.ReadAsync(httpClient, catalogUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken);
 
-            var result = await catalogParser.ParseCatalogAsync(response, cancellationToken);
-            if (result.Success && result.Data != null)
+            PublisherCatalog? parsedData = null;
+
+            if (definitionService != null)
             {
-                _parsedCatalog = result.Data;
+                var defResult = await definitionService.FetchDefinitionAsync(catalogUrl, cancellationToken);
+                if (defResult.Success && defResult.Data != null)
+                {
+                    _resolvedDefinitionUrl = catalogUrl;
+                    var catResult = await definitionService.FetchCatalogFromDefinitionAsync(defResult.Data, cancellationToken);
+                    if (catResult.Success && catResult.Data != null)
+                    {
+                        parsedData = catResult.Data;
+                        _resolvedCatalogUrl = defResult.Data.CatalogUrl ?? defResult.Data.Catalogs.FirstOrDefault()?.Url;
+                    }
+                }
+            }
+
+            // Detect if payload is a Provider Definition (contains "catalogs" or "$schemaVersion")
+            if (parsedData == null &&
+                (response.Contains("\"catalogs\"", StringComparison.OrdinalIgnoreCase) ||
+                 response.Contains("\"$schemaVersion\"", StringComparison.OrdinalIgnoreCase)))
+            {
+                try
+                {
+                    var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                    var definition = System.Text.Json.JsonSerializer.Deserialize<PublisherDefinition>(response, options);
+                    if (definition != null)
+                    {
+                        _resolvedDefinitionUrl = catalogUrl;
+                        var targetCatalogUrl = !string.IsNullOrWhiteSpace(definition.CatalogUrl)
+                            ? definition.CatalogUrl
+                            : definition.Catalogs.FirstOrDefault()?.Url;
+
+                        if (!string.IsNullOrWhiteSpace(targetCatalogUrl))
+                        {
+                            _resolvedCatalogUrl = targetCatalogUrl;
+                            logger.LogInformation("Resolved catalog URL {TargetUrl} from definition at {DefUrl}", targetCatalogUrl, catalogUrl);
+                            var catResponse = await CatalogDocumentReader.ReadAsync(httpClient, targetCatalogUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken);
+                            var catParseResult = await catalogParser.ParseCatalogAsync(catResponse, cancellationToken);
+                            if (catParseResult.Success && catParseResult.Data != null)
+                            {
+                                parsedData = catParseResult.Data;
+                            }
+                        }
+                    }
+                }
+                catch (Exception defEx)
+                {
+                    logger.LogDebug(defEx, "Payload did not parse as publisher definition; falling back to direct catalog parse");
+                }
+            }
+
+            if (parsedData == null)
+            {
+                var result = await catalogParser.ParseCatalogAsync(response, cancellationToken);
+                if (result.Success && result.Data != null)
+                {
+                    parsedData = result.Data;
+                }
+                else
+                {
+                    ErrorTitle = "Failed to Load Catalog";
+                    ErrorMessage = string.Join(Environment.NewLine, result.Errors);
+                    logger.LogWarning("Failed to parse catalog: {Errors}", ErrorMessage);
+                    return;
+                }
+            }
+
+            if (parsedData != null)
+            {
+                _parsedCatalog = parsedData;
                 PublisherName = _parsedCatalog.Publisher.Name;
                 PublisherAvatarUrl = !string.IsNullOrWhiteSpace(_parsedCatalog.Publisher.AvatarUrl) && ImageCacheService.IsSafeRemoteUrl(_parsedCatalog.Publisher.AvatarUrl, out _)
                     ? _parsedCatalog.Publisher.AvatarUrl
@@ -210,12 +280,6 @@ public partial class SubscriptionConfirmationViewModel(
                 IsCatalogLoaded = true;
                 CanConfirm = true;
                 logger.LogInformation("Successfully loaded catalog for {Publisher} with {Count} items (alreadySubscribed={IsAlreadySubscribed})", PublisherName, ContentCount, IsAlreadySubscribed);
-            }
-            else
-            {
-                ErrorTitle = "Failed to Load Catalog";
-                ErrorMessage = string.Join(Environment.NewLine, result.Errors);
-                logger.LogWarning("Failed to parse catalog: {Errors}", ErrorMessage);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -337,8 +401,8 @@ public partial class SubscriptionConfirmationViewModel(
             {
                 PublisherId = _parsedCatalog.Publisher.Id,
                 PublisherName = _parsedCatalog.Publisher.Name,
-                CatalogUrl = catalogUrl,
-                DefinitionUrl = existingSub?.DefinitionUrl, // preserve definition URL if already set
+                CatalogUrl = _resolvedCatalogUrl ?? catalogUrl,
+                DefinitionUrl = _resolvedDefinitionUrl ?? existingSub?.DefinitionUrl, // preserve definition URL if already set
                 Added = existingSub?.Added ?? DateTime.UtcNow,
                 TrustLevel = existingSub?.TrustLevel ?? TrustLevel.Untrusted, // community sources start untrusted
                 AvatarUrl = !string.IsNullOrWhiteSpace(_parsedCatalog.Publisher.AvatarUrl) && ImageCacheService.IsSafeRemoteUrl(_parsedCatalog.Publisher.AvatarUrl, out _)

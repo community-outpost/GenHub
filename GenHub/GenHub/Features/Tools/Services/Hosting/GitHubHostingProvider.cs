@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -43,10 +44,10 @@ public class GitHubHostingProvider : IHostingProvider
     public string ProviderId => "github";
 
     /// <inheritdoc/>
-    public string DisplayName => "GitHub Releases";
+    public string DisplayName => "GitHub Gists";
 
     /// <inheritdoc/>
-    public string Description => "Host artifacts via GitHub Releases. Recommended for open-source content.";
+    public string Description => "Host catalogs and definitions via GitHub Gists. Artifacts should be hosted with direct URLs or cloud storage.";
 
     /// <inheritdoc/>
     public string IconName => "Github";
@@ -61,7 +62,7 @@ public class GitHubHostingProvider : IHostingProvider
     public bool SupportsCatalogHosting => true;
 
     /// <inheritdoc/>
-    public bool SupportsArtifactHosting => true;
+    public bool SupportsArtifactHosting => false;
 
     /// <inheritdoc/>
     public bool SupportsUpdate => true;
@@ -148,11 +149,33 @@ public class GitHubHostingProvider : IHostingProvider
 
         try
         {
-            // folderPath should be in format "owner/repo/release-tag"
-            // e.g., "my-username/my-catalog/v1.0.0"
+            // When folderPath is omitted, upload as a Gist (e.g. definitions or catalogs)
             if (string.IsNullOrEmpty(folderPath))
             {
-                return OperationResult<HostingUploadResult>.CreateFailure("Folder path required in format: owner/repo/release-tag");
+                progress?.Report(20);
+                using var streamReader = new StreamReader(fileStream);
+                var jsonContent = await streamReader.ReadToEndAsync(cancellationToken);
+
+                var newGist = new NewGist
+                {
+                    Description = $"GenHub Content - {fileName}",
+                    Public = true,
+                };
+                newGist.Files.Add(fileName, jsonContent);
+
+                var gist = await _client.Gist.Create(newGist);
+                progress?.Report(100);
+
+                var file = gist.Files.TryGetValue(fileName, out var gistFile) ? gistFile : gist.Files.Values.FirstOrDefault();
+                var downloadUrl = file?.RawUrl ?? gist.HtmlUrl;
+
+                return OperationResult<HostingUploadResult>.CreateSuccess(new HostingUploadResult
+                {
+                    FileId = gist.Id,
+                    DirectDownloadUrl = downloadUrl,
+                    PublicUrl = gist.HtmlUrl,
+                    FileSize = Encoding.UTF8.GetByteCount(jsonContent),
+                });
             }
 
             var parts = folderPath.Split('/');
@@ -299,15 +322,21 @@ public class GitHubHostingProvider : IHostingProvider
             using var reader = new StreamReader(fileStream);
             var content = await reader.ReadToEndAsync(cancellationToken);
 
+            var existingGist = await _client.Gist.Get(fileId);
+            var targetKey = existingGist.Files.ContainsKey(fileName)
+                ? fileName
+                : (existingGist.Files.Keys.FirstOrDefault() ?? fileName);
+
             var gistUpdate = new GistUpdate
             {
                 Description = $"Updated via GenHub Publisher Studio at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC",
             };
 
-            // Update or add the file
-            gistUpdate.Files[fileName] = new GistFileUpdate
+            // Update or add the file with target key
+            gistUpdate.Files[targetKey] = new GistFileUpdate
             {
                 Content = content,
+                NewFileName = fileName,
             };
 
             var updatedGist = await _client.Gist.Edit(fileId, gistUpdate);
@@ -315,8 +344,10 @@ public class GitHubHostingProvider : IHostingProvider
             progress?.Report(100);
 
             // Get the raw URL for the updated file
-            var updatedFile = updatedGist.Files[fileName];
-            var rawUrl = updatedFile.RawUrl;
+            var updatedFile = updatedGist.Files.TryGetValue(fileName, out var fileObj)
+                ? fileObj
+                : (updatedGist.Files.TryGetValue(targetKey, out var altObj) ? altObj : updatedGist.Files.Values.FirstOrDefault());
+            var rawUrl = updatedFile?.RawUrl ?? updatedGist.HtmlUrl;
 
             var result = new HostingUploadResult
             {

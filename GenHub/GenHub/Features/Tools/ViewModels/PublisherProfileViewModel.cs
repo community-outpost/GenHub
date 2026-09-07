@@ -119,6 +119,11 @@ public partial class PublisherProfileViewModel : ObservableValidator
             _project.Catalog.Publisher.ContactEmail = string.IsNullOrWhiteSpace(ContactEmail) ? null : ContactEmail.Trim();
             _project.Catalog.Publisher.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
 
+            foreach (var namedCatalog in _project.Catalogs)
+            {
+                namedCatalog.Catalog.Publisher = _project.Catalog.Publisher;
+            }
+
             _project.Tags.Clear();
             _project.Tags.AddRange(TagsString.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
 

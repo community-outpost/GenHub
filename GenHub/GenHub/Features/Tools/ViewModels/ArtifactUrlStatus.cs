@@ -89,9 +89,17 @@ public partial class ArtifactUrlStatus : ObservableObject
         }
         else if (HasLocalFile)
         {
-            // Has local file but no URL - will be uploaded during publish
-            IsValid = true;
-            StatusMessage = "Pending upload";
+            if (System.IO.File.Exists(LocalFilePath))
+            {
+                // Has local file but no URL - will be uploaded during publish
+                IsValid = true;
+                StatusMessage = "Pending upload";
+            }
+            else
+            {
+                IsValid = false;
+                StatusMessage = "Local file not found";
+            }
         }
         else
         {

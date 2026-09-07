@@ -87,6 +87,15 @@ public partial class PublisherStudioViewModel : ObservableObject
         OnPropertyChanged(nameof(ShouldShowSetupOverlay));
     }
 
+    /// <summary>
+    /// Navigates to the Publisher Profile tab.
+    /// </summary>
+    [RelayCommand]
+    private void GoToProfileTab()
+    {
+        SelectedTabIndex = 0;
+    }
+
     partial void OnSelectedCatalogChanged(NamedCatalog? value)
     {
         if (value != null && CurrentProject != null)
@@ -140,6 +149,77 @@ public partial class PublisherStudioViewModel : ObservableObject
             HasUnsavedChanges = true;
             OnPropertyChanged(nameof(IsSetupComplete));
             OnPropertyChanged(nameof(ShouldShowSetupOverlay));
+        }
+    }
+
+    /// <summary>
+    /// Saves the current project.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    public async Task SaveProjectAsync()
+    {
+        if (CurrentProject == null)
+        {
+            return;
+        }
+
+        try
+        {
+            // If path is missing, treat as "Save As"
+            if (string.IsNullOrEmpty(CurrentProject.ProjectPath))
+            {
+                var promptResult = await _dialogService.ShowProjectSavePromptAsync("Save Project");
+                if (promptResult != null)
+                {
+                    CurrentProject.ProjectPath = promptResult;
+                }
+                else
+                {
+                    // User cancelled
+                    return;
+                }
+            }
+
+            var result = await _publisherStudioService.SaveProjectAsync(CurrentProject);
+            if (result.Success)
+            {
+                HasUnsavedChanges = false;
+                StatusMessage = "Project saved. Go to 'Publish & Share' to export and release.";
+                _logger.LogInformation("Saved project: {ProjectName}", CurrentProject.ProjectName);
+
+                // Persist the project path for auto-load on next launch
+                if (!string.IsNullOrEmpty(CurrentProject.ProjectPath))
+                {
+                    await SaveLastProjectPathAsync(CurrentProject.ProjectPath);
+                }
+
+                _notificationService?.ShowSuccess(
+                    "Project Saved",
+                    $"Your publisher project '{CurrentProject.ProjectName}' has been saved successfully.",
+                    autoDismissMs: 4000);
+
+                // Force a dirty state update to refresh UI
+                OnPropertyChanged(nameof(HasUnsavedChanges));
+            }
+            else
+            {
+                StatusMessage = $"Failed to save: {result.FirstError}";
+                _logger.LogError("Failed to save project: {Error}", result.FirstError);
+
+                _notificationService?.ShowError(
+                    "Save Failed",
+                    result.FirstError ?? "An unknown error occurred while saving the project.");
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error saving: {ex.Message}";
+            _logger.LogError(ex, "Error saving project");
+
+            _notificationService?.ShowError(
+                "Save Error",
+                $"An error occurred while saving: {ex.Message}");
         }
     }
 
@@ -312,77 +392,6 @@ public partial class PublisherStudioViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Saves the current project.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    [RelayCommand]
-    public async Task SaveProjectAsync()
-    {
-        if (CurrentProject == null)
-        {
-            return;
-        }
-
-        try
-        {
-            // If path is missing, treat as "Save As"
-            if (string.IsNullOrEmpty(CurrentProject.ProjectPath))
-            {
-                var promptResult = await _dialogService.ShowProjectSavePromptAsync("Save Project");
-                if (promptResult != null)
-                {
-                    CurrentProject.ProjectPath = promptResult;
-                }
-                else
-                {
-                    // User cancelled
-                    return;
-                }
-            }
-
-            var result = await _publisherStudioService.SaveProjectAsync(CurrentProject);
-            if (result.Success)
-            {
-                HasUnsavedChanges = false;
-                StatusMessage = "Project saved. Go to 'Publish & Share' to export and release.";
-                _logger.LogInformation("Saved project: {ProjectName}", CurrentProject.ProjectName);
-
-                // Persist the project path for auto-load on next launch
-                if (!string.IsNullOrEmpty(CurrentProject.ProjectPath))
-                {
-                    await SaveLastProjectPathAsync(CurrentProject.ProjectPath);
-                }
-
-                _notificationService?.ShowSuccess(
-                    "Project Saved",
-                    $"Your publisher project '{CurrentProject.ProjectName}' has been saved successfully.",
-                    autoDismissMs: 4000);
-
-                // Force a dirty state update to refresh UI
-                OnPropertyChanged(nameof(HasUnsavedChanges));
-            }
-            else
-            {
-                StatusMessage = $"Failed to save: {result.FirstError}";
-                _logger.LogError("Failed to save project: {Error}", result.FirstError);
-
-                _notificationService?.ShowError(
-                    "Save Failed",
-                    result.FirstError ?? "An unknown error occurred while saving the project.");
-            }
-        }
-        catch (Exception ex)
-        {
-            StatusMessage = $"Error saving: {ex.Message}";
-            _logger.LogError(ex, "Error saving project");
-
-            _notificationService?.ShowError(
-                "Save Error",
-                $"An error occurred while saving: {ex.Message}");
-        }
-    }
-
-    /// <summary>
     /// Adds a new catalog to the project.
     /// </summary>
     [RelayCommand]
@@ -396,6 +405,7 @@ public partial class PublisherStudioViewModel : ObservableObject
             Id = newId,
             Name = $"Catalog {CurrentProject.Catalogs.Count + 1}",
             FileName = $"catalog-{newId}.json",
+            Catalog = new() { Publisher = CurrentProject.Catalog.Publisher },
         };
 
         CurrentProject.Catalogs.Add(newCatalog);
@@ -455,6 +465,7 @@ public partial class PublisherStudioViewModel : ObservableObject
                 Id = "default",
                 Name = "Content",
                 FileName = "catalog.json",
+                Catalog = CurrentProject.Catalog,
             };
             CurrentProject.Catalogs.Add(defaultCatalog);
         }
@@ -500,6 +511,7 @@ public partial class PublisherStudioViewModel : ObservableObject
         Catalogs.Clear();
         foreach (var catalog in CurrentProject.Catalogs)
         {
+            catalog.Catalog.Publisher = CurrentProject.Catalog.Publisher;
             Catalogs.Add(catalog);
         }
 

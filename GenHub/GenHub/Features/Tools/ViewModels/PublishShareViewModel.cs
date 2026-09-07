@@ -108,12 +108,12 @@ public partial class PublishShareViewModel : ObservableObject
     /// <summary>
     /// Gets a value indicating whether the selected provider requires authentication.
     /// </summary>
-    public bool RequiresAuthentication => _selectedHostingProvider?.RequiresAuthentication ?? false;
+    public bool RequiresAuthentication => SelectedHostingProvider?.RequiresAuthentication ?? false;
 
     /// <summary>
     /// Gets a value indicating whether the selected provider is authenticated.
     /// </summary>
-    public bool IsProviderAuthenticated => _selectedHostingProvider?.IsAuthenticated ?? false;
+    public bool IsProviderAuthenticated => SelectedHostingProvider?.IsAuthenticated ?? false;
 
     /// <summary>
     /// Gets a value indicating whether authentication is needed (provider requires it but is not authenticated).
@@ -418,6 +418,7 @@ public partial class PublishShareViewModel : ObservableObject
             }
 
             GenerateSubscriptionUrl();
+            InitializeCatalogStatuses();
             _logger.LogInformation("Loaded hosting state with {CatalogCount} catalogs", _currentHostingState.Catalogs.Count);
 
             // After loading state, try to restore authentication
@@ -431,12 +432,12 @@ public partial class PublishShareViewModel : ObservableObject
     /// <summary>
     /// Gets the content item count in the active catalog.
     /// </summary>
-    public int ContentItemCount => _activeCatalog?.Catalog.Content.Count ?? 0;
+    public int ContentItemCount => ActiveCatalog?.Catalog.Content.Count ?? 0;
 
     /// <summary>
     /// Gets the total release count across all content items in the active catalog.
     /// </summary>
-    public int TotalReleaseCount => _activeCatalog?.Catalog.Content.Sum(c => c.Releases.Count) ?? 0;
+    public int TotalReleaseCount => ActiveCatalog?.Catalog.Content.Sum(c => c.Releases.Count) ?? 0;
 
     /// <summary>
     /// Validates the active catalog.
@@ -467,7 +468,7 @@ public partial class PublishShareViewModel : ObservableObject
                 return;
             }
 
-            var result = await _publisherStudioService.ValidateCatalogAsync(ActiveCatalog.Catalog);
+            var result = await _publisherStudioService.ValidateCatalogAsync(ActiveCatalog.Catalog, allowPendingArtifacts: true);
             IsValid = result.Success;
             ValidationMessage = result.Success ? $"✓ Catalog '{ActiveCatalog.Name}' is valid" : $"✗ {result.FirstError}";
 
@@ -682,7 +683,7 @@ public partial class PublishShareViewModel : ObservableObject
 
         CurrentPublishStep = 5;
         UploadStatusMessage = "Uploading provider definition...";
-        var defFileName = "provider.json";
+        var defFileName = _project.ProviderDefinitionFileName ?? "publisher.json";
         var existingDefFileId = _currentHostingState?.Definition?.FileId;
 
         using var defStream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(ProviderDefinitionJson));
@@ -994,8 +995,7 @@ public partial class PublishShareViewModel : ObservableObject
             IsUploading = true;
             UploadStatusMessage = "Uploading provider definition...";
 
-            // Use 'provider.json' as filename
-            var fileName = "provider.json";
+            var fileName = _project.ProviderDefinitionFileName ?? "publisher.json";
 
             // Upload as a file
             using var stream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(ProviderDefinitionJson));
