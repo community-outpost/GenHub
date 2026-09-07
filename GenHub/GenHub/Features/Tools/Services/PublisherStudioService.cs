@@ -484,33 +484,42 @@ public class PublisherStudioService(
             return;
         }
 
-        for (var cIdx = 0; cIdx < source.Content.Count && cIdx < target.Content.Count; cIdx++)
+        var contentCount = Math.Min(source.Content.Count, target.Content.Count);
+        for (var cIdx = 0; cIdx < contentCount; cIdx++)
         {
-            var srcContent = source.Content[cIdx];
-            var tgtContent = target.Content[cIdx];
-            if (srcContent?.Releases == null || tgtContent?.Releases == null)
-            {
-                continue;
-            }
+            ApplyPendingArtifactUrlsToContent(source.Content[cIdx], target.Content[cIdx]);
+        }
+    }
 
-            for (var rIdx = 0; rIdx < srcContent.Releases.Count && rIdx < tgtContent.Releases.Count; rIdx++)
-            {
-                var srcRelease = srcContent.Releases[rIdx];
-                var tgtRelease = tgtContent.Releases[rIdx];
-                if (srcRelease?.Artifacts == null || tgtRelease?.Artifacts == null)
-                {
-                    continue;
-                }
+    private static void ApplyPendingArtifactUrlsToContent(CatalogContentItem? srcContent, CatalogContentItem? tgtContent)
+    {
+        if (srcContent?.Releases == null || tgtContent?.Releases == null)
+        {
+            return;
+        }
 
-                for (var aIdx = 0; aIdx < srcRelease.Artifacts.Count && aIdx < tgtRelease.Artifacts.Count; aIdx++)
-                {
-                    var srcArtifact = srcRelease.Artifacts[aIdx];
-                    var tgtArtifact = tgtRelease.Artifacts[aIdx];
-                    if (srcArtifact != null && tgtArtifact != null && IsPendingLocalArtifact(srcArtifact))
-                    {
-                        tgtArtifact.DownloadUrl = HostingConstants.PendingUploadBaseUrl + Uri.EscapeDataString(tgtArtifact.Filename ?? string.Empty);
-                    }
-                }
+        var releaseCount = Math.Min(srcContent.Releases.Count, tgtContent.Releases.Count);
+        for (var rIdx = 0; rIdx < releaseCount; rIdx++)
+        {
+            ApplyPendingArtifactUrlsToRelease(srcContent.Releases[rIdx], tgtContent.Releases[rIdx]);
+        }
+    }
+
+    private static void ApplyPendingArtifactUrlsToRelease(ContentRelease? srcRelease, ContentRelease? tgtRelease)
+    {
+        if (srcRelease?.Artifacts == null || tgtRelease?.Artifacts == null)
+        {
+            return;
+        }
+
+        var artifactCount = Math.Min(srcRelease.Artifacts.Count, tgtRelease.Artifacts.Count);
+        for (var aIdx = 0; aIdx < artifactCount; aIdx++)
+        {
+            var srcArtifact = srcRelease.Artifacts[aIdx];
+            var tgtArtifact = tgtRelease.Artifacts[aIdx];
+            if (srcArtifact != null && tgtArtifact != null && IsPendingLocalArtifact(srcArtifact))
+            {
+                tgtArtifact.DownloadUrl = HostingConstants.PendingUploadBaseUrl + Uri.EscapeDataString(tgtArtifact.Filename ?? string.Empty);
             }
         }
     }

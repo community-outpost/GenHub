@@ -672,7 +672,7 @@ public partial class PublishShareViewModel : ObservableObject
 
         CurrentPublishStep = 6;
         PublishCompleted = true;
-        PublishSummary = BuildPublishSummary();
+        PublishSummary = BuildPublishSummary(CatalogUrl, ProviderDefinitionUrl, SubscriptionUrl);
         UploadStatusMessage = "Published successfully!";
     }
 
@@ -1204,15 +1204,15 @@ public partial class PublishShareViewModel : ObservableObject
         }
     }
 
-    private string BuildPublishSummary()
+    private static string BuildPublishSummary(string catalogUrl, string providerDefinitionUrl, string subscriptionUrl)
     {
         var sb = new System.Text.StringBuilder();
-        if (!string.IsNullOrEmpty(CatalogUrl))
-            sb.AppendLine($"Catalog URL: {CatalogUrl}");
-        if (!string.IsNullOrEmpty(ProviderDefinitionUrl))
-            sb.AppendLine($"Definition URL: {ProviderDefinitionUrl}");
-        if (!string.IsNullOrEmpty(SubscriptionUrl))
-            sb.AppendLine($"Subscription URL: {SubscriptionUrl}");
+        if (!string.IsNullOrEmpty(catalogUrl))
+            sb.AppendLine($"Catalog URL: {catalogUrl}");
+        if (!string.IsNullOrEmpty(providerDefinitionUrl))
+            sb.AppendLine($"Definition URL: {providerDefinitionUrl}");
+        if (!string.IsNullOrEmpty(subscriptionUrl))
+            sb.AppendLine($"Subscription URL: {subscriptionUrl}");
         return sb.ToString();
     }
 
