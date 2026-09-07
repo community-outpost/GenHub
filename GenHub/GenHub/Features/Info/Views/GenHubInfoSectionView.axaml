@@ -182,8 +182,8 @@
 
   </UserControl.Styles>
 
-  <ScrollViewer Padding="0,16,0,100" ClipToBounds="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-      <StackPanel Margin="32,0,32,0" Spacing="10" MaxWidth="1000" HorizontalAlignment="Stretch" ClipToBounds="False">
+  <ScrollViewer Padding="0,16,0,0" ClipToBounds="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Margin="32,0,32,48" Spacing="10" MaxWidth="1000" HorizontalAlignment="Stretch" ClipToBounds="False">
 
         <!-- Main Section Header -->
         <StackPanel Margin="0,0,0,50">
@@ -759,7 +759,7 @@
         <!-- Standard Layout (Single Column) -->
         <ItemsControl ItemsSource="{Binding SelectedSection.Cards}"
                       IsVisible="{Binding !IsFaqSelected}"
-                      Padding="0,0,0,20"
+                      Margin="0,0,0,32"
                       ClipToBounds="False">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
@@ -851,7 +851,7 @@
         </ItemsControl>
 
         <!-- FAQ Layout (Independent Columns for Staggered/Masonry Look) -->
-        <Grid IsVisible="{Binding IsFaqSelected}" ColumnDefinitions="*, *" Margin="0,0,0,20" ClipToBounds="False">
+        <Grid IsVisible="{Binding IsFaqSelected}" ColumnDefinitions="*, *" Margin="0,0,0,32" ClipToBounds="False">
             <!-- Left Column -->
             <ItemsControl Grid.Column="0" ItemsSource="{Binding FaqCardsLeft}" ClipToBounds="False">
                 <ItemsControl.ItemsPanel>
@@ -935,7 +935,7 @@
             </ItemsControl>
         </Grid>
 
-        <Border Height="80"/> <!-- Bottom spacer to avoid overlap with bottom-docked status indicators -->
+        <Border Height="120"/> <!-- Bottom spacer to ensure comfortable scrolling past the last card -->
       </StackPanel>
   </ScrollViewer>
 </UserControl>

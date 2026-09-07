@@ -9,6 +9,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.GitHub;
 using GenHub.Features.GameProfiles.ViewModels;
+using GenHub.Features.GameProfiles.Views;
 using GenHub.Features.Info.Services;
 using GenHub.Features.Info.ViewModels;
 using GenHub.Features.Info.Views;
@@ -183,5 +184,21 @@ public class InfoTabResponsivenessTests
         window.Show();
 
         view.DesiredSize.Width.Should().BeLessOrEqualTo(700);
+    }
+
+    /// <summary>
+    /// Verifies that AddLocalContentView with a long status message wraps properly and does not overflow parent width.
+    /// </summary>
+    [AvaloniaFact]
+    public void AddLocalContentView_WithLongStatusMessage_LayoutConstrainedToParentWidth()
+    {
+        var vm = DemoViewModelFactory.CreateDemoAddLocalContent();
+        vm.LoadModdingToolPreset();
+
+        var view = new AddLocalContentView { DataContext = vm };
+        var window = new Window { Width = 800, Height = 600, Content = view };
+        window.Show();
+
+        view.DesiredSize.Width.Should().BeLessOrEqualTo(800);
     }
 }
