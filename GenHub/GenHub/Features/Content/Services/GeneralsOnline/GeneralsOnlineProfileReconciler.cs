@@ -319,27 +319,38 @@ public class GeneralsOnlineProfileReconciler(
 
         if (!string.IsNullOrEmpty(triggeringProfileId))
         {
-            var profileResult = await profileManager.GetProfileAsync(triggeringProfileId, cancellationToken);
-            if (profileResult.Success && profileResult.Data != null)
+            try
             {
-                var profile = profileResult.Data;
-                var clientVersion = profile.GameClient?.Version;
-                if (!string.IsNullOrEmpty(clientVersion) &&
-                    (string.Equals(profile.GameClient?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
-                     profile.GameClient?.Id.Contains(".generalsonline.", StringComparison.OrdinalIgnoreCase) == true))
+                var profileTask = profileManager.GetProfileAsync(triggeringProfileId, cancellationToken);
+                if (profileTask != null)
                 {
-                    if (updateResult.LatestVersion != null &&
-                        !versionComparer.IsNewer(updateResult.LatestVersion, clientVersion, GeneralsOnlineConstants.PublisherType))
+                    var profileResult = await profileTask;
+                    if (profileResult != null && profileResult.Success && profileResult.Data != null)
                     {
-                        logger.LogInformation(
-                            "[GO Reconciler] Triggering profile {ProfileId} is already running latest version {LatestVersion} (profile client version: {ClientVersion}). Skipping update prompt.",
-                            triggeringProfileId,
-                            updateResult.LatestVersion,
-                            clientVersion);
-                        return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?)>.CreateSuccess(
-                            (false, null, UpdateStrategy.ReplaceCurrent, null));
+                        var profile = profileResult.Data;
+                        var clientVersion = profile.GameClient?.Version;
+                        if (!string.IsNullOrEmpty(clientVersion) &&
+                            (string.Equals(profile.GameClient?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
+                             profile.GameClient?.Id.Contains(".generalsonline.", StringComparison.OrdinalIgnoreCase) == true))
+                        {
+                            if (updateResult.LatestVersion != null &&
+                                !versionComparer.IsNewer(updateResult.LatestVersion, clientVersion, GeneralsOnlineConstants.PublisherType))
+                            {
+                                logger.LogInformation(
+                                    "[GO Reconciler] Triggering profile {ProfileId} is already running latest version {LatestVersion} (profile client version: {ClientVersion}). Skipping update prompt.",
+                                    triggeringProfileId,
+                                    updateResult.LatestVersion,
+                                    clientVersion);
+                                return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?)>.CreateSuccess(
+                                    (false, null, UpdateStrategy.ReplaceCurrent, null));
+                            }
+                        }
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "[GO Reconciler] Could not retrieve triggering profile {ProfileId} to inspect client version", triggeringProfileId);
             }
         }
 

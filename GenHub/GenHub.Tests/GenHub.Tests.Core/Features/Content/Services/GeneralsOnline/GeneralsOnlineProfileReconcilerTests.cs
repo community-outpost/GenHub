@@ -52,6 +52,8 @@ public class GeneralsOnlineProfileReconcilerTests
         _dialogServiceMock = new Mock<IDialogService>();
         _userSettingsServiceMock = new Mock<IUserSettingsService>();
         _profileManagerMock = new Mock<IGameProfileManager>();
+        _profileManagerMock.Setup(x => x.GetProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("Profile not found"));
 
         _reconciliationServiceMock.Setup(x => x.OrchestrateBulkUpdateAsync(It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ReconciliationResult>.CreateSuccess(new ReconciliationResult(0, 0)));
