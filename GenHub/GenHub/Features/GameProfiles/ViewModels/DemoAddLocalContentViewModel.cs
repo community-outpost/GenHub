@@ -44,6 +44,7 @@ public enum LocalContentDemoPreset
 /// This bypasses complex service logic and provides interactive presets representing real-world C&amp;C modding workflows.
 /// </summary>
 [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized URI constants / mock demo paths")]
+[SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI compiled data binding")]
 public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
 {
     private readonly INotificationService? _notificationService;
@@ -58,21 +59,25 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
     /// <summary>
     /// Gets a value indicating whether the Mod preset is currently active.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI compiled data binding")]
     public bool IsModPresetActive => ActivePreset == LocalContentDemoPreset.Mod;
 
     /// <summary>
     /// Gets a value indicating whether the Game Client preset is currently active.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI compiled data binding")]
     public bool IsGameClientPresetActive => ActivePreset == LocalContentDemoPreset.GameClient;
 
     /// <summary>
     /// Gets a value indicating whether the Modding Tool preset is currently active.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI compiled data binding")]
     public bool IsModdingToolPresetActive => ActivePreset == LocalContentDemoPreset.ModdingTool;
 
     /// <summary>
     /// Gets a value indicating whether the Executable preset is currently active.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI compiled data binding")]
     public bool IsExecutablePresetActive => ActivePreset == LocalContentDemoPreset.Executable;
 
     /// <summary>
