@@ -53,6 +53,23 @@ public partial class GameProfileItemViewModel : ViewModelBase
     public Func<GameProfileItemViewModel, Task>? ToggleSteamLaunchAction { get; set; }
 
     /// <summary>
+    /// Gets or sets the action to share the profile.
+    /// </summary>
+    public Func<GameProfileItemViewModel, Task>? ShareProfileAction { get; set; }
+
+    /// <summary>
+    /// Shares the profile using the injected action.
+    /// </summary>
+    [RelayCommand]
+    private async Task ShareProfile()
+    {
+        if (ShareProfileAction != null)
+        {
+            await ShareProfileAction(this);
+        }
+    }
+
+    /// <summary>
     /// Launches the profile using the injected action.
     /// </summary>
     [RelayCommand]

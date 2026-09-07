@@ -815,11 +815,7 @@ public partial class ReplayManagerViewModel(
 
         var fileName = SelectedReplays.Count == 1 ? SelectedReplays[0].FileName : $"{ReplayManagerConstants.DefaultZipName}{Path.GetExtension(ReplayManagerConstants.ZipFilePattern)}";
         uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash, ReplayManagerConstants.UploadCategory);
-
-        if (IsHistoryOpen)
-        {
-            await LoadHistoryAsync();
-        }
+        await LoadHistoryAsync();
 
         StatusMessage = "Uploaded! Link copied to clipboard.";
         notificationService.ShowSuccess("Upload Complete", "Link copied to clipboard!");

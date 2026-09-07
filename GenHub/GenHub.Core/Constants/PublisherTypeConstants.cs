@@ -64,6 +64,9 @@ public static class PublisherTypeConstants
     /// <summary>Art of Defense Maps community site.</summary>
     public const string AODMaps = "aodmaps";
 
+    /// <summary>Local custom content publisher.</summary>
+    public const string Local = "local";
+
     /// <summary>GenHub internal system content publisher.</summary>
     public const string GenHubInternal = "genhub";
 

@@ -9,6 +9,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Features.Content.Services.CommunityOutpost;
+using GenHub.Features.Content.Services.Publishers;
 using GenHub.Features.Content.Services.SuperHackers;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
@@ -248,6 +249,7 @@ public class GameProfileModuleTests
             var repository = serviceProvider.GetService<IGameProfileRepository>();
 
             // Assert
+            Assert.NotNull(repository);
             var expectedProfilesDir = Path.Combine(tempDir, "Profiles");
             Assert.True(Directory.Exists(expectedProfilesDir));
         }
@@ -356,5 +358,50 @@ public class GameProfileModuleTests
         var instance1 = serviceProvider.GetService<IProfileEditorFacade>();
         var instance2 = serviceProvider.GetService<IProfileEditorFacade>();
         Assert.Same(instance1, instance2);
+    }
+
+    /// <summary>
+    /// Tests that ProfileSharingService is registered as scoped.
+    /// </summary>
+    [Fact]
+    public void AddGameProfileServices_ProfileSharingService_ShouldBeScoped()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        var configProviderMock = new Mock<IConfigurationProviderService>();
+        var tempDir = Path.GetTempPath();
+
+        configProviderMock.Setup(x => x.GetWorkspacePath()).Returns(tempDir);
+        configProviderMock.Setup(x => x.GetApplicationDataPath()).Returns(Path.Combine(tempDir, "Content"));
+        configProviderMock.Setup(x => x.GetProfilesPath()).Returns(Path.Combine(tempDir, "Profiles"));
+
+        services.AddLogging();
+        services.AddSingleton<IConfigurationProviderService>(configProviderMock.Object);
+        services.AddSingleton<IStorageLocationService>(new Mock<IStorageLocationService>().Object);
+        services.AddSingleton<IGamePathProvider>(new Mock<IGamePathProvider>().Object);
+        services.AddSingleton<ISymlinkCapabilityProvider>(new Mock<ISymlinkCapabilityProvider>().Object);
+
+        services.AddScoped(provider => new Mock<IGameInstallationService>().Object);
+        services.AddScoped(provider => new Mock<IContentManifestPool>().Object);
+        services.AddScoped(provider => new Mock<IContentOrchestrator>().Object);
+        services.AddScoped(provider => new Mock<IWorkspaceManager>().Object);
+        services.AddScoped(provider => new Mock<ILaunchRegistry>().Object);
+        services.AddScoped<INotificationService>(provider => new Mock<INotificationService>().Object);
+        services.AddScoped<IPublisherReconcilerRegistry>(provider => new Mock<IPublisherReconcilerRegistry>().Object);
+        services.AddSingleton(new PublisherManifestFactoryResolver([], Microsoft.Extensions.Logging.Abstractions.NullLogger<PublisherManifestFactoryResolver>.Instance));
+
+        // Act
+        services.AddGameProfileServices();
+        var serviceProvider = services.BuildServiceProvider();
+
+        // Assert
+        using var scope1 = serviceProvider.CreateScope();
+        using var scope2 = serviceProvider.CreateScope();
+
+        var instance1 = scope1.ServiceProvider.GetService<IProfileSharingService>();
+        var instance2 = scope2.ServiceProvider.GetService<IProfileSharingService>();
+        Assert.NotNull(instance1);
+        Assert.NotNull(instance2);
+        Assert.NotSame(instance1, instance2);
     }
 }

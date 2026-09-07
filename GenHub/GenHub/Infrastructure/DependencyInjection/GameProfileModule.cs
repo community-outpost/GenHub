@@ -63,6 +63,10 @@ public static class GameProfileModule
         // Register SetupWizardService
         services.AddScoped<ISetupWizardService, SetupWizardService>();
 
+        // Register ProfileSharingService
+        services.AddScoped<IProfileSharingService, ProfileSharingService>();
+        services.AddTransient<Func<IProfileSharingService>>(sp => sp.GetRequiredService<IProfileSharingService>);
+
         return services;
     }
 

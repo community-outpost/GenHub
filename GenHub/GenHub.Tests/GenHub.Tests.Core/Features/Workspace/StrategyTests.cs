@@ -337,13 +337,13 @@ public class StrategyTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task HardLinkStrategy_PrepareAsync_HandlesCasLinkDoubleFailure_FailsPreparation()
+    public async Task HardLinkStrategy_PrepareAsync_WhenLinksFail_FallsBackToCopyAsync()
     {
         const string Hash = "test-hash";
         var strategy = new HardLinkStrategy(_fileOps.Object, new Mock<ILogger<HardLinkStrategy>>().Object);
         var configuration = new WorkspaceConfiguration
         {
-            Id = "test-ws-double-failure",
+            Id = "test-ws-copy-fallback",
             Strategy = WorkspaceStrategy.HardLink,
             WorkspaceRootPath = _tempDir,
             BaseInstallationPath = "relative-installation-path",
@@ -383,26 +383,97 @@ public class StrategyTests : IDisposable
                 ManifestContentType.GameClient,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
+        _fileOps
+            .Setup(service => service.CopyFromCasAsync(
+                Hash,
+                It.IsAny<string>(),
+                ManifestContentType.GameClient,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var result = await strategy.PrepareAsync(configuration, null, CancellationToken.None);
+
+        Assert.True(result.IsPrepared);
+        Assert.Empty(result.ValidationIssues);
+        _fileOps.Verify(
+            service => service.CopyFromCasAsync(
+                Hash,
+                It.IsAny<string>(),
+                ManifestContentType.GameClient,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that HardLinkStrategy records preparation failure when hard link, symlink, and copy CAS operations all fail.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task HardLinkStrategy_PrepareAsync_HandlesCasLinkTripleFailure_FailsPreparation()
+    {
+        const string Hash = "test-hash";
+        var strategy = new HardLinkStrategy(_fileOps.Object, new Mock<ILogger<HardLinkStrategy>>().Object);
+        var configuration = new WorkspaceConfiguration
+        {
+            Id = "test-ws-triple-failure",
+            Strategy = WorkspaceStrategy.HardLink,
+            WorkspaceRootPath = _tempDir,
+            BaseInstallationPath = "relative-installation-path",
+            GameClient = new GameClient { Id = "test" },
+            Manifests =
+            [
+                new ContentManifest
+                {
+                    ContentType = ManifestContentType.GameClient,
+                    Files =
+                    [
+                        new ManifestFile
+                        {
+                            RelativePath = "game.exe",
+                            Hash = Hash,
+                            Size = 1024,
+                            InstallTarget = ContentInstallTarget.Workspace,
+                            SourceType = ContentSourceType.ContentAddressable,
+                        },
+                    ],
+                },
+            ],
+        };
+        _fileOps
+            .Setup(service => service.LinkFromCasAsync(
+                Hash,
+                It.IsAny<string>(),
+                true,
+                ManifestContentType.GameClient,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _fileOps
+            .Setup(service => service.LinkFromCasAsync(
+                Hash,
+                It.IsAny<string>(),
+                false,
+                ManifestContentType.GameClient,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _fileOps
+            .Setup(service => service.CopyFromCasAsync(
+                Hash,
+                It.IsAny<string>(),
+                ManifestContentType.GameClient,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
 
         var result = await strategy.PrepareAsync(configuration, null, CancellationToken.None);
 
         Assert.False(result.IsPrepared);
         Assert.NotEmpty(result.ValidationIssues);
         _fileOps.Verify(
-            service => service.LinkFromCasAsync(
+            service => service.CopyFromCasAsync(
                 Hash,
                 It.IsAny<string>(),
-                false,
                 ManifestContentType.GameClient,
                 It.IsAny<CancellationToken>()),
             Times.Once);
-        _fileOps.Verify(
-            service => service.CopyFromCasAsync(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<ManifestContentType?>(),
-                It.IsAny<CancellationToken>()),
-            Times.Never);
     }
 
     /// <summary>

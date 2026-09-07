@@ -74,16 +74,16 @@ Defined in `GenHub.Core.Constants.ApiConstants`:
 
 When users share game profiles that contain local-only content (custom unindexed maps, bespoke mod patches, or local test build game clients), the local content must be packaged and uploaded so recipients can download it:
 
-1. **Quota Management & User Warning**: UploadThing provides a 10 MB temporary storage pool per user (14-day retention). If active uploads exceed 10 MB, tool export interfaces alert the user and offer immediate one-click deletion of older uploads via the upload history flyout.
+1. **Quota Management & User Warning**: UploadThing provides a 10 MB temporary storage pool per user (14-day retention). If active uploads exceed 10 MB, tool export interfaces alert the user and offer immediate one-click deletion of older uploads via the upload history flyout or Settings view.
 2. **Provenance & Link Expiration**: Importers inspect dependencies before download. If an author's temporary UploadThing link has expired (HTTP 404/410), GenHub displays an explicit, actionable notification asking the user to request an updated share link from the author.
 
-## Uploads & Cloud Storage History Management
+## Settings UI: Uploads & Cloud Storage Management
 
-Built into the **Replay Manager** and **Map Manager** tool views (with a unified Settings page on the roadmap), users can:
-- View live upload history across Replays, Maps, and Profile packages with category badges.
-- Copy public share URLs with 1 click.
+A dedicated **Uploads & Storage** section in Settings allows users to:
+- View live cloud storage utilization (Used MB / 10.0 MB quota).
+- View active uploads across Replays, Maps, and Profile packages.
 - Delete individual uploads immediately using HMAC `DeleteToken` receipts.
-- Clear local history records.
+- Purge expired local history records.
 
 ## Future Storage Roadmap: Publisher Studio (PR #269) & Google Drive
 

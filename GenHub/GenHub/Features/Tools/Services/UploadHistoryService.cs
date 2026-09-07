@@ -42,6 +42,9 @@ public sealed class UploadHistoryService(
     private List<UploadRecord>? _cache;
 
     /// <inheritdoc />
+    public event EventHandler? UploadHistoryChanged;
+
+    /// <inheritdoc />
     public long MaxUploadBytesPerPeriod => MapManagerConstants.MaxUploadBytesPerPeriod;
 
     /// <inheritdoc />
@@ -61,6 +64,7 @@ public sealed class UploadHistoryService(
         string? fileHash = null,
         string? category = null)
     {
+        bool recorded = false;
         lock (FileLock)
         {
             try
@@ -83,6 +87,7 @@ public sealed class UploadHistoryService(
                 SaveHistoryInternal(history);
                 _cache = history; // Update cache
                 logger.LogInformation("Recorded upload of {Size} bytes for category '{Category}'. Total history: {Count} items.", fileSizeBytes, resolvedCategory, history.Count);
+                recorded = true;
             }
             catch (IOException ex)
             {
@@ -96,6 +101,11 @@ public sealed class UploadHistoryService(
             {
                 logger.LogError(ex, "Failed to record upload");
             }
+        }
+
+        if (recorded)
+        {
+            UploadHistoryChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 
@@ -190,10 +200,11 @@ public sealed class UploadHistoryService(
             }
         }
 
+        int removed = 0;
         lock (FileLock)
         {
             var history = LoadHistoryInternal();
-            var removed = history.RemoveAll(r => r.Url == url);
+            removed = history.RemoveAll(r => r.Url == url);
             if (removed > 0)
             {
                 SaveHistoryInternal(history);
@@ -203,6 +214,11 @@ public sealed class UploadHistoryService(
                     removed,
                     url);
             }
+        }
+
+        if (removed > 0)
+        {
+            UploadHistoryChanged?.Invoke(this, EventArgs.Empty);
         }
 
         return true;
@@ -236,13 +252,28 @@ public sealed class UploadHistoryService(
             }
         }
 
+        if (removed > 0)
+        {
+            UploadHistoryChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         return (removed, failedDeletions.Count);
     }
 
-    private static long GetLimitForCategory(string? category) =>
-        string.Equals(category, ReplayManagerConstants.UploadCategory, StringComparison.OrdinalIgnoreCase)
-            ? ReplayManagerConstants.MaxUploadBytesPerPeriod
-            : MapManagerConstants.MaxUploadBytesPerPeriod;
+    private static long GetLimitForCategory(string? category)
+    {
+        if (string.Equals(category, ReplayManagerConstants.UploadCategory, StringComparison.OrdinalIgnoreCase))
+        {
+            return ReplayManagerConstants.MaxUploadBytesPerPeriod;
+        }
+
+        if (string.Equals(category, ProfileSharingConstants.UploadCategoryProfiles, StringComparison.OrdinalIgnoreCase))
+        {
+            return ProfileSharingConstants.MaxUploadBytesPerPeriod;
+        }
+
+        return MapManagerConstants.MaxUploadBytesPerPeriod;
+    }
 
     private static string InferCategory(string? fileName)
     {

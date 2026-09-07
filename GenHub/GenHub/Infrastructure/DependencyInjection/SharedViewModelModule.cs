@@ -63,6 +63,7 @@ public static class SharedViewModelModule
             sp.GetRequiredService<IDialogService>(),
             sp.GetService<IThemeService>(),
             sp.GetService<IGitHubTokenStorage>(),
+            sp.GetService<IUploadHistoryService>(),
             sp.GetService<IGitHubApiClient>()));
         services.AddSingleton<GameProfileSettingsViewModel>();
 
