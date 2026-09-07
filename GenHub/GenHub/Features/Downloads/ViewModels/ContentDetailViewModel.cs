@@ -2538,7 +2538,7 @@ public partial class ContentDetailViewModel(
             OnPropertyChanged(nameof(ShowDownloadButton));
             OnPropertyChanged(nameof(ShowAddToProfileButton));
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested || _cts.IsCancellationRequested)
         {
             logger.LogInformation(ex, "Bundle download cancelled");
             DownloadStatusMessage = "Download cancelled";
