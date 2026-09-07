@@ -133,73 +133,73 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
         {
             _isLoadingPreset = true;
             ActivePreset = LocalContentDemoPreset.Mod;
-        ContentName = "ShockWave v1.201";
-        SelectedContentType = ContentType.Mod;
-        SelectedGameType = GameType.ZeroHour;
-        SourcePath = @"C:\Downloads\ShockWave_v1.201.zip";
-        IsBusy = false;
+            ContentName = "ShockWave v1.201";
+            SelectedContentType = ContentType.Mod;
+            SelectedGameType = GameType.ZeroHour;
+            SourcePath = @"C:\Downloads\ShockWave_v1.201.zip";
+            IsBusy = false;
 
-        FileTree.Clear();
+            FileTree.Clear();
 
-        var modFolder = new FileTreeItem
-        {
-            Name = "ShockWave_v1.201",
-            IsFile = false,
-            FullPath = @"C:\Demo\ShockWave_v1.201",
-            Children =
-            [
-                new() { Name = "!000_ShockWave.big", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\!000_ShockWave.big" },
-                new() { Name = "!000_ShockWave_Audio.big", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\!000_ShockWave_Audio.big" },
-                new() { Name = "!000_ShockWave_Textures.big", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\!000_ShockWave_Textures.big" },
-                new() { Name = "!000_ShockWave_English.big", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\!000_ShockWave_English.big" },
-                new()
-                {
-                    Name = "Data",
-                    IsFile = false,
-                    FullPath = @"C:\Demo\ShockWave_v1.201\Data",
-                    Children =
-                    [
-                        new()
-                        {
-                            Name = "INI",
-                            IsFile = false,
-                            FullPath = @"C:\Demo\ShockWave_v1.201\Data\INI",
-                            Children =
-                            [
-                                new() { Name = "GameData.ini", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\Data\INI\GameData.ini" },
-                                new() { Name = "CommandCard.ini", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\Data\INI\CommandCard.ini" },
-                            ],
-                        },
-                    ],
-                },
-                new()
-                {
-                    Name = "Maps",
-                    IsFile = false,
-                    FullPath = @"C:\Demo\ShockWave_v1.201\Maps",
-                    Children =
-                    [
-                        new()
-                        {
-                            Name = "ShockWave Tournament Desert",
-                            IsFile = false,
-                            FullPath = @"C:\Demo\ShockWave_v1.201\Maps\ShockWave Tournament Desert",
-                            Children =
-                            [
-                                new() { Name = "ShockWave Tournament Desert.map", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\Maps\ShockWave Tournament Desert\ShockWave Tournament Desert.map" },
-                                new() { Name = "ShockWave Tournament Desert.tga", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\Maps\ShockWave Tournament Desert\ShockWave Tournament Desert.tga" },
-                            ],
-                        },
-                    ],
-                },
-            ],
-        };
+            var modFolder = new FileTreeItem
+            {
+                Name = "ShockWave_v1.201",
+                IsFile = false,
+                FullPath = @"C:\Demo\ShockWave_v1.201",
+                Children =
+                [
+                    new() { Name = "!000_ShockWave.big", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\!000_ShockWave.big" },
+                    new() { Name = "!000_ShockWave_Audio.big", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\!000_ShockWave_Audio.big" },
+                    new() { Name = "!000_ShockWave_Textures.big", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\!000_ShockWave_Textures.big" },
+                    new() { Name = "!000_ShockWave_English.big", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\!000_ShockWave_English.big" },
+                    new()
+                    {
+                        Name = "Data",
+                        IsFile = false,
+                        FullPath = @"C:\Demo\ShockWave_v1.201\Data",
+                        Children =
+                        [
+                            new()
+                            {
+                                Name = "INI",
+                                IsFile = false,
+                                FullPath = @"C:\Demo\ShockWave_v1.201\Data\INI",
+                                Children =
+                                [
+                                    new() { Name = "GameData.ini", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\Data\INI\GameData.ini" },
+                                    new() { Name = "CommandCard.ini", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\Data\INI\CommandCard.ini" },
+                                ],
+                            },
+                        ],
+                    },
+                    new()
+                    {
+                        Name = "Maps",
+                        IsFile = false,
+                        FullPath = @"C:\Demo\ShockWave_v1.201\Maps",
+                        Children =
+                        [
+                            new()
+                            {
+                                Name = "ShockWave Tournament Desert",
+                                IsFile = false,
+                                FullPath = @"C:\Demo\ShockWave_v1.201\Maps\ShockWave Tournament Desert",
+                                Children =
+                                [
+                                    new() { Name = "ShockWave Tournament Desert.map", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\Maps\ShockWave Tournament Desert\ShockWave Tournament Desert.map" },
+                                    new() { Name = "ShockWave Tournament Desert.tga", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\Maps\ShockWave Tournament Desert\ShockWave Tournament Desert.tga" },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            };
 
-        FileTree.Add(modFolder);
-        ExecutableCount = 0;
-        SelectedExecutableItem = null;
-        CanAdd = true;
-        StatusMessage = "Mod preset loaded. Contains standard .big archives and maps. No executable needed.";
+            FileTree.Add(modFolder);
+            ExecutableCount = 0;
+            SelectedExecutableItem = null;
+            CanAdd = true;
+            StatusMessage = "Mod preset loaded. Contains standard .big archives and maps. No executable needed.";
         }
         finally
         {
@@ -217,43 +217,43 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
         {
             _isLoadingPreset = true;
             ActivePreset = LocalContentDemoPreset.GameClient;
-        ContentName = "TheSuperHackers Engine Build (v1.06 Beta)";
-        SelectedContentType = ContentType.GameClient;
-        SelectedGameType = GameType.ZeroHour;
-        SourcePath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build";
-        IsBusy = false;
+            ContentName = "TheSuperHackers Engine Build (v1.06 Beta)";
+            SelectedContentType = ContentType.GameClient;
+            SelectedGameType = GameType.ZeroHour;
+            SourcePath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build";
+            IsBusy = false;
 
-        FileTree.Clear();
+            FileTree.Clear();
 
-        var generalsExe = new FileTreeItem
-        {
-            Name = "generals.exe",
-            IsFile = true,
-            FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\generals.exe",
-            IsSelectedExecutable = true,
-        };
+            var generalsExe = new FileTreeItem
+            {
+                Name = "generals.exe",
+                IsFile = true,
+                FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\generals.exe",
+                IsSelectedExecutable = true,
+            };
 
-        var clientFolder = new FileTreeItem
-        {
-            Name = "TheSuperHackers_ZeroHour_test_build",
-            IsFile = false,
-            FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build",
-            Children =
-            [
-                generalsExe,
-                new() { Name = "game.dat", IsFile = true, FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\game.dat" },
-                new() { Name = "binkw32.dll", IsFile = true, FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\binkw32.dll" },
-                new() { Name = "d3d8.dll", IsFile = true, FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\d3d8.dll" },
-                new() { Name = "dbghelp.dll", IsFile = true, FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\dbghelp.dll" },
-                new() { Name = "Shaders.big", IsFile = true, FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\Shaders.big" },
-            ],
-        };
+            var clientFolder = new FileTreeItem
+            {
+                Name = "TheSuperHackers_ZeroHour_test_build",
+                IsFile = false,
+                FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build",
+                Children =
+                [
+                    generalsExe,
+                    new() { Name = "game.dat", IsFile = true, FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\game.dat" },
+                    new() { Name = "binkw32.dll", IsFile = true, FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\binkw32.dll" },
+                    new() { Name = "d3d8.dll", IsFile = true, FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\d3d8.dll" },
+                    new() { Name = "dbghelp.dll", IsFile = true, FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\dbghelp.dll" },
+                    new() { Name = "Shaders.big", IsFile = true, FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\Shaders.big" },
+                ],
+            };
 
-        FileTree.Add(clientFolder);
-        ExecutableCount = 1;
-        SelectedExecutableItem = generalsExe;
-        CanAdd = true;
-        StatusMessage = "Custom engine build loaded. 'generals.exe' is designated as the client binary for profile launches.";
+            FileTree.Add(clientFolder);
+            ExecutableCount = 1;
+            SelectedExecutableItem = generalsExe;
+            CanAdd = true;
+            StatusMessage = "Custom engine build loaded. 'generals.exe' is designated as the client binary for profile launches.";
         }
         finally
         {
@@ -271,59 +271,59 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
         {
             _isLoadingPreset = true;
             ActivePreset = LocalContentDemoPreset.ModdingTool;
-        ContentName = "GenHotkeys v2.1";
-        SelectedContentType = ContentType.ModdingTool;
-        SelectedGameType = GameType.ZeroHour;
-        SourcePath = @"C:\Tools\GenHotkeys_v2.1";
-        IsBusy = false;
+            ContentName = "GenHotkeys v2.1";
+            SelectedContentType = ContentType.ModdingTool;
+            SelectedGameType = GameType.ZeroHour;
+            SourcePath = @"C:\Tools\GenHotkeys_v2.1";
+            IsBusy = false;
 
-        FileTree.Clear();
+            FileTree.Clear();
 
-        var genHotkeysExe = new FileTreeItem
-        {
-            Name = "GenHotkeys.exe",
-            IsFile = true,
-            FullPath = @"C:\Tools\GenHotkeys_v2.1\GenHotkeys.exe",
-            IsSelectedExecutable = true,
-        };
+            var genHotkeysExe = new FileTreeItem
+            {
+                Name = "GenHotkeys.exe",
+                IsFile = true,
+                FullPath = @"C:\Tools\GenHotkeys_v2.1\GenHotkeys.exe",
+                IsSelectedExecutable = true,
+            };
 
-        var updaterExe = new FileTreeItem
-        {
-            Name = "GenHotkeys_Updater.exe",
-            IsFile = true,
-            FullPath = @"C:\Tools\GenHotkeys_v2.1\GenHotkeys_Updater.exe",
-            IsSelectedExecutable = false,
-        };
+            var updaterExe = new FileTreeItem
+            {
+                Name = "GenHotkeys_Updater.exe",
+                IsFile = true,
+                FullPath = @"C:\Tools\GenHotkeys_v2.1\GenHotkeys_Updater.exe",
+                IsSelectedExecutable = false,
+            };
 
-        var toolFolder = new FileTreeItem
-        {
-            Name = "GenHotkeys_v2.1",
-            IsFile = false,
-            FullPath = @"C:\Tools\GenHotkeys_v2.1",
-            Children =
-            [
-                genHotkeysExe,
-                updaterExe,
-                new() { Name = "Hotkeys.ini", IsFile = true, FullPath = @"C:\Tools\GenHotkeys_v2.1\Hotkeys.ini" },
-                new() { Name = "DefaultBindings.cfg", IsFile = true, FullPath = @"C:\Tools\GenHotkeys_v2.1\DefaultBindings.cfg" },
-                new()
-                {
-                    Name = "Docs",
-                    IsFile = false,
-                    FullPath = @"C:\Tools\GenHotkeys_v2.1\Docs",
-                    Children =
-                    [
-                        new() { Name = "Readme.txt", IsFile = true, FullPath = @"C:\Tools\GenHotkeys_v2.1\Docs\Readme.txt" },
-                    ],
-                },
-            ],
-        };
+            var toolFolder = new FileTreeItem
+            {
+                Name = "GenHotkeys_v2.1",
+                IsFile = false,
+                FullPath = @"C:\Tools\GenHotkeys_v2.1",
+                Children =
+                [
+                    genHotkeysExe,
+                    updaterExe,
+                    new() { Name = "Hotkeys.ini", IsFile = true, FullPath = @"C:\Tools\GenHotkeys_v2.1\Hotkeys.ini" },
+                    new() { Name = "DefaultBindings.cfg", IsFile = true, FullPath = @"C:\Tools\GenHotkeys_v2.1\DefaultBindings.cfg" },
+                    new()
+                    {
+                        Name = "Docs",
+                        IsFile = false,
+                        FullPath = @"C:\Tools\GenHotkeys_v2.1\Docs",
+                        Children =
+                        [
+                            new() { Name = "Readme.txt", IsFile = true, FullPath = @"C:\Tools\GenHotkeys_v2.1\Docs\Readme.txt" },
+                        ],
+                    },
+                ],
+            };
 
-        FileTree.Add(toolFolder);
-        ExecutableCount = 2;
-        SelectedExecutableItem = genHotkeysExe;
-        CanAdd = true;
-        StatusMessage = "Modding tool loaded. Notice the 'Select' button next to executables. Click 'Select' on an .exe to designate the launch target.";
+            FileTree.Add(toolFolder);
+            ExecutableCount = 2;
+            SelectedExecutableItem = genHotkeysExe;
+            CanAdd = true;
+            StatusMessage = "Modding tool loaded. Notice the 'Select' button next to executables. Click 'Select' on an .exe to designate the launch target.";
         }
         finally
         {
@@ -341,40 +341,40 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
         {
             _isLoadingPreset = true;
             ActivePreset = LocalContentDemoPreset.Executable;
-        ContentName = "WorldBuilder Zero Hour 1.04";
-        SelectedContentType = ContentType.Executable;
-        SelectedGameType = GameType.ZeroHour;
-        SourcePath = @"C:\Games\Command & Conquer Generals Zero Hour\WorldBuilder.exe";
-        IsBusy = false;
+            ContentName = "WorldBuilder Zero Hour 1.04";
+            SelectedContentType = ContentType.Executable;
+            SelectedGameType = GameType.ZeroHour;
+            SourcePath = @"C:\Games\Command & Conquer Generals Zero Hour\WorldBuilder.exe";
+            IsBusy = false;
 
-        FileTree.Clear();
+            FileTree.Clear();
 
-        var wbExe = new FileTreeItem
-        {
-            Name = "WorldBuilder.exe",
-            IsFile = true,
-            FullPath = @"C:\Demo\WorldBuilder_ZH\WorldBuilder.exe",
-            IsSelectedExecutable = true,
-        };
+            var wbExe = new FileTreeItem
+            {
+                Name = "WorldBuilder.exe",
+                IsFile = true,
+                FullPath = @"C:\Demo\WorldBuilder_ZH\WorldBuilder.exe",
+                IsSelectedExecutable = true,
+            };
 
-        var wbFolder = new FileTreeItem
-        {
-            Name = "WorldBuilder_ZH",
-            IsFile = false,
-            FullPath = @"C:\Demo\WorldBuilder_ZH",
-            Children =
-            [
-                wbExe,
-                new() { Name = "WorldBuilder.ini", IsFile = true, FullPath = @"C:\Demo\WorldBuilder_ZH\WorldBuilder.ini" },
-                new() { Name = "ObjectEditor.dll", IsFile = true, FullPath = @"C:\Demo\WorldBuilder_ZH\ObjectEditor.dll" },
-            ],
-        };
+            var wbFolder = new FileTreeItem
+            {
+                Name = "WorldBuilder_ZH",
+                IsFile = false,
+                FullPath = @"C:\Demo\WorldBuilder_ZH",
+                Children =
+                [
+                    wbExe,
+                    new() { Name = "WorldBuilder.ini", IsFile = true, FullPath = @"C:\Demo\WorldBuilder_ZH\WorldBuilder.ini" },
+                    new() { Name = "ObjectEditor.dll", IsFile = true, FullPath = @"C:\Demo\WorldBuilder_ZH\ObjectEditor.dll" },
+                ],
+            };
 
-        FileTree.Add(wbFolder);
-        ExecutableCount = 1;
-        SelectedExecutableItem = wbExe;
-        CanAdd = true;
-        StatusMessage = "Standalone executable loaded. WorldBuilder.exe is marked as the launch target.";
+            FileTree.Add(wbFolder);
+            ExecutableCount = 1;
+            SelectedExecutableItem = wbExe;
+            CanAdd = true;
+            StatusMessage = "Standalone executable loaded. WorldBuilder.exe is marked as the launch target.";
         }
         finally
         {
