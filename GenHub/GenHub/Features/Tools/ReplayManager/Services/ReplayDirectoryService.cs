@@ -1335,6 +1335,26 @@ public sealed class ReplayDirectoryService(
             string.Equals(c.Version, matchedClient.Version, StringComparison.OrdinalIgnoreCase));
     }
 
+    private static async Task<(bool NeedsUpdate, bool? UpdatedSteamLaunch)> ReconcileSteamLaunchAsync(
+        IGameInstallationService? installationService,
+        GameProfile profile,
+        CancellationToken ct)
+    {
+        if (installationService != null &&
+            !string.IsNullOrEmpty(profile.GameInstallationId))
+        {
+            var installResult = await installationService.GetInstallationAsync(profile.GameInstallationId, ct);
+            if (installResult.Success &&
+                installResult.Data?.InstallationType == GameInstallationType.Steam &&
+                profile.UseSteamLaunch != true)
+            {
+                return (true, true);
+            }
+        }
+
+        return (false, profile.UseSteamLaunch);
+    }
+
     private async Task ReconcileProfileBeforeLaunchAsync(
         IGameProfileManager profileManager,
         IGameInstallationService? installationService,
@@ -1394,25 +1414,6 @@ public sealed class ReplayDirectoryService(
         }
     }
 
-    private async Task<(bool NeedsUpdate, bool? UpdatedSteamLaunch)> ReconcileSteamLaunchAsync(
-        IGameInstallationService? installationService,
-        GameProfile profile,
-        CancellationToken ct)
-    {
-        if (installationService != null &&
-            !string.IsNullOrEmpty(profile.GameInstallationId))
-        {
-            var installResult = await installationService.GetInstallationAsync(profile.GameInstallationId, ct);
-            if (installResult.Success &&
-                installResult.Data?.InstallationType == GameInstallationType.Steam &&
-                profile.UseSteamLaunch != true)
-            {
-                return (true, true);
-            }
-        }
-
-        return (false, profile.UseSteamLaunch);
-    }
 
     private async Task<bool> ReconcileDirectDependenciesAsync(
         IContentManifestPool? manifestPool,
