@@ -13,9 +13,6 @@ public static class ModDBConstants
     /// <summary>Domain name for ModDB.</summary>
     public const string Domain = "moddb.com";
 
-    /// <summary>Prefix for YouTube watch URLs.</summary>
-    public const string YouTubeWatchUrlPrefix = "https://www.youtube.com/watch?v=";
-
     /// <summary>Base URL for ModDB website.</summary>
     public const string BaseUrl = "https://www.moddb.com";
 

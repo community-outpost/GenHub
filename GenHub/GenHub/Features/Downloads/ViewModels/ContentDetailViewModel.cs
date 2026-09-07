@@ -2482,6 +2482,9 @@ public partial class ContentDetailViewModel(
             return;
         }
 
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cts.Token);
+        var effectiveToken = linkedCts.Token;
+
         IsDownloading = true;
         DownloadProgress = 0;
         var completed = 0;
@@ -2489,7 +2492,7 @@ public partial class ContentDetailViewModel(
         {
             foreach (var target in targets)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                effectiveToken.ThrowIfCancellationRequested();
                 DownloadStatusMessage = $"Downloading {target.Name} ({completed + 1}/{targets.Count})...";
 
                 var progress = new Progress<ContentAcquisitionProgress>(p =>
@@ -2507,7 +2510,7 @@ public partial class ContentDetailViewModel(
                     });
                 });
 
-                var result = await downloadCoordinator.DownloadContentAsync(target, progress, cancellationToken);
+                var result = await downloadCoordinator.DownloadContentAsync(target, progress, effectiveToken);
                 if (!result.Success || result.Data == null)
                 {
                     DownloadStatusMessage = result.FirstError ?? "Download failed";
@@ -2538,7 +2541,7 @@ public partial class ContentDetailViewModel(
             OnPropertyChanged(nameof(ShowDownloadButton));
             OnPropertyChanged(nameof(ShowAddToProfileButton));
         }
-        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested || _cts.IsCancellationRequested)
+        catch (OperationCanceledException ex) when (effectiveToken.IsCancellationRequested)
         {
             logger.LogInformation(ex, "Bundle download cancelled");
             DownloadStatusMessage = "Download cancelled";
@@ -2546,7 +2549,7 @@ public partial class ContentDetailViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error downloading bundle components");
-            DownloadStatusMessage = $"Error: {ex.Message}";
+            DownloadStatusMessage = "Download failed due to an unexpected error";
         }
         finally
         {
