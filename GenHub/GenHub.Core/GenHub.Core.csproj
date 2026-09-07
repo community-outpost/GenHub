@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
         <Nullable>enable</Nullable>
@@ -12,6 +12,7 @@
         <PackageReference Include="AngleSharp" />
         <PackageReference Include="Microsoft.Playwright" />
         <PackageReference Include="Microsoft.Extensions.Logging" />
+        <PackageReference Include="Microsoft.Extensions.Http" />
         <PackageReference Include="Microsoft.Extensions.Logging.Console" />
         <PackageReference Include="CsvHelper" />
     </ItemGroup>

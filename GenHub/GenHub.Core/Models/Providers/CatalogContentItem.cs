@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using GenHub.Core.Models.Enums;
 
@@ -57,6 +58,19 @@ public class CatalogContentItem
     /// </summary>
     [JsonPropertyName("tags")]
     public List<string> Tags { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the list of items bundled in this content (for ContentBundle type).
+    /// </summary>
+    [JsonPropertyName("bundledItems")]
+    public List<CatalogDependency> BundledItems { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the content ID that this addon extends (for Addon type).
+    /// Format: "contentId" for same catalog, or "publisherId/contentId" for cross-publisher.
+    /// </summary>
+    [JsonPropertyName("extendsContentId")]
+    public string? ExtendsContentId { get; set; }
 
     /// <summary>
     /// Gets or sets native pipeline / publisher type that must process this item after download.
