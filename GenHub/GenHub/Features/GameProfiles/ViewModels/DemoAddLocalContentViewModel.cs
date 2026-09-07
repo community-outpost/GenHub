@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -136,38 +137,42 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
             ContentName = "ShockWave v1.201";
             SelectedContentType = ContentType.Mod;
             SelectedGameType = GameType.ZeroHour;
-            SourcePath = @"C:\Downloads\ShockWave_v1.201.zip";
+            SourcePath = InfoConstants.DemoModSourcePath;
             IsBusy = false;
 
             FileTree.Clear();
+
+            var modBase = InfoConstants.DemoModBasePath;
+            var iniPath = Path.Combine(modBase, "Data", "INI");
+            var mapPath = Path.Combine(modBase, "Maps", "ShockWave Tournament Desert");
 
             var modFolder = new FileTreeItem
             {
                 Name = "ShockWave_v1.201",
                 IsFile = false,
-                FullPath = @"C:\Demo\ShockWave_v1.201",
+                FullPath = modBase,
                 Children =
                 [
-                    new() { Name = "!000_ShockWave.big", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\!000_ShockWave.big" },
-                    new() { Name = "!000_ShockWave_Audio.big", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\!000_ShockWave_Audio.big" },
-                    new() { Name = "!000_ShockWave_Textures.big", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\!000_ShockWave_Textures.big" },
-                    new() { Name = "!000_ShockWave_English.big", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\!000_ShockWave_English.big" },
+                    new() { Name = "!000_ShockWave.big", IsFile = true, FullPath = Path.Combine(modBase, "!000_ShockWave.big") },
+                    new() { Name = "!000_ShockWave_Audio.big", IsFile = true, FullPath = Path.Combine(modBase, "!000_ShockWave_Audio.big") },
+                    new() { Name = "!000_ShockWave_Textures.big", IsFile = true, FullPath = Path.Combine(modBase, "!000_ShockWave_Textures.big") },
+                    new() { Name = "!000_ShockWave_English.big", IsFile = true, FullPath = Path.Combine(modBase, "!000_ShockWave_English.big") },
                     new()
                     {
                         Name = "Data",
                         IsFile = false,
-                        FullPath = @"C:\Demo\ShockWave_v1.201\Data",
+                        FullPath = Path.Combine(modBase, "Data"),
                         Children =
                         [
                             new()
                             {
                                 Name = "INI",
                                 IsFile = false,
-                                FullPath = @"C:\Demo\ShockWave_v1.201\Data\INI",
+                                FullPath = iniPath,
                                 Children =
                                 [
-                                    new() { Name = "GameData.ini", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\Data\INI\GameData.ini" },
-                                    new() { Name = "CommandCard.ini", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\Data\INI\CommandCard.ini" },
+                                    new() { Name = "GameData.ini", IsFile = true, FullPath = Path.Combine(iniPath, "GameData.ini") },
+                                    new() { Name = "CommandCard.ini", IsFile = true, FullPath = Path.Combine(iniPath, "CommandCard.ini") },
                                 ],
                             },
                         ],
@@ -176,18 +181,18 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
                     {
                         Name = "Maps",
                         IsFile = false,
-                        FullPath = @"C:\Demo\ShockWave_v1.201\Maps",
+                        FullPath = Path.Combine(modBase, "Maps"),
                         Children =
                         [
                             new()
                             {
                                 Name = "ShockWave Tournament Desert",
                                 IsFile = false,
-                                FullPath = @"C:\Demo\ShockWave_v1.201\Maps\ShockWave Tournament Desert",
+                                FullPath = mapPath,
                                 Children =
                                 [
-                                    new() { Name = "ShockWave Tournament Desert.map", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\Maps\ShockWave Tournament Desert\ShockWave Tournament Desert.map" },
-                                    new() { Name = "ShockWave Tournament Desert.tga", IsFile = true, FullPath = @"C:\Demo\ShockWave_v1.201\Maps\ShockWave Tournament Desert\ShockWave Tournament Desert.tga" },
+                                    new() { Name = "ShockWave Tournament Desert.map", IsFile = true, FullPath = Path.Combine(mapPath, "ShockWave Tournament Desert.map") },
+                                    new() { Name = "ShockWave Tournament Desert.tga", IsFile = true, FullPath = Path.Combine(mapPath, "ShockWave Tournament Desert.tga") },
                                 ],
                             },
                         ],
@@ -220,16 +225,17 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
             ContentName = "TheSuperHackers Engine Build (v1.06 Beta)";
             SelectedContentType = ContentType.GameClient;
             SelectedGameType = GameType.ZeroHour;
-            SourcePath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build";
+            SourcePath = InfoConstants.DemoGameClientSourcePath;
             IsBusy = false;
 
             FileTree.Clear();
 
+            var clientBase = InfoConstants.DemoGameClientSourcePath;
             var generalsExe = new FileTreeItem
             {
                 Name = "generals.exe",
                 IsFile = true,
-                FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\generals.exe",
+                FullPath = Path.Combine(clientBase, "generals.exe"),
                 IsSelectedExecutable = true,
             };
 
@@ -237,15 +243,15 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
             {
                 Name = "TheSuperHackers_ZeroHour_test_build",
                 IsFile = false,
-                FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build",
+                FullPath = clientBase,
                 Children =
                 [
                     generalsExe,
-                    new() { Name = "game.dat", IsFile = true, FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\game.dat" },
-                    new() { Name = "binkw32.dll", IsFile = true, FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\binkw32.dll" },
-                    new() { Name = "d3d8.dll", IsFile = true, FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\d3d8.dll" },
-                    new() { Name = "dbghelp.dll", IsFile = true, FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\dbghelp.dll" },
-                    new() { Name = "Shaders.big", IsFile = true, FullPath = @"C:\Engines\TheSuperHackers_ZeroHour_test_build\Shaders.big" },
+                    new() { Name = "game.dat", IsFile = true, FullPath = Path.Combine(clientBase, "game.dat") },
+                    new() { Name = "binkw32.dll", IsFile = true, FullPath = Path.Combine(clientBase, "binkw32.dll") },
+                    new() { Name = "d3d8.dll", IsFile = true, FullPath = Path.Combine(clientBase, "d3d8.dll") },
+                    new() { Name = "dbghelp.dll", IsFile = true, FullPath = Path.Combine(clientBase, "dbghelp.dll") },
+                    new() { Name = "Shaders.big", IsFile = true, FullPath = Path.Combine(clientBase, "Shaders.big") },
                 ],
             };
 
@@ -274,16 +280,19 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
             ContentName = "GenHotkeys v2.1";
             SelectedContentType = ContentType.ModdingTool;
             SelectedGameType = GameType.ZeroHour;
-            SourcePath = @"C:\Tools\GenHotkeys_v2.1";
+            SourcePath = InfoConstants.DemoModdingToolSourcePath;
             IsBusy = false;
 
             FileTree.Clear();
+
+            var toolBase = InfoConstants.DemoModdingToolSourcePath;
+            var docsPath = Path.Combine(toolBase, "Docs");
 
             var genHotkeysExe = new FileTreeItem
             {
                 Name = "GenHotkeys.exe",
                 IsFile = true,
-                FullPath = @"C:\Tools\GenHotkeys_v2.1\GenHotkeys.exe",
+                FullPath = Path.Combine(toolBase, "GenHotkeys.exe"),
                 IsSelectedExecutable = true,
             };
 
@@ -291,7 +300,7 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
             {
                 Name = "GenHotkeys_Updater.exe",
                 IsFile = true,
-                FullPath = @"C:\Tools\GenHotkeys_v2.1\GenHotkeys_Updater.exe",
+                FullPath = Path.Combine(toolBase, "GenHotkeys_Updater.exe"),
                 IsSelectedExecutable = false,
             };
 
@@ -299,21 +308,21 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
             {
                 Name = "GenHotkeys_v2.1",
                 IsFile = false,
-                FullPath = @"C:\Tools\GenHotkeys_v2.1",
+                FullPath = toolBase,
                 Children =
                 [
                     genHotkeysExe,
                     updaterExe,
-                    new() { Name = "Hotkeys.ini", IsFile = true, FullPath = @"C:\Tools\GenHotkeys_v2.1\Hotkeys.ini" },
-                    new() { Name = "DefaultBindings.cfg", IsFile = true, FullPath = @"C:\Tools\GenHotkeys_v2.1\DefaultBindings.cfg" },
+                    new() { Name = "Hotkeys.ini", IsFile = true, FullPath = Path.Combine(toolBase, "Hotkeys.ini") },
+                    new() { Name = "DefaultBindings.cfg", IsFile = true, FullPath = Path.Combine(toolBase, "DefaultBindings.cfg") },
                     new()
                     {
                         Name = "Docs",
                         IsFile = false,
-                        FullPath = @"C:\Tools\GenHotkeys_v2.1\Docs",
+                        FullPath = docsPath,
                         Children =
                         [
-                            new() { Name = "Readme.txt", IsFile = true, FullPath = @"C:\Tools\GenHotkeys_v2.1\Docs\Readme.txt" },
+                            new() { Name = "Readme.txt", IsFile = true, FullPath = Path.Combine(docsPath, "Readme.txt") },
                         ],
                     },
                 ],
@@ -344,16 +353,17 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
             ContentName = "WorldBuilder Zero Hour 1.04";
             SelectedContentType = ContentType.Executable;
             SelectedGameType = GameType.ZeroHour;
-            SourcePath = @"C:\Games\Command & Conquer Generals Zero Hour\WorldBuilder.exe";
+            SourcePath = InfoConstants.DemoExecutableSourcePath;
             IsBusy = false;
 
             FileTree.Clear();
 
+            var wbBase = InfoConstants.DemoExecutableBasePath;
             var wbExe = new FileTreeItem
             {
                 Name = "WorldBuilder.exe",
                 IsFile = true,
-                FullPath = @"C:\Demo\WorldBuilder_ZH\WorldBuilder.exe",
+                FullPath = Path.Combine(wbBase, "WorldBuilder.exe"),
                 IsSelectedExecutable = true,
             };
 
@@ -361,12 +371,12 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
             {
                 Name = "WorldBuilder_ZH",
                 IsFile = false,
-                FullPath = @"C:\Demo\WorldBuilder_ZH",
+                FullPath = wbBase,
                 Children =
                 [
                     wbExe,
-                    new() { Name = "WorldBuilder.ini", IsFile = true, FullPath = @"C:\Demo\WorldBuilder_ZH\WorldBuilder.ini" },
-                    new() { Name = "ObjectEditor.dll", IsFile = true, FullPath = @"C:\Demo\WorldBuilder_ZH\ObjectEditor.dll" },
+                    new() { Name = "WorldBuilder.ini", IsFile = true, FullPath = Path.Combine(wbBase, "WorldBuilder.ini") },
+                    new() { Name = "ObjectEditor.dll", IsFile = true, FullPath = Path.Combine(wbBase, "ObjectEditor.dll") },
                 ],
             };
 

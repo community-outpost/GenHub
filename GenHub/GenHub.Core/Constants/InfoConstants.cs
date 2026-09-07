@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 
 namespace GenHub.Core.Constants;
 
@@ -193,6 +194,36 @@ public static class InfoConstants
     /// Demo directory folder name for Command and Conquer Generals Zero Hour.
     /// </summary>
     public const string DemoFolderZeroHour = "Command and Conquer Generals Zero Hour";
+
+    /// <summary>
+    /// Demo source path for ShockWave mod zip archive.
+    /// </summary>
+    public static readonly string DemoModSourcePath = Path.Combine(DemoFallbackBasePath, "Downloads", "ShockWave_v1.201.zip");
+
+    /// <summary>
+    /// Demo base folder for ShockWave mod files.
+    /// </summary>
+    public static readonly string DemoModBasePath = Path.Combine(DemoFallbackBasePath, "Demo", "ShockWave_v1.201");
+
+    /// <summary>
+    /// Demo source path for TheSuperHackers game client directory.
+    /// </summary>
+    public static readonly string DemoGameClientSourcePath = Path.Combine(DemoFallbackBasePath, "Engines", "TheSuperHackers_ZeroHour_test_build");
+
+    /// <summary>
+    /// Demo source path for GenHotkeys modding tool directory.
+    /// </summary>
+    public static readonly string DemoModdingToolSourcePath = Path.Combine(DemoFallbackBasePath, "Tools", "GenHotkeys_v2.1");
+
+    /// <summary>
+    /// Demo source path for WorldBuilder executable.
+    /// </summary>
+    public static readonly string DemoExecutableSourcePath = Path.Combine(DemoFallbackBasePath, DemoFolderEaGames, DemoFolderZeroHour, "WorldBuilder.exe");
+
+    /// <summary>
+    /// Demo base folder for WorldBuilder files.
+    /// </summary>
+    public static readonly string DemoExecutableBasePath = Path.Combine(DemoFallbackBasePath, "Demo", "WorldBuilder_ZH");
 
     /// <summary>
     /// The list of supported languages for the FAQ.
