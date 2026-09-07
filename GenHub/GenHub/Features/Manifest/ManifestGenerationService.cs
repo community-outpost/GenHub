@@ -818,6 +818,7 @@ public class ManifestGenerationService(
     /// <param name="gameType">The game type.</param>
     /// <param name="manifestVersion">Optional manifest version.</param>
     /// <param name="language">Optional explicit language code.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     private async Task AddGameFilesToManifest(
         IContentManifestBuilder builder,
@@ -830,7 +831,7 @@ public class ManifestGenerationService(
         cancellationToken.ThrowIfCancellationRequested();
 
         var detectedLanguage = string.IsNullOrWhiteSpace(language)
-            ? await _languageDetector.DetectAsync(installationPath)
+            ? await _languageDetector.DetectAsync(installationPath, cancellationToken)
             : language;
 
         var normalizedLanguage = ContentSearchQuery.NormalizeLanguage(detectedLanguage);
@@ -1039,7 +1040,7 @@ public class ManifestGenerationService(
                                        !string.IsNullOrWhiteSpace(entry.Sha256) &&
                                        string.Equals(computedHash, entry.Sha256, StringComparison.OrdinalIgnoreCase);
 
-            if (entry.Size > 0 && (fileInfo.Length != entry.Size || !isAuthoritativeMatch))
+            if (entry.Size > 0 && !isAuthoritativeMatch)
             {
                 logger.LogWarning(
                     "Local file ({ActualSize} bytes, hash: {ActualHash}) for {RelativePath} differs from catalog (size: {ExpectedSize}, hash: {ExpectedHash}). Attaching locally computed hash and size. Source: {SourcePath}",

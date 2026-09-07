@@ -654,13 +654,17 @@ public partial class GameProfileLauncherViewModel(
         }
 
         var client = installation.AvailableGameClients?.FirstOrDefault(c => string.Equals(c.PublisherType, publisherType, StringComparison.OrdinalIgnoreCase));
+        if (client == null && decision != GameClientConstants.WizardActionTypes.Install)
+        {
+            return (false, 0);
+        }
 
         var clientToUse = client ?? new GameClient
         {
             Id = syntheticClientId,
             Name = clientName,
             PublisherType = publisherType,
-            GameType = GameType.ZeroHour,
+            GameType = installation.AvailableGameClients?.FirstOrDefault()?.GameType ?? GameType.ZeroHour,
             InstallationId = installation.Id,
         };
 

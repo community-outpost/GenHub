@@ -375,7 +375,7 @@ public class ManifestGenerationServiceTests : IDisposable
 
         // generals.exe matches catalog size (57392 bytes)
         var exePath = Path.Combine(installationPath, "generals.exe");
-        using (var fs = new FileStream(exePath, FileMode.Create, FileAccess.Write))
+        using (var fs = new FileStream(exePath, System.IO.FileMode.Create, FileAccess.Write))
         {
             fs.SetLength(57392);
         }

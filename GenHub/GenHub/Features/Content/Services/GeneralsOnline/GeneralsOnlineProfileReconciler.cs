@@ -109,9 +109,10 @@ public class GeneralsOnlineProfileReconciler(
             if (!enforceResult.Success)
             {
                 logger.LogWarning("[GO Reconciler] Map pack dependency enforcement had warnings: {Error}", enforceResult.FirstError);
+                anyFailure = true;
             }
 
-            bool shouldDeleteOldVersions = strategy == UpdateStrategy.ReplaceCurrent && (subscription?.DeleteOldVersions ?? false);
+            bool shouldDeleteOldVersions = (strategy != UpdateStrategy.CreateNewProfile) && (subscription?.DeleteOldVersions ?? true);
             await HandleOldManifestsAndCleanupAsync(shouldDeleteOldVersions, anyFailure, manifestMapping, oldManifests, cancellationToken);
 
             if (anyFailure)
@@ -180,14 +181,16 @@ public class GeneralsOnlineProfileReconciler(
             var variant = ExtractVariant(oldM);
             if (variant == null)
             {
+                logger.LogDebug("[GO Reconciler] Could not extract variant for old manifest {ManifestId}, skipping mapping", oldM.Id.Value);
                 continue;
             }
 
-            // Find matching new manifests with the same variant and content type
+            // Find matching new manifests with the same variant and content type (or legacy Mod -> GameClient mapping)
             if (newByVariant.TryGetValue(variant, out var candidates))
             {
                 var matchingCandidate = candidates
-                    .Where(c => c.ContentType == oldM.ContentType)
+                    .Where(c => c.ContentType == oldM.ContentType ||
+                                (oldM.ContentType == ContentType.Mod && c.ContentType == ContentType.GameClient))
                     .OrderByDescending(c => c.Version, versionComparer ?? Comparer<string>.Default)
                     .FirstOrDefault();
 
@@ -195,6 +198,21 @@ public class GeneralsOnlineProfileReconciler(
                 {
                     mapping[oldM.Id.Value] = matchingCandidate.Id.Value;
                 }
+                else
+                {
+                    logger.LogDebug(
+                        "[GO Reconciler] No matching new manifest candidate found for old manifest {ManifestId} (variant: {Variant}, contentType: {ContentType})",
+                        oldM.Id.Value,
+                        variant,
+                        oldM.ContentType);
+                }
+            }
+            else
+            {
+                logger.LogDebug(
+                    "[GO Reconciler] No candidate list found for variant {Variant} of old manifest {ManifestId}",
+                    variant,
+                    oldM.Id.Value);
             }
         }
 
@@ -321,32 +339,32 @@ public class GeneralsOnlineProfileReconciler(
         {
             try
             {
-                var profileTask = profileManager.GetProfileAsync(triggeringProfileId, cancellationToken);
-                if (profileTask != null)
+                var profileResult = await profileManager.GetProfileAsync(triggeringProfileId, cancellationToken);
+                if (profileResult.Success && profileResult.Data != null)
                 {
-                    var profileResult = await profileTask;
-                    if (profileResult != null && profileResult.Success && profileResult.Data != null)
+                    var profile = profileResult.Data;
+                    var clientVersion = profile.GameClient?.Version;
+                    if (!string.IsNullOrEmpty(clientVersion) &&
+                        (string.Equals(profile.GameClient?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
+                         profile.GameClient?.Id.Contains(".generalsonline.", StringComparison.OrdinalIgnoreCase) == true))
                     {
-                        var profile = profileResult.Data;
-                        var clientVersion = profile.GameClient?.Version;
-                        if (!string.IsNullOrEmpty(clientVersion) &&
-                            (string.Equals(profile.GameClient?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
-                             profile.GameClient?.Id.Contains(".generalsonline.", StringComparison.OrdinalIgnoreCase) == true))
+                        if (updateResult.LatestVersion != null &&
+                            !versionComparer.IsNewer(updateResult.LatestVersion, clientVersion, GeneralsOnlineConstants.PublisherType))
                         {
-                            if (updateResult.LatestVersion != null &&
-                                !versionComparer.IsNewer(updateResult.LatestVersion, clientVersion, GeneralsOnlineConstants.PublisherType))
-                            {
-                                logger.LogInformation(
-                                    "[GO Reconciler] Triggering profile {ProfileId} is already running latest version {LatestVersion} (profile client version: {ClientVersion}). Skipping update prompt.",
-                                    triggeringProfileId,
-                                    updateResult.LatestVersion,
-                                    clientVersion);
-                                return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?)>.CreateSuccess(
-                                    (false, null, UpdateStrategy.ReplaceCurrent, null));
-                            }
+                            logger.LogInformation(
+                                "[GO Reconciler] Triggering profile {ProfileId} is already running latest version {LatestVersion} (profile client version: {ClientVersion}). Skipping update prompt.",
+                                triggeringProfileId,
+                                updateResult.LatestVersion,
+                                clientVersion);
+                            return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?)>.CreateSuccess(
+                                (false, null, UpdateStrategy.ReplaceCurrent, null));
                         }
                     }
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
