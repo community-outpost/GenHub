@@ -1,0 +1,243 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels.Dialogs"
+             mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="600"
+             x:Class="GenHub.Features.Tools.Views.Dialogs.AddArtifactDialogView"
+             x:DataType="vm:AddArtifactDialogViewModel">
+
+
+    <UserControl.Styles>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="SelectionBrush" Value="#D56AFF"/>
+            <Setter Property="SelectionForegroundBrush" Value="White"/>
+            <Setter Property="CaretBrush" Value="White"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="Background" Value="#18FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#AA00FF"/>
+        </Style>
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.small-glass-btn">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="Button.small-glass-btn:pointerover">
+            <Setter Property="Background" Value="#25FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
+        </Style>
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#D0D0E0"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="Foreground" Value="#888888"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+        <!-- Header -->
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,24">
+            <TextBlock Text="Add Artifact"
+                       FontSize="22" FontWeight="Bold"
+                       Foreground="White"/>
+            <Button Grid.Column="1"
+                    Command="{Binding CloseCommand}"
+                    Background="Transparent"
+                    Padding="8"
+                    CornerRadius="8"
+                    BorderThickness="0"
+                    VerticalAlignment="Top">
+                <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                          Width="12" Height="12"
+                          Foreground="#888888"/>
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="#15FFFFFF"/>
+                    </Style>
+                    <Style Selector="Button:pointerover PathIcon">
+                        <Setter Property="Foreground" Value="White"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </Grid>
+
+        <!-- Form -->
+        <ScrollViewer Grid.Row="1" Margin="0,0,0,24">
+            <StackPanel Spacing="20">
+                <!-- Source Selection -->
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Choose artifact source:" Classes="label"/>
+
+                    <!-- Upload Local File Option -->
+                    <RadioButton GroupName="ArtifactSource"
+                                 IsChecked="{Binding UseLocalFile}"
+                                 Foreground="White">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Upload Local File (recommended)" FontWeight="SemiBold"/>
+                            <TextBlock Text="File will be uploaded to your hosting provider when you publish"
+                                       FontSize="11" Foreground="#888888" TextWrapping="Wrap" MaxWidth="400"/>
+                        </StackPanel>
+                    </RadioButton>
+
+                    <!-- File Selection (visible when UseLocalFile is true) -->
+                    <StackPanel Spacing="8" Margin="24,8,0,0" IsVisible="{Binding UseLocalFile}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Text="{Binding LocalFilePath}"
+                                     IsReadOnly="True"
+                                     Watermark="No file selected..."
+                                     FontSize="12"/>
+                            <Button Grid.Column="1"
+                                    Command="{Binding BrowseLocalFileCommand}"
+                                    Content="Browse..."
+                                    Classes="small-glass-btn"
+                                    Margin="8,0,0,0"
+                                    Padding="16,8"/>
+                        </Grid>
+                        <TextBlock Text="{Binding FileSizeDisplay}" Classes="hint"/>
+                    </StackPanel>
+
+                    <!-- Enter Existing URL Option -->
+                    <RadioButton GroupName="ArtifactSource"
+                                 IsChecked="{Binding UseExistingUrl}"
+                                 Foreground="White"
+                                 Margin="0,8,0,0">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Enter Existing URL" FontWeight="SemiBold"/>
+                            <TextBlock Text="Use this if you've already uploaded the file elsewhere"
+                                       FontSize="11" Foreground="#888888" TextWrapping="Wrap" MaxWidth="400"/>
+                        </StackPanel>
+                    </RadioButton>
+
+                    <!-- URL Input (visible when UseExistingUrl is true) -->
+                    <StackPanel Spacing="8" Margin="24,8,0,0" IsVisible="{Binding UseExistingUrl}">
+                        <TextBox Text="{Binding DownloadUrl}"
+                                 Watermark="https://example.com/file.zip"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Divider -->
+                <Rectangle Height="1" Fill="#20FFFFFF" Margin="0,8"/>
+
+                <!-- Artifact Details -->
+                <TextBlock Text="Artifact Details:" Classes="label"/>
+
+                <!-- File Selection -->
+                <StackPanel Spacing="8" Margin="0,0,0,16">
+                    <TextBlock Text="Artifact File" Classes="label"/>
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                        <TextBox Text="{Binding LocalFilePath}"
+                                 IsReadOnly="True"
+                                 Watermark="No file selected..."
+                                 FontSize="12"/>
+                        <Button Grid.Column="1"
+                                Command="{Binding BrowseLocalFileCommand}"
+                                Content="Browse..."
+                                Classes="small-glass-btn"
+                                Margin="8,0,0,0"
+                                Padding="16,8"/>
+                    </Grid>
+                    <TextBlock Text="{Binding FileSizeDisplay}" Classes="hint"/>
+                    <TextBlock Text="{Binding ArtifactStatus}"
+                               FontSize="12"
+                               Foreground="#888888"/>
+                </StackPanel>
+
+                <!-- Computing hash indicator -->
+                <StackPanel IsVisible="{Binding IsComputingHash}" Orientation="Horizontal" Spacing="8">
+                    <ProgressBar IsIndeterminate="True" Width="120" Height="4" Foreground="#AA00FF"/>
+                    <TextBlock Text="Computing hash..." FontSize="12" Foreground="#888888"/>
+                </StackPanel>
+
+                <!-- Filename -->
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="Filename" Classes="label"/>
+                        <TextBlock Text="*" Foreground="#FF5555"/>
+                    </StackPanel>
+                    <TextBox Text="{Binding Filename}"
+                             Watermark="e.g. MyMod_v1.0.zip"
+                             IsReadOnly="{Binding UseLocalFile}"/>
+                    <TextBlock Text="Auto-filled from selected file"
+                               Classes="hint"
+                               IsVisible="{Binding UseLocalFile}"/>
+                </StackPanel>
+
+                <!-- URL (only visible when using existing URL) -->
+                <StackPanel Spacing="8" IsVisible="{Binding UseExistingUrl}">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="Download URL" Classes="label"/>
+                        <TextBlock Text="*" Foreground="#FF5555"/>
+                    </StackPanel>
+                    <TextBox Text="{Binding DownloadUrl}"
+                             Watermark="https://github.com/user/repo/releases/download/..."/>
+                </StackPanel>
+
+                <!-- SHA256 -->
+                <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="SHA256 Hash (Optional)" Classes="label" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Content="Compute"
+                                Command="{Binding ComputeHashCommand}"
+                                IsEnabled="{Binding !IsComputingHash}"
+                                IsVisible="{Binding UseLocalFile}"
+                                Classes="small-glass-btn"/>
+                    </Grid>
+                    <TextBox Text="{Binding Sha256Hash}"
+                             Watermark="Hash string..."
+                             IsReadOnly="{Binding UseLocalFile}"/>
+                    <TextBlock Text="Auto-computed from selected file"
+                               Classes="hint"
+                               IsVisible="{Binding UseLocalFile}"/>
+                    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsComputingHash}" Height="2" Foreground="#AA00FF"/>
+                </StackPanel>
+
+                <CheckBox Content="Primary Artifact" IsChecked="{Binding IsPrimary}"
+                          ToolTip.Tip="This is the main file users should download."/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="16" HorizontalAlignment="Right">
+             <TextBlock Text="{Binding ValidationError}"
+                        Foreground="#FF5555"
+                        VerticalAlignment="Center"
+                        TextWrapping="Wrap"
+                        MaxWidth="300"
+                        Margin="0,0,12,0"/>
+
+             <Button Content="Add Artifact"
+                     Command="{Binding CreateArtifactCommand}"
+                     Background="{DynamicResource PrimaryGradientBrush}"
+                     Foreground="White"
+                     CornerRadius="8"
+                     Padding="40,14"
+                     FontWeight="Bold"
+                     BorderThickness="0">
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
+                        <Setter Property="Opacity" Value="0.85"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </StackPanel>
+    </Grid>
+</UserControl>

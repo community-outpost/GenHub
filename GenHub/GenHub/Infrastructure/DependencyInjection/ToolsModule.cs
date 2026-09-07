@@ -1,5 +1,11 @@
+using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Services.Tools;
+using GenHub.Features.Tools;
+using GenHub.Features.Tools.Interfaces;
+using GenHub.Features.Tools.Services;
+using GenHub.Features.Tools.Services.Hosting;
+using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GenHub.Infrastructure.DependencyInjection;
@@ -19,6 +25,20 @@ public static class ToolsModule
         services.AddSingleton<IToolPluginLoader, ToolPluginLoader>();
         services.AddSingleton<IToolRegistry, ToolRegistry>();
         services.AddSingleton<IToolManager, ToolService>();
+
+        // Register Publisher Studio services
+        services.AddSingleton<IPublisherStudioService, PublisherStudioService>();
+        services.AddSingleton<IPublisherStudioDialogService, PublisherStudioDialogService>();
+
+        // Register Hosting Provider Factory for decentralized catalog distribution
+        services.AddSingleton<IHostingProviderFactory, HostingProviderFactory>();
+        services.AddSingleton<IHostingStateManager, HostingStateManager>();
+
+        // Register ViewModels
+        services.AddTransient<PublisherStudioViewModel>();
+
+        // Register built-in tools
+        services.AddSingleton<IToolPlugin, PublisherStudioTool>();
 
         return services;
     }

@@ -1,0 +1,221 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Tools.ViewModels.Dialogs"
+             mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="550"
+             x:Class="GenHub.Features.Tools.Views.Dialogs.AddReferralDialogView"
+             x:DataType="vm:AddReferralDialogViewModel"
+             x:Name="RootView">
+
+    <Grid RowDefinitions="Auto, *, Auto" Margin="24">
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,20">
+            <TextBlock Text="Add Publisher Referral"
+                       FontSize="20" FontWeight="Bold"
+                       Foreground="White"/>
+            <Button Grid.Column="1"
+                    Command="{Binding CloseCommand}"
+                    Background="Transparent"
+                    Padding="8"
+                    CornerRadius="8"
+                    BorderThickness="0"
+                    VerticalAlignment="Top">
+                <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                          Width="12" Height="12"
+                          Foreground="#888888"/>
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="#15FFFFFF"/>
+                    </Style>
+                    <Style Selector="Button:pointerover PathIcon">
+                        <Setter Property="Foreground" Value="White"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </Grid>
+
+        <!-- Form -->
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Spacing="16">
+                <!-- Quick Select from Subscribed Publishers -->
+                <Border IsVisible="{Binding AvailablePublishers.Count}"
+                        Background="#15FFFFFF"
+                        CornerRadius="8"
+                        Padding="16"
+                        BorderThickness="1"
+                        BorderBrush="#20FFFFFF">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Quick Select from Your Subscriptions"
+                                   FontWeight="SemiBold"
+                                   Foreground="White"
+                                   FontSize="14"/>
+                        <TextBlock Text="Select a publisher you're already subscribed to:"
+                                   FontSize="12"
+                                   Foreground="#AAAAAA"/>
+                        <ItemsControl ItemsSource="{Binding AvailablePublishers}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Command="{Binding #RootView.((vm:AddReferralDialogViewModel)DataContext).SelectPublisherCommand}"
+                                            CommandParameter="{Binding}"
+                                            Background="#10FFFFFF"
+                                            BorderBrush="#15FFFFFF"
+                                            BorderThickness="1"
+                                            CornerRadius="6"
+                                            Padding="12,8"
+                                            HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Stretch">
+                                        <Button.Styles>
+                                            <Style Selector="Button:pointerover">
+                                                <Setter Property="Background" Value="#20FFFFFF"/>
+                                            </Style>
+                                        </Button.Styles>
+                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                            <Border Width="32" Height="32"
+                                                    CornerRadius="16"
+                                                    Background="{DynamicResource PrimaryGradientBrush}"
+                                                    Margin="0,0,12,0">
+                                                <TextBlock Text="📦"
+                                                           FontSize="16"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"/>
+                                            </Border>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                                <TextBlock Text="{Binding PublisherName}"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="White"
+                                                           FontSize="13"/>
+                                                <TextBlock Text="{Binding PublisherId}"
+                                                           FontSize="11"
+                                                           Foreground="#AAAAAA"/>
+                                            </StackPanel>
+                                            <PathIcon Grid.Column="2"
+                                                      Data="M9,16.17L4.83,12L3.41,13.41L9,19L21,7L19.59,5.59L9,16.17Z"
+                                                      Width="18" Height="18"
+                                                      Foreground="#40FF40"
+                                                      IsVisible="{Binding #RootView.((vm:AddReferralDialogViewModel)DataContext).SelectedPublisher.PublisherId, Converter={StaticResource StringEqualsConverter}, ConverterParameter={Binding PublisherId}}"/>
+                                        </Grid>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <Separator Background="#20FFFFFF" Height="1"/>
+
+                <!-- Manual Entry -->
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Or Enter Manually"
+                               FontWeight="SemiBold"
+                               Foreground="White"
+                               FontSize="14"/>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Catalog / Definition URL" FontWeight="SemiBold" Foreground="#D0D0E0" FontSize="13"/>
+                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                            <TextBox Grid.Column="0" Grid.Row="0"
+                                     Text="{Binding CatalogUrl}"
+                                     Watermark="https://example.com/publisher.json"
+                                     IsEnabled="{Binding !SelectedPublisher, Converter={StaticResource InverseBoolConverter}}"/>
+                            <Button Grid.Column="1" Grid.Row="0"
+                                    Command="{Binding DiscoverPublisherCommand}"
+                                    Content="Discover"
+                                    Margin="8,0,0,0"
+                                    Classes="glass-btn"
+                                    Padding="12,8"
+                                    IsEnabled="{Binding !IsBusy}"/>
+                            <ProgressBar Grid.Row="1" Grid.ColumnSpan="2"
+                                         IsIndeterminate="True"
+                                         IsVisible="{Binding IsBusy}"
+                                         Height="2"
+                                         Margin="0,4,0,0"/>
+                        </Grid>
+                        <TextBlock Text="Enter a URL to a publisher definition (publisher.json) or catalog (catalog.json)"
+                                   FontSize="11"
+                                   Foreground="#888888"/>
+                    </StackPanel>
+
+                    <!-- Discovered Publisher Info -->
+                    <Border IsVisible="{Binding DiscoveredPublisher, Converter={x:Static ObjectConverters.IsNotNull}}"
+                            Background="#2040FF40"
+                            CornerRadius="8"
+                            Padding="12"
+                            BorderThickness="1"
+                            BorderBrush="#4040FF40">
+                        <Grid ColumnDefinitions="Auto,*">
+                            <PathIcon Data="{StaticResource CheckmarkIcon}"
+                                      Width="20" Height="20"
+                                      Foreground="#40FF40"
+                                      Margin="0,0,12,0"/>
+                            <StackPanel Grid.Column="1" Spacing="4">
+                                <TextBlock Text="Publisher Found"
+                                           FontWeight="Bold"
+                                           Foreground="White"
+                                           FontSize="13"/>
+                                <TextBlock Text="{Binding DiscoveredPublisher.Name}"
+                                           Foreground="#DDDDDD"/>
+                                <TextBlock Text="{Binding DiscoveredPublisher.Id}"
+                                           FontSize="12"
+                                           Foreground="#AAAAAA"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Publisher ID" FontWeight="SemiBold" Foreground="#D0D0E0" FontSize="13"/>
+                        <TextBox Text="{Binding PublisherId}"
+                                 Watermark="e.g. community-outpost"
+                                 IsReadOnly="{Binding DiscoveredPublisher, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Note (Optional)" FontWeight="SemiBold" Foreground="#D0D0E0" FontSize="13"/>
+                        <TextBox Text="{Binding Note}"
+                                 Watermark="Why are you recommending this publisher?"
+                                 AcceptsReturn="True"
+                                 Height="80"/>
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding ValidationError}"
+                               Foreground="#FF5555" FontSize="12"
+                               IsVisible="{Binding !IsValid}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" Margin="0,16,0,0">
+             <TextBlock Text="{Binding ValidationError}"
+                        Foreground="#FF5555"
+                        VerticalAlignment="Center"
+                        TextWrapping="Wrap"
+                        MaxWidth="300"
+                        IsVisible="{Binding !IsValid}"/>
+
+             <Button Content="Cancel"
+                     Command="{Binding CloseCommand}"
+                     Classes="glass-btn"
+                     Padding="24,12"/>
+             <Button Content="Add Referral"
+                     Command="{Binding CreateReferralCommand}"
+                     Background="{DynamicResource PrimaryGradientBrush}"
+                     Foreground="White"
+                     CornerRadius="8"
+                     Padding="32,12"
+                     FontWeight="Bold"
+                     BorderThickness="0">
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
+                        <Setter Property="Opacity" Value="0.85"/>
+                    </Style>
+                    <Style Selector="Button:disabled">
+                        <Setter Property="Opacity" Value="0.5"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </StackPanel>
+    </Grid>
+</UserControl>

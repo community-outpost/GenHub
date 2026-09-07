@@ -11,11 +11,13 @@ using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Parsers;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Services.Content;
 using GenHub.Core.Services.Providers;
 using GenHub.Core.Services.Providers.VersionSchemes;
+using GenHub.Core.Services.Publishers;
 using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Content.Services.Common;
@@ -191,6 +193,19 @@ public static class ContentPipelineModule
         // User-followed GenHub catalogs (catalog-direct now; definition URLs via Publisher Studio later)
         services.AddSingleton<IPublisherSubscriptionStore, PublisherSubscriptionStore>();
 
+        // Register publisher definition service and named HTTP clients
+        services.AddHttpClient("PublisherDefinition", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.Add("User-Agent", "GenHub/1.0");
+        });
+        services.AddHttpClient("PublisherCatalog", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(60);
+            client.DefaultRequestHeaders.Add("User-Agent", "GenHub/1.0");
+        });
+        services.AddSingleton<IPublisherDefinitionService, PublisherDefinitionService>();
+
         // Register catalog parser and version selector
         services.AddSingleton<IPublisherCatalogParser, JsonPublisherCatalogParser>();
         services.AddSingleton<IVersionSelector, VersionSelector>();
@@ -201,9 +216,16 @@ public static class ContentPipelineModule
         services.AddTransient<GenericCatalogResolver>();
         services.AddTransient<IContentResolver>(sp => sp.GetRequiredService<GenericCatalogResolver>());
 
+        // Register cross-publisher dependency resolver
+        services.AddScoped<ICrossPublisherDependencyResolver, CrossPublisherDependencyResolver>();
+
         // Register generic catalog manifest factory
         services.AddTransient<GenericCatalogManifestFactory>();
         services.AddTransient<IPublisherManifestFactory>(sp => sp.GetRequiredService<GenericCatalogManifestFactory>());
+
+        // Register tab provider registry and providers
+        services.AddSingleton<ITabProviderRegistry, TabProviderRegistry>();
+        services.AddSingleton<ITabProvider, CatalogTabProvider>();
     }
 
     /// <summary>

@@ -1,0 +1,681 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels"
+             xmlns:Converters="using:GenHub.Infrastructure.Converters"
+             mc:Ignorable="d"
+             d:DesignWidth="900" d:DesignHeight="800"
+             x:Class="GenHub.Features.Tools.Views.PublisherStudio.PublishShareView"
+             x:DataType="vm:PublishShareViewModel"
+             x:Name="RootView">
+
+    <UserControl.Styles>
+        <Style Selector="Button.glass-btn">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.glass-btn:pointerover">
+            <Setter Property="Background" Value="#25FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
+        </Style>
+        <Style Selector="Button.primary-btn">
+            <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="20,12"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        <Style Selector="Button.primary-btn:pointerover">
+            <Setter Property="Opacity" Value="0.85"/>
+        </Style>
+        <Style Selector="Button.primary-btn:disabled">
+            <Setter Property="Opacity" Value="0.5"/>
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="SelectionBrush" Value="#D56AFF"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="Background" Value="#18FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#AA00FF"/>
+        </Style>
+        <Style Selector="TextBox.readonly">
+            <Setter Property="Background" Value="#0AFFFFFF"/>
+            <Setter Property="BorderBrush" Value="#15FFFFFF"/>
+            <Setter Property="Foreground" Value="#AAAAAA"/>
+        </Style>
+        <Style Selector="Border.step-card">
+            <Setter Property="Background" Value="#10FFFFFF"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="BorderBrush" Value="#15FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="24"/>
+            <Setter Property="Margin" Value="0,0,0,20"/>
+        </Style>
+        <Style Selector="TextBlock.step-header">
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+        <Style Selector="TextBlock.step-subtitle">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#BBBBBB"/>
+            <Setter Property="Margin" Value="0,0,0,20"/>
+        </Style>
+        <Style Selector="TextBlock.step-label">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#D0D0E0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+        <Style Selector="TextBlock.step-hint">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#888888"/>
+            <Setter Property="Margin" Value="0,0,0,16"/>
+        </Style>
+        <Style Selector="Border.status-valid">
+            <Setter Property="Background" Value="#2040FF40"/>
+            <Setter Property="BorderBrush" Value="#4040FF40"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,8"/>
+        </Style>
+        <Style Selector="Border.status-invalid">
+            <Setter Property="Background" Value="#20FF5555"/>
+            <Setter Property="BorderBrush" Value="#40FF5555"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,8"/>
+        </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,10"/>
+        </Style>
+        <Style Selector="ProgressBar">
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryGradientBrush}"/>
+            <Setter Property="Background" Value="#10FFFFFF"/>
+            <Setter Property="Height" Value="6"/>
+            <Setter Property="CornerRadius" Value="3"/>
+        </Style>
+        <Style Selector="TextBlock.publish-title">
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                  VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="40" MaxWidth="800" HorizontalAlignment="Left">
+
+            <!-- Main Header -->
+            <StackPanel Margin="0,0,0,32">
+                <TextBlock Text="Publish and Share"
+                           FontSize="28"
+                           FontWeight="Bold"
+                           Foreground="White"
+                           Margin="0,0,0,6">
+                    <TextBlock.Effect>
+                        <DropShadowEffect Color="#AA000000" BlurRadius="4" OffsetX="2" OffsetY="2" Opacity="0.5"/>
+                    </TextBlock.Effect>
+                </TextBlock>
+                <TextBlock Text="Configure hosting, publish your catalog, and share with your audience."
+                           FontSize="16"
+                           Foreground="#AAAAAA"/>
+            </StackPanel>
+
+            <!-- Active Catalog Indicator -->
+            <Border Background="#10FFFFFF"
+                    CornerRadius="8"
+                    Padding="16,12"
+                    Margin="0,0,0,24">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <TextBlock Text="Catalog:"
+                               FontWeight="SemiBold"
+                               Foreground="#D0D0E0"
+                               VerticalAlignment="Center"
+                               Margin="0,0,12,0"/>
+                    <ComboBox Grid.Column="1"
+                              SelectedItem="{Binding ActiveCatalog}"
+                              ItemsSource="{Binding AvailableCatalogs}"
+                              HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{Binding Name}" Foreground="White"/>
+                                    <TextBlock Text="{Binding Catalog.Content.Count, StringFormat='({0} items)'}"
+                                               FontSize="12" Foreground="#888888"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <Border Grid.Column="2"
+                            Background="#15AA00FF" CornerRadius="4" Padding="8,4" Margin="8,0,0,0"
+                            VerticalAlignment="Center">
+                        <TextBlock Text="{Binding ActiveCatalog.Id}"
+                                   FontSize="11" Foreground="#AA00FF" FontWeight="SemiBold"/>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Card 1: Hosting Setup -->
+            <Border Classes="step-card">
+                <StackPanel>
+                    <TextBlock Classes="step-header" Text="Hosting Setup"/>
+                    <TextBlock Classes="step-subtitle" Text="Configure where your catalog will be hosted. Google Drive is recommended for automatic URL generation and stable hosting."/>
+
+                    <!-- Provider Selector -->
+                    <StackPanel Margin="0,0,0,16">
+                        <TextBlock Text="Hosting Provider" Classes="step-label"/>
+                        <ComboBox SelectedItem="{Binding SelectedHostingProvider}"
+                                  ItemsSource="{Binding HostingProviders}"
+                                  HorizontalAlignment="Stretch"
+                                  PlaceholderText="Select a hosting provider...">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <TextBlock Text="{Binding DisplayName}" Foreground="White" VerticalAlignment="Center"/>
+                                        <Border IsVisible="{Binding IsAuthenticated}"
+                                                Background="#2040FF40"
+                                                CornerRadius="4"
+                                                Padding="6,2"
+                                                VerticalAlignment="Center">
+                                            <TextBlock Text="Connected" FontSize="10" Foreground="#40FF40"/>
+                                        </Border>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <TextBlock Text="{Binding SelectedHostingProvider.Description, FallbackValue='Select a hosting provider to continue.'}"
+                                   FontSize="12"
+                                   Foreground="#888888"
+                                   Margin="0,6,0,0"/>
+                    </StackPanel>
+
+                    <!-- Authentication Section -->
+                    <Border Background="#10FFFFFF"
+                            CornerRadius="8"
+                            Padding="16"
+                            Margin="0,0,0,16"
+                            IsVisible="{Binding RequiresAuthentication}">
+                        <StackPanel Spacing="12">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <TextBlock Text="Authentication"
+                                           FontWeight="SemiBold"
+                                           Foreground="White"
+                                           VerticalAlignment="Center"/>
+                                <Border Grid.Column="2"
+                                        IsVisible="{Binding IsProviderAuthenticated}"
+                                        Background="#2040FF40"
+                                        CornerRadius="4"
+                                        Padding="8,4">
+                                    <TextBlock Text="✓ Connected" FontSize="12" Foreground="#40FF40" FontWeight="Bold"/>
+                                </Border>
+                                <Border Grid.Column="2"
+                                        IsVisible="{Binding NeedsAuthentication}"
+                                        Background="#20FF5555"
+                                        CornerRadius="4"
+                                        Padding="8,4">
+                                    <TextBlock Text="Not Connected" FontSize="12" Foreground="#FF5555" FontWeight="Bold"/>
+                                </Border>
+                            </Grid>
+
+                            <!-- GitHub PAT Input -->
+                            <StackPanel IsVisible="{Binding ShowGitHubPatInput}" Spacing="8">
+                                <TextBlock Text="Enter your GitHub Personal Access Token:"
+                                           FontSize="12"
+                                           Foreground="#AAAAAA"/>
+                                <TextBox Text="{Binding GitHubPersonalAccessToken}"
+                                         Watermark="ghp_xxxxxxxxxxxx"
+                                         PasswordChar="●"
+                                         RevealPassword="True"/>
+                                <TextBlock FontSize="11" Foreground="#666666" TextWrapping="Wrap">
+                                    <Run Text="Create a token at"/>
+                                    <Run Text=" github.com/settings/tokens " Foreground="#AA00FF"/>
+                                    <Run Text="with 'gist' and 'repo' permissions."/>
+                                </TextBlock>
+                            </StackPanel>
+
+                            <!-- Google OAuth Info -->
+                            <StackPanel IsVisible="{Binding ShowGoogleOAuthButton}" Spacing="8">
+                                <TextBlock Text="Sign in with Google to access your Google Drive for hosting."
+                                           FontSize="12"
+                                           Foreground="#AAAAAA"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+
+                            <!-- Dropbox Token Input -->
+                            <StackPanel IsVisible="{Binding ShowDropboxTokenInput}" Spacing="8">
+                                <TextBlock Text="Enter your Dropbox Access Token:"
+                                           FontSize="12"
+                                           Foreground="#AAAAAA"/>
+                                <TextBox Text="{Binding DropboxAccessToken}"
+                                         Watermark="sl.xxxxxxxx..."
+                                         PasswordChar="●"
+                                         RevealPassword="True"/>
+                                <TextBlock FontSize="11" Foreground="#666666" TextWrapping="Wrap">
+                                    <Run Text="Create an app at"/>
+                                    <Run Text=" dropbox.com/developers/apps " Foreground="#AA00FF"/>
+                                    <Run Text="and generate an access token."/>
+                                </TextBlock>
+                            </StackPanel>
+
+                            <!-- Authentication Status Message -->
+                            <TextBlock Text="{Binding AuthenticationStatusMessage}"
+                                       FontSize="12"
+                                       Foreground="#AAAAAA"
+                                       IsVisible="{Binding AuthenticationStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                            <!-- Auth Buttons -->
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Button Command="{Binding AuthenticateCommand}"
+                                        IsVisible="{Binding NeedsAuthentication}"
+                                        Classes="glass-btn"
+                                        IsEnabled="{Binding !IsAuthenticating}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Data="{StaticResource PersonIcon}" Width="14" Height="14" Foreground="White"/>
+                                        <TextBlock Text="Sign In" Foreground="White" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Command="{Binding SignOutCommand}"
+                                        IsVisible="{Binding IsProviderAuthenticated}"
+                                        Classes="glass-btn">
+                                    <TextBlock Text="Sign Out" Foreground="#AAAAAA"/>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Validation Status Bar -->
+                    <Border Classes="status-valid" Margin="0,0,0,16" IsVisible="{Binding IsValid}">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <PathIcon Data="{StaticResource CheckmarkIcon}" Width="18" Height="18" Foreground="#40FF40" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="1" Text="{Binding ValidationMessage}" VerticalAlignment="Center" Foreground="White"/>
+                            <Button Grid.Column="2"
+                                    Command="{Binding ValidateCatalogCommand}"
+                                    Content="Validate"
+                                    Classes="glass-btn"
+                                    Padding="12,8"
+                                    FontSize="12"/>
+                        </Grid>
+                    </Border>
+                    <Border Classes="status-invalid" Margin="0,0,0,16" IsVisible="{Binding !IsValid}">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <PathIcon Data="{StaticResource ErrorIcon}" Width="18" Height="18" Foreground="#FF5555" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="1" Text="{Binding ValidationMessage}" VerticalAlignment="Center" Foreground="White"/>
+                            <Button Grid.Column="2"
+                                    Command="{Binding ValidateCatalogCommand}"
+                                    Content="Validate"
+                                    Classes="glass-btn"
+                                    Padding="12,8"
+                                    FontSize="12"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Stats Row -->
+                    <Grid ColumnDefinitions="*,*">
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="{Binding ContentItemCount}" FontSize="24" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="Content Items" FontSize="12" Foreground="#AAAAAA"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="{Binding TotalReleaseCount}" FontSize="24" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="Total Releases" FontSize="12" Foreground="#AAAAAA"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Card 2: Publish -->
+            <Border Classes="step-card">
+                <StackPanel>
+                    <!-- Title: "Publish" or "Update & Publish" based on HasPreviouslyPublished -->
+                    <TextBlock Classes="publish-title" Text="Publish" IsVisible="{Binding !HasPreviouslyPublished}"/>
+                    <TextBlock Classes="publish-title" Text="Update &amp; Publish" IsVisible="{Binding HasPreviouslyPublished}"/>
+                    <TextBlock Classes="step-subtitle" Text="Upload your catalog to the hosting provider. This makes your content discoverable and subscribable by users."/>
+
+                    <!-- Primary Publish Button -->
+                    <Button Command="{Binding UploadCatalogCommand}"
+                            Classes="primary-btn"
+                            HorizontalAlignment="Left"
+                            Margin="0,0,0,20"
+                            IsEnabled="{Binding IsValid}"
+                            Content="Publish"
+                            IsVisible="{Binding !HasPreviouslyPublished}"/>
+                    <Button Command="{Binding UploadCatalogCommand}"
+                            Classes="primary-btn"
+                            HorizontalAlignment="Left"
+                            Margin="0,0,0,20"
+                            IsEnabled="{Binding IsValid}"
+                            Content="Update &amp; Publish"
+                            IsVisible="{Binding HasPreviouslyPublished}"/>
+
+                    <!-- Publish Progress Steps -->
+                    <StackPanel IsVisible="{Binding IsUploading}" Margin="0,0,0,16" Spacing="12">
+                        <ProgressBar Value="{Binding UploadProgress}" Maximum="100" Margin="0,0,0,4"/>
+                        <TextBlock Text="{Binding UploadStatusMessage}" FontSize="13" Foreground="#AAAAAA"/>
+
+                        <!-- Step indicators -->
+                        <StackPanel Spacing="6" Margin="0,8,0,0">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Border Width="20" Height="20" CornerRadius="10"
+                                        Background="#20FFFFFF">
+                                    <TextBlock Text="1" FontSize="11" Foreground="White"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="Upload artifacts" FontSize="12"
+                                           Foreground="#666666"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Border Width="20" Height="20" CornerRadius="10"
+                                        Background="#20FFFFFF">
+                                    <TextBlock Text="2" FontSize="11" Foreground="White"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="Generate catalog" FontSize="12"
+                                           Foreground="#666666"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Border Width="20" Height="20" CornerRadius="10"
+                                        Background="#20FFFFFF">
+                                    <TextBlock Text="3" FontSize="11" Foreground="White"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="Upload catalog" FontSize="12"
+                                           Foreground="#666666"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Border Width="20" Height="20" CornerRadius="10"
+                                        Background="#20FFFFFF">
+                                    <TextBlock Text="4" FontSize="11" Foreground="White"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="Generate definition" FontSize="12"
+                                           Foreground="#666666"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Border Width="20" Height="20" CornerRadius="10"
+                                        Background="#20FFFFFF">
+                                    <TextBlock Text="5" FontSize="11" Foreground="White"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="Upload definition" FontSize="12"
+                                           Foreground="#666666"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Publish Success Panel -->
+                    <Border IsVisible="{Binding PublishCompleted}"
+                            Background="#1040FF40"
+                            BorderBrush="#3040FF40"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="20"
+                            Margin="0,0,0,16">
+                        <StackPanel Spacing="12">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <PathIcon Data="{StaticResource CheckmarkIcon}" Width="20" Height="20" Foreground="#40FF40"/>
+                                <TextBlock Text="Published Successfully!" FontSize="16" FontWeight="Bold" Foreground="#40FF40"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Catalog URL -->
+                            <StackPanel Spacing="4" IsVisible="{Binding CatalogUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                <TextBlock Text="Catalog URL" FontSize="11" Foreground="#888888" FontWeight="SemiBold"/>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBox Text="{Binding CatalogUrl}" IsReadOnly="True" FontSize="12"
+                                             FontFamily="Consolas, Courier New, monospace"
+                                             Background="#08FFFFFF" BorderBrush="#15FFFFFF" Foreground="#CCCCCC"/>
+                                    <Button Grid.Column="1" Command="{Binding CopyCatalogUrlCommand}"
+                                            Margin="8,0,0,0" Background="Transparent" Padding="8">
+                                        <PathIcon Data="{StaticResource CopyIcon}" Width="14" Height="14" Foreground="White"/>
+                                    </Button>
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- Definition URL -->
+                            <StackPanel Spacing="4" IsVisible="{Binding ProviderDefinitionUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                <TextBlock Text="Definition URL" FontSize="11" Foreground="#888888" FontWeight="SemiBold"/>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBox Text="{Binding ProviderDefinitionUrl}" IsReadOnly="True" FontSize="12"
+                                             FontFamily="Consolas, Courier New, monospace"
+                                             Background="#08FFFFFF" BorderBrush="#15FFFFFF" Foreground="#CCCCCC"/>
+                                    <Button Grid.Column="1" Command="{Binding CopyProviderDefinitionUrlCommand}"
+                                            Margin="8,0,0,0" Background="Transparent" Padding="8">
+                                        <PathIcon Data="{StaticResource CopyIcon}" Width="14" Height="14" Foreground="White"/>
+                                    </Button>
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- Subscription URL (prominent) -->
+                            <StackPanel Spacing="4" IsVisible="{Binding SubscriptionUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                <TextBlock Text="Subscription URL (share this!)" FontSize="11" Foreground="#AA00FF" FontWeight="Bold"/>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBox Text="{Binding SubscriptionUrl}" IsReadOnly="True" FontSize="13"
+                                             FontFamily="Consolas, Courier New, monospace"
+                                             Background="#15AA00FF" BorderBrush="#30AA00FF" Foreground="White" FontWeight="Bold"/>
+                                    <Button Grid.Column="1" Command="{Binding CopySubscriptionUrlCommand}"
+                                            Margin="8,0,0,0" Background="#20AA00FF" Padding="8" CornerRadius="6">
+                                        <PathIcon Data="{StaticResource CopyIcon}" Width="14" Height="14" Foreground="#AA00FF"/>
+                                    </Button>
+                                </Grid>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Catalog Statuses (Multi-Catalog Support) -->
+                    <StackPanel IsVisible="{Binding !IsUploading}" Margin="0,0,0,16">
+                        <TextBlock Text="Catalog Status" Classes="step-label" Margin="0,0,0,8"/>
+                        <ItemsControl ItemsSource="{Binding CatalogStatuses}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="vm:CatalogPublishStatus">
+                                    <Border Background="#08FFFFFF" CornerRadius="6" Padding="12" Margin="0,0,0,8">
+                                        <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                            <!-- Status Indicator -->
+                                            <Border Width="8" Height="8" CornerRadius="4" Margin="0,0,12,0" VerticalAlignment="Center">
+                                                <Border.Background>
+                                                    <SolidColorBrush Color="{Binding StatusColor}"/>
+                                                </Border.Background>
+                                            </Border>
+
+                                            <!-- Catalog Info -->
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="{Binding Catalog.Name}" FontWeight="SemiBold" Foreground="White" FontSize="13"/>
+                                                <TextBlock Text="{Binding StatusText}" FontSize="11" Foreground="#888888"/>
+                                            </StackPanel>
+
+                                            <!-- Publish Button -->
+                                            <Button Grid.Column="2"
+                                                    Command="{Binding #RootView.((vm:PublishShareViewModel)DataContext).PublishCatalogCommand}"
+                                                    CommandParameter="{Binding Catalog}"
+                                                    Background="#15AA00FF"
+                                                    BorderBrush="#30AA00FF"
+                                                    BorderThickness="1"
+                                                    CornerRadius="6"
+                                                    Padding="12,6"
+                                                    Margin="8,0,0,0">
+                                                <TextBlock Text="Publish" FontSize="11" FontWeight="SemiBold" Foreground="#AA00FF"/>
+                                            </Button>
+
+                                            <!-- URL Copy Button (if published) -->
+                                            <Button Grid.Column="3"
+                                                    IsVisible="{Binding IsPublished}"
+                                                    Background="Transparent"
+                                                    Padding="8"
+                                                    Margin="4,0,0,0"
+                                                    ToolTip.Tip="Copy URL">
+                                                <PathIcon Data="{StaticResource CopyIcon}" Width="14" Height="14" Foreground="White"/>
+                                            </Button>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Publish All Button -->
+                        <Button Command="{Binding PublishAllCatalogsCommand}"
+                                IsEnabled="{Binding IsValid}"
+                                Background="{DynamicResource PrimaryGradientBrush}"
+                                Foreground="White"
+                                BorderThickness="0"
+                                CornerRadius="8"
+                                Padding="16,10"
+                                FontWeight="Bold"
+                                HorizontalAlignment="Stretch"
+                                Margin="0,8,0,0">
+                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                <PathIcon Data="{StaticResource PublishIcon}" Width="16" Height="16" Foreground="White"/>
+                                <TextBlock Text="Publish All Catalogs" FontSize="13"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- Artifact Statuses -->
+                    <StackPanel IsVisible="{Binding !IsUploading}">
+                        <TextBlock Text="Artifact Status" Classes="step-label" Margin="0,0,0,8"/>
+                        <ItemsControl ItemsSource="{Binding ArtifactStatuses}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#08FFFFFF" CornerRadius="6" Padding="12" Margin="0,0,0,8">
+                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                            <!-- Status Icons: Hosted (green check), Pending Upload (green check), Error (red X) -->
+                                            <Panel Margin="0,0,12,0" Width="16" Height="16">
+                                                <PathIcon Data="{StaticResource CheckmarkIcon}" Width="16" Height="16"
+                                                          Foreground="#40FF40"
+                                                          IsVisible="{Binding IsValid}"/>
+                                                <PathIcon Data="{StaticResource ErrorIcon}" Width="16" Height="16"
+                                                          Foreground="#FF5555"
+                                                          IsVisible="{Binding !IsValid}"/>
+                                            </Panel>
+
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding ArtifactName}" FontWeight="SemiBold" Foreground="White"/>
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="#8888AA"/>
+                                                    <Border IsVisible="{Binding HasLocalFile}"
+                                                            Background="#2000AAFF" CornerRadius="3" Padding="6,1"
+                                                            VerticalAlignment="Center">
+                                                        <TextBlock Text="Local File" FontSize="10" Foreground="#00AAFF"/>
+                                                    </Border>
+                                                </StackPanel>
+                                            </StackPanel>
+
+                                            <!-- URL Input (shown when no local file) -->
+                                            <TextBox Grid.Column="2" Text="{Binding DownloadUrl}" Width="280"
+                                                     Watermark="https://..." FontSize="12"
+                                                     IsVisible="{Binding !HasLocalFile}"/>
+                                            <!-- Local file path display (shown when local file exists) -->
+                                            <TextBlock Grid.Column="2" Text="{Binding LocalFilePath}" Width="280"
+                                                       FontSize="11" Foreground="#666666" TextTrimming="CharacterEllipsis"
+                                                       IsVisible="{Binding HasLocalFile}"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <!-- Helper Text -->
+                    <TextBlock Text="Publishing uploads your catalog.json to the hosting provider. Once published, your subscription URL will be available in the Share section below."
+                               FontSize="12"
+                               Foreground="#888888"
+                               Margin="0,16,0,0"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Card 3: Share -->
+            <Border Classes="step-card">
+                <StackPanel>
+                    <TextBlock Classes="step-header" Text="Share"/>
+                    <TextBlock Classes="step-subtitle" Text="Share your subscription URL with users. They can click this link or paste it into GenHub to subscribe to your content."/>
+
+                    <!-- Subscription URL -->
+                    <StackPanel Margin="0,0,0,20">
+                        <TextBlock Text="Subscription URL" Classes="step-label"/>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0"
+                                     Text="{Binding SubscriptionUrl}"
+                                     IsReadOnly="True"
+                                     Classes="readonly"
+                                     FontFamily="Consolas, Courier New, monospace"
+                                     FontSize="13"/>
+                            <Button Grid.Column="1"
+                                    Command="{Binding CopySubscriptionUrlCommand}"
+                                    Margin="12,0,0,0"
+                                    Classes="glass-btn"
+                                    Padding="12">
+                                <PathIcon Data="{StaticResource CopyIcon}" Width="16" Height="16" Foreground="White"/>
+                            </Button>
+                        </Grid>
+                        <TextBlock Text="Share this link on your website, Discord, or forums. This URL never changes, even when you update your content."
+                                   FontSize="12"
+                                   Foreground="#888888"
+                                   Margin="0,6,0,0"/>
+                    </StackPanel>
+
+                    <!-- Provider Definition Section -->
+                    <TextBlock Text="Provider Definition" Classes="step-label" Margin="0,0,0,8"/>
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                        <TextBox Grid.Column="0"
+                                 Text="{Binding ProviderDefinitionUrl}"
+                                 IsReadOnly="True"
+                                 Classes="readonly"
+                                 FontFamily="Consolas, Courier New, monospace"
+                                 FontSize="13"
+                                 Watermark="Not generated yet..."/>
+                        <Button Grid.Column="1"
+                                Command="{Binding CopyProviderDefinitionUrlCommand}"
+                                Margin="12,0,0,0"
+                                Classes="glass-btn"
+                                Padding="12">
+                            <PathIcon Data="{StaticResource CopyIcon}" Width="16" Height="16" Foreground="White"/>
+                        </Button>
+                    </Grid>
+
+                    <!-- Auto-publish note -->
+                    <TextBlock Text="The provider definition is automatically generated and uploaded when you publish."
+                               FontSize="12"
+                               Foreground="#888888"
+                               Margin="0,8,0,0"
+                               TextWrapping="Wrap"/>
+
+                    <!-- Republish Definition (manual re-upload if needed) -->
+                    <Button Command="{Binding UploadProviderDefinitionCommand}"
+                            Content="Republish Definition"
+                            Classes="glass-btn"
+                            Padding="12,8"
+                            FontSize="12"
+                            Margin="0,8,0,0"
+                            Opacity="0.7"
+                            IsVisible="{Binding ProviderDefinitionUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

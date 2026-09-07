@@ -1,14 +1,17 @@
+using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Providers;
 
 /// <summary>
-/// Represents a specific version/release of a content item.
+/// A specific version release of a content item.
+/// Contains downloadable artifacts and version-specific metadata.
 /// </summary>
 public class ContentRelease
 {
     /// <summary>
-    /// Gets or sets the semantic version string (e.g., "1.0.0", "2.1.0-beta").
+    /// Gets or sets the version string (e.g., "1.0.0", "2.1-beta").
     /// </summary>
     [JsonPropertyName("version")]
     public string Version { get; set; } = string.Empty;
@@ -32,6 +35,12 @@ public class ContentRelease
     /// </summary>
     [JsonPropertyName("isLatest")]
     public bool IsLatest { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this release should be featured/highlighted in the UI.
+    /// </summary>
+    [JsonPropertyName("isFeatured")]
+    public bool IsFeatured { get; set; }
 
     /// <summary>
     /// Gets or sets the changelog/release notes.

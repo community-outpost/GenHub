@@ -15,6 +15,8 @@
     <PackageVersion Include="Avalonia.Diagnostics" Version="11.2.7" />
     <PackageVersion Include="Avalonia.Headless.XUnit" Version="11.2.7" />
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.2.1" />
+    <PackageVersion Include="Google.Apis.Auth" Version="1.73.0" />
+    <PackageVersion Include="Google.Apis.Drive.v3" Version="1.73.0.3996" />
     <PackageVersion Include="Markdig" Version="0.44.0" />
     <PackageVersion Include="Markdown.Avalonia" Version="11.0.2" />
     <PackageVersion Include="Material.Icons.Avalonia" Version="2.4.1" />

@@ -1,0 +1,275 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels"
+             mc:Ignorable="d"
+             d:DesignWidth="900" d:DesignHeight="700"
+             x:Class="GenHub.Features.Tools.Views.PublisherStudio.PublisherProfileView"
+             x:DataType="vm:PublisherProfileViewModel">
+
+    <UserControl.Styles>
+        <!-- ==================== GLASSMORPHIC INPUT STYLES ==================== -->
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#10FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#20FFFFFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="SelectionBrush" Value="#8B5CF6"/>
+            <Setter Property="SelectionForegroundBrush" Value="White"/>
+            <Setter Property="CaretBrush" Value="White"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="TextBox:focus">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#8B5CF6"/>
+        </Style>
+
+        <Style Selector="TextBox:pointerover">
+            <Setter Property="Background" Value="#18FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#30FFFFFF"/>
+        </Style>
+
+        <!-- Validation Error Style -->
+        <Style Selector="TextBox:error /template/ Border#PART_BorderElement">
+            <Setter Property="BorderBrush" Value="#60EF4444"/>
+        </Style>
+        <Style Selector="TextBox:error:focus /template/ Border#PART_BorderElement">
+            <Setter Property="BorderBrush" Value="#EF4444"/>
+            <Setter Property="BorderThickness" Value="2"/>
+        </Style>
+
+        <!-- Label Style -->
+        <Style Selector="TextBlock.field-label">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#E5E7EB"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <Style Selector="TextBlock.field-hint">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#6B7280"/>
+            <Setter Property="Margin" Value="0,6,0,0"/>
+        </Style>
+
+        <!-- Required Indicator -->
+        <Style Selector="TextBlock.required">
+            <Setter Property="Foreground" Value="#EF4444"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <!-- Glass Panel -->
+        <Style Selector="Border.glass-card">
+            <Setter Property="Background" Value="#0CFFFFFF"/>
+            <Setter Property="BorderBrush" Value="#18FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="20"/>
+            <Setter Property="BoxShadow" Value="0 8 32 0 #30000000"/>
+        </Style>
+
+        <!-- Section Header -->
+        <Style Selector="TextBlock.section-title">
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+        <Style Selector="TextBlock.section-subtitle">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="#9CA3AF"/>
+        </Style>
+
+        <!-- Primary Button -->
+        <Style Selector="Button.primary-btn">
+            <Setter Property="Background" Value="{DynamicResource PSPrimaryGradient}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="32,14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="RenderTransform" Value="scale(1)"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.primary-btn:pointerover">
+            <Setter Property="RenderTransform" Value="scale(1.02)"/>
+        </Style>
+
+        <Style Selector="Button.primary-btn:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.98)"/>
+        </Style>
+
+        <!-- Divider -->
+        <Style Selector="Rectangle.divider">
+            <Setter Property="Height" Value="1"/>
+            <Setter Property="Fill" Value="#15FFFFFF"/>
+            <Setter Property="Margin" Value="0,8"/>
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                  VerticalScrollBarVisibility="Auto">
+        <Border Classes="glass-card"
+                Padding="48"
+                Margin="32"
+                HorizontalAlignment="Center"
+                MaxWidth="720">
+            <StackPanel Spacing="32">
+                <!-- ==================== SECTION HEADER ==================== -->
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <Border Width="48" Height="48"
+                                CornerRadius="14"
+                                Background="{DynamicResource PSPrimaryGradient}"
+                                BoxShadow="0 4 16 0 #408B5CF6">
+                            <PathIcon Data="{StaticResource PersonIcon}"
+                                      Width="24" Height="24"
+                                      Foreground="White"/>
+                        </Border>
+                        <StackPanel Spacing="4" VerticalAlignment="Center">
+                            <TextBlock Text="Publisher Identity" Classes="section-title"/>
+                            <TextBlock Text="Configure your publisher profile and branding" Classes="section-subtitle"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <Rectangle Classes="divider"/>
+
+                <!-- ==================== PUBLISHER ID ==================== -->
+                <StackPanel Spacing="10">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="Publisher ID" Classes="field-label"/>
+                        <TextBlock Text="*" Classes="required"/>
+                    </StackPanel>
+                    <TextBox Text="{Binding PublisherId, Mode=TwoWay}"
+                             Watermark="my-awesome-mods"/>
+                    <TextBlock Text="Unique identifier using lowercase letters, numbers, and hyphens" Classes="field-hint"/>
+                </StackPanel>
+
+                <!-- ==================== DISPLAY NAME ==================== -->
+                <StackPanel Spacing="10">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="Display Name" Classes="field-label"/>
+                        <TextBlock Text="*" Classes="required"/>
+                    </StackPanel>
+                    <TextBox Text="{Binding PublisherName, Mode=TwoWay}"
+                             Watermark="My Awesome Mods"/>
+                </StackPanel>
+
+                <!-- ==================== AVATAR URL WITH PREVIEW ==================== -->
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Avatar URL" Classes="field-label"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0"
+                                 Text="{Binding AvatarUrl, Mode=TwoWay}"
+                                 Watermark="https://example.com/avatar.png"/>
+                        <!-- Avatar Preview -->
+                        <Border Grid.Column="1"
+                                Margin="16,0,0,0"
+                                Width="56" Height="56"
+                                CornerRadius="28"
+                                Background="#15FFFFFF"
+                                BorderBrush="#25FFFFFF"
+                                BorderThickness="2"
+                                ClipToBounds="True"
+                                BoxShadow="0 4 16 0 #30000000">
+                            <Image Source="{Binding AvatarUrl, Converter={StaticResource StringToImageConverter}}"
+                                   Stretch="UniformToFill">
+                                <Image.Transitions>
+                                    <Transitions>
+                                        <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
+                                    </Transitions>
+                                </Image.Transitions>
+                            </Image>
+                        </Border>
+                    </Grid>
+                    <TextBlock Text="Link to your publisher avatar image (optional)" Classes="field-hint"/>
+                </StackPanel>
+
+                <Rectangle Classes="divider"/>
+
+                <!-- ==================== CONTACT SECTION ==================== -->
+                <TextBlock Text="Contact Information"
+                           FontSize="16"
+                           FontWeight="SemiBold"
+                           Foreground="#D1D5DB"/>
+
+                <!-- Website -->
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Website" Classes="field-label"/>
+                    <TextBox Text="{Binding WebsiteUrl, Mode=TwoWay}"
+                             Watermark="https://myawesomemods.com"/>
+                </StackPanel>
+
+                <!-- Support URL -->
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Support URL" Classes="field-label"/>
+                    <TextBox Text="{Binding SupportUrl, Mode=TwoWay}"
+                             Watermark="https://discord.gg/myawesomemods"/>
+                    <TextBlock Text="Discord server, forum, or help page for users" Classes="field-hint"/>
+                </StackPanel>
+
+                <!-- Contact Email -->
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Contact Email" Classes="field-label"/>
+                    <TextBox Text="{Binding ContactEmail, Mode=TwoWay}"
+                             Watermark="contact@myawesomemods.com"/>
+                </StackPanel>
+
+                <Rectangle Classes="divider"/>
+
+                <!-- ==================== ADDITIONAL INFO ==================== -->
+                <TextBlock Text="Additional Information"
+                           FontSize="16"
+                           FontWeight="SemiBold"
+                           Foreground="#D1D5DB"/>
+
+                <!-- Description -->
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Description" Classes="field-label"/>
+                    <TextBox Text="{Binding Description, Mode=TwoWay}"
+                             Watermark="Tell users about your mods and what makes them special..."
+                             AcceptsReturn="True"
+                             Height="100"
+                             TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <!-- Tags -->
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Tags" Classes="field-label"/>
+                    <TextBox Text="{Binding TagsString, Mode=TwoWay}"
+                             Watermark="mods, maps, community, total-conversion"/>
+                    <TextBlock Text="Comma-separated tags for discovery (optional)" Classes="field-hint"/>
+                </StackPanel>
+
+                <Rectangle Classes="divider"/>
+
+                <!-- ==================== SAVE BUTTON ==================== -->
+                <Button Classes="primary-btn"
+                        Command="{Binding SaveProfileCommand}"
+                        HorizontalAlignment="Right">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <PathIcon Data="{StaticResource SaveIcon}"
+                                  Width="18" Height="18"
+                                  Foreground="White"/>
+                        <TextBlock Text="Save Profile"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
+    </ScrollViewer>
+</UserControl>

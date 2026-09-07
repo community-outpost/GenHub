@@ -1,0 +1,182 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="700" d:DesignHeight="600"
+             x:Class="GenHub.Features.Tools.Views.Dialogs.WelcomeScreenView"
+             x:DataType="vm:WelcomeScreenViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="Button.welcome-btn">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="32,24"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.welcome-btn:pointerover">
+            <Setter Property="Background" Value="#25FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
+        </Style>
+
+        <Style Selector="Button.welcome-btn:pressed">
+            <Setter Property="Background" Value="#30FFFFFF"/>
+        </Style>
+
+        <Style Selector="Button.primary-welcome-btn">
+            <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="40,20"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+
+        <Style Selector="Button.primary-welcome-btn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
+            <Setter Property="Opacity" Value="0.9"/>
+        </Style>
+
+        <Style Selector="TextBlock.welcome-title">
+            <Setter Property="FontSize" Value="32"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+        </Style>
+
+        <Style Selector="TextBlock.welcome-subtitle">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="Foreground" Value="#AAAAAA"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+
+        <Style Selector="TextBlock.card-title">
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+        <Style Selector="TextBlock.card-description">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#AAAAAA"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid Background="#0A0A1A">
+        <!-- Ambient background effects -->
+        <Canvas IsHitTestVisible="False" ClipToBounds="True">
+            <Ellipse Width="600" Height="600" Canvas.Left="-150" Canvas.Top="-200">
+                <Ellipse.Fill>
+                    <RadialGradientBrush>
+                        <GradientStop Color="#208B5CF6" Offset="0"/>
+                        <GradientStop Color="#00000000" Offset="1"/>
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+            <Ellipse Width="500" Height="500" Canvas.Right="-100" Canvas.Bottom="-150">
+                <Ellipse.Fill>
+                    <RadialGradientBrush>
+                        <GradientStop Color="#153B82F6" Offset="0"/>
+                        <GradientStop Color="#00000000" Offset="1"/>
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+        </Canvas>
+
+        <!-- Main content -->
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="40" MaxWidth="600" Margin="40">
+            <!-- Header -->
+            <StackPanel Spacing="12">
+                <!-- Icon -->
+                <Viewbox Width="80" Height="80" HorizontalAlignment="Center">
+                    <PathIcon Data="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M11,16.5L6.5,12L7.91,10.59L11,13.67L16.59,8.09L18,9.5L11,16.5Z"
+                              Foreground="{DynamicResource PrimaryGradientBrush}"/>
+                </Viewbox>
+
+                <TextBlock Text="Welcome to Publisher Studio" Classes="welcome-title"/>
+                <TextBlock Classes="welcome-subtitle" MaxWidth="500">
+                    <Run Text="Create and manage your own content catalogs for GenHub."/>
+                    <LineBreak/>
+                    <Run Text="Share mods, maps, and tools with the community."/>
+                </TextBlock>
+            </StackPanel>
+
+            <!-- Action cards -->
+            <Grid ColumnDefinitions="*,16,*" MaxWidth="600">
+                <!-- Create New Profile Card -->
+                <Button Grid.Column="0" Classes="welcome-btn" Command="{Binding CreateNewProfileCommand}">
+                    <StackPanel Spacing="12">
+                        <Viewbox Width="48" Height="48">
+                            <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
+                                      Foreground="#8B5CF6"/>
+                        </Viewbox>
+                        <TextBlock Text="Create New Profile" Classes="card-title"/>
+                        <TextBlock Classes="card-description" MaxWidth="200">
+                            Start fresh with a new publisher profile and catalog
+                        </TextBlock>
+                    </StackPanel>
+                </Button>
+
+                <!-- Import Existing Profile Card -->
+                <Button Grid.Column="2" Classes="welcome-btn" Command="{Binding ImportExistingProfileCommand}">
+                    <StackPanel Spacing="12">
+                        <Viewbox Width="48" Height="48">
+                            <PathIcon Data="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M12,19L8,15H10.5V12H13.5V15H16L12,19Z"
+                                      Foreground="#3B82F6"/>
+                        </Viewbox>
+                        <TextBlock Text="Import Profile" Classes="card-title"/>
+                        <TextBlock Classes="card-description" MaxWidth="200">
+                            Load an existing publisher project from another device
+                        </TextBlock>
+                    </StackPanel>
+                </Button>
+            </Grid>
+
+            <!-- Status message -->
+            <TextBlock Text="{Binding StatusMessage}"
+                       IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                       Foreground="#F59E0B"
+                       TextAlignment="Center"
+                       FontSize="13"/>
+
+            <!-- Loading indicator -->
+            <ProgressBar IsIndeterminate="True"
+                         IsVisible="{Binding IsLoading}"
+                         Height="4"
+                         Foreground="{DynamicResource PrimaryGradientBrush}"
+                         Background="#15FFFFFF"
+                         CornerRadius="2"/>
+
+            <!-- Skip link -->
+            <Button Content="Skip for now"
+                    Command="{Binding SkipCommand}"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Foreground="#888888"
+                    FontSize="12"
+                    HorizontalAlignment="Center"
+                    Cursor="Hand">
+                <Button.Styles>
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Foreground" Value="#AAAAAA"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </StackPanel>
+    </Grid>
+</UserControl>
