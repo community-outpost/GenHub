@@ -291,9 +291,23 @@ public class ManifestGenerationServiceTests : IDisposable
         var installationPath = Path.Combine(_tempDirectory, "GeneralsAuthoritative");
         Directory.CreateDirectory(installationPath);
 
-        await File.WriteAllTextAsync(Path.Combine(installationPath, "generals.exe"), "executable binary");
-        await File.WriteAllTextAsync(Path.Combine(installationPath, "binkw32.dll"), "bink dll");
-        await File.WriteAllTextAsync(Path.Combine(installationPath, "Audio.big"), "audio archive");
+        var exePath = Path.Combine(installationPath, "generals.exe");
+        using (var fs = new FileStream(exePath, System.IO.FileMode.Create, FileAccess.Write))
+        {
+            fs.SetLength(57392);
+        }
+
+        var dllPath = Path.Combine(installationPath, "binkw32.dll");
+        using (var fs = new FileStream(dllPath, System.IO.FileMode.Create, FileAccess.Write))
+        {
+            fs.SetLength(358963);
+        }
+
+        var audioPath = Path.Combine(installationPath, "Audio.big");
+        using (var fs = new FileStream(audioPath, System.IO.FileMode.Create, FileAccess.Write))
+        {
+            fs.SetLength(127940044);
+        }
 
         // Act
         var builder = await _service.CreateGameInstallationManifestAsync(
@@ -312,6 +326,33 @@ public class ManifestGenerationServiceTests : IDisposable
         Assert.NotNull(dllFile);
         Assert.False(dllFile.IsExecutable);
         Assert.Equal("892a51c4056efcb22297a3b44a3491e3f5888f28b08ed1b17030f24acffedb44", dllFile.Hash);
+    }
+
+    /// <summary>
+    /// Tests that when a local file size differs from the catalog size, the locally computed hash and size are attached.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_Authoritative_SizeDiscrepancy_AttachesLocallyComputedHashAndSizeAsync()
+    {
+        // Arrange
+        var installationPath = Path.Combine(_tempDirectory, "SizeDiscrepancyInstall");
+        Directory.CreateDirectory(installationPath);
+
+        // generals.exe in catalog is 57392 bytes, but here we write 12 bytes
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "generals.exe"), "modified exe");
+
+        // Act
+        var builder = await _service.CreateGameInstallationManifestAsync(
+            installationPath, GameType.Generals, GameInstallationType.Steam, "1.08", "EN");
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        var exeFile = manifest.Files.FirstOrDefault(f => f.RelativePath == "generals.exe");
+        Assert.NotNull(exeFile);
+        Assert.Equal("hash_generals.exe", exeFile.Hash);
+        Assert.Equal(12, exeFile.Size);
     }
 
     /// <summary>
