@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -16,7 +17,8 @@ namespace GenHub.Infrastructure.Logging;
 /// </summary>
 public sealed class ResilientFileSink : ILogEventSink, IDisposable
 {
-    private static readonly object FileLock = new();
+    private static readonly ConcurrentDictionary<string, object> PathLocks = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object _fileLock;
     private readonly string _filePath;
     private readonly ITextFormatter _formatter;
     private readonly Encoding _encoding;
@@ -36,6 +38,7 @@ public sealed class ResilientFileSink : ILogEventSink, IDisposable
         Encoding? encoding = null)
     {
         _filePath = filePath ?? throw new ArgumentNullException(nameof(filePath));
+        _fileLock = PathLocks.GetOrAdd(Path.GetFullPath(_filePath), _ => new object());
         _formatter = new MessageTemplateTextFormatter(outputTemplate, formatProvider);
         _encoding = encoding ?? new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
@@ -50,12 +53,12 @@ public sealed class ResilientFileSink : ILogEventSink, IDisposable
             return;
         }
 
-        lock (FileLock)
+        const int maxRetries = 3;
+        for (var attempt = 1; attempt <= maxRetries; attempt++)
         {
-            const int maxRetries = 3;
-            for (var attempt = 1; attempt <= maxRetries; attempt++)
+            try
             {
-                try
+                lock (_fileLock)
                 {
                     EnsureDirectoryExists();
 
@@ -68,21 +71,22 @@ public sealed class ResilientFileSink : ILogEventSink, IDisposable
                     using var writer = new StreamWriter(stream, _encoding);
                     _formatter.Format(logEvent, writer);
                     writer.Flush();
-                    break;
                 }
-                catch (IOException) when (attempt < maxRetries)
-                {
-                    Thread.Sleep(10);
-                }
-                catch (UnauthorizedAccessException) when (attempt < maxRetries)
-                {
-                    Thread.Sleep(10);
-                }
-                catch
-                {
-                    // Prevent logging exceptions from bubbling up to caller
-                    break;
-                }
+
+                break;
+            }
+            catch (IOException) when (attempt < maxRetries)
+            {
+                Thread.Sleep(5);
+            }
+            catch (UnauthorizedAccessException) when (attempt < maxRetries)
+            {
+                Thread.Sleep(5);
+            }
+            catch
+            {
+                // Prevent logging exceptions from bubbling up to caller
+                break;
             }
         }
     }

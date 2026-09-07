@@ -449,12 +449,18 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         try
         {
+            var fileInfo = new FileInfo(file);
+            if (!fileInfo.Exists)
+            {
+                return (true, false, 0);
+            }
+
             var fileName = Path.GetFileName(file);
-            var length = new FileInfo(file).Length;
+            var length = fileInfo.Length;
 
             var isActiveLog = string.Equals(fileName, activeLogFileName, StringComparison.OrdinalIgnoreCase) ||
                               string.Equals(fileName, todayUtcLogFileName, StringComparison.OrdinalIgnoreCase) ||
-                              string.Equals(Path.GetFullPath(file), Path.GetFullPath(activeLogPath), StringComparison.OrdinalIgnoreCase);
+                              (!string.IsNullOrWhiteSpace(activeLogPath) && string.Equals(Path.GetFullPath(file), Path.GetFullPath(activeLogPath), StringComparison.OrdinalIgnoreCase));
 
             if (isActiveLog)
             {
@@ -466,6 +472,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
 
             return (true, false, length);
+        }
+        catch (FileNotFoundException)
+        {
+            return (true, false, 0);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return (true, false, 0);
         }
         catch (IOException ex)
         {
@@ -1904,6 +1918,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             var logsPath = _configurationProvider.GetLogsPath();
+            if (string.IsNullOrWhiteSpace(logsPath) || !Directory.Exists(logsPath))
+            {
+                var activeLogDir = Path.GetDirectoryName(LoggingModule.ActiveLogFilePath);
+                if (!string.IsNullOrWhiteSpace(activeLogDir) && Directory.Exists(activeLogDir))
+                {
+                    logsPath = activeLogDir;
+                }
+            }
+
             _logger.LogInformation("Clearing logs from: {Path}", logsPath);
 
             if (string.IsNullOrWhiteSpace(logsPath) || !Directory.Exists(logsPath))
@@ -1926,8 +1949,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 var freedMb = freedBytes / (1024.0 * 1024.0);
                 var sizeText = freedMb >= 0.1 ? $" ({freedMb:F1} MB freed)" : string.Empty;
-                _notificationService.ShowSuccess("Logs Cleared", $"Successfully cleared {deletedCount} log file(s){sizeText}.", 3000);
-                _logger.LogInformation("Cleared {Count} log files ({Bytes} bytes freed)", deletedCount, freedBytes);
+                var skippedText = lockedCount > 0 ? $", {lockedCount} file(s) skipped (in use)" : string.Empty;
+                _notificationService.ShowSuccess("Logs Cleared", $"Successfully cleared {deletedCount} log file(s){sizeText}{skippedText}.", 3000);
+                _logger.LogInformation("Cleared {Count} log files ({Bytes} bytes freed, {Locked} locked)", deletedCount, freedBytes, lockedCount);
             }
         }
         catch (Exception ex)
