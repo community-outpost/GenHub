@@ -1336,8 +1336,11 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             else
             {
                 // Raw uncompressed copy
-                var rRaw = stream.Read(copyBuffer, 0, copyBuffer.Length);
-                outStream.Write(copyBuffer, 0, rRaw);
+                var rRaw = 0;
+                while ((rRaw = stream.Read(copyBuffer, 0, copyBuffer.Length)) > 0)
+                {
+                    outStream.Write(copyBuffer, 0, rRaw);
+                }
             }
 
             outStream.Flush();
@@ -2136,6 +2139,11 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     }
 
                     var bigFile = Path.ChangeExtension(inactiveFile, GenLauncherConstants.BigExtension);
+                    if (string.Equals(inactiveFile, bigFile, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
                     if (File.Exists(bigFile))
                     {
                         if (FilesHaveIdenticalContent(inactiveFile, bigFile))

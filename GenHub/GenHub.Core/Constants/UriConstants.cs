@@ -24,6 +24,11 @@ public static class UriConstants
     public const string HttpsUriScheme = "https://";
 
     /// <summary>
+    /// Base watch URL prefix for YouTube videos.
+    /// </summary>
+    public const string YouTubeWatchUrlPrefix = "https://www.youtube.com/watch?v=";
+
+    /// <summary>
     /// Icon URI for Generals game type.
     /// </summary>
     public const string GeneralsIconUri = "avares://GenHub/Assets/Icons/generals-icon.png";

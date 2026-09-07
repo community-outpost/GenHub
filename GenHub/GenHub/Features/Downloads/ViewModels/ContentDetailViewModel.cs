@@ -488,10 +488,10 @@ public partial class ContentDetailViewModel(
         $"file:{file.DownloadUrl ?? file.Name}";
 
     private static bool IsModDbContent(ContentSearchResult content) =>
-        string.Equals(content.ProviderName, "ModDB", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(content.ProviderName, PublisherInfoConstants.ModDB.Name, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(content.ProviderName, ModDBConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
         (!string.IsNullOrEmpty(content.SourceUrl) &&
-         content.SourceUrl.Contains("moddb.com", StringComparison.OrdinalIgnoreCase));
+         content.SourceUrl.Contains(ModDBConstants.Domain, StringComparison.OrdinalIgnoreCase));
 
     private static List<Comment> FlattenComments(IEnumerable<Comment> comments)
     {
@@ -553,7 +553,7 @@ public partial class ContentDetailViewModel(
         {
             manifest.Dependencies.Add(new ContentDependency
             {
-                Id = ManifestId.Create("1.104.any.gameinstallation.zerohour"),
+                Id = ManifestId.Create(ManifestConstants.ZeroHourFoundationDependencyId),
                 Name = "Zero Hour Installation",
                 DependencyType = ContentType.GameInstallation,
                 InstallBehavior = DependencyInstallBehavior.RequireExisting,
@@ -564,7 +564,7 @@ public partial class ContentDetailViewModel(
         {
             manifest.Dependencies.Add(new ContentDependency
             {
-                Id = ManifestId.Create("1.108.any.gameinstallation.generals"),
+                Id = ManifestId.Create(ManifestConstants.GeneralsFoundationDependencyId),
                 Name = "Generals Installation",
                 DependencyType = ContentType.GameInstallation,
                 InstallBehavior = DependencyInstallBehavior.RequireExisting,
@@ -578,7 +578,7 @@ public partial class ContentDetailViewModel(
         if (providerName.Equals(PublisherInfoConstants.TheSuperHackers.Name, StringComparison.OrdinalIgnoreCase) ||
             providerName.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
         {
-            return (PublisherInfoConstants.TheSuperHackers.Name, "https://github.com/thesuperhackers", "https://github.com/thesuperhackers/GeneralsGameCode/issues");
+            return (PublisherInfoConstants.TheSuperHackers.Name, PublisherInfoConstants.TheSuperHackers.Website, PublisherInfoConstants.TheSuperHackers.SupportUrl);
         }
 
         if (providerName.Equals(PublisherInfoConstants.GeneralsOnline.Name, StringComparison.OrdinalIgnoreCase) ||
@@ -588,9 +588,9 @@ public partial class ContentDetailViewModel(
         }
 
         if (providerName.Equals(PublisherInfoConstants.CommunityOutpost.Name, StringComparison.OrdinalIgnoreCase) ||
-            providerName.Equals("community-outpost", StringComparison.OrdinalIgnoreCase))
+            providerName.Equals(CommunityOutpostConstants.PublisherId, StringComparison.OrdinalIgnoreCase))
         {
-            return (PublisherInfoConstants.CommunityOutpost.Name, "https://legi.cc", "https://legi.cc/patch");
+            return (PublisherInfoConstants.CommunityOutpost.Name, PublisherInfoConstants.CommunityOutpost.Website, PublisherInfoConstants.CommunityOutpost.SupportUrl);
         }
 
         if (providerName.Equals(PublisherInfoConstants.ModDB.Name, StringComparison.OrdinalIgnoreCase))
@@ -1847,7 +1847,7 @@ public partial class ContentDetailViewModel(
 
         if (HasBundleComponents || searchResult.ContentType == ContentType.ContentBundle)
         {
-            releaseItem.DownloadCommand = new AsyncRelayCommand(() => DownloadBundleComponentsAsync(CancellationToken.None));
+            releaseItem.DownloadCommand = new AsyncRelayCommand(() => DownloadBundleComponentsAsync(_cts.Token));
             releaseItem.AddToProfileCommand = new AsyncRelayCommand(() => AddToProfileAsync());
             releaseItem.IsDownloaded = AreBundleComponentsReadyForProfile;
         }
@@ -2537,6 +2537,16 @@ public partial class ContentDetailViewModel(
             OnPropertyChanged(nameof(ShowDownloadButton));
             OnPropertyChanged(nameof(ShowAddToProfileButton));
         }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogInformation(ex, "Bundle download cancelled");
+            DownloadStatusMessage = "Download cancelled";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Bundle download failed");
+            DownloadStatusMessage = "Download failed";
+        }
         finally
         {
             IsDownloading = false;
@@ -2983,7 +2993,7 @@ public partial class ContentDetailViewModel(
                         var id = embedParts[1].Split('?')[0];
                         if (!string.IsNullOrWhiteSpace(id))
                         {
-                            targetUrl = $"https://www.youtube.com/watch?v={id}";
+                            targetUrl = $"{UriConstants.YouTubeWatchUrlPrefix}{id}";
                         }
                     }
                 }
@@ -4026,11 +4036,18 @@ public partial class ContentDetailViewModel(
             return;
         }
 
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            logger.LogWarning("Refusing to open non-http/https URL in browser: {Url}", url);
+            return;
+        }
+
         try
         {
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
             {
-                FileName = url,
+                FileName = uri.AbsoluteUri,
                 UseShellExecute = true,
             });
         }

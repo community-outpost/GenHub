@@ -145,10 +145,10 @@ public static class PublisherInfoConstants
         public const string Name = "TheSuperHackers";
 
         /// <summary>Website URL for TheSuperHackers.</summary>
-        public const string Website = ""; // TODO: Add website
+        public const string Website = "https://github.com/thesuperhackers";
 
         /// <summary>Support URL for TheSuperHackers.</summary>
-        public const string SupportUrl = "";
+        public const string SupportUrl = "https://github.com/thesuperhackers/GeneralsGameCode/issues";
 
         /// <summary>Logo source for TheSuperHackers.</summary>
         public const string LogoSource = "avares://GenHub/Assets/Logos/thesuperhackers-logo.png";
@@ -163,10 +163,10 @@ public static class PublisherInfoConstants
         public const string Name = "CommunityOutpost";
 
         /// <summary>Website URL for Community Outpost.</summary>
-        public const string Website = ""; // TODO: Add website
+        public const string Website = "https://legi.cc";
 
         /// <summary>Support URL for Community Outpost.</summary>
-        public const string SupportUrl = "";
+        public const string SupportUrl = "https://legi.cc/patch";
 
         /// <summary>Logo source for Community Outpost.</summary>
         public const string LogoSource = "avares://GenHub/Assets/Logos/communityoutpost-logo.png";
