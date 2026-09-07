@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
@@ -39,6 +40,8 @@ public sealed class ReplayDirectoryServiceTests
     private readonly Mock<IServiceScopeFactory> _mockScopeFactory = new();
     private readonly Mock<IServiceScope> _mockScope = new();
     private readonly Mock<IServiceProvider> _mockServiceProvider = new();
+    private readonly Mock<IDependencyResolver> _mockDependencyResolver = new();
+    private readonly Mock<IConfigurationProviderService> _mockConfigurationProvider = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ReplayDirectoryServiceTests"/> class.
@@ -56,6 +59,10 @@ public sealed class ReplayDirectoryServiceTests
             .Returns(_mockInstallationService.Object);
         _mockServiceProvider.Setup(sp => sp.GetService(typeof(IProfileLauncherFacade)))
             .Returns(_mockLauncherFacade.Object);
+        _mockServiceProvider.Setup(sp => sp.GetService(typeof(IDependencyResolver)))
+            .Returns(_mockDependencyResolver.Object);
+        _mockServiceProvider.Setup(sp => sp.GetService(typeof(IConfigurationProviderService)))
+            .Returns(_mockConfigurationProvider.Object);
 
         _mockInstallationService
             .Setup(s => s.CreateAndRegisterInstallationManifestsAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
@@ -1301,5 +1308,256 @@ public sealed class ReplayDirectoryServiceTests
 
         Assert.False(result.Success);
         Assert.Contains("already running", result.FirstError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies that CreateProfileForReplayAsync resolves client dependencies and uses the preferred workspace strategy.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateProfileForReplayAsync_WhenClientHasDependencies_ResolvesAndIncludesDependenciesInProfileAsync()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "MatchGO60.rep",
+            FullPath = "/replays/MatchGO60.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0x6DBF4405,
+                IniCrc = 0x51ACED23,
+            },
+            MatchedClient = new CrcMappingEntry
+            {
+                ExeCrc = "0x6DBF4405",
+                IniCrc = "0x51ACED23",
+                ManifestId = "1.828261.generalsonline.gameclient.60hz",
+                Publisher = "generalsonline",
+                GameType = "ZeroHour",
+                Version = "082826",
+                Description = "GeneralsOnline 60Hz",
+            },
+        };
+
+        var installation = new GameInstallation("/steam/zh", GameInstallationType.Steam)
+        {
+            Id = "steam-zh-1",
+            HasZeroHour = true,
+            ZeroHourPath = "/steam/zh",
+        };
+
+        _mockInstallationService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+
+        _mockProfileManager
+            .Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        _mockConfigurationProvider
+            .Setup(c => c.GetDefaultWorkspaceStrategy())
+            .Returns(WorkspaceStrategy.SymlinkOnly);
+
+        var mapPackDependency = new ContentDependency
+        {
+            Id = ManifestId.Create("1.828261.generalsonline.mappack.quickmatch-maps"),
+            DependencyType = GenHub.Core.Models.Enums.ContentType.MapPack,
+            PublisherType = "generalsonline",
+        };
+
+        var clientManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.828261.generalsonline.gameclient.60hz"),
+            Name = "GeneralsOnline 60Hz",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "generalsonline" },
+            Dependencies = [mapPackDependency],
+        };
+
+        var mapPackManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.828261.generalsonline.mappack.quickmatch-maps"),
+            Name = "GeneralsOnline QuickMatch Maps",
+            ContentType = GenHub.Core.Models.Enums.ContentType.MapPack,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "generalsonline" },
+        };
+
+        _mockManifestPool
+            .Setup(m => m.GetManifestAsync(ManifestId.Create("1.828261.generalsonline.gameclient.60hz"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(clientManifest));
+
+        _mockManifestPool
+            .Setup(m => m.GetManifestAsync(ManifestId.Create("1.828261.generalsonline.mappack.quickmatch-maps"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(mapPackManifest));
+
+        _mockManifestPool
+            .Setup(m => m.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([clientManifest]));
+
+        _mockDependencyResolver
+            .Setup(d => d.ResolveDependenciesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) => new HashSet<string>(ids));
+
+        CreateProfileRequest? capturedRequest = null;
+        _mockProfileManager
+            .Setup(p => p.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<CreateProfileRequest, CancellationToken>((req, _) => capturedRequest = req)
+            .ReturnsAsync((CreateProfileRequest req, CancellationToken _) =>
+                ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "go-dep-profile", Name = req.Name }));
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var result = await service.CreateProfileForReplayAsync(replay);
+
+        Assert.True(result.Success, result.FirstError ?? "Profile creation failed");
+        Assert.NotNull(capturedRequest);
+        Assert.Equal(WorkspaceStrategy.SymlinkOnly, capturedRequest.WorkspaceStrategy);
+        Assert.True(capturedRequest.UseSteamLaunch);
+        Assert.NotNull(capturedRequest.EnabledContentIds);
+        Assert.Contains("1.828261.generalsonline.mappack.quickmatch-maps", capturedRequest.EnabledContentIds);
+    }
+
+    /// <summary>
+    /// Verifies that LaunchReplayAsync reconciles UseSteamLaunch and missing dependencies on an existing profile before launching.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LaunchReplayAsync_WhenExistingProfileMissingSteamLaunchOrDependencies_ReconcilesProfileBeforeLaunchAsync()
+    {
+        var existingProfileId = "1878b44e26d04d17a29b6c09dcbc0d69";
+        var replay = new ReplayFile
+        {
+            FileName = "MatchGO_Existing.rep",
+            FullPath = "/replays/MatchGO_Existing.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            MatchingProfileId = existingProfileId,
+            MatchedClient = new CrcMappingEntry
+            {
+                ExeCrc = "0x6DBF4405",
+                IniCrc = "0x51ACED23",
+                ManifestId = "1.828261.generalsonline.gameclient.60hz",
+                Publisher = "generalsonline",
+                GameType = "ZeroHour",
+            },
+        };
+
+        var installation = new GameInstallation("/steam/zh", GameInstallationType.Steam)
+        {
+            Id = "steam-inst-1",
+            HasZeroHour = true,
+            ZeroHourPath = "/steam/zh",
+        };
+
+        _mockInstallationService
+            .Setup(s => s.GetInstallationAsync("steam-inst-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(installation));
+
+        var existingProfile = new GameProfile
+        {
+            Id = existingProfileId,
+            Name = "GeneralsOnline 60Hz (Replay: MatchGO_Existing)",
+            GameInstallationId = "steam-inst-1",
+            UseSteamLaunch = false, // Problem: false on Steam!
+            GameClient = new GameClient
+            {
+                Id = "1.828261.generalsonline.gameclient.60hz",
+                Name = "GeneralsOnline 60Hz",
+                GameType = GameType.ZeroHour,
+                PublisherType = "generalsonline",
+            },
+
+            // Problem: missing MapPack dependency!
+            EnabledContentIds = ["1.104.steam.gameinstallation.zerohour", "1.828261.generalsonline.gameclient.60hz"],
+        };
+
+        _mockProfileManager
+            .Setup(p => p.GetProfileAsync(existingProfileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+
+        var mapPackDependency = new ContentDependency
+        {
+            Id = ManifestId.Create("1.828261.generalsonline.mappack.quickmatch-maps"),
+            DependencyType = GenHub.Core.Models.Enums.ContentType.MapPack,
+            PublisherType = "generalsonline",
+        };
+
+        var clientManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.828261.generalsonline.gameclient.60hz"),
+            Name = "GeneralsOnline 60Hz",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "generalsonline" },
+            Dependencies = [mapPackDependency],
+        };
+
+        var mapPackManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.828261.generalsonline.mappack.quickmatch-maps"),
+            Name = "GeneralsOnline QuickMatch Maps",
+            ContentType = GenHub.Core.Models.Enums.ContentType.MapPack,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "generalsonline" },
+        };
+
+        _mockManifestPool
+            .Setup(m => m.GetManifestAsync(ManifestId.Create("1.828261.generalsonline.gameclient.60hz"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(clientManifest));
+
+        _mockManifestPool
+            .Setup(m => m.GetManifestAsync(ManifestId.Create("1.828261.generalsonline.mappack.quickmatch-maps"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(mapPackManifest));
+
+        _mockManifestPool
+            .Setup(m => m.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([clientManifest]));
+
+        _mockDependencyResolver
+            .Setup(d => d.ResolveDependenciesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) => new HashSet<string>(ids));
+
+        UpdateProfileRequest? capturedUpdate = null;
+        _mockProfileManager
+            .Setup(p => p.UpdateProfileAsync(existingProfileId, It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<string, UpdateProfileRequest, CancellationToken>((_, req, _) => capturedUpdate = req)
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+
+        _mockLauncherFacade
+            .Setup(l => l.LaunchProfileAsync(existingProfileId, false, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
+            {
+                LaunchId = "launch-test-1",
+                ProfileId = existingProfileId,
+                WorkspaceId = "ws-test-1",
+                ProcessInfo = new GameProcessInfo
+                {
+                    ProcessId = 12345,
+                    ExecutablePath = "/steam/zh/generals.exe",
+                },
+            }));
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var result = await service.LaunchReplayAsync(replay);
+
+        Assert.True(result.Success);
+        Assert.NotNull(capturedUpdate);
+        Assert.True(capturedUpdate.UseSteamLaunch);
+        Assert.NotNull(capturedUpdate.EnabledContentIds);
+        Assert.Contains("1.828261.generalsonline.mappack.quickmatch-maps", capturedUpdate.EnabledContentIds);
     }
 }
