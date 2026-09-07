@@ -616,33 +616,88 @@ public class ManifestGenerationService(
     }
 
     /// <summary>
-    /// Finds a file in the installation directory using case-insensitive path resolution.
-    /// Rejects paths containing symbolic links or reparse points to prevent path traversal.
+    /// Validates that a relative path stays within the base installation directory and returns its exact path.
     /// </summary>
-    private static string? FindFileCaseInsensitive(string installationPath, string relativePath)
+    private static string? GetSafeExactPath(string installationPath, string relativePath)
     {
         if (string.IsNullOrWhiteSpace(relativePath) || Path.IsPathRooted(relativePath))
         {
             return null;
         }
 
-        // Prevent directory traversal
         var normalizedRelative = relativePath.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
-        if (normalizedRelative.Contains(".." + Path.DirectorySeparatorChar) || normalizedRelative.StartsWith("..", StringComparison.Ordinal))
+        if (normalizedRelative.Contains(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+            normalizedRelative.StartsWith("..", StringComparison.Ordinal))
         {
             return null;
         }
 
         var fullInstallationPath = Path.GetFullPath(installationPath);
-        var exactPath = Path.GetFullPath(Path.Combine(fullInstallationPath, normalizedRelative));
+        var candidatePath = Path.GetFullPath(Path.Combine(fullInstallationPath, normalizedRelative));
 
-        // Ensure target is strictly within the installation directory
         var rootWithSeparator = Path.TrimEndingDirectorySeparator(fullInstallationPath) + Path.DirectorySeparatorChar;
-        if (!exactPath.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase))
+        if (!candidatePath.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
 
+        return candidatePath;
+    }
+
+    /// <summary>
+    /// Resolves a single directory child segment case-insensitively while skipping reparse points.
+    /// </summary>
+    private static string? ResolveChildDirectory(string currentDir, string segment, EnumerationOptions options)
+    {
+        if (segment == "." || segment == "..")
+        {
+            return null;
+        }
+
+        try
+        {
+            var match = Directory.EnumerateDirectories(currentDir, "*", options)
+                .FirstOrDefault(d => string.Equals(Path.GetFileName(d), segment, StringComparison.OrdinalIgnoreCase));
+
+            return (match != null && !IsReparsePoint(match)) ? match : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Resolves a file child segment case-insensitively while skipping reparse points.
+    /// </summary>
+    private static string? ResolveChildFile(string currentDir, string fileName, EnumerationOptions options)
+    {
+        try
+        {
+            var match = Directory.EnumerateFiles(currentDir, "*", options)
+                .FirstOrDefault(f => string.Equals(Path.GetFileName(f), fileName, StringComparison.OrdinalIgnoreCase));
+
+            return (match != null && !IsReparsePoint(match)) ? match : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Finds a file in the installation directory using case-insensitive path resolution.
+    /// Rejects paths containing symbolic links or reparse points to prevent path traversal.
+    /// </summary>
+    private static string? FindFileCaseInsensitive(string installationPath, string relativePath)
+    {
+        var exactPath = GetSafeExactPath(installationPath, relativePath);
+        if (exactPath == null)
+        {
+            return null;
+        }
+
+        var fullInstallationPath = Path.GetFullPath(installationPath);
         if (File.Exists(exactPath))
         {
             return HasReparsePointInPath(fullInstallationPath, exactPath) ? null : exactPath;
@@ -665,29 +720,13 @@ public class ManifestGenerationService(
                 return null;
             }
 
-            var segment = segments[i];
-            if (segment == "." || segment == "..")
+            var nextDir = ResolveChildDirectory(currentDir, segments[i], enumOptions);
+            if (nextDir == null)
             {
                 return null;
             }
 
-            string? matchingDir = null;
-            try
-            {
-                matchingDir = Directory.EnumerateDirectories(currentDir, "*", enumOptions)
-                    .FirstOrDefault(d => string.Equals(Path.GetFileName(d), segment, StringComparison.OrdinalIgnoreCase));
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                return null;
-            }
-
-            if (matchingDir == null || IsReparsePoint(matchingDir))
-            {
-                return null;
-            }
-
-            currentDir = matchingDir;
+            currentDir = nextDir;
         }
 
         if (!Directory.Exists(currentDir) || IsReparsePoint(currentDir))
@@ -695,23 +734,7 @@ public class ManifestGenerationService(
             return null;
         }
 
-        var targetFileName = segments[^1];
-        try
-        {
-            var matchingFile = Directory.EnumerateFiles(currentDir, "*", enumOptions)
-                .FirstOrDefault(f => string.Equals(Path.GetFileName(f), targetFileName, StringComparison.OrdinalIgnoreCase));
-
-            if (matchingFile != null && !IsReparsePoint(matchingFile))
-            {
-                return matchingFile;
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return null;
-        }
-
-        return null;
+        return ResolveChildFile(currentDir, segments[^1], enumOptions);
     }
 
     /// <summary>
