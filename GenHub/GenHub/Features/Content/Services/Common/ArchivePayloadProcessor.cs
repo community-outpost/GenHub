@@ -1338,7 +1338,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 // Raw uncompressed copy fallback. Modern Smart Install Maker entries are compressed (ZLib/BZip2);
                 // uncompressed payloads only occur as a terminal stream reading to EOF or where no further recognizable
                 // compression headers exist.
-                var rRaw = 0;
+                int rRaw;
                 while ((rRaw = stream.Read(copyBuffer, 0, copyBuffer.Length)) > 0)
                 {
                     outStream.Write(copyBuffer, 0, rRaw);

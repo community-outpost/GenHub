@@ -588,6 +588,7 @@ public partial class ContentDetailViewModel(
         }
 
         if (providerName.Equals(PublisherInfoConstants.CommunityOutpost.Name, StringComparison.OrdinalIgnoreCase) ||
+            providerName.Equals(PublisherTypeConstants.CommunityOutpost, StringComparison.OrdinalIgnoreCase) ||
             providerName.Equals(CommunityOutpostConstants.PublisherId, StringComparison.OrdinalIgnoreCase))
         {
             return (PublisherInfoConstants.CommunityOutpost.Name, PublisherInfoConstants.CommunityOutpost.Website, PublisherInfoConstants.CommunityOutpost.SupportUrl);
@@ -1847,7 +1848,7 @@ public partial class ContentDetailViewModel(
 
         if (HasBundleComponents || searchResult.ContentType == ContentType.ContentBundle)
         {
-            releaseItem.DownloadCommand = new AsyncRelayCommand(() => DownloadBundleComponentsAsync(_cts.Token));
+            releaseItem.DownloadCommand = new AsyncRelayCommand(ct => DownloadBundleComponentsAsync(ct));
             releaseItem.AddToProfileCommand = new AsyncRelayCommand(() => AddToProfileAsync());
             releaseItem.IsDownloaded = AreBundleComponentsReadyForProfile;
         }
@@ -2537,15 +2538,15 @@ public partial class ContentDetailViewModel(
             OnPropertyChanged(nameof(ShowDownloadButton));
             OnPropertyChanged(nameof(ShowAddToProfileButton));
         }
-        catch (OperationCanceledException ex) when (_cts.IsCancellationRequested)
+        catch (OperationCanceledException ex)
         {
             logger.LogInformation(ex, "Bundle download cancelled");
             DownloadStatusMessage = "Download cancelled";
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Bundle download failed");
-            DownloadStatusMessage = "Download failed";
+            logger.LogError(ex, "Error downloading bundle components");
+            DownloadStatusMessage = $"Error: {ex.Message}";
         }
         finally
         {

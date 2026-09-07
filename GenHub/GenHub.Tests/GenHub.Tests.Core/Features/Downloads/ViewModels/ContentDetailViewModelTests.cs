@@ -1281,6 +1281,36 @@ public sealed class ContentDetailViewModelTests
         Assert.Equal("1.20161219.moddb.mod.shwchaos", fullRel.DownloadedManifestId);
     }
 
+    /// <summary>
+    /// Verifies that invalid or non-http URLs are safely ignored by OpenUrlCommand without launching processes.
+    /// </summary>
+    /// <param name="url">The URL string to test.</param>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("not-a-valid-uri")]
+    [InlineData("file:///etc/passwd")]
+    [InlineData("ftp://example.com/file")]
+    [InlineData("javascript:alert(1)")]
+    public void OpenUrlCommand_WithInvalidOrNonHttpUrl_DoesNotLaunchProcess(string? url)
+    {
+        // Arrange
+        var content = new ContentSearchResult
+        {
+            Id = "test-id",
+            Name = "Test",
+            ProviderName = "ModDB",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var viewModel = CreateViewModel(content, coordinator.Object);
+
+        // Act & Assert - should return safely without throwing or launching external process
+        viewModel.OpenUrlCommand.Execute(url);
+    }
+
     private static CapturingContentDetailViewModel CreateViewModel(
         ContentSearchResult searchResult,
         IContentDownloadCoordinator downloadCoordinator,

@@ -439,7 +439,7 @@ public partial class ModDBManifestFactory(
         {
             // Type-only constraint: any platform's ZH installation satisfies this.
             builder.AddDependency(
-                id: ManifestId.Create("1.104.any.gameinstallation.zerohour"),
+                id: ManifestId.Create(ManifestConstants.ZeroHourFoundationDependencyId),
                 name: "Zero Hour Installation",
                 dependencyType: ContentType.GameInstallation,
                 installBehavior: DependencyInstallBehavior.RequireExisting,
@@ -449,7 +449,7 @@ public partial class ModDBManifestFactory(
         {
             // Type-only constraint: any platform's Generals installation satisfies this.
             builder.AddDependency(
-                id: ManifestId.Create("1.108.any.gameinstallation.generals"),
+                id: ManifestId.Create(ManifestConstants.GeneralsFoundationDependencyId),
                 name: "Generals Installation",
                 dependencyType: ContentType.GameInstallation,
                 installBehavior: DependencyInstallBehavior.RequireExisting,
