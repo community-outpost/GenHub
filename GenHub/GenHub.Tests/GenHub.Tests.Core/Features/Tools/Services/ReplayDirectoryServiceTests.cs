@@ -67,6 +67,10 @@ public sealed class ReplayDirectoryServiceTests
         _mockManifestPool
             .Setup(m => m.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(null));
+
+        _mockLauncherFacade
+            .Setup(l => l.GetLaunchStatusAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProcessInfo>.CreateSuccess(new GameProcessInfo { IsRunning = false }));
     }
 
     /// <summary>
@@ -1066,7 +1070,7 @@ public sealed class ReplayDirectoryServiceTests
             Name = "GeneralsOnline 060526 Profile",
             GameClient = new GameClient
             {
-                Id = "1.605260.generalsonline.gameclient.zerohour",
+                Id = "1.60526.generalsonline.gameclient.zerohour",
                 Name = "GeneralsOnline 060526",
                 Version = "060526",
                 GameType = GameType.ZeroHour,
@@ -1075,7 +1079,7 @@ public sealed class ReplayDirectoryServiceTests
             EnabledContentIds =
             [
                 "1.104.retail.gameinstallation.zerohour",
-                "1.605260.generalsonline.gameclient.zerohour",
+                "1.60526.generalsonline.gameclient.zerohour",
             ],
         };
 
@@ -1156,7 +1160,7 @@ public sealed class ReplayDirectoryServiceTests
             Name = "GeneralsOnline 060526 Profile",
             GameClient = new GameClient
             {
-                Id = "1.605260.generalsonline.gameclient.zerohour",
+                Id = "1.60526.generalsonline.gameclient.zerohour",
                 Name = "GeneralsOnline 060526",
                 Version = "060526",
                 GameType = GameType.ZeroHour,
@@ -1165,7 +1169,7 @@ public sealed class ReplayDirectoryServiceTests
             EnabledContentIds =
             [
                 "1.104.retail.gameinstallation.zerohour",
-                "1.605260.generalsonline.gameclient.zerohour",
+                "1.60526.generalsonline.gameclient.zerohour",
             ],
         };
 
@@ -1217,5 +1221,85 @@ public sealed class ReplayDirectoryServiceTests
         service.ResolveCompatibility(replay2, new HashSet<string>(), [matchingProfile]);
         Assert.Equal("matching-go-profile-082826", replay2.MatchingProfileId);
         Assert.Equal(ReplayCompatibilityStatus.Compatible, replay2.CompatibilityStatus);
+    }
+
+    /// <summary>
+    /// Verifies that ResolveCompatibility sets Unknown status when either ExeCrc or IniCrc is missing.
+    /// </summary>
+    [Fact]
+    public void ResolveCompatibility_WhenIniCrcOrExeCrcMissing_SetsUnknownStatus()
+    {
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var replayNoIni = new ReplayFile
+        {
+            FileName = "no_ini.rep",
+            FullPath = "/replays/no_ini.rep",
+            GameVersion = GameType.ZeroHour,
+            SizeInBytes = 100,
+            LastModified = DateTime.UtcNow,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0x6DBF4405,
+                IniCrc = null,
+            },
+        };
+
+        service.ResolveCompatibility(replayNoIni, new HashSet<string>(), []);
+        Assert.Equal(ReplayCompatibilityStatus.Unknown, replayNoIni.CompatibilityStatus);
+
+        var replayNoExe = new ReplayFile
+        {
+            FileName = "no_exe.rep",
+            FullPath = "/replays/no_exe.rep",
+            GameVersion = GameType.ZeroHour,
+            SizeInBytes = 100,
+            LastModified = DateTime.UtcNow,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = null,
+                IniCrc = 0x51ACED23,
+            },
+        };
+
+        service.ResolveCompatibility(replayNoExe, new HashSet<string>(), []);
+        Assert.Equal(ReplayCompatibilityStatus.Unknown, replayNoExe.CompatibilityStatus);
+    }
+
+    /// <summary>
+    /// Verifies that LaunchReplayAsync rejects launching when the matching profile is already running.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LaunchReplayAsync_WhenProfileAlreadyRunning_ReturnsFailureAsync()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "Match1.rep",
+            FullPath = "/replays/Match1.rep",
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            MatchingProfileId = "running-profile-id",
+        };
+
+        _mockLauncherFacade
+            .Setup(l => l.GetLaunchStatusAsync("running-profile-id", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProcessInfo>.CreateSuccess(new GameProcessInfo { IsRunning = true }));
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var result = await service.LaunchReplayAsync(replay);
+
+        Assert.False(result.Success);
+        Assert.Contains("already running", result.FirstError, StringComparison.OrdinalIgnoreCase);
     }
 }

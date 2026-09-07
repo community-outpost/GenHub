@@ -205,6 +205,7 @@ public partial class ReplayManagerViewModel(
         finally
         {
             IsBusy = false;
+            IsIndeterminate = false;
         }
     }
 
@@ -280,6 +281,7 @@ public partial class ReplayManagerViewModel(
         finally
         {
             IsBusy = false;
+            IsIndeterminate = false;
         }
     }
 
@@ -638,6 +640,7 @@ public partial class ReplayManagerViewModel(
         SelectedReplays.Clear();
         await LoadReplaysAsync();
         IsBusy = false;
+        IsIndeterminate = false;
     }
 
     [RelayCommand]
@@ -919,6 +922,7 @@ public partial class ReplayManagerViewModel(
         }
 
         IsBusy = true;
+        IsIndeterminate = true;
         StatusMessage = "Uncompressing ZIP(s)...";
         int totalImported = 0;
 
@@ -961,6 +965,7 @@ public partial class ReplayManagerViewModel(
         finally
         {
             IsBusy = false;
+            IsIndeterminate = false;
         }
     }
 
@@ -985,6 +990,7 @@ public partial class ReplayManagerViewModel(
         }
 
         IsBusy = true;
+        IsIndeterminate = true;
         StatusMessage = $"Configuring profile for {replay.FileName}...";
 
         try
@@ -1014,6 +1020,7 @@ public partial class ReplayManagerViewModel(
         finally
         {
             IsBusy = false;
+            IsIndeterminate = false;
         }
     }
 
@@ -1041,19 +1048,28 @@ public partial class ReplayManagerViewModel(
 
         if (!string.IsNullOrEmpty(replay.MatchingProfileId))
         {
+            bool isRunning;
             lock (_runningProfileIds)
             {
-                if (_runningProfileIds.Contains(replay.MatchingProfileId))
-                {
-                    notificationService.ShowWarning(
-                        "Game Running",
-                        "The game profile for this replay is already running.");
-                    return;
-                }
+                isRunning = _runningProfileIds.Contains(replay.MatchingProfileId);
+            }
+
+            if (!isRunning)
+            {
+                isRunning = await directoryService.IsProfileRunningAsync(replay.MatchingProfileId);
+            }
+
+            if (isRunning)
+            {
+                notificationService.ShowWarning(
+                    "Game Running",
+                    "The game profile for this replay is already running.");
+                return;
             }
         }
 
         IsBusy = true;
+        IsIndeterminate = true;
         StatusMessage = $"Launching profile for {replay.FileName}...";
 
         try
@@ -1085,6 +1101,7 @@ public partial class ReplayManagerViewModel(
         finally
         {
             IsBusy = false;
+            IsIndeterminate = false;
         }
     }
 

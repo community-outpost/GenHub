@@ -89,7 +89,13 @@ public sealed class ReplayFile : IExportableFile
             {
                 if (!string.IsNullOrEmpty(Metadata.BuildTimeString))
                 {
-                    return $"{Metadata.VersionString ?? (GameVersion == GameType.Generals ? "Generals" : "Zero Hour")} ({Metadata.BuildTimeString})";
+                    var versionLabel = Metadata.VersionString ?? GameVersion switch
+                    {
+                        GameType.Generals => "Generals",
+                        GameType.ZeroHour => "Zero Hour",
+                        _ => UnknownValue,
+                    };
+                    return $"{versionLabel} ({Metadata.BuildTimeString})";
                 }
 
                 return $"Custom (Exe: {Metadata.FormattedExeCrc ?? "N/A"}, INI: {Metadata.FormattedIniCrc ?? "N/A"})";

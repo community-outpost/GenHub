@@ -70,4 +70,12 @@ public interface IReplayDirectoryService
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The operation result containing the launch information.</returns>
     Task<ProfileOperationResult<GameLaunchInfo>> LaunchReplayAsync(ReplayFile replay, CancellationToken ct = default);
+
+    /// <summary>
+    /// Checks whether the game profile with the specified ID is currently running.
+    /// </summary>
+    /// <param name="profileId">The profile ID to check.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns><c>true</c> if the profile is running; otherwise, <c>false</c>.</returns>
+    Task<bool> IsProfileRunningAsync(string profileId, CancellationToken ct = default);
 }

@@ -113,6 +113,21 @@ public static class ReplayManagerConstants
     public const int ReplayHeaderInitialOffsetBytes = 28;
 
     /// <summary>
+    /// Size in bytes of the SYSTEMTIME timestamp structure embedded in the replay header (16 bytes).
+    /// </summary>
+    public const int ReplayHeaderSystemTimeSizeBytes = 16;
+
+    /// <summary>
+    /// Combined size in bytes of the numeric version, Exe CRC, and INI CRC fields (12 bytes: 3 * 4 bytes).
+    /// </summary>
+    public const int ReplayHeaderCrcBlockSizeBytes = 12;
+
+    /// <summary>
+    /// Size in bytes of a 32-bit unsigned integer field in the replay header (4 bytes).
+    /// </summary>
+    public const int ReplayHeaderUInt32SizeBytes = 4;
+
+    /// <summary>
     /// Default GitHub URL providing the authoritative community CRC mapping catalog.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official GenHub endpoint for community gameclient CRC catalog.")]

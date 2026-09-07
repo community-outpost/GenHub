@@ -107,6 +107,13 @@
                              Margin="8,0,4,0"/>
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
+              <DataGridTemplateColumn.CellEditingTemplate>
+                <DataTemplate>
+                  <TextBox Text="{Binding FileName, Mode=TwoWay}"
+                           VerticalContentAlignment="Center"
+                           Margin="8,0,4,0"/>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellEditingTemplate>
             </DataGridTemplateColumn>
             <DataGridTemplateColumn Header="Map" Width="120" MaxWidth="160">
               <DataGridTemplateColumn.CellTemplate>
@@ -114,7 +121,7 @@
                   <TextBlock Text="{Binding Metadata.MapName, FallbackValue='-', TargetNullValue='-'}"
                              VerticalAlignment="Center"
                              TextTrimming="CharacterEllipsis"
-                             ToolTip.Tip="{Binding Metadata.MapName}"
+                             ToolTip.Tip="{Binding Metadata.MapName, FallbackValue='-', TargetNullValue='-'}"
                              Margin="4,0"/>
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
@@ -135,7 +142,7 @@
             <DataGridTemplateColumn Header="Compatibility" Width="Auto" MinWidth="120">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
-                  <Border Padding="6,2" CornerRadius="6" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0"
+                  <Border Background="{DynamicResource SurfaceSubtleBrush}" Padding="6,2" CornerRadius="6" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0"
                           ToolTip.Tip="{Binding CompatibilityTooltip}">
                     <StackPanel Orientation="Horizontal" Spacing="5">
                       <Ellipse Width="7" Height="7" VerticalAlignment="Center" Fill="{DynamicResource SuccessBrush}"

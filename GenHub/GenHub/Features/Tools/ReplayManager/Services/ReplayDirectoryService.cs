@@ -93,7 +93,7 @@ public sealed class ReplayDirectoryService(
             },
             ct);
 
-        var (acquiredIds, existingProfiles) = await FetchAcquiredManifestIdsAndProfilesAsync(ct);
+        var (resolved, acquiredIds, existingProfiles) = await FetchAcquiredManifestIdsAndProfilesAsync(ct);
 
         var replayFiles = new ConcurrentBag<ReplayFile>();
         await Parallel.ForEachAsync(
@@ -101,7 +101,7 @@ public sealed class ReplayDirectoryService(
             new ParallelOptions { MaxDegreeOfParallelism = Math.Min(Environment.ProcessorCount, 8), CancellationToken = ct },
             async (file, token) =>
             {
-                var replay = await ProcessReplayFileAsync(file, version, acquiredIds, existingProfiles, token);
+                var replay = await ProcessReplayFileAsync(file, version, resolved, acquiredIds, existingProfiles, token);
                 replayFiles.Add(replay);
             });
 
@@ -305,6 +305,13 @@ public sealed class ReplayDirectoryService(
             using var scope = scopeFactory.CreateScope();
             var launcherFacade = scope.ServiceProvider.GetRequiredService<IProfileLauncherFacade>();
 
+            var runningStatus = await launcherFacade.GetLaunchStatusAsync(replay.MatchingProfileId ?? string.Empty, ct);
+            if (runningStatus?.Success == true && runningStatus.Data?.IsRunning == true)
+            {
+                logger.LogWarning("[ReplayManager] Profile '{ProfileId}' is already running.", replay.MatchingProfileId);
+                return ProfileOperationResult<GameLaunchInfo>.CreateFailure("The game profile for this replay is already running.");
+            }
+
             logger.LogInformation(
                 "[ReplayManager] Launching profile '{ProfileId}' for replay '{ReplayFile}'...",
                 replay.MatchingProfileId,
@@ -337,6 +344,32 @@ public sealed class ReplayDirectoryService(
             logger.LogError(ex, "[ReplayManager] Exception launching profile '{ProfileId}' for replay '{ReplayFile}'", replay.MatchingProfileId, replay.FileName);
             return ProfileOperationResult<GameLaunchInfo>.CreateFailure($"Launch failed: {ex.Message}");
         }
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> IsProfileRunningAsync(string profileId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(profileId))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var launcherFacade = scope.ServiceProvider.GetService<IProfileLauncherFacade>();
+            if (launcherFacade != null)
+            {
+                var status = await launcherFacade.GetLaunchStatusAsync(profileId, ct);
+                return status?.Success == true && status.Data?.IsRunning == true;
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "[ReplayManager] Failed to query launch status for profile {ProfileId}", profileId);
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -384,14 +417,14 @@ public sealed class ReplayDirectoryService(
     /// <param name="profiles">The list of existing profiles.</param>
     internal void ResolveCompatibility(ReplayFile replay, HashSet<string> acquiredIds, IReadOnlyList<GameProfile> profiles)
     {
-        if (replay.Metadata == null || string.IsNullOrEmpty(replay.Metadata.FormattedExeCrc))
+        if (replay.Metadata == null || string.IsNullOrEmpty(replay.Metadata.FormattedExeCrc) || string.IsNullOrEmpty(replay.Metadata.FormattedIniCrc))
         {
             replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
             return;
         }
 
         var exeCrcStr = replay.Metadata.FormattedExeCrc;
-        var iniCrcStr = replay.Metadata.FormattedIniCrc ?? string.Empty;
+        var iniCrcStr = replay.Metadata.FormattedIniCrc;
 
         if (crcMappingRegistry.TryGetEntry(exeCrcStr, iniCrcStr, out var match) && match != null)
         {
@@ -718,7 +751,7 @@ public sealed class ReplayDirectoryService(
         if (isRetail)
         {
             var gameTypeSuffix = gameVersion == GameType.ZeroHour ? ManifestConstants.ZeroHourContentName : ManifestConstants.GeneralsContentName;
-            return acquiredIds.Any(id => id.Contains(ManifestConstants.BaseGameIdPrefix, StringComparison.OrdinalIgnoreCase) && id.EndsWith(gameTypeSuffix, StringComparison.OrdinalIgnoreCase));
+            return acquiredIds.Any(id => id.Contains(ManifestConstants.GameInstallationManifestSegment, StringComparison.OrdinalIgnoreCase) && id.EndsWith(gameTypeSuffix, StringComparison.OrdinalIgnoreCase));
         }
 
         return false;
@@ -1257,7 +1290,7 @@ public sealed class ReplayDirectoryService(
         }
     }
 
-    private async Task<(HashSet<string> AcquiredIds, List<GameProfile> Profiles)> FetchAcquiredManifestIdsAndProfilesAsync(CancellationToken ct)
+    private async Task<(bool Resolved, HashSet<string> AcquiredIds, List<GameProfile> Profiles)> FetchAcquiredManifestIdsAndProfilesAsync(CancellationToken ct)
     {
         var acquiredIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var existingProfiles = new List<GameProfile>();
@@ -1269,12 +1302,15 @@ public sealed class ReplayDirectoryService(
             if (manifestPool != null)
             {
                 var manifestsResult = await manifestPool.GetAllManifestsAsync(ct);
-                if (manifestsResult.Success && manifestsResult.Data != null)
+                if (!manifestsResult.Success || manifestsResult.Data == null)
                 {
-                    foreach (var manifest in manifestsResult.Data)
-                    {
-                        acquiredIds.Add(manifest.Id.Value);
-                    }
+                    logger.LogWarning("Failed to retrieve manifests for replay compatibility matching: {Error}", manifestsResult.FirstError);
+                    return (false, acquiredIds, existingProfiles);
+                }
+
+                foreach (var manifest in manifestsResult.Data)
+                {
+                    acquiredIds.Add(manifest.Id.Value);
                 }
             }
 
@@ -1282,23 +1318,28 @@ public sealed class ReplayDirectoryService(
             if (profileManager != null)
             {
                 var profilesResult = await profileManager.GetAllProfilesAsync(ct);
-                if (profilesResult.Success && profilesResult.Data != null)
+                if (!profilesResult.Success || profilesResult.Data == null)
                 {
-                    existingProfiles.AddRange(profilesResult.Data);
+                    logger.LogWarning("Failed to retrieve profiles for replay compatibility matching: {Error}", profilesResult.FirstError);
+                    return (false, acquiredIds, existingProfiles);
                 }
+
+                existingProfiles.AddRange(profilesResult.Data);
             }
+
+            return (true, acquiredIds, existingProfiles);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "Failed to retrieve acquired manifests or profiles for replay compatibility matching.");
+            return (false, acquiredIds, existingProfiles);
         }
-
-        return (acquiredIds, existingProfiles);
     }
 
     private async Task<ReplayFile> ProcessReplayFileAsync(
         string file,
         GameType version,
+        bool resolved,
         HashSet<string> acquiredIds,
         IReadOnlyList<GameProfile> existingProfiles,
         CancellationToken ct)
@@ -1319,7 +1360,14 @@ public sealed class ReplayDirectoryService(
             if (parseResult.Success && parseResult.Data != null)
             {
                 replay.Metadata = parseResult.Data;
-                ResolveCompatibility(replay, acquiredIds, existingProfiles);
+                if (resolved)
+                {
+                    ResolveCompatibility(replay, acquiredIds, existingProfiles);
+                }
+                else
+                {
+                    replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
+                }
             }
         }
 
@@ -1328,8 +1376,10 @@ public sealed class ReplayDirectoryService(
 
     private void EnsureReplayMatch(ReplayFile replay)
     {
-        if (replay.MatchedClient == null && replay.Metadata?.FormattedExeCrc != null &&
-            crcMappingRegistry.TryGetEntry(replay.Metadata.FormattedExeCrc, replay.Metadata.FormattedIniCrc ?? string.Empty, out var resolvedMatch))
+        if (replay.MatchedClient == null &&
+            !string.IsNullOrEmpty(replay.Metadata?.FormattedExeCrc) &&
+            !string.IsNullOrEmpty(replay.Metadata?.FormattedIniCrc) &&
+            crcMappingRegistry.TryGetEntry(replay.Metadata.FormattedExeCrc, replay.Metadata.FormattedIniCrc, out var resolvedMatch))
         {
             replay.MatchedClient = resolvedMatch;
         }

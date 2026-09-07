@@ -30,7 +30,7 @@ public sealed class ReplayHeaderParserTests
         // 1. Magic "GENREP" (6 bytes)
         writer.Write(Encoding.ASCII.GetBytes("GENREP"));
 
-        // 2. Fixed fields (22 bytes: startTime 4, endTime 4, frameCount 4, flags 4, pad 6)
+        // 2. Fixed fields (22 bytes: startTime 4, endTime 4, frameCount 4, flags 2, pad 8)
         writer.Write(100u);
         writer.Write(200u);
         writer.Write(300u);

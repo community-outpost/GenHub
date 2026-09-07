@@ -140,8 +140,8 @@ BASELINE_ENTRIES = [
         "exeCrc": "0xD431009C",
         "iniCrc": "0x5CB7992C",
         "sha256": "fa95e504426b139535b06d2e173f5c7297d668b26f2b36aa76ec674fbcaec71d",
-        "manifestId": "1.605260.generalsonline.gameclient.zerohour",
-        "dataPatchManifestId": "1.605260.generalsonline.patch.gamedata",
+        "manifestId": "1.60526.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": "1.60526.generalsonline.patch.gamedata",
         "dataPatchName": "GeneralsOnline Game Data",
         "publisher": "generalsonline",
         "gameType": "ZeroHour",
@@ -154,7 +154,7 @@ BASELINE_ENTRIES = [
     {
         "exeCrc": "0x1C96366F",
         "iniCrc": "0x5A8E12F0",
-        "sha256": "1c96366ff6a99f40863f6bbcfa8bf7622e8df1f80a474201e0e95e37c6416255",
+        "sha256": None,
         "manifestId": "1.108.steam.gameclient.generals",
         "dataPatchManifestId": None,
         "dataPatchName": "Steam 1.08 INI",
@@ -539,11 +539,17 @@ def _find_compatible_catalog_key(
     return None
 
 
+def normalize_manifest_id(m_id: str) -> str:
+    """Normalizes legacy base-release manifest IDs with trailing zeros to the canonical format."""
+    return re.sub(r"^1\.(\d{5})0\.generalsonline\.", r"1.\1.generalsonline.", m_id)
+
+
 def merge_catalogs(existing: list[dict], crawled: list[dict]) -> list[dict]:
     """Merges new crawled entries into existing catalog, preserving known CRCs and hashes."""
     def entry_key(entry: dict) -> tuple[str, str, str]:
+        m_id = normalize_manifest_id(entry.get("manifestId", ""))
         return (
-            entry.get("manifestId", ""),
+            m_id,
             normalize_hex(entry.get("exeCrc", "")),
             normalize_hex(entry.get("iniCrc", "")),
         )

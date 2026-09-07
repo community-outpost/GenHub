@@ -225,6 +225,9 @@ public static class ManifestConstants
 
     // ===== Content Manifest Segments =====
 
+    /// <summary>Manifest ID segment for game installation content.</summary>
+    public const string GameInstallationManifestSegment = ".gameinstallation.";
+
     /// <summary>Manifest ID segment for game data content.</summary>
     public const string GameDataManifestSegment = ".gamedata.";
 
