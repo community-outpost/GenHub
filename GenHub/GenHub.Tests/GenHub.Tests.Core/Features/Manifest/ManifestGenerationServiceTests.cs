@@ -311,9 +311,9 @@ public class ManifestGenerationServiceTests : IDisposable
         }
 
         // Setup mock hashes to match catalog entries so that isAuthoritativeMatch is true
-        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.Is<string>(p => p.EndsWith("generals.exe")), It.IsAny<CancellationToken>()))
+        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.Is<string>(p => p.EndsWith("generals.exe", StringComparison.OrdinalIgnoreCase)), It.IsAny<CancellationToken>()))
             .ReturnsAsync("e253361f457f2ec3290ccf4088aa5c4022fc4772a769fff5fb2fa8b9e5df842d");
-        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.Is<string>(p => p.EndsWith("binkw32.dll")), It.IsAny<CancellationToken>()))
+        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.Is<string>(p => p.EndsWith("binkw32.dll", StringComparison.OrdinalIgnoreCase)), It.IsAny<CancellationToken>()))
             .ReturnsAsync("892a51c4056efcb22297a3b44a3491e3f5888f28b08ed1b17030f24acffedb44");
 
         // Act
@@ -381,7 +381,7 @@ public class ManifestGenerationServiceTests : IDisposable
         }
 
         // But local computed hash differs from the catalog hash
-        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.Is<string>(p => p.EndsWith("generals.exe")), It.IsAny<CancellationToken>()))
+        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.Is<string>(p => p.EndsWith("generals.exe", StringComparison.OrdinalIgnoreCase)), It.IsAny<CancellationToken>()))
             .ReturnsAsync("modified_or_corrupted_hash_value");
 
         // Act
