@@ -9,6 +9,7 @@ using GenHub.Features.Manifest;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System.Threading;
 using Xunit.Abstractions;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 using GameInstallationType = GenHub.Core.Models.Enums.GameInstallationType;
@@ -42,8 +43,8 @@ public class ManifestGenerationServiceTests : IDisposable
         _configProviderServiceMock = new Mock<IConfigurationProviderService>();
 
         // Setup hash provider to return deterministic hashes
-        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), default))
-            .ReturnsAsync((string path, System.Threading.CancellationToken ct) => $"hash_{Path.GetFileName(path)}");
+        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string path, CancellationToken ct) => $"hash_{Path.GetFileName(path)}");
 
         // Setup manifest ID service to return properly formatted IDs
         // Format: version.userversion.publisher.contenttype.contentname
@@ -309,6 +310,12 @@ public class ManifestGenerationServiceTests : IDisposable
             fs.SetLength(127940044);
         }
 
+        // Setup mock hashes to match catalog entries so that isAuthoritativeMatch is true
+        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.Is<string>(p => p.EndsWith("generals.exe")), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("e253361f457f2ec3290ccf4088aa5c4022fc4772a769fff5fb2fa8b9e5df842d");
+        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.Is<string>(p => p.EndsWith("binkw32.dll")), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("892a51c4056efcb22297a3b44a3491e3f5888f28b08ed1b17030f24acffedb44");
+
         // Act
         var builder = await _service.CreateGameInstallationManifestAsync(
             installationPath, GameType.Generals, GameInstallationType.Steam, "1.08", "EN");
@@ -353,6 +360,65 @@ public class ManifestGenerationServiceTests : IDisposable
         Assert.NotNull(exeFile);
         Assert.Equal("hash_generals.exe", exeFile.Hash);
         Assert.Equal(12, exeFile.Size);
+    }
+
+    /// <summary>
+    /// Tests that when a local file size matches the catalog size but the hash differs, the locally computed hash and size are attached.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_Authoritative_HashDiscrepancy_AttachesLocallyComputedHashAndSizeAsync()
+    {
+        // Arrange
+        var installationPath = Path.Combine(_tempDirectory, "HashDiscrepancyInstall");
+        Directory.CreateDirectory(installationPath);
+
+        // generals.exe matches catalog size (57392 bytes)
+        var exePath = Path.Combine(installationPath, "generals.exe");
+        using (var fs = new FileStream(exePath, FileMode.Create, FileAccess.Write))
+        {
+            fs.SetLength(57392);
+        }
+
+        // But local computed hash differs from the catalog hash
+        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.Is<string>(p => p.EndsWith("generals.exe")), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("modified_or_corrupted_hash_value");
+
+        // Act
+        var builder = await _service.CreateGameInstallationManifestAsync(
+            installationPath, GameType.Generals, GameInstallationType.Steam, "1.08", "EN");
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        var exeFile = manifest.Files.FirstOrDefault(f => f.RelativePath == "generals.exe");
+        Assert.NotNull(exeFile);
+        Assert.Equal("modified_or_corrupted_hash_value", exeFile.Hash);
+        Assert.Equal(57392, exeFile.Size);
+    }
+
+    /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync propagates cancellation when a cancellation token is triggered.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_WhenCancelled_ThrowsOperationCanceledExceptionAsync()
+    {
+        // Arrange
+        var installationPath = Path.Combine(_tempDirectory, "CancelledInstall");
+        Directory.CreateDirectory(installationPath);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act & Assert
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            _service.CreateGameInstallationManifestAsync(
+                installationPath,
+                GameType.Generals,
+                GameInstallationType.Steam,
+                "1.08",
+                "EN",
+                cts.Token));
     }
 
     /// <summary>

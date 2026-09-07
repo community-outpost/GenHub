@@ -20,6 +20,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Manifest;
@@ -94,13 +95,15 @@ public class ManifestGenerationService(
     /// <param name="installationType">The installation type (Steam, EaApp).</param>
     /// <param name="manifestVersion">The manifest version (e.g., "1.08", "1.04", or integer like 0, 1, 2). If null, defaults to 0.</param>
     /// <param name="language">Optional explicit language code (e.g., "EN", "DE"). If null, language is detected automatically.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
     public async Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
         string gameInstallationPath,
         GameType gameType,
         GameInstallationType installationType,
         string? manifestVersion = null,
-        string? language = null)
+        string? language = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -128,7 +131,7 @@ public class ManifestGenerationService(
             builder.WithPublisher(publisher.Name, publisher.Website, publisher.SupportUrl, string.Empty, publisher.PublisherType);
 
             // Add essential game files
-            await AddGameFilesToManifest(builder, gameInstallationPath, gameType, resolvedVersion, language);
+            await AddGameFilesToManifest(builder, gameInstallationPath, gameType, resolvedVersion, language, cancellationToken);
 
             logger.LogInformation(
                 "Created GameInstallation manifest for {InstallationType} {GameType} (Publisher: {PublisherName})",
@@ -137,6 +140,10 @@ public class ManifestGenerationService(
                 publisher.Name);
 
             return builder;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -157,15 +164,17 @@ public class ManifestGenerationService(
     /// <param name="installationType">The installation type (Steam, EaApp).</param>
     /// <param name="manifestVersion">The manifest version (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
     /// <param name="language">Optional explicit language code (e.g., "EN", "DE"). If null, language is detected automatically.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
     public async Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
         string gameInstallationPath,
         GameType gameType,
         GameInstallationType installationType,
         int manifestVersion = 0,
-        string? language = null)
+        string? language = null,
+        CancellationToken cancellationToken = default)
     {
-        return await CreateGameInstallationManifestAsync(gameInstallationPath, gameType, installationType, manifestVersion.ToString(), language);
+        return await CreateGameInstallationManifestAsync(gameInstallationPath, gameType, installationType, manifestVersion.ToString(), language, cancellationToken);
     }
 
     /// <summary>
@@ -815,8 +824,11 @@ public class ManifestGenerationService(
         string installationPath,
         GameType gameType,
         string? manifestVersion,
-        string? language)
+        string? language,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var detectedLanguage = string.IsNullOrWhiteSpace(language)
             ? await _languageDetector.DetectAsync(installationPath)
             : language;
@@ -831,7 +843,7 @@ public class ManifestGenerationService(
             normalizedLanguage,
             installationPath);
 
-        var authoritativeEntries = await GetAuthoritativeEntriesAsync(gameType, version, normalizedLanguage);
+        var authoritativeEntries = await GetAuthoritativeEntriesAsync(gameType, version, normalizedLanguage, cancellationToken);
 
         if (authoritativeEntries.Count == 0)
         {
@@ -841,16 +853,16 @@ public class ManifestGenerationService(
                 version,
                 normalizedLanguage);
 
-            await AddGameFilesFromDirectoryScanAsync(builder, installationPath, gameType);
+            await AddGameFilesFromDirectoryScanAsync(builder, installationPath, gameType, cancellationToken);
             return;
         }
 
-        var authoritativePathSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var fileCount = 0;
 
         foreach (var entry in authoritativeEntries)
         {
-            if (await TryAddAuthoritativeEntryAsync(builder, installationPath, entry, authoritativePathSet))
+            cancellationToken.ThrowIfCancellationRequested();
+            if (await TryAddAuthoritativeEntryAsync(builder, installationPath, entry, cancellationToken))
             {
                 fileCount++;
             }
@@ -869,8 +881,10 @@ public class ManifestGenerationService(
     private async Task AddGameFilesFromDirectoryScanAsync(
         IContentManifestBuilder builder,
         string installationPath,
-        GameType gameType)
+        GameType gameType,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         logger.LogInformation("Starting fallback directory scan manifest generation for {GameType} at {InstallationPath}", gameType, installationPath);
 
         var executableName = gameType == GameType.Generals ? GameClientConstants.GeneralsExecutable : GameClientConstants.ZeroHourExecutable;
@@ -887,8 +901,13 @@ public class ManifestGenerationService(
 
             foreach (var file in Directory.EnumerateFiles(installationPath, "*", options))
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 await TryAddFallbackFileAsync(builder, installationPath, file, executableName);
             }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -979,17 +998,17 @@ public class ManifestGenerationService(
         IContentManifestBuilder builder,
         string installationPath,
         CsvCatalogEntry entry,
-        HashSet<string> authoritativePathSet)
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(entry.RelativePath))
         {
             return false;
         }
 
-        authoritativePathSet.Add(entry.RelativePath);
-
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var resolvedFilePath = FindFileCaseInsensitive(installationPath, entry.RelativePath);
             if (resolvedFilePath == null || !File.Exists(resolvedFilePath))
             {
@@ -1014,29 +1033,28 @@ public class ManifestGenerationService(
             }
 
             var fileInfo = new FileInfo(sourcePath);
+            var computedHash = await hashProvider.ComputeFileHashAsync(sourcePath, cancellationToken);
             var isAuthoritativeMatch = entry.Size > 0 &&
                                        fileInfo.Length == entry.Size &&
-                                       !string.IsNullOrWhiteSpace(entry.Sha256);
+                                       !string.IsNullOrWhiteSpace(entry.Sha256) &&
+                                       string.Equals(computedHash, entry.Sha256, StringComparison.OrdinalIgnoreCase);
 
-            if (entry.Size > 0 && fileInfo.Length != entry.Size)
+            if (entry.Size > 0 && (fileInfo.Length != entry.Size || !isAuthoritativeMatch))
             {
                 logger.LogWarning(
-                    "Local file size ({ActualSize}) for {RelativePath} differs from catalog size ({ExpectedSize}). Attaching locally computed hash and size. Source: {SourcePath}",
+                    "Local file ({ActualSize} bytes, hash: {ActualHash}) for {RelativePath} differs from catalog (size: {ExpectedSize}, hash: {ExpectedHash}). Attaching locally computed hash and size. Source: {SourcePath}",
                     fileInfo.Length,
+                    computedHash,
                     entry.RelativePath,
                     entry.Size,
+                    entry.Sha256,
                     sourcePath);
             }
 
             var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(entry.RelativePath, sourcePath);
 
-            var fileHash = isAuthoritativeMatch
-                ? entry.Sha256
-                : await hashProvider.ComputeFileHashAsync(sourcePath);
-
-            var fileSize = isAuthoritativeMatch
-                ? entry.Size
-                : fileInfo.Length;
+            var fileHash = computedHash;
+            var fileSize = fileInfo.Length;
 
             await builder.AddGameInstallationFileAsync(
                 entry.RelativePath,
@@ -1049,11 +1067,15 @@ public class ManifestGenerationService(
 
             return true;
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(
                 ex,
-                "Failed to add authoritative file {RelativePath} to manifest",
+                "Failed to add authoritative vanilla file {RelativePath} to manifest",
                 entry.RelativePath);
             return false;
         }
@@ -1315,7 +1337,8 @@ public class ManifestGenerationService(
     private async Task<IReadOnlyList<CsvCatalogEntry>> GetAuthoritativeEntriesAsync(
         GameType gameType,
         string version,
-        string language)
+        string language,
+        CancellationToken cancellationToken = default)
     {
         if (!TryGetCatalogInfo(gameType, version, out var catalogInfo))
         {
@@ -1331,7 +1354,8 @@ public class ManifestGenerationService(
                 version,
                 language,
                 catalogInfo.FileName,
-                catalogInfo.Sha256);
+                catalogInfo.Sha256,
+                cancellationToken);
 
             if (resolved != null)
             {
@@ -1348,7 +1372,8 @@ public class ManifestGenerationService(
         string version,
         string language,
         string csvFileName,
-        string expectedSha256)
+        string expectedSha256,
+        CancellationToken cancellationToken = default)
     {
         var gameTypeStr = gameType == GameType.ZeroHour ? CsvConstants.ZeroHourGameType : CsvConstants.GeneralsGameType;
         var csvRemoteUrl = gameType == GameType.ZeroHour ? CsvConstants.ZeroHourCsvUrl : CsvConstants.GeneralsCsvUrl;
@@ -1374,7 +1399,7 @@ public class ManifestGenerationService(
                 },
             };
 
-            var resolveResult = await resolver.ResolveAsync(searchResult);
+            var resolveResult = await resolver.ResolveAsync(searchResult, cancellationToken);
             if (resolveResult.Success && resolveResult.Data?.Files != null && resolveResult.Data.Files.Count > 0)
             {
                 logger.LogDebug(
@@ -1402,7 +1427,16 @@ public class ManifestGenerationService(
         }
         catch (TaskCanceledException ex)
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+
             logger.LogWarning(ex, "Timeout resolving CSV catalog via HTTP for {GameType} ({Language}), falling back to local/embedded registry", gameType, language);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (IOException ex)
         {
