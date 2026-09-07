@@ -210,7 +210,22 @@ public class InfoTabResponsivenessTests
 
         statusTextBlock.Should().NotBeNull();
         statusTextBlock!.TextWrapping.Should().Be(TextWrapping.Wrap);
-        statusTextBlock.DesiredSize.Width.Should().BeGreaterThan(0).And.BeLessThan(300);
-        statusTextBlock.DesiredSize.Height.Should().BeGreaterThan(20);
+
+        var statusBorder = statusTextBlock.GetVisualAncestors()
+            .OfType<Border>()
+            .FirstOrDefault();
+
+        statusBorder.Should().NotBeNull();
+        statusBorder!.DesiredSize.Width.Should().BeLessOrEqualTo(320);
+
+        // Verify wrapping occurs: height must exceed a single-line TextBlock with the same font properties
+        var referenceTextBlock = new TextBlock
+        {
+            Text = "Single line",
+            FontSize = statusTextBlock.FontSize,
+            FontFamily = statusTextBlock.FontFamily,
+        };
+        referenceTextBlock.Measure(Size.Infinity);
+        statusTextBlock.DesiredSize.Height.Should().BeGreaterThan(referenceTextBlock.DesiredSize.Height);
     }
 }

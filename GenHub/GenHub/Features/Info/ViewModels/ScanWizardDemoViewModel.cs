@@ -107,7 +107,7 @@ public partial class ScanWizardDemoViewModel : ObservableObject
                 NotificationType.Success,
                 "Scan Wizard",
                 "Scan complete: Found 2 game installations. (Simulated)",
-                3000));
+                NotificationDurations.Short));
         }
         catch (OperationCanceledException)
         {
@@ -137,7 +137,7 @@ public partial class ScanWizardDemoViewModel : ObservableObject
             NotificationType.Success,
             "Scan Wizard",
             $"Successfully imported {selectedCount} game installation{(selectedCount == 1 ? string.Empty : "s")} into your library! (Simulated)",
-            4000));
+            NotificationDurations.Medium));
     }
 
     /// <summary>
@@ -162,7 +162,7 @@ public partial class ScanWizardDemoViewModel : ObservableObject
             NotificationType.Info,
             "Scan Wizard",
             "Game detection wizard cancelled. (Simulated)",
-            2500));
+            NotificationDurations.Short));
     }
 
     /// <summary>
