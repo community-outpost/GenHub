@@ -739,7 +739,12 @@ public class ManifestGenerationServiceTests : IDisposable
         var inaccessibleFile = Path.Combine(installationPath, "binkw32.dll");
         await File.WriteAllTextAsync(inaccessibleFile, "restricted content");
 
-        if (!OperatingSystem.IsWindows())
+        FileStream? lockStream = null;
+        if (OperatingSystem.IsWindows())
+        {
+            lockStream = new FileStream(inaccessibleFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        }
+        else
         {
             File.SetUnixFileMode(inaccessibleFile, UnixFileMode.None);
         }
@@ -754,9 +759,11 @@ public class ManifestGenerationServiceTests : IDisposable
             // Assert - generals.exe should still be added even if an individual file encounters an access failure
             Assert.NotNull(manifest);
             Assert.Contains(manifest.Files, f => f.RelativePath == "generals.exe");
+            Assert.DoesNotContain(manifest.Files, f => f.RelativePath == "binkw32.dll");
         }
         finally
         {
+            lockStream?.Dispose();
             if (!OperatingSystem.IsWindows() && File.Exists(inaccessibleFile))
             {
                 File.SetUnixFileMode(inaccessibleFile, UnixFileMode.UserRead | UnixFileMode.UserWrite);

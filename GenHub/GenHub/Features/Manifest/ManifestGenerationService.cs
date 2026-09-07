@@ -689,6 +689,12 @@ public class ManifestGenerationService(
     /// Finds a file in the installation directory using case-insensitive path resolution.
     /// Rejects paths containing symbolic links or reparse points to prevent path traversal.
     /// </summary>
+    private static bool IsInvalidIntermediateDirectory(string currentDir, string fullInstallationPath)
+    {
+        return !Directory.Exists(currentDir) ||
+               (!string.Equals(currentDir, fullInstallationPath, StringComparison.OrdinalIgnoreCase) && IsReparsePoint(currentDir));
+    }
+
     private static string? FindFileCaseInsensitive(string installationPath, string relativePath)
     {
         var exactPath = GetSafeExactPath(installationPath, relativePath);
@@ -715,7 +721,7 @@ public class ManifestGenerationService(
 
         for (int i = 0; i < segments.Length - 1; i++)
         {
-            if (!Directory.Exists(currentDir) || IsReparsePoint(currentDir))
+            if (IsInvalidIntermediateDirectory(currentDir, fullInstallationPath))
             {
                 return null;
             }
@@ -729,7 +735,7 @@ public class ManifestGenerationService(
             currentDir = nextDir;
         }
 
-        if (!Directory.Exists(currentDir) || IsReparsePoint(currentDir))
+        if (IsInvalidIntermediateDirectory(currentDir, fullInstallationPath))
         {
             return null;
         }
@@ -1005,10 +1011,11 @@ public class ManifestGenerationService(
             }
 
             var fileInfo = new FileInfo(sourcePath);
-            if (entry.Size > 0 && fileInfo.Length != entry.Size)
+            var hasSizeDiscrepancy = entry.Size > 0 && fileInfo.Length != entry.Size;
+            if (hasSizeDiscrepancy)
             {
                 logger.LogWarning(
-                    "Local file size ({ActualSize}) for {RelativePath} differs from catalog size ({ExpectedSize}). Source: {SourcePath}",
+                    "Local file size ({ActualSize}) for {RelativePath} differs from catalog size ({ExpectedSize}). Attaching locally computed hash and size. Source: {SourcePath}",
                     fileInfo.Length,
                     entry.RelativePath,
                     entry.Size,
@@ -1017,11 +1024,11 @@ public class ManifestGenerationService(
 
             var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(entry.RelativePath, sourcePath);
 
-            var catalogHash = !string.IsNullOrWhiteSpace(entry.Sha256)
+            var fileHash = (!hasSizeDiscrepancy && !string.IsNullOrWhiteSpace(entry.Sha256))
                 ? entry.Sha256
                 : await hashProvider.ComputeFileHashAsync(sourcePath);
 
-            var catalogSize = entry.Size > 0
+            var fileSize = (!hasSizeDiscrepancy && entry.Size > 0)
                 ? entry.Size
                 : fileInfo.Length;
 
@@ -1030,8 +1037,8 @@ public class ManifestGenerationService(
                 sourcePath,
                 isExecutable,
                 permissions: null,
-                hash: catalogHash,
-                size: catalogSize,
+                hash: fileHash,
+                size: fileSize,
                 isRequired: entry.IsRequired);
 
             return true;

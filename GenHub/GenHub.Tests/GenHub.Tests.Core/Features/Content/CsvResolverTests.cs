@@ -639,12 +639,8 @@ public class CsvResolverTests
         stream!.CopyTo(memoryStream);
         var bytes = memoryStream.ToArray();
 
-        // Ensure CRLF line endings from platform git checkouts do not diverge from the canonical LF checksum
         var text = Encoding.UTF8.GetString(bytes);
-        if (text.Contains("\r\n"))
-        {
-            bytes = Encoding.UTF8.GetBytes(text.Replace("\r\n", "\n"));
-        }
+        text.Should().NotContain("\r", "embedded CSV registries must use canonical LF line endings");
 
         var actualHash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
 
