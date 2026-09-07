@@ -243,8 +243,9 @@ public sealed class ReplayDirectoryService(
                     $"Could not determine executable path for {replay.GameVersion} installation.");
             }
 
-            var enabledContentIds = await GatherEnabledContentIdsAsync(
-                manifestPool, contentOrchestrator, dependencyResolver, replay, installationManifestId, clientManifestId, logger, ct);
+            var resolutionContext = new ReplayContentResolutionContext(
+                manifestPool, contentOrchestrator, dependencyResolver, replay, installationManifestId, clientManifestId);
+            var enabledContentIds = await GatherEnabledContentIdsAsync(resolutionContext, logger, ct);
 
             logger.LogInformation(
                 "[ReplayManager] Gathered {Count} enabled content IDs for replay profile: [{ContentIds}]",
@@ -488,136 +489,182 @@ public sealed class ReplayDirectoryService(
         return (installation, null);
     }
 
+    private sealed record ReplayContentResolutionContext(
+        IContentManifestPool ManifestPool,
+        IContentOrchestrator? ContentOrchestrator,
+        IDependencyResolver? DependencyResolver,
+        ReplayFile Replay,
+        string InstallationManifestId,
+        string ClientManifestId);
+
     private static async Task<List<string>> GatherEnabledContentIdsAsync(
-        IContentManifestPool manifestPool,
-        IContentOrchestrator? contentOrchestrator,
-        IDependencyResolver? dependencyResolver,
-        ReplayFile replay,
-        string installationManifestId,
-        string clientManifestId,
+        ReplayContentResolutionContext context,
         ILogger logger,
         CancellationToken ct)
     {
         var enabledContentIds = new List<string>();
 
-        if (!string.IsNullOrWhiteSpace(installationManifestId))
+        if (!string.IsNullOrWhiteSpace(context.InstallationManifestId))
         {
-            enabledContentIds.Add(installationManifestId);
+            enabledContentIds.Add(context.InstallationManifestId);
         }
 
-        if (!string.IsNullOrWhiteSpace(clientManifestId) && !enabledContentIds.Contains(clientManifestId, StringComparer.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(context.ClientManifestId) &&
+            !enabledContentIds.Contains(context.ClientManifestId, StringComparer.OrdinalIgnoreCase))
         {
-            enabledContentIds.Add(clientManifestId);
+            enabledContentIds.Add(context.ClientManifestId);
         }
 
         // 1. Resolve direct dependencies from the game client manifest (e.g. MapPack for GeneralsOnline)
-        if (!string.IsNullOrWhiteSpace(clientManifestId))
-        {
-            try
-            {
-                var clientManifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(clientManifestId), ct);
-                if (clientManifestResult?.Success == true && clientManifestResult.Data?.Dependencies != null)
-                {
-                    foreach (var dep in clientManifestResult.Data.Dependencies)
-                    {
-                        if (dep.DependencyType == ContentType.GameInstallation)
-                        {
-                            continue; // Base installation already added
-                        }
+        await AddDirectClientDependenciesAsync(context.ManifestPool, context.ClientManifestId, enabledContentIds, logger, ct);
 
-                        var depId = dep.Id.Value;
-                        if (!string.IsNullOrEmpty(depId))
-                        {
-                            var depManifestResult = await manifestPool.GetManifestAsync(dep.Id, ct);
-                            if (depManifestResult?.Success == true && depManifestResult.Data != null)
-                            {
-                                if (!enabledContentIds.Contains(depManifestResult.Data.Id.Value, StringComparer.OrdinalIgnoreCase))
-                                {
-                                    enabledContentIds.Add(depManifestResult.Data.Id.Value);
-                                }
-                            }
-                            else
-                            {
-                                var allManifests = await manifestPool.GetAllManifestsAsync(ct);
-                                var compatible = allManifests?.Success == true && allManifests.Data != null
-                                    ? allManifests.Data.FirstOrDefault(m =>
-                                        m.ContentType == dep.DependencyType &&
-                                        (string.Equals(m.Publisher?.PublisherType, dep.PublisherType, StringComparison.OrdinalIgnoreCase) ||
-                                         DependencyResolver.HasCompatibleCatalogIdentity(dep.Id.Value, m.Id.Value)))
-                                    : null;
-
-                                if (compatible != null)
-                                {
-                                    if (!enabledContentIds.Contains(compatible.Id.Value, StringComparer.OrdinalIgnoreCase))
-                                    {
-                                        enabledContentIds.Add(compatible.Id.Value);
-                                    }
-                                }
-                                else if (!enabledContentIds.Contains(depId, StringComparer.OrdinalIgnoreCase))
-                                {
-                                    enabledContentIds.Add(depId);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                // Proceed with gathered IDs if client manifest resolution has errors
-            }
-        }
-
-        var isRetailClient = string.Equals(clientManifestId, installationManifestId, StringComparison.OrdinalIgnoreCase) ||
-                             string.IsNullOrWhiteSpace(replay.MatchedClient?.Publisher) ||
-                             string.Equals(replay.MatchedClient?.Publisher, PublisherTypeConstants.Ea, StringComparison.OrdinalIgnoreCase);
+        var isRetailClient = string.Equals(context.ClientManifestId, context.InstallationManifestId, StringComparison.OrdinalIgnoreCase) ||
+                             string.IsNullOrWhiteSpace(context.Replay.MatchedClient?.Publisher) ||
+                             string.Equals(context.Replay.MatchedClient?.Publisher, PublisherTypeConstants.Ea, StringComparison.OrdinalIgnoreCase);
 
         // 2. Add companion manifests from third party publisher (e.g. MapPack and Patches)
-        if (!isRetailClient && replay.MatchedClient != null && string.IsNullOrEmpty(replay.MatchedClient.DataPatchManifestId))
+        if (!isRetailClient && context.Replay.MatchedClient != null && string.IsNullOrEmpty(context.Replay.MatchedClient.DataPatchManifestId))
         {
             await AddThirdPartyCompanionManifestsAsync(
-                manifestPool, clientManifestId, replay, enabledContentIds, logger, ct);
+                context.ManifestPool, context.ClientManifestId, context.Replay, enabledContentIds, logger, ct);
         }
 
         // 3. Add explicit data patch if declared on MatchedClient
-        if (replay.MatchedClient != null &&
-            !string.IsNullOrEmpty(replay.MatchedClient.DataPatchManifestId))
-        {
-            var rawDataPatchId = replay.MatchedClient.DataPatchManifestId;
-
-            // Try acquiring data patch if not present in pool
-            await AcquireDataPatchIfMissingAsync(
-                contentOrchestrator, manifestPool, rawDataPatchId, replay.MatchedClient.Publisher, replay.GameVersion, ct);
-
-            // Verify if data patch exists in manifest pool (exact ID or compatible identity)
-            var resolvedDataPatchId = await ResolveExistingPatchManifestIdAsync(manifestPool, rawDataPatchId, replay.GameVersion, ct);
-            if (!string.IsNullOrEmpty(resolvedDataPatchId) && !enabledContentIds.Contains(resolvedDataPatchId, StringComparer.OrdinalIgnoreCase))
-            {
-                enabledContentIds.Add(resolvedDataPatchId);
-            }
-        }
+        await AddExplicitDataPatchIfDeclaredAsync(context, enabledContentIds, ct);
 
         // 4. Resolve transitive dependencies via IDependencyResolver (as in wizard & add-to-profile)
-        if (dependencyResolver != null && enabledContentIds.Count > 0)
-        {
-            try
-            {
-                var resolvedDependencies = await dependencyResolver.ResolveDependenciesAsync(enabledContentIds, ct);
-                foreach (var depId in resolvedDependencies)
-                {
-                    if (!enabledContentIds.Contains(depId, StringComparer.OrdinalIgnoreCase))
-                    {
-                        enabledContentIds.Add(depId);
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                // Proceed safely with gathered content IDs
-            }
-        }
+        await AddTransitiveDependenciesAsync(context.DependencyResolver, enabledContentIds, logger, ct);
 
         return enabledContentIds;
+    }
+
+    private static async Task AddDirectClientDependenciesAsync(
+        IContentManifestPool manifestPool,
+        string clientManifestId,
+        List<string> enabledContentIds,
+        ILogger logger,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(clientManifestId))
+        {
+            return;
+        }
+
+        try
+        {
+            var clientManifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(clientManifestId), ct);
+            if (clientManifestResult?.Success != true || clientManifestResult.Data?.Dependencies == null)
+            {
+                return;
+            }
+
+            foreach (var dep in clientManifestResult.Data.Dependencies)
+            {
+                if (dep.DependencyType == ContentType.GameInstallation)
+                {
+                    continue;
+                }
+
+                await ResolveAndAddDependencyAsync(manifestPool, dep, enabledContentIds, ct);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "[ReplayDirectoryService] Failed to resolve client dependencies for {ClientManifestId}", clientManifestId);
+        }
+    }
+
+    private static async Task ResolveAndAddDependencyAsync(
+        IContentManifestPool manifestPool,
+        ContentDependency dep,
+        List<string> contentIds,
+        CancellationToken ct)
+    {
+        var depId = dep.Id.Value;
+        if (string.IsNullOrEmpty(depId))
+        {
+            return;
+        }
+
+        var depManifestResult = await manifestPool.GetManifestAsync(dep.Id, ct);
+        if (depManifestResult?.Success == true && depManifestResult.Data != null)
+        {
+            AddIdIfNotPresent(contentIds, depManifestResult.Data.Id.Value);
+            return;
+        }
+
+        var allManifests = await manifestPool.GetAllManifestsAsync(ct);
+        var compatible = allManifests?.Success == true && allManifests.Data != null
+            ? allManifests.Data.FirstOrDefault(m =>
+                m.ContentType == dep.DependencyType &&
+                (string.Equals(m.Publisher?.PublisherType, dep.PublisherType, StringComparison.OrdinalIgnoreCase) ||
+                 DependencyResolver.HasCompatibleCatalogIdentity(dep.Id.Value, m.Id.Value)))
+            : null;
+
+        if (compatible != null)
+        {
+            AddIdIfNotPresent(contentIds, compatible.Id.Value);
+        }
+        else
+        {
+            AddIdIfNotPresent(contentIds, depId);
+        }
+    }
+
+    private static void AddIdIfNotPresent(List<string> list, string id)
+    {
+        if (!list.Contains(id, StringComparer.OrdinalIgnoreCase))
+        {
+            list.Add(id);
+        }
+    }
+
+    private static async Task AddExplicitDataPatchIfDeclaredAsync(
+        ReplayContentResolutionContext context,
+        List<string> enabledContentIds,
+        CancellationToken ct)
+    {
+        if (context.Replay.MatchedClient == null ||
+            string.IsNullOrEmpty(context.Replay.MatchedClient.DataPatchManifestId))
+        {
+            return;
+        }
+
+        var rawDataPatchId = context.Replay.MatchedClient.DataPatchManifestId;
+
+        await AcquireDataPatchIfMissingAsync(
+            context.ContentOrchestrator, context.ManifestPool, rawDataPatchId, context.Replay.MatchedClient.Publisher, context.Replay.GameVersion, ct);
+
+        var resolvedDataPatchId = await ResolveExistingPatchManifestIdAsync(context.ManifestPool, rawDataPatchId, context.Replay.GameVersion, ct);
+        if (!string.IsNullOrEmpty(resolvedDataPatchId) && !enabledContentIds.Contains(resolvedDataPatchId, StringComparer.OrdinalIgnoreCase))
+        {
+            enabledContentIds.Add(resolvedDataPatchId);
+        }
+    }
+
+    private static async Task AddTransitiveDependenciesAsync(
+        IDependencyResolver? dependencyResolver,
+        List<string> enabledContentIds,
+        ILogger logger,
+        CancellationToken ct)
+    {
+        if (dependencyResolver == null || enabledContentIds.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var resolvedDependencies = await dependencyResolver.ResolveDependenciesAsync(enabledContentIds, ct);
+            foreach (var depId in resolvedDependencies.Where(id => !enabledContentIds.Contains(id, StringComparer.OrdinalIgnoreCase)))
+            {
+                enabledContentIds.Add(depId);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "[ReplayDirectoryService] Failed to resolve transitive dependencies");
+        }
     }
 
     private static async Task<string?> ResolveExistingPatchManifestIdAsync(
@@ -720,8 +767,8 @@ public sealed class ReplayDirectoryService(
 
         // 2. Compatibility match based on client and patch IDs
         var isRetailClient = clientManifestId.Contains(ReplayManagerConstants.RetailManifestSegment, StringComparison.OrdinalIgnoreCase) ||
-                             clientManifestId.Contains(".steam.", StringComparison.OrdinalIgnoreCase) ||
-                             clientManifestId.Contains(".eaapp.", StringComparison.OrdinalIgnoreCase);
+                             clientManifestId.Contains(ReplayManagerConstants.SteamManifestSegment, StringComparison.OrdinalIgnoreCase) ||
+                             clientManifestId.Contains(ReplayManagerConstants.EaAppManifestSegment, StringComparison.OrdinalIgnoreCase);
 
         return profileList.FirstOrDefault(p =>
         {
@@ -1140,7 +1187,9 @@ public sealed class ReplayDirectoryService(
         string workingDir,
         GameClient? targetClient)
     {
-        var defaultVersionInt = replay.GameVersion == GameType.ZeroHour ? 104 : 108;
+        var defaultVersionInt = replay.GameVersion == GameType.ZeroHour
+            ? ReplayManagerConstants.DefaultZeroHourVersionNumber
+            : ReplayManagerConstants.DefaultGeneralsVersionNumber;
         var gameTypeName = replay.GameVersion == GameType.ZeroHour ? ManifestConstants.ZeroHourContentName : ManifestConstants.GeneralsContentName;
         var clientManifestId = targetClient?.Id ?? ManifestIdGenerator.GeneratePublisherContentId(
             installation.InstallationType.ToIdentifierString(),
@@ -1212,7 +1261,7 @@ public sealed class ReplayDirectoryService(
              (DependencyResolver.HasCompatibleCatalogIdentity(matchedClient.ManifestId, m.Id.Value) ||
               (!string.IsNullOrEmpty(matchedClient.Publisher) &&
                (string.Equals(m.Publisher?.PublisherType, matchedClient.Publisher, StringComparison.OrdinalIgnoreCase) ||
-                m.Id.Value.Contains("." + matchedClient.Publisher + ".", StringComparison.OrdinalIgnoreCase))))));
+                ManifestContainsPublisherSegment(m.Id.Value, matchedClient.Publisher))))));
     }
 
     private static bool HasMatchingClientVersion(CrcMappingEntry matchedClient, ContentManifest manifest)
@@ -1240,6 +1289,9 @@ public sealed class ReplayDirectoryService(
 
         return HasMatchingVersionSegment(declaredId, candidateId);
     }
+
+    private static bool ManifestContainsPublisherSegment(string manifestId, string publisher) =>
+        manifestId.Contains($".{publisher}.", StringComparison.OrdinalIgnoreCase);
 
     private static bool HasMatchingVersionSegment(string? id1, string? id2)
     {
@@ -1305,127 +1357,16 @@ public sealed class ReplayDirectoryService(
             }
 
             var profile = profileResult.Data;
-            var needsUpdate = false;
             var updatedContentIds = profile.EnabledContentIds != null
                 ? new List<string>(profile.EnabledContentIds)
                 : new List<string>();
-            var updatedSteamLaunch = profile.UseSteamLaunch;
 
-            // 1. Ensure UseSteamLaunch is enabled for Steam installations
-            if (installationService != null && !string.IsNullOrEmpty(profile.GameInstallationId))
-            {
-                var installResult = await installationService.GetInstallationAsync(profile.GameInstallationId, ct);
-                if (installResult.Success && installResult.Data?.InstallationType == GameInstallationType.Steam)
-                {
-                    if (profile.UseSteamLaunch != true)
-                    {
-                        updatedSteamLaunch = true;
-                        needsUpdate = true;
-                    }
-                }
-            }
+            var (steamUpdate, updatedSteamLaunch) = await ReconcileSteamLaunchAsync(installationService, profile, ct);
+            var directDepsUpdate = await ReconcileDirectDependenciesAsync(manifestPool, profile.GameClient?.Id, updatedContentIds, ct);
+            var transitiveUpdate = await ReconcileTransitiveDependenciesAsync(dependencyResolver, updatedContentIds, profile.Id, ct);
+            var companionsUpdate = await ReconcileLinkedCompanionsAsync(manifestPool, profile, updatedContentIds, ct);
 
-            // 2. Ensure client manifest dependencies (e.g. MapPack for GeneralsOnline) are present
-            if (manifestPool != null && !string.IsNullOrEmpty(profile.GameClient?.Id))
-            {
-                var clientManifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(profile.GameClient.Id), ct);
-                if (clientManifestResult?.Success == true && clientManifestResult.Data?.Dependencies != null)
-                {
-                    foreach (var dep in clientManifestResult.Data.Dependencies)
-                    {
-                        if (dep.DependencyType == ContentType.GameInstallation)
-                        {
-                            continue;
-                        }
-
-                        var depId = dep.Id.Value;
-                        if (!string.IsNullOrEmpty(depId))
-                        {
-                            var depManifestResult = await manifestPool.GetManifestAsync(dep.Id, ct);
-                            if (depManifestResult?.Success == true && depManifestResult.Data != null)
-                            {
-                                if (!updatedContentIds.Contains(depManifestResult.Data.Id.Value, StringComparer.OrdinalIgnoreCase))
-                                {
-                                    updatedContentIds.Add(depManifestResult.Data.Id.Value);
-                                    needsUpdate = true;
-                                }
-                            }
-                            else
-                            {
-                                var allManifests = await manifestPool.GetAllManifestsAsync(ct);
-                                var compatible = allManifests?.Success == true && allManifests.Data != null
-                                    ? allManifests.Data.FirstOrDefault(m =>
-                                        m.ContentType == dep.DependencyType &&
-                                        (string.Equals(m.Publisher?.PublisherType, dep.PublisherType, StringComparison.OrdinalIgnoreCase) ||
-                                         DependencyResolver.HasCompatibleCatalogIdentity(dep.Id.Value, m.Id.Value)))
-                                    : null;
-
-                                if (compatible != null)
-                                {
-                                    if (!updatedContentIds.Contains(compatible.Id.Value, StringComparer.OrdinalIgnoreCase))
-                                    {
-                                        updatedContentIds.Add(compatible.Id.Value);
-                                        needsUpdate = true;
-                                    }
-                                }
-                                else if (!updatedContentIds.Contains(depId, StringComparer.OrdinalIgnoreCase))
-                                {
-                                    updatedContentIds.Add(depId);
-                                    needsUpdate = true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 3. Resolve transitive dependencies via IDependencyResolver
-            if (dependencyResolver != null && updatedContentIds.Count > 0)
-            {
-                try
-                {
-                    var resolved = await dependencyResolver.ResolveDependenciesAsync(updatedContentIds, ct);
-                    foreach (var id in resolved)
-                    {
-                        if (!updatedContentIds.Contains(id, StringComparer.OrdinalIgnoreCase))
-                        {
-                            updatedContentIds.Add(id);
-                            needsUpdate = true;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogDebug(ex, "[ReplayManager] Dependency reconciliation skipped for profile {ProfileId}", profile.Id);
-                }
-            }
-
-            // 4. Add linked companion manifests if missing
-            if (manifestPool != null && profile.GameClient != null && !string.IsNullOrEmpty(profile.GameClient.Id))
-            {
-                var clientManifest = await GetClientManifestAsync(manifestPool, profile.GameClient.Id, ct);
-                var allManifests = await manifestPool.GetAllManifestsAsync(ct);
-                if (allManifests?.Success == true && allManifests.Data != null)
-                {
-                    var countBefore = updatedContentIds.Count;
-                    foreach (var companion in allManifests.Data)
-                    {
-                        if (companion.TargetGame == profile.GameClient.GameType &&
-                            (companion.ContentType == ContentType.Patch || companion.ContentType == ContentType.MapPack) &&
-                            HasCompanionDependencyLink(clientManifest, companion, profile.GameClient.Id) &&
-                            !updatedContentIds.Contains(companion.Id.Value, StringComparer.OrdinalIgnoreCase))
-                        {
-                            updatedContentIds.Add(companion.Id.Value);
-                        }
-                    }
-
-                    if (updatedContentIds.Count > countBefore)
-                    {
-                        needsUpdate = true;
-                    }
-                }
-            }
-
+            var needsUpdate = steamUpdate || directDepsUpdate || transitiveUpdate || companionsUpdate;
             if (needsUpdate)
             {
                 logger.LogInformation(
@@ -1450,6 +1391,130 @@ public sealed class ReplayDirectoryService(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "[ReplayManager] Failed to reconcile profile '{ProfileId}' before launch, proceeding anyway", profileId);
+        }
+    }
+
+    private async Task<(bool NeedsUpdate, bool? UpdatedSteamLaunch)> ReconcileSteamLaunchAsync(
+        IGameInstallationService? installationService,
+        GameProfile profile,
+        CancellationToken ct)
+    {
+        if (installationService != null &&
+            !string.IsNullOrEmpty(profile.GameInstallationId))
+        {
+            var installResult = await installationService.GetInstallationAsync(profile.GameInstallationId, ct);
+            if (installResult.Success &&
+                installResult.Data?.InstallationType == GameInstallationType.Steam &&
+                profile.UseSteamLaunch != true)
+            {
+                return (true, true);
+            }
+        }
+
+        return (false, profile.UseSteamLaunch);
+    }
+
+    private async Task<bool> ReconcileDirectDependenciesAsync(
+        IContentManifestPool? manifestPool,
+        string? clientManifestId,
+        List<string> updatedContentIds,
+        CancellationToken ct)
+    {
+        if (manifestPool == null || string.IsNullOrEmpty(clientManifestId))
+        {
+            return false;
+        }
+
+        var countBefore = updatedContentIds.Count;
+        try
+        {
+            var clientManifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(clientManifestId), ct);
+            if (clientManifestResult?.Success == true && clientManifestResult.Data?.Dependencies != null)
+            {
+                foreach (var dep in clientManifestResult.Data.Dependencies)
+                {
+                    if (dep.DependencyType == ContentType.GameInstallation)
+                    {
+                        continue;
+                    }
+
+                    await ResolveAndAddDependencyAsync(manifestPool, dep, updatedContentIds, ct);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "[ReplayDirectoryService] Failed to reconcile client dependencies for {ClientManifestId}", clientManifestId);
+        }
+
+        return updatedContentIds.Count > countBefore;
+    }
+
+    private async Task<bool> ReconcileTransitiveDependenciesAsync(
+        IDependencyResolver? dependencyResolver,
+        List<string> updatedContentIds,
+        string profileId,
+        CancellationToken ct)
+    {
+        if (dependencyResolver == null || updatedContentIds.Count == 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            var resolved = await dependencyResolver.ResolveDependenciesAsync(updatedContentIds, ct);
+            var countBefore = updatedContentIds.Count;
+            foreach (var id in resolved.Where(id => !updatedContentIds.Contains(id, StringComparer.OrdinalIgnoreCase)))
+            {
+                updatedContentIds.Add(id);
+            }
+
+            return updatedContentIds.Count > countBefore;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "[ReplayDirectoryService] Dependency reconciliation skipped for profile {ProfileId}", profileId);
+            return false;
+        }
+    }
+
+    private async Task<bool> ReconcileLinkedCompanionsAsync(
+        IContentManifestPool? manifestPool,
+        GameProfile profile,
+        List<string> updatedContentIds,
+        CancellationToken ct)
+    {
+        if (manifestPool == null || profile.GameClient == null || string.IsNullOrEmpty(profile.GameClient.Id))
+        {
+            return false;
+        }
+
+        try
+        {
+            var clientManifest = await GetClientManifestAsync(manifestPool, profile.GameClient.Id, ct);
+            var allManifests = await manifestPool.GetAllManifestsAsync(ct);
+            if (allManifests?.Success != true || allManifests.Data == null)
+            {
+                return false;
+            }
+
+            var countBefore = updatedContentIds.Count;
+            foreach (var companion in allManifests.Data.Where(c =>
+                c.TargetGame == profile.GameClient.GameType &&
+                (c.ContentType == ContentType.Patch || c.ContentType == ContentType.MapPack) &&
+                HasCompanionDependencyLink(clientManifest, c, profile.GameClient.Id) &&
+                !updatedContentIds.Contains(c.Id.Value, StringComparer.OrdinalIgnoreCase)))
+            {
+                updatedContentIds.Add(companion.Id.Value);
+            }
+
+            return updatedContentIds.Count > countBefore;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "[ReplayDirectoryService] Failed to reconcile companion manifests for profile {ProfileId}", profile.Id);
+            return false;
         }
     }
 
@@ -1531,26 +1596,7 @@ public sealed class ReplayDirectoryService(
 
         if (!IsClientAlreadyAcquired(existingManifests, matchedClient, gameVersion))
         {
-            logger.LogInformation("Downloading and acquiring client manifest {ManifestId} from {Publisher}...", matchedClient.ManifestId, matchedClient.Publisher);
-            var searchQuery = new ContentSearchQuery
-            {
-                ProviderName = matchedClient.Publisher,
-                ContentType = ContentType.GameClient,
-                TargetGame = gameVersion,
-            };
-            var searchResult = await contentOrchestrator.SearchAsync(searchQuery, ct);
-            if (searchResult?.Success == true && searchResult.Data != null)
-            {
-                var match = FindBestMatchingContentSearchResult(searchResult.Data, matchedClient);
-                if (match != null)
-                {
-                    var acquireResult = await contentOrchestrator.AcquireContentAsync(match, null, ct);
-                    if (acquireResult != null && !acquireResult.Success)
-                    {
-                        logger.LogWarning("Failed to acquire client manifest {ManifestId}: {Error}", matchedClient.ManifestId, acquireResult.FirstError);
-                    }
-                }
-            }
+            await DownloadThirdPartyClientIfMissingAsync(contentOrchestrator, matchedClient, gameVersion, ct);
         }
         else
         {
@@ -1561,6 +1607,38 @@ public sealed class ReplayDirectoryService(
         if (string.Equals(matchedClient.Publisher, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
         {
             await AcquireGeneralsOnlineMapPacksAsync(contentOrchestrator, manifestPool, ct);
+        }
+    }
+
+    private async Task DownloadThirdPartyClientIfMissingAsync(
+        IContentOrchestrator contentOrchestrator,
+        CrcMappingEntry matchedClient,
+        GameType gameVersion,
+        CancellationToken ct)
+    {
+        logger.LogInformation("Downloading and acquiring client manifest {ManifestId} from {Publisher}...", matchedClient.ManifestId, matchedClient.Publisher);
+        var searchQuery = new ContentSearchQuery
+        {
+            ProviderName = matchedClient.Publisher,
+            ContentType = ContentType.GameClient,
+            TargetGame = gameVersion,
+        };
+        var searchResult = await contentOrchestrator.SearchAsync(searchQuery, ct);
+        if (searchResult?.Success != true || searchResult.Data == null)
+        {
+            return;
+        }
+
+        var match = FindBestMatchingContentSearchResult(searchResult.Data, matchedClient);
+        if (match == null)
+        {
+            return;
+        }
+
+        var acquireResult = await contentOrchestrator.AcquireContentAsync(match, null, ct);
+        if (acquireResult != null && !acquireResult.Success)
+        {
+            logger.LogWarning("Failed to acquire client manifest {ManifestId}: {Error}", matchedClient.ManifestId, acquireResult.FirstError);
         }
     }
 
