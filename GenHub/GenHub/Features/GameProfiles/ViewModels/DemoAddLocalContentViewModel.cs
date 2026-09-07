@@ -374,7 +374,7 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
                 "Opens a folder picker on your PC to select an unpacked mod, tool, or engine directory.",
                 3500));
             await Task.Delay(100);
-            return @"C:\Downloads\CustomModFolder";
+            return null;
         };
 
         BrowseFileAction = async () =>
@@ -385,7 +385,7 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
                 "Opens a file picker on your PC to select .zip archives, .big files, or standalone .exe binaries.",
                 3500));
             await Task.Delay(100);
-            return [@"C:\Downloads\CustomModArchive.zip"];
+            return null;
         };
     }
 
