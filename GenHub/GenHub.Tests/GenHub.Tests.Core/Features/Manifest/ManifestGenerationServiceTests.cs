@@ -742,7 +742,7 @@ public class ManifestGenerationServiceTests : IDisposable
         FileStream? lockStream = null;
         if (OperatingSystem.IsWindows())
         {
-            lockStream = new FileStream(inaccessibleFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            lockStream = new FileStream(inaccessibleFile, System.IO.FileMode.Open, System.IO.FileAccess.ReadWrite, System.IO.FileShare.None);
         }
         else
         {
