@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -44,7 +45,7 @@ public class PublisherDefinitionService(
             }
 
             using var client = httpClientFactory.CreateClient("PublisherDefinition");
-            var response = await client.GetAsync(uri, ct);
+            using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -53,14 +54,33 @@ public class PublisherDefinitionService(
                     $"Failed to fetch definition: {response.StatusCode}");
             }
 
-            if (response.Content.Headers.ContentLength > CatalogConstants.MaxCatalogSizeBytes)
+            if (response.Content.Headers.ContentLength is { } headerLength &&
+                headerLength > CatalogConstants.MaxCatalogSizeBytes)
             {
                 return OperationResult<PublisherDefinition>.CreateFailure(
                     $"Definition exceeds maximum size of {CatalogConstants.MaxCatalogSizeBytes} bytes");
             }
 
-            var json = await response.Content.ReadAsStringAsync(ct);
-            var definition = JsonSerializer.Deserialize<PublisherDefinition>(json, JsonOptions);
+            using var stream = await response.Content.ReadAsStreamAsync(ct);
+            using var memoryStream = new MemoryStream();
+            var buffer = new byte[8192];
+            long totalBytesRead = 0;
+            int bytesRead;
+
+            while ((bytesRead = await stream.ReadAsync(buffer, ct)) > 0)
+            {
+                totalBytesRead += bytesRead;
+                if (totalBytesRead > CatalogConstants.MaxCatalogSizeBytes)
+                {
+                    return OperationResult<PublisherDefinition>.CreateFailure(
+                        $"Definition exceeds maximum size of {CatalogConstants.MaxCatalogSizeBytes} bytes");
+                }
+
+                await memoryStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
+            }
+
+            memoryStream.Position = 0;
+            var definition = await JsonSerializer.DeserializeAsync<PublisherDefinition>(memoryStream, JsonOptions, ct);
 
             if (definition == null)
             {
@@ -84,6 +104,10 @@ public class PublisherDefinitionService(
             }
 
             return OperationResult<PublisherDefinition>.CreateSuccess(definition);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -227,43 +251,14 @@ public class PublisherDefinitionService(
 
             foreach (var catalogEntry in definition.Catalogs)
             {
-                var urlsToTry = new List<string> { catalogEntry.Url };
-                if (catalogEntry.Mirrors != null)
+                var (id, catalog, error) = await TryFetchCatalogEntryAsync(client, catalogEntry, ct);
+                if (catalog != null && id != null)
                 {
-                    urlsToTry.AddRange(catalogEntry.Mirrors);
+                    results[id] = catalog;
                 }
-
-                bool fetched = false;
-                foreach (var url in urlsToTry)
+                else if (!string.IsNullOrEmpty(error))
                 {
-                    if (string.IsNullOrWhiteSpace(url)) continue;
-
-                    try
-                    {
-                        logger.LogInformation("Fetching catalog '{CatalogId}' from: {Url}", catalogEntry.Id, url);
-
-                        var response = await client.GetAsync(url, ct);
-                        if (!response.IsSuccessStatusCode) continue;
-
-                        var json = await response.Content.ReadAsStringAsync(ct);
-                        var parseResult = await catalogParser.ParseCatalogAsync(json, ct);
-
-                        if (parseResult.Success && parseResult.Data != null)
-                        {
-                            results[catalogEntry.Id] = parseResult.Data;
-                            fetched = true;
-                            break;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "Failed to fetch catalog '{CatalogId}' from {Url}", catalogEntry.Id, url);
-                    }
-                }
-
-                if (!fetched)
-                {
-                    errors.Add($"Failed to fetch catalog '{catalogEntry.Name}' ({catalogEntry.Id})");
+                    errors.Add(error);
                 }
             }
 
@@ -279,5 +274,44 @@ public class PublisherDefinitionService(
             logger.LogError(ex, "Critical error in FetchAllCatalogsAsync");
             return OperationResult<Dictionary<string, PublisherCatalog>>.CreateFailure($"Critical error: {ex.Message}");
         }
+    }
+
+    private async Task<(string? CatalogId, PublisherCatalog? Catalog, string? Error)> TryFetchCatalogEntryAsync(
+        HttpClient client,
+        CatalogEntry catalogEntry,
+        CancellationToken ct)
+    {
+        var urlsToTry = new List<string> { catalogEntry.Url };
+        if (catalogEntry.Mirrors != null)
+        {
+            urlsToTry.AddRange(catalogEntry.Mirrors);
+        }
+
+        foreach (var url in urlsToTry)
+        {
+            if (string.IsNullOrWhiteSpace(url)) continue;
+
+            try
+            {
+                logger.LogInformation("Fetching catalog '{CatalogId}' from: {Url}", catalogEntry.Id, url);
+
+                var response = await client.GetAsync(url, ct);
+                if (!response.IsSuccessStatusCode) continue;
+
+                var json = await response.Content.ReadAsStringAsync(ct);
+                var parseResult = await catalogParser.ParseCatalogAsync(json, ct);
+
+                if (parseResult.Success && parseResult.Data != null)
+                {
+                    return (catalogEntry.Id, parseResult.Data, null);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to fetch catalog '{CatalogId}' from {Url}", catalogEntry.Id, url);
+            }
+        }
+
+        return (catalogEntry.Id, null, $"Failed to fetch catalog '{catalogEntry.Name}' ({catalogEntry.Id})");
     }
 }

@@ -31,18 +31,18 @@ public partial class CatalogPublishStatus : ObservableObject
     {
         get
         {
-            if (!IsPublished)
+            if (!_isPublished)
             {
                 return "Not Published";
             }
 
-            if (HasChanges)
+            if (_hasChanges)
             {
                 return "Changes Pending";
             }
 
-            return LastPublished.HasValue
-                ? $"Published {LastPublished.Value:MMM d, yyyy}"
+            return _lastPublished.HasValue
+                ? $"Published {_lastPublished.Value:MMM d, yyyy}"
                 : "Published";
         }
     }
@@ -54,12 +54,12 @@ public partial class CatalogPublishStatus : ObservableObject
     {
         get
         {
-            if (!IsPublished)
+            if (!_isPublished)
             {
                 return "#6B7280";
             }
 
-            if (HasChanges)
+            if (_hasChanges)
             {
                 return "#F59E0B";
             }
@@ -77,20 +77,18 @@ public partial class CatalogPublishStatus : ObservableObject
         _catalog = catalog;
     }
 
-    partial void OnIsPublishedChanged(bool value)
-    {
-        OnPropertyChanged(nameof(StatusText));
-        OnPropertyChanged(nameof(StatusColor));
-    }
+    partial void OnIsPublishedChanged(bool value) => NotifyStatusChanged();
 
-    partial void OnHasChangesChanged(bool value)
-    {
-        OnPropertyChanged(nameof(StatusText));
-        OnPropertyChanged(nameof(StatusColor));
-    }
+    partial void OnHasChangesChanged(bool value) => NotifyStatusChanged();
 
     partial void OnLastPublishedChanged(DateTime? value)
     {
         OnPropertyChanged(nameof(StatusText));
+    }
+
+    private void NotifyStatusChanged()
+    {
+        OnPropertyChanged(nameof(StatusText));
+        OnPropertyChanged(nameof(StatusColor));
     }
 }

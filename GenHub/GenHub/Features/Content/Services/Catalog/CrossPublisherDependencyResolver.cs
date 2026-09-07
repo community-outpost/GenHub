@@ -99,7 +99,7 @@ public class CrossPublisherDependencyResolver(
         {
             var httpClient = httpClientFactory.CreateClient();
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutCts.CancelAfter(TimeSpan.FromSeconds(30));
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(HostingConstants.CatalogFetchTimeoutSeconds));
             var ct = timeoutCts.Token;
 
             logger.LogDebug("Fetching external catalog from: {CatalogUrl}", catalogUrl);
@@ -128,7 +128,7 @@ public class CrossPublisherDependencyResolver(
                         $"Catalog exceeds maximum size of {CatalogConstants.MaxCatalogSizeBytes} bytes");
                 }
 
-                memoryStream.Write(buffer, 0, bytesRead);
+                await memoryStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
             }
 
             var catalogJson = System.Text.Encoding.UTF8.GetString(memoryStream.ToArray());
@@ -140,9 +140,14 @@ public class CrossPublisherDependencyResolver(
                 return OperationResult<PublisherCatalog>.CreateFailure(parseResult);
             }
 
+            if (parseResult.Data == null)
+            {
+                return OperationResult<PublisherCatalog>.CreateFailure("Catalog parser returned null data");
+            }
+
             logger.LogInformation(
                 "Successfully fetched catalog for publisher {PublisherId}",
-                parseResult.Data!.Publisher.Id);
+                parseResult.Data.Publisher.Id);
 
             return parseResult;
         }
@@ -151,9 +156,13 @@ public class CrossPublisherDependencyResolver(
             logger.LogError(ex, "HTTP error fetching external catalog");
             return OperationResult<PublisherCatalog>.CreateFailure($"Failed to fetch catalog: {ex.Message}");
         }
-        catch (TaskCanceledException ex)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            logger.LogWarning(ex, "Catalog fetch timed out");
+            throw;
+        }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogWarning(ex, "Catalog fetch timed out after {Timeout} seconds", HostingConstants.CatalogFetchTimeoutSeconds);
             return OperationResult<PublisherCatalog>.CreateFailure("Catalog fetch timed out");
         }
         catch (Exception ex)
@@ -203,12 +212,12 @@ public class CrossPublisherDependencyResolver(
                 subscriptionResult.Data.CatalogUrl,
                 cancellationToken);
 
-            if (!catalogResult.Success)
+            if (!catalogResult.Success || catalogResult.Data == null)
             {
                 return OperationResult<ContentSearchResult?>.CreateFailure(catalogResult);
             }
 
-            var catalog = catalogResult.Data!;
+            var catalog = catalogResult.Data;
 
             // Find matching content in catalog
             var matchingContent = catalog.Content.FirstOrDefault(c =>

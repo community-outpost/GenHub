@@ -167,64 +167,16 @@ public class PublisherStudioService(
     {
         try
         {
-            // Basic validation
-            if (string.IsNullOrWhiteSpace(catalog.Publisher.Id))
+            var publisherResult = ValidatePublisherMetadata(catalog);
+            if (!publisherResult.Success)
             {
-                return OperationResult<bool>.CreateFailure("Publisher ID is required");
+                return publisherResult;
             }
 
-            if (string.IsNullOrWhiteSpace(catalog.Publisher.Name))
+            var contentResult = ValidateContentReleases(catalog, allowPendingArtifacts, cancellationToken);
+            if (!contentResult.Success)
             {
-                return OperationResult<bool>.CreateFailure("Publisher name is required");
-            }
-
-            // Validate publisher ID format (lowercase, alphanumeric, hyphens)
-            if (!System.Text.RegularExpressions.Regex.IsMatch(catalog.Publisher.Id, "^[a-z0-9-]+$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)))
-            {
-                return OperationResult<bool>.CreateFailure(
-                    "Publisher ID must be lowercase alphanumeric with hyphens only");
-            }
-
-            // Validate content items
-            foreach (var content in catalog.Content)
-            {
-                if (string.IsNullOrWhiteSpace(content.Id))
-                {
-                    return OperationResult<bool>.CreateFailure($"Content item '{content.Name}' is missing an ID");
-                }
-
-                if (content.Releases.Count == 0)
-                {
-                    return OperationResult<bool>.CreateFailure($"Content item '{content.Name}' has no releases");
-                }
-
-                // Validate each release
-                foreach (var release in content.Releases)
-                {
-                    if (string.IsNullOrWhiteSpace(release.Version))
-                    {
-                        return OperationResult<bool>.CreateFailure(
-                            $"Release in '{content.Name}' is missing a version");
-                    }
-
-                    if (release.Artifacts.Count == 0)
-                    {
-                        return OperationResult<bool>.CreateFailure(
-                            $"Release {release.Version} in '{content.Name}' has no artifacts");
-                    }
-
-                    if (allowPendingArtifacts)
-                    {
-                        foreach (var artifact in release.Artifacts)
-                        {
-                            if (!string.IsNullOrEmpty(artifact.LocalFilePath) && !File.Exists(artifact.LocalFilePath))
-                            {
-                                return OperationResult<bool>.CreateFailure(
-                                    $"Local artifact file not found: '{artifact.LocalFilePath}'");
-                            }
-                        }
-                    }
-                }
+                return contentResult;
             }
 
             // Validate content references (ExtendsContentId)
@@ -235,30 +187,9 @@ public class PublisherStudioService(
             }
 
             // Use the catalog parser to validate JSON structure
-            var catalogToValidate = catalog;
-            if (allowPendingArtifacts)
-            {
-                var jsonCopy = JsonSerializer.Serialize(catalog);
-                var clonedCatalog = JsonSerializer.Deserialize<PublisherCatalog>(jsonCopy);
-                if (clonedCatalog != null)
-                {
-                    foreach (var c in clonedCatalog.Content)
-                    {
-                        foreach (var r in c.Releases)
-                        {
-                            foreach (var a in r.Artifacts)
-                            {
-                                if (string.IsNullOrEmpty(a.DownloadUrl) && !string.IsNullOrEmpty(a.LocalFilePath))
-                                {
-                                    a.DownloadUrl = "https://pending-upload.genhub.local/" + Uri.EscapeDataString(a.Filename);
-                                }
-                            }
-                        }
-                    }
-
-                    catalogToValidate = clonedCatalog;
-                }
-            }
+            var catalogToValidate = allowPendingArtifacts
+                ? PrepareCatalogForPendingArtifactValidation(catalog)
+                : catalog;
 
             var json = JsonSerializer.Serialize(catalogToValidate);
             var parseResult = await catalogParser.ParseCatalogAsync(json, cancellationToken);
@@ -270,6 +201,10 @@ public class PublisherStudioService(
 
             logger.LogInformation("Catalog validation successful");
             return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -395,32 +330,6 @@ public class PublisherStudioService(
         }
     }
 
-    private static void ValidateContentArtifactUrls(CatalogContentItem content, System.Collections.Generic.List<string> errors)
-    {
-        foreach (var release in content.Releases)
-        {
-            foreach (var artifact in release.Artifacts)
-            {
-                ValidateSingleArtifactUrl(content.Name, release.Version, artifact, errors);
-            }
-        }
-    }
-
-    private static void ValidateSingleArtifactUrl(string contentName, string releaseVersion, ReleaseArtifact artifact, System.Collections.Generic.List<string> errors)
-    {
-        if (string.IsNullOrWhiteSpace(artifact.DownloadUrl))
-        {
-            errors.Add($"Artifact '{artifact.Filename}' in '{contentName}' {releaseVersion} has no download URL");
-            return;
-        }
-
-        if (!Uri.TryCreate(artifact.DownloadUrl, UriKind.Absolute, out var uriResult)
-            || (uriResult.Scheme != Uri.UriSchemeHttp && uriResult.Scheme != Uri.UriSchemeHttps))
-        {
-            errors.Add($"Artifact '{artifact.Filename}' in '{contentName}' {releaseVersion} has invalid URL: {artifact.DownloadUrl}");
-        }
-    }
-
     /// <summary>
     /// Validates content references (ExtendsContentId) in the catalog.
     /// </summary>
@@ -449,14 +358,10 @@ public class PublisherStudioService(
                 continue;
             }
 
-            // Check if it's a same-catalog reference (no slash)
-            if (!content.ExtendsContentId.Contains('/'))
+            // Check if it's a same-catalog reference (no slash) and not present
+            if (!content.ExtendsContentId.Contains('/') && !contentIds.Contains(content.ExtendsContentId))
             {
-                // Validate that the referenced content exists in this catalog
-                if (!contentIds.Contains(content.ExtendsContentId))
-                {
-                    errors.Add($"Content '{content.Name}' extends '{content.ExtendsContentId}' which does not exist in this catalog.");
-                }
+                errors.Add($"Content '{content.Name}' extends '{content.ExtendsContentId}' which does not exist in this catalog.");
             }
 
             // Cross-publisher references are validated for format only (can't verify external catalogs)
@@ -475,52 +380,203 @@ public class PublisherStudioService(
         return OperationResult<bool>.CreateSuccess(true);
     }
 
+    private static OperationResult<bool> ValidatePublisherMetadata(PublisherCatalog catalog)
+    {
+        if (string.IsNullOrWhiteSpace(catalog.Publisher.Id))
+        {
+            return OperationResult<bool>.CreateFailure("Publisher ID is required");
+        }
+
+        if (string.IsNullOrWhiteSpace(catalog.Publisher.Name))
+        {
+            return OperationResult<bool>.CreateFailure("Publisher name is required");
+        }
+
+        if (!System.Text.RegularExpressions.Regex.IsMatch(catalog.Publisher.Id, "^[a-z0-9-]+$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1)))
+        {
+            return OperationResult<bool>.CreateFailure("Publisher ID must be lowercase alphanumeric with hyphens only");
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static OperationResult<bool> ValidateContentReleases(
+        PublisherCatalog catalog,
+        bool allowPendingArtifacts,
+        CancellationToken cancellationToken)
+    {
+        foreach (var content in catalog.Content)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (string.IsNullOrWhiteSpace(content.Id))
+            {
+                return OperationResult<bool>.CreateFailure($"Content item '{content.Name}' is missing an ID");
+            }
+
+            if (content.Releases.Count == 0)
+            {
+                return OperationResult<bool>.CreateFailure($"Content item '{content.Name}' has no releases");
+            }
+
+            var releaseResult = ValidateSingleContentReleases(content, allowPendingArtifacts, cancellationToken);
+            if (!releaseResult.Success)
+            {
+                return releaseResult;
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static OperationResult<bool> ValidateSingleContentReleases(
+        CatalogContentItem content,
+        bool allowPendingArtifacts,
+        CancellationToken cancellationToken)
+    {
+        foreach (var release in content.Releases)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (string.IsNullOrWhiteSpace(release.Version))
+            {
+                return OperationResult<bool>.CreateFailure($"Release in '{content.Name}' is missing a version");
+            }
+
+            if (release.Artifacts.Count == 0)
+            {
+                return OperationResult<bool>.CreateFailure($"Release {release.Version} in '{content.Name}' has no artifacts");
+            }
+
+            if (allowPendingArtifacts)
+            {
+                var missingArtifact = release.Artifacts.FirstOrDefault(artifact =>
+                    string.IsNullOrEmpty(artifact.DownloadUrl) &&
+                    !string.IsNullOrEmpty(artifact.LocalFilePath) &&
+                    !File.Exists(artifact.LocalFilePath));
+
+                if (missingArtifact != null)
+                {
+                    return OperationResult<bool>.CreateFailure($"Local artifact file not found: '{missingArtifact.LocalFilePath}'");
+                }
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static PublisherCatalog PrepareCatalogForPendingArtifactValidation(PublisherCatalog catalog)
+    {
+        var jsonCopy = JsonSerializer.Serialize(catalog);
+        var clonedCatalog = JsonSerializer.Deserialize<PublisherCatalog>(jsonCopy) ?? catalog;
+
+        ApplyPendingArtifactUrls(catalog, clonedCatalog);
+        return clonedCatalog;
+    }
+
+    private static void ApplyPendingArtifactUrls(PublisherCatalog source, PublisherCatalog target)
+    {
+        for (var cIdx = 0; cIdx < source.Content.Count && cIdx < target.Content.Count; cIdx++)
+        {
+            var srcReleases = source.Content[cIdx].Releases;
+            var tgtReleases = target.Content[cIdx].Releases;
+            for (var rIdx = 0; rIdx < srcReleases.Count && rIdx < tgtReleases.Count; rIdx++)
+            {
+                var srcArtifacts = srcReleases[rIdx].Artifacts;
+                var tgtArtifacts = tgtReleases[rIdx].Artifacts;
+                for (var aIdx = 0; aIdx < srcArtifacts.Count && aIdx < tgtArtifacts.Count; aIdx++)
+                {
+                    var srcArtifact = srcArtifacts[aIdx];
+                    var tgtArtifact = tgtArtifacts[aIdx];
+                    if (string.IsNullOrEmpty(tgtArtifact.DownloadUrl) && !string.IsNullOrEmpty(srcArtifact.LocalFilePath))
+                    {
+                        tgtArtifact.DownloadUrl = HostingConstants.PendingUploadBaseUrl + Uri.EscapeDataString(tgtArtifact.Filename);
+                    }
+                }
+            }
+        }
+    }
+
+    private static void ValidateContentArtifactUrls(CatalogContentItem content, List<string> errors)
+    {
+        foreach (var release in content.Releases)
+        {
+            foreach (var artifact in release.Artifacts)
+            {
+                ValidateSingleArtifactUrl(content.Name, release.Version, artifact, errors);
+            }
+        }
+    }
+
+    private static void ValidateSingleArtifactUrl(string contentName, string releaseVersion, ReleaseArtifact artifact, List<string> errors)
+    {
+        if (string.IsNullOrWhiteSpace(artifact.DownloadUrl))
+        {
+            errors.Add($"Artifact '{artifact.Filename}' in '{contentName}' {releaseVersion} has no download URL");
+            return;
+        }
+
+        if (!Uri.TryCreate(artifact.DownloadUrl, UriKind.Absolute, out var uriResult)
+            || (uriResult.Scheme != Uri.UriSchemeHttp && uriResult.Scheme != Uri.UriSchemeHttps))
+        {
+            errors.Add($"Artifact '{artifact.Filename}' in '{contentName}' {releaseVersion} has invalid URL: {artifact.DownloadUrl}");
+        }
+    }
+
     /// <summary>
     /// Detects circular addon chains in the catalog.
     /// </summary>
     /// <param name="catalog">The catalog to check.</param>
     /// <returns>A list of error messages for any circular dependencies found.</returns>
-    private List<string> DetectCircularDependencies(PublisherCatalog catalog)
+    private static List<string> DetectCircularDependencies(PublisherCatalog catalog)
     {
         var errors = new List<string>();
         var contentMap = catalog.Content.ToDictionary(c => c.Id, c => c);
 
         foreach (var content in catalog.Content)
         {
-            if (string.IsNullOrWhiteSpace(content.ExtendsContentId) || content.ExtendsContentId.Contains('/'))
+            if (TryFindAddonCycle(content, contentMap, out var cycleError))
             {
-                continue; // Skip if no reference or cross-publisher reference
-            }
-
-            var visited = new HashSet<string>();
-            var currentId = content.Id;
-
-            while (!string.IsNullOrWhiteSpace(currentId))
-            {
-                if (!visited.Add(currentId))
-                {
-                    // Found a cycle
-                    var chain = string.Join(" → ", visited) + $" → {currentId}";
-                    errors.Add($"Circular addon dependency detected: {chain}");
-                    break;
-                }
-
-                if (!contentMap.TryGetValue(currentId, out var currentContent))
-                {
-                    break; // Reference doesn't exist (already caught by other validation)
-                }
-
-                // Move to the next content in the chain
-                if (string.IsNullOrWhiteSpace(currentContent.ExtendsContentId) ||
-                    currentContent.ExtendsContentId.Contains('/'))
-                {
-                    break; // End of chain or cross-publisher reference
-                }
-
-                currentId = currentContent.ExtendsContentId;
+                errors.Add(cycleError);
             }
         }
 
         return errors;
+    }
+
+    private static bool TryFindAddonCycle(
+        CatalogContentItem content,
+        Dictionary<string, CatalogContentItem> contentMap,
+        out string cycleError)
+    {
+        cycleError = string.Empty;
+        if (string.IsNullOrWhiteSpace(content.ExtendsContentId) || content.ExtendsContentId.Contains('/'))
+        {
+            return false;
+        }
+
+        var visited = new HashSet<string>();
+        var currentId = content.Id;
+
+        while (!string.IsNullOrWhiteSpace(currentId))
+        {
+            if (!visited.Add(currentId))
+            {
+                var chain = string.Join(" → ", visited) + $" → {currentId}";
+                cycleError = $"Circular addon dependency detected: {chain}";
+                return true;
+            }
+
+            if (!contentMap.TryGetValue(currentId, out var currentContent) ||
+                string.IsNullOrWhiteSpace(currentContent.ExtendsContentId) ||
+                currentContent.ExtendsContentId.Contains('/'))
+            {
+                break;
+            }
+
+            currentId = currentContent.ExtendsContentId;
+        }
+
+        return false;
     }
 }

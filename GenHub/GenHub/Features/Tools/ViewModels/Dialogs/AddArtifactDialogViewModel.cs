@@ -66,10 +66,10 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
     /// </summary>
     public bool UseExistingUrl
     {
-        get => !UseLocalFile;
+        get => !_useLocalFile;
         set
         {
-            if (UseLocalFile == !value) return;
+            if (_useLocalFile == !value) return;
             UseLocalFile = !value;
             OnPropertyChanged();
         }
@@ -78,12 +78,12 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
     /// <summary>
     /// Gets a value indicating whether a local file has been selected.
     /// </summary>
-    public bool IsLocalFile => !string.IsNullOrEmpty(LocalFilePath);
+    public bool IsLocalFile => !string.IsNullOrEmpty(_localFilePath);
 
     /// <summary>
     /// Gets a value indicating whether the artifact is hosted remotely (URL set, no local file).
     /// </summary>
-    public bool IsHosted => !string.IsNullOrEmpty(DownloadUrl) && !IsLocalFile;
+    public bool IsHosted => !string.IsNullOrEmpty(_downloadUrl) && !IsLocalFile;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AddArtifactDialogViewModel"/> class.
@@ -95,7 +95,7 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
 
         PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName is nameof(Filename) or nameof(DownloadUrl))
+            if (e.PropertyName is nameof(Filename) or nameof(DownloadUrl) or nameof(LocalFilePath) or nameof(UseLocalFile))
             {
                 Validate();
             }
@@ -127,6 +127,15 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
 
     partial void OnUseLocalFileChanged(bool value)
     {
+        if (value)
+        {
+            DownloadUrl = string.Empty;
+        }
+        else
+        {
+            LocalFilePath = null;
+        }
+
         OnPropertyChanged(nameof(UseExistingUrl));
         UpdateArtifactStatus();
     }
@@ -147,9 +156,9 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
 
     private void UpdateArtifactStatus()
     {
-        if (!string.IsNullOrEmpty(LocalFilePath))
+        if (!string.IsNullOrEmpty(_localFilePath))
             ArtifactStatus = "Local file selected - will be uploaded during publish";
-        else if (!string.IsNullOrEmpty(DownloadUrl))
+        else if (!string.IsNullOrEmpty(_downloadUrl))
             ArtifactStatus = "Hosted remotely";
         else
             ArtifactStatus = "No file configured";
@@ -245,7 +254,7 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
     [RelayCommand]
     private async Task ComputeHashAsync()
     {
-        if (string.IsNullOrWhiteSpace(LocalFilePath) || !File.Exists(LocalFilePath))
+        if (string.IsNullOrWhiteSpace(_localFilePath) || !File.Exists(_localFilePath))
         {
             ValidationError = "Please select a local file first";
             return;
@@ -256,7 +265,7 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
 
         try
         {
-            await using var stream = File.OpenRead(LocalFilePath);
+            await using var stream = File.OpenRead(_localFilePath);
             using var sha256 = SHA256.Create();
             var hashBytes = await sha256.ComputeHashAsync(stream, CancellationToken.None);
             Sha256Hash = Convert.ToHexString(hashBytes).ToLowerInvariant();
@@ -287,10 +296,10 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
         }
 
         // Validate based on selection mode
-        if (UseLocalFile)
+        if (_useLocalFile)
         {
             // Local file mode - require local file path
-            if (string.IsNullOrWhiteSpace(LocalFilePath) || !System.IO.File.Exists(LocalFilePath))
+            if (string.IsNullOrWhiteSpace(_localFilePath) || !System.IO.File.Exists(_localFilePath))
             {
                 ValidationError = "Please select a local file to upload";
                 IsValid = false;
@@ -300,8 +309,8 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
         else
         {
             // URL mode - require valid URL
-            if (string.IsNullOrWhiteSpace(DownloadUrl) ||
-                !Uri.TryCreate(DownloadUrl, UriKind.Absolute, out var uri) ||
+            if (string.IsNullOrWhiteSpace(_downloadUrl) ||
+                !Uri.TryCreate(_downloadUrl, UriKind.Absolute, out var uri) ||
                 (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
             {
                 ValidationError = "Please enter a valid HTTP or HTTPS download URL";
@@ -335,9 +344,32 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
     private void Validate()
     {
         ValidateAllProperties();
-        IsValid = !HasErrors;
-        ValidationError = HasErrors
-            ? string.Join(Environment.NewLine, GetErrors().Select(e => e.ErrorMessage))
-            : null;
+        if (HasErrors)
+        {
+            IsValid = false;
+            ValidationError = string.Join(Environment.NewLine, GetErrors().Select(e => e.ErrorMessage));
+            return;
+        }
+
+        if (!_useLocalFile)
+        {
+            if (string.IsNullOrWhiteSpace(_downloadUrl))
+            {
+                IsValid = false;
+                ValidationError = "Download URL is required";
+                return;
+            }
+
+            if (!Uri.TryCreate(_downloadUrl, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            {
+                IsValid = false;
+                ValidationError = "Please enter a valid HTTP or HTTPS download URL";
+                return;
+            }
+        }
+
+        IsValid = true;
+        ValidationError = null;
     }
 }

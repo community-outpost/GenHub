@@ -157,7 +157,7 @@ public interface IHostingProvider
 /// <summary>
 /// Result of a file upload to a hosting provider.
 /// </summary>
-public class HostingUploadResult
+public sealed class HostingUploadResult : IEquatable<HostingUploadResult>
 {
     /// <summary>
     /// Gets or sets the public URL where the file can be accessed.
@@ -183,4 +183,32 @@ public class HostingUploadResult
     /// Gets or sets the SHA256 hash of the uploaded file.
     /// </summary>
     public string? Sha256Hash { get; set; }
+
+    /// <inheritdoc />
+    public bool Equals(HostingUploadResult? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return PublicUrl == other.PublicUrl
+            && DirectDownloadUrl == other.DirectDownloadUrl
+            && FileId == other.FileId
+            && FileSize == other.FileSize
+            && Sha256Hash == other.Sha256Hash;
+    }
+
+    /// <inheritdoc />
+    public override bool Equals(object? obj) => Equals(obj as HostingUploadResult);
+
+    /// <inheritdoc />
+    public override int GetHashCode() => HashCode.Combine(PublicUrl, DirectDownloadUrl, FileId, FileSize, Sha256Hash);
+
+    /// <summary>
+    /// Compares two <see cref="HostingUploadResult"/> instances for equality.
+    /// </summary>
+    public static bool operator ==(HostingUploadResult? left, HostingUploadResult? right) => Equals(left, right);
+
+    /// <summary>
+    /// Compares two <see cref="HostingUploadResult"/> instances for inequality.
+    /// </summary>
+    public static bool operator !=(HostingUploadResult? left, HostingUploadResult? right) => !Equals(left, right);
 }

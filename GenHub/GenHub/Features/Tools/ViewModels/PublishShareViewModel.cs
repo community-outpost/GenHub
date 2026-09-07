@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Models.Providers;
@@ -38,10 +39,7 @@ public partial class PublishShareViewModel : ObservableObject
     private HostingState? _currentHostingState;
 
     [ObservableProperty]
-    private bool _isValid;
-
-    [ObservableProperty]
-    private string _validationMessage = string.Empty;
+    private IHostingProvider? _selectedHostingProvider;
 
     [ObservableProperty]
     private string _catalogJson = string.Empty;
@@ -53,7 +51,10 @@ public partial class PublishShareViewModel : ObservableObject
     private string _subscriptionUrl = string.Empty;
 
     [ObservableProperty]
-    private IHostingProvider? _selectedHostingProvider;
+    private bool _isValid;
+
+    [ObservableProperty]
+    private string _validationMessage = string.Empty;
 
     [ObservableProperty]
     private bool _isUploading;
@@ -62,7 +63,7 @@ public partial class PublishShareViewModel : ObservableObject
     private int _uploadProgress;
 
     [ObservableProperty]
-    private string? _uploadStatusMessage;
+    private string _uploadStatusMessage = string.Empty;
 
     [ObservableProperty]
     private string _providerDefinitionUrl = string.Empty;
@@ -108,12 +109,12 @@ public partial class PublishShareViewModel : ObservableObject
     /// <summary>
     /// Gets a value indicating whether the selected provider requires authentication.
     /// </summary>
-    public bool RequiresAuthentication => SelectedHostingProvider?.RequiresAuthentication ?? false;
+    public bool RequiresAuthentication => _selectedHostingProvider?.RequiresAuthentication ?? false;
 
     /// <summary>
     /// Gets a value indicating whether the selected provider is authenticated.
     /// </summary>
-    public bool IsProviderAuthenticated => SelectedHostingProvider?.IsAuthenticated ?? false;
+    public bool IsProviderAuthenticated => _selectedHostingProvider?.IsAuthenticated ?? false;
 
     /// <summary>
     /// Gets a value indicating whether authentication is needed (provider requires it but is not authenticated).
@@ -123,17 +124,17 @@ public partial class PublishShareViewModel : ObservableObject
     /// <summary>
     /// Gets a value indicating whether GitHub PAT input should be shown.
     /// </summary>
-    public bool ShowGitHubPatInput => SelectedHostingProvider?.ProviderId == "github" && !IsProviderAuthenticated;
+    public bool ShowGitHubPatInput => _selectedHostingProvider?.ProviderId == HostingConstants.GitHub && !IsProviderAuthenticated;
 
     /// <summary>
     /// Gets a value indicating whether Google OAuth button should be shown.
     /// </summary>
-    public bool ShowGoogleOAuthButton => SelectedHostingProvider?.ProviderId == "google_drive" && !IsProviderAuthenticated;
+    public bool ShowGoogleOAuthButton => _selectedHostingProvider?.ProviderId == HostingConstants.GoogleDrive && !IsProviderAuthenticated;
 
     /// <summary>
     /// Gets a value indicating whether Dropbox token input should be shown.
     /// </summary>
-    public bool ShowDropboxTokenInput => SelectedHostingProvider?.ProviderId == "dropbox" && !IsProviderAuthenticated;
+    public bool ShowDropboxTokenInput => _selectedHostingProvider?.ProviderId == HostingConstants.Dropbox && !IsProviderAuthenticated;
 
     /// <summary>
     /// Gets the available catalogs in the project.
@@ -271,7 +272,7 @@ public partial class PublishShareViewModel : ObservableObject
             OperationResult<bool> result;
 
             // Handle GitHub PAT authentication
-            if (SelectedHostingProvider.ProviderId == "github" && SelectedHostingProvider is GitHubHostingProvider githubProvider)
+            if (SelectedHostingProvider.ProviderId == HostingConstants.GitHub && SelectedHostingProvider is GitHubHostingProvider githubProvider)
             {
                 if (string.IsNullOrWhiteSpace(GitHubPersonalAccessToken))
                 {
@@ -283,7 +284,7 @@ public partial class PublishShareViewModel : ObservableObject
             }
 
             // Handle Dropbox token authentication
-            else if (SelectedHostingProvider.ProviderId == "dropbox" && SelectedHostingProvider is DropboxHostingProvider dropboxProvider)
+            else if (SelectedHostingProvider.ProviderId == HostingConstants.Dropbox && SelectedHostingProvider is DropboxHostingProvider dropboxProvider)
             {
                 if (string.IsNullOrWhiteSpace(DropboxAccessToken))
                 {
@@ -422,7 +423,7 @@ public partial class PublishShareViewModel : ObservableObject
             _logger.LogInformation("Loaded hosting state with {CatalogCount} catalogs", _currentHostingState.Catalogs.Count);
 
             // After loading state, try to restore authentication
-            if (_currentHostingState != null && !string.IsNullOrEmpty(_currentHostingState.AuthToken))
+            if (!string.IsNullOrEmpty(_currentHostingState.AuthToken))
             {
                 await RestoreAuthenticationAsync();
             }
@@ -432,12 +433,12 @@ public partial class PublishShareViewModel : ObservableObject
     /// <summary>
     /// Gets the content item count in the active catalog.
     /// </summary>
-    public int ContentItemCount => ActiveCatalog?.Catalog.Content.Count ?? 0;
+    public int ContentItemCount => _activeCatalog?.Catalog.Content.Count ?? 0;
 
     /// <summary>
     /// Gets the total release count across all content items in the active catalog.
     /// </summary>
-    public int TotalReleaseCount => ActiveCatalog?.Catalog.Content.Sum(c => c.Releases.Count) ?? 0;
+    public int TotalReleaseCount => _activeCatalog?.Catalog.Content.Sum(c => c.Releases.Count) ?? 0;
 
     /// <summary>
     /// Validates the active catalog.
@@ -600,6 +601,7 @@ public partial class PublishShareViewModel : ObservableObject
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "Accesses generated ObservableProperties")]
     private async Task<bool> EnsureProviderAuthenticatedAsync()
     {
         if (SelectedHostingProvider == null) return false;
@@ -694,7 +696,7 @@ public partial class PublishShareViewModel : ObservableObject
         if (defUploadResult.Success && defUploadResult.Data != null)
         {
             ProviderDefinitionUrl = defUploadResult.Data.DirectDownloadUrl;
-            if (_currentHostingState != null)
+            if (_currentHostingState != null && !string.IsNullOrEmpty(_project.ProjectPath))
             {
                 _currentHostingState.Definition = new HostedFileInfo
                 {
@@ -702,7 +704,7 @@ public partial class PublishShareViewModel : ObservableObject
                     Url = defUploadResult.Data.DirectDownloadUrl,
                     LastUpdated = DateTime.UtcNow,
                 };
-                await _hostingStateManager.SaveStateAsync(_project.ProjectPath!, _currentHostingState);
+                await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState);
             }
         }
     }
@@ -862,9 +864,9 @@ public partial class PublishShareViewModel : ObservableObject
         _currentHostingState.ProviderId = SelectedHostingProvider.ProviderId;
 
         // Store the token
-        if (SelectedHostingProvider.ProviderId == "github")
+        if (SelectedHostingProvider.ProviderId == HostingConstants.GitHub)
             _currentHostingState.AuthToken = GitHubPersonalAccessToken;
-        else if (SelectedHostingProvider.ProviderId == "dropbox")
+        else if (SelectedHostingProvider.ProviderId == HostingConstants.Dropbox)
             _currentHostingState.AuthToken = DropboxAccessToken;
 
         await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState);
@@ -883,7 +885,7 @@ public partial class PublishShareViewModel : ObservableObject
 
         try
         {
-            if (provider.ProviderId == "github" && provider is GitHubHostingProvider githubProvider)
+            if (provider.ProviderId == HostingConstants.GitHub && provider is GitHubHostingProvider githubProvider)
             {
                 GitHubPersonalAccessToken = _currentHostingState.AuthToken;
                 var result = await githubProvider.AuthenticateWithTokenAsync(_currentHostingState.AuthToken);
@@ -893,7 +895,7 @@ public partial class PublishShareViewModel : ObservableObject
                     _logger.LogInformation("Restored GitHub authentication from hosting state");
                 }
             }
-            else if (provider.ProviderId == "dropbox" && provider is DropboxHostingProvider dropboxProvider)
+            else if (provider.ProviderId == HostingConstants.Dropbox && provider is DropboxHostingProvider dropboxProvider)
             {
                 DropboxAccessToken = _currentHostingState.AuthToken;
                 var result = await dropboxProvider.AuthenticateWithTokenAsync(_currentHostingState.AuthToken);
@@ -932,14 +934,9 @@ public partial class PublishShareViewModel : ObservableObject
         try
         {
             // Build catalog hosting info dictionary from hosting state
-            var catalogHostingInfo = new Dictionary<string, string>();
-            foreach (var catalogInfo in _currentHostingState.Catalogs)
-            {
-                if (!string.IsNullOrEmpty(catalogInfo.Url))
-                {
-                    catalogHostingInfo[catalogInfo.CatalogId] = catalogInfo.Url;
-                }
-            }
+            var catalogHostingInfo = _currentHostingState.Catalogs
+                .Where(c => !string.IsNullOrEmpty(c.Url))
+                .ToDictionary(c => c.CatalogId, c => c.Url);
 
             if (catalogHostingInfo.Count == 0)
             {
@@ -1209,12 +1206,12 @@ public partial class PublishShareViewModel : ObservableObject
     private string BuildPublishSummary()
     {
         var sb = new System.Text.StringBuilder();
-        if (!string.IsNullOrEmpty(CatalogUrl))
-            sb.AppendLine($"Catalog URL: {CatalogUrl}");
-        if (!string.IsNullOrEmpty(ProviderDefinitionUrl))
-            sb.AppendLine($"Definition URL: {ProviderDefinitionUrl}");
-        if (!string.IsNullOrEmpty(SubscriptionUrl))
-            sb.AppendLine($"Subscription URL: {SubscriptionUrl}");
+        if (!string.IsNullOrEmpty(_catalogUrl))
+            sb.AppendLine($"Catalog URL: {_catalogUrl}");
+        if (!string.IsNullOrEmpty(_providerDefinitionUrl))
+            sb.AppendLine($"Definition URL: {_providerDefinitionUrl}");
+        if (!string.IsNullOrEmpty(_subscriptionUrl))
+            sb.AppendLine($"Subscription URL: {_subscriptionUrl}");
         return sb.ToString();
     }
 
@@ -1223,11 +1220,15 @@ public partial class PublishShareViewModel : ObservableObject
     /// </summary>
     private void InitializeCatalogStatuses()
     {
-        CatalogStatuses.Clear();
+        var existingStatuses = CatalogStatuses.ToDictionary(s => s.Catalog.Id);
 
         foreach (var catalog in _project.Catalogs)
         {
-            var status = new CatalogPublishStatus(catalog);
+            if (!existingStatuses.TryGetValue(catalog.Id, out var status))
+            {
+                status = new CatalogPublishStatus(catalog);
+                CatalogStatuses.Add(status);
+            }
 
             // Check if published
             var hostingInfo = _currentHostingState?.Catalogs
@@ -1239,8 +1240,15 @@ public partial class PublishShareViewModel : ObservableObject
                 status.PublishedUrl = hostingInfo.Url;
                 status.LastPublished = hostingInfo.LastUpdated;
             }
+        }
 
-            CatalogStatuses.Add(status);
+        var projectCatalogIds = new HashSet<string>(_project.Catalogs.Select(c => c.Id));
+        for (var i = CatalogStatuses.Count - 1; i >= 0; i--)
+        {
+            if (!projectCatalogIds.Contains(CatalogStatuses[i].Catalog.Id))
+            {
+                CatalogStatuses.RemoveAt(i);
+            }
         }
     }
 

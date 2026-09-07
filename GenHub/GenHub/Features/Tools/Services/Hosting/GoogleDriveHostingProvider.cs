@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Publishers;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Tools.Interfaces;
@@ -36,7 +37,6 @@ public class GoogleDriveHostingProvider : IHostingProvider
 
     private readonly ILogger<GoogleDriveHostingProvider> _logger;
     private DriveService? _driveService;
-    private string? _publisherFolderId;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GoogleDriveHostingProvider"/> class.
@@ -126,7 +126,6 @@ public class GoogleDriveHostingProvider : IHostingProvider
     {
         _driveService?.Dispose();
         _driveService = null;
-        _publisherFolderId = null;
         _logger.LogInformation("Signed out from Google Drive");
         return Task.CompletedTask;
     }
@@ -136,7 +135,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
     {
         if (_driveService == null)
         {
-            return OperationResult<string>.CreateFailure("Not authenticated with Google Drive");
+            return OperationResult<string>.CreateFailure(HostingConstants.GoogleDriveNotAuthenticated);
         }
 
         try
@@ -150,9 +149,9 @@ public class GoogleDriveHostingProvider : IHostingProvider
 
             if (result.Files.Count > 0)
             {
-                _publisherFolderId = result.Files[0].Id;
-                _logger.LogInformation("Found existing publisher folder: {FolderId}", _publisherFolderId);
-                return OperationResult<string>.CreateSuccess(_publisherFolderId);
+                var existingFolderId = result.Files[0].Id;
+                _logger.LogInformation("Found existing publisher folder: {FolderId}", existingFolderId);
+                return OperationResult<string>.CreateSuccess(existingFolderId);
             }
 
             // Create new folder
@@ -165,16 +164,19 @@ public class GoogleDriveHostingProvider : IHostingProvider
             var createRequest = _driveService.Files.Create(folderMetadata);
             createRequest.Fields = "id";
 
-            var folder = await createRequest.ExecuteAsync(cancellationToken);
-            _publisherFolderId = folder.Id;
+            var createdFolder = await createRequest.ExecuteAsync(cancellationToken);
+            var folderId = createdFolder.Id;
 
-            _logger.LogInformation("Created new publisher folder: {FolderId}", _publisherFolderId);
-            return OperationResult<string>.CreateSuccess(_publisherFolderId);
+            // Make the folder publicly readable so files are accessible
+            await MakeFilePublicAsync(folderId, cancellationToken);
+
+            _logger.LogInformation("Created new publisher folder: {FolderId}", folderId);
+            return OperationResult<string>.CreateSuccess(folderId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get or create publisher folder");
-            return OperationResult<string>.CreateFailure($"Failed to get/create folder: {ex.Message}");
+            _logger.LogError(ex, "Failed to get or create publisher folder on Google Drive");
+            return OperationResult<string>.CreateFailure($"Folder operation failed: {ex.Message}");
         }
     }
 
@@ -188,7 +190,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
     {
         if (_driveService == null)
         {
-            return OperationResult<HostingUploadResult>.CreateFailure("Not authenticated with Google Drive");
+            return OperationResult<HostingUploadResult>.CreateFailure(HostingConstants.GoogleDriveNotAuthenticated);
         }
 
         try
@@ -200,50 +202,63 @@ public class GoogleDriveHostingProvider : IHostingProvider
                 return OperationResult<HostingUploadResult>.CreateFailure(folderResult);
             }
 
+            var folderId = folderResult.Data;
+            _logger.LogInformation("Uploading file {FileName} to Google Drive folder {FolderId}", fileName, folderId);
+
             progress?.Report(10);
 
             var fileMetadata = new Google.Apis.Drive.v3.Data.File
             {
                 Name = fileName,
-                Parents = new List<string> { _publisherFolderId! },
+                Parents = new List<string> { folderId },
             };
 
-            var request = _driveService.Files.Create(fileMetadata, fileStream, "application/octet-stream");
-            request.Fields = "id, webContentLink, size";
+            // Determine MIME type
+            var mimeType = fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
+                ? HostingConstants.JsonContentType
+                : "application/octet-stream";
+
+            var request = _driveService.Files.Create(fileMetadata, fileStream, mimeType);
+            request.Fields = "id, webViewLink, webContentLink, size";
 
             progress?.Report(30);
 
             var uploadProgress = await request.UploadAsync(cancellationToken);
             if (uploadProgress.Status != Google.Apis.Upload.UploadStatus.Completed)
             {
-                return OperationResult<HostingUploadResult>.CreateFailure($"Upload failed: {uploadProgress.Exception?.Message}");
+                var error = uploadProgress.Exception?.Message ?? "Unknown upload error";
+                _logger.LogError("Google Drive upload failed: {Error}", error);
+                return OperationResult<HostingUploadResult>.CreateFailure($"Upload failed: {error}");
             }
-
-            var file = request.ResponseBody;
 
             progress?.Report(80);
 
-            // Make file publicly accessible
+            var file = request.ResponseBody;
+
+            // Make the file publicly readable
             await MakeFilePublicAsync(file.Id, cancellationToken);
 
             progress?.Report(100);
 
-            var downloadUrl = $"https://drive.google.com/uc?export=download&id={file.Id}";
+            // Direct download link for Google Drive files
+            // Format: https://drive.google.com/uc?export=download&id={fileId}
+            var directDownloadUrl = $"https://drive.google.com/uc?export=download&id={file.Id}";
+            var publicUrl = file.WebViewLink ?? directDownloadUrl;
 
             var result = new HostingUploadResult
             {
-                PublicUrl = $"https://drive.google.com/file/d/{file.Id}/view",
-                DirectDownloadUrl = downloadUrl,
+                PublicUrl = publicUrl,
+                DirectDownloadUrl = directDownloadUrl,
                 FileId = file.Id,
                 FileSize = file.Size ?? 0,
             };
 
-            _logger.LogInformation("Uploaded file {FileName} to Google Drive: {FileId}", fileName, file.Id);
+            _logger.LogInformation("Uploaded file {FileName} with ID {FileId}", fileName, file.Id);
             return OperationResult<HostingUploadResult>.CreateSuccess(result);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to upload file {FileName}", fileName);
+            _logger.LogError(ex, "Failed to upload file to Google Drive");
             return OperationResult<HostingUploadResult>.CreateFailure($"Upload failed: {ex.Message}");
         }
     }
@@ -258,7 +273,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
     {
         if (_driveService == null)
         {
-            return OperationResult<HostingUploadResult>.CreateFailure("Not authenticated with Google Drive");
+            return OperationResult<HostingUploadResult>.CreateFailure(HostingConstants.GoogleDriveNotAuthenticated);
         }
 
         try
@@ -274,29 +289,29 @@ public class GoogleDriveHostingProvider : IHostingProvider
             var uploadProgress = await request.UploadAsync(cancellationToken);
             if (uploadProgress.Status != Google.Apis.Upload.UploadStatus.Completed)
             {
-                return OperationResult<HostingUploadResult>.CreateFailure($"Update failed: {uploadProgress.Exception?.Message}");
+                var error = uploadProgress.Exception?.Message ?? "Unknown update error";
+                return OperationResult<HostingUploadResult>.CreateFailure($"Update failed: {error}");
             }
-
-            var file = request.ResponseBody;
 
             progress?.Report(100);
 
-            var downloadUrl = $"https://drive.google.com/uc?export=download&id={file.Id}";
+            var file = request.ResponseBody;
+            var directDownloadUrl = $"https://drive.google.com/uc?export=download&id={fileId}";
 
             var result = new HostingUploadResult
             {
-                PublicUrl = $"https://drive.google.com/file/d/{file.Id}/view",
-                DirectDownloadUrl = downloadUrl,
-                FileId = file.Id,
+                PublicUrl = directDownloadUrl,
+                DirectDownloadUrl = directDownloadUrl,
+                FileId = fileId,
                 FileSize = file.Size ?? 0,
             };
 
-            _logger.LogInformation("Updated file {FileName} on Google Drive: {FileId}", fileName, file.Id);
+            _logger.LogInformation("Updated file {FileId} on Google Drive", fileId);
             return OperationResult<HostingUploadResult>.CreateSuccess(result);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to update file {FileId}", fileId);
+            _logger.LogError(ex, "Failed to update file on Google Drive");
             return OperationResult<HostingUploadResult>.CreateFailure($"Update failed: {ex.Message}");
         }
     }
@@ -308,8 +323,10 @@ public class GoogleDriveHostingProvider : IHostingProvider
         IProgress<int>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        var stream = new MemoryStream(Encoding.UTF8.GetBytes(catalogJson));
+        var bytes = Encoding.UTF8.GetBytes(catalogJson);
+        using var stream = new MemoryStream(bytes);
         var fileName = $"catalog-{publisherId}.json";
+
         return await UploadFileAsync(stream, fileName, null, progress, cancellationToken);
     }
 
@@ -318,7 +335,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
     {
         if (_driveService == null)
         {
-            return OperationResult<HostingState?>.CreateFailure("Not authenticated with Google Drive");
+            return OperationResult<HostingState?>.CreateFailure(HostingConstants.GoogleDriveNotAuthenticated);
         }
 
         try
@@ -337,7 +354,6 @@ public class GoogleDriveHostingProvider : IHostingProvider
             }
 
             var folderId = folderResult.Files[0].Id;
-            _publisherFolderId = folderId;
 
             // Find all files in the folder
             var filesRequest = _driveService.Files.List();
@@ -459,12 +475,17 @@ public class GoogleDriveHostingProvider : IHostingProvider
 
     private async Task MakeFilePublicAsync(string fileId, CancellationToken cancellationToken)
     {
+        if (_driveService == null)
+        {
+            return;
+        }
+
         var permission = new Permission
         {
             Type = "anyone",
             Role = "reader",
         };
 
-        await _driveService!.Permissions.Create(permission, fileId).ExecuteAsync(cancellationToken);
+        await _driveService.Permissions.Create(permission, fileId).ExecuteAsync(cancellationToken);
     }
 }

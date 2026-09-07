@@ -171,113 +171,15 @@ public partial class SubscriptionConfirmationViewModel(
             logger.LogInformation("Fetching catalog subscription");
             var response = await CatalogDocumentReader.ReadAsync(httpClient, catalogUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken);
 
-            PublisherCatalog? parsedData = null;
-
-            if (definitionService != null)
-            {
-                var defResult = await definitionService.FetchDefinitionAsync(catalogUrl, cancellationToken);
-                if (defResult.Success && defResult.Data != null)
-                {
-                    _resolvedDefinitionUrl = catalogUrl;
-                    var catResult = await definitionService.FetchCatalogFromDefinitionAsync(defResult.Data, cancellationToken);
-                    if (catResult.Success && catResult.Data != null)
-                    {
-                        parsedData = catResult.Data;
-                        _resolvedCatalogUrl = defResult.Data.CatalogUrl ?? defResult.Data.Catalogs.FirstOrDefault()?.Url;
-                    }
-                }
-            }
-
-            // Detect if payload is a Provider Definition (contains "catalogs" or "$schemaVersion")
-            if (parsedData == null &&
-                (response.Contains("\"catalogs\"", StringComparison.OrdinalIgnoreCase) ||
-                 response.Contains("\"$schemaVersion\"", StringComparison.OrdinalIgnoreCase)))
-            {
-                try
-                {
-                    var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                    var definition = System.Text.Json.JsonSerializer.Deserialize<PublisherDefinition>(response, options);
-                    if (definition != null)
-                    {
-                        _resolvedDefinitionUrl = catalogUrl;
-                        var targetCatalogUrl = !string.IsNullOrWhiteSpace(definition.CatalogUrl)
-                            ? definition.CatalogUrl
-                            : definition.Catalogs.FirstOrDefault()?.Url;
-
-                        if (!string.IsNullOrWhiteSpace(targetCatalogUrl))
-                        {
-                            _resolvedCatalogUrl = targetCatalogUrl;
-                            logger.LogInformation("Resolved catalog URL {TargetUrl} from definition at {DefUrl}", targetCatalogUrl, catalogUrl);
-                            var catResponse = await CatalogDocumentReader.ReadAsync(httpClient, targetCatalogUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken);
-                            var catParseResult = await catalogParser.ParseCatalogAsync(catResponse, cancellationToken);
-                            if (catParseResult.Success && catParseResult.Data != null)
-                            {
-                                parsedData = catParseResult.Data;
-                            }
-                        }
-                    }
-                }
-                catch (Exception defEx)
-                {
-                    logger.LogDebug(defEx, "Payload did not parse as publisher definition; falling back to direct catalog parse");
-                }
-            }
-
+            var (parsedData, resolvedDefUrl, resolvedCatUrl) = await ResolveCatalogDataAsync(response, cancellationToken);
             if (parsedData == null)
             {
-                var result = await catalogParser.ParseCatalogAsync(response, cancellationToken);
-                if (result.Success && result.Data != null)
-                {
-                    parsedData = result.Data;
-                }
-                else
-                {
-                    ErrorTitle = "Failed to Load Catalog";
-                    ErrorMessage = string.Join(Environment.NewLine, result.Errors);
-                    logger.LogWarning("Failed to parse catalog: {Errors}", ErrorMessage);
-                    return;
-                }
+                return;
             }
 
-            if (parsedData != null)
-            {
-                _parsedCatalog = parsedData;
-                PublisherName = _parsedCatalog.Publisher.Name;
-                PublisherAvatarUrl = _parsedCatalog.Publisher.AvatarUrl;
-                PublisherWebsite = _parsedCatalog.Publisher.Website;
-                PublisherSupportUrl = _parsedCatalog.Publisher.SupportUrl ?? string.Empty;
-                PublisherContactEmail = _parsedCatalog.Publisher.ContactEmail ?? string.Empty;
-                LastUpdated = _parsedCatalog.LastUpdated != default ? _parsedCatalog.LastUpdated : null;
-
-                // check if this publisher is already in the subscription store
-                var subCheck = await subscriptionStore.IsSubscribedAsync(_parsedCatalog.Publisher.Id, cancellationToken);
-                IsAlreadySubscribed = subCheck is { Success: true, Data: true };
-
-                if (_parsedCatalog.Content != null)
-                {
-                    ContentItems = _parsedCatalog.Content.AsReadOnly();
-                    ContentCount = _parsedCatalog.Content.Count;
-
-                    var typeGroups = _parsedCatalog.Content
-                        .GroupBy(item => item.ContentType)
-                        .Select(group => $"{group.Count()} {group.Key}");
-                    ContentSummary = string.Join(" • ", typeGroups);
-
-                    BuildCategoryFilters(DefaultCategoryKey);
-                }
-                else
-                {
-                    ContentItems = [];
-                    FilteredContentItems = [];
-                    CategoryFilters = [];
-                    ContentCount = 0;
-                    ContentSummary = string.Empty;
-                }
-
-                IsCatalogLoaded = true;
-                CanConfirm = true;
-                logger.LogInformation("Successfully loaded catalog for {Publisher} with {Count} items (alreadySubscribed={IsAlreadySubscribed})", PublisherName, ContentCount, IsAlreadySubscribed);
-            }
+            _resolvedDefinitionUrl = resolvedDefUrl;
+            _resolvedCatalogUrl = resolvedCatUrl;
+            await PopulatePublisherDetailsAsync(parsedData, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -293,6 +195,162 @@ public partial class SubscriptionConfirmationViewModel(
         {
             IsLoading = false;
         }
+    }
+
+    private async Task<(PublisherCatalog? Catalog, string? DefinitionUrl, string? CatalogUrl)> ResolveCatalogDataAsync(
+        string response,
+        CancellationToken cancellationToken)
+    {
+        if (definitionService != null)
+        {
+            var defServiceResult = await TryFetchFromDefinitionServiceAsync(cancellationToken);
+            if (defServiceResult.Catalog != null)
+            {
+                return defServiceResult;
+            }
+        }
+
+        var defPayloadResult = await TryResolveDefinitionFromPayloadAsync(response, cancellationToken);
+        if (defPayloadResult.Catalog != null)
+        {
+            return defPayloadResult;
+        }
+
+        var result = await catalogParser.ParseCatalogAsync(response, cancellationToken);
+        if (result.Success && result.Data != null)
+        {
+            return (result.Data, null, null);
+        }
+
+        ErrorTitle = "Failed to Load Catalog";
+        ErrorMessage = string.Join(Environment.NewLine, result.Errors);
+        logger.LogWarning("Failed to parse catalog: {Errors}", ErrorMessage);
+        return (null, null, null);
+    }
+
+    private async Task<(PublisherCatalog? Catalog, string? DefinitionUrl, string? CatalogUrl)> TryFetchFromDefinitionServiceAsync(
+        CancellationToken cancellationToken)
+    {
+        if (definitionService == null)
+        {
+            return (null, null, null);
+        }
+
+        var defResult = await definitionService.FetchDefinitionAsync(catalogUrl, cancellationToken);
+        if (!defResult.Success || defResult.Data == null)
+        {
+            return (null, null, null);
+        }
+
+        var definition = defResult.Data;
+        var hasCatalogs = (definition.Catalogs != null && definition.Catalogs.Count > 0) || !string.IsNullOrWhiteSpace(definition.CatalogUrl);
+        if (!hasCatalogs)
+        {
+            return (null, null, null);
+        }
+
+        var catResult = await definitionService.FetchCatalogFromDefinitionAsync(definition, cancellationToken);
+        if (catResult.Success && catResult.Data != null)
+        {
+            var targetCatalogUrl = definition.CatalogUrl ?? definition.Catalogs?.FirstOrDefault()?.Url;
+            return (catResult.Data, catalogUrl, targetCatalogUrl);
+        }
+
+        return (null, null, null);
+    }
+
+    private async Task<(PublisherCatalog? Catalog, string? DefinitionUrl, string? CatalogUrl)> TryResolveDefinitionFromPayloadAsync(
+        string response,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var definition = System.Text.Json.JsonSerializer.Deserialize<PublisherDefinition>(response, options);
+            if (definition == null)
+            {
+                return (null, null, null);
+            }
+
+            var hasCatalogs = (definition.Catalogs != null && definition.Catalogs.Count > 0) || !string.IsNullOrWhiteSpace(definition.CatalogUrl);
+            if (!hasCatalogs)
+            {
+                return (null, null, null);
+            }
+
+            var targetCatalogUrl = !string.IsNullOrWhiteSpace(definition.CatalogUrl)
+                ? definition.CatalogUrl
+                : definition.Catalogs?.FirstOrDefault()?.Url;
+
+            if (string.IsNullOrWhiteSpace(targetCatalogUrl))
+            {
+                return (null, null, null);
+            }
+
+            logger.LogInformation("Resolved catalog URL {TargetUrl} from definition at {DefUrl}", targetCatalogUrl, catalogUrl);
+            var catResponse = await CatalogDocumentReader.ReadAsync(httpClient, targetCatalogUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken);
+            var catParseResult = await catalogParser.ParseCatalogAsync(catResponse, cancellationToken);
+            if (catParseResult.Success && catParseResult.Data != null)
+            {
+                return (catParseResult.Data, catalogUrl, targetCatalogUrl);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (System.Text.Json.JsonException jsonEx)
+        {
+            logger.LogDebug(jsonEx, "Payload is not a valid publisher definition; falling back to direct catalog parse");
+        }
+        catch (Exception defEx)
+        {
+            logger.LogDebug(defEx, "Failed to resolve catalog from embedded definition; falling back to direct catalog parse");
+        }
+
+        return (null, null, null);
+    }
+
+    private async Task PopulatePublisherDetailsAsync(
+        PublisherCatalog catalog,
+        CancellationToken cancellationToken)
+    {
+        _parsedCatalog = catalog;
+        PublisherName = _parsedCatalog.Publisher.Name;
+        PublisherAvatarUrl = _parsedCatalog.Publisher.AvatarUrl;
+        PublisherWebsite = _parsedCatalog.Publisher.Website;
+        PublisherSupportUrl = _parsedCatalog.Publisher.SupportUrl ?? string.Empty;
+        PublisherContactEmail = _parsedCatalog.Publisher.ContactEmail ?? string.Empty;
+        LastUpdated = _parsedCatalog.LastUpdated != default ? _parsedCatalog.LastUpdated : null;
+
+        // check if this publisher is already in the subscription store
+        var subCheck = await subscriptionStore.IsSubscribedAsync(_parsedCatalog.Publisher.Id, cancellationToken);
+        IsAlreadySubscribed = subCheck is { Success: true, Data: true };
+
+        if (_parsedCatalog.Content != null)
+        {
+            ContentItems = _parsedCatalog.Content.AsReadOnly();
+            ContentCount = _parsedCatalog.Content.Count;
+
+            var typeGroups = _parsedCatalog.Content
+                .GroupBy(item => item.ContentType)
+                .Select(group => $"{group.Count()} {group.Key}");
+            ContentSummary = string.Join(" • ", typeGroups);
+
+            BuildCategoryFilters(DefaultCategoryKey);
+        }
+        else
+        {
+            ContentItems = [];
+            FilteredContentItems = [];
+            CategoryFilters = [];
+            ContentCount = 0;
+            ContentSummary = string.Empty;
+        }
+
+        IsCatalogLoaded = true;
+        CanConfirm = true;
+        logger.LogInformation("Successfully loaded catalog for {Publisher} with {Count} items (alreadySubscribed={IsAlreadySubscribed})", PublisherName, ContentCount, IsAlreadySubscribed);
     }
 
     /// <summary>
@@ -444,28 +502,58 @@ public partial class SubscriptionConfirmationViewModel(
 
     private void BuildCategoryFilters(string activeKey)
     {
+        if (_parsedCatalog?.Content == null || _parsedCatalog.Content.Count == 0)
+        {
+            CategoryFilters = [];
+            FilteredContentItems = [];
+            return;
+        }
+
+        var totalCount = _parsedCatalog.Content.Count;
         var filters = new List<CatalogCategoryFilter>
         {
-            new(DefaultCategoryKey, "All", ContentItems.Count, string.Equals(activeKey, DefaultCategoryKey, StringComparison.OrdinalIgnoreCase)),
+            new(DefaultCategoryKey, "All Content", totalCount, string.Equals(activeKey, DefaultCategoryKey, StringComparison.OrdinalIgnoreCase)),
         };
 
-        var groups = ContentItems
-            .GroupBy(item => item.ContentType.ToString())
-            .OrderBy(g => g.Key);
+        var groups = _parsedCatalog.Content
+            .GroupBy(item => item.ContentType)
+            .OrderBy(g => g.Key.ToString());
 
         foreach (var group in groups)
         {
-            var isSelected = string.Equals(activeKey, group.Key, StringComparison.OrdinalIgnoreCase);
-            filters.Add(new CatalogCategoryFilter(group.Key, group.Key, group.Count(), isSelected));
+            var key = group.Key.ToString();
+            var label = FormatContentTypeLabel(group.Key);
+            var isSelected = string.Equals(activeKey, key, StringComparison.OrdinalIgnoreCase);
+            filters.Add(new CatalogCategoryFilter(key, label, group.Count(), isSelected));
         }
 
         CategoryFilters = filters.AsReadOnly();
 
-        FilteredContentItems = string.Equals(activeKey, DefaultCategoryKey, StringComparison.OrdinalIgnoreCase)
-            ? ContentItems
-            : ContentItems
-                .Where(item => item.ContentType.ToString().Equals(activeKey, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(activeKey, DefaultCategoryKey, StringComparison.OrdinalIgnoreCase))
+        {
+            FilteredContentItems = _parsedCatalog.Content.AsReadOnly();
+        }
+        else if (Enum.TryParse<ContentType>(activeKey, true, out var filterType))
+        {
+            FilteredContentItems = _parsedCatalog.Content
+                .Where(item => item.ContentType == filterType)
                 .ToList()
                 .AsReadOnly();
+        }
+        else
+        {
+            FilteredContentItems = _parsedCatalog.Content.AsReadOnly();
+        }
     }
+
+    private static string FormatContentTypeLabel(ContentType contentType) => contentType switch
+    {
+        ContentType.Mod => "Mods",
+        ContentType.Map => "Maps",
+        ContentType.Mission => "Missions",
+        ContentType.ModdingTool => "Tools",
+        ContentType.Patch => "Patches",
+        ContentType.Addon => "Addons",
+        _ => contentType.ToString(),
+    };
 }
