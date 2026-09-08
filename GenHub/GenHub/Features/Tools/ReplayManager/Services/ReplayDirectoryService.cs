@@ -515,23 +515,14 @@ public sealed class ReplayDirectoryService(
         ILogger? logger)
     {
         var score = 0;
-        var replayBaseName = !string.IsNullOrEmpty(replay?.FileName) ? Path.GetFileNameWithoutExtension(replay.FileName) : null;
-        var isDedicatedToThisReplay = (!string.IsNullOrEmpty(replay?.MatchingProfileId) && string.Equals(profile.Id, replay.MatchingProfileId, StringComparison.OrdinalIgnoreCase)) ||
-                                      (replay != null && (MatchesReplayFileName(profile.Description, replay.FileName, logger) ||
-                                       (!string.IsNullOrEmpty(profile.Name) && !string.IsNullOrEmpty(replayBaseName) && profile.Name.Contains($"(Replay: {replayBaseName})", StringComparison.OrdinalIgnoreCase))));
 
-        if (isDedicatedToThisReplay)
+        if (IsDedicatedToThisReplay(profile, replay, logger))
         {
             score += 1000;
         }
-        else
+        else if (!IsDedicatedToAnotherReplay(profile))
         {
-            var isDedicatedToAnotherReplay = (!string.IsNullOrEmpty(profile.Description) && profile.Description.Contains("[replay:", StringComparison.OrdinalIgnoreCase)) ||
-                                             (!string.IsNullOrEmpty(profile.Name) && profile.Name.Contains("(Replay:", StringComparison.OrdinalIgnoreCase));
-            if (!isDedicatedToAnotherReplay)
-            {
-                score += 500;
-            }
+            score += 500;
         }
 
         if (string.Equals(profile.GameClient?.Id, clientManifestId, StringComparison.OrdinalIgnoreCase))
@@ -546,6 +537,40 @@ public sealed class ReplayDirectoryService(
         }
 
         return score;
+    }
+
+    private static bool IsDedicatedToThisReplay(GameProfile profile, ReplayFile? replay, ILogger? logger)
+    {
+        if (!string.IsNullOrEmpty(replay?.MatchingProfileId) &&
+            string.Equals(profile.Id, replay.MatchingProfileId, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (replay == null)
+        {
+            return false;
+        }
+
+        if (MatchesReplayFileName(profile.Description, replay.FileName, logger))
+        {
+            return true;
+        }
+
+        var replayBaseName = Path.GetFileNameWithoutExtension(replay.FileName);
+        return !string.IsNullOrEmpty(profile.Name) &&
+               !string.IsNullOrEmpty(replayBaseName) &&
+               profile.Name.Contains($"(Replay: {replayBaseName})", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsDedicatedToAnotherReplay(GameProfile profile)
+    {
+        var inDescription = !string.IsNullOrEmpty(profile.Description) &&
+                            profile.Description.Contains("[replay:", StringComparison.OrdinalIgnoreCase);
+        var inName = !string.IsNullOrEmpty(profile.Name) &&
+                     profile.Name.Contains("(Replay:", StringComparison.OrdinalIgnoreCase);
+
+        return inDescription || inName;
     }
 
     private static async Task<(GameInstallation? Installation, string? Error)> ResolveAndPrepareInstallationAsync(
@@ -1611,21 +1636,11 @@ public sealed class ReplayDirectoryService(
             return;
         }
 
-        var isDefinitivelyMissing = false;
-        var errorMsg = existingCheck?.FirstError ?? string.Empty;
-        if (errorMsg.Contains("not found", StringComparison.OrdinalIgnoreCase) ||
-            errorMsg.Contains("does not exist", StringComparison.OrdinalIgnoreCase))
-        {
-            isDefinitivelyMissing = true;
-        }
-        else
-        {
-            var allProfilesResult = await profileManager.GetAllProfilesAsync(ct);
-            if (allProfilesResult.Success && allProfilesResult.Data?.All(p => p.Id != replay.MatchingProfileId) == true)
-            {
-                isDefinitivelyMissing = true;
-            }
-        }
+        // Verify with GetAllProfilesAsync whether the profile is truly absent from the repository
+        // before clearing the reference, preventing transient load errors or string mismatch from unlinking valid profiles.
+        var allProfilesResult = await profileManager.GetAllProfilesAsync(ct);
+        var isDefinitivelyMissing = allProfilesResult.Success &&
+                                    allProfilesResult.Data?.All(p => p.Id != replay.MatchingProfileId) == true;
 
         if (isDefinitivelyMissing)
         {

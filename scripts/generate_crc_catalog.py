@@ -584,7 +584,6 @@ def merge_catalogs(existing: list[dict], crawled: list[dict]) -> list[dict]:
                 f"Validation warning: skipping crawled entry {m_id} without exeCrc (run with --inspect-binaries to populate CRCs)",
                 file=sys.stderr,
             )
-            continue
         else:
             if any(k[0] == m_id for k in merged):
                 print(

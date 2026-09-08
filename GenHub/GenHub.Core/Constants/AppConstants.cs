@@ -118,11 +118,6 @@ public static class AppConstants
     public const string GameInstallationFilesRegistryFolderName = "GameInstallationFilesRegistry";
 
     /// <summary>
-    /// The folder path where the CSV registry files are stored.
-    /// </summary>
-    public const string RegistryFolderPath = "docs\\GameInstallationFilesRegistry";
-
-    /// <summary>
     /// Length of the git short hash used in versioning (7 characters).
     /// </summary>
     public const int GitShortHashLength = 7;
