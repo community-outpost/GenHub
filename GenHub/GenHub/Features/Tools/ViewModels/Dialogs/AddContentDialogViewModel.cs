@@ -94,17 +94,17 @@ public partial class AddContentDialogViewModel : ObservableValidator
     /// <summary>
     /// Gets the dialog title based on the current mode.
     /// </summary>
-    public string DialogTitle => _isEditMode ? "Edit Content" : "Add New Content";
+    public string DialogTitle => IsEditMode ? "Edit Content" : "Add New Content";
 
     /// <summary>
     /// Gets the submit button text based on the current mode.
     /// </summary>
-    public string SubmitButtonText => _isEditMode ? "Save Changes" : "Add Content";
+    public string SubmitButtonText => IsEditMode ? "Save Changes" : "Add Content";
 
     /// <summary>
     /// Gets a value indicating whether the addon parent selection should be visible.
     /// </summary>
-    public bool ShowAddonParentSelection => _selectedContentType == ContentType.Addon;
+    public bool ShowAddonParentSelection => SelectedContentType == ContentType.Addon;
 
     /// <summary>
     /// Gets the available parent content items for addon selection.
@@ -114,7 +114,7 @@ public partial class AddContentDialogViewModel : ObservableValidator
     /// <summary>
     /// Gets the suggested content ID based on the content name.
     /// </summary>
-    public string SuggestedContentId => GenerateContentId(_contentName);
+    public string SuggestedContentId => GenerateContentId(ContentName);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AddContentDialogViewModel"/> class.
@@ -260,7 +260,5 @@ public partial class AddContentDialogViewModel : ObservableValidator
         ValidationError = HasErrors
             ? string.Join(Environment.NewLine, GetErrors().Select(e => e.ErrorMessage))
             : null;
-
-        OnPropertyChanged(nameof(SuggestedContentId));
     }
 }

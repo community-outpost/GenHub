@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Publishers;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Tools.Interfaces;
@@ -167,7 +168,12 @@ public class GitHubHostingProvider : IHostingProvider
                 progress?.Report(100);
 
                 var file = gist.Files.TryGetValue(fileName, out var gistFile) ? gistFile : null;
-                var downloadUrl = file?.RawUrl ?? gist.HtmlUrl;
+                var downloadUrl = file?.RawUrl;
+
+                if (string.IsNullOrWhiteSpace(downloadUrl))
+                {
+                    return OperationResult<HostingUploadResult>.CreateFailure("Failed to obtain raw download URL for created Gist file");
+                }
 
                 return OperationResult<HostingUploadResult>.CreateSuccess(new HostingUploadResult
                 {
@@ -192,12 +198,10 @@ public class GitHubHostingProvider : IHostingProvider
 
             // Get the release by tag
             var release = await _client.Repository.Release.Get(owner, repo, releaseTag);
-            if (release == null)
-            {
-                return OperationResult<HostingUploadResult>.CreateFailure($"Release '{releaseTag}' not found in {owner}/{repo}");
-            }
 
             progress?.Report(30);
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             // Check if asset already exists and delete it if so
             var existingAsset = release.Assets.FirstOrDefault(a => a.Name == fileName);
@@ -213,8 +217,9 @@ public class GitHubHostingProvider : IHostingProvider
             var uploadAsset = new ReleaseAssetUpload
             {
                 FileName = fileName,
-                ContentType = "application/octet-stream",
+                ContentType = HostingConstants.BinaryContentType,
                 RawData = fileStream,
+                Timeout = TimeSpan.FromMinutes(10),
             };
 
             var asset = await _client.Repository.Release.UploadAsset(release, uploadAsset, cancellationToken);
@@ -231,6 +236,11 @@ public class GitHubHostingProvider : IHostingProvider
 
             _logger.LogInformation("Uploaded release asset {FileName} to {Owner}/{Repo} release {Tag}", fileName, owner, repo, releaseTag);
             return OperationResult<HostingUploadResult>.CreateSuccess(result);
+        }
+        catch (NotFoundException nfEx)
+        {
+            _logger.LogWarning(nfEx, "Release not found: {FolderPath}", folderPath);
+            return OperationResult<HostingUploadResult>.CreateFailure($"Release '{folderPath}' not found: {nfEx.Message}");
         }
         catch (ApiException apiEx)
         {
@@ -326,6 +336,10 @@ public class GitHubHostingProvider : IHostingProvider
             progress?.Report(20);
             using var streamReader = new StreamReader(fileStream);
             var content = await streamReader.ReadToEndAsync(cancellationToken);
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                return OperationResult<HostingUploadResult>.CreateFailure("Cannot update Gist with empty content");
+            }
 
             var gistUpdate = new GistUpdate();
 
@@ -337,7 +351,7 @@ public class GitHubHostingProvider : IHostingProvider
             {
                 targetKey = fileName;
             }
-            else if (fileName.Equals("catalog.json", StringComparison.OrdinalIgnoreCase))
+            else if (fileName.Equals(HostingConstants.DefaultCatalogFileName, StringComparison.OrdinalIgnoreCase))
             {
                 // Fallback: look for any existing .json file if we're writing a catalog
                 targetKey = currentGist.Files.Keys.FirstOrDefault(k => k.EndsWith(".json", StringComparison.OrdinalIgnoreCase));

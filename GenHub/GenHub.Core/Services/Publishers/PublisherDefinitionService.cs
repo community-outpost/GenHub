@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -54,32 +55,13 @@ public class PublisherDefinitionService(
                     $"Failed to fetch definition: {response.StatusCode}");
             }
 
-            if (response.Content.Headers.ContentLength is { } headerLength &&
-                headerLength > CatalogConstants.MaxCatalogSizeBytes)
+            var streamResult = await ReadBoundedStreamAsync(response, CatalogConstants.MaxCatalogSizeBytes, "Definition", ct);
+            if (!streamResult.Success || streamResult.Data == null)
             {
-                return OperationResult<PublisherDefinition>.CreateFailure(
-                    $"Definition exceeds maximum size of {CatalogConstants.MaxCatalogSizeBytes} bytes");
+                return OperationResult<PublisherDefinition>.CreateFailure(streamResult.Errors);
             }
 
-            using var stream = await response.Content.ReadAsStreamAsync(ct);
-            using var memoryStream = new MemoryStream();
-            var buffer = new byte[HostingConstants.StreamCopyBufferSize];
-            long totalBytesRead = 0;
-            int bytesRead;
-
-            while ((bytesRead = await stream.ReadAsync(buffer, ct)) > 0)
-            {
-                totalBytesRead += bytesRead;
-                if (totalBytesRead > CatalogConstants.MaxCatalogSizeBytes)
-                {
-                    return OperationResult<PublisherDefinition>.CreateFailure(
-                        $"Definition exceeds maximum size of {CatalogConstants.MaxCatalogSizeBytes} bytes");
-                }
-
-                await memoryStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
-            }
-
-            memoryStream.Position = 0;
+            using var memoryStream = streamResult.Data;
             var definition = await JsonSerializer.DeserializeAsync<PublisherDefinition>(memoryStream, JsonOptions, ct);
 
             if (definition == null)
@@ -271,6 +253,42 @@ public class PublisherDefinitionService(
         }
     }
 
+    private static async Task<OperationResult<MemoryStream>> ReadBoundedStreamAsync(
+        HttpResponseMessage response,
+        long maxSizeBytes,
+        string resourceDescription,
+        CancellationToken ct)
+    {
+        if (response.Content.Headers.ContentLength is { } headerLength &&
+            headerLength > maxSizeBytes)
+        {
+            return OperationResult<MemoryStream>.CreateFailure(
+                $"{resourceDescription} exceeds maximum size of {maxSizeBytes} bytes");
+        }
+
+        using var stream = await response.Content.ReadAsStreamAsync(ct);
+        var memoryStream = new MemoryStream();
+        var buffer = new byte[HostingConstants.StreamCopyBufferSize];
+        long totalBytesRead = 0;
+        int bytesRead;
+
+        while ((bytesRead = await stream.ReadAsync(buffer, ct)) > 0)
+        {
+            totalBytesRead += bytesRead;
+            if (totalBytesRead > maxSizeBytes)
+            {
+                await memoryStream.DisposeAsync();
+                return OperationResult<MemoryStream>.CreateFailure(
+                    $"{resourceDescription} exceeds maximum size of {maxSizeBytes} bytes");
+            }
+
+            await memoryStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
+        }
+
+        memoryStream.Position = 0;
+        return OperationResult<MemoryStream>.CreateSuccess(memoryStream);
+    }
+
     private async Task<OperationResult<PublisherCatalog>> FetchAndParseCatalogAsync(
         HttpClient client,
         string url,
@@ -284,33 +302,14 @@ public class PublisherDefinitionService(
                 return OperationResult<PublisherCatalog>.CreateFailure($"Failed to fetch from {url}: {response.StatusCode}");
             }
 
-            if (response.Content.Headers.ContentLength is { } headerLength &&
-                headerLength > CatalogConstants.MaxCatalogSizeBytes)
+            var streamResult = await ReadBoundedStreamAsync(response, CatalogConstants.MaxCatalogSizeBytes, $"Catalog from {url}", ct);
+            if (!streamResult.Success || streamResult.Data == null)
             {
-                return OperationResult<PublisherCatalog>.CreateFailure(
-                    $"Catalog from {url} exceeds maximum size of {CatalogConstants.MaxCatalogSizeBytes} bytes");
+                return OperationResult<PublisherCatalog>.CreateFailure(streamResult.Errors);
             }
 
-            using var stream = await response.Content.ReadAsStreamAsync(ct);
-            using var memoryStream = new MemoryStream();
-            var buffer = new byte[HostingConstants.StreamCopyBufferSize];
-            long totalBytesRead = 0;
-            int bytesRead;
-
-            while ((bytesRead = await stream.ReadAsync(buffer, ct)) > 0)
-            {
-                totalBytesRead += bytesRead;
-                if (totalBytesRead > CatalogConstants.MaxCatalogSizeBytes)
-                {
-                    return OperationResult<PublisherCatalog>.CreateFailure(
-                        $"Catalog from {url} exceeds maximum size of {CatalogConstants.MaxCatalogSizeBytes} bytes");
-                }
-
-                await memoryStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
-            }
-
-            memoryStream.Position = 0;
-            using var reader = new StreamReader(memoryStream, System.Text.Encoding.UTF8);
+            using var memoryStream = streamResult.Data;
+            using var reader = new StreamReader(memoryStream, Encoding.UTF8);
             var json = await reader.ReadToEndAsync(ct);
 
             var parseResult = await catalogParser.ParseCatalogAsync(json, ct);

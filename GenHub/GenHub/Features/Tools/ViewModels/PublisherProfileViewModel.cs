@@ -111,13 +111,13 @@ public partial class PublisherProfileViewModel : ObservableValidator
 
         try
         {
-            _project.Catalog.Publisher.Id = _publisherId.ToLowerInvariant().Trim();
-            _project.Catalog.Publisher.Name = _publisherName.Trim();
-            _project.Catalog.Publisher.AvatarUrl = string.IsNullOrWhiteSpace(_avatarUrl) ? null : _avatarUrl.Trim();
-            _project.Catalog.Publisher.WebsiteUrl = string.IsNullOrWhiteSpace(_websiteUrl) ? null : _websiteUrl.Trim();
-            _project.Catalog.Publisher.SupportUrl = string.IsNullOrWhiteSpace(_supportUrl) ? null : _supportUrl.Trim();
-            _project.Catalog.Publisher.ContactEmail = string.IsNullOrWhiteSpace(_contactEmail) ? null : _contactEmail.Trim();
-            _project.Catalog.Publisher.Description = string.IsNullOrWhiteSpace(_description) ? null : _description.Trim();
+            _project.Catalog.Publisher.Id = PublisherId.ToLowerInvariant().Trim();
+            _project.Catalog.Publisher.Name = PublisherName.Trim();
+            _project.Catalog.Publisher.AvatarUrl = string.IsNullOrWhiteSpace(AvatarUrl) ? null : AvatarUrl.Trim();
+            _project.Catalog.Publisher.WebsiteUrl = string.IsNullOrWhiteSpace(WebsiteUrl) ? null : WebsiteUrl.Trim();
+            _project.Catalog.Publisher.SupportUrl = string.IsNullOrWhiteSpace(SupportUrl) ? null : SupportUrl.Trim();
+            _project.Catalog.Publisher.ContactEmail = string.IsNullOrWhiteSpace(ContactEmail) ? null : ContactEmail.Trim();
+            _project.Catalog.Publisher.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
 
             foreach (var namedCatalog in _project.Catalogs)
             {
@@ -125,10 +125,10 @@ public partial class PublisherProfileViewModel : ObservableValidator
             }
 
             _project.Tags.Clear();
-            _project.Tags.AddRange(_tagsString.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+            _project.Tags.AddRange(TagsString.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
 
             _parentViewModel.MarkDirty();
-            _logger.LogInformation("Saved publisher profile: {PublisherId}", _publisherId);
+            _logger.LogInformation("Saved publisher profile: {PublisherId}", PublisherId);
         }
         catch (Exception ex)
         {
