@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Providers;
 
 namespace GenHub.Core.Models.Publishers;
@@ -30,5 +31,5 @@ public class NamedCatalog
     /// <summary>
     /// Gets or sets the filename for this catalog when exported (e.g., "catalog-zh-mods.json").
     /// </summary>
-    public string FileName { get; set; } = "catalog.json";
+    public string FileName { get; set; } = HostingConstants.DefaultCatalogFileName;
 }

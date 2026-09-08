@@ -111,17 +111,23 @@ public partial class PublisherProfileViewModel : ObservableValidator
 
         try
         {
-            _project.Catalog.Publisher.Id = PublisherId.ToLowerInvariant().Trim();
-            _project.Catalog.Publisher.Name = PublisherName.Trim();
-            _project.Catalog.Publisher.AvatarUrl = string.IsNullOrWhiteSpace(AvatarUrl) ? null : AvatarUrl.Trim();
-            _project.Catalog.Publisher.WebsiteUrl = string.IsNullOrWhiteSpace(WebsiteUrl) ? null : WebsiteUrl.Trim();
-            _project.Catalog.Publisher.SupportUrl = string.IsNullOrWhiteSpace(SupportUrl) ? null : SupportUrl.Trim();
-            _project.Catalog.Publisher.ContactEmail = string.IsNullOrWhiteSpace(ContactEmail) ? null : ContactEmail.Trim();
-            _project.Catalog.Publisher.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
+            if (_project.Catalog?.Publisher != null)
+            {
+                _project.Catalog.Publisher.Id = PublisherId.ToLowerInvariant().Trim();
+                _project.Catalog.Publisher.Name = PublisherName.Trim();
+                _project.Catalog.Publisher.AvatarUrl = string.IsNullOrWhiteSpace(AvatarUrl) ? null : AvatarUrl.Trim();
+                _project.Catalog.Publisher.WebsiteUrl = string.IsNullOrWhiteSpace(WebsiteUrl) ? null : WebsiteUrl.Trim();
+                _project.Catalog.Publisher.SupportUrl = string.IsNullOrWhiteSpace(SupportUrl) ? null : SupportUrl.Trim();
+                _project.Catalog.Publisher.ContactEmail = string.IsNullOrWhiteSpace(ContactEmail) ? null : ContactEmail.Trim();
+                _project.Catalog.Publisher.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
+            }
 
             foreach (var namedCatalog in _project.Catalogs)
             {
-                namedCatalog.Catalog.Publisher = _project.Catalog.Publisher;
+                if (namedCatalog.Catalog != null && _project.Catalog != null)
+                {
+                    namedCatalog.Catalog.Publisher = _project.Catalog.Publisher;
+                }
             }
 
             _project.Tags.Clear();

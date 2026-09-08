@@ -42,7 +42,7 @@ public class GitHubHostingProvider : IHostingProvider
     }
 
     /// <inheritdoc/>
-    public string ProviderId => "github";
+    public string ProviderId => HostingConstants.GitHub;
 
     /// <inheritdoc/>
     public string DisplayName => "GitHub Gists";

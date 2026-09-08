@@ -404,7 +404,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
                 var downloadUrl = string.Format(CultureInfo.InvariantCulture, HostingConstants.GoogleDriveDownloadUrlTemplate, file.Id);
                 var lastUpdated = file.ModifiedTimeDateTimeOffset?.DateTime ?? DateTime.UtcNow;
 
-                if (file.Name == "publisher.json")
+                if (file.Name == HostingConstants.DefaultDefinitionFileName)
                 {
                     state.Definition = new HostedFileInfo
                     {

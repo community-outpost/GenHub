@@ -400,33 +400,40 @@ public partial class PublishShareViewModel : ObservableObject
         if (string.IsNullOrEmpty(_project.ProjectPath))
             return;
 
-        var result = await _hostingStateManager.LoadStateAsync(_project.ProjectPath);
-        if (result.Success && result.Data != null)
+        try
         {
-            _currentHostingState = result.Data;
-            HasPreviouslyPublished = true;
-
-            // Restore URLs from hosting state
-            if (_currentHostingState.Definition != null)
+            var result = await _hostingStateManager.LoadStateAsync(_project.ProjectPath);
+            if (result.Success && result.Data != null)
             {
-                ProviderDefinitionUrl = _currentHostingState.Definition.Url;
-            }
+                _currentHostingState = result.Data;
+                HasPreviouslyPublished = true;
 
-            if (_currentHostingState.Catalogs.Count > 0)
-            {
-                CatalogUrl = _currentHostingState.Catalogs[0].Url;
-                PrimaryCatalogUrl = _currentHostingState.Catalogs[0].Url;
-            }
+                // Restore URLs from hosting state
+                if (_currentHostingState.Definition != null)
+                {
+                    ProviderDefinitionUrl = _currentHostingState.Definition.Url;
+                }
 
-            GenerateSubscriptionUrl();
-            InitializeCatalogStatuses();
-            _logger.LogInformation("Loaded hosting state with {CatalogCount} catalogs", _currentHostingState.Catalogs.Count);
+                if (_currentHostingState.Catalogs.Count > 0)
+                {
+                    CatalogUrl = _currentHostingState.Catalogs[0].Url;
+                    PrimaryCatalogUrl = _currentHostingState.Catalogs[0].Url;
+                }
 
-            // After loading state, try to restore authentication
-            if (!string.IsNullOrEmpty(_currentHostingState.AuthToken))
-            {
-                await RestoreAuthenticationAsync();
+                GenerateSubscriptionUrl();
+                InitializeCatalogStatuses();
+                _logger.LogInformation("Loaded hosting state with {CatalogCount} catalogs", _currentHostingState.Catalogs.Count);
+
+                // After loading state, try to restore authentication
+                if (!string.IsNullOrEmpty(_currentHostingState.AuthToken))
+                {
+                    await RestoreAuthenticationAsync();
+                }
             }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load hosting state");
         }
     }
 
@@ -685,7 +692,7 @@ public partial class PublishShareViewModel : ObservableObject
 
         CurrentPublishStep = 5;
         UploadStatusMessage = "Uploading provider definition...";
-        var defFileName = _project.ProviderDefinitionFileName ?? "publisher.json";
+        var defFileName = _project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName;
         var existingDefFileId = _currentHostingState?.Definition?.FileId;
 
         using var defStream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(ProviderDefinitionJson));
@@ -993,7 +1000,7 @@ public partial class PublishShareViewModel : ObservableObject
             IsUploading = true;
             UploadStatusMessage = "Uploading provider definition...";
 
-            var fileName = _project.ProviderDefinitionFileName ?? "publisher.json";
+            var fileName = _project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName;
 
             // Upload as a file
             using var stream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(ProviderDefinitionJson));
@@ -1046,7 +1053,7 @@ public partial class PublishShareViewModel : ObservableObject
         // Always prefer Provider Definition URL (Tier 1)
         if (!string.IsNullOrWhiteSpace(ProviderDefinitionUrl))
         {
-            SubscriptionUrl = $"genhub://subscribe?url={Uri.EscapeDataString(ProviderDefinitionUrl)}";
+            SubscriptionUrl = _publisherStudioService.GenerateSubscriptionUrl(ProviderDefinitionUrl);
             _logger.LogInformation("Generated subscription URL using definition URL");
         }
         else

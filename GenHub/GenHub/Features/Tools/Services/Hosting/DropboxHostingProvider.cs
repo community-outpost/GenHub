@@ -38,7 +38,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     private bool _disposed;
 
     /// <inheritdoc/>
-    public string ProviderId => "dropbox";
+    public string ProviderId => HostingConstants.Dropbox;
 
     /// <inheritdoc/>
     public string DisplayName => "Dropbox";
