@@ -397,8 +397,10 @@ public partial class PublisherStudioViewModel : ObservableObject
     {
         if (CurrentProject == null) return;
 
+        CurrentProject.Catalogs ??= [];
         CurrentProject.Catalog ??= new();
         CurrentProject.Catalog.Publisher ??= new();
+        CurrentProject.Catalog.Content ??= [];
 
         var newId = $"catalog-{CurrentProject.Catalogs.Count + 1}";
         var newCatalog = new NamedCatalog
@@ -445,8 +447,10 @@ public partial class PublisherStudioViewModel : ObservableObject
     {
         if (CurrentProject == null) return;
 
+        CurrentProject.Catalogs ??= [];
         CurrentProject.Catalog ??= new();
         CurrentProject.Catalog.Publisher ??= new();
+        CurrentProject.Catalog.Content ??= [];
 
         // If project has no catalogs list, ensure a default catalog exists
         if (CurrentProject.Catalogs.Count == 0)
@@ -459,7 +463,7 @@ public partial class PublisherStudioViewModel : ObservableObject
                 FileName = CurrentProject.CatalogFileName ?? HostingConstants.DefaultCatalogFileName,
             };
             CurrentProject.Catalogs.Add(defaultCatalog);
-            if (CurrentProject.Catalog.Content.Count > 0)
+            if (CurrentProject.Catalog?.Content?.Count > 0)
             {
                 _logger.LogInformation("Migrated single catalog to multi-catalog format");
             }
@@ -478,10 +482,13 @@ public partial class PublisherStudioViewModel : ObservableObject
         if (!_hostingStateManager.StateFileExists(CurrentProject.ProjectPath))
         {
             // If this project has previously been published (has catalogs with URLs), prompt recovery
-            var hasPublishedUrls = CurrentProject.Catalogs.Any(c =>
+            var hasPublishedUrls = CurrentProject.Catalogs?.Any(c =>
+                c.Catalog?.Content != null &&
                 c.Catalog.Content.Any(item =>
+                    item.Releases != null &&
                     item.Releases.Any(r =>
-                        r.Artifacts.Any(a => !string.IsNullOrEmpty(a.DownloadUrl)))));
+                        r.Artifacts != null &&
+                        r.Artifacts.Any(a => !string.IsNullOrEmpty(a.DownloadUrl))))) == true;
 
             if (hasPublishedUrls)
             {
@@ -499,8 +506,10 @@ public partial class PublisherStudioViewModel : ObservableObject
             return;
         }
 
+        CurrentProject.Catalogs ??= [];
         CurrentProject.Catalog ??= new();
         CurrentProject.Catalog.Publisher ??= new();
+        CurrentProject.Catalog.Content ??= [];
 
         // Ensure multi-catalog migration
         MigrateProjectToMultiCatalog();
@@ -512,6 +521,7 @@ public partial class PublisherStudioViewModel : ObservableObject
             if (catalog.Catalog != null)
             {
                 catalog.Catalog.Publisher = CurrentProject.Catalog.Publisher;
+                catalog.Catalog.Content ??= [];
             }
 
             Catalogs.Add(catalog);
