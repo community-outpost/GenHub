@@ -15,6 +15,9 @@
 
   <UserControl.Resources>
     <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://GenHub/Features/Tools/Views/ToolIcons.axaml" />
+      </ResourceDictionary.MergedDictionaries>
       <converters:EqualityConverter x:Key="EqualityConverter" />
       <converters:EnumToBoolConverter x:Key="EnumToBoolConverter" />
     </ResourceDictionary>
@@ -107,21 +110,14 @@
                              Margin="8,0,4,0"/>
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
-              <DataGridTemplateColumn.CellEditingTemplate>
-                <DataTemplate>
-                  <TextBox Text="{Binding FileName, Mode=TwoWay}"
-                           VerticalContentAlignment="Center"
-                           Margin="8,0,4,0"/>
-                </DataTemplate>
-              </DataGridTemplateColumn.CellEditingTemplate>
             </DataGridTemplateColumn>
             <DataGridTemplateColumn Header="Map" Width="120" MaxWidth="160">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
-                  <TextBlock Text="{Binding Metadata.MapName, FallbackValue='-', TargetNullValue='-'}"
+                  <TextBlock Text="{Binding Metadata.MapName}"
                              VerticalAlignment="Center"
                              TextTrimming="CharacterEllipsis"
-                             ToolTip.Tip="{Binding Metadata.MapName, FallbackValue='-', TargetNullValue='-'}"
+                             ToolTip.Tip="{Binding Metadata.MapName}"
                              Margin="4,0"/>
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
@@ -137,24 +133,24 @@
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
-            <DataGridTextColumn Header="Exe CRC" Binding="{Binding Metadata.FormattedExeCrc, FallbackValue='-', TargetNullValue='-'}" Width="Auto" MinWidth="85" IsReadOnly="True" />
-            <DataGridTextColumn Header="INI CRC" Binding="{Binding Metadata.FormattedIniCrc, FallbackValue='-', TargetNullValue='-'}" Width="Auto" MinWidth="85" IsReadOnly="True" />
+            <DataGridTextColumn Header="Exe CRC" Binding="{Binding Metadata.FormattedExeCrc}" Width="Auto" MinWidth="85" IsReadOnly="True" />
+            <DataGridTextColumn Header="INI CRC" Binding="{Binding Metadata.FormattedIniCrc}" Width="Auto" MinWidth="85" IsReadOnly="True" />
             <DataGridTemplateColumn Header="Compatibility" Width="Auto" MinWidth="120">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
-                  <Border Background="{DynamicResource SurfaceCardBrush}" Padding="6,2" CornerRadius="6" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0"
+                  <Border Padding="6,2" CornerRadius="6" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0"
                           ToolTip.Tip="{Binding CompatibilityTooltip}">
                     <StackPanel Orientation="Horizontal" Spacing="5">
-                      <Ellipse Width="7" Height="7" VerticalAlignment="Center" Fill="{DynamicResource SuccessBrush}"
-                               IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Compatible}}"/>
-                      <Ellipse Width="7" Height="7" VerticalAlignment="Center" Fill="{DynamicResource AccentBrush}"
-                               IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.RequiresProfile}}"/>
-                      <Ellipse Width="7" Height="7" VerticalAlignment="Center" Fill="{DynamicResource WarningBrush}"
-                               IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Downloadable}}"/>
-                      <Ellipse Width="7" Height="7" VerticalAlignment="Center" Fill="{DynamicResource WarningBrush}"
-                               IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Orphaned}}"/>
-                      <Ellipse Width="7" Height="7" VerticalAlignment="Center" Fill="{DynamicResource TextMutedBrush}"
-                               IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Unknown}}"/>
+                      <TextBlock Text="●" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource SuccessBrush}"
+                                 IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Compatible}}"/>
+                      <TextBlock Text="●" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}"
+                                 IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.RequiresProfile}}"/>
+                      <TextBlock Text="●" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource WarningBrush}"
+                                 IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Downloadable}}"/>
+                      <TextBlock Text="●" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource WarningBrush}"
+                                 IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Orphaned}}"/>
+                      <TextBlock Text="●" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource TextMutedBrush}"
+                                 IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Unknown}}"/>
                       <TextBlock Text="{Binding CompatibilityBadgeText}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Border>
@@ -172,7 +168,7 @@
                             Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).LaunchReplayCommand}"
                             CommandParameter="{Binding}"
                             IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Compatible}}"
-                            ToolTip.Tip="Launch game profile matching this replay">
+                            ToolTip.Tip="{Binding PlayButtonTooltip}">
                       <StackPanel Orientation="Horizontal" Spacing="4">
                         <PathIcon Data="{StaticResource ToolIcon.Play}" Width="11" Height="11" VerticalAlignment="Center"/>
                         <TextBlock Text="Play" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -209,18 +205,6 @@
                             CommandParameter="{Binding}"
                             IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Orphaned}}"
                             ToolTip.Tip="Create a profile using your base game installation to watch this custom replay">
-                      <StackPanel Orientation="Horizontal" Spacing="4">
-                        <PathIcon Data="{StaticResource ToolIcon.CogOutline}" Width="11" Height="11" VerticalAlignment="Center"/>
-                        <TextBlock Text="Profile" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                      </StackPanel>
-                    </Button>
-
-                    <!-- Unknown Status Profile Button (When header unparsed or archive) -->
-                    <Button Classes="icon-subtle" Padding="6,4"
-                            Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).CreateProfileForReplayCommand}"
-                            CommandParameter="{Binding}"
-                            IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Unknown}}"
-                            ToolTip.Tip="Create a profile using your base game installation to watch this replay">
                       <StackPanel Orientation="Horizontal" Spacing="4">
                         <PathIcon Data="{StaticResource ToolIcon.CogOutline}" Width="11" Height="11" VerticalAlignment="Center"/>
                         <TextBlock Text="Profile" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>

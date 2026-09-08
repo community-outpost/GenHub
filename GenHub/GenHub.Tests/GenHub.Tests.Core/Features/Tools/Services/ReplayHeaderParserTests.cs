@@ -174,6 +174,82 @@ public sealed class ReplayHeaderParserTests
     }
 
     /// <summary>
+    /// Verifies that player names starting with 'H' or 'C' (e.g. Hank, Clint, captain, Chuck)
+    /// are not mangled by the slot status marker parsing, and that direct H= tokens preserve names.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ParseHeaderAsync_PlayerNamesStartingWithHorC_PreservesRealPlayerNamesAsync()
+    {
+        using var stream = new MemoryStream();
+        using var writer = new BinaryWriter(stream, Encoding.ASCII, leaveOpen: true);
+
+        writer.Write(Encoding.ASCII.GetBytes("GENREP"));
+        writer.Write(new byte[22]);
+        writer.Write(Encoding.Unicode.GetBytes("Names Test" + char.MinValue));
+        writer.Write(new byte[16]);
+        writer.Write(Encoding.Unicode.GetBytes("1.04" + char.MinValue));
+        writer.Write(Encoding.Unicode.GetBytes("Aug 21 2026" + char.MinValue));
+        writer.Write(20260821u);
+        writer.Write(0x27533BB0u);
+        writer.Write(0x76B251A3u);
+
+        // S= slots have uppercase 'H' or 'C' prefix added by Generals engine before player name:
+        // HHank -> Hank, HClint -> Clint, Hcaptain -> captain, CChuck -> Chuck
+        // Standalone markers X and O are ignored as closed/open slots.
+        writer.Write(Encoding.ASCII.GetBytes("M=maps/test/test.map;S=HHank,0,0,1:HClint,0,0,2:Hcaptain,0,0,3:CChuck,0,0,4:X:O;" + char.MinValue));
+
+        writer.Flush();
+        stream.Position = 0;
+
+        var result = await _parser.ParseHeaderAsync(stream);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        Assert.NotNull(result.Data);
+        Assert.NotNull(result.Data.Players);
+        Assert.Equal(4, result.Data.Players.Count);
+        Assert.Equal("Hank", result.Data.Players[0]);
+        Assert.Equal("Clint", result.Data.Players[1]);
+        Assert.Equal("captain", result.Data.Players[2]);
+        Assert.Equal("Chuck", result.Data.Players[3]);
+    }
+
+    /// <summary>
+    /// Verifies that a direct host/human token (H=) preserves the name without stripping leading 'H' or 'C'.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ParseHeaderAsync_DirectHostToken_PreservesPlayerNameAsync()
+    {
+        using var stream = new MemoryStream();
+        using var writer = new BinaryWriter(stream, Encoding.ASCII, leaveOpen: true);
+
+        writer.Write(Encoding.ASCII.GetBytes("GENREP"));
+        writer.Write(new byte[22]);
+        writer.Write(Encoding.Unicode.GetBytes("Direct Host Test" + char.MinValue));
+        writer.Write(new byte[16]);
+        writer.Write(Encoding.Unicode.GetBytes("1.04" + char.MinValue));
+        writer.Write(Encoding.Unicode.GetBytes("Aug 21 2026" + char.MinValue));
+        writer.Write(20260821u);
+        writer.Write(0x27533BB0u);
+        writer.Write(0x76B251A3u);
+
+        // H= token provides player/host name directly without S= slot prefix
+        writer.Write(Encoding.ASCII.GetBytes("M=maps/test/test.map;H=Hank;" + char.MinValue));
+
+        writer.Flush();
+        stream.Position = 0;
+
+        var result = await _parser.ParseHeaderAsync(stream);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        Assert.NotNull(result.Data);
+        Assert.NotNull(result.Data.Players);
+        Assert.Single(result.Data.Players);
+        Assert.Equal("Hank", result.Data.Players[0]);
+    }
+
+    /// <summary>
     /// Verifies that unterminated UTF-16 strings fail gracefully without throwing.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
