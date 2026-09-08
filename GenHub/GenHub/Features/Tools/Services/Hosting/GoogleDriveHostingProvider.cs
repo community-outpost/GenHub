@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,6 +11,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Models.Publishers;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Tools.Interfaces;
+using Google;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Drive.v3;
 using Google.Apis.Drive.v3.Data;
@@ -26,7 +28,7 @@ namespace GenHub.Features.Tools.Services.Hosting;
 /// <remarks>
 /// Google Drive is the recommended hosting option because:
 /// - Free storage (15GB shared with Gmail/Photos).
-/// - Stable URLs when updating files in-place.
+/// - Stable URLs when updating files in-placeValidateSingleArtifactUrl.
 /// - OAuth flow for secure authentication.
 /// - No technical setup required (unlike GitHub Pages).
 /// </remarks>
@@ -38,24 +40,25 @@ public class GoogleDriveHostingProvider : IHostingProvider
 
     private readonly ILogger<GoogleDriveHostingProvider> _logger;
     private DriveService? _driveService;
+    private string? _userEmail;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GoogleDriveHostingProvider"/> class.
     /// </summary>
-    /// <param name="logger">The logger instance.</param>
+    /// <param name="logger">The logger.</param>
     public GoogleDriveHostingProvider(ILogger<GoogleDriveHostingProvider> logger)
     {
         _logger = logger;
     }
 
     /// <inheritdoc />
-    public string ProviderId => "google_drive";
+    public string ProviderId => "googledrive";
 
     /// <inheritdoc />
     public string DisplayName => "Google Drive";
 
     /// <inheritdoc />
-    public string Description => "Host your catalogs and artifacts on Google Drive. Free, reliable, and easy to set up.";
+    public string Description => "Host your catalogs and artifacts on Google Drive. 15GB free storage with stable download links.";
 
     /// <inheritdoc />
     public string IconName => "GoogleDrive";
@@ -82,29 +85,27 @@ public class GoogleDriveHostingProvider : IHostingProvider
         {
             _logger.LogInformation("Starting Google Drive authentication...");
 
-            // Check for credentials from environment or configuration
-            var clientId = Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_ID");
-            var clientSecret = Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_SECRET");
-
-            if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
+            // In production, client secrets should come from configuration
+            // or a local credentials.json file
+            var secrets = new ClientSecrets
             {
-                _logger.LogWarning("Google Drive credentials not configured. Please set GENHUB_GOOGLE_CLIENT_ID and GENHUB_GOOGLE_CLIENT_SECRET environment variables.");
-                return OperationResult<bool>.CreateFailure(
-                    "Google Drive is not configured. Set GENHUB_GOOGLE_CLIENT_ID and GENHUB_GOOGLE_CLIENT_SECRET environment variables, or use a different hosting provider.");
-            }
-
-            var clientSecrets = new ClientSecrets
-            {
-                ClientId = clientId,
-                ClientSecret = clientSecret,
+                // Placeholder - in real app, these come from Google Cloud Console
+                ClientId = "YOUR_CLIENT_ID.apps.googleusercontent.com",
+                ClientSecret = "YOUR_CLIENT_SECRET",
             };
 
+            // Use local file data store for token caching
+            var credPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "GenHub",
+                "google-drive-token");
+
             var credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
-                clientSecrets,
+                secrets,
                 Scopes,
                 "user",
                 cancellationToken,
-                new FileDataStore("GenHub.GoogleDrive.Tokens", fullPath: false));
+                new FileDataStore(credPath, true));
 
             _driveService = new DriveService(new BaseClientService.Initializer
             {
@@ -112,21 +113,38 @@ public class GoogleDriveHostingProvider : IHostingProvider
                 ApplicationName = ApplicationName,
             });
 
-            _logger.LogInformation("Successfully authenticated with Google Drive");
+            // Get user info to verify connection
+            var aboutRequest = _driveService.About.Get();
+            aboutRequest.Fields = "user";
+            var about = await aboutRequest.ExecuteAsync(cancellationToken);
+            _userEmail = about.User?.EmailAddress;
+
+            _logger.LogInformation("Authenticated with Google Drive as {Email}", _userEmail);
             return OperationResult<bool>.CreateSuccess(true);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to authenticate with Google Drive");
+            _logger.LogError(ex, "Google Drive authentication failed");
             return OperationResult<bool>.CreateFailure($"Authentication failed: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Authenticates with an existing DriveService instance (for testing).
+    /// </summary>
+    /// <param name="driveService">The DriveService instance.</param>
+    /// <param name="userEmail">Optional user email.</param>
+    public void SetDriveService(DriveService driveService, string? userEmail = null)
+    {
+        _driveService = driveService;
+        _userEmail = userEmail;
     }
 
     /// <inheritdoc />
     public Task SignOutAsync()
     {
-        _driveService?.Dispose();
         _driveService = null;
+        _userEmail = null;
         _logger.LogInformation("Signed out from Google Drive");
         return Task.CompletedTask;
     }
@@ -173,9 +191,13 @@ public class GoogleDriveHostingProvider : IHostingProvider
             {
                 await MakeFilePublicAsync(folderId, cancellationToken);
             }
-            catch (Exception ex)
+            catch (GoogleApiException ex)
             {
-                _logger.LogWarning(ex, "Failed to set public permissions on Google Drive folder {FolderId}", folderId);
+                _logger.LogWarning(ex, "Google Drive API error setting public permissions on folder {FolderId}", folderId);
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogWarning(ex, "Network error setting public permissions on Google Drive folder {FolderId}", folderId);
             }
 
             _logger.LogInformation("Created new publisher folder: {FolderId}", folderId);

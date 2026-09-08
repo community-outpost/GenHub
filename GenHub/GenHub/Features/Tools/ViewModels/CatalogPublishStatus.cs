@@ -31,18 +31,18 @@ public partial class CatalogPublishStatus : ObservableObject
     {
         get
         {
-            if (!_isPublished)
+            if (!IsPublished)
             {
                 return "Not Published";
             }
 
-            if (_hasChanges)
+            if (HasChanges)
             {
                 return "Changes Pending";
             }
 
-            return _lastPublished.HasValue
-                ? $"Published {_lastPublished.Value:MMM d, yyyy}"
+            return LastPublished.HasValue
+                ? $"Published {LastPublished.Value:MMM d, yyyy}"
                 : "Published";
         }
     }
@@ -54,12 +54,12 @@ public partial class CatalogPublishStatus : ObservableObject
     {
         get
         {
-            if (!_isPublished)
+            if (!IsPublished)
             {
                 return "#6B7280";
             }
 
-            if (_hasChanges)
+            if (HasChanges)
             {
                 return "#F59E0B";
             }

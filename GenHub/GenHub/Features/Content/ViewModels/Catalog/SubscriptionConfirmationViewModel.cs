@@ -256,6 +256,12 @@ public partial class SubscriptionConfirmationViewModel(
             var targetCatalogUrl = !string.IsNullOrWhiteSpace(definition.CatalogUrl)
                 ? definition.CatalogUrl
                 : definition.Catalogs?.FirstOrDefault()?.Url;
+
+            if (string.IsNullOrWhiteSpace(targetCatalogUrl))
+            {
+                return (null, null, null);
+            }
+
             return (catResult.Data, catalogUrl, targetCatalogUrl);
         }
 
@@ -306,9 +312,10 @@ public partial class SubscriptionConfirmationViewModel(
         {
             throw;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException timeoutEx)
         {
-            throw;
+            logger.LogWarning(timeoutEx, "Timeout fetching target catalog from definition at {Url}", catalogUrl);
+            return (null, null, null);
         }
         catch (System.Text.Json.JsonException jsonEx)
         {

@@ -102,9 +102,9 @@ public partial class AddReferralDialogViewModel : ObservableValidator
 
         var referral = new PublisherReferral
         {
-            PublisherId = string.IsNullOrWhiteSpace(_publisherId) ? _selectedPublisher?.PublisherId ?? string.Empty : _publisherId.ToLowerInvariant().Trim(),
-            CatalogUrl = string.IsNullOrWhiteSpace(_catalogUrl) ? _selectedPublisher?.CatalogUrl ?? string.Empty : _catalogUrl.Trim(),
-            Note = string.IsNullOrWhiteSpace(_note) ? null : _note.Trim(),
+            PublisherId = string.IsNullOrWhiteSpace(PublisherId) ? SelectedPublisher?.PublisherId ?? string.Empty : PublisherId.ToLowerInvariant().Trim(),
+            CatalogUrl = string.IsNullOrWhiteSpace(CatalogUrl) ? SelectedPublisher?.CatalogUrl ?? string.Empty : CatalogUrl.Trim(),
+            Note = string.IsNullOrWhiteSpace(Note) ? null : Note.Trim(),
         };
 
         _onReferralCreated(referral);
@@ -116,7 +116,7 @@ public partial class AddReferralDialogViewModel : ObservableValidator
     [RelayCommand]
     private async Task DiscoverPublisherAsync()
     {
-        if (string.IsNullOrWhiteSpace(_catalogUrl))
+        if (string.IsNullOrWhiteSpace(CatalogUrl))
         {
             ValidationError = "Please enter a Catalog or Provider Definition URL first";
             return;
@@ -131,7 +131,7 @@ public partial class AddReferralDialogViewModel : ObservableValidator
             using var client = new System.Net.Http.HttpClient();
             client.Timeout = TimeSpan.FromSeconds(30);
 
-            var json = await client.GetStringAsync(_catalogUrl);
+            var json = await client.GetStringAsync(CatalogUrl);
 
             // Try as Publisher Definition first (Tier 3)
             try
@@ -208,19 +208,19 @@ public partial class AddReferralDialogViewModel : ObservableValidator
         var errors = new List<string>();
 
         // If a publisher is selected from list, use that info
-        if (_selectedPublisher != null)
+        if (SelectedPublisher != null)
         {
             IsValid = true;
             ValidationError = null;
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(_publisherId))
+        if (string.IsNullOrWhiteSpace(PublisherId))
             errors.Add("Publisher ID is required");
 
-        if (string.IsNullOrWhiteSpace(_catalogUrl))
+        if (string.IsNullOrWhiteSpace(CatalogUrl))
             errors.Add("Catalog URL is required");
-        else if (!Uri.TryCreate(_catalogUrl, UriKind.Absolute, out _))
+        else if (!Uri.TryCreate(CatalogUrl, UriKind.Absolute, out _))
             errors.Add("Invalid Catalog URL");
 
         IsValid = errors.Count == 0;

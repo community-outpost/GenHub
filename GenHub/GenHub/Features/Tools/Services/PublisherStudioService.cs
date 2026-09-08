@@ -450,9 +450,17 @@ public class PublisherStudioService(
 
             if (allowPendingArtifacts)
             {
+                var missingFilenameArtifact = release.Artifacts.FirstOrDefault(artifact =>
+                    IsPendingLocalArtifact(artifact) && string.IsNullOrWhiteSpace(artifact?.Filename));
+
+                if (missingFilenameArtifact != null)
+                {
+                    return OperationResult<bool>.CreateFailure($"Pending local artifact in '{content.Name}' {release.Version} is missing a filename");
+                }
+
                 var missingArtifact = release.Artifacts.FirstOrDefault(artifact =>
                     IsPendingLocalArtifact(artifact) &&
-                    !File.Exists(artifact.LocalFilePath));
+                    !File.Exists(artifact?.LocalFilePath));
 
                 if (missingArtifact != null)
                 {
@@ -464,8 +472,8 @@ public class PublisherStudioService(
         return OperationResult<bool>.CreateSuccess(true);
     }
 
-    private static bool IsPendingLocalArtifact(ReleaseArtifact artifact) =>
-        string.IsNullOrEmpty(artifact.DownloadUrl) && !string.IsNullOrEmpty(artifact.LocalFilePath);
+    private static bool IsPendingLocalArtifact(ReleaseArtifact? artifact) =>
+        artifact != null && string.IsNullOrEmpty(artifact.DownloadUrl) && !string.IsNullOrEmpty(artifact.LocalFilePath);
 
     private static PublisherCatalog PrepareCatalogForPendingArtifactValidation(PublisherCatalog catalog)
     {
@@ -519,7 +527,12 @@ public class PublisherStudioService(
             var tgtArtifact = tgtRelease.Artifacts[aIdx];
             if (srcArtifact != null && tgtArtifact != null && IsPendingLocalArtifact(srcArtifact))
             {
-                tgtArtifact.DownloadUrl = HostingConstants.PendingUploadBaseUrl + Uri.EscapeDataString(tgtArtifact.Filename ?? string.Empty);
+                if (string.IsNullOrWhiteSpace(tgtArtifact.Filename))
+                {
+                    continue;
+                }
+
+                tgtArtifact.DownloadUrl = HostingConstants.PendingUploadBaseUrl + Uri.EscapeDataString(tgtArtifact.Filename);
             }
         }
     }
@@ -589,7 +602,7 @@ public class PublisherStudioService(
         {
             if (!visited.Add(currentId))
             {
-                var chain = string.Join(" → ", visited) + $" → {currentId}";
+                var chain = string.Join(" \u2192 ", visited) + $" \u2192 {currentId}";
                 cycleError = $"Circular addon dependency detected: {chain}";
                 return true;
             }

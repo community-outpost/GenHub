@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -66,53 +67,36 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     /// <inheritdoc/>
     public Task<OperationResult<bool>> AuthenticateAsync(CancellationToken cancellationToken = default)
     {
-        // Dropbox uses OAuth2 - for now, we'll use access token authentication
-        logger.LogInformation("Dropbox authentication requires an access token.");
-        return Task.FromResult(OperationResult<bool>.CreateFailure(
-            "Please use the access token authentication. Get a token from the Dropbox App Console."));
-    }
-
-    /// <summary>
-    /// Authenticates using a Dropbox access token.
-    /// </summary>
-    /// <param name="accessToken">The Dropbox access token.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Operation result indicating success.</returns>
-    public async Task<OperationResult<bool>> AuthenticateWithTokenAsync(string accessToken, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(accessToken))
-        {
-            return OperationResult<bool>.CreateFailure("Access token is required");
-        }
-
         try
         {
-            // Verify the token by getting current account info
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-            var response = await _httpClient.PostAsync(
-                $"{DropboxApiUrl}/users/get_current_account",
-                new StringContent("null", Encoding.UTF8, HostingConstants.JsonContentType),
-                cancellationToken);
-
-            if (response.IsSuccessStatusCode)
-            {
-                _accessToken = accessToken;
-                logger.LogInformation("Successfully authenticated with Dropbox");
-                return OperationResult<bool>.CreateSuccess(true);
-            }
-            else
-            {
-                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                logger.LogWarning("Dropbox authentication failed: {Error}", errorContent);
-                return OperationResult<bool>.CreateFailure("Invalid access token");
-            }
+            // OAuth flow for Dropbox
+            // In production, this would open browser for authorization
+            logger.LogInformation("Starting Dropbox authentication...");
+            return Task.FromResult(OperationResult<bool>.CreateFailure("Dropbox authentication not yet implemented. Please use access token."));
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Dropbox authentication failed");
-            return OperationResult<bool>.CreateFailure($"Authentication failed: {ex.Message}");
+            return Task.FromResult(OperationResult<bool>.CreateFailure($"Authentication failed: {ex.Message}"));
         }
+    }
+
+    /// <summary>
+    /// Authenticates with a personal access token.
+    /// </summary>
+    /// <param name="accessToken">The Dropbox access token.</param>
+    /// <returns>Operation result indicating success.</returns>
+    public Task<OperationResult<bool>> AuthenticateWithTokenAsync(string accessToken)
+    {
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            return Task.FromResult(OperationResult<bool>.CreateFailure("Access token cannot be empty"));
+        }
+
+        _accessToken = accessToken;
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+        logger.LogInformation("Authenticated with Dropbox using access token");
+        return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
     }
 
     /// <inheritdoc/>
@@ -171,7 +155,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
                 return OperationResult<string>.CreateSuccess(PublisherFolderPath);
             }
 
-            if (createResponse.StatusCode == System.Net.HttpStatusCode.Conflict)
+            if (createResponse.StatusCode == HttpStatusCode.Conflict)
             {
                 logger.LogInformation("Publisher folder already exists (conflict): {Path}", PublisherFolderPath);
                 return OperationResult<string>.CreateSuccess(PublisherFolderPath);

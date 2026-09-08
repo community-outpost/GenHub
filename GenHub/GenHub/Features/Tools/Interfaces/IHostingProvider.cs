@@ -213,10 +213,14 @@ public sealed class HostingUploadResult : IEquatable<HostingUploadResult>
     /// <summary>
     /// Compares two <see cref="HostingUploadResult"/> instances for equality.
     /// </summary>
+    /// <param name="left">The first result to compare.</param>
+    /// <param name="right">The second result to compare.</param>
     public static bool operator ==(HostingUploadResult? left, HostingUploadResult? right) => Equals(left, right);
 
     /// <summary>
     /// Compares two <see cref="HostingUploadResult"/> instances for inequality.
     /// </summary>
+    /// <param name="left">The first result to compare.</param>
+    /// <param name="right">The second result to compare.</param>
     public static bool operator !=(HostingUploadResult? left, HostingUploadResult? right) => !Equals(left, right);
 }
