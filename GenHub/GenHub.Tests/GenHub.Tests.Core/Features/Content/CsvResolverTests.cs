@@ -703,13 +703,12 @@ public class CsvResolverTests
         stream!.CopyTo(memoryStream);
         var embeddedText = Encoding.UTF8.GetString(memoryStream.ToArray()).Trim();
 
-        var solutionRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+        var solutionRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".."));
         var docsIndexJsonPath = Path.Combine(solutionRoot, "docs", CsvConstants.RegistryDocsFolder, CsvConstants.RegistryIndexFileName);
-        if (File.Exists(docsIndexJsonPath))
-        {
-            var docsText = File.ReadAllText(docsIndexJsonPath).Trim();
-            embeddedText.Should().Be(docsText);
-        }
+        File.Exists(docsIndexJsonPath).Should().BeTrue(
+            $"docs/{CsvConstants.RegistryDocsFolder}/{CsvConstants.RegistryIndexFileName} must exist relative to the solution root ({solutionRoot})");
+        var docsText = File.ReadAllText(docsIndexJsonPath).Trim();
+        embeddedText.Should().Be(docsText);
     }
 
     private static CsvResolver CreateResolver(HttpMessageHandler? handler = null, string? applicationDataPath = null)
