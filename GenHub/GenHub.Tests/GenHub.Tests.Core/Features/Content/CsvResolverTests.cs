@@ -621,6 +621,29 @@ public class CsvResolverTests
     }
 
     /// <summary>
+    /// Verifies that when a remote catalog URL returns 404 Not Found, <see cref="CsvResolver"/> gracefully falls back
+    /// to the embedded assembly asset matching the registry filename without failing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenRemoteReturns404_FallsBackToEmbeddedResourceAsync()
+    {
+        var remote404Url = "https://raw.githubusercontent.com/community-outpost/GenHub/main/docs/GameInstallationFilesRegistry/ZeroHour-1.04.csv";
+        var httpHandler = new StubHttpMessageHandler(expectedUrl: remote404Url, statusCode: HttpStatusCode.NotFound);
+        var resolver = CreateResolver(httpHandler);
+
+        var item = CreateDiscoveredItem(remote404Url, GameType.ZeroHour, CsvConstants.LanguageEn);
+        item.ResolverMetadata[CsvConstants.Sha256MetadataKey] = CsvConstants.ZeroHour104Sha256;
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Files.Should().NotBeEmpty();
+        result.Data.Files.Should().Contain(f => f.RelativePath == "generals.exe");
+    }
+
+    /// <summary>
     /// Verifies that the embedded authoritative CSV registries match their pinned SHA-256 checksum constants.
     /// </summary>
     /// <param name="fileName">The embedded CSV catalog file name.</param>

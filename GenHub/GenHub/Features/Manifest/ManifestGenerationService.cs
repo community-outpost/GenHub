@@ -4,11 +4,13 @@ using GenHub.Core.Constants;
 using GenHub.Core.Features.GameInstallations;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Core.Models.Validation;
 using GenHub.Core.Utilities;
 using GenHub.Features.Content.Services.ContentResolvers;
 using Microsoft.Extensions.Logging;
@@ -39,7 +41,8 @@ public class ManifestGenerationService(
     IDownloadService downloadService,
     IConfigurationProviderService configurationProvider,
     ILanguageDetector? languageDetector = null,
-    CsvResolver? csvResolver = null) : IManifestGenerationService
+    CsvResolver? csvResolver = null,
+    INotificationService? notificationService = null) : IManifestGenerationService
 {
     private static readonly CsvConfiguration CsvConfig = new(CultureInfo.InvariantCulture)
     {
@@ -85,6 +88,15 @@ public class ManifestGenerationService(
         ".wav",
     };
 
+    private enum AuthoritativeFileStatus
+    {
+        AddedMatching,
+        AddedDiffering,
+        MissingRequired,
+        MissingOptional,
+        Skipped,
+    }
+
     private readonly ILanguageDetector _languageDetector = languageDetector ?? new LanguageDetector();
 
     /// <summary>
@@ -97,12 +109,42 @@ public class ManifestGenerationService(
     /// <param name="language">Optional explicit language code (e.g., "EN", "DE"). If null, language is detected automatically.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
-    public async Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
+    public Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
         string gameInstallationPath,
         GameType gameType,
         GameInstallationType installationType,
         string? manifestVersion = null,
         string? language = null,
+        CancellationToken cancellationToken = default)
+    {
+        return CreateGameInstallationManifestAsync(
+            gameInstallationPath,
+            gameType,
+            installationType,
+            manifestVersion,
+            language,
+            progress: null,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Creates a manifest builder for a game installation with string version normalization and progress reporting.
+    /// </summary>
+    /// <param name="gameInstallationPath">Path to the game installation.</param>
+    /// <param name="gameType">The game type (Generals, ZeroHour).</param>
+    /// <param name="installationType">The installation type (Steam, EaApp).</param>
+    /// <param name="manifestVersion">The manifest version (e.g., "1.08", "1.04", or integer like 0, 1, 2). If null, defaults to 0.</param>
+    /// <param name="language">Optional explicit language code (e.g., "EN", "DE"). If null, language is detected automatically.</param>
+    /// <param name="progress">Optional progress reporter receiving file indexing progress updates.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
+    public async Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
+        string gameInstallationPath,
+        GameType gameType,
+        GameInstallationType installationType,
+        string? manifestVersion,
+        string? language,
+        IProgress<ValidationProgress>? progress,
         CancellationToken cancellationToken = default)
     {
         try
@@ -131,7 +173,7 @@ public class ManifestGenerationService(
             builder.WithPublisher(publisher.Name, publisher.Website, publisher.SupportUrl, string.Empty, publisher.PublisherType);
 
             // Add essential game files
-            await AddGameFilesToManifest(builder, gameInstallationPath, gameType, resolvedVersion, language, cancellationToken);
+            await AddGameFilesToManifest(builder, gameInstallationPath, gameType, resolvedVersion, language, progress, cancellationToken);
 
             logger.LogInformation(
                 "Created GameInstallation manifest for {InstallationType} {GameType} (Publisher: {PublisherName})",
@@ -166,7 +208,7 @@ public class ManifestGenerationService(
     /// <param name="language">Optional explicit language code (e.g., "EN", "DE"). If null, language is detected automatically.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
-    public async Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
+    public Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
         string gameInstallationPath,
         GameType gameType,
         GameInstallationType installationType,
@@ -174,7 +216,44 @@ public class ManifestGenerationService(
         string? language = null,
         CancellationToken cancellationToken = default)
     {
-        return await CreateGameInstallationManifestAsync(gameInstallationPath, gameType, installationType, manifestVersion.ToString(), language, cancellationToken);
+        return CreateGameInstallationManifestAsync(
+            gameInstallationPath,
+            gameType,
+            installationType,
+            manifestVersion.ToString(),
+            language,
+            progress: null,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Creates a manifest builder for a game installation with integer version and progress reporting.
+    /// </summary>
+    /// <param name="gameInstallationPath">Path to the game installation.</param>
+    /// <param name="gameType">The game type (Generals, ZeroHour).</param>
+    /// <param name="installationType">The installation type (Steam, EaApp).</param>
+    /// <param name="manifestVersion">The manifest version (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
+    /// <param name="language">Optional explicit language code (e.g., "EN", "DE"). If null, language is detected automatically.</param>
+    /// <param name="progress">Optional progress reporter receiving file indexing progress updates.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
+    public Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
+        string gameInstallationPath,
+        GameType gameType,
+        GameInstallationType installationType,
+        int manifestVersion,
+        string? language,
+        IProgress<ValidationProgress>? progress,
+        CancellationToken cancellationToken = default)
+    {
+        return CreateGameInstallationManifestAsync(
+            gameInstallationPath,
+            gameType,
+            installationType,
+            manifestVersion.ToString(),
+            language,
+            progress,
+            cancellationToken);
     }
 
     /// <summary>
@@ -818,6 +897,7 @@ public class ManifestGenerationService(
     /// <param name="gameType">The game type.</param>
     /// <param name="manifestVersion">Optional manifest version.</param>
     /// <param name="language">Optional explicit language code.</param>
+    /// <param name="progress">Optional progress reporter receiving file indexing progress updates.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     private async Task AddGameFilesToManifest(
@@ -826,6 +906,7 @@ public class ManifestGenerationService(
         GameType gameType,
         string? manifestVersion,
         string? language,
+        IProgress<ValidationProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -858,21 +939,77 @@ public class ManifestGenerationService(
             return;
         }
 
-        var fileCount = 0;
+        notificationService?.ShowInfo(
+            "Indexing Game Files",
+            $"Scanning {gameType} installation files ({authoritativeEntries.Count} files to verify)...",
+            autoDismissMs: 4000);
 
-        foreach (var entry in authoritativeEntries)
+        var fileCount = 0;
+        var totalEntries = authoritativeEntries.Count;
+        var missingRequiredFiles = new List<string>();
+        var differingFiles = new List<string>();
+
+        for (var i = 0; i < totalEntries; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (await TryAddAuthoritativeEntryAsync(builder, installationPath, entry, cancellationToken))
+            var entry = authoritativeEntries[i];
+            var currentIndex = i + 1;
+
+            progress?.Report(new ValidationProgress(currentIndex, totalEntries, entry.RelativePath));
+
+            var result = await TryAddAuthoritativeEntryAsync(builder, installationPath, entry, cancellationToken);
+            switch (result)
             {
-                fileCount++;
+                case AuthoritativeFileStatus.AddedMatching:
+                    fileCount++;
+                    break;
+                case AuthoritativeFileStatus.AddedDiffering:
+                    fileCount++;
+                    differingFiles.Add(entry.RelativePath);
+                    break;
+                case AuthoritativeFileStatus.MissingRequired:
+                    missingRequiredFiles.Add(entry.RelativePath);
+                    break;
+                case AuthoritativeFileStatus.MissingOptional:
+                case AuthoritativeFileStatus.Skipped:
+                    break;
+            }
+
+            if (currentIndex % 25 == 0 || currentIndex == totalEntries)
+            {
+                var percent = (double)currentIndex / totalEntries * 100;
+                logger.LogInformation(
+                    "Generating manifest for {GameType}: {Current}/{Total} files processed ({Percent:F0}%)",
+                    gameType,
+                    currentIndex,
+                    totalEntries,
+                    percent);
             }
         }
 
         logger.LogInformation(
-            "Completed authoritative manifest generation for {GameType}: {TotalFiles} vanilla files added",
+            "Completed authoritative manifest generation for {GameType}: {TotalFiles} vanilla files added ({DifferingCount} differed from catalog, {MissingCount} required files missing)",
             gameType,
-            fileCount);
+            fileCount,
+            differingFiles.Count,
+            missingRequiredFiles.Count);
+
+        if (missingRequiredFiles.Count > 0)
+        {
+            var fileList = string.Join(", ", missingRequiredFiles.Take(5));
+            var extra = missingRequiredFiles.Count > 5 ? $" and {missingRequiredFiles.Count - 5} more" : string.Empty;
+            notificationService?.ShowWarning(
+                "Incomplete Game Installation",
+                $"{gameType} is missing {missingRequiredFiles.Count} required file(s): {fileList}{extra}. A clean reinstall or repair via EA App/Steam is recommended.",
+                autoDismissMs: 10000);
+        }
+        else
+        {
+            notificationService?.ShowSuccess(
+                "Game Files Indexed",
+                $"Completed verification for {gameType} ({fileCount}/{totalEntries} files verified).",
+                autoDismissMs: 4000);
+        }
     }
 
     /// <summary>
@@ -995,7 +1132,7 @@ public class ManifestGenerationService(
         }
     }
 
-    private async Task<bool> TryAddAuthoritativeEntryAsync(
+    private async Task<AuthoritativeFileStatus> TryAddAuthoritativeEntryAsync(
         IContentManifestBuilder builder,
         string installationPath,
         CsvCatalogEntry entry,
@@ -1003,7 +1140,7 @@ public class ManifestGenerationService(
     {
         if (string.IsNullOrWhiteSpace(entry.RelativePath))
         {
-            return false;
+            return AuthoritativeFileStatus.Skipped;
         }
 
         try
@@ -1018,9 +1155,10 @@ public class ManifestGenerationService(
                     logger.LogWarning(
                         "Required vanilla file missing from installation: {RelativePath}",
                         entry.RelativePath);
+                    return AuthoritativeFileStatus.MissingRequired;
                 }
 
-                return false;
+                return AuthoritativeFileStatus.MissingOptional;
             }
 
             var sourcePath = ResolveSourcePathWithBackup(resolvedFilePath, entry.RelativePath);
@@ -1030,7 +1168,7 @@ public class ManifestGenerationService(
                     "Source path {SourcePath} for {RelativePath} is a reparse point or symbolic link and will be skipped",
                     sourcePath,
                     entry.RelativePath);
-                return false;
+                return AuthoritativeFileStatus.Skipped;
             }
 
             var fileInfo = new FileInfo(sourcePath);
@@ -1066,7 +1204,7 @@ public class ManifestGenerationService(
                 size: fileSize,
                 isRequired: entry.IsRequired);
 
-            return true;
+            return isAuthoritativeMatch ? AuthoritativeFileStatus.AddedMatching : AuthoritativeFileStatus.AddedDiffering;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -1078,7 +1216,7 @@ public class ManifestGenerationService(
                 ex,
                 "Failed to add authoritative vanilla file {RelativePath} to manifest",
                 entry.RelativePath);
-            return false;
+            return AuthoritativeFileStatus.Skipped;
         }
     }
 

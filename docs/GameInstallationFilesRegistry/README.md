@@ -21,11 +21,11 @@ docs/GameInstallationFilesRegistry/
 Files in this registry are accessible via GitHub Raw Content URLs:
 
 - **Index Metadata**:  
-  `https://raw.githubusercontent.com/community-outpost/GenHub/main/docs/GameInstallationFilesRegistry/index.json`
+  `https://raw.githubusercontent.com/community-outpost/GenHub/development/docs/GameInstallationFilesRegistry/index.json`
 - **Generals 1.08 Catalog**:  
-  `https://raw.githubusercontent.com/community-outpost/GenHub/main/docs/GameInstallationFilesRegistry/Generals-1.08.csv`
+  `https://raw.githubusercontent.com/community-outpost/GenHub/development/docs/GameInstallationFilesRegistry/Generals-1.08.csv`
 - **Zero Hour 1.04 Catalog**:  
-  `https://raw.githubusercontent.com/community-outpost/GenHub/main/docs/GameInstallationFilesRegistry/ZeroHour-1.04.csv`
+  `https://raw.githubusercontent.com/community-outpost/GenHub/development/docs/GameInstallationFilesRegistry/ZeroHour-1.04.csv`
 
 ---
 
@@ -43,13 +43,13 @@ The `index.json` manifest acts as the root index queried by `CsvDiscoverer` duri
       "id": "generals-1.08",
       "gameType": "Generals",
       "version": "1.08",
-      "url": "https://raw.githubusercontent.com/community-outpost/GenHub/main/docs/GameInstallationFilesRegistry/Generals-1.08.csv",
+      "url": "https://raw.githubusercontent.com/community-outpost/GenHub/development/docs/GameInstallationFilesRegistry/Generals-1.08.csv",
       "fileCount": 164,
       "totalSizeBytes": 48166,
       "languages": ["All", "EN", "DE", "FR", "ES", "IT", "KO", "PL", "PT-BR", "ZH-CN", "ZH-TW"],
       "checksum": {
         "md5": "41e3f06a608156eaea960d432d6be682",
-        "sha256": "97c72beab9b92918ccf2629cf104034007337873783f2f7f03855e9857fa6267"
+        "sha256": "0fba15bb0a0db434b5edce0475615d4f84c4f2a02b01610f42dc23b9f491099d"
       },
       "generatedAt": "2025-09-17T09:15:00Z",
       "generatorVersion": "1.0.0",

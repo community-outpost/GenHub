@@ -1,10 +1,12 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Validation;
 using GenHub.Features.Manifest;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -876,6 +878,130 @@ public class ManifestGenerationServiceTests : IDisposable
                 File.SetUnixFileMode(inaccessibleFile, UnixFileMode.UserRead | UnixFileMode.UserWrite);
             }
         }
+    }
+
+    /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync reports progress through IProgress.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_ReportsProgressAsync()
+    {
+        // Arrange
+        var installationPath = Path.Combine(_tempDirectory, "ProgressTestInstall");
+        Directory.CreateDirectory(installationPath);
+
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "generals.exe"), "zh exe");
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "AudioZH.big"), "zh audio");
+
+        var progressReports = new List<ValidationProgress>();
+        var progress = new Progress<ValidationProgress>(p => progressReports.Add(p));
+
+        // Act
+        var builder = await _service.CreateGameInstallationManifestAsync(
+            installationPath,
+            GameType.ZeroHour,
+            GameInstallationType.Steam,
+            "1.04",
+            "EN",
+            progress);
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        Assert.NotEmpty(progressReports);
+        var last = progressReports.Last();
+        Assert.True(last.Total > 0);
+        Assert.True(last.Processed > 0);
+    }
+
+    /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync shows info on start and success when no required files are missing.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_WhenAllRequiredFilesPresent_DispatchesSuccessNotificationAsync()
+    {
+        // Arrange
+        var notificationServiceMock = new Mock<INotificationService>();
+        var serviceWithNotifications = new ManifestGenerationService(
+            NullLogger<ManifestGenerationService>.Instance,
+            _hashProviderMock.Object,
+            _manifestIdServiceMock.Object,
+            _downloadServiceMock.Object,
+            _configProviderServiceMock.Object,
+            notificationService: notificationServiceMock.Object);
+
+        var installationPath = Path.Combine(_tempDirectory, "NotificationSuccessInstall");
+        Directory.CreateDirectory(installationPath);
+
+        // game.dat is the required file in ZeroHour catalog
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "game.dat"), "game dat content");
+
+        // Act
+        var builder = await serviceWithNotifications.CreateGameInstallationManifestAsync(
+            installationPath,
+            GameType.ZeroHour,
+            GameInstallationType.Steam,
+            "1.04",
+            "EN");
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        notificationServiceMock.Verify(
+            n => n.ShowInfo(It.Is<string>(s => s.Contains("Indexing")), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.ShowSuccess(It.Is<string>(s => s.Contains("Indexed")), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync shows warning notification when required files are missing.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_WhenRequiredFilesMissing_DispatchesWarningNotificationAsync()
+    {
+        // Arrange
+        var notificationServiceMock = new Mock<INotificationService>();
+        var serviceWithNotifications = new ManifestGenerationService(
+            NullLogger<ManifestGenerationService>.Instance,
+            _hashProviderMock.Object,
+            _manifestIdServiceMock.Object,
+            _downloadServiceMock.Object,
+            _configProviderServiceMock.Object,
+            notificationService: notificationServiceMock.Object);
+
+        var installationPath = Path.Combine(_tempDirectory, "NotificationMissingInstall");
+        Directory.CreateDirectory(installationPath);
+
+        // Missing game.dat (required file)
+
+        // Act
+        var builder = await serviceWithNotifications.CreateGameInstallationManifestAsync(
+            installationPath,
+            GameType.ZeroHour,
+            GameInstallationType.Steam,
+            "1.04",
+            "EN");
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        notificationServiceMock.Verify(
+            n => n.ShowInfo(It.Is<string>(s => s.Contains("Indexing")), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.ShowWarning(It.Is<string>(s => s.Contains("Incomplete")), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
     }
 
     /// <summary>
