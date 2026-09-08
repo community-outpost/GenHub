@@ -670,6 +670,30 @@ public class CsvResolverTests
         actualHash.Should().Be(expectedSha256);
     }
 
+    /// <summary>
+    /// Verifies that the embedded index.json is synchronized with docs/GameInstallationFilesRegistry/index.json.
+    /// </summary>
+    [Fact]
+    public void EmbeddedIndexJson_MatchesDocsIndexJson()
+    {
+        var assembly = typeof(CsvConstants).Assembly;
+        var resourceName = $"{CsvConstants.EmbeddedResourceNamespace}.{CsvConstants.RegistryIndexFileName}";
+        using var stream = assembly.GetManifestResourceStream(resourceName);
+        stream.Should().NotBeNull($"Resource '{resourceName}' must exist in {assembly.GetName().Name}");
+
+        using var memoryStream = new MemoryStream();
+        stream!.CopyTo(memoryStream);
+        var embeddedText = Encoding.UTF8.GetString(memoryStream.ToArray()).Trim();
+
+        var solutionRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+        var docsIndexJsonPath = Path.Combine(solutionRoot, "docs", CsvConstants.RegistryDocsFolder, CsvConstants.RegistryIndexFileName);
+        if (File.Exists(docsIndexJsonPath))
+        {
+            var docsText = File.ReadAllText(docsIndexJsonPath).Trim();
+            embeddedText.Should().Be(docsText);
+        }
+    }
+
     private static CsvResolver CreateResolver(HttpMessageHandler? handler = null, string? applicationDataPath = null)
     {
         var mockHttpClientFactory = new Mock<IHttpClientFactory>();

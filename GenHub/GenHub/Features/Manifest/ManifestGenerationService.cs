@@ -1034,6 +1034,11 @@ public class ManifestGenerationService(
         cancellationToken.ThrowIfCancellationRequested();
         logger.LogInformation("Starting fallback directory scan manifest generation for {GameType} at {InstallationPath}", gameType, installationPath);
 
+        notificationService?.ShowInfo(
+            ManifestConstants.IndexingNotificationTitle,
+            $"Scanning {gameType} directory files...",
+            autoDismissMs: ManifestConstants.DefaultNotificationAutoDismissMs);
+
         var executableName = gameType == GameType.Generals ? GameClientConstants.GeneralsExecutable : GameClientConstants.ZeroHourExecutable;
         await TryAddPrimaryExecutableAsync(builder, installationPath, executableName);
 
@@ -1060,6 +1065,11 @@ public class ManifestGenerationService(
         {
             logger.LogWarning(ex, "Failed to enumerate files during directory scan at {InstallationPath}", installationPath);
         }
+
+        notificationService?.ShowSuccess(
+            ManifestConstants.IndexedNotificationTitle,
+            $"Completed file scan for {gameType}.",
+            autoDismissMs: ManifestConstants.DefaultNotificationAutoDismissMs);
     }
 
     private async Task TryAddPrimaryExecutableAsync(
