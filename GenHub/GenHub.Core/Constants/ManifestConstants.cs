@@ -21,6 +21,26 @@ public static class ManifestConstants
     public const string IncompleteInstallationNotificationTitle = "Incomplete Game Installation";
 
     /// <summary>
+    /// Default auto-dismiss timeout in milliseconds for standard info/success scan notifications.
+    /// </summary>
+    public const int DefaultNotificationAutoDismissMs = 4000;
+
+    /// <summary>
+    /// Auto-dismiss timeout in milliseconds for incomplete installation warning notifications.
+    /// </summary>
+    public const int WarningNotificationAutoDismissMs = 10000;
+
+    /// <summary>
+    /// Frequency interval (number of files processed) for progress log emission during manifest generation.
+    /// </summary>
+    public const int ProgressLoggingThrottleInterval = 25;
+
+    /// <summary>
+    /// Maximum number of missing required files to list in warning notifications before truncating.
+    /// </summary>
+    public const int MaxMissingFilesNotificationDisplayCount = 5;
+
+    /// <summary>
     /// Default manifest format version.
     /// </summary>
     public const int DefaultManifestFormatVersion = 1;

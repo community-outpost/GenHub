@@ -45,10 +45,10 @@ The `index.json` manifest acts as the root index queried by `CsvDiscoverer` duri
       "version": "1.08",
       "url": "https://raw.githubusercontent.com/community-outpost/GenHub/development/docs/GameInstallationFilesRegistry/Generals-1.08.csv",
       "fileCount": 164,
-      "totalSizeBytes": 48166,
+      "totalSizeBytes": 28977,
       "languages": ["All", "EN", "DE", "FR", "ES", "IT", "KO", "PL", "PT-BR", "ZH-CN", "ZH-TW"],
       "checksum": {
-        "md5": "41e3f06a608156eaea960d432d6be682",
+        "md5": "4b77bce0b4dd0301478e0e341757491f",
         "sha256": "0fba15bb0a0db434b5edce0475615d4f84c4f2a02b01610f42dc23b9f491099d"
       },
       "generatedAt": "2025-09-17T09:15:00Z",

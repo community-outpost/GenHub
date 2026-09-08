@@ -349,15 +349,24 @@ public class CsvResolver(
 
     private static CsvContentLoadResult? TryLoadEmbeddedResource(Uri uri)
     {
-        var fileName = Path.GetFileName(uri.AbsolutePath);
+        var unescapedPath = Uri.UnescapeDataString(uri.AbsolutePath);
+        var fileName = Path.GetFileName(unescapedPath);
         if (string.IsNullOrWhiteSpace(fileName))
         {
             return null;
         }
 
-        var embeddedResourceName = $"{CsvConstants.EmbeddedResourceNamespace}.{fileName}";
+        var expectedResourceName = $"{CsvConstants.EmbeddedResourceNamespace}.{fileName}";
         var assembly = typeof(CsvConstants).Assembly;
-        using var stream = assembly.GetManifestResourceStream(embeddedResourceName);
+        var actualResourceName = assembly.GetManifestResourceNames()
+            .FirstOrDefault(name => string.Equals(name, expectedResourceName, StringComparison.OrdinalIgnoreCase));
+
+        if (actualResourceName == null)
+        {
+            return null;
+        }
+
+        using var stream = assembly.GetManifestResourceStream(actualResourceName);
         if (stream == null)
         {
             return null;
@@ -414,7 +423,7 @@ public class CsvResolver(
                 var embeddedResult = TryLoadEmbeddedResource(uri);
                 if (embeddedResult != null)
                 {
-                    logger.LogInformation(
+                    logger.LogWarning(
                         "Remote CSV catalog {SourceUrl} is unavailable ({Error}); falling back to bundled embedded catalog",
                         sourceUrl,
                         ex.Message);
@@ -438,8 +447,16 @@ public class CsvResolver(
             return OperationResult<CsvContentLoadResult>.CreateFailure($"CSV file not found at: {resolvedPath}");
         }
 
-        var fileBytes = await File.ReadAllBytesAsync(resolvedPath, cancellationToken);
-        var fileContent = Encoding.UTF8.GetString(fileBytes).TrimStart('\uFEFF');
-        return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(fileContent, false, fileBytes));
+        try
+        {
+            var rawBytes = await File.ReadAllBytesAsync(resolvedPath, cancellationToken);
+            var content = Encoding.UTF8.GetString(rawBytes).TrimStart('\uFEFF');
+            return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(content, false, rawBytes));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to read CSV catalog file at {FilePath}", resolvedPath);
+            return OperationResult<CsvContentLoadResult>.CreateFailure($"Failed to read CSV catalog file: {ex.Message}");
+        }
     }
 }

@@ -73,7 +73,7 @@ public interface IManifestGenerationService
     /// <param name="gameInstallationPath">Path to the game installation.</param>
     /// <param name="gameType">The game type (Generals, ZeroHour).</param>
     /// <param name="installationType">The installation type (Steam, EaApp).</param>
-    /// <param name="manifestVersion">The manifest version (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
+    /// <param name="manifestVersion">The manifest version (e.g., 1, 2, 20). 0 represents the first version.</param>
     /// <param name="language">Optional explicit language code (e.g., "EN", "DE"). If null, language is detected automatically.</param>
     /// <param name="progress">Optional progress reporter receiving file indexing progress updates.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>

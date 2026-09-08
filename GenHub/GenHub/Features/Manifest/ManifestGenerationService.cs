@@ -17,6 +17,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -34,6 +35,7 @@ namespace GenHub.Features.Manifest;
 /// Provides methods to create <see cref="ContentManifest"/> objects for different content types
 /// including GameInstallation and GameClient manifests with proper metadata and file references.
 /// </remarks>
+[SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ManifestGenerationService coordinates manifest creation across file hashing, catalog resolution, configuration, and notification services injected via dependency injection.")]
 public class ManifestGenerationService(
     ILogger<ManifestGenerationService> logger,
     IFileHashProvider hashProvider,
@@ -942,7 +944,7 @@ public class ManifestGenerationService(
         notificationService?.ShowInfo(
             ManifestConstants.IndexingNotificationTitle,
             $"Scanning {gameType} installation files ({authoritativeEntries.Count} files to verify)...",
-            autoDismissMs: 4000);
+            autoDismissMs: ManifestConstants.DefaultNotificationAutoDismissMs);
 
         var fileCount = 0;
         var totalEntries = authoritativeEntries.Count;
@@ -954,8 +956,6 @@ public class ManifestGenerationService(
             cancellationToken.ThrowIfCancellationRequested();
             var entry = authoritativeEntries[i];
             var currentIndex = i + 1;
-
-            progress?.Report(new ValidationProgress(currentIndex, totalEntries, entry.RelativePath));
 
             var result = await TryAddAuthoritativeEntryAsync(builder, installationPath, entry, cancellationToken);
             switch (result)
@@ -977,7 +977,9 @@ public class ManifestGenerationService(
                     break;
             }
 
-            if (currentIndex % 25 == 0 || currentIndex == totalEntries)
+            progress?.Report(new ValidationProgress(currentIndex, totalEntries, entry.RelativePath));
+
+            if (currentIndex % ManifestConstants.ProgressLoggingThrottleInterval == 0 || currentIndex == totalEntries)
             {
                 var percent = (double)currentIndex / totalEntries * 100;
                 logger.LogInformation(
@@ -998,19 +1000,24 @@ public class ManifestGenerationService(
 
         if (missingRequiredFiles.Count > 0)
         {
-            var fileList = string.Join(", ", missingRequiredFiles.Take(5));
-            var extra = missingRequiredFiles.Count > 5 ? $" and {missingRequiredFiles.Count - 5} more" : string.Empty;
+            var fileList = string.Join(", ", missingRequiredFiles.Take(ManifestConstants.MaxMissingFilesNotificationDisplayCount));
+            var extra = missingRequiredFiles.Count > ManifestConstants.MaxMissingFilesNotificationDisplayCount
+                ? $" and {missingRequiredFiles.Count - ManifestConstants.MaxMissingFilesNotificationDisplayCount} more"
+                : string.Empty;
             notificationService?.ShowWarning(
                 ManifestConstants.IncompleteInstallationNotificationTitle,
                 $"{gameType} is missing {missingRequiredFiles.Count} required file(s): {fileList}{extra}. A clean reinstall or repair via EA App/Steam is recommended.",
-                autoDismissMs: 10000);
+                autoDismissMs: ManifestConstants.WarningNotificationAutoDismissMs);
         }
         else
         {
+            var differingMessage = differingFiles.Count > 0
+                ? $" ({differingFiles.Count} differing from catalog)"
+                : string.Empty;
             notificationService?.ShowSuccess(
                 ManifestConstants.IndexedNotificationTitle,
-                $"Completed verification for {gameType} ({fileCount}/{totalEntries} files verified).",
-                autoDismissMs: 4000);
+                $"Completed verification for {gameType} ({fileCount}/{totalEntries} files verified{differingMessage}).",
+                autoDismissMs: ManifestConstants.DefaultNotificationAutoDismissMs);
         }
     }
 

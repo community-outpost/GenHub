@@ -197,12 +197,12 @@ public static class CsvConstants
     /// <summary>
     /// Default remote URL for Generals 1.08 CSV.
     /// </summary>
-    public const string DefaultGeneralsCsvUrl = "https://raw.githubusercontent.com/community-outpost/GenHub/development/docs/GameInstallationFilesRegistry/Generals-1.08.csv";
+    public const string DefaultGeneralsCsvUrl = $"{DefaultRegistryBaseUrl}/Generals-1.08.csv";
 
     /// <summary>
     /// Default remote URL for Zero Hour 1.04 CSV.
     /// </summary>
-    public const string DefaultZeroHourCsvUrl = "https://raw.githubusercontent.com/community-outpost/GenHub/development/docs/GameInstallationFilesRegistry/ZeroHour-1.04.csv";
+    public const string DefaultZeroHourCsvUrl = $"{DefaultRegistryBaseUrl}/ZeroHour-1.04.csv";
 
     /// <summary>
     /// Trusted SHA-256 checksum for Generals 1.08 authoritative CSV registry.
