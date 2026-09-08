@@ -453,7 +453,11 @@ public class CsvResolver(
             var content = Encoding.UTF8.GetString(rawBytes).TrimStart('\uFEFF');
             return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(content, false, rawBytes));
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogError(ex, "Failed to read CSV catalog file at {FilePath}", resolvedPath);
             return OperationResult<CsvContentLoadResult>.CreateFailure($"Failed to read CSV catalog file: {ex.Message}");

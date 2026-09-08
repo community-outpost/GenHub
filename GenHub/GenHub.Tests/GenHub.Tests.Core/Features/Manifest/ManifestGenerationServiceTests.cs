@@ -24,6 +24,11 @@ namespace GenHub.Tests.Core.Features.Manifest;
 /// </summary>
 public class ManifestGenerationServiceTests : IDisposable
 {
+    private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
+    {
+        public void Report(T value) => handler(value);
+    }
+
     private readonly Mock<IFileHashProvider> _hashProviderMock;
     private readonly Mock<IManifestIdService> _manifestIdServiceMock;
     private readonly Mock<IDownloadService> _downloadServiceMock;
@@ -1024,10 +1029,5 @@ public class ManifestGenerationServiceTests : IDisposable
         var executablePath = Path.Combine(clientPath, "generals.exe");
         await File.WriteAllTextAsync(executablePath, "dummy exe");
         return (clientPath, executablePath);
-    }
-
-    private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
-    {
-        public void Report(T value) => handler(value);
     }
 }

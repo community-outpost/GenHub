@@ -400,6 +400,24 @@ public class CsvResolverTests
     }
 
     /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> propagates cancellation when reading local files.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenLocalFileAndCancelled_ThrowsOperationCanceledExceptionAsync()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        using var tempCsv = new TempCsvFile(FullSampleCsv);
+        var resolver = CreateResolver();
+        var item = CreateDiscoveredItem(tempCsv.FilePath, GameType.Generals, CsvConstants.LanguageEn);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            resolver.ResolveAsync(item, cts.Token));
+    }
+
+    /// <summary>
     /// Verifies that <see cref="CsvResolver.ResolverId"/> returns the expected constant.
     /// </summary>
     [Fact]
