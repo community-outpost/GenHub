@@ -1426,11 +1426,11 @@ public sealed class ReplayDirectoryServiceTests
     }
 
     /// <summary>
-    /// Verifies that LaunchReplayAsync reconciles UseSteamLaunch and missing dependencies on an existing profile before launching.
+    /// Verifies that LaunchReplayAsync directly delegates to IProfileLauncherFacade without mutating the profile or forcing UseSteamLaunch.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task LaunchReplayAsync_WhenExistingProfileMissingSteamLaunchOrDependencies_ReconcilesProfileBeforeLaunchAsync()
+    public async Task LaunchReplayAsync_WhenExistingProfileMatches_DelegatesDirectlyToLauncherFacadeWithoutMutatingProfileAsync()
     {
         var existingProfileId = "1878b44e26d04d17a29b6c09dcbc0d69";
         var replay = new ReplayFile
@@ -1441,6 +1441,7 @@ public sealed class ReplayDirectoryServiceTests
             LastModified = DateTime.UtcNow,
             GameVersion = GameType.ZeroHour,
             MatchingProfileId = existingProfileId,
+            CompatibilityStatus = ReplayCompatibilityStatus.Compatible,
             MatchedClient = new CrcMappingEntry
             {
                 ExeCrc = "0x6DBF4405",
@@ -1451,100 +1452,21 @@ public sealed class ReplayDirectoryServiceTests
             },
         };
 
-        var installation = new GameInstallation("/steam/zh", GameInstallationType.Steam)
+        var launchInfo = new GameLaunchInfo
         {
-            Id = "steam-inst-1",
-            HasZeroHour = true,
-            ZeroHourPath = "/steam/zh",
-        };
-
-        _mockInstallationService
-            .Setup(s => s.GetInstallationAsync("steam-inst-1", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(installation));
-
-        var existingProfile = new GameProfile
-        {
-            Id = existingProfileId,
-            Name = "GeneralsOnline 60Hz (Replay: MatchGO_Existing)",
-            GameInstallationId = "steam-inst-1",
-            UseSteamLaunch = false, // Problem: false on Steam!
-            GameClient = new GameClient
+            LaunchId = "launch-test-1",
+            ProfileId = existingProfileId,
+            WorkspaceId = "ws-test-1",
+            ProcessInfo = new GameProcessInfo
             {
-                Id = "1.828261.generalsonline.gameclient.60hz",
-                Name = "GeneralsOnline 60Hz",
-                GameType = GameType.ZeroHour,
-                PublisherType = "generalsonline",
+                ProcessId = 12345,
+                ExecutablePath = "/steam/zh/generals.exe",
             },
-
-            // Problem: missing MapPack dependency!
-            EnabledContentIds = ["1.104.steam.gameinstallation.zerohour", "1.828261.generalsonline.gameclient.60hz"],
         };
-
-        _mockProfileManager
-            .Setup(p => p.GetProfileAsync(existingProfileId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
-
-        var mapPackDependency = new ContentDependency
-        {
-            Id = ManifestId.Create("1.828261.generalsonline.mappack.quickmatch-maps"),
-            DependencyType = GenHub.Core.Models.Enums.ContentType.MapPack,
-            PublisherType = "generalsonline",
-        };
-
-        var clientManifest = new ContentManifest
-        {
-            Id = ManifestId.Create("1.828261.generalsonline.gameclient.60hz"),
-            Name = "GeneralsOnline 60Hz",
-            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
-            TargetGame = GameType.ZeroHour,
-            Publisher = new PublisherInfo { PublisherType = "generalsonline" },
-            Dependencies = [mapPackDependency],
-        };
-
-        var mapPackManifest = new ContentManifest
-        {
-            Id = ManifestId.Create("1.828261.generalsonline.mappack.quickmatch-maps"),
-            Name = "GeneralsOnline QuickMatch Maps",
-            ContentType = GenHub.Core.Models.Enums.ContentType.MapPack,
-            TargetGame = GameType.ZeroHour,
-            Publisher = new PublisherInfo { PublisherType = "generalsonline" },
-        };
-
-        _mockManifestPool
-            .Setup(m => m.GetManifestAsync(ManifestId.Create("1.828261.generalsonline.gameclient.60hz"), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(clientManifest));
-
-        _mockManifestPool
-            .Setup(m => m.GetManifestAsync(ManifestId.Create("1.828261.generalsonline.mappack.quickmatch-maps"), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(mapPackManifest));
-
-        _mockManifestPool
-            .Setup(m => m.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([clientManifest]));
-
-        _mockDependencyResolver
-            .Setup(d => d.ResolveDependenciesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) => new HashSet<string>(ids));
-
-        UpdateProfileRequest? capturedUpdate = null;
-        _mockProfileManager
-            .Setup(p => p.UpdateProfileAsync(existingProfileId, It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
-            .Callback<string, UpdateProfileRequest, CancellationToken>((_, req, _) => capturedUpdate = req)
-            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
 
         _mockLauncherFacade
             .Setup(l => l.LaunchProfileAsync(existingProfileId, false, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
-            {
-                LaunchId = "launch-test-1",
-                ProfileId = existingProfileId,
-                WorkspaceId = "ws-test-1",
-                ProcessInfo = new GameProcessInfo
-                {
-                    ProcessId = 12345,
-                    ExecutablePath = "/steam/zh/generals.exe",
-                },
-            }));
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
 
         var service = new ReplayDirectoryService(
             _mockHeaderParser.Object,
@@ -1555,9 +1477,196 @@ public sealed class ReplayDirectoryServiceTests
         var result = await service.LaunchReplayAsync(replay);
 
         Assert.True(result.Success);
-        Assert.NotNull(capturedUpdate);
-        Assert.True(capturedUpdate.UseSteamLaunch);
-        Assert.NotNull(capturedUpdate.EnabledContentIds);
-        Assert.Contains("1.828261.generalsonline.mappack.quickmatch-maps", capturedUpdate.EnabledContentIds);
+        Assert.NotNull(result.Data);
+        Assert.Equal(12345, result.Data.ProcessInfo?.ProcessId);
+        _mockLauncherFacade.Verify(l => l.LaunchProfileAsync(existingProfileId, false, It.IsAny<CancellationToken>()), Times.Once());
+        _mockProfileManager.Verify(p => p.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()), Times.Never());
+    }
+
+    /// <summary>
+    /// Verifies that FindMatchingProfile deterministically prefers a profile dedicated to the replay over a general profile or a profile created for another replay.
+    /// </summary>
+    [Fact]
+    public void FindMatchingProfile_WhenDedicatedReplayProfileExists_PrefersDedicatedProfileOverGeneralAndOtherReplayProfiles()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "match_123.rep",
+            FullPath = "/replays/match_123.rep",
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+        };
+
+        var otherReplayProfile = new GameProfile
+        {
+            Id = "profile-other",
+            Name = "GeneralsOnline 60Hz (Replay: other_replay)",
+            GameClient = new GameClient { Id = "1.828261.generalsonline.gameclient.zerohour", GameType = GameType.ZeroHour, PublisherType = "generalsonline" },
+            EnabledContentIds = ["1.828261.generalsonline.patch.gamedata"],
+        };
+
+        var generalProfile = new GameProfile
+        {
+            Id = "profile-general",
+            Name = "GeneralsOnline 60Hz Custom",
+            GameClient = new GameClient { Id = "1.828261.generalsonline.gameclient.zerohour", GameType = GameType.ZeroHour, PublisherType = "generalsonline" },
+            EnabledContentIds = ["1.828261.generalsonline.patch.gamedata"],
+        };
+
+        var dedicatedProfile = new GameProfile
+        {
+            Id = "profile-dedicated",
+            Name = "GeneralsOnline 60Hz (Replay: match_123)",
+            GameClient = new GameClient { Id = "1.828261.generalsonline.gameclient.zerohour", GameType = GameType.ZeroHour, PublisherType = "generalsonline" },
+            EnabledContentIds = ["1.828261.generalsonline.patch.gamedata"],
+        };
+
+        // Adversarial order: other replay profile first, then general, then dedicated
+        var profiles = new[] { otherReplayProfile, generalProfile, dedicatedProfile };
+
+        var match = ReplayDirectoryService.FindMatchingProfile(
+            profiles,
+            GameType.ZeroHour,
+            "1.828261.generalsonline.gameclient.zerohour",
+            "1.828261.generalsonline.patch.gamedata",
+            replay);
+
+        Assert.NotNull(match);
+        Assert.Equal("profile-dedicated", match.Id);
+    }
+
+    /// <summary>
+    /// Verifies that FindMatchingProfile prefers a general user profile over an auto-created profile for a different replay.
+    /// </summary>
+    [Fact]
+    public void FindMatchingProfile_WhenNoDedicatedProfileExists_PrefersGeneralProfileOverOtherReplayProfile()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "new_match.rep",
+            FullPath = "/replays/new_match.rep",
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+        };
+
+        var otherReplayProfile = new GameProfile
+        {
+            Id = "profile-other-replay",
+            Name = "GeneralsOnline 60Hz (Replay: old_match_999)",
+            Description = "[replay:old_match_999.rep] Profile configured for replay old_match_999",
+            GameClient = new GameClient { Id = "1.828261.generalsonline.gameclient.zerohour", GameType = GameType.ZeroHour, PublisherType = "generalsonline" },
+            EnabledContentIds = ["1.828261.generalsonline.patch.gamedata"],
+        };
+
+        var generalProfile = new GameProfile
+        {
+            Id = "profile-user-general",
+            Name = "My GeneralsOnline Setup",
+            GameClient = new GameClient { Id = "1.828261.generalsonline.gameclient.zerohour", GameType = GameType.ZeroHour, PublisherType = "generalsonline" },
+            EnabledContentIds = ["1.828261.generalsonline.patch.gamedata"],
+        };
+
+        var profiles = new[] { otherReplayProfile, generalProfile };
+
+        var match = ReplayDirectoryService.FindMatchingProfile(
+            profiles,
+            GameType.ZeroHour,
+            "1.828261.generalsonline.gameclient.zerohour",
+            "1.828261.generalsonline.patch.gamedata",
+            replay);
+
+        Assert.NotNull(match);
+        Assert.Equal("profile-user-general", match.Id);
+    }
+
+    /// <summary>
+    /// Verifies that FindMatchingProfile prioritizes profiles with exact manifest and patch matches.
+    /// </summary>
+    [Fact]
+    public void FindMatchingProfile_WhenExactManifestAndDataPatchMatch_PrefersExactMatchOverGenericPublisherMatch()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "match_test.rep",
+            FullPath = "/replays/match_test.rep",
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+        };
+
+        var genericPublisherProfile = new GameProfile
+        {
+            Id = "profile-generic",
+            Name = "GeneralsOnline Generic",
+            GameClient = new GameClient { Id = "1.100.generalsonline.gameclient.old", GameType = GameType.ZeroHour, PublisherType = "generalsonline" },
+            EnabledContentIds = ["1.100.generalsonline.patch.old"],
+        };
+
+        var exactMatchProfile = new GameProfile
+        {
+            Id = "profile-exact",
+            Name = "GeneralsOnline Exact",
+            GameClient = new GameClient { Id = "1.828261.generalsonline.gameclient.60hz", GameType = GameType.ZeroHour, PublisherType = "generalsonline" },
+            EnabledContentIds = ["1.828261.generalsonline.patch.gamedata"],
+        };
+
+        var profiles = new[] { genericPublisherProfile, exactMatchProfile };
+
+        var match = ReplayDirectoryService.FindMatchingProfile(
+            profiles,
+            GameType.ZeroHour,
+            "1.828261.generalsonline.gameclient.60hz",
+            "1.828261.generalsonline.patch.gamedata",
+            replay);
+
+        Assert.NotNull(match);
+        Assert.Equal("profile-exact", match.Id);
+    }
+
+    /// <summary>
+    /// Verifies that FindMatchingProfile deterministically breaks ties alphabetically by Name, then by Id.
+    /// </summary>
+    [Fact]
+    public void FindMatchingProfile_WhenProfilesTiedInScore_DeterministicallyBreaksTieByNameThenId()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "match_tie.rep",
+            FullPath = "/replays/match_tie.rep",
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+        };
+
+        var profileZ = new GameProfile
+        {
+            Id = "id-2",
+            Name = "Zeta Profile",
+            GameClient = new GameClient { Id = "1.828261.generalsonline.gameclient.60hz", GameType = GameType.ZeroHour, PublisherType = "generalsonline" },
+            EnabledContentIds = ["1.828261.generalsonline.patch.gamedata"],
+        };
+
+        var profileA = new GameProfile
+        {
+            Id = "id-1",
+            Name = "Alpha Profile",
+            GameClient = new GameClient { Id = "1.828261.generalsonline.gameclient.60hz", GameType = GameType.ZeroHour, PublisherType = "generalsonline" },
+            EnabledContentIds = ["1.828261.generalsonline.patch.gamedata"],
+        };
+
+        var profiles = new[] { profileZ, profileA };
+
+        var match = ReplayDirectoryService.FindMatchingProfile(
+            profiles,
+            GameType.ZeroHour,
+            "1.828261.generalsonline.gameclient.60hz",
+            "1.828261.generalsonline.patch.gamedata",
+            replay);
+
+        Assert.NotNull(match);
+        Assert.Equal("id-1", match.Id);
+        Assert.Equal("Alpha Profile", match.Name);
     }
 }

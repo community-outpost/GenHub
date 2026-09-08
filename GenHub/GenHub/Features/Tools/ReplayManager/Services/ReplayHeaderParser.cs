@@ -244,16 +244,20 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             {
                 mapName = Path.GetFileNameWithoutExtension(token[2..]);
             }
-            else if (token.StartsWith("S=", StringComparison.OrdinalIgnoreCase) || token.StartsWith("H=", StringComparison.OrdinalIgnoreCase))
+            else if (token.StartsWith("S=", StringComparison.OrdinalIgnoreCase))
             {
-                ExtractSlotPlayers(token[2..], players);
+                ExtractSlotPlayers(token[2..], players, isSlotDefinition: true);
+            }
+            else if (token.StartsWith("H=", StringComparison.OrdinalIgnoreCase))
+            {
+                ExtractSlotPlayers(token[2..], players, isSlotDefinition: false);
             }
         }
 
         return (mapName, players.Count > 0 ? players.AsReadOnly() : null);
     }
 
-    private static void ExtractSlotPlayers(string slotData, List<string> players)
+    private static void ExtractSlotPlayers(string slotData, List<string> players, bool isSlotDefinition)
     {
         var slots = slotData.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         foreach (var slot in slots)
@@ -264,7 +268,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
                 continue;
             }
 
-            var playerName = CleanPlayerName(parts[0]);
+            var playerName = CleanPlayerName(parts[0], isSlotDefinition);
             if (!string.IsNullOrWhiteSpace(playerName) && players.All(p => !string.Equals(p, playerName, StringComparison.OrdinalIgnoreCase)))
             {
                 players.Add(playerName);
@@ -273,12 +277,15 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
     }
 
     /// <summary>
-    /// Cleans a player name extracted from the replay slot string (S= token).
+    /// Cleans a player name extracted from the replay slot string (S= token) or match header.
     /// In the C&amp;C Generals and Zero Hour network protocol, each player slot entry in the S= token
-    /// prepends a single-character slot marker ('H' for Human, 'C' for Computer) to the player name.
+    /// prepends a single uppercase character slot marker ('H' for Human, 'C' for Computer) directly to the player name.
     /// Standalone slot status indicators ('H', 'C', 'X', 'O') with no name represent empty, open, or closed slots.
     /// </summary>
-    private static string CleanPlayerName(string rawName)
+    /// <param name="rawName">The raw player or slot token from the replay init string.</param>
+    /// <param name="isSlotDefinition">Whether the token originated from an S= slot definition with prepended status markers.</param>
+    /// <returns>The cleaned player name, or an empty string if the slot represents a non-player status.</returns>
+    private static string CleanPlayerName(string rawName, bool isSlotDefinition)
     {
         if (string.IsNullOrWhiteSpace(rawName))
         {
@@ -286,14 +293,20 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         }
 
         var trimmed = rawName.Trim();
+        if (!isSlotDefinition)
+        {
+            return trimmed;
+        }
+
         if (trimmed.Length == 1)
         {
             // Standalone slot status markers with no player name: 'H' (Human), 'C' (Computer), 'X' (Closed), 'O' (Open)
             return trimmed[0] is 'H' or 'C' or 'h' or 'c' or 'X' or 'O' or 'x' or 'o' ? string.Empty : trimmed;
         }
 
-        // Strip the C&amp;C Generals slot status prefix ('H' for Human, 'C' for Computer)
-        if (trimmed[0] is 'H' or 'C' or 'h' or 'c')
+        // In C&C Generals wire format, slot entries in S= prepend uppercase 'H' (Human) or 'C' (Computer) to the player name.
+        // We only strip the slot marker when it is uppercase 'H' or 'C', preserving genuine names starting with lowercase letters (e.g. 'captain').
+        if (trimmed[0] is 'H' or 'C')
         {
             return trimmed[1..].Trim();
         }

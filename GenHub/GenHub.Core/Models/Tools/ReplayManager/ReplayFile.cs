@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
 
@@ -75,27 +76,19 @@ public sealed class ReplayFile : IExportableFile
         {
             if (MatchedClient != null)
             {
-                var clientDescription = ResolveClientDescription(MatchedClient);
-
                 if (!string.IsNullOrWhiteSpace(MatchedClient.DataPatchName))
                 {
-                    return $"{clientDescription} / {MatchedClient.DataPatchName}";
+                    return $"{MatchedClient.Description} • {MatchedClient.DataPatchName}";
                 }
 
-                return clientDescription;
+                return MatchedClient.Description;
             }
 
             if (Metadata != null && (!string.IsNullOrEmpty(Metadata.FormattedExeCrc) || !string.IsNullOrEmpty(Metadata.FormattedIniCrc)))
             {
                 if (!string.IsNullOrEmpty(Metadata.BuildTimeString))
                 {
-                    var versionLabel = Metadata.VersionString ?? GameVersion switch
-                    {
-                        GameType.Generals => "Generals",
-                        GameType.ZeroHour => "Zero Hour",
-                        _ => UnknownValue,
-                    };
-                    return $"{versionLabel} ({Metadata.BuildTimeString})";
+                    return $"{Metadata.VersionString ?? "Zero Hour"} ({Metadata.BuildTimeString})";
                 }
 
                 return $"Custom (Exe: {Metadata.FormattedExeCrc ?? "N/A"}, INI: {Metadata.FormattedIniCrc ?? "N/A"})";
@@ -123,33 +116,22 @@ public sealed class ReplayFile : IExportableFile
     public string CompatibilityTooltip => CompatibilityStatus switch
     {
         ReplayCompatibilityStatus.Compatible =>
-            $"Profile '{MatchingProfileName ?? ResolveClientDescription(MatchedClient)}' is ready with matching client and data patch. Click 'Play' to watch this replay.",
+            $"Profile '{MatchingProfileName ?? MatchedClient?.Description ?? UnknownValue}' is ready with matching client and data patch. Click 'Play' to watch this replay.",
         ReplayCompatibilityStatus.RequiresProfile =>
-            $"Game client and patch for '{ResolveClientDescription(MatchedClient)}' are available. Click 'Create Profile' to configure a dedicated profile.",
+            $"Game client and patch for '{MatchedClient?.Description ?? UnknownValue}' are available. Click 'Create Profile' to configure a dedicated profile.",
         ReplayCompatibilityStatus.Downloadable =>
-            $"Game client and data patch for '{ResolveClientDescription(MatchedClient)}' can be downloaded. Click 'Setup' to acquire and configure this profile.",
+            $"Game client and data patch for '{MatchedClient?.Description ?? UnknownValue}' can be downloaded. Click 'Setup' to acquire and configure this profile.",
         ReplayCompatibilityStatus.Orphaned =>
             $"Exe CRC {Metadata?.FormattedExeCrc ?? "N/A"} / INI CRC {Metadata?.FormattedIniCrc ?? "N/A"} is not in the official catalog. Click 'Profile' to configure using your base installation.",
         _ => "Replay header metadata is not available or could not be parsed.",
     };
 
-    private static string ResolveClientDescription(CrcMappingEntry? matchedClient)
-    {
-        if (matchedClient != null)
-        {
-            if (!string.IsNullOrWhiteSpace(matchedClient.Description))
-            {
-                return matchedClient.Description;
-            }
-
-            if (!string.IsNullOrWhiteSpace(matchedClient.Publisher))
-            {
-                return matchedClient.Publisher;
-            }
-        }
-
-        return UnknownValue;
-    }
+    /// <summary>
+    /// Gets the user-friendly tooltip for the Play Replay button showing which profile will be launched.
+    /// </summary>
+    public string PlayButtonTooltip => CompatibilityStatus == ReplayCompatibilityStatus.Compatible && !string.IsNullOrEmpty(MatchingProfileName)
+        ? $"Launch profile '{MatchingProfileName}' to watch this replay"
+        : "Launch game profile matching this replay";
 
     private static string FormatFileSize(long bytes) => bytes switch
     {
