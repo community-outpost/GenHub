@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Models.Publishers;
 
@@ -7,6 +8,7 @@ namespace GenHub.Features.Tools.ViewModels;
 /// <summary>
 /// Represents the publish status of a catalog.
 /// </summary>
+[SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
 public partial class CatalogPublishStatus : ObservableObject
 {
     [ObservableProperty]

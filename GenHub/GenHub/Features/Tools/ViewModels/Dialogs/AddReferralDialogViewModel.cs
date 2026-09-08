@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -13,6 +14,7 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// <summary>
 /// ViewModel for the Add Referral dialog with publisher discovery.
 /// </summary>
+[SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
 public partial class AddReferralDialogViewModel : ObservableValidator
 {
     private readonly Action<PublisherReferral> _onReferralCreated;

@@ -71,25 +71,17 @@ public class GitHubHostingProvider : IHostingProvider
     /// <inheritdoc/>
     public Task<OperationResult<bool>> AuthenticateAsync(CancellationToken cancellationToken = default)
     {
-        try
-        {
-            // For now, use device flow or personal access token
-            // In production, this would use OAuth device flow
-            _logger.LogInformation("Starting GitHub authentication...");
+        // For now, use device flow or personal access token
+        // In production, this would use OAuth device flow
+        _logger.LogInformation("Starting GitHub authentication...");
 
-            // Create client with product header
-            _client = new GitHubClient(new ProductHeaderValue("GenHub"));
+        // Create client with product header
+        _client = new GitHubClient(new ProductHeaderValue("GenHub"));
 
-            // OAuth device flow will be integrated in a future release.
-            // For now, we'll use a placeholder that requires manual PAT entry
-            // The UI should prompt for a Personal Access Token
-            return Task.FromResult(OperationResult<bool>.CreateFailure("GitHub authentication not yet implemented. Please use a Personal Access Token."));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "GitHub authentication failed");
-            return Task.FromResult(OperationResult<bool>.CreateFailure($"Authentication failed: {ex.Message}"));
-        }
+        // OAuth device flow will be integrated in a future release.
+        // For now, we'll use a placeholder that requires manual PAT entry
+        // The UI should prompt for a Personal Access Token
+        return Task.FromResult(OperationResult<bool>.CreateFailure("GitHub authentication not yet implemented. Please use a Personal Access Token."));
     }
 
     /// <summary>
@@ -113,6 +105,10 @@ public class GitHubHostingProvider : IHostingProvider
 
             _logger.LogInformation("Authenticated with GitHub as {Username}", _authenticatedUsername);
             return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (AuthorizationException authEx)
         {
@@ -237,6 +233,10 @@ public class GitHubHostingProvider : IHostingProvider
             _logger.LogInformation("Uploaded release asset {FileName} to {Owner}/{Repo} release {Tag}", fileName, owner, repo, releaseTag);
             return OperationResult<HostingUploadResult>.CreateSuccess(result);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (NotFoundException nfEx)
         {
             _logger.LogWarning(nfEx, "Release not found: {FolderPath}", folderPath);
@@ -305,6 +305,10 @@ public class GitHubHostingProvider : IHostingProvider
 
             _logger.LogInformation("Created GitHub Gist {GistId} for catalog", gist.Id);
             return OperationResult<HostingUploadResult>.CreateSuccess(result);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (ApiException apiEx)
         {
@@ -404,6 +408,10 @@ public class GitHubHostingProvider : IHostingProvider
 
             _logger.LogInformation("Updated file {FileName} in GitHub Gist {GistId}", fileName, fileId);
             return OperationResult<HostingUploadResult>.CreateSuccess(result);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (NotFoundException ex)
         {
