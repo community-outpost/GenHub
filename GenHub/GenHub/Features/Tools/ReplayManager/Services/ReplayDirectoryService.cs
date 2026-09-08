@@ -301,6 +301,30 @@ public sealed class ReplayDirectoryService(
             replay.GameVersion,
             replay.MatchingProfileId ?? "none");
 
+        if (!string.IsNullOrEmpty(replay.MatchingProfileId))
+        {
+            using var checkScope = scopeFactory.CreateScope();
+            var profileManager = checkScope.ServiceProvider.GetService<IGameProfileManager>();
+            if (profileManager != null)
+            {
+                var profileTask = profileManager.GetProfileAsync(replay.MatchingProfileId, ct);
+                if (profileTask != null)
+                {
+                    var existingCheck = await profileTask;
+                    if (existingCheck != null && (!existingCheck.Success || existingCheck.Data == null))
+                    {
+                        logger.LogWarning(
+                            "[ReplayManager] Profile '{ProfileId}' for replay '{ReplayFile}' no longer exists in repository. Clearing stale reference.",
+                            replay.MatchingProfileId,
+                            replay.FileName);
+                        replay.MatchingProfileId = null;
+                        replay.MatchingProfileName = null;
+                        replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
+                    }
+                }
+            }
+        }
+
         if (string.IsNullOrEmpty(replay.MatchingProfileId))
         {
             logger.LogInformation("[ReplayManager] No matching profile associated with '{ReplayFile}', creating one now...", replay.FileName);
@@ -575,6 +599,8 @@ public sealed class ReplayDirectoryService(
             }
             else
             {
+                replay.MatchingProfileId = null;
+                replay.MatchingProfileName = null;
                 replay.CompatibilityStatus = ReplayCompatibilityStatus.Orphaned;
             }
         }
@@ -1024,6 +1050,8 @@ public sealed class ReplayDirectoryService(
             return;
         }
 
+        replay.MatchingProfileId = null;
+        replay.MatchingProfileName = null;
         var isInstalled = IsClientManifestInstalled(match, replay.GameVersion, acquiredIds);
         replay.CompatibilityStatus = DetermineUnconfiguredStatus(match, isInstalled);
     }

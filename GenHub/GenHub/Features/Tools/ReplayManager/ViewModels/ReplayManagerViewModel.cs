@@ -22,6 +22,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
+using GenHub.Core.Messages;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
@@ -47,7 +48,12 @@ public partial class ReplayManagerViewModel(
     IReplayExportService exportService,
     IUploadHistoryService uploadHistoryService,
     INotificationService notificationService,
-    ILogger<ReplayManagerViewModel> logger) : ObservableObject, IRecipient<ProfileLaunchedMessage>, IRecipient<ProfileStoppedMessage>, IDisposable
+    ILogger<ReplayManagerViewModel> logger) : ObservableObject,
+    IRecipient<ProfileLaunchedMessage>,
+    IRecipient<ProfileStoppedMessage>,
+    IRecipient<ProfileDeletedMessage>,
+    IRecipient<ProfileListUpdatedMessage>,
+    IDisposable
 {
     private readonly HashSet<string> _runningProfileIds = new(StringComparer.OrdinalIgnoreCase);
     private bool _messengerRegistered;
@@ -225,6 +231,43 @@ public partial class ReplayManagerViewModel(
         {
             _runningProfileIds.Remove(message.ProfileId);
         }
+    }
+
+    /// <inheritdoc />
+    public void Receive(ProfileDeletedMessage message)
+    {
+        lock (_runningProfileIds)
+        {
+            _runningProfileIds.Remove(message.ProfileId);
+        }
+
+        Dispatcher.UIThread.Post(async () =>
+        {
+            try
+            {
+                await LoadReplaysAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to reload replays after profile deletion: {ProfileId}", message.ProfileId);
+            }
+        });
+    }
+
+    /// <inheritdoc />
+    public void Receive(ProfileListUpdatedMessage message)
+    {
+        Dispatcher.UIThread.Post(async () =>
+        {
+            try
+            {
+                await LoadReplaysAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to reload replays after profile list update");
+            }
+        });
     }
 
     /// <inheritdoc />

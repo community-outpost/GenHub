@@ -78,6 +78,10 @@ public sealed class ReplayDirectoryServiceTests
         _mockLauncherFacade
             .Setup(l => l.GetLaunchStatusAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProcessInfo>.CreateSuccess(new GameProcessInfo { IsRunning = false }));
+
+        _mockProfileManager
+            .Setup(p => p.GetProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile()));
     }
 
     /// <summary>
