@@ -43,7 +43,7 @@ public class HostingState
     /// <summary>
     /// Gets or sets when the project was last published.
     /// </summary>
-    public DateTime LastPublished { get; set; }
+    public DateTime? LastPublished { get; set; }
 
     /// <summary>
     /// Gets or sets the in-memory authentication token for the hosting provider.

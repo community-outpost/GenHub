@@ -137,16 +137,6 @@ public partial class AddContentDialogViewModel : ObservableValidator
             {
                 Validate();
             }
-
-            if (e.PropertyName == nameof(ContentName))
-            {
-                OnPropertyChanged(nameof(SuggestedContentId));
-            }
-
-            if (e.PropertyName == nameof(SelectedContentType))
-            {
-                OnPropertyChanged(nameof(ShowAddonParentSelection));
-            }
         };
     }
 

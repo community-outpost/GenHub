@@ -63,9 +63,8 @@ public partial class PublisherStudioViewModel : ObservableObject
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Make member static", Justification = "ViewModel property bound in XAML")]
     public bool IsSetupComplete =>
-        CurrentProject != null &&
-        !string.IsNullOrWhiteSpace(CurrentProject.Catalog.Publisher.Id) &&
-        !string.IsNullOrWhiteSpace(CurrentProject.Catalog.Publisher.Name);
+        !string.IsNullOrWhiteSpace(CurrentProject?.Catalog?.Publisher?.Id) &&
+        !string.IsNullOrWhiteSpace(CurrentProject?.Catalog?.Publisher?.Name);
 
     /// <summary>
     /// Gets a value indicating whether the setup overlay should be shown.

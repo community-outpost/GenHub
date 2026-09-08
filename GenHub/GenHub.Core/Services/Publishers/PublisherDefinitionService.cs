@@ -268,6 +268,7 @@ public class PublisherDefinitionService(
 
         using var stream = await response.Content.ReadAsStreamAsync(ct);
         var memoryStream = new MemoryStream();
+        var success = false;
         try
         {
             var buffer = new byte[HostingConstants.StreamCopyBufferSize];
@@ -279,7 +280,6 @@ public class PublisherDefinitionService(
                 totalBytesRead += bytesRead;
                 if (totalBytesRead > maxSizeBytes)
                 {
-                    await memoryStream.DisposeAsync();
                     return OperationResult<MemoryStream>.CreateFailure(
                         $"{resourceDescription} exceeds maximum size of {maxSizeBytes} bytes");
                 }
@@ -288,12 +288,15 @@ public class PublisherDefinitionService(
             }
 
             memoryStream.Position = 0;
+            success = true;
             return OperationResult<MemoryStream>.CreateSuccess(memoryStream);
         }
-        catch
+        finally
         {
-            await memoryStream.DisposeAsync();
-            throw;
+            if (!success)
+            {
+                await memoryStream.DisposeAsync();
+            }
         }
     }
 

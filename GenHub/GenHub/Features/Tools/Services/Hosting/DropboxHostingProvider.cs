@@ -87,25 +87,28 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
         try
         {
-            // Verify the token by getting current account info
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            // Verify the token by getting current account info without modifying client default headers
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{DropboxApiUrl}/users/get_current_account")
+            {
+                Headers = { Authorization = new AuthenticationHeaderValue("Bearer", accessToken) },
+                Content = new StringContent("null", Encoding.UTF8, HostingConstants.JsonContentType),
+            };
 
-            var response = await _httpClient.PostAsync(
-                $"{DropboxApiUrl}/users/get_current_account",
-                new StringContent("null", Encoding.UTF8, HostingConstants.JsonContentType),
-                cancellationToken);
+            var response = await _httpClient.SendAsync(request, cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {
                 _accessToken = accessToken;
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
                 logger.LogInformation("Successfully authenticated with Dropbox");
                 return OperationResult<bool>.CreateSuccess(true);
             }
             else
             {
                 var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                logger.LogWarning("Dropbox authentication failed: {Error}", errorContent);
-                return OperationResult<bool>.CreateFailure("Invalid access token");
+                logger.LogWarning("Dropbox authentication failed (HTTP {StatusCode}): {Error}", response.StatusCode, errorContent);
+                return OperationResult<bool>.CreateFailure(
+                    $"Dropbox authentication failed (HTTP {(int)response.StatusCode}). Verify your access token.");
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
