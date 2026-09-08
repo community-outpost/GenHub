@@ -87,7 +87,7 @@ public class PublisherStudioService(
             project.Catalog ??= new();
             project.Catalog.Publisher ??= new();
             project.Catalog.Content ??= [];
-            foreach (var catalog in project.Catalogs.Select(cat => cat.Catalog).OfType<PublisherCatalog>())
+            foreach (var catalog in project.Catalogs.Select(cat => cat?.Catalog).OfType<PublisherCatalog>())
             {
                 catalog.Publisher ??= project.Catalog.Publisher;
                 catalog.Content ??= [];
