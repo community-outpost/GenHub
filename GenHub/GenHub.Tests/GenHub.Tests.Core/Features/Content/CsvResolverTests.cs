@@ -703,11 +703,23 @@ public class CsvResolverTests
         stream!.CopyTo(memoryStream);
         var embeddedText = Encoding.UTF8.GetString(memoryStream.ToArray()).Trim();
 
-        var solutionRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".."));
-        var docsIndexJsonPath = Path.Combine(solutionRoot, "docs", CsvConstants.RegistryDocsFolder, CsvConstants.RegistryIndexFileName);
-        File.Exists(docsIndexJsonPath).Should().BeTrue(
-            $"docs/{CsvConstants.RegistryDocsFolder}/{CsvConstants.RegistryIndexFileName} must exist relative to the solution root ({solutionRoot})");
-        var docsText = File.ReadAllText(docsIndexJsonPath).Trim();
+        var currentDir = new DirectoryInfo(AppContext.BaseDirectory);
+        string? docsIndexJsonPath = null;
+        while (currentDir != null)
+        {
+            var candidate = Path.Combine(currentDir.FullName, "docs", CsvConstants.RegistryDocsFolder, CsvConstants.RegistryIndexFileName);
+            if (File.Exists(candidate))
+            {
+                docsIndexJsonPath = candidate;
+                break;
+            }
+
+            currentDir = currentDir.Parent;
+        }
+
+        docsIndexJsonPath.Should().NotBeNull(
+            $"docs/{CsvConstants.RegistryDocsFolder}/{CsvConstants.RegistryIndexFileName} must exist in the repository tree above {AppContext.BaseDirectory}");
+        var docsText = File.ReadAllText(docsIndexJsonPath!).Trim();
         embeddedText.Should().Be(docsText);
     }
 
