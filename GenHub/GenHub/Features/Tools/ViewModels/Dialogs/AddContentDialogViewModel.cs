@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.RegularExpressions;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -15,6 +16,7 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// ViewModel for the Add/Edit Content Item dialog.
 /// Provides validation and creation/editing of CatalogContentItem entries.
 /// </summary>
+[SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
 public partial class AddContentDialogViewModel : ObservableValidator
 {
     private readonly Action<CatalogContentItem> _onContentCreated;
@@ -27,6 +29,7 @@ public partial class AddContentDialogViewModel : ObservableValidator
     private string _contentId = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SuggestedContentId))]
     [NotifyDataErrorInfo]
     [Required(ErrorMessage = "Content name is required")]
     [MinLength(2, ErrorMessage = "Content name must be at least 2 characters")]
@@ -39,6 +42,7 @@ public partial class AddContentDialogViewModel : ObservableValidator
     private string _description = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowAddonParentSelection))]
     private ContentType _selectedContentType = ContentType.Mod;
 
     [ObservableProperty]
@@ -89,6 +93,8 @@ public partial class AddContentDialogViewModel : ObservableValidator
     /// Gets a value indicating whether the dialog is in edit mode.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DialogTitle))]
+    [NotifyPropertyChangedFor(nameof(SubmitButtonText))]
     private bool _isEditMode;
 
     /// <summary>
@@ -130,6 +136,11 @@ public partial class AddContentDialogViewModel : ObservableValidator
             if (e.PropertyName is nameof(ContentId) or nameof(ContentName) or nameof(Description))
             {
                 Validate();
+            }
+
+            if (e.PropertyName == nameof(ContentName))
+            {
+                OnPropertyChanged(nameof(SuggestedContentId));
             }
 
             if (e.PropertyName == nameof(SelectedContentType))

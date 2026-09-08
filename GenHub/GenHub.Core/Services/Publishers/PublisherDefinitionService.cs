@@ -268,25 +268,33 @@ public class PublisherDefinitionService(
 
         using var stream = await response.Content.ReadAsStreamAsync(ct);
         var memoryStream = new MemoryStream();
-        var buffer = new byte[HostingConstants.StreamCopyBufferSize];
-        long totalBytesRead = 0;
-        int bytesRead;
-
-        while ((bytesRead = await stream.ReadAsync(buffer, ct)) > 0)
+        try
         {
-            totalBytesRead += bytesRead;
-            if (totalBytesRead > maxSizeBytes)
+            var buffer = new byte[HostingConstants.StreamCopyBufferSize];
+            long totalBytesRead = 0;
+            int bytesRead;
+
+            while ((bytesRead = await stream.ReadAsync(buffer, ct)) > 0)
             {
-                await memoryStream.DisposeAsync();
-                return OperationResult<MemoryStream>.CreateFailure(
-                    $"{resourceDescription} exceeds maximum size of {maxSizeBytes} bytes");
+                totalBytesRead += bytesRead;
+                if (totalBytesRead > maxSizeBytes)
+                {
+                    await memoryStream.DisposeAsync();
+                    return OperationResult<MemoryStream>.CreateFailure(
+                        $"{resourceDescription} exceeds maximum size of {maxSizeBytes} bytes");
+                }
+
+                await memoryStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
             }
 
-            await memoryStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
+            memoryStream.Position = 0;
+            return OperationResult<MemoryStream>.CreateSuccess(memoryStream);
         }
-
-        memoryStream.Position = 0;
-        return OperationResult<MemoryStream>.CreateSuccess(memoryStream);
+        catch
+        {
+            await memoryStream.DisposeAsync();
+            throw;
+        }
     }
 
     private async Task<OperationResult<PublisherCatalog>> FetchAndParseCatalogAsync(

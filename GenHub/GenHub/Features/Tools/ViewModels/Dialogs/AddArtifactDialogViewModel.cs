@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -19,6 +20,7 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// ViewModel for the Add Artifact dialog.
 /// Provides validation and creation of new ReleaseArtifact entries.
 /// </summary>
+[SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
 public partial class AddArtifactDialogViewModel : ObservableValidator
 {
     private readonly Action<ReleaseArtifact> _onArtifactCreated;

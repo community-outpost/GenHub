@@ -28,7 +28,7 @@ namespace GenHub.Features.Tools.Services.Hosting;
 /// <remarks>
 /// Google Drive is the recommended hosting option because:
 /// - Free storage (15GB shared with Gmail/Photos).
-/// - Stable URLs when updating files in-placeValidateSingleArtifactUrl.
+/// - Stable URLs when updating files in-place.
 /// - OAuth flow for secure authentication.
 /// - No technical setup required (unlike GitHub Pages).
 /// </remarks>
@@ -40,7 +40,6 @@ public class GoogleDriveHostingProvider : IHostingProvider
 
     private readonly ILogger<GoogleDriveHostingProvider> _logger;
     private DriveService? _driveService;
-    private string? _userEmail;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GoogleDriveHostingProvider"/> class.
@@ -52,7 +51,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
     }
 
     /// <inheritdoc />
-    public string ProviderId => "googledrive";
+    public string ProviderId => HostingConstants.GoogleDrive;
 
     /// <inheritdoc />
     public string DisplayName => "Google Drive";
@@ -85,27 +84,29 @@ public class GoogleDriveHostingProvider : IHostingProvider
         {
             _logger.LogInformation("Starting Google Drive authentication...");
 
-            // In production, client secrets should come from configuration
-            // or a local credentials.json file
-            var secrets = new ClientSecrets
+            // Check for credentials from environment or configuration
+            var clientId = Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_ID");
+            var clientSecret = Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_SECRET");
+
+            if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
             {
-                // Placeholder - in real app, these come from Google Cloud Console
-                ClientId = "YOUR_CLIENT_ID.apps.googleusercontent.com",
-                ClientSecret = "YOUR_CLIENT_SECRET",
+                _logger.LogWarning("Google Drive credentials not configured. Please set GENHUB_GOOGLE_CLIENT_ID and GENHUB_GOOGLE_CLIENT_SECRET environment variables.");
+                return OperationResult<bool>.CreateFailure(
+                    "Google Drive is not configured. Set GENHUB_GOOGLE_CLIENT_ID and GENHUB_GOOGLE_CLIENT_SECRET environment variables, or use a different hosting provider.");
+            }
+
+            var clientSecrets = new ClientSecrets
+            {
+                ClientId = clientId,
+                ClientSecret = clientSecret,
             };
 
-            // Use local file data store for token caching
-            var credPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "GenHub",
-                "google-drive-token");
-
             var credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
-                secrets,
+                clientSecrets,
                 Scopes,
                 "user",
                 cancellationToken,
-                new FileDataStore(credPath, true));
+                new FileDataStore("GenHub.GoogleDrive.Tokens", fullPath: false));
 
             _driveService = new DriveService(new BaseClientService.Initializer
             {
@@ -113,38 +114,25 @@ public class GoogleDriveHostingProvider : IHostingProvider
                 ApplicationName = ApplicationName,
             });
 
-            // Get user info to verify connection
-            var aboutRequest = _driveService.About.Get();
-            aboutRequest.Fields = "user";
-            var about = await aboutRequest.ExecuteAsync(cancellationToken);
-            _userEmail = about.User?.EmailAddress;
-
-            _logger.LogInformation("Authenticated with Google Drive as {Email}", _userEmail);
+            _logger.LogInformation("Successfully authenticated with Google Drive");
             return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Google Drive authentication failed");
+            _logger.LogError(ex, "Failed to authenticate with Google Drive");
             return OperationResult<bool>.CreateFailure($"Authentication failed: {ex.Message}");
         }
-    }
-
-    /// <summary>
-    /// Authenticates with an existing DriveService instance (for testing).
-    /// </summary>
-    /// <param name="driveService">The DriveService instance.</param>
-    /// <param name="userEmail">Optional user email.</param>
-    public void SetDriveService(DriveService driveService, string? userEmail = null)
-    {
-        _driveService = driveService;
-        _userEmail = userEmail;
     }
 
     /// <inheritdoc />
     public Task SignOutAsync()
     {
+        _driveService?.Dispose();
         _driveService = null;
-        _userEmail = null;
         _logger.LogInformation("Signed out from Google Drive");
         return Task.CompletedTask;
     }
@@ -202,6 +190,10 @@ public class GoogleDriveHostingProvider : IHostingProvider
 
             _logger.LogInformation("Created new publisher folder: {FolderId}", folderId);
             return OperationResult<string>.CreateSuccess(folderId);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -285,6 +277,10 @@ public class GoogleDriveHostingProvider : IHostingProvider
             _logger.LogInformation("Uploaded file {FileName} with ID {FileId}", fileName, file.Id);
             return OperationResult<HostingUploadResult>.CreateSuccess(result);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to upload file to Google Drive");
@@ -338,6 +334,10 @@ public class GoogleDriveHostingProvider : IHostingProvider
 
             _logger.LogInformation("Updated file {FileId} on Google Drive", fileId);
             return OperationResult<HostingUploadResult>.CreateSuccess(result);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -458,6 +458,10 @@ public class GoogleDriveHostingProvider : IHostingProvider
                 state.Artifacts.Count);
 
             return OperationResult<HostingState?>.CreateSuccess(state);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
