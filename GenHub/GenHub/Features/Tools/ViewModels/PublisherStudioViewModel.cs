@@ -397,6 +397,9 @@ public partial class PublisherStudioViewModel : ObservableObject
     {
         if (CurrentProject == null) return;
 
+        CurrentProject.Catalog ??= new();
+        CurrentProject.Catalog.Publisher ??= new();
+
         var newId = $"catalog-{CurrentProject.Catalogs.Count + 1}";
         var newCatalog = new NamedCatalog
         {
@@ -442,6 +445,9 @@ public partial class PublisherStudioViewModel : ObservableObject
     {
         if (CurrentProject == null) return;
 
+        CurrentProject.Catalog ??= new();
+        CurrentProject.Catalog.Publisher ??= new();
+
         // If project has no catalogs list, ensure a default catalog exists
         if (CurrentProject.Catalogs.Count == 0)
         {
@@ -449,11 +455,11 @@ public partial class PublisherStudioViewModel : ObservableObject
             {
                 Id = "default",
                 Name = "Content",
-                Catalog = CurrentProject.Catalog ?? new(),
+                Catalog = CurrentProject.Catalog,
                 FileName = CurrentProject.CatalogFileName ?? HostingConstants.DefaultCatalogFileName,
             };
             CurrentProject.Catalogs.Add(defaultCatalog);
-            if (CurrentProject.Catalog?.Content?.Count > 0)
+            if (CurrentProject.Catalog.Content.Count > 0)
             {
                 _logger.LogInformation("Migrated single catalog to multi-catalog format");
             }
@@ -493,6 +499,9 @@ public partial class PublisherStudioViewModel : ObservableObject
             return;
         }
 
+        CurrentProject.Catalog ??= new();
+        CurrentProject.Catalog.Publisher ??= new();
+
         // Ensure multi-catalog migration
         MigrateProjectToMultiCatalog();
 
@@ -500,7 +509,7 @@ public partial class PublisherStudioViewModel : ObservableObject
         Catalogs.Clear();
         foreach (var catalog in CurrentProject.Catalogs)
         {
-            if (catalog.Catalog != null && CurrentProject.Catalog != null)
+            if (catalog.Catalog != null)
             {
                 catalog.Catalog.Publisher = CurrentProject.Catalog.Publisher;
             }
@@ -515,7 +524,7 @@ public partial class PublisherStudioViewModel : ObservableObject
             {
                 Id = "main",
                 Name = "Main Catalog",
-                Catalog = CurrentProject.Catalog ?? new(),
+                Catalog = CurrentProject.Catalog,
                 FileName = CurrentProject.CatalogFileName ?? HostingConstants.DefaultCatalogFileName,
             };
             Catalogs.Add(selectedCatalog);

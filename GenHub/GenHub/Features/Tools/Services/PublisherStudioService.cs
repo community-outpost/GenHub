@@ -83,6 +83,8 @@ public class PublisherStudioService(
                 return OperationResult<PublisherStudioProject>.CreateFailure("Failed to deserialize project");
             }
 
+            project.Catalog ??= new();
+            project.Catalog.Publisher ??= new();
             project.ProjectPath = path;
             project.IsDirty = false;
 

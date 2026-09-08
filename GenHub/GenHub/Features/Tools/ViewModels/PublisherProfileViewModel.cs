@@ -61,6 +61,9 @@ public partial class PublisherProfileViewModel : ObservableValidator
         _parentViewModel = parentViewModel;
         _logger = logger;
 
+        _project.Catalog ??= new();
+        _project.Catalog.Publisher ??= new();
+
         // Load existing values
         PublisherId = project.Catalog.Publisher.Id;
         PublisherName = project.Catalog.Publisher.Name;
