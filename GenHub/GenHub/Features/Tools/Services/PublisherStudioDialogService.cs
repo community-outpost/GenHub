@@ -10,7 +10,6 @@ using GenHub.Core.Constants;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Features.Tools.Interfaces;
-using GenHub.Features.Tools.Services.Hosting;
 using GenHub.Features.Tools.ViewModels;
 using GenHub.Features.Tools.ViewModels.Dialogs;
 using GenHub.Features.Tools.Views.Dialogs;
@@ -21,10 +20,8 @@ namespace GenHub.Features.Tools.Services;
 /// <summary>
 /// Implementation of IPublisherStudioDialogService.
 /// </summary>
-public class PublisherStudioDialogService(IHostingProviderFactory hostingProviderFactory) : IPublisherStudioDialogService
+public class PublisherStudioDialogService : IPublisherStudioDialogService
 {
-    private readonly IHostingProviderFactory _hostingProviderFactory = hostingProviderFactory;
-
     /// <inheritdoc/>
     public async Task<bool> ShowSetupWizardAsync(PublisherStudioProject project)
     {
