@@ -450,7 +450,7 @@ public partial class PublisherStudioViewModel : ObservableObject
                 Id = "default",
                 Name = "Content",
                 Catalog = CurrentProject.Catalog,
-                FileName = CurrentProject.CatalogFileName,
+                FileName = CurrentProject.CatalogFileName ?? HostingConstants.DefaultCatalogFileName,
             };
             CurrentProject.Catalogs.Add(defaultCatalog);
             _logger.LogInformation("Migrated single catalog to multi-catalog format");
@@ -462,7 +462,7 @@ public partial class PublisherStudioViewModel : ObservableObject
             {
                 Id = "default",
                 Name = "Content",
-                FileName = HostingConstants.DefaultCatalogFileName,
+                FileName = CurrentProject.CatalogFileName ?? HostingConstants.DefaultCatalogFileName,
                 Catalog = CurrentProject.Catalog,
             };
             CurrentProject.Catalogs.Add(defaultCatalog);
@@ -520,7 +520,13 @@ public partial class PublisherStudioViewModel : ObservableObject
         var selectedCatalog = Catalogs.FirstOrDefault();
         if (selectedCatalog == null)
         {
-            selectedCatalog = new NamedCatalog { Id = "main", Name = "Main Catalog", Catalog = CurrentProject.Catalog };
+            selectedCatalog = new NamedCatalog
+            {
+                Id = "main",
+                Name = "Main Catalog",
+                Catalog = CurrentProject.Catalog,
+                FileName = CurrentProject.CatalogFileName ?? HostingConstants.DefaultCatalogFileName,
+            };
             Catalogs.Add(selectedCatalog);
         }
 

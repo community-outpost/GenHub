@@ -431,6 +431,10 @@ public partial class PublishShareViewModel : ObservableObject
                 }
             }
         }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Hosting state loading was canceled");
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to load hosting state");
