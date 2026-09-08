@@ -714,6 +714,12 @@ public class CsvResolverTests
                 break;
             }
 
+            // Stop search at repo root boundary (.git file/directory) to prevent escaping outside the repository
+            if (Path.Exists(Path.Combine(currentDir.FullName, ".git")))
+            {
+                break;
+            }
+
             currentDir = currentDir.Parent;
         }
 

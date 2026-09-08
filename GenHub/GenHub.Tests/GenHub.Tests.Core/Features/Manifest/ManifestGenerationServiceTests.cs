@@ -1053,6 +1053,48 @@ public class ManifestGenerationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that fallback directory scan shows warning notification and suppresses success when file enumeration fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_DirectoryScanFallback_WhenEnumerationFails_DispatchesWarningNotificationAsync()
+    {
+        // Arrange
+        var notificationServiceMock = new Mock<INotificationService>();
+        var serviceWithNotifications = new ManifestGenerationService(
+            NullLogger<ManifestGenerationService>.Instance,
+            _hashProviderMock.Object,
+            _manifestIdServiceMock.Object,
+            _downloadServiceMock.Object,
+            _configProviderServiceMock.Object,
+            notificationService: notificationServiceMock.Object);
+
+        // A non-existent directory triggers DirectoryNotFoundException (IOException) during Directory.EnumerateFiles
+        var nonExistentPath = Path.Combine(_tempDirectory, "NonExistentDirectoryForScanFailure");
+
+        // Act - Unsupported version forces directory scan fallback on non-existent path
+        var builder = await serviceWithNotifications.CreateGameInstallationManifestAsync(
+            nonExistentPath,
+            GameType.Generals,
+            GameInstallationType.Steam,
+            "9.99",
+            "EN");
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        notificationServiceMock.Verify(
+            n => n.ShowInfo(ManifestConstants.IndexingNotificationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.ShowWarning(ManifestConstants.DirectoryScanWarningNotificationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
     /// Cleans up temporary test files.
     /// </summary>
     public void Dispose()
