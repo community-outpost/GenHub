@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Models.Publishers;
@@ -129,12 +130,9 @@ public partial class PublisherProfileViewModel : ObservableValidator
             _project.Catalog.Publisher.ContactEmail = string.IsNullOrWhiteSpace(ContactEmail) ? null : ContactEmail.Trim();
             _project.Catalog.Publisher.Description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
 
-            foreach (var namedCatalog in _project.Catalogs)
+            foreach (var catalog in _project.Catalogs.Select(namedCatalog => namedCatalog.Catalog).Where(catalog => catalog != null))
             {
-                if (namedCatalog.Catalog != null)
-                {
-                    namedCatalog.Catalog.Publisher = _project.Catalog.Publisher;
-                }
+                catalog!.Publisher = _project.Catalog.Publisher;
             }
 
             _project.Tags.Clear();
