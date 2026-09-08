@@ -402,7 +402,8 @@ public class ManifestGenerationService(
             var contentName = gameType.ToString().ToLowerInvariant();
             var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, downloadService, configurationProvider)
                 .WithBasicInfo(publisher, contentName, clientVersion)
-                .WithContentType(ContentType.GameClient, gameType);
+                .WithContentType(ContentType.GameClient, gameType)
+                .WithEntryPoint(Path.GetFileName(executablePath));
 
             await AddClientFilesToManifest(builder, installationPath, gameType, executablePath, publisher.Name);
 
@@ -467,7 +468,8 @@ public class ManifestGenerationService(
                 .WithContentType(ContentType.GameClient, gameType)
                 .WithMetadata(
                     "GeneralsOnline community client with auto-updates and enhanced compatibility",
-                    tags: ["community", "enhanced", "multiplayer", "auto-update"]);
+                    tags: ["community", "enhanced", "multiplayer", "auto-update"])
+                .WithEntryPoint(Path.GetFileName(executablePath));
 
             // GeneralsOnline only supports Zero Hour, not vanilla Generals
             // Add dependency constraints to enforce this at manifest build time

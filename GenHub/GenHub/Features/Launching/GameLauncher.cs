@@ -1015,12 +1015,16 @@ public class GameLauncher(
         };
         logger.LogDebug("[GameLauncher] BaseInstallationPath set to: {Path}", workspaceConfig.BaseInstallationPath);
 
-        if (isSteamLaunch && !string.IsNullOrEmpty(actualInstallationPath))
+        if (!string.IsNullOrEmpty(actualInstallationPath))
         {
-            var cleanupResult = await PerformPreLaunchSteamCleanupAsync(actualInstallationPath, cancellationToken);
-            if (!cleanupResult.Success)
+            var backupPath = Path.Combine(actualInstallationPath, $"{GameClientConstants.GeneralsExecutable}.ghbak");
+            if (isSteamLaunch || File.Exists(backupPath))
             {
-                return OperationResult<WorkspaceInfo>.CreateFailure(cleanupResult.FirstError ?? "Pre-launch Steam cleanup failed");
+                var cleanupResult = await PerformPreLaunchSteamCleanupAsync(actualInstallationPath, cancellationToken);
+                if (!cleanupResult.Success && isSteamLaunch)
+                {
+                    return OperationResult<WorkspaceInfo>.CreateFailure(cleanupResult.FirstError ?? "Pre-launch Steam cleanup failed");
+                }
             }
         }
 
@@ -1099,8 +1103,21 @@ public class GameLauncher(
 
         if (string.IsNullOrEmpty(finalExecutablePath))
         {
-            finalExecutablePath = profile.GameClient?.ExecutablePath;
-            logger.LogWarning("[GameLauncher] Executable not resolved from workspace, falling back to profile: {ExecutablePath}", finalExecutablePath);
+            if (!string.IsNullOrEmpty(workspaceInfo.WorkspacePath) && !string.IsNullOrEmpty(profile.GameClient?.ExecutablePath))
+            {
+                var candidateInWorkspace = Path.Combine(workspaceInfo.WorkspacePath, Path.GetFileName(profile.GameClient.ExecutablePath));
+                if (File.Exists(candidateInWorkspace))
+                {
+                    finalExecutablePath = candidateInWorkspace;
+                    logger.LogInformation("[GameLauncher] Executable resolved from workspace fallback: {ExecutablePath}", finalExecutablePath);
+                }
+            }
+
+            if (string.IsNullOrEmpty(finalExecutablePath))
+            {
+                finalExecutablePath = profile.GameClient?.ExecutablePath;
+                logger.LogWarning("[GameLauncher] Executable not resolved from workspace, falling back to profile: {ExecutablePath}", finalExecutablePath);
+            }
         }
 
         if (string.IsNullOrEmpty(finalExecutablePath))

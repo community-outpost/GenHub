@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -273,6 +275,13 @@ public interface IContentManifestBuilder
     /// <param name="contentReferences">The collection of content references.</param>
     /// <returns>The builder instance for chaining.</returns>
     IContentManifestBuilder WithContentReferences(IEnumerable<ContentReference> contentReferences);
+
+    /// <summary>
+    /// Sets the declared entry point executable for the manifest.
+    /// </summary>
+    /// <param name="entryPoint">The relative path of the entry point executable.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithEntryPoint(string? entryPoint);
 
     /// <summary>
     /// Adds a file patching operation to the manifest.

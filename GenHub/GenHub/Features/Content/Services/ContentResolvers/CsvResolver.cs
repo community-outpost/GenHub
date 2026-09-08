@@ -356,10 +356,38 @@ public class CsvResolver(
                 var content = await response.Content.ReadAsStringAsync(cancellationToken);
                 return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(content, true));
             }
-            catch (Exception ex) when (cached != null && IsRecoverableRemoteFailure(ex, cancellationToken))
+            catch (Exception ex) when (IsRecoverableRemoteFailure(ex, cancellationToken))
             {
-                logger.LogWarning(ex, "Remote CSV catalog {SourceUrl} is unavailable; using stale cached content", sourceUrl);
-                return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(cached.Content, false));
+                if (cached != null)
+                {
+                    logger.LogWarning(ex, "Remote CSV catalog {SourceUrl} is unavailable; using stale cached content", sourceUrl);
+                    return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(cached.Content, false));
+                }
+
+                var fileName = Path.GetFileName(uri.LocalPath);
+                var localFallbackPaths = new[]
+                {
+                    Path.Combine(AppContext.BaseDirectory, "docs", "GameInstallationFilesRegistry", fileName),
+                    Path.Combine(AppContext.BaseDirectory, fileName),
+                    Path.Combine(Directory.GetCurrentDirectory(), "docs", "GameInstallationFilesRegistry", fileName),
+                };
+
+                foreach (var localPath in localFallbackPaths)
+                {
+                    if (File.Exists(localPath))
+                    {
+                        logger.LogInformation(
+                            "Remote CSV catalog {SourceUrl} was unavailable ({Message}); using local registry file at {LocalPath}",
+                            sourceUrl,
+                            ex.Message,
+                            localPath);
+                        var localContent = await File.ReadAllTextAsync(localPath, cancellationToken);
+                        return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(localContent, false));
+                    }
+                }
+
+                logger.LogError(ex, "Failed to download remote CSV catalog from {SourceUrl} and no cache or local fallback was found", sourceUrl);
+                return OperationResult<CsvContentLoadResult>.CreateFailure($"Failed to download CSV catalog from {sourceUrl}: {ex.Message}");
             }
         }
 
