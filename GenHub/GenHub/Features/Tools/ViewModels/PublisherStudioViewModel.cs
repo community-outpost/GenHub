@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Publishers;
@@ -461,7 +462,7 @@ public partial class PublisherStudioViewModel : ObservableObject
             {
                 Id = "default",
                 Name = "Content",
-                FileName = "catalog.json",
+                FileName = HostingConstants.DefaultCatalogFileName,
                 Catalog = CurrentProject.Catalog,
             };
             CurrentProject.Catalogs.Add(defaultCatalog);
@@ -508,7 +509,11 @@ public partial class PublisherStudioViewModel : ObservableObject
         Catalogs.Clear();
         foreach (var catalog in CurrentProject.Catalogs)
         {
-            catalog.Catalog.Publisher = CurrentProject.Catalog.Publisher;
+            if (catalog.Catalog != null && CurrentProject.Catalog != null)
+            {
+                catalog.Catalog.Publisher = CurrentProject.Catalog.Publisher;
+            }
+
             Catalogs.Add(catalog);
         }
 

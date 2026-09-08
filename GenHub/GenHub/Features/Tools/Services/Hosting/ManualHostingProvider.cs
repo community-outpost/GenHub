@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Publishers;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Tools.Interfaces;
@@ -22,7 +23,7 @@ namespace GenHub.Features.Tools.Services.Hosting;
 public class ManualHostingProvider : IHostingProvider
 {
     /// <inheritdoc/>
-    public string ProviderId => "manual";
+    public string ProviderId => HostingConstants.Manual;
 
     /// <inheritdoc/>
     public string DisplayName => "Custom URL (Manual)";

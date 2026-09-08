@@ -1,4 +1,5 @@
 using System;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Providers;
 
 namespace GenHub.Core.Models.Publishers;
@@ -41,12 +42,12 @@ public class PublisherStudioProject
     /// <summary>
     /// Gets or sets the catalog file name.
     /// </summary>
-    public string CatalogFileName { get; set; } = "catalog.json";
+    public string CatalogFileName { get; set; } = HostingConstants.DefaultCatalogFileName;
 
     /// <summary>
     /// Gets or sets the provider definition file name.
     /// </summary>
-    public string ProviderDefinitionFileName { get; set; } = "publisher.json";
+    public string ProviderDefinitionFileName { get; set; } = HostingConstants.DefaultDefinitionFileName;
 
     /// <summary>
     /// Gets or sets the list of tags for the publisher.

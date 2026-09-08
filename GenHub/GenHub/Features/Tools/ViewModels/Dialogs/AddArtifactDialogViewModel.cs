@@ -324,11 +324,11 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
         var artifact = new ReleaseArtifact
         {
             Filename = Filename.Trim(),
-            DownloadUrl = DownloadUrl.Trim(),
+            DownloadUrl = UseLocalFile ? string.Empty : DownloadUrl.Trim(),
             Size = FileSize,
             Sha256 = string.IsNullOrWhiteSpace(Sha256Hash) ? string.Empty : Sha256Hash.Trim(),
             IsPrimary = IsPrimary,
-            LocalFilePath = LocalFilePath,
+            LocalFilePath = UseLocalFile ? LocalFilePath : null,
         };
 
         _onArtifactCreated(artifact);
