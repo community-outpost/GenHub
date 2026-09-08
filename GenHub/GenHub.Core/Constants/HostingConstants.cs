@@ -42,6 +42,12 @@ public static class HostingConstants
     public const string PendingUploadBaseUrl = "https://pending-upload.genhub.local/";
 
     /// <summary>
+    /// Default URL prefix for mirror URLs.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Default URL prefix")]
+    public const string DefaultMirrorUrlPrefix = "https://";
+
+    /// <summary>
     /// Standard JSON MIME content type.
     /// </summary>
     public const string JsonContentType = "application/json";

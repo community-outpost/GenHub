@@ -1036,7 +1036,7 @@ public partial class PublishShareViewModel : ObservableObject
     [RelayCommand]
     private void AddCatalogMirror()
     {
-        CatalogMirrorUrls.Add("https://");
+        CatalogMirrorUrls.Add(HostingConstants.DefaultMirrorUrlPrefix);
     }
 
     [RelayCommand]
