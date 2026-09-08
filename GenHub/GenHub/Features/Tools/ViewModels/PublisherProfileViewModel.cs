@@ -132,7 +132,7 @@ public partial class PublisherProfileViewModel : ObservableValidator
 
             foreach (var catalog in _project.Catalogs.Select(namedCatalog => namedCatalog.Catalog).Where(catalog => catalog != null))
             {
-                catalog!.Publisher = _project.Catalog.Publisher;
+                catalog.Publisher = _project.Catalog.Publisher;
             }
 
             _project.Tags.Clear();
