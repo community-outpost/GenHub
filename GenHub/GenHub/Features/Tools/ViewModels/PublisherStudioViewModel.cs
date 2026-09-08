@@ -442,30 +442,21 @@ public partial class PublisherStudioViewModel : ObservableObject
     {
         if (CurrentProject == null) return;
 
-        // If project has no catalogs list but has a single Catalog, migrate it
-        if (CurrentProject.Catalogs.Count == 0 && CurrentProject.Catalog.Content.Count > 0)
+        // If project has no catalogs list, ensure a default catalog exists
+        if (CurrentProject.Catalogs.Count == 0)
         {
             var defaultCatalog = new NamedCatalog
             {
                 Id = "default",
                 Name = "Content",
-                Catalog = CurrentProject.Catalog,
+                Catalog = CurrentProject.Catalog ?? new(),
                 FileName = CurrentProject.CatalogFileName ?? HostingConstants.DefaultCatalogFileName,
             };
             CurrentProject.Catalogs.Add(defaultCatalog);
-            _logger.LogInformation("Migrated single catalog to multi-catalog format");
-        }
-        else if (CurrentProject.Catalogs.Count == 0)
-        {
-            // Create an empty default catalog
-            var defaultCatalog = new NamedCatalog
+            if (CurrentProject.Catalog?.Content?.Count > 0)
             {
-                Id = "default",
-                Name = "Content",
-                FileName = CurrentProject.CatalogFileName ?? HostingConstants.DefaultCatalogFileName,
-                Catalog = CurrentProject.Catalog,
-            };
-            CurrentProject.Catalogs.Add(defaultCatalog);
+                _logger.LogInformation("Migrated single catalog to multi-catalog format");
+            }
         }
     }
 
@@ -524,7 +515,7 @@ public partial class PublisherStudioViewModel : ObservableObject
             {
                 Id = "main",
                 Name = "Main Catalog",
-                Catalog = CurrentProject.Catalog,
+                Catalog = CurrentProject.Catalog ?? new(),
                 FileName = CurrentProject.CatalogFileName ?? HostingConstants.DefaultCatalogFileName,
             };
             Catalogs.Add(selectedCatalog);
