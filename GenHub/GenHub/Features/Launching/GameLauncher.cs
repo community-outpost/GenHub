@@ -1017,7 +1017,7 @@ public class GameLauncher(
 
         if (!string.IsNullOrEmpty(actualInstallationPath))
         {
-            var backupPath = Path.Combine(actualInstallationPath, $"{GameClientConstants.GeneralsExecutable}.ghbak");
+            var backupPath = Path.Combine(actualInstallationPath, $"{GameClientConstants.GeneralsExecutable}{FileTypes.BackupExtension}");
             if (isSteamLaunch || File.Exists(backupPath))
             {
                 var cleanupResult = await PerformPreLaunchSteamCleanupAsync(actualInstallationPath, cancellationToken);

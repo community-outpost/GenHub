@@ -10,6 +10,7 @@ using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -915,56 +916,29 @@ public class ManifestGenerationService(
 
             foreach (var record in records)
             {
-                if (string.IsNullOrEmpty(record.RelativePath)) continue;
-
-                var finalPath = record.RelativePath;
-                var found = false;
-
-                // 1. Check if the exact file exists
-                if (installationFiles.Contains(finalPath))
+                if (string.IsNullOrEmpty(record.RelativePath))
                 {
-                    found = true;
+                    continue;
                 }
 
-                // 2. If it's language-specific and exact file NOT found, try to resolve other language variants
-                else if (!string.IsNullOrEmpty(record.Language))
+                var resolvedPath = ResolveRecordPath(record, installationFiles);
+                if (resolvedPath != null)
                 {
-                    // Attempt to find any language-pivoted version of this file
-                    foreach (var lang in SupportedLanguages)
-                    {
-                        var pivotedPath = record.RelativePath.Replace(record.Language, lang, StringComparison.OrdinalIgnoreCase);
-                        if (installationFiles.Contains(pivotedPath))
-                        {
-                            finalPath = pivotedPath;
-                            found = true;
-                            logger.LogDebug("Resolved language file {Original} to {Pivoted}", record.RelativePath, pivotedPath);
-                            break;
-                        }
-                    }
-                }
-
-                if (found)
-                {
-                    var fullPath = Path.Combine(installationPath, finalPath);
-
-                    fullPath = ResolveSourcePathWithBackup(fullPath, finalPath);
+                    var fullPath = Path.Combine(installationPath, resolvedPath);
+                    fullPath = ResolveSourcePathWithBackup(fullPath, resolvedPath);
 
                     // .dat is data, not code. It was previously marked executable because
                     // the Steam layout launches game.dat through a proxy, which is a launch
                     // strategy rather than a property of the file, and it forced
                     // SteamManifestPatcher to keep flipping the flag by hand.
-                    var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(finalPath, fullPath);
+                    var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(resolvedPath, fullPath);
 
-                    await builder.AddGameInstallationFileAsync(finalPath, fullPath, isExecutable);
+                    await builder.AddGameInstallationFileAsync(resolvedPath, fullPath, isExecutable);
                     _fileCount++;
                 }
-                else
+                else if (string.IsNullOrEmpty(record.Language))
                 {
-                    // If it's a core file (no language), log as missing
-                    if (string.IsNullOrEmpty(record.Language))
-                    {
-                        logger.LogDebug("Core file {File} missing from installation", finalPath);
-                    }
+                    logger.LogDebug("Core file {File} missing from installation", record.RelativePath);
                 }
             }
 
@@ -993,9 +967,37 @@ public class ManifestGenerationService(
     }
 
     /// <summary>
+    /// Resolves the file path in the installation, checking for exact and language-pivoted matches.
+    /// </summary>
+    private string? ResolveRecordPath(ManifestFileEntry record, HashSet<string> installationFiles)
+    {
+        if (installationFiles.Contains(record.RelativePath))
+        {
+            return record.RelativePath;
+        }
+
+        if (string.IsNullOrEmpty(record.Language))
+        {
+            return null;
+        }
+
+        foreach (var lang in SupportedLanguages)
+        {
+            var pivotedPath = record.RelativePath.Replace(record.Language, lang, StringComparison.OrdinalIgnoreCase);
+            if (installationFiles.Contains(pivotedPath))
+            {
+                logger.LogDebug("Resolved language file {Original} to {Pivoted}", record.RelativePath, pivotedPath);
+                return pivotedPath;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Represents a file entry in the manifest CSV.
     /// </summary>
-    private class ManifestFileEntry
+    private sealed class ManifestFileEntry
     {
         /// <summary>
         /// Gets or sets the relative path of the file.

@@ -56,6 +56,8 @@ public partial class ReplayManagerViewModel(
     IDisposable
 {
     private readonly HashSet<string> _runningProfileIds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly SemaphoreSlim _reloadLock = new(1, 1);
+    private int _pendingReloadRequests;
     private bool _messengerRegistered;
 
     [ObservableProperty]
@@ -245,7 +247,7 @@ public partial class ReplayManagerViewModel(
         {
             try
             {
-                await LoadReplaysAsync();
+                await CoalescedReloadReplaysAsync();
             }
             catch (Exception ex)
             {
@@ -261,7 +263,7 @@ public partial class ReplayManagerViewModel(
         {
             try
             {
-                await LoadReplaysAsync();
+                await CoalescedReloadReplaysAsync();
             }
             catch (Exception ex)
             {
@@ -337,6 +339,7 @@ public partial class ReplayManagerViewModel(
         if (disposing)
         {
             WeakReferenceMessenger.Default.UnregisterAll(this);
+            _reloadLock.Dispose();
         }
     }
 
@@ -1178,5 +1181,22 @@ public partial class ReplayManagerViewModel(
     {
         ApplyFilter();
         _ = LoadReplaysAsync();
+    }
+
+    private async Task CoalescedReloadReplaysAsync()
+    {
+        Interlocked.Increment(ref _pendingReloadRequests);
+        await _reloadLock.WaitAsync();
+        try
+        {
+            while (Interlocked.Exchange(ref _pendingReloadRequests, 0) > 0)
+            {
+                await LoadReplaysAsync();
+            }
+        }
+        finally
+        {
+            _reloadLock.Release();
+        }
     }
 }

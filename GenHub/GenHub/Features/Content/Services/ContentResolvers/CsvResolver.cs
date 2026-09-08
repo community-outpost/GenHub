@@ -367,22 +367,26 @@ public class CsvResolver(
                 var fileName = Path.GetFileName(uri.LocalPath);
                 var localFallbackPaths = new[]
                 {
-                    Path.Combine(AppContext.BaseDirectory, "docs", "GameInstallationFilesRegistry", fileName),
+                    Path.Combine(AppContext.BaseDirectory, AppConstants.DocsFolderName, AppConstants.GameInstallationFilesRegistryFolderName, fileName),
                     Path.Combine(AppContext.BaseDirectory, fileName),
-                    Path.Combine(Directory.GetCurrentDirectory(), "docs", "GameInstallationFilesRegistry", fileName),
+                    Path.Combine(Directory.GetCurrentDirectory(), AppConstants.DocsFolderName, AppConstants.GameInstallationFilesRegistryFolderName, fileName),
                 };
 
-                foreach (var localPath in localFallbackPaths)
+                foreach (var localPath in localFallbackPaths.Where(File.Exists))
                 {
-                    if (File.Exists(localPath))
+                    try
                     {
+                        var localContent = await File.ReadAllTextAsync(localPath, cancellationToken);
                         logger.LogInformation(
                             "Remote CSV catalog {SourceUrl} was unavailable ({Message}); using local registry file at {LocalPath}",
                             sourceUrl,
                             ex.Message,
                             localPath);
-                        var localContent = await File.ReadAllTextAsync(localPath, cancellationToken);
                         return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(localContent, false));
+                    }
+                    catch (Exception readEx) when (readEx is IOException or UnauthorizedAccessException or NotSupportedException)
+                    {
+                        logger.LogWarning(readEx, "Failed to read local fallback CSV file at {LocalPath}", localPath);
                     }
                 }
 

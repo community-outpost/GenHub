@@ -65,7 +65,7 @@ public sealed class CrcCatalogUpdateService(
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
             var catalog = await JsonSerializer.DeserializeAsync<CrcCatalog>(stream, JsonOptions, cancellationToken);
 
-            if (catalog == null || catalog.SchemaVersion != 1 || catalog.Mappings == null || catalog.Mappings.Count == 0)
+            if (catalog == null || catalog.SchemaVersion != ReplayManagerConstants.CrcCatalogSchemaVersion || catalog.Mappings == null || catalog.Mappings.Count == 0)
             {
                 logger.LogWarning(
                     "Deserialized remote CRC catalog was invalid, unsupported schema (version {SchemaVersion}), or empty (mappings null: {MappingsNull}, count: {MappingCount}). Attempting local fallback.",
@@ -121,7 +121,7 @@ public sealed class CrcCatalogUpdateService(
             await using var stream = File.OpenRead(fallbackPath);
             var catalog = await JsonSerializer.DeserializeAsync<CrcCatalog>(stream, JsonOptions, cancellationToken);
 
-            if (catalog == null || catalog.SchemaVersion != 1 || catalog.Mappings == null || catalog.Mappings.Count == 0)
+            if (catalog == null || catalog.SchemaVersion != ReplayManagerConstants.CrcCatalogSchemaVersion || catalog.Mappings == null || catalog.Mappings.Count == 0)
             {
                 return ContentUpdateCheckResult.CreateFailure("Local fallback CRC catalog is empty or invalid.");
             }
