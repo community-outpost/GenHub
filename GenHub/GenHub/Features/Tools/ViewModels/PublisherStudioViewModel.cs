@@ -485,12 +485,14 @@ public partial class PublisherStudioViewModel : ObservableObject
 
             // If this project has previously been published (has catalogs with URLs), prompt recovery
             var hasPublishedUrls = CurrentProject.Catalogs.Any(c =>
-                c.Catalog?.Content != null &&
+                c?.Catalog?.Content != null &&
                 c.Catalog.Content.Any(item =>
+                    item != null &&
                     item.Releases != null &&
                     item.Releases.Any(r =>
+                        r != null &&
                         r.Artifacts != null &&
-                        r.Artifacts.Any(a => !string.IsNullOrEmpty(a.DownloadUrl)))));
+                        r.Artifacts.Any(a => a != null && !string.IsNullOrEmpty(a.DownloadUrl)))));
 
             if (hasPublishedUrls)
             {
@@ -520,13 +522,16 @@ public partial class PublisherStudioViewModel : ObservableObject
         Catalogs.Clear();
         foreach (var catalog in CurrentProject.Catalogs)
         {
-            if (catalog.Catalog != null)
+            if (catalog?.Catalog != null)
             {
                 catalog.Catalog.Publisher = CurrentProject.Catalog.Publisher;
                 catalog.Catalog.Content ??= [];
             }
 
-            Catalogs.Add(catalog);
+            if (catalog != null)
+            {
+                Catalogs.Add(catalog);
+            }
         }
 
         var selectedCatalog = Catalogs.FirstOrDefault();
