@@ -1010,6 +1010,49 @@ public class ManifestGenerationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that fallback directory scan shows info and success notifications when completing normally.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_DirectoryScanFallback_DispatchesStartAndSuccessNotificationsAsync()
+    {
+        // Arrange
+        var notificationServiceMock = new Mock<INotificationService>();
+        var serviceWithNotifications = new ManifestGenerationService(
+            NullLogger<ManifestGenerationService>.Instance,
+            _hashProviderMock.Object,
+            _manifestIdServiceMock.Object,
+            _downloadServiceMock.Object,
+            _configProviderServiceMock.Object,
+            notificationService: notificationServiceMock.Object);
+
+        var installationPath = Path.Combine(_tempDirectory, "FallbackNotificationInstall");
+        Directory.CreateDirectory(installationPath);
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "generals.exe"), "generals exe content");
+
+        // Act - Unsupported version forces directory scan fallback
+        var builder = await serviceWithNotifications.CreateGameInstallationManifestAsync(
+            installationPath,
+            GameType.Generals,
+            GameInstallationType.Steam,
+            "9.99",
+            "EN");
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        notificationServiceMock.Verify(
+            n => n.ShowInfo(ManifestConstants.IndexingNotificationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.ShowSuccess(ManifestConstants.IndexedNotificationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
     /// Cleans up temporary test files.
     /// </summary>
     public void Dispose()

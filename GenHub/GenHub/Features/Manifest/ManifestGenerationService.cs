@@ -1056,6 +1056,11 @@ public class ManifestGenerationService(
                 cancellationToken.ThrowIfCancellationRequested();
                 await TryAddFallbackFileAsync(builder, installationPath, file, executableName);
             }
+
+            notificationService?.ShowSuccess(
+                ManifestConstants.IndexedNotificationTitle,
+                $"Completed file scan for {gameType}.",
+                autoDismissMs: ManifestConstants.DefaultNotificationAutoDismissMs);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -1064,12 +1069,11 @@ public class ManifestGenerationService(
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(ex, "Failed to enumerate files during directory scan at {InstallationPath}", installationPath);
+            notificationService?.ShowWarning(
+                ManifestConstants.DirectoryScanWarningNotificationTitle,
+                $"Failed to complete directory scan for {gameType}.",
+                autoDismissMs: ManifestConstants.WarningNotificationAutoDismissMs);
         }
-
-        notificationService?.ShowSuccess(
-            ManifestConstants.IndexedNotificationTitle,
-            $"Completed file scan for {gameType}.",
-            autoDismissMs: ManifestConstants.DefaultNotificationAutoDismissMs);
     }
 
     private async Task TryAddPrimaryExecutableAsync(

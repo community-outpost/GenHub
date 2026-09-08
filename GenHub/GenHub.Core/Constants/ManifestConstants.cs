@@ -21,6 +21,11 @@ public static class ManifestConstants
     public const string IncompleteInstallationNotificationTitle = "Incomplete Game Installation";
 
     /// <summary>
+    /// Notification title when directory scan encounters an error.
+    /// </summary>
+    public const string DirectoryScanWarningNotificationTitle = "Directory Scan Warning";
+
+    /// <summary>
     /// Default auto-dismiss timeout in milliseconds for standard info/success scan notifications.
     /// </summary>
     public const int DefaultNotificationAutoDismissMs = 4000;
