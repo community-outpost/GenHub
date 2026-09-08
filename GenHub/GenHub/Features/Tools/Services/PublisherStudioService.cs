@@ -87,13 +87,10 @@ public class PublisherStudioService(
             project.Catalog ??= new();
             project.Catalog.Publisher ??= new();
             project.Catalog.Content ??= [];
-            foreach (var cat in project.Catalogs)
+            foreach (var catalog in project.Catalogs.Select(cat => cat.Catalog).OfType<PublisherCatalog>())
             {
-                if (cat.Catalog != null)
-                {
-                    cat.Catalog.Publisher ??= project.Catalog.Publisher;
-                    cat.Catalog.Content ??= [];
-                }
+                catalog.Publisher ??= project.Catalog.Publisher;
+                catalog.Content ??= [];
             }
 
             project.ProjectPath = path;
