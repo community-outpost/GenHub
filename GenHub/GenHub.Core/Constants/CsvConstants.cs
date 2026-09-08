@@ -10,9 +10,14 @@ namespace GenHub.Core.Constants;
 public static class CsvConstants
 {
     /// <summary>
+    /// Default remote base URL for CSV registry assets.
+    /// </summary>
+    public const string DefaultRegistryBaseUrl = "https://raw.githubusercontent.com/community-outpost/GenHub/development/docs/GameInstallationFilesRegistry";
+
+    /// <summary>
     /// Default remote index.json source for CSV catalog discovery.
     /// </summary>
-    public const string DefaultIndexFileUrl = "https://raw.githubusercontent.com/community-outpost/GenHub/development/docs/GameInstallationFilesRegistry/index.json";
+    public const string DefaultIndexFileUrl = $"{DefaultRegistryBaseUrl}/index.json";
 
     /// <summary>
     /// Source name for the CSV catalog discoverer.

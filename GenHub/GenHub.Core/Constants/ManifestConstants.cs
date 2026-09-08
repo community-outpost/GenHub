@@ -6,6 +6,21 @@ namespace GenHub.Core.Constants;
 public static class ManifestConstants
 {
     /// <summary>
+    /// Notification title when game file verification/indexing begins.
+    /// </summary>
+    public const string IndexingNotificationTitle = "Indexing Game Files";
+
+    /// <summary>
+    /// Notification title when game file verification completes successfully.
+    /// </summary>
+    public const string IndexedNotificationTitle = "Game Files Indexed";
+
+    /// <summary>
+    /// Notification title when game installation is missing required files.
+    /// </summary>
+    public const string IncompleteInstallationNotificationTitle = "Incomplete Game Installation";
+
+    /// <summary>
     /// Default manifest format version.
     /// </summary>
     public const int DefaultManifestFormatVersion = 1;

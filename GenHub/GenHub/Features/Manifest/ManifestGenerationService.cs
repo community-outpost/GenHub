@@ -44,6 +44,15 @@ public class ManifestGenerationService(
     CsvResolver? csvResolver = null,
     INotificationService? notificationService = null) : IManifestGenerationService
 {
+    private enum AuthoritativeFileStatus
+    {
+        AddedMatching,
+        AddedDiffering,
+        MissingRequired,
+        MissingOptional,
+        Skipped,
+    }
+
     private static readonly CsvConfiguration CsvConfig = new(CultureInfo.InvariantCulture)
     {
         HasHeaderRecord = true,
@@ -87,15 +96,6 @@ public class ManifestGenerationService(
         ".w3d",
         ".wav",
     };
-
-    private enum AuthoritativeFileStatus
-    {
-        AddedMatching,
-        AddedDiffering,
-        MissingRequired,
-        MissingOptional,
-        Skipped,
-    }
 
     private readonly ILanguageDetector _languageDetector = languageDetector ?? new LanguageDetector();
 
@@ -940,7 +940,7 @@ public class ManifestGenerationService(
         }
 
         notificationService?.ShowInfo(
-            "Indexing Game Files",
+            ManifestConstants.IndexingNotificationTitle,
             $"Scanning {gameType} installation files ({authoritativeEntries.Count} files to verify)...",
             autoDismissMs: 4000);
 
@@ -973,6 +973,8 @@ public class ManifestGenerationService(
                 case AuthoritativeFileStatus.MissingOptional:
                 case AuthoritativeFileStatus.Skipped:
                     break;
+                default:
+                    break;
             }
 
             if (currentIndex % 25 == 0 || currentIndex == totalEntries)
@@ -999,14 +1001,14 @@ public class ManifestGenerationService(
             var fileList = string.Join(", ", missingRequiredFiles.Take(5));
             var extra = missingRequiredFiles.Count > 5 ? $" and {missingRequiredFiles.Count - 5} more" : string.Empty;
             notificationService?.ShowWarning(
-                "Incomplete Game Installation",
+                ManifestConstants.IncompleteInstallationNotificationTitle,
                 $"{gameType} is missing {missingRequiredFiles.Count} required file(s): {fileList}{extra}. A clean reinstall or repair via EA App/Steam is recommended.",
                 autoDismissMs: 10000);
         }
         else
         {
             notificationService?.ShowSuccess(
-                "Game Files Indexed",
+                ManifestConstants.IndexedNotificationTitle,
                 $"Completed verification for {gameType} ({fileCount}/{totalEntries} files verified).",
                 autoDismissMs: 4000);
         }

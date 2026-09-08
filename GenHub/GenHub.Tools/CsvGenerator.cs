@@ -585,7 +585,7 @@ public class CsvGenerator(ILogger logger)
         var outputFileName = Path.GetFileName(options.OutputPath);
         var entryUrl = !string.IsNullOrWhiteSpace(options.DownloadUrl)
             ? options.DownloadUrl
-            : $"https://raw.githubusercontent.com/community-outpost/GenHub/development/docs/GameInstallationFilesRegistry/{outputFileName}";
+            : $"{CsvConstants.DefaultRegistryBaseUrl}/{outputFileName}";
 
         if (existingEntry != null)
         {

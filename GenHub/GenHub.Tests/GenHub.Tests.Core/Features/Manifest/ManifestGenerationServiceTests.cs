@@ -895,7 +895,7 @@ public class ManifestGenerationServiceTests : IDisposable
         await File.WriteAllTextAsync(Path.Combine(installationPath, "AudioZH.big"), "zh audio");
 
         var progressReports = new List<ValidationProgress>();
-        var progress = new Progress<ValidationProgress>(p => progressReports.Add(p));
+        var progress = new SynchronousProgress<ValidationProgress>(progressReports.Add);
 
         // Act
         var builder = await _service.CreateGameInstallationManifestAsync(
@@ -950,10 +950,10 @@ public class ManifestGenerationServiceTests : IDisposable
         // Assert
         Assert.NotNull(manifest);
         notificationServiceMock.Verify(
-            n => n.ShowInfo(It.Is<string>(s => s.Contains("Indexing")), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            n => n.ShowInfo(ManifestConstants.IndexingNotificationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
         notificationServiceMock.Verify(
-            n => n.ShowSuccess(It.Is<string>(s => s.Contains("Indexed")), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            n => n.ShowSuccess(ManifestConstants.IndexedNotificationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
         notificationServiceMock.Verify(
             n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
@@ -994,10 +994,10 @@ public class ManifestGenerationServiceTests : IDisposable
         // Assert
         Assert.NotNull(manifest);
         notificationServiceMock.Verify(
-            n => n.ShowInfo(It.Is<string>(s => s.Contains("Indexing")), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            n => n.ShowInfo(ManifestConstants.IndexingNotificationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
         notificationServiceMock.Verify(
-            n => n.ShowWarning(It.Is<string>(s => s.Contains("Incomplete")), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            n => n.ShowWarning(ManifestConstants.IncompleteInstallationNotificationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
         notificationServiceMock.Verify(
             n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
@@ -1024,5 +1024,10 @@ public class ManifestGenerationServiceTests : IDisposable
         var executablePath = Path.Combine(clientPath, "generals.exe");
         await File.WriteAllTextAsync(executablePath, "dummy exe");
         return (clientPath, executablePath);
+    }
+
+    private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
+    {
+        public void Report(T value) => handler(value);
     }
 }
