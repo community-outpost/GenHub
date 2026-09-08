@@ -314,6 +314,13 @@ public sealed class ReplayDirectoryService(
             var manifestPool = scope.ServiceProvider.GetService<IContentManifestPool>();
             var dependencyResolver = scope.ServiceProvider.GetService<IDependencyResolver>();
 
+            var runningStatus = await launcherFacade.GetLaunchStatusAsync(replay.MatchingProfileId ?? string.Empty, ct);
+            if (runningStatus?.Success == true && runningStatus.Data?.IsRunning == true)
+            {
+                logger.LogWarning("[ReplayManager] Profile '{ProfileId}' is already running.", replay.MatchingProfileId);
+                return ProfileOperationResult<GameLaunchInfo>.CreateFailure("The game profile for this replay is already running.");
+            }
+
             await ReconcileProfileBeforeLaunchAsync(
                 profileManager,
                 installationService,
@@ -321,13 +328,6 @@ public sealed class ReplayDirectoryService(
                 dependencyResolver,
                 replay.MatchingProfileId,
                 ct);
-
-            var runningStatus = await launcherFacade.GetLaunchStatusAsync(replay.MatchingProfileId ?? string.Empty, ct);
-            if (runningStatus?.Success == true && runningStatus.Data?.IsRunning == true)
-            {
-                logger.LogWarning("[ReplayManager] Profile '{ProfileId}' is already running.", replay.MatchingProfileId);
-                return ProfileOperationResult<GameLaunchInfo>.CreateFailure("The game profile for this replay is already running.");
-            }
 
             logger.LogInformation(
                 "[ReplayManager] Launching profile '{ProfileId}' for replay '{ReplayFile}'...",
@@ -604,10 +604,6 @@ public sealed class ReplayDirectoryService(
         if (compatible != null)
         {
             AddIdIfNotPresent(contentIds, compatible.Id.Value);
-        }
-        else
-        {
-            AddIdIfNotPresent(contentIds, depId);
         }
     }
 
@@ -1389,12 +1385,6 @@ public sealed class ReplayDirectoryService(
             var needsUpdate = steamUpdate || directDepsUpdate || transitiveUpdate || companionsUpdate;
             if (needsUpdate)
             {
-                logger.LogInformation(
-                    "[ReplayManager] Reconciled profile '{ProfileId}' before launch (UseSteamLaunch: {SteamLaunch}, EnabledContentIds: {Count})",
-                    profile.Id,
-                    updatedSteamLaunch,
-                    updatedContentIds.Count);
-
                 var updateRequest = new UpdateProfileRequest
                 {
                     Name = profile.Name,
@@ -1405,15 +1395,29 @@ public sealed class ReplayDirectoryService(
                     UseSteamLaunch = updatedSteamLaunch,
                 };
 
-                await profileManager.UpdateProfileAsync(profile.Id, updateRequest, ct);
+                var updateResult = await profileManager.UpdateProfileAsync(profile.Id, updateRequest, ct);
+                if (updateResult?.Success == true)
+                {
+                    logger.LogInformation(
+                        "[ReplayManager] Reconciled profile '{ProfileId}' before launch (UseSteamLaunch: {SteamLaunch}, EnabledContentIds: {Count})",
+                        profile.Id,
+                        updatedSteamLaunch,
+                        updatedContentIds.Count);
+                }
+                else
+                {
+                    logger.LogWarning(
+                        "[ReplayManager] Failed to persist reconciled profile '{ProfileId}' before launch: {Error}",
+                        profile.Id,
+                        updateResult?.FirstError ?? "Unknown error");
+                }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "[ReplayManager] Failed to reconcile profile '{ProfileId}' before launch, proceeding anyway", profileId);
         }
     }
-
 
     private async Task<bool> ReconcileDirectDependenciesAsync(
         IContentManifestPool? manifestPool,
@@ -1500,10 +1504,16 @@ public sealed class ReplayDirectoryService(
                 return false;
             }
 
+            var publisher = clientManifest?.Publisher?.PublisherType;
+            var clientVersion = clientManifest?.Version;
+            if (string.IsNullOrEmpty(publisher) || string.IsNullOrEmpty(clientVersion))
+            {
+                return false;
+            }
+
             var countBefore = updatedContentIds.Count;
             foreach (var companion in allManifests.Data.Where(c =>
-                c.TargetGame == profile.GameClient.GameType &&
-                (c.ContentType == ContentType.Patch || c.ContentType == ContentType.MapPack) &&
+                IsCandidateCompanion(c, profile.GameClient.GameType, publisher, clientVersion) &&
                 HasCompanionDependencyLink(clientManifest, c, profile.GameClient.Id) &&
                 !updatedContentIds.Contains(c.Id.Value, StringComparer.OrdinalIgnoreCase)))
             {

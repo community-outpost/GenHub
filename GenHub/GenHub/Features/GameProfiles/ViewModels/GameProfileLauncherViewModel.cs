@@ -220,7 +220,12 @@ public partial class GameProfileLauncherViewModel(
                     try
                     {
                         var activeLaunches = await launchRegistry.GetAllActiveLaunchesAsync();
-                        var activeLaunchDict = activeLaunches.ToDictionary(l => l.ProfileId, l => l.ProcessInfo.ProcessId, StringComparer.OrdinalIgnoreCase);
+                        var activeLaunchDict = activeLaunches
+                            .GroupBy(l => l.ProfileId, StringComparer.OrdinalIgnoreCase)
+                            .ToDictionary(
+                                g => g.Key,
+                                g => g.OrderByDescending(l => l.LaunchedAt).First().ProcessInfo.ProcessId,
+                                StringComparer.OrdinalIgnoreCase);
                         foreach (var item in Profiles.OfType<GameProfileItemViewModel>())
                         {
                             if (activeLaunchDict.TryGetValue(item.ProfileId, out var pid))

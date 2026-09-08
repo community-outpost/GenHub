@@ -121,7 +121,7 @@ public sealed class CrcCatalogUpdateService(
             await using var stream = File.OpenRead(fallbackPath);
             var catalog = await JsonSerializer.DeserializeAsync<CrcCatalog>(stream, JsonOptions, cancellationToken);
 
-            if (catalog == null || catalog.Mappings.Count == 0)
+            if (catalog == null || catalog.SchemaVersion != 1 || catalog.Mappings == null || catalog.Mappings.Count == 0)
             {
                 return ContentUpdateCheckResult.CreateFailure("Local fallback CRC catalog is empty or invalid.");
             }

@@ -142,7 +142,7 @@
             <DataGridTemplateColumn Header="Compatibility" Width="Auto" MinWidth="120">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
-                  <Border Background="{DynamicResource SurfaceSubtleBrush}" Padding="6,2" CornerRadius="6" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0"
+                  <Border Background="{DynamicResource SurfaceCardBrush}" Padding="6,2" CornerRadius="6" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0"
                           ToolTip.Tip="{Binding CompatibilityTooltip}">
                     <StackPanel Orientation="Horizontal" Spacing="5">
                       <Ellipse Width="7" Height="7" VerticalAlignment="Center" Fill="{DynamicResource SuccessBrush}"

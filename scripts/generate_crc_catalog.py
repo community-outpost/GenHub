@@ -228,12 +228,13 @@ def inspect_archive_binary(download_url: str, binary_patterns: list[str]) -> tup
 
             for name in zf.namelist():
                 base_name = os.path.basename(name).lower()
-                for pattern in binary_patterns:
-                    if base_name == pattern.lower():
-                        binary_bytes = zf.read(name)
-                        exe_crc = compute_buffer_crc(binary_bytes)
-                        sha256 = compute_buffer_sha256(binary_bytes)
-                        break
+                if not exe_crc:
+                    for pattern in binary_patterns:
+                        if base_name == pattern.lower():
+                            binary_bytes = zf.read(name)
+                            exe_crc = compute_buffer_crc(binary_bytes)
+                            sha256 = compute_buffer_sha256(binary_bytes)
+                            break
                 if not ini_crc and base_name in ("mapcachego.ini", "generals.ini"):
                     ini_bytes = zf.read(name)
                     ini_crc = compute_buffer_crc(ini_bytes)
@@ -554,21 +555,29 @@ def merge_catalogs(existing: list[dict], crawled: list[dict]) -> list[dict]:
             normalize_hex(entry.get("iniCrc", "")),
         )
 
-    merged = {entry_key(entry): dict(entry) for entry in existing if "manifestId" in entry}
+    merged = {}
+    for entry in existing:
+        if "manifestId" in entry:
+            entry_copy = dict(entry)
+            entry_copy["manifestId"] = normalize_manifest_id(entry_copy["manifestId"])
+            merged[entry_key(entry_copy)] = entry_copy
 
     for item in crawled:
         m_id = item.get("manifestId")
         if not m_id:
             continue
-        key = entry_key(item)
+        item_copy = dict(item)
+        item_copy["manifestId"] = normalize_manifest_id(item_copy["manifestId"])
+        m_id = item_copy["manifestId"]
+        key = entry_key(item_copy)
         if key in merged:
-            _update_existing_entry(merged[key], item)
+            _update_existing_entry(merged[key], item_copy)
             continue
 
-        matched_key = _find_compatible_catalog_key(merged, m_id, key, item)
+        matched_key = _find_compatible_catalog_key(merged, m_id, key, item_copy)
         if matched_key:
             existing_entry = merged.pop(matched_key)
-            _update_existing_entry(existing_entry, item)
+            _update_existing_entry(existing_entry, item_copy)
             merged[entry_key(existing_entry)] = existing_entry
         else:
             if any(k[0] == m_id for k in merged):
@@ -576,17 +585,20 @@ def merge_catalogs(existing: list[dict], crawled: list[dict]) -> list[dict]:
                     f"Validation warning: duplicate manifestId {m_id} with distinct CRC key {key}",
                     file=sys.stderr,
                 )
-            merged[key] = dict(item)
+            merged[key] = dict(item_copy)
 
     return list(merged.values())
 
 
 def _validate_crc_fields(m_id: str, entry: dict) -> bool:
-    """Validates hex format for exeCrc and iniCrc if present."""
+    """Validates hex format for exeCrc and iniCrc."""
     valid = True
     for crc_name in ("exeCrc", "iniCrc"):
         crc_val = entry.get(crc_name)
-        if crc_val and not re.match(r"^0x[0-9A-Fa-f]{8}$", crc_val):
+        if not crc_val:
+            print(f"Validation error at {m_id}: missing {crc_name}", file=sys.stderr)
+            valid = False
+        elif not re.match(r"^0x[0-9A-Fa-f]{8}$", crc_val):
             print(f"Validation error at {m_id}: invalid {crc_name} format '{crc_val}'", file=sys.stderr)
             valid = False
     return valid
