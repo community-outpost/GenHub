@@ -481,14 +481,16 @@ public partial class PublisherStudioViewModel : ObservableObject
         // Check if hosting state file exists
         if (!_hostingStateManager.StateFileExists(CurrentProject.ProjectPath))
         {
+            CurrentProject.Catalogs ??= [];
+
             // If this project has previously been published (has catalogs with URLs), prompt recovery
-            var hasPublishedUrls = CurrentProject.Catalogs?.Any(c =>
+            var hasPublishedUrls = CurrentProject.Catalogs.Any(c =>
                 c.Catalog?.Content != null &&
                 c.Catalog.Content.Any(item =>
                     item.Releases != null &&
                     item.Releases.Any(r =>
                         r.Artifacts != null &&
-                        r.Artifacts.Any(a => !string.IsNullOrEmpty(a.DownloadUrl))))) == true;
+                        r.Artifacts.Any(a => !string.IsNullOrEmpty(a.DownloadUrl)))));
 
             if (hasPublishedUrls)
             {
