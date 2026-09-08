@@ -769,6 +769,103 @@ public sealed class ReplayDirectoryServiceTests
     }
 
     /// <summary>
+    /// Verifies that LaunchReplayAsync clears stale profile reference and auto-creates a new profile when the referenced profile no longer exists.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LaunchReplayAsync_WhenAssociatedProfileIsStale_ClearsStaleReferenceAndCreatesNewProfileAsync()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "StaleMatch.rep",
+            FullPath = "/replays/StaleMatch.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            MatchingProfileId = "stale-profile-id",
+            MatchingProfileName = "Old Deleted Profile",
+            CompatibilityStatus = ReplayCompatibilityStatus.Compatible,
+            MatchedClient = new CrcMappingEntry
+            {
+                ExeCrc = "0x401D89EA",
+                IniCrc = "0x76B251A3",
+                ManifestId = "1.104.steam.gameclient.zerohour",
+                Publisher = "steam",
+                GameType = "ZeroHour",
+                Version = "1.04",
+                Description = "Command & Conquer Zero Hour 1.04 Steam",
+            },
+        };
+
+        var steamClient = new GameClient
+        {
+            Id = "1.104.steam.gameclient.zerohour",
+            Name = "Command and Conquer Generals Zero Hour (Steam)",
+            Version = "1.04",
+            GameType = GameType.ZeroHour,
+            PublisherType = "Steam",
+            InstallationId = "steam-inst-1",
+            ExecutablePath = "/steam/generalszh.exe",
+            WorkingDirectory = "/steam",
+        };
+
+        var installation = new GameInstallation("/steam", GameInstallationType.Steam)
+        {
+            Id = "steam-inst-1",
+            HasZeroHour = true,
+            ZeroHourPath = "/steam",
+            AvailableGameClients = [steamClient],
+        };
+
+        _mockInstallationService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+
+        _mockProfileManager
+            .Setup(p => p.GetProfileAsync("stale-profile-id", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("Profile not found"));
+
+        _mockProfileManager
+            .Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        _mockProfileManager
+            .Setup(p => p.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((CreateProfileRequest req, CancellationToken _) =>
+                ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "recreated-profile-100", Name = req.Name }));
+
+        var launchInfo = new GameLaunchInfo
+        {
+            LaunchId = "launch-recreated-100",
+            ProfileId = "recreated-profile-100",
+            WorkspaceId = "ws-recreated-100",
+            ProcessInfo = new GameProcessInfo
+            {
+                ProcessId = 54321,
+                ExecutablePath = "/steam/generalszh.exe",
+            },
+        };
+
+        _mockLauncherFacade
+            .Setup(l => l.LaunchProfileAsync("recreated-profile-100", false, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var result = await service.LaunchReplayAsync(replay);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal("recreated-profile-100", replay.MatchingProfileId);
+        Assert.Equal(ReplayCompatibilityStatus.Compatible, replay.CompatibilityStatus);
+        Assert.Equal("launch-recreated-100", result.Data.LaunchId);
+    }
+
+    /// <summary>
     /// Verifies that profile creation succeeds when targetClient on installation initially has a null ExecutablePath.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
@@ -1604,7 +1701,7 @@ public sealed class ReplayDirectoryServiceTests
         {
             Id = "profile-generic",
             Name = "GeneralsOnline Generic",
-            GameClient = new GameClient { Id = "1.100.generalsonline.gameclient.old", GameType = GameType.ZeroHour, PublisherType = "generalsonline" },
+            GameClient = new GameClient { Id = "1.828261.generalsonline.gameclient.standard", GameType = GameType.ZeroHour, PublisherType = "generalsonline" },
             EnabledContentIds = ["1.100.generalsonline.patch.old"],
         };
 

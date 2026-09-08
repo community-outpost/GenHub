@@ -128,6 +128,11 @@ public static class ReplayManagerConstants
     public const int ReplayHeaderUInt32SizeBytes = 4;
 
     /// <summary>
+    /// The expected schema version of the CRC mapping catalog.
+    /// </summary>
+    public const int CrcCatalogSchemaVersion = 1;
+
+    /// <summary>
     /// Default GitHub URL providing the authoritative community CRC mapping catalog.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official GenHub endpoint for community gameclient CRC catalog.")]

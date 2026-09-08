@@ -301,29 +301,7 @@ public sealed class ReplayDirectoryService(
             replay.GameVersion,
             replay.MatchingProfileId ?? "none");
 
-        if (!string.IsNullOrEmpty(replay.MatchingProfileId))
-        {
-            using var checkScope = scopeFactory.CreateScope();
-            var profileManager = checkScope.ServiceProvider.GetService<IGameProfileManager>();
-            if (profileManager != null)
-            {
-                var profileTask = profileManager.GetProfileAsync(replay.MatchingProfileId, ct);
-                if (profileTask != null)
-                {
-                    var existingCheck = await profileTask;
-                    if (existingCheck != null && (!existingCheck.Success || existingCheck.Data == null))
-                    {
-                        logger.LogWarning(
-                            "[ReplayManager] Profile '{ProfileId}' for replay '{ReplayFile}' no longer exists in repository. Clearing stale reference.",
-                            replay.MatchingProfileId,
-                            replay.FileName);
-                        replay.MatchingProfileId = null;
-                        replay.MatchingProfileName = null;
-                        replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
-                    }
-                }
-            }
-        }
+        await EnsureValidProfileReferenceAsync(replay, ct);
 
         if (string.IsNullOrEmpty(replay.MatchingProfileId))
         {
@@ -457,46 +435,12 @@ public sealed class ReplayDirectoryService(
         }
 
         return compatibleCandidates
-            .Select(p =>
-            {
-                var score = 0;
-                var replayBaseName = !string.IsNullOrEmpty(replay?.FileName) ? Path.GetFileNameWithoutExtension(replay.FileName) : null;
-                var isDedicatedToThisReplay = (!string.IsNullOrEmpty(replay?.MatchingProfileId) && string.Equals(p.Id, replay.MatchingProfileId, StringComparison.OrdinalIgnoreCase)) ||
-                                              (replay != null && (MatchesReplayFileName(p.Description, replay.FileName, logger) ||
-                                               (!string.IsNullOrEmpty(p.Name) && !string.IsNullOrEmpty(replayBaseName) && p.Name.Contains($"(Replay: {replayBaseName})", StringComparison.OrdinalIgnoreCase))));
-
-                if (isDedicatedToThisReplay)
-                {
-                    score += 1000;
-                }
-                else
-                {
-                    var isDedicatedToAnotherReplay = (!string.IsNullOrEmpty(p.Description) && p.Description.Contains("[replay:", StringComparison.OrdinalIgnoreCase)) ||
-                                                     (!string.IsNullOrEmpty(p.Name) && p.Name.Contains("(Replay:", StringComparison.OrdinalIgnoreCase));
-                    if (!isDedicatedToAnotherReplay)
-                    {
-                        score += 500;
-                    }
-                }
-
-                if (string.Equals(p.GameClient?.Id, clientManifestId, StringComparison.OrdinalIgnoreCase))
-                {
-                    score += 50;
-                }
-
-                if (!string.IsNullOrEmpty(dataPatchManifestId) &&
-                    p.EnabledContentIds?.Any(id => string.Equals(id, dataPatchManifestId, StringComparison.OrdinalIgnoreCase)) == true)
-                {
-                    score += 25;
-                }
-
-                return new { Profile = p, Score = score };
-            })
+            .Select(p => new { Profile = p, Score = ScoreCandidateProfile(p, clientManifestId, dataPatchManifestId, replay, logger) })
             .OrderByDescending(x => x.Score)
             .ThenBy(x => x.Profile.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(x => x.Profile.Id, StringComparer.OrdinalIgnoreCase)
             .Select(x => x.Profile)
-            .FirstOrDefault();
+            .First();
     }
 
     /// <summary>
@@ -559,51 +503,49 @@ public sealed class ReplayDirectoryService(
         }
         else
         {
-            replay.MatchedClient = null;
-            var replayBaseName = Path.GetFileNameWithoutExtension(replay.FileName);
-            var unmappedCandidates = profiles
-                .Where(p => p.GameClient?.GameType == replay.GameVersion)
-                .OrderByDescending(p =>
-                {
-                    if (!string.IsNullOrEmpty(replay.MatchingProfileId) &&
-                        string.Equals(p.Id, replay.MatchingProfileId, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return 1000;
-                    }
+            ResolveUnmappedClientCompatibility(replay, profiles);
+        }
+    }
 
-                    var nameMatches = !string.IsNullOrEmpty(p.Name) && !string.IsNullOrEmpty(replayBaseName) &&
-                        p.Name.Contains(replayBaseName, StringComparison.OrdinalIgnoreCase);
-                    var descMatches = MatchesReplayFileName(p.Description, replay.FileName, logger);
+    private static int ScoreCandidateProfile(
+        GameProfile profile,
+        string clientManifestId,
+        string? dataPatchManifestId,
+        ReplayFile? replay,
+        ILogger? logger)
+    {
+        var score = 0;
+        var replayBaseName = !string.IsNullOrEmpty(replay?.FileName) ? Path.GetFileNameWithoutExtension(replay.FileName) : null;
+        var isDedicatedToThisReplay = (!string.IsNullOrEmpty(replay?.MatchingProfileId) && string.Equals(profile.Id, replay.MatchingProfileId, StringComparison.OrdinalIgnoreCase)) ||
+                                      (replay != null && (MatchesReplayFileName(profile.Description, replay.FileName, logger) ||
+                                       (!string.IsNullOrEmpty(profile.Name) && !string.IsNullOrEmpty(replayBaseName) && profile.Name.Contains($"(Replay: {replayBaseName})", StringComparison.OrdinalIgnoreCase))));
 
-                    if (nameMatches || descMatches)
-                    {
-                        return 1000;
-                    }
-
-                    return 0;
-                })
-                .ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(p => p.Id, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            var unmappedProfile = unmappedCandidates.FirstOrDefault(p =>
-                (!string.IsNullOrEmpty(replay.MatchingProfileId) && string.Equals(p.Id, replay.MatchingProfileId, StringComparison.OrdinalIgnoreCase)) ||
-                MatchesReplayFileName(p.Description, replay.FileName, logger) ||
-                (!string.IsNullOrEmpty(p.Name) && !string.IsNullOrEmpty(replayBaseName) && p.Name.Contains(replayBaseName, StringComparison.OrdinalIgnoreCase)));
-
-            if (unmappedProfile != null)
+        if (isDedicatedToThisReplay)
+        {
+            score += 1000;
+        }
+        else
+        {
+            var isDedicatedToAnotherReplay = (!string.IsNullOrEmpty(profile.Description) && profile.Description.Contains("[replay:", StringComparison.OrdinalIgnoreCase)) ||
+                                             (!string.IsNullOrEmpty(profile.Name) && profile.Name.Contains("(Replay:", StringComparison.OrdinalIgnoreCase));
+            if (!isDedicatedToAnotherReplay)
             {
-                replay.MatchingProfileId = unmappedProfile.Id;
-                replay.MatchingProfileName = unmappedProfile.Name;
-                replay.CompatibilityStatus = ReplayCompatibilityStatus.Compatible;
-            }
-            else
-            {
-                replay.MatchingProfileId = null;
-                replay.MatchingProfileName = null;
-                replay.CompatibilityStatus = ReplayCompatibilityStatus.Orphaned;
+                score += 500;
             }
         }
+
+        if (string.Equals(profile.GameClient?.Id, clientManifestId, StringComparison.OrdinalIgnoreCase))
+        {
+            score += 50;
+        }
+
+        if (!string.IsNullOrEmpty(dataPatchManifestId) &&
+            profile.EnabledContentIds?.Any(id => string.Equals(id, dataPatchManifestId, StringComparison.OrdinalIgnoreCase)) == true)
+        {
+            score += 25;
+        }
+
+        return score;
     }
 
     private static async Task<(GameInstallation? Installation, string? Error)> ResolveAndPrepareInstallationAsync(
@@ -695,7 +637,7 @@ public sealed class ReplayDirectoryService(
                     continue;
                 }
 
-                await ResolveAndAddDependencyAsync(manifestPool, dep, enabledContentIds, ct);
+                await ResolveAndAddDependencyAsync(manifestPool, dep, enabledContentIds, logger, ct);
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -708,6 +650,7 @@ public sealed class ReplayDirectoryService(
         IContentManifestPool manifestPool,
         ContentDependency dep,
         List<string> contentIds,
+        ILogger logger,
         CancellationToken ct)
     {
         var depId = dep.Id.Value;
@@ -734,6 +677,14 @@ public sealed class ReplayDirectoryService(
         if (compatible != null)
         {
             AddIdIfNotPresent(contentIds, compatible.Id.Value);
+        }
+        else
+        {
+            logger.LogWarning(
+                "[ReplayDirectoryService] Could not resolve dependency {DepId} ({DepType}, Publisher: {PublisherType}) in local manifest pool",
+                depId,
+                dep.DependencyType,
+                dep.PublisherType);
         }
     }
 
@@ -1637,6 +1588,104 @@ public sealed class ReplayDirectoryService(
             crcMappingRegistry.TryGetEntry(replay.Metadata.FormattedExeCrc, replay.Metadata.FormattedIniCrc, out var resolvedMatch))
         {
             replay.MatchedClient = resolvedMatch;
+        }
+    }
+
+    private async Task EnsureValidProfileReferenceAsync(ReplayFile replay, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(replay.MatchingProfileId))
+        {
+            return;
+        }
+
+        using var checkScope = scopeFactory.CreateScope();
+        var profileManager = checkScope.ServiceProvider.GetService<IGameProfileManager>();
+        if (profileManager == null)
+        {
+            return;
+        }
+
+        var existingCheck = await profileManager.GetProfileAsync(replay.MatchingProfileId, ct);
+        if (existingCheck?.Success == true && existingCheck.Data != null)
+        {
+            return;
+        }
+
+        var isDefinitivelyMissing = false;
+        var errorMsg = existingCheck?.FirstError ?? string.Empty;
+        if (errorMsg.Contains("not found", StringComparison.OrdinalIgnoreCase) ||
+            errorMsg.Contains("does not exist", StringComparison.OrdinalIgnoreCase))
+        {
+            isDefinitivelyMissing = true;
+        }
+        else
+        {
+            var allProfilesResult = await profileManager.GetAllProfilesAsync(ct);
+            if (allProfilesResult.Success && allProfilesResult.Data?.All(p => p.Id != replay.MatchingProfileId) == true)
+            {
+                isDefinitivelyMissing = true;
+            }
+        }
+
+        if (isDefinitivelyMissing)
+        {
+            logger.LogWarning(
+                "[ReplayManager] Profile '{ProfileId}' for replay '{ReplayFile}' no longer exists in repository. Clearing stale reference.",
+                replay.MatchingProfileId,
+                replay.FileName);
+            replay.MatchingProfileId = null;
+            replay.MatchingProfileName = null;
+            replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
+        }
+    }
+
+    private void ResolveUnmappedClientCompatibility(ReplayFile replay, IReadOnlyList<GameProfile> profiles)
+    {
+        replay.MatchedClient = null;
+        var replayBaseName = Path.GetFileNameWithoutExtension(replay.FileName);
+        var expectedReplayTag = $"(Replay: {replayBaseName})";
+
+        var unmappedCandidates = profiles
+            .Where(p => p.GameClient?.GameType == replay.GameVersion)
+            .OrderByDescending(p =>
+            {
+                if (!string.IsNullOrEmpty(replay.MatchingProfileId) &&
+                    string.Equals(p.Id, replay.MatchingProfileId, StringComparison.OrdinalIgnoreCase))
+                {
+                    return 1000;
+                }
+
+                var nameMatches = !string.IsNullOrEmpty(p.Name) && !string.IsNullOrEmpty(replayBaseName) &&
+                    p.Name.Contains(expectedReplayTag, StringComparison.OrdinalIgnoreCase);
+                var descMatches = MatchesReplayFileName(p.Description, replay.FileName, logger);
+
+                if (nameMatches || descMatches)
+                {
+                    return 1000;
+                }
+
+                return 0;
+            })
+            .ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(p => p.Id, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var unmappedProfile = unmappedCandidates.FirstOrDefault(p =>
+            (!string.IsNullOrEmpty(replay.MatchingProfileId) && string.Equals(p.Id, replay.MatchingProfileId, StringComparison.OrdinalIgnoreCase)) ||
+            MatchesReplayFileName(p.Description, replay.FileName, logger) ||
+            (!string.IsNullOrEmpty(p.Name) && !string.IsNullOrEmpty(replayBaseName) && p.Name.Contains(expectedReplayTag, StringComparison.OrdinalIgnoreCase)));
+
+        if (unmappedProfile != null)
+        {
+            replay.MatchingProfileId = unmappedProfile.Id;
+            replay.MatchingProfileName = unmappedProfile.Name;
+            replay.CompatibilityStatus = ReplayCompatibilityStatus.Compatible;
+        }
+        else
+        {
+            replay.MatchingProfileId = null;
+            replay.MatchingProfileName = null;
+            replay.CompatibilityStatus = ReplayCompatibilityStatus.Orphaned;
         }
     }
 }
