@@ -165,55 +165,38 @@ public partial class ReplayManagerViewModel(
 
     /// <summary>
     /// Loads replays for the selected game version.
+    /// Multiple concurrent reload requests are coalesced through a serialization lock.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [RelayCommand]
     public async Task LoadReplaysAsync()
     {
-        EnsureMessengerRegistered();
-        IsBusy = true;
-        IsIndeterminate = true;
-        StatusMessage = "Loading replays...";
         try
         {
-            var replays = await directoryService.GetReplaysAsync(SelectedTab);
-
-            // Marshall to UI thread for collection updates
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            Interlocked.Increment(ref _pendingReloadRequests);
+            await _reloadLock.WaitAsync();
+            try
             {
-                // Update the appropriate collection
-                if (SelectedTab == GameType.Generals)
+                while (Interlocked.Exchange(ref _pendingReloadRequests, 0) > 0)
                 {
-                    GeneralsReplays.Clear();
-                    foreach (var r in replays)
-                    {
-                        GeneralsReplays.Add(r);
-                    }
+                    await LoadReplaysCoreAsync();
                 }
-                else
+            }
+            finally
+            {
+                try
                 {
-                    ZeroHourReplays.Clear();
-                    foreach (var r in replays)
-                    {
-                        ZeroHourReplays.Add(r);
-                    }
+                    _reloadLock.Release();
                 }
-
-                ApplyFilter();
-            });
-
-            StatusMessage = $"Loaded {replays.Count} replays.";
+                catch (ObjectDisposedException)
+                {
+                    // Suppress ObjectDisposedException when viewmodel is disposed during reload release
+                }
+            }
         }
-        catch (Exception ex)
+        catch (ObjectDisposedException)
         {
-            logger.LogError(ex, "Failed to load replays");
-            notificationService.ShowError("Load Error", "Failed to load replays.");
-            StatusMessage = "Error loading replays.";
-        }
-        finally
-        {
-            IsBusy = false;
-            IsIndeterminate = false;
+            // Suppress ObjectDisposedException when viewmodel is disposed while waiting on lock
         }
     }
 
@@ -247,7 +230,7 @@ public partial class ReplayManagerViewModel(
         {
             try
             {
-                await CoalescedReloadReplaysAsync();
+                await LoadReplaysAsync();
             }
             catch (Exception ex)
             {
@@ -263,7 +246,7 @@ public partial class ReplayManagerViewModel(
         {
             try
             {
-                await CoalescedReloadReplaysAsync();
+                await LoadReplaysAsync();
             }
             catch (Exception ex)
             {
@@ -1183,20 +1166,52 @@ public partial class ReplayManagerViewModel(
         _ = LoadReplaysAsync();
     }
 
-    private async Task CoalescedReloadReplaysAsync()
+    private async Task LoadReplaysCoreAsync()
     {
-        Interlocked.Increment(ref _pendingReloadRequests);
-        await _reloadLock.WaitAsync();
+        EnsureMessengerRegistered();
+        IsBusy = true;
+        IsIndeterminate = true;
+        StatusMessage = "Loading replays...";
         try
         {
-            while (Interlocked.Exchange(ref _pendingReloadRequests, 0) > 0)
+            var replays = await directoryService.GetReplaysAsync(SelectedTab);
+
+            // Marshall to UI thread for collection updates
+            await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                await LoadReplaysAsync();
-            }
+                // Update the appropriate collection
+                if (SelectedTab == GameType.Generals)
+                {
+                    GeneralsReplays.Clear();
+                    foreach (var r in replays)
+                    {
+                        GeneralsReplays.Add(r);
+                    }
+                }
+                else
+                {
+                    ZeroHourReplays.Clear();
+                    foreach (var r in replays)
+                    {
+                        ZeroHourReplays.Add(r);
+                    }
+                }
+
+                ApplyFilter();
+            });
+
+            StatusMessage = $"Loaded {replays.Count} replays.";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to load replays");
+            notificationService.ShowError("Load Error", "Failed to load replays.");
+            StatusMessage = "Error loading replays.";
         }
         finally
         {
-            _reloadLock.Release();
+            IsBusy = false;
+            IsIndeterminate = false;
         }
     }
 }
