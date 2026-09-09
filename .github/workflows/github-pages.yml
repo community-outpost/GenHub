@@ -97,12 +97,12 @@ jobs:
               }
             </script>
             <style>
-              body { font-family: system-ui, -apple-system, sans-serif; background: #0b0f19; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; }
+              body { font-family: system-ui, -apple-system, sans-serif; background: #0a0612; color: #f0f4ff; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; }
               .box { max-width: 480px; padding: 32px; }
-              h1 { font-size: 3rem; margin: 0 0 12px; color: #38bdf8; }
-              p { color: #94a3b8; font-size: 1.1rem; line-height: 1.6; }
-              a { color: #38bdf8; text-decoration: none; }
-              a:hover { text-decoration: underline; }
+              h1 { font-size: 3rem; margin: 0 0 12px; color: #a78bfa; }
+              p { color: #c7d2fe; font-size: 1.1rem; line-height: 1.6; }
+              a { color: #a855f7; text-decoration: none; }
+              a:hover { text-decoration: underline; color: #c084fc; }
             </style>
           </head>
           <body>
