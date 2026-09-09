@@ -725,8 +725,7 @@ public sealed class BuildEngineService(
     {
         // determine if file needs conversion
         var extension = Path.GetExtension(filePath).ToLowerInvariant();
-        var fileName = Path.GetFileName(filePath);
-        var targetPath = GetTargetPathForFile(BuildIndex.RawBundleItem, fileName, setup);
+        var targetPath = GetTargetPathForFile(filePath, BuildIndex.RawBundleItem, setup);
 
         // perform format conversions based on file type
         return extension switch
@@ -785,9 +784,16 @@ public sealed class BuildEngineService(
         }
     }
 
-    private static string GetTargetPathForFile(BuildIndex stage, string fileName, BuildSetup setup)
+    private static string GetTargetPathForFile(string sourcePath, BuildIndex stage, BuildSetup setup)
     {
         var buildDir = setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir;
+        var fileName = Path.GetFileName(sourcePath);
+
+        if (stage == BuildIndex.RawBundleItem)
+        {
+            return GetRawBundleItemTargetPath(sourcePath, buildDir, fileName, setup.Bundles?.Items);
+        }
+
         return stage switch
         {
             BuildIndex.BigBundleItem => Path.Combine(buildDir, ModBuilderConstants.BundlesSubdir, fileName),
@@ -796,6 +802,30 @@ public sealed class BuildEngineService(
             BuildIndex.CreateManifest => Path.Combine(buildDir, ModBuilderConstants.BundlesSubdir, fileName),
             _ => string.Empty,
         };
+    }
+
+    private static string GetRawBundleItemTargetPath(string sourcePath, string buildDir, string fileName, IEnumerable<BundleItem>? items)
+    {
+        if (items != null)
+        {
+            foreach (var item in items)
+            {
+                var matchingFile = item.Files.FirstOrDefault(f => string.Equals(f.AbsSourceFile, sourcePath, StringComparison.OrdinalIgnoreCase));
+                if (matchingFile != null)
+                {
+                    var relPath = !string.IsNullOrEmpty(matchingFile.RelTargetFile)
+                        ? matchingFile.RelTargetFile
+                        : matchingFile.GetRelSourceFile();
+
+                    if (!string.IsNullOrEmpty(relPath))
+                    {
+                        return Path.Combine(buildDir, ModBuilderConstants.RawBundleItemsSubdir, relPath.TrimStart('/', '\\'));
+                    }
+                }
+            }
+        }
+
+        return Path.Combine(buildDir, ModBuilderConstants.RawBundleItemsSubdir, fileName);
     }
 
     private List<string> GetFilesForStage(BuildIndex stage)
