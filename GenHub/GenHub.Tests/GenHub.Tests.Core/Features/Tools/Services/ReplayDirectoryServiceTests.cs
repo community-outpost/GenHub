@@ -81,7 +81,14 @@ public sealed class ReplayDirectoryServiceTests
 
         _mockProfileManager
             .Setup(p => p.GetProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile()));
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile
+            {
+                GameClient = new GameClient
+                {
+                    Id = "1.104.retail.gameclient.zerohour",
+                    GameType = GameType.ZeroHour,
+                },
+            }));
     }
 
     /// <summary>
@@ -120,6 +127,10 @@ public sealed class ReplayDirectoryServiceTests
             HasZeroHour = true,
             ZeroHourPath = "/games/ZeroHour",
         };
+
+        _mockDependencyResolver
+            .Setup(r => r.ResolveDependenciesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) => new HashSet<string>(ids));
 
         _mockInstallationService
             .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
@@ -186,6 +197,10 @@ public sealed class ReplayDirectoryServiceTests
             HasZeroHour = true,
             ZeroHourPath = "/games/ZeroHour",
         };
+
+        _mockDependencyResolver
+            .Setup(r => r.ResolveDependenciesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) => new HashSet<string>(ids));
 
         _mockInstallationService
             .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
@@ -305,7 +320,7 @@ public sealed class ReplayDirectoryServiceTests
         };
 
         _mockLauncherFacade
-            .Setup(l => l.LaunchProfileAsync("existing-profile-id", false, It.IsAny<CancellationToken>()))
+            .Setup(l => l.LaunchProfileAsync("existing-profile-id", true, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
 
         var service = new ReplayDirectoryService(
@@ -530,6 +545,10 @@ public sealed class ReplayDirectoryServiceTests
             AvailableGameClients = [steamClient],
         };
 
+        _mockDependencyResolver
+            .Setup(r => r.ResolveDependenciesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) => new HashSet<string>(ids));
+
         _mockInstallationService
             .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
@@ -559,7 +578,7 @@ public sealed class ReplayDirectoryServiceTests
         Assert.NotNull(capturedRequest.EnabledContentIds);
         Assert.Contains("1.104.steam.gameinstallation.zerohour", capturedRequest.EnabledContentIds);
         Assert.Contains("1.104.steam.gameclient.zerohour", capturedRequest.EnabledContentIds);
-        Assert.True(capturedRequest.UseSteamLaunch);
+        Assert.False(capturedRequest.UseSteamLaunch);
         Assert.Equal("steam-zh-profile", replay.MatchingProfileId);
         Assert.Equal(ReplayCompatibilityStatus.Compatible, replay.CompatibilityStatus);
     }
@@ -600,6 +619,10 @@ public sealed class ReplayDirectoryServiceTests
             HasZeroHour = true,
             ZeroHourPath = "/games/ZeroHour",
         };
+
+        _mockDependencyResolver
+            .Setup(r => r.ResolveDependenciesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) => new HashSet<string>(ids));
 
         _mockInstallationService
             .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
@@ -724,6 +747,10 @@ public sealed class ReplayDirectoryServiceTests
             AvailableGameClients = [steamClient],
         };
 
+        _mockDependencyResolver
+            .Setup(r => r.ResolveDependenciesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) => new HashSet<string>(ids));
+
         _mockInstallationService
             .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
@@ -750,7 +777,7 @@ public sealed class ReplayDirectoryServiceTests
         };
 
         _mockLauncherFacade
-            .Setup(l => l.LaunchProfileAsync("auto-created-profile-99", false, It.IsAny<CancellationToken>()))
+            .Setup(l => l.LaunchProfileAsync("auto-created-profile-99", true, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
 
         var service = new ReplayDirectoryService(
@@ -817,6 +844,10 @@ public sealed class ReplayDirectoryServiceTests
             AvailableGameClients = [steamClient],
         };
 
+        _mockDependencyResolver
+            .Setup(r => r.ResolveDependenciesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) => new HashSet<string>(ids));
+
         _mockInstallationService
             .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
@@ -847,7 +878,7 @@ public sealed class ReplayDirectoryServiceTests
         };
 
         _mockLauncherFacade
-            .Setup(l => l.LaunchProfileAsync("recreated-profile-100", false, It.IsAny<CancellationToken>()))
+            .Setup(l => l.LaunchProfileAsync("recreated-profile-100", true, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
 
         var service = new ReplayDirectoryService(
@@ -916,6 +947,10 @@ public sealed class ReplayDirectoryServiceTests
             AvailableGameClients = [incompleteClient],
         };
 
+        _mockDependencyResolver
+            .Setup(r => r.ResolveDependenciesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) => new HashSet<string>(ids));
+
         _mockInstallationService
             .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
@@ -972,7 +1007,7 @@ public sealed class ReplayDirectoryServiceTests
             {
                 ExeCrc = "0x6DBF4405",
                 IniCrc = "0x51ACED23",
-                ManifestId = "1.828261.generalsonline.gameclient.zerohour",
+                ManifestId = "1.82826.generalsonline.gameclient.zerohour",
                 DataPatchManifestId = "1.828261.generalsonline.patch.gamedata",
                 Publisher = "generalsonline",
                 GameType = "ZeroHour",
@@ -1102,7 +1137,7 @@ public sealed class ReplayDirectoryServiceTests
             {
                 ExeCrc = "0x6DBF4405",
                 IniCrc = "0x51ACED23",
-                ManifestId = "1.828261.generalsonline.gameclient.zerohour",
+                ManifestId = "1.82826.generalsonline.gameclient.zerohour",
                 Publisher = "generalsonline",
                 GameType = "ZeroHour",
                 Version = "082826",
@@ -1115,6 +1150,10 @@ public sealed class ReplayDirectoryServiceTests
             HasZeroHour = true,
             ZeroHourPath = "/games/ZeroHour",
         };
+
+        _mockDependencyResolver
+            .Setup(r => r.ResolveDependenciesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) => new HashSet<string>(ids));
 
         _mockInstallationService
             .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
@@ -1135,7 +1174,7 @@ public sealed class ReplayDirectoryServiceTests
         };
 
         _mockManifestPool
-            .Setup(m => m.GetManifestAsync(ManifestId.Create("1.828261.generalsonline.gameclient.zerohour"), It.IsAny<CancellationToken>()))
+            .Setup(m => m.GetManifestAsync(ManifestId.Create("1.82826.generalsonline.gameclient.zerohour"), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateFailure("Not found"));
 
         _mockManifestPool
@@ -1250,7 +1289,7 @@ public sealed class ReplayDirectoryServiceTests
         {
             ExeCrc = "0x6DBF4405",
             IniCrc = "0x51ACED23",
-            ManifestId = "1.828261.generalsonline.gameclient.zerohour",
+            ManifestId = "1.82826.generalsonline.gameclient.zerohour",
             Publisher = "generalsonline",
             GameType = "ZeroHour",
             Version = "082826",
@@ -1449,6 +1488,10 @@ public sealed class ReplayDirectoryServiceTests
             ZeroHourPath = "/steam/zh",
         };
 
+        _mockDependencyResolver
+            .Setup(r => r.ResolveDependenciesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) => new HashSet<string>(ids));
+
         _mockInstallationService
             .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
@@ -1521,7 +1564,7 @@ public sealed class ReplayDirectoryServiceTests
         Assert.True(result.Success, result.FirstError ?? "Profile creation failed");
         Assert.NotNull(capturedRequest);
         Assert.Equal(WorkspaceStrategy.SymlinkOnly, capturedRequest.WorkspaceStrategy);
-        Assert.True(capturedRequest.UseSteamLaunch);
+        Assert.False(capturedRequest.UseSteamLaunch);
         Assert.NotNull(capturedRequest.EnabledContentIds);
         Assert.Contains("1.828261.generalsonline.mappack.quickmatch-maps", capturedRequest.EnabledContentIds);
     }
@@ -1565,8 +1608,25 @@ public sealed class ReplayDirectoryServiceTests
             },
         };
 
+        var existingProfile = new GameProfile
+        {
+            Id = existingProfileId,
+            Name = "Existing Profile",
+            GameClient = new GameClient
+            {
+                Id = "1.828261.generalsonline.gameclient.60hz",
+                PublisherType = "generalsonline",
+                GameType = GameType.ZeroHour,
+            },
+            EnabledContentIds = ["1.828261.generalsonline.gameclient.60hz"],
+        };
+
+        _mockProfileManager
+            .Setup(p => p.GetProfileAsync(existingProfileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
+
         _mockLauncherFacade
-            .Setup(l => l.LaunchProfileAsync(existingProfileId, false, It.IsAny<CancellationToken>()))
+            .Setup(l => l.LaunchProfileAsync(existingProfileId, true, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
 
         var service = new ReplayDirectoryService(
@@ -1580,7 +1640,7 @@ public sealed class ReplayDirectoryServiceTests
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal(12345, result.Data.ProcessInfo?.ProcessId);
-        _mockLauncherFacade.Verify(l => l.LaunchProfileAsync(existingProfileId, false, It.IsAny<CancellationToken>()), Times.Once());
+        _mockLauncherFacade.Verify(l => l.LaunchProfileAsync(existingProfileId, true, It.IsAny<CancellationToken>()), Times.Once());
         _mockProfileManager.Verify(p => p.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()), Times.Never());
     }
 
@@ -1786,8 +1846,8 @@ public sealed class ReplayDirectoryServiceTests
             GameVersion = GameType.ZeroHour,
             MatchedClient = new CrcMappingEntry
             {
-                Publisher = "ea",
-                ManifestId = "1.0.ea.gameinstallation.zerohour",
+                Publisher = "retail",
+                ManifestId = "1.104.retail.gameclient.zerohour",
                 Version = "1.04",
             },
         };
@@ -1808,7 +1868,7 @@ public sealed class ReplayDirectoryServiceTests
         var match = ReplayDirectoryService.FindMatchingProfile(
             [communityProfile],
             GameType.ZeroHour,
-            "1.0.ea.gameinstallation.zerohour",
+            "1.104.retail.gameclient.zerohour",
             null,
             replay);
 
@@ -1877,17 +1937,21 @@ public sealed class ReplayDirectoryServiceTests
             AvailableGameClients = [retailClient],
         };
 
+        _mockDependencyResolver
+            .Setup(r => r.ResolveDependenciesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) => new HashSet<string>(ids));
+
         _mockInstallationService
             .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
 
+        _mockDependencyResolver
+            .Setup(r => r.ResolveDependenciesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) => new HashSet<string>(ids));
+
         _mockProfileManager
             .Setup(p => p.GetProfileAsync("incompatible-community-profile", It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(incompatibleProfile));
-
-        _mockProfileManager
-            .Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([incompatibleProfile]));
 
         _mockProfileManager
             .Setup(p => p.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
@@ -1907,7 +1971,7 @@ public sealed class ReplayDirectoryServiceTests
         };
 
         _mockLauncherFacade
-            .Setup(l => l.LaunchProfileAsync("created-retail-profile", false, It.IsAny<CancellationToken>()))
+            .Setup(l => l.LaunchProfileAsync("created-retail-profile", true, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
 
         var service = new ReplayDirectoryService(
@@ -1923,5 +1987,189 @@ public sealed class ReplayDirectoryServiceTests
         Assert.Equal("created-retail-profile", replay.MatchingProfileId);
         Assert.Equal(ReplayCompatibilityStatus.Compatible, replay.CompatibilityStatus);
         Assert.Equal("launch-retail-100", result.Data.LaunchId);
+
+        _mockProfileManager.Verify(p => p.GetProfileAsync("incompatible-community-profile", It.IsAny<CancellationToken>()), Times.Once);
+        _mockProfileManager.Verify(p => p.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that CreateProfileForReplayAsync for a SuperHackers replay assigns generalszh.exe rather than retail generals.exe.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateProfileForReplayAsync_WhenSuperHackersClient_ResolvesGeneralsZhExecutableAsync()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "Match_TSH.rep",
+            FullPath = "/replays/Match_TSH.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0x27533BB0,
+                IniCrc = 0x76B251A3,
+            },
+            MatchedClient = new CrcMappingEntry
+            {
+                ExeCrc = "0x27533BB0",
+                IniCrc = "0x76B251A3",
+                ManifestId = "1.20260821.thesuperhackers.gameclient.zerohour",
+                Publisher = "thesuperhackers",
+                GameType = "ZeroHour",
+                Version = "2026-08-21",
+                Description = "TheSuperHackers 2026-08-21",
+            },
+        };
+
+        var installation = new GameInstallation("/games/ZeroHour", GameInstallationType.Retail)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = "/games/ZeroHour",
+            AvailableGameClients =
+            [
+                new GameClient
+                {
+                    ExecutablePath = "/games/ZeroHour/generals.exe",
+                    WorkingDirectory = "/games/ZeroHour",
+                    GameType = GameType.ZeroHour,
+                },
+            ],
+        };
+
+        _mockDependencyResolver
+            .Setup(r => r.ResolveDependenciesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) => new HashSet<string>(ids));
+
+        _mockInstallationService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+
+        _mockProfileManager
+            .Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        CreateProfileRequest? capturedRequest = null;
+        _mockProfileManager
+            .Setup(p => p.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<CreateProfileRequest, CancellationToken>((req, _) => capturedRequest = req)
+            .ReturnsAsync((CreateProfileRequest req, CancellationToken _) =>
+                ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "profile-tsh-1", Name = req.Name }));
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var result = await service.CreateProfileForReplayAsync(replay);
+
+        Assert.True(result.Success);
+        Assert.NotNull(capturedRequest?.GameClient);
+        Assert.EndsWith("generalszh.exe", capturedRequest.GameClient.ExecutablePath, StringComparison.OrdinalIgnoreCase);
+        Assert.False(capturedRequest.UseSteamLaunch);
+    }
+
+    /// <summary>
+    /// Verifies that IsProfileMatchingThirdParty rejects a profile with an incompatible data patch version.
+    /// </summary>
+    [Fact]
+    public void IsProfileMatchingThirdParty_WhenDataPatchVersionDiffers_ReturnsFalse()
+    {
+        var profile = new GameProfile
+        {
+            Id = "profile-qfe1",
+            GameClient = new GameClient
+            {
+                Id = "1.82826.generalsonline.gameclient.zerohour",
+                PublisherType = "generalsonline",
+            },
+            EnabledContentIds =
+            [
+                "1.828261.generalsonline.patch.gamedata",
+            ],
+        };
+
+        // Target requires base patch 1.82826, but profile has QFE1 patch 1.828261
+        var matches = ReplayDirectoryService.IsProfileMatchingThirdParty(
+            profile,
+            "1.82826.generalsonline.gameclient.zerohour",
+            "1.82826.generalsonline.patch.gamedata");
+
+        Assert.False(matches);
+    }
+
+    /// <summary>
+    /// Verifies that ResolveInstallation prioritizes the installation whose publisher matches the replay client.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateProfileForReplayAsync_WhenMultipleInstallationsExist_PrioritizesPublisherMatch()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "SteamMatch.rep",
+            FullPath = "/replays/SteamMatch.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0x401D89EA,
+                IniCrc = 0x76B251A3,
+            },
+            MatchedClient = new CrcMappingEntry
+            {
+                ExeCrc = "0x401D89EA",
+                IniCrc = "0x76B251A3",
+                ManifestId = "1.104.steam.gameclient.zerohour",
+                Publisher = "Steam",
+                GameType = "ZeroHour",
+                Version = "1.04",
+                Description = "Zero Hour Steam",
+            },
+        };
+
+        var retailInstall = new GameInstallation("/games/Retail", GameInstallationType.Retail)
+        {
+            Id = "retail-id",
+            HasZeroHour = true,
+            ZeroHourPath = "/games/Retail",
+        };
+
+        var steamInstall = new GameInstallation("/games/Steam", GameInstallationType.Steam)
+        {
+            Id = "steam-id",
+            HasZeroHour = true,
+            ZeroHourPath = "/games/Steam",
+        };
+
+        _mockInstallationService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([retailInstall, steamInstall]));
+
+        _mockProfileManager
+            .Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        CreateProfileRequest? capturedRequest = null;
+        _mockProfileManager
+            .Setup(p => p.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<CreateProfileRequest, CancellationToken>((req, _) => capturedRequest = req)
+            .ReturnsAsync((CreateProfileRequest req, CancellationToken _) =>
+                ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "steam-matched-profile", Name = req.Name }));
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var result = await service.CreateProfileForReplayAsync(replay);
+
+        Assert.True(result.Success);
+        Assert.NotNull(capturedRequest);
+        Assert.Equal("steam-id", capturedRequest.GameInstallationId);
     }
 }

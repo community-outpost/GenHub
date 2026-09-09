@@ -286,8 +286,7 @@ public abstract class WorkspaceStrategyBase<T>(
                     resolution);
             }
         }
-
-        if (string.IsNullOrEmpty(workspaceInfo.ExecutablePath) && !string.IsNullOrEmpty(configuration.GameClient?.ExecutablePath))
+        else if (!string.IsNullOrEmpty(configuration.GameClient.ExecutablePath))
         {
             // Fallback: Search for executable by filename in any manifest
             // This supports legacy scenarios and simple workspaces
@@ -300,7 +299,7 @@ public abstract class WorkspaceStrategyBase<T>(
             if (executableExistsInManifest)
             {
                 workspaceInfo.ExecutablePath = Path.Combine(workspaceInfo.WorkspacePath, executableFileName);
-                logger.LogInformation(
+                logger.LogDebug(
                     "Executable path resolved by filename search: {ExecutablePath}",
                     workspaceInfo.ExecutablePath);
             }
@@ -311,7 +310,7 @@ public abstract class WorkspaceStrategyBase<T>(
                     executableFileName);
             }
         }
-        else if (string.IsNullOrEmpty(workspaceInfo.ExecutablePath))
+        else
         {
             logger.LogDebug("No GameClient configuration or manifest available - executable path not set");
         }

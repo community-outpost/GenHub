@@ -58,10 +58,8 @@ public sealed class CrcMappingRegistryTests
         Assert.NotNull(found2);
         Assert.Equal(entry.ManifestId, found2.ManifestId);
 
-        // Fallback synthesis when Exe CRC is known with custom INI
-        Assert.True(registry.TryGetEntry("0x27533BB0", "0xDEADBEEF", out var fallback));
-        Assert.NotNull(fallback);
-        Assert.Equal("Custom INI (0xDEADBEEF)", fallback.DataPatchName);
+        // Strict pair-only matching: unknown INI CRC rejects even if Exe CRC is known
+        Assert.False(registry.TryGetEntry("0x27533BB0", "0xDEADBEEF", out _));
 
         // Strict rejection when Exe CRC is completely unknown
         Assert.False(registry.TryGetEntry("0x99999999", "0xDEADBEEF", out _));

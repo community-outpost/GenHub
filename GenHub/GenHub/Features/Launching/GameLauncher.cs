@@ -1103,21 +1103,8 @@ public class GameLauncher(
 
         if (string.IsNullOrEmpty(finalExecutablePath))
         {
-            if (!string.IsNullOrEmpty(workspaceInfo.WorkspacePath) && !string.IsNullOrEmpty(profile.GameClient?.ExecutablePath))
-            {
-                var candidateInWorkspace = Path.Combine(workspaceInfo.WorkspacePath, Path.GetFileName(profile.GameClient.ExecutablePath));
-                if (File.Exists(candidateInWorkspace))
-                {
-                    finalExecutablePath = candidateInWorkspace;
-                    logger.LogInformation("[GameLauncher] Executable resolved from workspace fallback: {ExecutablePath}", finalExecutablePath);
-                }
-            }
-
-            if (string.IsNullOrEmpty(finalExecutablePath))
-            {
-                finalExecutablePath = profile.GameClient?.ExecutablePath;
-                logger.LogWarning("[GameLauncher] Executable not resolved from workspace, falling back to profile: {ExecutablePath}", finalExecutablePath);
-            }
+            finalExecutablePath = profile.GameClient?.ExecutablePath;
+            logger.LogWarning("[GameLauncher] Executable not resolved from workspace, falling back to profile: {ExecutablePath}", finalExecutablePath);
         }
 
         if (string.IsNullOrEmpty(finalExecutablePath))

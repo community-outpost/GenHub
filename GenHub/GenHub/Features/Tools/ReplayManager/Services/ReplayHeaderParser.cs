@@ -81,9 +81,9 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
 
             return ParseHeaderBuffer(buffer, bytesRead);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            logger.LogError(ex, "Unexpected error parsing replay header");
+            logger.LogError(ex, "IO error parsing replay header from stream");
             return OperationResult<ReplayMetadata>.CreateFailure($"Failed to parse replay header: {ex.Message}");
         }
     }

@@ -1116,65 +1116,38 @@ public class ProfileLauncherFacade(
             return (manifests, false, false);
         }
 
-        var allManifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
-        var pooledManifests = allManifestsResult.Success && allManifestsResult.Data != null
-            ? allManifestsResult.Data.ToList()
-            : [];
-
         foreach (var contentId in profile.EnabledContentIds)
         {
-            var (manifest, isValid) = await ResolveManifestForValidationAsync(contentId, pooledManifests, cancellationToken);
-            if (manifest != null)
+            if (!ManifestId.TryCreate(contentId, out var manifestId))
             {
-                manifests.Add(manifest);
-
-                if (manifest.ContentType == Core.Models.Enums.ContentType.GameInstallation)
-                {
-                    hasGameInstallationManifest = true;
-                }
-                else if (manifest.ContentType == Core.Models.Enums.ContentType.GameClient)
-                {
-                    hasGameClientManifest = true;
-                }
+                logger.LogWarning("Skipping invalid manifest ID during validation: {ContentId}", contentId);
+                continue;
             }
-            else if (isValid)
-            {
-                logger.LogWarning("Manifest for content ID '{ContentId}' not found in pool during launch validation", contentId);
-            }
-        }
 
-        return (manifests, hasGameInstallationManifest, hasGameClientManifest);
-    }
-
-    private async Task<(ContentManifest? Manifest, bool IsValid)> ResolveManifestForValidationAsync(
-        string contentId,
-        IReadOnlyList<ContentManifest> pooledManifests,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            if (ManifestId.TryCreate(contentId, out var manifestId))
+            try
             {
                 var manifestResult = await manifestPool.GetManifestAsync(manifestId, cancellationToken);
                 if (manifestResult.Success && manifestResult.Data != null)
                 {
-                    return (manifestResult.Data, true);
+                    manifests.Add(manifestResult.Data);
+
+                    if (manifestResult.Data.ContentType == Core.Models.Enums.ContentType.GameInstallation)
+                    {
+                        hasGameInstallationManifest = true;
+                    }
+                    else if (manifestResult.Data.ContentType == Core.Models.Enums.ContentType.GameClient)
+                    {
+                        hasGameClientManifest = true;
+                    }
                 }
             }
-
-            var declaredParts = contentId.Split(ManifestConstants.ManifestIdSegmentSeparator);
-            var match = pooledManifests.FirstOrDefault(m =>
+            catch (ArgumentException ex)
             {
-                var acquiredParts = m.Id.Value.Split(ManifestConstants.ManifestIdSegmentSeparator);
-                return DependencyResolver.HasCompatibleCatalogIdentity(declaredParts, acquiredParts);
-            });
-            return (match, true);
+                logger.LogWarning(ex, "Skipping invalid manifest ID during validation: {ContentId}", contentId);
+            }
         }
-        catch (ArgumentException ex)
-        {
-            logger.LogWarning(ex, "Skipping invalid manifest ID during validation: {ContentId}", contentId);
-            return (null, false);
-        }
+
+        return (manifests, hasGameInstallationManifest, hasGameClientManifest);
     }
 
     private async Task<Dictionary<string, string>> ResolveManifestSourcePathsAsync(
