@@ -1945,10 +1945,6 @@ public sealed class ReplayDirectoryServiceTests
             .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
 
-        _mockDependencyResolver
-            .Setup(r => r.ResolveDependenciesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) => new HashSet<string>(ids));
-
         _mockProfileManager
             .Setup(p => p.GetProfileAsync("incompatible-community-profile", It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(incompatibleProfile));
@@ -2144,6 +2140,10 @@ public sealed class ReplayDirectoryServiceTests
             HasZeroHour = true,
             ZeroHourPath = "/games/Steam",
         };
+
+        _mockDependencyResolver
+            .Setup(r => r.ResolveDependenciesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) => new HashSet<string>(ids));
 
         _mockInstallationService
             .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))

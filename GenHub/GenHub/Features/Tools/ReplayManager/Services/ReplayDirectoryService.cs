@@ -861,12 +861,6 @@ public sealed class ReplayDirectoryService(
                manifestId.Contains(communityOutpostSegment, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsOfficialOrRetailPublisher(string? publisher) =>
-        !string.IsNullOrWhiteSpace(publisher) && !IsThirdPartyPublisher(publisher);
-
-    private static bool IsOfficialOrRetailManifestId(string? manifestId) =>
-        !string.IsNullOrWhiteSpace(manifestId) && !IsThirdPartyManifestId(manifestId);
-
     private static bool IsRetailClient(string? publisher, string? manifestId)
     {
         if (IsThirdPartyPublisher(publisher) || IsThirdPartyManifestId(manifestId))
@@ -898,9 +892,7 @@ public sealed class ReplayDirectoryService(
             return false;
         }
 
-        var isProfileThirdParty = IsThirdPartyPublisher(profile.GameClient.PublisherType) ||
-                                  IsThirdPartyManifestId(profile.GameClient.Id) ||
-                                  profile.EnabledContentIds?.Any(id => IsThirdPartyManifestId(id)) == true;
+        var isProfileThirdParty = profile.EnabledContentIds?.Any(id => IsThirdPartyManifestId(id)) == true;
 
         if (isProfileThirdParty)
         {
@@ -1539,7 +1531,7 @@ public sealed class ReplayDirectoryService(
             return CreateRetailGameClient(installation, replay, defaultVersion, exePath, workingDir, targetClient);
         }
 
-        return await ResolveThirdPartyGameClientAsync(installation, replay, defaultVersion, workingDir, manifestPool, contentOrchestrator, ct);
+        return await ResolveThirdPartyGameClientAsync(installation, replay, defaultVersion, workingDir, targetClient, manifestPool, contentOrchestrator, ct);
     }
 
     private async Task<(string ClientManifestId, GameClient GameClient)> ResolveThirdPartyGameClientAsync(
@@ -1547,6 +1539,7 @@ public sealed class ReplayDirectoryService(
         ReplayFile replay,
         string defaultVersion,
         string workingDir,
+        GameClient? targetClient,
         IContentManifestPool manifestPool,
         IContentOrchestrator? contentOrchestrator,
         CancellationToken ct)
@@ -1571,7 +1564,16 @@ public sealed class ReplayDirectoryService(
 
         if (string.IsNullOrWhiteSpace(relativeExePath))
         {
-            relativeExePath = GetDefaultExecutableName(replay.GameVersion, replay.MatchedClient?.Publisher);
+            if (targetClient != null &&
+                string.Equals(targetClient.PublisherType, replay.MatchedClient?.Publisher, StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(targetClient.ExecutablePath))
+            {
+                relativeExePath = Path.GetFileName(targetClient.ExecutablePath);
+            }
+            else
+            {
+                relativeExePath = GetDefaultExecutableName(replay.GameVersion, replay.MatchedClient?.Publisher);
+            }
         }
 
         var thirdPartyExePath = !string.IsNullOrWhiteSpace(workingDir)
