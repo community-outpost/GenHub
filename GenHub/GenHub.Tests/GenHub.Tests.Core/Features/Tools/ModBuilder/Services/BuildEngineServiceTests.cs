@@ -137,7 +137,7 @@ public sealed class BuildEngineServiceTests : IDisposable
 
         // Assert
         result.Should().NotBeNull();
-        result.Success.Should().BeTrue(result.ErrorMessage);
+        result.Success.Should().BeTrue(result.FirstError);
     }
 
     [Fact]
@@ -181,7 +181,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         var result = await _service.ExecuteBuildAsync(project, configuration, selectedPacks, BuildStep.Build, progressMock.Object);
 
         // Assert
-        result.Success.Should().BeTrue(result.ErrorMessage);
+        result.Success.Should().BeTrue(result.FirstError);
         progressMock.Verify(p => p.Report(It.IsAny<string>()), Times.AtLeastOnce());
     }
 
@@ -303,7 +303,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         var result = await _service.ExecuteBuildAsync(project, configuration, selectedPacks, BuildStep.Build);
 
         // Assert
-        result.Success.Should().BeTrue(result.ErrorMessage);
+        result.Success.Should().BeTrue(result.FirstError);
         result.FilesProcessed.Should().BeGreaterThan(0);
     }
 
@@ -361,7 +361,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         var result = await _service.ExecuteBuildAsync(project, configuration, selectedPacks, BuildStep.Build);
 
         // Assert
-        result.Success.Should().BeTrue(result.ErrorMessage);
+        result.Success.Should().BeTrue(result.FirstError);
         result.FilesSkipped.Should().BeGreaterThan(0);
     }
 
@@ -453,7 +453,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         var result = await _service.ExecuteBuildAsync(project, configuration, selectedPacks, BuildStep.Build);
 
         // Assert
-        result.Success.Should().BeTrue(result.ErrorMessage);
+        result.Success.Should().BeTrue(result.FirstError);
         result.FilesProcessed.Should().Be(0);
     }
 
@@ -531,7 +531,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         var result = await _service.ExecuteBuildAsync(project, configuration, selectedPacks, BuildStep.Build);
 
         // Assert
-        result.Success.Should().BeTrue(result.ErrorMessage);
+        result.Success.Should().BeTrue(result.FirstError);
         result.FilesProcessed.Should().BeGreaterOrEqualTo(2);
     }
 
@@ -655,7 +655,7 @@ public sealed class BuildEngineServiceTests : IDisposable
             BuildStep.Build | BuildStep.Release);
 
         // Assert
-        result.Success.Should().BeTrue(result.ErrorMessage);
+        result.Success.Should().BeTrue(result.FirstError);
         result.FilesProcessed.Should().Be(4);
     }
 
@@ -714,7 +714,7 @@ public sealed class BuildEngineServiceTests : IDisposable
             BuildStep.CreateManifest);
 
         // Assert
-        result.Success.Should().BeTrue(result.ErrorMessage);
+        result.Success.Should().BeTrue(result.FirstError);
         _mockLocalContentService.Verify(
             x => x.CreateLocalContentManifestAsync(
                 It.IsAny<string>(),
