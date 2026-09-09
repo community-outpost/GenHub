@@ -1023,6 +1023,64 @@ public class ManifestGenerationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync shows warning notification and suppresses success when a required file is skipped due to access failure.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_WhenRequiredFileSkippedDueToAccessFailure_DispatchesWarningNotificationAsync()
+    {
+        // Arrange
+        var notificationServiceMock = new Mock<INotificationService>();
+        var failingHashProviderMock = new Mock<IFileHashProvider>();
+        failingHashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string path, CancellationToken ct) => $"hash_{Path.GetFileName(path)}");
+        failingHashProviderMock.Setup(x => x.ComputeFileHashAsync(It.Is<string>(p => p.Contains("game.dat")), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("Simulated I/O failure on required file"));
+
+        var serviceWithNotifications = new ManifestGenerationService(
+            NullLogger<ManifestGenerationService>.Instance,
+            failingHashProviderMock.Object,
+            _manifestIdServiceMock.Object,
+            _downloadServiceMock.Object,
+            _configProviderServiceMock.Object,
+            notificationService: notificationServiceMock.Object);
+
+        var installationPath = Path.Combine(_tempDirectory, "NotificationRequiredSkippedInstall");
+        Directory.CreateDirectory(installationPath);
+
+        // game.dat is the required file in ZeroHour catalog
+        var requiredFile = Path.Combine(installationPath, "game.dat");
+        await File.WriteAllTextAsync(requiredFile, "game dat content");
+
+        // Act
+        var builder = await serviceWithNotifications.CreateGameInstallationManifestAsync(
+            installationPath,
+            GameType.ZeroHour,
+            GameInstallationType.Steam,
+            "1.04",
+            "EN");
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        notificationServiceMock.Verify(
+            n => n.Show(It.Is<NotificationMessage>(m =>
+                m.Title == ManifestConstants.IndexingNotificationTitle &&
+                m.AutoDismissMilliseconds == null &&
+                m.IsPersistent)),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.Dismiss(It.IsAny<Guid>()),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.ShowWarning(ManifestConstants.IncompleteInstallationNotificationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
     /// Tests that fallback directory scan shows info and success notifications when completing normally.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
