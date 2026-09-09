@@ -101,7 +101,20 @@ public sealed partial class BuildProgressViewModel : ObservableObject, IDisposab
         FilesPerSecond = 0;
 
         _stopwatch.Restart();
-        _cancellationTokenSource?.Dispose();
+        if (_cancellationTokenSource != null)
+        {
+            try
+            {
+                _cancellationTokenSource.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already disposed
+            }
+
+            _cancellationTokenSource.Dispose();
+        }
+
         _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
         // Initialize stages

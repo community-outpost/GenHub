@@ -1,3 +1,5 @@
+using System;
+
 namespace GenHub.Core.Models.Tools.ModBuilder;
 
 /// <summary>
@@ -33,6 +35,7 @@ public enum BundleEventType
     /// <summary>
     /// Fired during legacy install process.
     /// </summary>
+    [Obsolete("Use OnCreateManifest instead.")]
     OnInstall = 4,
 
     /// <summary>

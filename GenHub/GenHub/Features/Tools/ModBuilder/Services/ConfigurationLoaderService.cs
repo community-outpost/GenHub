@@ -66,6 +66,10 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             logger.LogError(ex, "JSON parsing error in configuration file: {ConfigPath}", configPath);
             throw new InvalidOperationException($"Invalid JSON in configuration file: {configPath}", ex);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex) when (ex is not InvalidOperationException && ex is not FileNotFoundException)
         {
             throw new InvalidOperationException($"Failed to load configuration: {configPath}", ex);
@@ -563,7 +567,11 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                 }
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {
             logger.LogWarning(ex, "Failed to parse ModJsonFiles.json at {Path}", modJsonFilesPath);
         }

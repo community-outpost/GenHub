@@ -16,7 +16,8 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 public sealed class ProjectStructureGenerator(
     ILogger<ProjectStructureGenerator> logger) : IProjectStructureGenerator
 {
-    private const string ReadmeFileName = "README.txt";
+    private const string ReadmeFileName = "README.md";
+    private const string CoreIniPatchName = "CoreINIPatch";
 
     /// <inheritdoc/>
     public async Task GenerateProjectStructureAsync(string projectPath, CancellationToken cancellationToken)
@@ -76,7 +77,7 @@ public sealed class ProjectStructureGenerator(
             {
                 new
                 {
-                    Name = "CoreINIPatch",
+                    Name = CoreIniPatchName,
                     Type = "INI",
                     SourceFiles = new[] { $"{ModBuilderConstants.GameFilesEditedDir}/Data/INI/**/*.ini" },
                     OutputFormat = "INI",
@@ -122,8 +123,8 @@ public sealed class ProjectStructureGenerator(
                 new
                 {
                     Name = "CommunityDataPatch",
-                    Items = new[] { "CoreINIPatch", "CoreTextures", "CoreAudio", "GameScripts" },
-                    ItemNames = new[] { "CoreINIPatch", "CoreTextures", "CoreAudio", "GameScripts" },
+                    Items = new[] { CoreIniPatchName, "CoreTextures", "CoreAudio", "GameScripts" },
+                    ItemNames = new[] { CoreIniPatchName, "CoreTextures", "CoreAudio", "GameScripts" },
                     AllowBuild = true,
                     AllowInstall = true,
                     OutputFile = $"{ModBuilderConstants.DefaultReleaseDir}/CommunityDataPatch.zip",
@@ -132,8 +133,8 @@ public sealed class ProjectStructureGenerator(
                 new
                 {
                     Name = "CoreINIOnly",
-                    Items = new[] { "CoreINIPatch" },
-                    ItemNames = new[] { "CoreINIPatch" },
+                    Items = new[] { CoreIniPatchName },
+                    ItemNames = new[] { CoreIniPatchName },
                     AllowBuild = true,
                     AllowInstall = true,
                     OutputFile = $"{ModBuilderConstants.DefaultReleaseDir}/CoreINIOnly.zip",
@@ -174,7 +175,7 @@ public sealed class ProjectStructureGenerator(
                                      "  VisionRange = 150.0\n" +
                                      "  ShroudClearingRange = 300.0\n" +
                                      "End\n";
-            await File.WriteAllTextAsync(sampleIniPath, sampleIni, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
+            await File.WriteAllTextAsync(sampleIniPath, sampleIni, new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
         }
 
         var sampleAiDataPath = Path.Combine(iniDir, "AIData.ini");
@@ -186,7 +187,7 @@ public sealed class ProjectStructureGenerator(
                                      "  TeamSeconds = 30.0\n" +
                                      "  Side = America\n" +
                                      "End\n";
-            await File.WriteAllTextAsync(sampleAiDataPath, aiDataIni, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
+            await File.WriteAllTextAsync(sampleAiDataPath, aiDataIni, new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
         }
 
         var sampleTgaPath = Path.Combine(textureDir, "CrusaderTank.tga");
@@ -207,7 +208,7 @@ public sealed class ProjectStructureGenerator(
         if (!File.Exists(sampleScriptPath))
         {
             const string scriptContent = "// Community Patch Script Fixes\n// Fix: Correct pathfinding obstruction handling\n";
-            await File.WriteAllTextAsync(sampleScriptPath, scriptContent, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
+            await File.WriteAllTextAsync(sampleScriptPath, scriptContent, new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -320,7 +321,7 @@ public sealed class ProjectStructureGenerator(
         foreach (var (path, content) in readmeFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await File.WriteAllTextAsync(path, content, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
+            await File.WriteAllTextAsync(path, content, new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
         }
     }
 

@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
+using GenHub.Core.Constants;
 using GenHub.Features.Tools.ModBuilder.Models;
 using Microsoft.Extensions.Logging;
 using System;
@@ -104,7 +105,7 @@ public sealed partial class ProjectDashboardViewModel(
                 {
                     Name = Path.GetFileNameWithoutExtension(path),
                     Path = path,
-                    Version = "1.0.0",
+                    Version = ModBuilderConstants.DefaultProjectVersion,
                     LastBuildTime = File.GetLastWriteTime(path),
                 });
             }

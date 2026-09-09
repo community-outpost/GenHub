@@ -204,7 +204,7 @@ public partial class FileManagerViewModel(
             var installationsResult = await gameInstallationService.GetAllInstallationsAsync(cancellationToken).ConfigureAwait(false);
             if (installationsResult.Success && installationsResult.Data?.Count > 0)
             {
-                PopulateInstallationOptions(installationsResult.Data);
+                await PopulateInstallationOptionsAsync(installationsResult.Data).ConfigureAwait(false);
                 await LoadGameFilesAsync(cancellationToken).ConfigureAwait(false);
             }
 
@@ -223,7 +223,7 @@ public partial class FileManagerViewModel(
         }
     }
 
-    private void PopulateInstallationOptions(IReadOnlyList<GameInstallation> installations)
+    private async Task PopulateInstallationOptionsAsync(IReadOnlyList<GameInstallation> installations)
     {
         void Apply()
         {
@@ -245,7 +245,7 @@ public partial class FileManagerViewModel(
         }
         else
         {
-            Dispatcher.UIThread.Post(Apply);
+            await Dispatcher.UIThread.InvokeAsync(Apply);
         }
     }
 
@@ -658,6 +658,7 @@ public partial class FileManagerViewModel(
 
             await Task.Run(() => DeleteProjectFiles(fileList, directoriesToRemove)).ConfigureAwait(false);
 
+            Dispatcher.UIThread.Post(() => StatusMessage = $"Removed {fileList.Count} file(s) from project");
             await LoadProjectFilesAsync(default).ConfigureAwait(false);
 
             notificationService.ShowSuccess("Files Removed", $"Removed {fileList.Count} file(s) from project");
@@ -725,7 +726,7 @@ public partial class FileManagerViewModel(
             {
                 Directory.Delete(dir, recursive: true);
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // Ignore non-empty directory errors
             }

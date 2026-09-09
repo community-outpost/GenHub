@@ -38,6 +38,7 @@ public class ModBuilderProject
     /// Gets or sets the target game type.
     /// </summary>
     [JsonPropertyName("targetGame")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public GameType TargetGame { get; set; } = GameType.Generals;
 
     /// <summary>

@@ -26,7 +26,6 @@ public partial class ConfigEditorViewModel(
     INotificationService notificationService,
     ILogger<ConfigEditorViewModel> logger) : ObservableObject
 {
-    private readonly IConfigurationLoaderService _configurationLoaderService = configurationLoaderService;
 
     /// <summary>
     /// Gets or sets the current project.
@@ -229,6 +228,7 @@ public partial class ConfigEditorViewModel(
         BundleItems.Remove(SelectedBundleItem);
         SelectedBundleItem = null;
         HasChanges = true;
+        UpdatePackItemSelections();
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "RelayCommand CanExecute callback")]
@@ -329,7 +329,7 @@ public partial class ConfigEditorViewModel(
                 });
             }
 
-            PersistConfigurationToDisk(CurrentProject.ProjectDir);
+            await PersistConfigurationToDiskAsync(CurrentProject.ProjectDir).ConfigureAwait(false);
 
             HasChanges = false;
             notificationService.ShowSuccess("Configuration Saved", "Configuration changes saved successfully");
@@ -354,15 +354,23 @@ public partial class ConfigEditorViewModel(
     private static List<BundleFile> ParseItemFiles(BundleItemEditorViewModel itemVm, BundleItem? existingItem)
     {
         var files = new List<BundleFile>();
+        var existingFileMap = existingItem?.Files?.ToDictionary(f => f.AbsSourceFile, StringComparer.OrdinalIgnoreCase);
+
         if (!string.IsNullOrWhiteSpace(itemVm.SourcePattern))
         {
-            var patterns = itemVm.SourcePattern.Split([';', ','], StringSplitOptions.RemoveEmptyEntries);
+            var patterns = itemVm.SourcePattern.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             foreach (var p in patterns)
             {
-                var trimmed = p.Trim();
-                if (!string.IsNullOrEmpty(trimmed))
+                if (!string.IsNullOrEmpty(p))
                 {
-                    files.Add(new BundleFile { AbsSourceFile = trimmed });
+                    if (existingFileMap != null && existingFileMap.TryGetValue(p, out var matched))
+                    {
+                        files.Add(matched);
+                    }
+                    else
+                    {
+                        files.Add(new BundleFile { AbsSourceFile = p });
+                    }
                 }
             }
         }
@@ -378,7 +386,7 @@ public partial class ConfigEditorViewModel(
         return files;
     }
 
-    private void PersistConfigurationToDisk(string? projectDir)
+    private async Task PersistConfigurationToDiskAsync(string? projectDir)
     {
         if (string.IsNullOrEmpty(projectDir) || Configuration == null)
         {
@@ -397,8 +405,8 @@ public partial class ConfigEditorViewModel(
         var jsonOptions = new System.Text.Json.JsonSerializerOptions { WriteIndented = true };
         var itemsConfig = new BuildConfiguration { Items = Configuration.Items };
         var packsConfig = new BuildConfiguration { Packs = Configuration.Packs };
-        File.WriteAllText(itemsPath, System.Text.Json.JsonSerializer.Serialize(itemsConfig, jsonOptions));
-        File.WriteAllText(packsPath, System.Text.Json.JsonSerializer.Serialize(packsConfig, jsonOptions));
+        await File.WriteAllTextAsync(itemsPath, System.Text.Json.JsonSerializer.Serialize(itemsConfig, jsonOptions)).ConfigureAwait(false);
+        await File.WriteAllTextAsync(packsPath, System.Text.Json.JsonSerializer.Serialize(packsConfig, jsonOptions)).ConfigureAwait(false);
     }
 
     /// <summary>

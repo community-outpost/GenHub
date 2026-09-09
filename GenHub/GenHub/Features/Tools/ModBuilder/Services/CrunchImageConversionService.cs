@@ -55,10 +55,9 @@ public class CrunchImageConversionService(
 
             return await ConvertToStandardImageAsync(sourcePath, targetPath, sourceExt, targetExt, parameters, cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException)
         {
-            logger.LogInformation(ex, "Image conversion cancelled: {SourcePath}", sourcePath);
-            return false;
+            throw;
         }
         catch (Exception ex)
         {
@@ -467,7 +466,7 @@ public class CrunchImageConversionService(
 
         if (sourceExt == ".psd")
         {
-            return ConvertPsdToStandardImage(sourcePath, targetPath, targetExt, parameters);
+            return await ConvertPsdToStandardImageAsync(sourcePath, targetPath, targetExt, parameters, cancellationToken).ConfigureAwait(false);
         }
 
         using var image = await Image.LoadAsync(sourcePath, cancellationToken).ConfigureAwait(false);
@@ -482,11 +481,12 @@ public class CrunchImageConversionService(
     /// <summary>
     /// Converts psd to standard image formats with multi-alpha compositing.
     /// </summary>
-    private static bool ConvertPsdToStandardImage(
+    private static async Task<bool> ConvertPsdToStandardImageAsync(
         string sourcePath,
         string targetPath,
         string targetExt,
-        IDictionary<string, object>? parameters)
+        IDictionary<string, object>? parameters,
+        CancellationToken cancellationToken)
     {
         using var magickImage = new MagickImage(sourcePath);
 
@@ -496,9 +496,9 @@ public class CrunchImageConversionService(
             magickImage.Format = MagickFormat.Png;
             magickImage.Write(ms);
             ms.Position = 0;
-            using var loaded = Image.Load(ms);
+            using var loaded = await Image.LoadAsync(ms, cancellationToken).ConfigureAwait(false);
             var resized = ImageProcessingHelper.ApplyResizeParameters(loaded, parameters);
-            ImageProcessingHelper.SaveImageToTargetAsync(resized, targetPath, targetExt).GetAwaiter().GetResult();
+            await ImageProcessingHelper.SaveImageToTargetAsync(resized, targetPath, targetExt, cancellationToken).ConfigureAwait(false);
             return true;
         }
 
@@ -527,9 +527,9 @@ public class CrunchImageConversionService(
 
         alpha.Dispose();
 
-        using var psdLoaded = Image.Load(msCombined);
+        using var psdLoaded = await Image.LoadAsync(msCombined, cancellationToken).ConfigureAwait(false);
         var resizedPsd = ImageProcessingHelper.ApplyResizeParameters(psdLoaded, parameters);
-        ImageProcessingHelper.SaveImageToTargetAsync(resizedPsd, targetPath, targetExt).GetAwaiter().GetResult();
+        await ImageProcessingHelper.SaveImageToTargetAsync(resizedPsd, targetPath, targetExt, cancellationToken).ConfigureAwait(false);
         return true;
     }
 
