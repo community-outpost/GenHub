@@ -379,8 +379,13 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets or sets the status color for the status bar.
     /// </summary>
+    private const string DefaultStatusColor = "#10FFFFFF";
+
+    /// <summary>
+    /// Gets or sets the status color for the status bar.
+    /// </summary>
     [ObservableProperty]
-    private string _statusColor = "#10FFFFFF";
+    private string _statusColor = DefaultStatusColor;
 
     /// <summary>
     /// Gets or sets the status text color for the status bar.
@@ -446,7 +451,15 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var result = await _projectConfigService.GetRecentProjectsAsync(10, CancellationToken.None).ConfigureAwait(false);
             var projectPaths = new List<string>(result.Success && result.Data != null ? result.Data : []);
 
-            var samplePaths = await DiscoverSampleProjectPathsAsync().ConfigureAwait(false);
+            List<string> samplePaths = [];
+            try
+            {
+                samplePaths = await DiscoverSampleProjectPathsAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to discover sample project paths");
+            }
             for (var i = samplePaths.Count - 1; i >= 0; i--)
             {
                 var samplePath = samplePaths[i];
@@ -712,7 +725,14 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var confirmed = _dialogService == null || await _dialogService.ShowConfirmationAsync(
+        if (_dialogService == null)
+        {
+            _logger.LogWarning("Cannot confirm project deletion: dialog service unavailable");
+            _notificationService.ShowError("Error", "Confirmation dialog service is unavailable.");
+            return;
+        }
+
+        var confirmed = await _dialogService.ShowConfirmationAsync(
             "Delete Project",
             $"Are you sure you want to permanently delete '{name}'?\n\nThis will delete the project file and its directory from disk:\n{path}",
             confirmText: "Delete",
@@ -1209,16 +1229,18 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        CurrentProject = null;
-        ProjectPath = string.Empty;
-        ProjectName = string.Empty;
-        IsProjectLoaded = false;
-        Bundles.Clear();
-        BuildLog.Clear();
-        StatusMessage = ReadyStatusLiteral;
+        await InvokeOnUIThreadAsync(() =>
+        {
+            CurrentProject = null;
+            ProjectPath = string.Empty;
+            ProjectName = string.Empty;
+            IsProjectLoaded = false;
+            Bundles.Clear();
+            BuildLog.Clear();
+            StatusMessage = ReadyStatusLiteral;
+        }).ConfigureAwait(false);
 
         _logger.LogInformation("Project closed successfully");
-        await Task.CompletedTask;
     }
 
     private bool CanCloseProject() => IsProjectLoaded && !IsBuildRunning;
@@ -1490,14 +1512,14 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             if (result.Success)
             {
                 var totalProcessed = Math.Max(filesProcessed, result.FilesProcessed);
-                var totalBundles = Math.Max(bundlesCreated, Bundles.Count(b => b.IsSelected));
+                var totalBundles = bundlesCreated > 0 ? bundlesCreated : selectedPacks.Count;
                 await HandleBuildSuccessAsync(totalProcessed, totalBundles).ConfigureAwait(false);
             }
             else
             {
                 AppendBuildLog("\n=== Build Failed ===");
-                AppendBuildLog(result.FirstError ?? "Unknown error");
-                _notificationService.ShowError("Build Failed", result.FirstError ?? "Unknown error");
+                AppendBuildLog(result.FirstError ?? UnknownErrorLiteral);
+                _notificationService.ShowError("Build Failed", result.FirstError ?? UnknownErrorLiteral);
                 StatusMessage = "Build failed";
             }
         }
@@ -1575,7 +1597,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             else
             {
                 AppendBuildLog("\n=== Manifest Creation Failed ===");
-                AppendBuildLog(result.FirstError ?? "Unknown error");
+                AppendBuildLog(result.FirstError ?? UnknownErrorLiteral);
                 await InvokeOnUIThreadAsync(() =>
                 {
                     _notificationService.ShowError("Manifest Creation Failed", result.FirstError ?? "Failed to create manifest");
@@ -1926,14 +1948,18 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         {
             var projectDir = GetEffectiveProjectDir();
 
-            if (!string.IsNullOrEmpty(projectDir))
+            if (!string.IsNullOrEmpty(projectDir) && CurrentProject != null)
             {
-                CurrentProject.Configuration = await _configurationLoaderService.LoadProjectConfigurationAsync(
+                var loadedConfig = await _configurationLoaderService.LoadProjectConfigurationAsync(
                     projectDir,
                     CancellationToken.None).ConfigureAwait(false);
+                if (CurrentProject != null)
+                {
+                    CurrentProject.Configuration = loadedConfig;
+                }
             }
 
-            await InvokeOnUIThreadAsync(() => PopulateProjectBundlesAndProperties(CurrentProject.Configuration)).ConfigureAwait(false);
+            await InvokeOnUIThreadAsync(() => PopulateProjectBundlesAndProperties(CurrentProject?.Configuration)).ConfigureAwait(false);
 
             var countedFiles = await CountFilesToBuildAsync().ConfigureAwait(false);
             if (countedFiles > 0)

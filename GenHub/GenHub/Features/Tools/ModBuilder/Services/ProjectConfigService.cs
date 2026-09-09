@@ -476,7 +476,6 @@ public sealed class ProjectConfigService : IProjectConfigService
         var myDocs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         if (!string.IsNullOrEmpty(myDocs) && Directory.Exists(myDocs))
         {
-            searchLocations.Add(myDocs);
             searchLocations.Add(Path.Combine(myDocs, ModBuilderDirName));
             searchLocations.Add(Path.Combine(myDocs, "GenHub"));
             searchLocations.Add(Path.Combine(myDocs, "GenHub", ModBuilderDirName));
@@ -670,7 +669,12 @@ public sealed class ProjectConfigService : IProjectConfigService
 
             var saveResult = await SaveProjectAsync(projectPath, project, cancellationToken).ConfigureAwait(false);
             sw.Stop();
-            return ProjectOperationResult<bool>.CreateSuccess(saveResult.Success, sw.Elapsed);
+            if (!saveResult.Success)
+            {
+                return ProjectOperationResult<bool>.CreateFailure(saveResult.Errors, sw.Elapsed);
+            }
+
+            return ProjectOperationResult<bool>.CreateSuccess(true, sw.Elapsed);
         }
         catch (Exception ex)
         {
@@ -836,6 +840,10 @@ public sealed class ProjectConfigService : IProjectConfigService
                 InvalidateFileExistsCache(readmePath);
                 _logger.LogDebug("Created README at {Path}", readmePath);
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

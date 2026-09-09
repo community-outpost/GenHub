@@ -1432,7 +1432,7 @@ public class GameProcessManager(
     {
         try
         {
-            process.WaitForExit(3000);
+            process.WaitForExit(ProcessConstants.StderrDrainTimeoutMs);
         }
         catch (Exception ex)
         {

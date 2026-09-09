@@ -8,6 +8,11 @@ namespace GenHub.Core.Constants;
 public static class ModBuilderConstants
 {
     /// <summary>
+    /// Default project version string.
+    /// </summary>
+    public const string DefaultProjectVersion = "1.0.0";
+
+    /// <summary>
     /// Default project file extension.
     /// </summary>
     public const string ProjectFileExtension = ".mbproj";

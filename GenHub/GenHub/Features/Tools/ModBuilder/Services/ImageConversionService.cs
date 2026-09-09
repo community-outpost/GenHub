@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BCnEncoder.Encoder;
 using BCnEncoder.Shared;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using ImageMagick;
 using Microsoft.Extensions.Logging;
@@ -54,10 +55,9 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
                 _ => await ConvertGenericAsync(sourcePath, targetPath, parameters, cancellationToken),
             };
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException)
         {
-            logger.LogInformation(ex, "Image conversion cancelled: {SourcePath}", sourcePath);
-            return false;
+            throw;
         }
         catch (Exception ex)
         {
@@ -91,6 +91,10 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
                 return ImageProcessingHelper.DetectAlpha(image);
             }, cancellationToken);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to check alpha channel for: {ImagePath}", imagePath);
@@ -101,7 +105,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
     public async Task<string> GetRecommendedDxtFormatAsync(string imagePath, CancellationToken cancellationToken = default)
     {
         var hasAlpha = await HasAlphaChannelAsync(imagePath, cancellationToken);
-        return hasAlpha ? "DXT5" : "DXT1";
+        return hasAlpha ? ModBuilderConstants.Dxt5Format : ModBuilderConstants.Dxt1Format;
     }
 
     /// <summary>

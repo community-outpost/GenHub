@@ -53,7 +53,7 @@ internal enum ResamplingMode
 /// </summary>
 internal static class ImageProcessingHelper
 {
-    public static readonly Dictionary<string, ResamplingMode> ResamplingModes = new(StringComparer.OrdinalIgnoreCase)
+    public static readonly IReadOnlyDictionary<string, ResamplingMode> ResamplingModes = new Dictionary<string, ResamplingMode>(StringComparer.OrdinalIgnoreCase)
     {
         { "nearest", ResamplingMode.NearestNeighbor },
         { "box", ResamplingMode.Box },

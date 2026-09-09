@@ -20,7 +20,7 @@ public static class ModBuilderModule
     public static IServiceCollection AddModBuilder(this IServiceCollection services)
     {
         // Core Services
-        services.AddTransient<IBuildEngineService, BuildEngineService>();
+        services.AddSingleton<IBuildEngineService, BuildEngineService>();
         services.AddSingleton<IProjectConfigService, ProjectConfigService>();
         services.AddSingleton<IConfigurationLoaderService, ConfigurationLoaderService>();
         services.AddSingleton<IFileConversionService, FileConversionService>();

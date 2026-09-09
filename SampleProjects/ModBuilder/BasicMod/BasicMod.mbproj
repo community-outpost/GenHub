@@ -10,7 +10,7 @@
     "release": ".Release"
   },
   "bundleConfigs": [
-    "ModBundleItems.json",
-    "ModBundlePacks.json"
+    "config/ModBundleItems.json",
+    "config/ModBundlePacks.json"
   ]
 }

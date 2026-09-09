@@ -5,7 +5,7 @@
       "Items": [
         "GameplayINIs"
       ],
-      "OutputFile": ".Release/BalancePatch.big",
+      "OutputFile": ".Release/BalancePatch.zip",
       "Description": "Complete competitive balance package for tournament play"
     }
   ]
