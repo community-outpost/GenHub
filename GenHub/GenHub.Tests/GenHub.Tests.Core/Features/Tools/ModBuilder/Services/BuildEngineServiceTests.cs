@@ -4,14 +4,16 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Tools.ModBuilder;
 using GenHub.Features.Tools.ModBuilder.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Xunit;
 
 namespace GenHub.Tests.Core.Features.Tools.ModBuilder.Services;
 
@@ -43,22 +45,22 @@ public sealed class BuildEngineServiceTests : IDisposable
         _mockLocalContentService.Setup(x => x.CreateLocalContentManifestAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
-                It.IsAny<string>(),
+                It.IsAny<ContentType>(),
                 It.IsAny<GameType>(),
-                It.IsAny<string>(),
-                It.IsAny<IReadOnlyList<string>>(),
-                It.IsAny<IProgress<double>>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string name, string version, string desc, GameType game, string dir, IReadOnlyList<string> files, IProgress<double> prog, CancellationToken ct) =>
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync((string dir, string name, ContentType type, GameType game, string? src, IProgress<ContentStorageProgress>? prog, CancellationToken ct, string? entry) =>
             {
-                var manifest = new ContentManifest
+                var manifest = new GenHub.Core.Models.Manifest.ContentManifest
                 {
-                    Id = $"local-{Guid.NewGuid():N}",
+                    Id = GenHub.Core.Models.Manifest.ManifestId.Create($"local-{Guid.NewGuid():N}"),
                     Name = name,
-                    Version = version,
-                    Game = game,
+                    TargetGame = game,
+                    ContentType = type,
                 };
-                return GenHub.Core.Models.Results.OperationResult<ContentManifest>.CreateSuccess(manifest);
+                return GenHub.Core.Models.Results.OperationResult<GenHub.Core.Models.Manifest.ContentManifest>.CreateSuccess(manifest);
             });
         _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDirectory);
@@ -664,11 +666,12 @@ public sealed class BuildEngineServiceTests : IDisposable
         var projectDir = Path.Combine(_tempDirectory, "ManifestProject");
         Directory.CreateDirectory(projectDir);
         var buildDir = Path.Combine(projectDir, ".Build");
-        Directory.CreateDirectory(buildDir);
+        var bundlesDir = Path.Combine(buildDir, ModBuilderConstants.BundlesSubdir);
+        Directory.CreateDirectory(bundlesDir);
 
-        // Place a mock .big bundle in the build folder
-        var bundleFile = Path.Combine(buildDir, "TestBundle.big");
-        await File.WriteAllBytesAsync(bundleFile, new byte[] { 1, 2, 3, 4 });
+        // Place a mock .big bundle in the bundles folder
+        var bundleFile = Path.Combine(bundlesDir, "TestBundle.big");
+        await File.WriteAllBytesAsync(bundleFile, [1, 2, 3, 4]);
 
         var project = new ModBuilderProject
         {
@@ -683,20 +686,20 @@ public sealed class BuildEngineServiceTests : IDisposable
                 Release = ".Release",
                 GameFilesEdited = "GameFilesEdited",
             },
-            BundleConfigs = new List<string>(),
+            BundleConfigs = [],
         };
 
         var configuration = new BuildConfiguration
         {
-            Items = new List<BundleItem>(),
-            Packs = new List<BundlePack>
-            {
+            Items = [],
+            Packs =
+            [
                 new()
                 {
                     Name = "TestBundle",
-                    Items = new List<string>(),
+                    Items = [],
                 },
-            },
+            ],
             Folders = new FolderConfiguration
             {
                 AbsBuildDir = buildDir,
@@ -707,21 +710,21 @@ public sealed class BuildEngineServiceTests : IDisposable
         var result = await _service.ExecuteBuildAsync(
             project,
             configuration,
-            new List<string> { "TestBundle" },
+            ["TestBundle"],
             BuildStep.CreateManifest);
 
         // Assert
         result.Success.Should().BeTrue();
         _mockLocalContentService.Verify(
             x => x.CreateLocalContentManifestAsync(
+                It.IsAny<string>(),
                 "ManifestProject",
-                "1.0.0",
-                "Manifest test description",
+                ContentType.Mod,
                 GameType.Generals,
-                buildDir,
-                It.Is<IReadOnlyList<string>>(files => files.Count == 1 && files[0] == "TestBundle.big"),
-                It.IsAny<IProgress<double>>(),
-                It.IsAny<CancellationToken>()),
+                bundlesDir,
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<string?>()),
             Times.Once);
     }
 }

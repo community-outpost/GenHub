@@ -5,11 +5,14 @@
 namespace GenHub.Tests.Core.Features.Tools.ModBuilder.ViewModels;
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
+using GenHub.Core.Models.Results.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
 using GenHub.Features.Tools.ModBuilder.ViewModels;
 using Microsoft.Extensions.Logging;
@@ -186,11 +189,11 @@ public class ModBuilderViewModelTests : IDisposable
             .Setup(b => b.ExecuteBuildAsync(
                 project,
                 It.IsAny<BuildConfiguration>(),
-                It.IsAny<System.Collections.Generic.IReadOnlyList<string>>(),
+                It.IsAny<List<string>>(),
                 BuildStep.CreateManifest,
-                It.IsAny<IProgress<string>>(),
-                It.IsAny<System.Threading.CancellationToken>()))
-            .ReturnsAsync(new BuildResult { Success = true });
+                It.IsAny<IProgress<string>?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(BuildOperationResult.CreateSuccess());
 
         await viewModel.CreateManifestCommand.ExecuteAsync(null);
 
@@ -198,10 +201,10 @@ public class ModBuilderViewModelTests : IDisposable
             b => b.ExecuteBuildAsync(
                 project,
                 It.IsAny<BuildConfiguration>(),
-                It.IsAny<System.Collections.Generic.IReadOnlyList<string>>(),
+                It.IsAny<List<string>>(),
                 BuildStep.CreateManifest,
-                It.IsAny<IProgress<string>>(),
-                It.IsAny<System.Threading.CancellationToken>()),
+                It.IsAny<IProgress<string>?>(),
+                It.IsAny<CancellationToken>()),
             Times.Once);
 
         _mockNotificationService.Verify(
