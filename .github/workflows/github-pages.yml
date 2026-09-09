@@ -37,12 +37,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if ! LATEST_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null); then
+          if ! LATEST_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName // ""' 2>/dev/null); then
             echo "::warning::gh release list failed; using fallback"
             LATEST_TAG=""
           fi
           
-          if [ -n "$LATEST_TAG" ]; then
+          if [ -n "$LATEST_TAG" ] && [ "$LATEST_TAG" != "null" ]; then
             BUILD_NUM=$(echo "$LATEST_TAG" | cut -d'.' -f3)
             DISPLAY_NAME="Alpha ${BUILD_NUM}"
             DOWNLOAD_URL="https://github.com/community-outpost/GenHub/releases/download/${LATEST_TAG}/GenHub-win-Setup.exe"
