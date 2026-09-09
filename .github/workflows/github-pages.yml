@@ -16,6 +16,10 @@ permissions:
   pages: write
   id-token: write
 
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -49,7 +53,11 @@ jobs:
           echo "display_name=$DISPLAY_NAME" >> $GITHUB_OUTPUT
           echo "download_url=$DOWNLOAD_URL" >> $GITHUB_OUTPUT
 
-      - run: |
+      - name: Build and prepare pages
+        env:
+          DISPLAY_NAME: ${{ steps.release_info.outputs.display_name }}
+          DOWNLOAD_URL: ${{ steps.release_info.outputs.download_url }}
+        run: |
           mkdir -p ./public
           cp Landing-page/index.html ./public/index.html
           
@@ -74,9 +82,29 @@ jobs:
           </body>
           </html>
           EOF_WIKI
+
+          # Create client-side 404 redirect for deep legacy /wiki/ paths on generalshub.com
+          cat << 'EOF_404' > ./public/404.html
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Redirecting to GeneralsHub Wiki...</title>
+            <script>
+              if (window.location.pathname.startsWith('/wiki/')) {
+                var target = 'https://wiki.generalshub.com/' + window.location.pathname.replace(/^\/wiki\//, '') + window.location.search + window.location.hash;
+                window.location.replace(target);
+              }
+            </script>
+          </head>
+          <body>
+            <p>Redirecting to <a href="https://wiki.generalshub.com/">https://wiki.generalshub.com/</a>...</p>
+          </body>
+          </html>
+          EOF_404
           
-          sed -i "s|VERSION_PLACEHOLDER|${{ steps.release_info.outputs.display_name }}|g" ./public/index.html
-          sed -i "s|URL_PLACEHOLDER|${{ steps.release_info.outputs.download_url }}|g" ./public/index.html
+          sed -i "s|VERSION_PLACEHOLDER|${DISPLAY_NAME}|g" ./public/index.html
+          sed -i "s|URL_PLACEHOLDER|${DOWNLOAD_URL}|g" ./public/index.html
 
       - uses: actions/upload-pages-artifact@v3
         with:

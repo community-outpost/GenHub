@@ -12,7 +12,7 @@ The modern, cross-platform launcher and workspace manager for Command & Conquer:
 - 🎮 **Universal C&C Workspace Management** - Isolate configurations, mods, and versions with zero cross-contamination.
 - ⚡ **One-Click Patch & Mod Installer** - Effortlessly fetch, verify, and maintain popular community distributions including Generals Online and TheSuperHackers releases.
 - 🗺️ **Integrated Map & Replay Manager** - Direct integration to import, parse, preview, and share custom maps and competitive match replays.
-- 🐧 **Cross-Platform Support** - Native support across modern Windows versions and Linux (via Wine/Proton and Flatpak Steam detection).
+- 🐧 **Cross-Platform Support** - Support across modern Windows, Linux (via Wine/Proton and Flatpak Steam detection), and macOS.
 - 🔄 **Automated App Updates** - Smooth background auto-updates powered by the Velopack runtime.
 
 ## Running on macOS
@@ -24,7 +24,7 @@ quarantined execution will either abort on launch or be killed by `amfid`.
 Before running an unpacked release for the first time, strip the quarantine flag:
 
 ```bash
-xattr -d com.apple.quarantine GenHub.app
+xattr -dr com.apple.quarantine GenHub.app
 ```
 
 or on the standalone executable:
