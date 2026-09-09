@@ -1511,6 +1511,42 @@ public sealed class ReplayDirectoryService(
         return (targetClient, workingDir);
     }
 
+    private static string ResolveThirdPartyRelativeExePath(
+        GameClient? targetClient,
+        string workingDir,
+        ContentManifest? clientManifest,
+        ReplayFile replay)
+    {
+        if (clientManifest != null)
+        {
+            var entryResolution = ManifestVariantResolver.ResolveEntryPoint(clientManifest);
+            if (entryResolution.Success && !string.IsNullOrWhiteSpace(entryResolution.RelativePath))
+            {
+                return entryResolution.RelativePath.Replace('/', Path.DirectorySeparatorChar);
+            }
+        }
+
+        if (targetClient != null &&
+            string.Equals(targetClient.PublisherType, replay.MatchedClient?.Publisher, StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(targetClient.ExecutablePath))
+        {
+            if (Path.IsPathRooted(targetClient.ExecutablePath) && !string.IsNullOrWhiteSpace(workingDir))
+            {
+                var relPath = Path.GetRelativePath(workingDir, targetClient.ExecutablePath);
+                if (!relPath.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(relPath))
+                {
+                    return relPath;
+                }
+            }
+            else
+            {
+                return targetClient.ExecutablePath.Replace('/', Path.DirectorySeparatorChar);
+            }
+        }
+
+        return GetDefaultExecutableName(replay.GameVersion, replay.MatchedClient?.Publisher);
+    }
+
     private async Task<(string ClientManifestId, GameClient? GameClient)> ResolveReplayGameClientAsync(
         GameInstallation installation,
         ReplayFile replay,
@@ -1559,39 +1595,7 @@ public sealed class ReplayDirectoryService(
         }
 
         var clientManifest = await GetClientManifestAsync(manifestPool, thirdPartyManifestId, ct);
-        string? relativeExePath = null;
-        if (clientManifest != null)
-        {
-            var entryResolution = ManifestVariantResolver.ResolveEntryPoint(clientManifest);
-            if (entryResolution.Success && !string.IsNullOrWhiteSpace(entryResolution.RelativePath))
-            {
-                relativeExePath = entryResolution.RelativePath.Replace('/', Path.DirectorySeparatorChar);
-            }
-        }
-
-        if (string.IsNullOrWhiteSpace(relativeExePath))
-        {
-            if (targetClient != null &&
-                string.Equals(targetClient.PublisherType, replay.MatchedClient?.Publisher, StringComparison.OrdinalIgnoreCase) &&
-                !string.IsNullOrWhiteSpace(targetClient.ExecutablePath))
-            {
-                if (Path.IsPathRooted(targetClient.ExecutablePath) && !string.IsNullOrWhiteSpace(workingDir))
-                {
-                    var relPath = Path.GetRelativePath(workingDir, targetClient.ExecutablePath);
-                    relativeExePath = !relPath.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(relPath)
-                        ? relPath
-                        : GetDefaultExecutableName(replay.GameVersion, replay.MatchedClient?.Publisher);
-                }
-                else
-                {
-                    relativeExePath = targetClient.ExecutablePath.Replace('/', Path.DirectorySeparatorChar);
-                }
-            }
-            else
-            {
-                relativeExePath = GetDefaultExecutableName(replay.GameVersion, replay.MatchedClient?.Publisher);
-            }
-        }
+        var relativeExePath = ResolveThirdPartyRelativeExePath(targetClient, workingDir, clientManifest, replay);
 
         var thirdPartyExePath = !string.IsNullOrWhiteSpace(workingDir)
             ? Path.Combine(workingDir, relativeExePath)
