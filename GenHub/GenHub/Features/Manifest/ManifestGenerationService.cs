@@ -635,7 +635,7 @@ public class ManifestGenerationService(
     /// </summary>
     /// <param name="files">The list of file paths.</param>
     /// <returns>A formatted comma-separated string of files, truncated if necessary.</returns>
-    internal string FormatFileListWithEllipsis(IReadOnlyList<string> files)
+    internal static string FormatFileListWithEllipsis(IReadOnlyList<string> files)
     {
         var list = string.Join(", ", files.Take(ManifestConstants.MaxMissingFilesNotificationDisplayCount));
         var extra = files.Count > ManifestConstants.MaxMissingFilesNotificationDisplayCount
@@ -651,7 +651,7 @@ public class ManifestGenerationService(
     /// <param name="missingRequiredFiles">The list of required files missing from disk.</param>
     /// <param name="skippedRequiredFiles">The list of required files skipped due to access errors or symlinks.</param>
     /// <returns>A formatted warning message.</returns>
-    internal string GetIncompleteInstallationWarningMessage(
+    internal static string GetIncompleteInstallationWarningMessage(
         GameType gameType,
         IReadOnlyList<string> missingRequiredFiles,
         IReadOnlyList<string> skippedRequiredFiles)
@@ -936,6 +936,48 @@ public class ManifestGenerationService(
         }
     }
 
+    private static void RecordAuthoritativeStatus(
+        AuthoritativeFileStatus status,
+        CsvCatalogEntry entry,
+        ref int fileCount,
+        List<string> differingFiles,
+        List<string> missingRequiredFiles,
+        List<string> skippedRequiredFiles)
+    {
+        switch (status)
+        {
+            case AuthoritativeFileStatus.AddedMatching:
+                fileCount++;
+                break;
+            case AuthoritativeFileStatus.AddedDiffering:
+                fileCount++;
+                differingFiles.Add(entry.RelativePath);
+                break;
+            case AuthoritativeFileStatus.MissingRequired:
+                missingRequiredFiles.Add(entry.RelativePath);
+                break;
+            case AuthoritativeFileStatus.MissingOptional:
+                break;
+            case AuthoritativeFileStatus.Skipped:
+                if (entry.IsRequired)
+                {
+                    skippedRequiredFiles.Add(entry.RelativePath);
+                }
+
+                break;
+            default:
+                break;
+        }
+    }
+
+    private static bool IsAuthoritativeMatch(CsvCatalogEntry entry, long actualLength, string computedHash)
+    {
+        return entry.Size > 0 &&
+               actualLength == entry.Size &&
+               !string.IsNullOrWhiteSpace(entry.Sha256) &&
+               string.Equals(computedHash, entry.Sha256, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>
     /// Adds authoritative vanilla game files to a manifest builder using the CSV catalog authority.
     /// </summary>
@@ -1016,17 +1058,14 @@ public class ManifestGenerationService(
                 cancellationToken.ThrowIfCancellationRequested();
                 var entry = authoritativeEntries[i];
                 var currentIndex = i + 1;
-                var percent = (double)currentIndex / totalEntries * 100;
 
-                if (currentIndex == 1 ||
-                    Stopwatch.GetElapsedTime(lastNotificationTimestamp).TotalMilliseconds >= ManifestConstants.NotificationUpdateThrottleMs)
-                {
-                    notificationService?.Update(
-                        progressNotificationId,
-                        $"Verifying {gameType} files: {currentIndex}/{totalEntries} ({percent:F0}%) - {entry.RelativePath}",
-                        ManifestConstants.IndexingNotificationTitle);
-                    lastNotificationTimestamp = Stopwatch.GetTimestamp();
-                }
+                UpdateVerificationNotification(
+                    progressNotificationId,
+                    gameType,
+                    currentIndex,
+                    totalEntries,
+                    entry.RelativePath,
+                    ref lastNotificationTimestamp);
 
                 var result = await TryAddAuthoritativeEntryAsync(
                     builder,
@@ -1036,47 +1075,23 @@ public class ManifestGenerationService(
                     totalEntries,
                     progressNotificationId,
                     cancellationToken);
-                switch (result)
-                {
-                    case AuthoritativeFileStatus.AddedMatching:
-                        fileCount++;
-                        break;
-                    case AuthoritativeFileStatus.AddedDiffering:
-                        fileCount++;
-                        differingFiles.Add(entry.RelativePath);
-                        break;
-                    case AuthoritativeFileStatus.MissingRequired:
-                        missingRequiredFiles.Add(entry.RelativePath);
-                        break;
-                    case AuthoritativeFileStatus.MissingOptional:
-                        break;
-                    case AuthoritativeFileStatus.Skipped:
-                        if (entry.IsRequired)
-                        {
-                            skippedRequiredFiles.Add(entry.RelativePath);
-                        }
 
-                        break;
-                    default:
-                        break;
-                }
+                RecordAuthoritativeStatus(
+                    result,
+                    entry,
+                    ref fileCount,
+                    differingFiles,
+                    missingRequiredFiles,
+                    skippedRequiredFiles);
 
                 progress?.Report(new ValidationProgress(currentIndex, totalEntries, entry.RelativePath));
 
-                if (currentIndex == 1 ||
-                    currentIndex % ManifestConstants.ProgressLoggingThrottleInterval == 0 ||
-                    currentIndex == totalEntries ||
-                    Stopwatch.GetElapsedTime(lastLogTimestamp).TotalSeconds >= ManifestConstants.ProgressLogThrottleSeconds)
-                {
-                    logger.LogInformation(
-                        "Generating manifest for {GameType}: {Current}/{Total} files processed ({Percent:F0}%) - {RelativePath}",
-                        gameType,
-                        currentIndex,
-                        totalEntries,
-                        percent,
-                        entry.RelativePath);
-                    lastLogTimestamp = Stopwatch.GetTimestamp();
-                }
+                LogVerificationProgress(
+                    gameType,
+                    currentIndex,
+                    totalEntries,
+                    entry.RelativePath,
+                    ref lastLogTimestamp);
             }
         }
         finally
@@ -1092,6 +1107,73 @@ public class ManifestGenerationService(
             missingRequiredFiles.Count,
             skippedRequiredFiles.Count);
 
+        NotifyManifestGenerationCompletion(
+            gameType,
+            fileCount,
+            totalEntries,
+            missingRequiredFiles,
+            skippedRequiredFiles,
+            differingFiles);
+    }
+
+    private void UpdateVerificationNotification(
+        Guid progressNotificationId,
+        GameType gameType,
+        int currentIndex,
+        int totalEntries,
+        string relativePath,
+        ref long lastNotificationTimestamp)
+    {
+        if (currentIndex != 1 &&
+            !(Stopwatch.GetElapsedTime(lastNotificationTimestamp).TotalMilliseconds >= ManifestConstants.NotificationUpdateThrottleMs))
+        {
+            return;
+        }
+
+        var percent = (double)currentIndex / totalEntries * 100;
+        notificationService?.Update(
+            progressNotificationId,
+            $"Verifying {gameType} files: {currentIndex}/{totalEntries} ({percent:F0}%) - {relativePath}",
+            ManifestConstants.IndexingNotificationTitle);
+        lastNotificationTimestamp = Stopwatch.GetTimestamp();
+    }
+
+    private void LogVerificationProgress(
+        GameType gameType,
+        int currentIndex,
+        int totalEntries,
+        string relativePath,
+        ref long lastLogTimestamp)
+    {
+        var isThrottled = currentIndex != 1 &&
+            currentIndex % ManifestConstants.ProgressLoggingThrottleInterval != 0 &&
+            currentIndex != totalEntries &&
+            !(Stopwatch.GetElapsedTime(lastLogTimestamp).TotalSeconds >= ManifestConstants.ProgressLogThrottleSeconds);
+
+        if (isThrottled)
+        {
+            return;
+        }
+
+        var percent = (double)currentIndex / totalEntries * 100;
+        logger.LogInformation(
+            "Generating manifest for {GameType}: {Current}/{Total} files processed ({Percent:F0}%) - {RelativePath}",
+            gameType,
+            currentIndex,
+            totalEntries,
+            percent,
+            relativePath);
+        lastLogTimestamp = Stopwatch.GetTimestamp();
+    }
+
+    private void NotifyManifestGenerationCompletion(
+        GameType gameType,
+        int fileCount,
+        int totalEntries,
+        IReadOnlyList<string> missingRequiredFiles,
+        IReadOnlyList<string> skippedRequiredFiles,
+        IReadOnlyList<string> differingFiles)
+    {
         var totalIncompleteRequiredCount = missingRequiredFiles.Count + skippedRequiredFiles.Count;
         if (totalIncompleteRequiredCount > 0)
         {
@@ -1356,33 +1438,18 @@ public class ManifestGenerationService(
             }
 
             var fileInfo = new FileInfo(sourcePath);
-            var isLargeFile = fileInfo.Length >= ManifestConstants.LargeFileProgressThresholdBytes;
-            if (isLargeFile)
+            if (fileInfo.Length >= ManifestConstants.LargeFileProgressThresholdBytes)
             {
-                var sizeMb = fileInfo.Length / (1024.0 * 1024.0);
-                var percent = (double)currentIndex / totalEntries * 100;
-                logger.LogInformation(
-                    "Calculating SHA-256 for {RelativePath} ({SizeMB:F1} MB) [{Current}/{Total} ({Percent:F0}%)]...",
+                ReportLargeFileHashProgress(
                     entry.RelativePath,
-                    sizeMb,
+                    fileInfo.Length,
                     currentIndex,
                     totalEntries,
-                    percent);
-
-                if (progressNotificationId.HasValue)
-                {
-                    notificationService?.Update(
-                        progressNotificationId.Value,
-                        $"Calculating SHA-256 for {entry.RelativePath} ({sizeMb:F1} MB) - {currentIndex}/{totalEntries} ({percent:F0}%)",
-                        ManifestConstants.IndexingNotificationTitle);
-                }
+                    progressNotificationId);
             }
 
             var computedHash = await hashProvider.ComputeFileHashAsync(sourcePath, cancellationToken);
-            var isAuthoritativeMatch = entry.Size > 0 &&
-                                       fileInfo.Length == entry.Size &&
-                                       !string.IsNullOrWhiteSpace(entry.Sha256) &&
-                                       string.Equals(computedHash, entry.Sha256, StringComparison.OrdinalIgnoreCase);
+            var isAuthoritativeMatch = IsAuthoritativeMatch(entry, fileInfo.Length, computedHash);
 
             if (entry.Size > 0 && !isAuthoritativeMatch)
             {
@@ -1398,16 +1465,13 @@ public class ManifestGenerationService(
 
             var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(entry.RelativePath, sourcePath);
 
-            var fileHash = computedHash;
-            var fileSize = fileInfo.Length;
-
             await builder.AddGameInstallationFileAsync(
                 entry.RelativePath,
                 sourcePath,
                 isExecutable,
                 permissions: null,
-                hash: fileHash,
-                size: fileSize,
+                hash: computedHash,
+                size: fileInfo.Length,
                 isRequired: entry.IsRequired);
 
             return isAuthoritativeMatch ? AuthoritativeFileStatus.AddedMatching : AuthoritativeFileStatus.AddedDiffering;
@@ -1423,6 +1487,32 @@ public class ManifestGenerationService(
                 "Failed to add authoritative vanilla file {RelativePath} to manifest",
                 entry.RelativePath);
             return AuthoritativeFileStatus.Skipped;
+        }
+    }
+
+    private void ReportLargeFileHashProgress(
+        string relativePath,
+        long length,
+        int currentIndex,
+        int totalEntries,
+        Guid? progressNotificationId)
+    {
+        var sizeMb = length / (1024.0 * 1024.0);
+        var percent = (double)currentIndex / totalEntries * 100;
+        logger.LogInformation(
+            "Calculating SHA-256 for {RelativePath} ({SizeMB:F1} MB) [{Current}/{Total} ({Percent:F0}%)]...",
+            relativePath,
+            sizeMb,
+            currentIndex,
+            totalEntries,
+            percent);
+
+        if (progressNotificationId.HasValue)
+        {
+            notificationService?.Update(
+                progressNotificationId.Value,
+                $"Calculating SHA-256 for {relativePath} ({sizeMb:F1} MB) - {currentIndex}/{totalEntries} ({percent:F0}%)",
+                ManifestConstants.IndexingNotificationTitle);
         }
     }
 

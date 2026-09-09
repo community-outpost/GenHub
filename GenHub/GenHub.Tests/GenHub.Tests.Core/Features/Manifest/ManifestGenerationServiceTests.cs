@@ -1091,7 +1091,7 @@ public class ManifestGenerationServiceTests : IDisposable
         var skippedFiles = new[] { "skip1.dat", "skip2.dat" };
 
         // Act
-        var message = _service.GetIncompleteInstallationWarningMessage(GameType.ZeroHour, missingFiles, skippedFiles);
+        var message = ManifestGenerationService.GetIncompleteInstallationWarningMessage(GameType.ZeroHour, missingFiles, skippedFiles);
 
         // Assert
         Assert.Contains("ZeroHour has 6 missing required file(s)", message);
