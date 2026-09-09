@@ -211,7 +211,8 @@ public class ModBuilderViewModelTests : IDisposable
             n => n.ShowSuccess(
                 "Manifest Created",
                 It.Is<string>(s => s.Contains("TestMod")),
-                It.IsAny<int?>()),
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
             Times.Once);
     }
 }
