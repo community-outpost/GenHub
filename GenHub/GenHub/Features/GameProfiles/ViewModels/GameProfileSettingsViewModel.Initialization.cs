@@ -141,7 +141,7 @@ public partial class GameProfileSettingsViewModel
             if (_gameProfileManager == null)
             {
                 _logger?.LogWarning("Failed to load profile {ProfileId}: GameProfileManager is null", profileId);
-                StatusMessage = "Failed to load profile";
+                StatusMessage = "Error loading profile";
                 LoadingError = true;
                 return;
             }
