@@ -4,12 +4,12 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:GenHub.Features.Tools.ViewModels"
              xmlns:models="using:GenHub.Core.Models.Providers"
+             xmlns:enums="using:GenHub.Core.Models.Enums"
              mc:Ignorable="d"
              d:DesignWidth="800" d:DesignHeight="500"
              x:Class="GenHub.Features.Tools.Views.PublisherStudio.ContentLibraryView"
              x:DataType="vm:ContentLibraryViewModel"
              x:Name="RootView">
-
 
     <UserControl.Styles>
         <Style Selector="ListBoxItem">
@@ -70,79 +70,101 @@
                         BorderThickness="0,0,0,1"
                         BorderBrush="#20AA00FF"
                         Padding="16,10">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <PathIcon Data="{StaticResource ContentIcon}"
-                                  Width="14" Height="14"
-                                  Foreground="#AA00FF"
-                                  VerticalAlignment="Center"/>
-                        <TextBlock Text="Catalog:"
-                                   FontSize="11"
-                                   FontWeight="SemiBold"
-                                   Foreground="#9CA3AF"
-                                   VerticalAlignment="Center"/>
-                        <TextBlock Text="{Binding ActiveCatalogName}"
-                                   FontSize="11"
-                                   FontWeight="Bold"
-                                   Foreground="#AA00FF"
-                                   VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Border>
-
-                <!-- Header -->
-                <Border Grid.Row="1"
-                        Padding="20,16"
-                        BorderThickness="0,0,0,1"
-                        BorderBrush="#15FFFFFF">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Text="Content Items"
-                                   FontWeight="Bold"
-                                   Foreground="White"
-                                   VerticalAlignment="Center"
-                                   FontSize="16"/>
-                        <Button Grid.Column="1"
-                                Command="{Binding AddContentCommand}"
-                                ToolTip.Tip="Add New Content"
-                                Classes="glass-icon-btn">
-                            <PathIcon Data="{StaticResource AddIcon}" Width="16" Height="16" Foreground="#AA00FF"/>
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <PathIcon Data="{StaticResource ContentIcon}"
+                                      Width="14" Height="14"
+                                      Foreground="#AA00FF"
+                                      VerticalAlignment="Center"/>
+                            <TextBlock Text="Catalog:"
+                                       FontSize="11"
+                                       FontWeight="SemiBold"
+                                       Foreground="#9CA3AF"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding ActiveCatalogName}"
+                                       FontSize="11"
+                                       FontWeight="Bold"
+                                       Foreground="#AA00FF"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <Button Grid.Column="2"
+                                Command="{Binding RenameCatalogCommand}"
+                                ToolTip.Tip="Rename this catalog"
+                                Background="Transparent"
+                                Padding="6,4"
+                                CornerRadius="4"
+                                BorderThickness="0"
+                                VerticalAlignment="Center">
+                            <PathIcon Data="{StaticResource EditIcon}" Width="12" Height="12" Foreground="#AA00FF"/>
                         </Button>
                     </Grid>
                 </Border>
 
-                <!-- Content List -->
+                <!-- Search and Add Content Bar -->
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="16,16,16,12">
+                    <TextBox Text="{Binding SearchText, Mode=TwoWay}"
+                             Watermark="Search content..."
+                             VerticalAlignment="Center"
+                             Padding="12,8"
+                             CornerRadius="8"
+                             Background="#15FFFFFF"
+                             BorderBrush="#25FFFFFF"/>
+
+                    <Button Grid.Column="1"
+                            Command="{Binding AddContentCommand}"
+                            ToolTip.Tip="Add Content Item"
+                            Classes="accent-glass-btn"
+                            Margin="8,0,0,0">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="#AA00FF"/>
+                            <TextBlock Text="Add" Foreground="#AA00FF" FontWeight="SemiBold" FontSize="12"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <!-- Content Items List -->
                 <ListBox Grid.Row="2"
-                         ItemsSource="{Binding ContentItems}"
+                         ItemsSource="{Binding FilteredContent}"
                          SelectedItem="{Binding SelectedContent}"
-                         Padding="16"
-                         Background="Transparent">
+                         Background="Transparent"
+                         Margin="8,0"
+                         Padding="4">
                     <ListBox.ItemTemplate>
                         <DataTemplate DataType="models:CatalogContentItem">
                             <Border Name="CardRoot"
-                                    Padding="12"
-                                    CornerRadius="8"
+                                    Background="#08FFFFFF"
+                                    BorderBrush="#15FFFFFF"
                                     BorderThickness="1"
-                                    BorderBrush="#10FFFFFF"
-                                    Background="#05FFFFFF">
+                                    CornerRadius="8"
+                                    Padding="12"
+                                    Transitions="{x:Null}">
                                 <Grid ColumnDefinitions="Auto,*">
+                                    <!-- Type Icon Box -->
                                     <Border Width="40" Height="40"
                                             CornerRadius="8"
-                                            Background="{DynamicResource PrimaryGradientBrush}"
-                                            Margin="0,0,16,0"
-                                            Opacity="0.8">
-                                        <PathIcon Data="{StaticResource GamepadIcon}"
-                                                  Width="20" Height="20"
-                                                  Foreground="White"
+                                            Background="#15AA00FF"
+                                            Margin="0,0,12,0"
+                                            VerticalAlignment="Center">
+                                        <PathIcon Data="{StaticResource ContentIcon}"
+                                                  Width="18" Height="18"
+                                                  Foreground="#AA00FF"
                                                   HorizontalAlignment="Center"
                                                   VerticalAlignment="Center"/>
                                     </Border>
-                                    <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+
+                                    <!-- Content Info -->
+                                    <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Name}"
                                                    FontWeight="SemiBold"
+                                                   FontSize="14"
                                                    Foreground="White"
                                                    TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock FontSize="12" Foreground="#AAAAAA">
+                                        <TextBlock FontSize="12"
+                                                   Foreground="#888888"
+                                                   TextTrimming="CharacterEllipsis">
                                             <Run Text="{Binding ContentType}"/>
                                             <Run Text=" • "/>
-                                            <Run Text="{Binding Releases.Count}"/>
+                                            <Run Text="{Binding Releases.Count, Mode=OneWay}"/>
                                             <Run Text=" releases"/>
                                         </TextBlock>
                                     </StackPanel>
@@ -152,84 +174,83 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <!-- Empty State -->
-                <StackPanel Grid.Row="1"
-                            IsVisible="{Binding !ContentItems.Count}"
+                <!-- Clean Empty State (Row 2, only visible when list is empty) -->
+                <StackPanel Grid.Row="2"
+                            IsVisible="{Binding !FilteredContent.Count}"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
-                            Spacing="16">
-                    <TextBlock Text="No content items"
-                               FontSize="14"
-                               Opacity="0.5"
-                               Foreground="White"
+                            Spacing="12"
+                            Margin="16">
+                    <PathIcon Data="{StaticResource ContentIcon}"
+                              Width="36" Height="36"
+                              Foreground="#40FFFFFF"
+                              HorizontalAlignment="Center"/>
+                    <TextBlock Text="No content items yet"
+                               FontSize="13"
+                               Foreground="#666666"
                                HorizontalAlignment="Center"/>
-                    <Button Command="{Binding AddContentCommand}"
-                            HorizontalAlignment="Center"
-                            Background="{DynamicResource PrimaryGradientBrush}"
-                            CornerRadius="10"
-                            Padding="24,12">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <PathIcon Data="{StaticResource AddIcon}" Width="16" Height="16" Foreground="White"/>
-                            <TextBlock Text="Add Content" Foreground="White" FontWeight="Bold" FontSize="14"/>
-                        </StackPanel>
-                    </Button>
                 </StackPanel>
+
+                <!-- Summary Footer -->
+                <Border Grid.Row="3"
+                        Background="#08FFFFFF"
+                        BorderThickness="0,1,0,0"
+                        BorderBrush="#15FFFFFF"
+                        Padding="16,10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="{Binding ContentItems.Count, StringFormat='{}{0} items in catalog'}"
+                                   FontSize="12"
+                                   Foreground="#666666"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
             </Grid>
         </Border>
 
-        <!-- Content Details Panel -->
+        <!-- Content Detail Panel -->
         <ScrollViewer Grid.Column="1"
-                      HorizontalScrollBarVisibility="Disabled"
-                      VerticalScrollBarVisibility="Auto">
+                      IsVisible="{Binding SelectedContent, Converter={x:Static ObjectConverters.IsNotNull}}"
+                      Padding="32">
             <ContentControl Content="{Binding SelectedContent}">
                 <ContentControl.ContentTemplate>
                     <DataTemplate DataType="models:CatalogContentItem">
-                        <StackPanel Margin="32" Spacing="24">
-                            <!-- Content Header -->
+                        <StackPanel Spacing="24" MaxWidth="800" HorizontalAlignment="Left">
+                            <!-- Header / Actions -->
                             <Grid ColumnDefinitions="*,Auto">
-                                <StackPanel Spacing="8">
-                                    <TextBlock Text="{Binding Name, FallbackValue=''}"
-                                               FontSize="28"
-                                               FontWeight="Bold"
-                                               Foreground="White">
-                                        <TextBlock.Effect>
-                                            <DropShadowEffect Color="#AA000000" BlurRadius="12" OffsetX="2" OffsetY="2" Opacity="0.4"/>
-                                        </TextBlock.Effect>
-                                    </TextBlock>
-                                    <StackPanel Orientation="Horizontal" Spacing="12">
-                                         <Border Background="{DynamicResource PrimaryGradientBrush}"
-                                                 CornerRadius="6"
-                                                 Padding="12,5">
+                                <StackPanel Spacing="6">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <TextBlock Text="{Binding Name}"
+                                                   FontSize="24"
+                                                   FontWeight="Bold"
+                                                   Foreground="White"/>
+                                        <Border Background="#20AA00FF"
+                                                CornerRadius="4"
+                                                Padding="8,2"
+                                                VerticalAlignment="Center">
                                              <TextBlock Text="{Binding ContentType, FallbackValue=''}"
-                                                        FontSize="12"
+                                                        FontSize="11"
                                                         FontWeight="Bold"
-                                                        Foreground="White"/>
-                                         </Border>
-                                        <Border Background="#20FFFFFF"
-                                                CornerRadius="6"
-                                                Padding="10,4">
-                                             <TextBlock Text="{Binding TargetGame, FallbackValue=''}"
-                                                        FontSize="12"
-                                                        Foreground="#DDDDDD"
-                                                        FontWeight="SemiBold"/>
+                                                        Foreground="#AA00FF"/>
                                         </Border>
                                     </StackPanel>
+                                    <TextBlock Text="{Binding Id, StringFormat='Manifest ID: {0}'}"
+                                               FontSize="13"
+                                               Foreground="#888888"/>
                                 </StackPanel>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top">
-                                    <!-- Edit Content Button -->
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
                                     <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).EditContentCommand}"
-                                            ToolTip.Tip="Edit Content"
+                                            CommandParameter="{Binding}"
                                             Classes="glass-icon-btn"
-                                            Margin="0,0,0,10">
+                                            ToolTip.Tip="Edit Content Details">
                                         <PathIcon Data="{StaticResource EditIcon}"
-                                                  Width="18" Height="18"
+                                                  Width="20" Height="20"
                                                   Foreground="#AA00FF"/>
                                     </Button>
-                                    <!-- Delete Content Button -->
                                     <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).DeleteContentCommand}"
-                                            ToolTip.Tip="Delete Content"
+                                            CommandParameter="{Binding}"
                                             Classes="glass-icon-btn"
-                                            Margin="0,0,0,10">
+                                            ToolTip.Tip="Delete Content Item">
                                         <PathIcon Data="{StaticResource DeleteIcon}"
                                                   Width="20" Height="20"
                                                   Foreground="#FF6060"/>
@@ -249,29 +270,79 @@
                                            TextWrapping="Wrap"
                                            Foreground="#DDDDDD"
                                            FontSize="14"
-                                           LineHeight="22"/>
+                                           LineHeight="20"/>
+                            </StackPanel>
+
+                            <!-- ID & Metadata Grid -->
+                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+                                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4" Margin="0,0,0,16">
+                                    <TextBlock Text="Content ID" Foreground="#888888" FontSize="12"/>
+                                    <TextBlock Text="{Binding Id}" Foreground="White" FontWeight="SemiBold" FontSize="13"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="0" Grid.Column="1" Spacing="4" Margin="0,0,0,16">
+                                    <TextBlock Text="Target Game" Foreground="#888888" FontSize="12"/>
+                                    <TextBlock Text="{Binding TargetGame}" Foreground="White" FontWeight="SemiBold" FontSize="13"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Spacing="4" IsVisible="{Binding ExtendsContentId, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                    <TextBlock Text="Extends Content" Foreground="#888888" FontSize="12"/>
+                                    <TextBlock Text="{Binding ExtendsContentId}" Foreground="#AA00FF" FontWeight="SemiBold" FontSize="13"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Tags -->
+                            <StackPanel Spacing="10" IsVisible="{Binding Tags.Count}">
+                                <TextBlock Text="Tags"
+                                           FontWeight="SemiBold"
+                                           Foreground="#D0D0E0"
+                                           FontSize="14"/>
+                                <ItemsControl ItemsSource="{Binding Tags}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel Orientation="Horizontal"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#10FFFFFF"
+                                                    BorderBrush="#20FFFFFF"
+                                                    BorderThickness="1"
+                                                    CornerRadius="4"
+                                                    Padding="8,4"
+                                                    Margin="0,0,8,8">
+                                                <TextBlock Text="{Binding}"
+                                                           FontSize="12"
+                                                           Foreground="#CCCCCC"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
 
                             <!-- Bundled Items (for ContentBundle) -->
-                            <Border Background="#10AAFF88"
-                                    CornerRadius="12"
-                                    BorderBrush="#20FFFFFF"
+                            <Border Background="#08FFFFFF"
+                                    BorderBrush="#15FFFFFF"
                                     BorderThickness="1"
+                                    CornerRadius="12"
                                     Padding="24"
-                                    BoxShadow="0 4 16 0 #20000000"
-                                    IsVisible="{Binding ContentType, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=ContentBundle}">
-                                <StackPanel Spacing="20">
+                                    Margin="0,8,0,0"
+                                    IsVisible="{Binding ContentType, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static enums:ContentType.ContentBundle}}">
+                                <StackPanel Spacing="16">
                                     <Grid ColumnDefinitions="*,Auto">
-                                        <TextBlock Text="Bundled Items"
-                                                   FontWeight="Bold"
-                                                   FontSize="18"
-                                                   Foreground="White"/>
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="Bundled Content Items"
+                                                       FontSize="18"
+                                                       FontWeight="Bold"
+                                                       Foreground="White"/>
+                                            <TextBlock Text="Items included in this bundle that will be installed together"
+                                                       FontSize="12"
+                                                       Foreground="#888888"/>
+                                        </StackPanel>
                                         <Button Grid.Column="1"
                                                 Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddBundledItemCommand}"
                                                 Classes="accent-glass-btn">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="#AA00FF"/>
-                                                <TextBlock Text="Add Item" Foreground="#AA00FF" FontWeight="Bold" FontSize="12"/>
+                                                <TextBlock Text="Add Item" Foreground="#AA00FF" FontWeight="SemiBold" FontSize="12"/>
                                             </StackPanel>
                                         </Button>
                                     </Grid>
@@ -279,120 +350,133 @@
                                     <ItemsControl ItemsSource="{Binding BundledItems}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate DataType="models:CatalogDependency">
-                                                <Border Background="#0FFFFFFF"
-                                                        CornerRadius="8"
-                                                        Padding="16"
-                                                        Margin="0,0,0,12"
+                                                <Border Background="#08FFFFFF"
+                                                        BorderBrush="#15FFFFFF"
                                                         BorderThickness="1"
-                                                        BorderBrush="#15FFFFFF">
-                                                    <Grid ColumnDefinitions="*,Auto">
-                                                        <StackPanel Spacing="4">
-                                                            <TextBlock Text="{Binding ContentId}" FontWeight="Bold" Foreground="White"/>
-                                                            <TextBlock Text="{Binding PublisherId}" FontSize="12" Opacity="0.6"/>
+                                                        CornerRadius="8"
+                                                        Padding="16,12"
+                                                        Margin="0,0,0,8">
+                                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                                        <Border Width="32" Height="32"
+                                                                CornerRadius="6"
+                                                                Background="#15AA00FF"
+                                                                Margin="0,0,12,0"
+                                                                VerticalAlignment="Center">
+                                                            <PathIcon Data="{StaticResource ContentIcon}"
+                                                                      Width="16" Height="16"
+                                                                      Foreground="#AA00FF"
+                                                                      HorizontalAlignment="Center"
+                                                                      VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding ContentId}"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="White"
+                                                                       FontSize="14"/>
+                                                            <TextBlock FontSize="11" Foreground="#888888">
+                                                                <Run Text="Publisher: "/>
+                                                                <Run Text="{Binding PublisherId, TargetNullValue='(same)'}"/>
+                                                            </TextBlock>
                                                         </StackPanel>
-                                                        <Button Grid.Column="1"
+                                                        <Border Grid.Column="2"
+                                                                Background="#15AA00FF"
+                                                                CornerRadius="4"
+                                                                Padding="8,3"
+                                                                Margin="0,0,12,0"
+                                                                VerticalAlignment="Center"
+                                                                IsVisible="{Binding VersionConstraint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                            <TextBlock Text="{Binding VersionConstraint}"
+                                                                       FontSize="11"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="#AA00FF"/>
+                                                        </Border>
+                                                        <Button Grid.Column="3"
                                                                 Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).RemoveBundledItemCommand}"
                                                                 CommandParameter="{Binding}"
-                                                                Classes="glass-icon-btn">
-                                                            <PathIcon Data="{StaticResource DeleteIcon}" Width="14" Height="14" Foreground="#FF6060"/>
+                                                                Classes="glass-icon-btn"
+                                                                ToolTip.Tip="Remove from bundle">
+                                                            <PathIcon Data="{StaticResource DeleteIcon}" Width="16" Height="16" Foreground="#FF6060"/>
                                                         </Button>
                                                     </Grid>
                                                 </Border>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
+
+                                    <TextBlock Text="No bundled items yet. Click 'Add Item' to bundle existing content."
+                                               FontSize="13"
+                                               Foreground="#666666"
+                                               IsVisible="{Binding !BundledItems.Count}"/>
                                 </StackPanel>
                             </Border>
 
                             <!-- Releases Section -->
-                            <Border Background="#10AA88FF"
-                                    CornerRadius="12"
-                                    BorderBrush="#20FFFFFF"
+                            <Border Background="#08FFFFFF"
+                                    BorderBrush="#15FFFFFF"
                                     BorderThickness="1"
+                                    CornerRadius="12"
                                     Padding="24"
-                                    BoxShadow="0 4 16 0 #20000000">
-                                <StackPanel Spacing="20">
+                                    Margin="0,8,0,0">
+                                <StackPanel Spacing="16">
                                     <Grid ColumnDefinitions="*,Auto">
-                                        <TextBlock Text="Releases"
-                                                   FontWeight="Bold"
+                                        <TextBlock Text="Releases &amp; Artifacts"
                                                    FontSize="18"
+                                                   FontWeight="Bold"
                                                    Foreground="White"/>
-                                         <Button Grid.Column="1"
-                                                 Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddReleaseCommand}"
-                                                 Classes="accent-glass-btn">
-                                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                                 <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="#AA00FF"/>
-                                                 <TextBlock Text="Add Release" Foreground="#AA00FF" FontWeight="Bold" FontSize="12"/>
-                                             </StackPanel>
-                                         </Button>
+                                        <Button Grid.Column="1"
+                                                Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddReleaseCommand}"
+                                                Classes="accent-glass-btn">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="#AA00FF"/>
+                                                <TextBlock Text="Add Release" Foreground="#AA00FF" FontWeight="SemiBold" FontSize="12"/>
+                                            </StackPanel>
+                                        </Button>
                                     </Grid>
 
-                                    <!-- Release List -->
-                                    <ItemsControl ItemsSource="{Binding Releases, FallbackValue={x:Null}}">
+                                    <!-- Releases List -->
+                                    <ItemsControl ItemsSource="{Binding Releases}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate DataType="models:ContentRelease">
-                                                <Expander Margin="0,0,0,12">
-                                                    <Expander.Styles>
-                                                        <Style Selector="Expander">
-                                                            <Setter Property="Background" Value="#0FFFFFFF"/>
-                                                            <Setter Property="BorderBrush" Value="#15FFFFFF"/>
-                                                            <Setter Property="BorderThickness" Value="1"/>
-                                                            <Setter Property="CornerRadius" Value="8"/>
-                                                            <Setter Property="Padding" Value="16"/>
-                                                        </Style>
-                                                        <Style Selector="Expander:expanded">
-                                                            <Setter Property="Background" Value="#12FFFFFF"/>
-                                                        </Style>
-                                                    </Expander.Styles>
+                                                <Expander Background="#08FFFFFF"
+                                                          BorderBrush="#15FFFFFF"
+                                                          BorderThickness="1"
+                                                          CornerRadius="8"
+                                                          Margin="0,0,0,8"
+                                                          Padding="16"
+                                                          IsExpanded="True">
                                                     <Expander.Header>
-                                                        <Grid ColumnDefinitions="*,Auto" MinWidth="500">
-                                                            <StackPanel Spacing="4">
-                                                                <StackPanel Orientation="Horizontal" Spacing="10">
-                                                                    <TextBlock Text="{Binding Version, StringFormat='v{0}'}"
-                                                                               FontWeight="Bold"
-                                                                               FontSize="16"
-                                                                               Foreground="White"/>
-                                                                    <Border IsVisible="{Binding IsLatest}"
-                                                                            Background="#2000FF00"
-                                                                            CornerRadius="4"
-                                                                            Padding="8,2"
-                                                                            BorderBrush="#4000FF00"
-                                                                            BorderThickness="1">
-                                                                        <TextBlock Text="Latest"
-                                                                                   FontSize="10"
-                                                                                   Foreground="#40FF40"
-                                                                                   FontWeight="Bold"/>
-                                                                    </Border>
-                                                                    <Border IsVisible="{Binding IsPrerelease}"
-                                                                            Background="#20FFA500"
-                                                                            CornerRadius="4"
-                                                                            Padding="8,2"
-                                                                            BorderBrush="#40FFA500"
-                                                                            BorderThickness="1">
-                                                                        <TextBlock Text="Pre-release"
-                                                                                   FontSize="10"
-                                                                                   Foreground="#FFA500"
-                                                                                   FontWeight="Bold"/>
-                                                                    </Border>
-                                                                </StackPanel>
-                                                                <TextBlock FontSize="13" Foreground="#AAAAAA">
-                                                                    <Run Text="{Binding ReleaseDate, StringFormat='{}{0:MMM d, yyyy}'}"/>
-                                                                    <Run Text=" • "/>
-                                                                    <Run Text="{Binding Artifacts.Count}"/>
-                                                                    <Run Text=" artifacts"/>
-                                                                </TextBlock>
+                                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                                            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding Version, StringFormat='v{0}'}"
+                                                                           FontWeight="Bold"
+                                                                           FontSize="16"
+                                                                           Foreground="White"/>
+                                                                <Border Background="#20AA00FF"
+                                                                        CornerRadius="4"
+                                                                        Padding="6,2"
+                                                                        IsVisible="{Binding IsLatest}">
+                                                                    <TextBlock Text="LATEST" FontSize="10" FontWeight="Bold" Foreground="#AA00FF"/>
+                                                                </Border>
+                                                                <Border Background="#20FFB300"
+                                                                        CornerRadius="4"
+                                                                        Padding="6,2"
+                                                                        IsVisible="{Binding IsPrerelease}">
+                                                                    <TextBlock Text="PRE-RELEASE" FontSize="10" FontWeight="Bold" Foreground="#FFB300"/>
+                                                                </Border>
+                                                                <TextBlock Text="{Binding ReleaseDate, StringFormat='{}{0:yyyy-MM-dd}'}"
+                                                                           FontSize="12"
+                                                                           Foreground="#888888"
+                                                                           VerticalAlignment="Center"/>
                                                             </StackPanel>
-                                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
-                                                                <!-- Edit Release Button -->
+                                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                                                                 <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).EditReleaseCommand}"
                                                                         CommandParameter="{Binding}"
                                                                         ToolTip.Tip="Edit Release"
                                                                         Background="Transparent"
                                                                         Padding="8"
                                                                         CornerRadius="6">
-                                                                    <PathIcon Data="{StaticResource EditIcon}" Width="16" Height="16" Foreground="#AA00FF"/>
+                                                                    <PathIcon Data="{StaticResource EditIcon}" Width="14" Height="14" Foreground="#AA00FF"/>
                                                                 </Button>
-                                                                <!-- Delete Release Button -->
                                                                 <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).DeleteReleaseCommand}"
                                                                         CommandParameter="{Binding}"
                                                                         ToolTip.Tip="Delete Release"

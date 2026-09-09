@@ -29,10 +29,34 @@ public partial class ContentLibraryViewModel : ObservableObject
     [ObservableProperty]
     private CatalogContentItem? _selectedContent;
 
+    [ObservableProperty]
+    private string _searchText = string.Empty;
+
     /// <summary>
     /// Gets the name of the active catalog.
     /// </summary>
     public string ActiveCatalogName => _activeCatalog.Name;
+
+    /// <summary>
+    /// Gets filtered content items based on the search query.
+    /// </summary>
+    public ObservableCollection<CatalogContentItem> FilteredContent
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(SearchText))
+            {
+                return ContentItems;
+            }
+
+            var query = SearchText.Trim();
+            return new ObservableCollection<CatalogContentItem>(
+                ContentItems.Where(item =>
+                    (item.Name != null && item.Name.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
+                    (item.Id != null && item.Id.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
+                    (item.Description != null && item.Description.Contains(query, StringComparison.OrdinalIgnoreCase))));
+        }
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ContentLibraryViewModel"/> class with multi-catalog support.
@@ -75,6 +99,11 @@ public partial class ContentLibraryViewModel : ObservableObject
     {
     }
 
+    partial void OnSearchTextChanged(string value)
+    {
+        OnPropertyChanged(nameof(FilteredContent));
+    }
+
     /// <summary>
     /// Loads content items from the active catalog.
     /// </summary>
@@ -85,6 +114,18 @@ public partial class ContentLibraryViewModel : ObservableObject
         {
             ContentItems.Add(item);
         }
+
+        OnPropertyChanged(nameof(FilteredContent));
+    }
+
+    /// <summary>
+    /// Renames the active catalog.
+    /// </summary>
+    [RelayCommand]
+    private async Task RenameCatalogAsync()
+    {
+        await _parentViewModel.RenameCatalogCommand.ExecuteAsync(_activeCatalog);
+        OnPropertyChanged(nameof(ActiveCatalogName));
     }
 
     /// <summary>
@@ -98,9 +139,11 @@ public partial class ContentLibraryViewModel : ObservableObject
         {
             _activeCatalog.Catalog.Content.Add(newContent);
             ContentItems.Add(newContent);
+            OnPropertyChanged(nameof(FilteredContent));
             SelectedContent = newContent;
 
             _parentViewModel.MarkDirty();
+            await _parentViewModel.SaveProjectAsync();
             _logger.LogInformation("Added new content item: {ContentId} to catalog: {CatalogId}", newContent.Id, _activeCatalog.Id);
         }
     }
@@ -129,6 +172,7 @@ public partial class ContentLibraryViewModel : ObservableObject
             SelectedContent = current;
 
             _parentViewModel.MarkDirty();
+            await _parentViewModel.SaveProjectAsync();
             _logger.LogInformation("Edited content item: {ContentId}", SelectedContent.Id);
         }
     }
@@ -137,7 +181,7 @@ public partial class ContentLibraryViewModel : ObservableObject
     /// Deletes the selected content item from the active catalog.
     /// </summary>
     [RelayCommand]
-    private void DeleteContent()
+    private async Task DeleteContentAsync()
     {
         if (SelectedContent == null)
         {
@@ -148,8 +192,10 @@ public partial class ContentLibraryViewModel : ObservableObject
 
         _activeCatalog.Catalog.Content.Remove(SelectedContent);
         ContentItems.Remove(SelectedContent);
+        OnPropertyChanged(nameof(FilteredContent));
 
         _parentViewModel.MarkDirty();
+        await _parentViewModel.SaveProjectAsync();
         _logger.LogInformation("Deleted content item: {ContentId} from catalog: {CatalogId}", contentId, _activeCatalog.Id);
 
         SelectedContent = ContentItems.FirstOrDefault();
@@ -172,6 +218,7 @@ public partial class ContentLibraryViewModel : ObservableObject
             SelectedContent.Releases.Add(newRelease);
 
             _parentViewModel.MarkDirty();
+            await _parentViewModel.SaveProjectAsync();
             _logger.LogInformation("Added new release to content: {ContentId} in catalog: {CatalogId} (v{Version})", SelectedContent.Id, _activeCatalog.Id, newRelease.Version);
         }
     }
@@ -192,6 +239,7 @@ public partial class ContentLibraryViewModel : ObservableObject
         {
             SelectedContent.BundledItems.Add(dependency);
             _parentViewModel.MarkDirty();
+            await _parentViewModel.SaveProjectAsync();
             _logger.LogInformation("Added bundled item to {ContentId} in catalog: {CatalogId}: {DependencyId}", SelectedContent.Id, _activeCatalog.Id, dependency.ContentId);
         }
     }
@@ -200,7 +248,7 @@ public partial class ContentLibraryViewModel : ObservableObject
     /// Removes a bundled item from the selected content bundle.
     /// </summary>
     [RelayCommand]
-    private void RemoveBundledItem(CatalogDependency dependency)
+    private async Task RemoveBundledItemAsync(CatalogDependency dependency)
     {
         if (SelectedContent == null || dependency == null)
         {
@@ -209,6 +257,7 @@ public partial class ContentLibraryViewModel : ObservableObject
 
         SelectedContent.BundledItems.Remove(dependency);
         _parentViewModel.MarkDirty();
+        await _parentViewModel.SaveProjectAsync();
         _logger.LogInformation("Removed bundled item from {ContentId}: {DependencyId}", SelectedContent.Id, dependency.ContentId);
     }
 
@@ -216,7 +265,7 @@ public partial class ContentLibraryViewModel : ObservableObject
     /// Deletes a specific release from the selected content item.
     /// </summary>
     [RelayCommand]
-    private void DeleteRelease(ContentRelease release)
+    private async Task DeleteReleaseAsync(ContentRelease release)
     {
         if (SelectedContent == null || release == null)
         {
@@ -225,6 +274,7 @@ public partial class ContentLibraryViewModel : ObservableObject
 
         SelectedContent.Releases.Remove(release);
         _parentViewModel.MarkDirty();
+        await _parentViewModel.SaveProjectAsync();
         _logger.LogInformation("Deleted release v{Version} from {ContentId}", release.Version, SelectedContent.Id);
 
         // Force UI refresh by re-selecting
@@ -259,6 +309,7 @@ public partial class ContentLibraryViewModel : ObservableObject
             SelectedContent = current;
 
             _parentViewModel.MarkDirty();
+            await _parentViewModel.SaveProjectAsync();
             _logger.LogInformation("Edited release v{Version} of {ContentId}", release.Version, SelectedContent.Id);
         }
     }
@@ -276,6 +327,7 @@ public partial class ContentLibraryViewModel : ObservableObject
         {
             release.Artifacts.Add(artifact);
             _parentViewModel.MarkDirty();
+            await _parentViewModel.SaveProjectAsync();
 
             // Force UI refresh
             var current = SelectedContent;
@@ -284,6 +336,25 @@ public partial class ContentLibraryViewModel : ObservableObject
 
             _logger.LogInformation("Added artifact to release v{Version}", release.Version);
         }
+    }
+
+    /// <summary>
+    /// Removes an artifact from a release.
+    /// </summary>
+    [RelayCommand]
+    private async Task DeleteArtifactFromReleaseAsync((ContentRelease Release, ReleaseArtifact Artifact) args)
+    {
+        if (args.Release == null || args.Artifact == null) return;
+
+        args.Release.Artifacts.Remove(args.Artifact);
+        _parentViewModel.MarkDirty();
+        await _parentViewModel.SaveProjectAsync();
+
+        var current = SelectedContent;
+        SelectedContent = null;
+        SelectedContent = current;
+
+        _logger.LogInformation("Removed artifact from release v{Version}", args.Release.Version);
     }
 
     /// <summary>
@@ -299,6 +370,7 @@ public partial class ContentLibraryViewModel : ObservableObject
         {
             release.Dependencies.Add(dependency);
             _parentViewModel.MarkDirty();
+            await _parentViewModel.SaveProjectAsync();
 
             var current = SelectedContent;
             SelectedContent = null;

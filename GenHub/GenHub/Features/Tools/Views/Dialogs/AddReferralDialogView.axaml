@@ -58,6 +58,7 @@
                                 <DataTemplate>
                                     <Button Command="{Binding #RootView.((vm:AddReferralDialogViewModel)DataContext).SelectPublisherCommand}"
                                             CommandParameter="{Binding}"
+                                            Background="Transparent"
                                             Padding="12,8"
                                             HorizontalAlignment="Stretch"
                                             HorizontalContentAlignment="Stretch">
@@ -90,7 +91,7 @@
                                                       Data="{StaticResource CheckmarkIcon}"
                                                       Width="18" Height="18"
                                                       Foreground="#40FF40"
-                                                      IsVisible="{Binding #RootView.((vm:AddReferralDialogViewModel)DataContext).SelectedPublisher.PublisherId, Converter={StaticResource StringEqualsConverter}, ConverterParameter={Binding PublisherId}}"/>
+                                                      IsVisible="{Binding #RootView.((vm:AddReferralDialogViewModel)DataContext).SelectedPublisher.PublisherId, Converter={StaticResource EqualityConverter}, ConverterParameter={Binding PublisherId}}"/>
                                         </Grid>
                                     </Button>
                                 </DataTemplate>
@@ -114,7 +115,7 @@
                             <TextBox Grid.Column="0" Grid.Row="0"
                                      Text="{Binding CatalogUrl}"
                                      Watermark="https://example.com/publisher.json"
-                                     IsEnabled="{Binding !SelectedPublisher, Converter={StaticResource InverseBoolConverter}}"/>
+                                     IsEnabled="{Binding SelectedPublisher, Converter={x:Static ObjectConverters.IsNull}}"/>
                             <Button Grid.Column="1" Grid.Row="0"
                                     Command="{Binding DiscoverPublisherCommand}"
                                     Content="Discover"

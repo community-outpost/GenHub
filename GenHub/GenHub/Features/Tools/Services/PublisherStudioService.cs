@@ -340,56 +340,6 @@ public class PublisherStudioService(
         }
     }
 
-    /// <summary>
-    /// Validates content references (ExtendsContentId) in the catalog.
-    /// </summary>
-    /// <param name="catalog">The catalog to validate.</param>
-    /// <returns>An operation result indicating validation success or failure.</returns>
-    private OperationResult<bool> ValidateContentReferences(PublisherCatalog catalog)
-    {
-        var errors = new List<string>();
-        var contentIds = new HashSet<string>(catalog.Content.Select(c => c.Id));
-
-        // Regex for valid ExtendsContentId format: "contentId" or "publisherId/contentId"
-        var extendsIdRegex = new System.Text.RegularExpressions.Regex(@"^([a-z0-9-]+/)?[a-z0-9-]+$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1));
-
-        foreach (var content in catalog.Content)
-        {
-            if (string.IsNullOrWhiteSpace(content.ExtendsContentId))
-            {
-                continue; // No reference to validate
-            }
-
-            // Validate format
-            if (!extendsIdRegex.IsMatch(content.ExtendsContentId))
-            {
-                errors.Add($"Content '{content.Name}' has invalid ExtendsContentId format: '{content.ExtendsContentId}'. " +
-                          "Must be 'contentId' or 'publisherId/contentId' with lowercase alphanumeric and hyphens only.");
-                continue;
-            }
-
-            // Check if it's a same-catalog reference (no slash) and not present
-            if (!content.ExtendsContentId.Contains('/') && !contentIds.Contains(content.ExtendsContentId))
-            {
-                errors.Add($"Content '{content.Name}' extends '{content.ExtendsContentId}' which does not exist in this catalog.");
-            }
-
-            // Cross-publisher references are validated for format only (can't verify external catalogs)
-        }
-
-        // Check for circular dependencies
-        var circularErrors = DetectCircularDependencies(catalog);
-        errors.AddRange(circularErrors);
-
-        if (errors.Count > 0)
-        {
-            logger.LogWarning("Content reference validation failed with {ErrorCount} errors", errors.Count);
-            return OperationResult<bool>.CreateFailure(errors);
-        }
-
-        return OperationResult<bool>.CreateSuccess(true);
-    }
-
     private static OperationResult<bool> ValidatePublisherMetadata(PublisherCatalog catalog)
     {
         if (string.IsNullOrWhiteSpace(catalog.Publisher.Id))
@@ -628,5 +578,55 @@ public class PublisherStudioService(
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Validates content references (ExtendsContentId) in the catalog.
+    /// </summary>
+    /// <param name="catalog">The catalog to validate.</param>
+    /// <returns>An operation result indicating validation success or failure.</returns>
+    private OperationResult<bool> ValidateContentReferences(PublisherCatalog catalog)
+    {
+        var errors = new List<string>();
+        var contentIds = new HashSet<string>(catalog.Content.Select(c => c.Id));
+
+        // Regex for valid ExtendsContentId format: "contentId" or "publisherId/contentId"
+        var extendsIdRegex = new System.Text.RegularExpressions.Regex(@"^([a-z0-9-]+/)?[a-z0-9-]+$", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(1));
+
+        foreach (var content in catalog.Content)
+        {
+            if (string.IsNullOrWhiteSpace(content.ExtendsContentId))
+            {
+                continue; // No reference to validate
+            }
+
+            // Validate format
+            if (!extendsIdRegex.IsMatch(content.ExtendsContentId))
+            {
+                errors.Add($"Content '{content.Name}' has invalid ExtendsContentId format: '{content.ExtendsContentId}'. " +
+                          "Must be 'contentId' or 'publisherId/contentId' with lowercase alphanumeric and hyphens only.");
+                continue;
+            }
+
+            // Check if it's a same-catalog reference (no slash) and not present
+            if (!content.ExtendsContentId.Contains('/') && !contentIds.Contains(content.ExtendsContentId))
+            {
+                errors.Add($"Content '{content.Name}' extends '{content.ExtendsContentId}' which does not exist in this catalog.");
+            }
+
+            // Cross-publisher references are validated for format only (can't verify external catalogs)
+        }
+
+        // Check for circular dependencies
+        var circularErrors = DetectCircularDependencies(catalog);
+        errors.AddRange(circularErrors);
+
+        if (errors.Count > 0)
+        {
+            logger.LogWarning("Content reference validation failed with {ErrorCount} errors", errors.Count);
+            return OperationResult<bool>.CreateFailure(errors);
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
     }
 }

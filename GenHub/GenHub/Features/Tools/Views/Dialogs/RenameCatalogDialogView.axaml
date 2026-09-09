@@ -1,0 +1,66 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Tools.ViewModels.Dialogs"
+             mc:Ignorable="d" d:DesignWidth="420" d:DesignHeight="260"
+             x:Class="GenHub.Features.Tools.Views.Dialogs.RenameCatalogDialogView"
+             x:DataType="vm:RenameCatalogDialogViewModel">
+
+    <Grid RowDefinitions="Auto, *, Auto" Margin="24">
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+            <TextBlock Text="Rename Catalog"
+                       FontSize="18" FontWeight="Bold"
+                       Foreground="White"/>
+            <Button Grid.Column="1"
+                    Command="{Binding CancelCommand}"
+                    Background="Transparent"
+                    Padding="8"
+                    CornerRadius="8"
+                    BorderThickness="0"
+                    VerticalAlignment="Top">
+                <PathIcon Data="{StaticResource CloseIcon}"
+                          Width="12" Height="12"
+                          Foreground="#888888"/>
+            </Button>
+        </Grid>
+
+        <!-- Form Body -->
+        <StackPanel Grid.Row="1" Spacing="12">
+            <TextBlock Text="Catalog Name"
+                       FontWeight="SemiBold"
+                       Foreground="#D0D0E0"
+                       FontSize="13"/>
+            <TextBox Text="{Binding CatalogName, Mode=TwoWay}"
+                     Watermark="e.g. Maps, Mods, Zero Hour Content"
+                     FontSize="14"
+                     Padding="12,10"/>
+            <TextBlock Text="Renaming will update the catalog title and its export filename (e.g. catalog-maps.json)."
+                       FontSize="11"
+                       Foreground="#888888"
+                       TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding ValidationError}"
+                       Foreground="#FF5555"
+                       FontSize="12"
+                       IsVisible="{Binding !IsValid}"
+                       TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <!-- Actions -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Cancel"
+                    Command="{Binding CancelCommand}"
+                    Classes="glass-btn"
+                    Padding="20,10"/>
+            <Button Content="Rename"
+                    Command="{Binding SaveCommand}"
+                    Background="{DynamicResource PrimaryGradientBrush}"
+                    Foreground="White"
+                    CornerRadius="8"
+                    Padding="24,10"
+                    FontWeight="Bold"
+                    BorderThickness="0"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

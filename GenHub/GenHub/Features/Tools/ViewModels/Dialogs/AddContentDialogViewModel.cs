@@ -1,48 +1,51 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.ComponentModel.DataAnnotations;
-using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
+using GenHub.Features.Tools.Interfaces;
 
 namespace GenHub.Features.Tools.ViewModels.Dialogs;
 
 /// <summary>
-/// ViewModel for the Add/Edit Content Item dialog.
-/// Provides validation and creation/editing of CatalogContentItem entries.
+/// ViewModel for adding or editing a content item in the catalog.
 /// </summary>
-[SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
 public partial class AddContentDialogViewModel : ObservableValidator
 {
     private readonly Action<CatalogContentItem> _onContentCreated;
+    private readonly IPublisherStudioDialogService? _dialogService;
+    private readonly CatalogContentItem? _existingItem;
 
     [ObservableProperty]
-    [NotifyDataErrorInfo]
+    private bool _isEditMode;
+
+    [ObservableProperty]
     [Required(ErrorMessage = "Content ID is required")]
-    [MinLength(2, ErrorMessage = "Content ID must be at least 2 characters")]
-    [RegularExpression(@"^[a-z0-9-]+$", ErrorMessage = "Content ID must contain only lowercase letters, numbers, and hyphens")]
+    [RegularExpression(@"^[a-z0-9-]+$", ErrorMessage = "ID must be lowercase alphanumeric with hyphens only")]
+    [MinLength(3, ErrorMessage = "ID must be at least 3 characters")]
+    [MaxLength(64, ErrorMessage = "ID cannot exceed 64 characters")]
     private string _contentId = string.Empty;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(SuggestedContentId))]
-    [NotifyDataErrorInfo]
     [Required(ErrorMessage = "Content name is required")]
-    [MinLength(2, ErrorMessage = "Content name must be at least 2 characters")]
+    [MinLength(2, ErrorMessage = "Name must be at least 2 characters")]
+    [MaxLength(100, ErrorMessage = "Name cannot exceed 100 characters")]
     private string _contentName = string.Empty;
 
     [ObservableProperty]
-    [NotifyDataErrorInfo]
     [Required(ErrorMessage = "Description is required")]
-    [MinLength(10, ErrorMessage = "Description should be at least 10 characters")]
+    [MinLength(10, ErrorMessage = "Description must be at least 10 characters")]
+    [MaxLength(2000, ErrorMessage = "Description cannot exceed 2000 characters")]
     private string _description = string.Empty;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowAddonParentSelection))]
     private ContentType _selectedContentType = ContentType.Mod;
 
     [ObservableProperty]
@@ -55,80 +58,109 @@ public partial class AddContentDialogViewModel : ObservableValidator
     private string? _extendsContentId;
 
     [ObservableProperty]
-    private string? _validationError;
-
-    [ObservableProperty]
     private bool _isValid;
 
+    [ObservableProperty]
+    private string? _validationError;
+
+    // Release & Artifact Direct Download / File support
+    [ObservableProperty]
+    private bool _includeInitialRelease = true;
+
+    [ObservableProperty]
+    private string _initialVersion = "1.0.0";
+
+    [ObservableProperty]
+    private bool _useDirectUrl = true;
+
+    [ObservableProperty]
+    private string? _downloadUrl;
+
+    [ObservableProperty]
+    private string? _localFilePath;
+
+    [ObservableProperty]
+    private string? _packageFilename;
+
+    [ObservableProperty]
+    private long _fileSize;
+
+    [ObservableProperty]
+    private string _fileSizeDisplay = string.Empty;
+
+    [ObservableProperty]
+    private string? _sha256Hash;
+
+    [ObservableProperty]
+    private bool _isComputingHash;
+
     /// <summary>
-    /// Gets the available content types for selection.
+    /// Gets available content types for selection.
     /// </summary>
-    public IReadOnlyList<ContentType> AvailableContentTypes { get; } =
+    public static ContentType[] AvailableContentTypes =>
     [
         ContentType.Mod,
+        ContentType.Patch,
+        ContentType.Addon,
         ContentType.Map,
         ContentType.MapPack,
-        ContentType.Mission,
-        ContentType.Addon,
-        ContentType.Patch,
-        ContentType.Video,
-        ContentType.Replay,
-        ContentType.Skin,
-        ContentType.ModdingTool,
-        ContentType.Executable,
         ContentType.LanguagePack,
         ContentType.ContentBundle,
+        ContentType.Mission,
+        ContentType.Skin,
+        ContentType.GameClient,
     ];
 
     /// <summary>
-    /// Gets the available target games for selection.
+    /// Gets available target games for selection.
     /// </summary>
-    public IReadOnlyList<GameType> AvailableTargetGames { get; } =
+    public static GameType[] AvailableTargetGames =>
     [
-        GameType.ZeroHour,
         GameType.Generals,
+        GameType.ZeroHour,
     ];
 
     /// <summary>
-    /// Gets a value indicating whether the dialog is in edit mode.
+    /// Gets the dialog title based on mode.
     /// </summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(DialogTitle))]
-    [NotifyPropertyChangedFor(nameof(SubmitButtonText))]
-    private bool _isEditMode;
+    public string DialogTitle => IsEditMode ? "Edit Content Item" : "Add Content Item";
 
     /// <summary>
-    /// Gets the dialog title based on the current mode.
+    /// Gets the primary action button text based on mode.
     /// </summary>
-    public string DialogTitle => IsEditMode ? "Edit Content" : "Add New Content";
+    public string ActionButtonText => IsEditMode ? "Save Changes" : "Create Content";
 
     /// <summary>
-    /// Gets the submit button text based on the current mode.
+    /// Gets the submit button text for view binding.
     /// </summary>
-    public string SubmitButtonText => IsEditMode ? "Save Changes" : "Add Content";
+    public string SubmitButtonText => ActionButtonText;
 
     /// <summary>
-    /// Gets a value indicating whether the addon parent selection should be visible.
-    /// </summary>
-    public bool ShowAddonParentSelection => SelectedContentType == ContentType.Addon;
-
-    /// <summary>
-    /// Gets the available parent content items for addon selection.
-    /// </summary>
-    public ObservableCollection<CatalogContentItem> AvailableParentContent { get; } = new();
-
-    /// <summary>
-    /// Gets the suggested content ID based on the content name.
+    /// Gets a suggested content ID based on the entered name.
     /// </summary>
     public string SuggestedContentId => GenerateContentId(ContentName);
 
     /// <summary>
+    /// Gets a value indicating whether the content type can extend another.
+    /// </summary>
+    public bool CanExtend => SelectedContentType == ContentType.Addon;
+
+    /// <summary>
+    /// Gets a value indicating whether the addon parent selection field should be shown.
+    /// </summary>
+    public bool ShowAddonParentSelection => CanExtend;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="AddContentDialogViewModel"/> class.
     /// </summary>
-    /// <param name="onContentCreated">Callback invoked when content is successfully created.</param>
-    public AddContentDialogViewModel(Action<CatalogContentItem> onContentCreated)
+    /// <param name="onContentCreated">Callback invoked when content is created or saved.</param>
+    /// <param name="dialogService">Optional dialog service for browsing files.</param>
+    public AddContentDialogViewModel(
+        Action<CatalogContentItem> onContentCreated,
+        IPublisherStudioDialogService? dialogService = null)
     {
         _onContentCreated = onContentCreated ?? throw new ArgumentNullException(nameof(onContentCreated));
+        _dialogService = dialogService;
 
         // Re-validate when properties change
         PropertyChanged += (_, e) =>
@@ -145,11 +177,16 @@ public partial class AddContentDialogViewModel : ObservableValidator
     /// </summary>
     /// <param name="existing">The existing content item to edit.</param>
     /// <param name="onContentSaved">Callback invoked when content is successfully saved.</param>
-    public AddContentDialogViewModel(CatalogContentItem existing, Action<CatalogContentItem> onContentSaved)
-        : this(onContentSaved)
+    /// <param name="dialogService">Optional dialog service for browsing files.</param>
+    public AddContentDialogViewModel(
+        CatalogContentItem existing,
+        Action<CatalogContentItem> onContentSaved,
+        IPublisherStudioDialogService? dialogService = null)
+        : this(onContentSaved, dialogService)
     {
         ArgumentNullException.ThrowIfNull(existing);
 
+        _existingItem = existing;
         IsEditMode = true;
         ContentId = existing.Id;
         ContentName = existing.Name;
@@ -158,6 +195,20 @@ public partial class AddContentDialogViewModel : ObservableValidator
         SelectedTargetGame = existing.TargetGame;
         TagsInput = string.Join(", ", existing.Tags);
         ExtendsContentId = existing.ExtendsContentId;
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        string[] suffixes = ["B", "KB", "MB", "GB", "TB"];
+        int counter = 0;
+        decimal number = bytes;
+        while (Math.Round(number / 1024) >= 1 && counter < suffixes.Length - 1)
+        {
+            number /= 1024;
+            counter++;
+        }
+
+        return $"{number:n1} {suffixes[counter]}";
     }
 
     /// <summary>
@@ -200,6 +251,77 @@ public partial class AddContentDialogViewModel : ObservableValidator
             .Where(t => !string.IsNullOrWhiteSpace(t))
             .Distinct()
             .ToList();
+    }
+
+    partial void OnSelectedContentTypeChanged(ContentType value)
+    {
+        OnPropertyChanged(nameof(CanExtend));
+        OnPropertyChanged(nameof(ShowAddonParentSelection));
+    }
+
+    partial void OnDownloadUrlChanged(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return;
+        try
+        {
+            if (Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri))
+            {
+                var name = Path.GetFileName(uri.LocalPath);
+                if (!string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(PackageFilename))
+                {
+                    PackageFilename = name;
+                }
+            }
+        }
+        catch
+        {
+            // Ignore malformed URI while typing
+        }
+    }
+
+    /// <summary>
+    /// Browses for a local archive file (.zip, .big, .7z, etc.).
+    /// </summary>
+    [RelayCommand]
+    private async Task BrowseLocalFileAsync()
+    {
+        if (_dialogService == null) return;
+
+        var filePath = await _dialogService.ShowFilePickerAsync("Select Content Archive File");
+        if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+        {
+            LocalFilePath = filePath;
+            var info = new FileInfo(filePath);
+            FileSize = info.Length;
+            FileSizeDisplay = FormatBytes(info.Length);
+
+            if (string.IsNullOrWhiteSpace(PackageFilename))
+            {
+                PackageFilename = Path.GetFileName(filePath);
+            }
+
+            await ComputeSha256Async(filePath);
+        }
+    }
+
+    private async Task ComputeSha256Async(string filePath)
+    {
+        try
+        {
+            IsComputingHash = true;
+            using var stream = File.OpenRead(filePath);
+            using var sha256 = SHA256.Create();
+            var hashBytes = await sha256.ComputeHashAsync(stream);
+            Sha256Hash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+        }
+        catch
+        {
+            Sha256Hash = string.Empty;
+        }
+        finally
+        {
+            IsComputingHash = false;
+        }
     }
 
     /// <summary>
@@ -250,6 +372,50 @@ public partial class AddContentDialogViewModel : ObservableValidator
             Tags = [.. tags],
             ExtendsContentId = SelectedContentType == ContentType.Addon ? ExtendsContentId : null,
         };
+
+        if (!IsEditMode && IncludeInitialRelease)
+        {
+            var version = string.IsNullOrWhiteSpace(InitialVersion) ? "1.0.0" : InitialVersion.Trim();
+            var release = new ContentRelease
+            {
+                Version = version,
+                ReleaseDate = DateTime.UtcNow,
+                IsLatest = true,
+                Artifacts = [],
+            };
+
+            var artifactName = !string.IsNullOrWhiteSpace(PackageFilename)
+                ? PackageFilename.Trim()
+                : (!string.IsNullOrWhiteSpace(LocalFilePath)
+                    ? Path.GetFileName(LocalFilePath)
+                    : $"{contentItem.Id}-{version}.zip");
+
+            var artifact = new ReleaseArtifact
+            {
+                Filename = artifactName,
+                DownloadUrl = DownloadUrl?.Trim() ?? string.Empty,
+                LocalFilePath = LocalFilePath,
+                Size = FileSize,
+                Sha256 = Sha256Hash?.Trim() ?? string.Empty,
+                IsPrimary = true,
+            };
+
+            release.Artifacts.Add(artifact);
+            contentItem.Releases.Add(release);
+        }
+        else if (IsEditMode && _existingItem != null)
+        {
+            // Preserve existing releases & dependencies
+            foreach (var rel in _existingItem.Releases)
+            {
+                contentItem.Releases.Add(rel);
+            }
+
+            foreach (var dep in _existingItem.BundledItems)
+            {
+                contentItem.BundledItems.Add(dep);
+            }
+        }
 
         _onContentCreated(contentItem);
     }
