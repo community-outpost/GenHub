@@ -460,6 +460,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             {
                 _logger.LogWarning(ex, "Failed to discover sample project paths");
             }
+
             for (var i = samplePaths.Count - 1; i >= 0; i--)
             {
                 var samplePath = samplePaths[i];

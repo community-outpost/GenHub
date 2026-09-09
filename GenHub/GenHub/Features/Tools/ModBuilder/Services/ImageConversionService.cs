@@ -57,7 +57,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
         }
         catch (OperationCanceledException)
         {
-            throw;
+            return false;
         }
         catch (Exception ex)
         {
@@ -93,7 +93,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
         }
         catch (OperationCanceledException)
         {
-            throw;
+            return false;
         }
         catch (Exception ex)
         {
