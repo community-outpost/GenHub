@@ -1081,6 +1081,26 @@ public class ManifestGenerationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that GetIncompleteInstallationWarningMessage formats a combined message when files are both missing and skipped, including truncation.
+    /// </summary>
+    [Fact]
+    public void GetIncompleteInstallationWarningMessage_WhenBothMissingAndSkipped_FormatsCombinedMessageWithTruncation()
+    {
+        // Arrange
+        var missingFiles = new[] { "file1.dat", "file2.dat", "file3.dat", "file4.dat", "file5.dat", "file6.dat" };
+        var skippedFiles = new[] { "skip1.dat", "skip2.dat" };
+
+        // Act
+        var message = _service.GetIncompleteInstallationWarningMessage(GameType.ZeroHour, missingFiles, skippedFiles);
+
+        // Assert
+        Assert.Contains("ZeroHour has 6 missing required file(s)", message);
+        Assert.Contains("and 1 more", message);
+        Assert.Contains("and 2 unreadable/skipped file(s)", message);
+        Assert.Contains("skip1.dat, skip2.dat", message);
+    }
+
+    /// <summary>
     /// Tests that fallback directory scan shows info and success notifications when completing normally.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>

@@ -147,17 +147,14 @@ public class GeneralsOnlineJsonCatalogParser(
     internal static string ResolveReleaseVersion(string? apiVersion, string? downloadUrl)
     {
         var urlVersion = ExtractVersionFromUrl(downloadUrl);
-        var hasUrl = !string.IsNullOrWhiteSpace(urlVersion);
-        var hasApi = !string.IsNullOrWhiteSpace(apiVersion);
-
-        if (!hasUrl)
+        if (string.IsNullOrWhiteSpace(urlVersion))
         {
-            return hasApi ? apiVersion! : GeneralsOnlineConstants.UnknownVersion;
+            return !string.IsNullOrWhiteSpace(apiVersion) ? apiVersion : GeneralsOnlineConstants.UnknownVersion;
         }
 
-        if (!hasApi)
+        if (string.IsNullOrWhiteSpace(apiVersion))
         {
-            return urlVersion!;
+            return urlVersion;
         }
 
         // Both are present and not empty.

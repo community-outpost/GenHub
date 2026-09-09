@@ -700,7 +700,10 @@ public partial class GameProfileSettingsViewModel
         StatusMessage = "Profile updated successfully";
         _logger?.LogInformation("Updated profile {ProfileId} with {ContentCount} enabled content items", CurrentProfileId, enabledContentIds.Count);
 
-        WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(result.Data));
+        if (result.Data != null)
+        {
+            WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(result.Data));
+        }
         ExecuteCancel();
     }
 

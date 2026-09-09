@@ -631,6 +631,49 @@ public class ManifestGenerationService(
     }
 
     /// <summary>
+    /// Formats a list of file paths with truncation and an ellipsis suffix if count exceeds <see cref="ManifestConstants.MaxMissingFilesNotificationDisplayCount"/>.
+    /// </summary>
+    /// <param name="files">The list of file paths.</param>
+    /// <returns>A formatted comma-separated string of files, truncated if necessary.</returns>
+    internal string FormatFileListWithEllipsis(IReadOnlyList<string> files)
+    {
+        var list = string.Join(", ", files.Take(ManifestConstants.MaxMissingFilesNotificationDisplayCount));
+        var extra = files.Count > ManifestConstants.MaxMissingFilesNotificationDisplayCount
+            ? $" and {files.Count - ManifestConstants.MaxMissingFilesNotificationDisplayCount} more"
+            : string.Empty;
+        return $"{list}{extra}";
+    }
+
+    /// <summary>
+    /// Constructs a user-facing warning notification message detailing missing and/or skipped required files.
+    /// </summary>
+    /// <param name="gameType">The target game type.</param>
+    /// <param name="missingRequiredFiles">The list of required files missing from disk.</param>
+    /// <param name="skippedRequiredFiles">The list of required files skipped due to access errors or symlinks.</param>
+    /// <returns>A formatted warning message.</returns>
+    internal string GetIncompleteInstallationWarningMessage(
+        GameType gameType,
+        IReadOnlyList<string> missingRequiredFiles,
+        IReadOnlyList<string> skippedRequiredFiles)
+    {
+        if (missingRequiredFiles.Count > 0 && skippedRequiredFiles.Count > 0)
+        {
+            var missingList = FormatFileListWithEllipsis(missingRequiredFiles);
+            var skippedList = FormatFileListWithEllipsis(skippedRequiredFiles);
+            return $"{gameType} has {missingRequiredFiles.Count} missing required file(s) ({missingList}) and {skippedRequiredFiles.Count} unreadable/skipped file(s) ({skippedList}). A game repair or permission check is recommended.";
+        }
+
+        if (missingRequiredFiles.Count > 0)
+        {
+            var missingList = FormatFileListWithEllipsis(missingRequiredFiles);
+            return $"{gameType} is missing {missingRequiredFiles.Count} required file(s): {missingList}. A clean reinstall or repair via EA App/Steam is recommended.";
+        }
+
+        var unreadableList = FormatFileListWithEllipsis(skippedRequiredFiles);
+        return $"{gameType} could not read {skippedRequiredFiles.Count} required file(s) (e.g. file lock, permissions, or symlink): {unreadableList}. Please verify permissions or close background processes.";
+    }
+
+    /// <summary>
     /// Determines if a file should be skipped during manifest generation.
     /// </summary>
     private static bool ShouldSkipFile(string relativePath)
@@ -1052,29 +1095,10 @@ public class ManifestGenerationService(
         var totalIncompleteRequiredCount = missingRequiredFiles.Count + skippedRequiredFiles.Count;
         if (totalIncompleteRequiredCount > 0)
         {
-            string warningMessage;
-            if (missingRequiredFiles.Count > 0 && skippedRequiredFiles.Count > 0)
-            {
-                var missingList = string.Join(", ", missingRequiredFiles.Take(ManifestConstants.MaxMissingFilesNotificationDisplayCount));
-                var skippedList = string.Join(", ", skippedRequiredFiles.Take(ManifestConstants.MaxMissingFilesNotificationDisplayCount));
-                warningMessage = $"{gameType} has {missingRequiredFiles.Count} missing required file(s) ({missingList}) and {skippedRequiredFiles.Count} unreadable/skipped file(s) ({skippedList}). A game repair or permission check is recommended.";
-            }
-            else if (missingRequiredFiles.Count > 0)
-            {
-                var fileList = string.Join(", ", missingRequiredFiles.Take(ManifestConstants.MaxMissingFilesNotificationDisplayCount));
-                var extra = missingRequiredFiles.Count > ManifestConstants.MaxMissingFilesNotificationDisplayCount
-                    ? $" and {missingRequiredFiles.Count - ManifestConstants.MaxMissingFilesNotificationDisplayCount} more"
-                    : string.Empty;
-                warningMessage = $"{gameType} is missing {missingRequiredFiles.Count} required file(s): {fileList}{extra}. A clean reinstall or repair via EA App/Steam is recommended.";
-            }
-            else
-            {
-                var fileList = string.Join(", ", skippedRequiredFiles.Take(ManifestConstants.MaxMissingFilesNotificationDisplayCount));
-                var extra = skippedRequiredFiles.Count > ManifestConstants.MaxMissingFilesNotificationDisplayCount
-                    ? $" and {skippedRequiredFiles.Count - ManifestConstants.MaxMissingFilesNotificationDisplayCount} more"
-                    : string.Empty;
-                warningMessage = $"{gameType} could not read {skippedRequiredFiles.Count} required file(s) (e.g. file lock, permissions, or symlink): {fileList}{extra}. Please verify permissions or close background processes.";
-            }
+            var warningMessage = GetIncompleteInstallationWarningMessage(
+                gameType,
+                missingRequiredFiles,
+                skippedRequiredFiles);
 
             notificationService?.ShowWarning(
                 ManifestConstants.IncompleteInstallationNotificationTitle,

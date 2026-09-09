@@ -621,10 +621,10 @@ public class ProfileLauncherFacade(
         };
 
         var prepareResult = await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, progress: null, skipCleanup: false, cancellationToken: cancellationToken);
-        if (prepareResult.Failed)
+        if (prepareResult.Failed || prepareResult.Data == null)
         {
             return ProfileOperationResult<(string, string?)>.CreateFailure(
-                $"{ProfileValidationConstants.FailedToPrepareToolWorkspace}: {prepareResult.FirstError}");
+                $"{ProfileValidationConstants.FailedToPrepareToolWorkspace}: {prepareResult.FirstError ?? "Workspace preparation returned null data"}");
         }
 
         var toolWorkspacePath = prepareResult.Data.WorkspacePath;

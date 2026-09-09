@@ -999,6 +999,11 @@ public class GameProcessManager(
         CancellationToken cancellationToken)
     {
         var expectedName = configuration.ExpectedChildProcessName;
+        if (string.IsNullOrWhiteSpace(expectedName))
+        {
+            return OperationResult<GameProcessInfo>.CreateFailure("Expected child process name is not specified.");
+        }
+
         var timeout = configuration.ExpectedChildDiscoveryTimeout
             ?? TimeSpan.FromMilliseconds(ProcessConstants.SpawnedChildDiscoveryTimeoutMs);
         var deadline = DateTime.UtcNow + timeout;
