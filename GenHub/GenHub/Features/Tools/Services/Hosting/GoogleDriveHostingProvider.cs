@@ -21,6 +21,8 @@ using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Tools.Services.Hosting;
 
+using GenHub.Core.Helpers;
+
 /// <summary>
 /// Hosting provider for Google Drive.
 /// Enables publishers to host catalogs and artifacts on their personal Google Drive.
@@ -77,6 +79,16 @@ public class GoogleDriveHostingProvider : IHostingProvider
     /// <inheritdoc />
     public bool SupportsUpdate => true;
 
+    /// <summary>
+    /// Gets or sets a custom OAuth2 Client ID for Google Drive.
+    /// </summary>
+    public string? CustomClientId { get; set; }
+
+    /// <summary>
+    /// Gets or sets a custom OAuth2 Client Secret for Google Drive.
+    /// </summary>
+    public string? CustomClientSecret { get; set; }
+
     /// <inheritdoc />
     public async Task<OperationResult<bool>> AuthenticateAsync(CancellationToken cancellationToken = default)
     {
@@ -84,9 +96,13 @@ public class GoogleDriveHostingProvider : IHostingProvider
         {
             _logger.LogInformation("Starting Google Drive authentication...");
 
-            // Check for credentials from environment or configuration
-            var clientId = Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_ID");
-            var clientSecret = Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_SECRET");
+            // Check for credentials from custom properties or environment
+            var clientId = !string.IsNullOrWhiteSpace(CustomClientId)
+                ? CustomClientId.Trim()
+                : Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_ID");
+            var clientSecret = !string.IsNullOrWhiteSpace(CustomClientSecret)
+                ? CustomClientSecret.Trim()
+                : Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_SECRET");
 
             if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
             {
@@ -264,7 +280,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
 
             // Direct download link for Google Drive files
             var directDownloadUrl = string.Format(CultureInfo.InvariantCulture, HostingConstants.GoogleDriveDownloadUrlTemplate, file.Id);
-            var publicUrl = file.WebViewLink ?? directDownloadUrl;
+            var publicUrl = directDownloadUrl;
 
             var result = new HostingUploadResult
             {
@@ -491,20 +507,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
     /// <inheritdoc />
     public string GetDirectDownloadUrl(string shareUrl)
     {
-        // Convert share URL to direct download URL
-        // From: https://drive.google.com/file/d/{fileId}/view
-        // To: https://drive.google.com/uc?export=download&id={fileId}
-        if (shareUrl.Contains("/file/d/"))
-        {
-            var startIndex = shareUrl.IndexOf("/file/d/", StringComparison.Ordinal) + 8;
-            var endIndex = shareUrl.IndexOf("/", startIndex, StringComparison.Ordinal);
-            if (endIndex == -1) endIndex = shareUrl.Length;
-
-            var fileId = shareUrl[startIndex..endIndex];
-            return string.Format(CultureInfo.InvariantCulture, HostingConstants.GoogleDriveDownloadUrlTemplate, fileId);
-        }
-
-        return shareUrl;
+        return CloudUrlHelper.NormalizeDirectDownloadUrl(shareUrl);
     }
 
     private async Task MakeFilePublicAsync(string fileId, CancellationToken cancellationToken)

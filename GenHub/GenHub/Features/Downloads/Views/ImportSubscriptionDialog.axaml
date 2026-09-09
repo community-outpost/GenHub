@@ -1,0 +1,141 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:GenHub.Features.Downloads.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="360"
+        x:Class="GenHub.Features.Downloads.Views.ImportSubscriptionDialog"
+        x:DataType="vm:ImportSubscriptionViewModel"
+        Title="Import Catalog or Provider"
+        Width="560"
+        Height="360"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        SystemDecorations="BorderOnly"
+        Background="Transparent">
+
+    <Window.Styles>
+        <Style Selector="Button.primary-btn">
+            <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="18,10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.secondary-btn">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="Foreground" Value="#E0E0E0"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="18,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#14FFFFFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12,10"/>
+        </Style>
+    </Window.Styles>
+
+    <Border Background="#161626"
+            BorderBrush="#33FFFFFF"
+            BorderThickness="1"
+            CornerRadius="16"
+            BoxShadow="0 16 48 0 #80000000"
+            Padding="28">
+        <Grid RowDefinitions="Auto,*,Auto">
+            <!-- Header -->
+            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,20">
+                <Border Width="40" Height="40"
+                        CornerRadius="10"
+                        Background="{DynamicResource PrimaryGradientBrush}"
+                        Margin="0,0,14,0">
+                    <PathIcon Data="{StaticResource DownloadIcon}"
+                              Width="20" Height="20"
+                              Foreground="White"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="Import Catalog or Provider"
+                               FontSize="18"
+                               FontWeight="Bold"
+                               Foreground="White"/>
+                    <TextBlock Text="Subscribe to custom community content"
+                               FontSize="12"
+                               Foreground="#8E8E9F"/>
+                </StackPanel>
+                <Button Grid.Column="2"
+                        Command="{Binding CancelCommand}"
+                        Background="Transparent"
+                        Padding="6"
+                        Cursor="Hand">
+                    <PathIcon Data="{StaticResource CloseIcon}"
+                              Width="14" Height="14"
+                              Foreground="#8E8E9F"/>
+                </Button>
+            </Grid>
+
+            <!-- Body -->
+            <StackPanel Grid.Row="1" Spacing="14">
+                <TextBlock Text="Paste a genhub:// subscription link, Google Drive link, or direct catalog/definition URL:"
+                           FontSize="13"
+                           Foreground="#D0D0E0"
+                           TextWrapping="Wrap"/>
+
+                <TextBox Text="{Binding InputUrl}"
+                         Watermark="genhub://subscribe?url=... or https://drive.google.com/..."
+                         FontSize="13"
+                         FontFamily="Consolas, Courier New, monospace"/>
+
+                <!-- Error Message Banner -->
+                <Border Background="#20FF5555"
+                        BorderBrush="#40FF5555"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="12,8"
+                        IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource ErrorIcon}"
+                                  Width="14" Height="14"
+                                  Foreground="#FF5555"
+                                  VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding ErrorMessage}"
+                                   FontSize="12"
+                                   Foreground="#FF8888"
+                                   VerticalAlignment="Center"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="Supported: Google Drive direct links, Dropbox, GitHub, and custom HTTPS publisher endpoints."
+                           FontSize="11"
+                           Foreground="#6E6E82"
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+
+            <!-- Footer Buttons -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" Margin="0,16,0,0">
+                <Button Command="{Binding CancelCommand}"
+                        Content="Cancel"
+                        Classes="secondary-btn"/>
+                <Button Command="{Binding SubmitCommand}"
+                        Classes="primary-btn"
+                        IsEnabled="{Binding !IsValidating}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource LinkIcon}"
+                                  Width="14" Height="14"
+                                  Foreground="White"
+                                  VerticalAlignment="Center"/>
+                        <TextBlock Text="Load and Subscribe" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

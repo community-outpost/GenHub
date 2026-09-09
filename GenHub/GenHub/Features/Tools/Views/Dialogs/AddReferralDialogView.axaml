@@ -21,7 +21,7 @@
                     CornerRadius="8"
                     BorderThickness="0"
                     VerticalAlignment="Top">
-                <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                <PathIcon Data="{StaticResource CloseIcon}"
                           Width="12" Height="12"
                           Foreground="#888888"/>
                 <Button.Styles>
@@ -58,10 +58,6 @@
                                 <DataTemplate>
                                     <Button Command="{Binding #RootView.((vm:AddReferralDialogViewModel)DataContext).SelectPublisherCommand}"
                                             CommandParameter="{Binding}"
-                                            Background="#10FFFFFF"
-                                            BorderBrush="#15FFFFFF"
-                                            BorderThickness="1"
-                                            CornerRadius="6"
                                             Padding="12,8"
                                             HorizontalAlignment="Stretch"
                                             HorizontalContentAlignment="Stretch">
@@ -75,10 +71,11 @@
                                                     CornerRadius="16"
                                                     Background="{DynamicResource PrimaryGradientBrush}"
                                                     Margin="0,0,12,0">
-                                                <TextBlock Text="📦"
-                                                           FontSize="16"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center"/>
+                                                <PathIcon Data="{StaticResource PackageIcon}"
+                                                          Width="16" Height="16"
+                                                          Foreground="White"
+                                                          HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center"/>
                                             </Border>
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                                                 <TextBlock Text="{Binding PublisherName}"
@@ -90,7 +87,7 @@
                                                            Foreground="#AAAAAA"/>
                                             </StackPanel>
                                             <PathIcon Grid.Column="2"
-                                                      Data="M9,16.17L4.83,12L3.41,13.41L9,19L21,7L19.59,5.59L9,16.17Z"
+                                                      Data="{StaticResource CheckmarkIcon}"
                                                       Width="18" Height="18"
                                                       Foreground="#40FF40"
                                                       IsVisible="{Binding #RootView.((vm:AddReferralDialogViewModel)DataContext).SelectedPublisher.PublisherId, Converter={StaticResource StringEqualsConverter}, ConverterParameter={Binding PublisherId}}"/>

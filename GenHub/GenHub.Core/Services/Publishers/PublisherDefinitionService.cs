@@ -8,6 +8,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Models.Providers;
@@ -39,8 +40,9 @@ public class PublisherDefinitionService(
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(definitionUrl) ||
-                !Uri.TryCreate(definitionUrl, UriKind.Absolute, out var uri))
+            var normalizedUrl = CloudUrlHelper.NormalizeDirectDownloadUrl(definitionUrl);
+            if (string.IsNullOrWhiteSpace(normalizedUrl) ||
+                !Uri.TryCreate(normalizedUrl, UriKind.Absolute, out var uri))
             {
                 return OperationResult<PublisherDefinition>.CreateFailure("Invalid definition URL");
             }
@@ -70,7 +72,7 @@ public class PublisherDefinitionService(
             }
 
             // Ensure the definition URL is set correctly on the object
-            definition.DefinitionUrl = definitionUrl;
+            definition.DefinitionUrl = normalizedUrl;
 
             // V1 to V2 migration: if CatalogUrl is set but Catalogs is empty, populate Catalogs
             if (definition.SchemaVersion <= 1 && definition.Catalogs.Count == 0 && !string.IsNullOrEmpty(definition.CatalogUrl))
@@ -162,25 +164,34 @@ public class PublisherDefinitionService(
                 return OperationResult<bool>.CreateFailure(fetchResult);
             }
 
-            var definition = fetchResult.Data;
-            bool updated = false;
+            var remoteDef = fetchResult.Data;
+            if (remoteDef == null)
+            {
+                return OperationResult<bool>.CreateFailure("Fetched definition was null");
+            }
 
-            // Check if catalog URL has changed
-            if (!string.Equals(subscription.CatalogUrl, definition.CatalogUrl, StringComparison.OrdinalIgnoreCase))
+            var hasUpdate = false;
+
+            // Check if catalog URL changed
+            if (!string.Equals(subscription.CatalogUrl, remoteDef.CatalogUrl, StringComparison.OrdinalIgnoreCase))
             {
                 logger.LogInformation(
                     "Updating catalog URL for subscription {PublisherId} from {OldUrl} to {NewUrl}",
                     subscription.PublisherId,
                     subscription.CatalogUrl,
-                    definition.CatalogUrl);
+                    remoteDef.CatalogUrl);
 
-                subscription.CatalogUrl = definition.CatalogUrl;
-                updated = true;
+                subscription.CatalogUrl = remoteDef.CatalogUrl;
+                hasUpdate = true;
             }
 
-            // Potentially update other metadata here if we expand PublisherSubscription
-            // e.g. Name, Description updates could be propagated
-            return OperationResult<bool>.CreateSuccess(updated);
+            // Check if definition URL migrated
+            if (remoteDef.PreviousDefinitionUrls.Contains(subscription.DefinitionUrl))
+            {
+                hasUpdate = true;
+            }
+
+            return OperationResult<bool>.CreateSuccess(hasUpdate);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -188,8 +199,8 @@ public class PublisherDefinitionService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error checking for definition update for {PublisherId}", subscription.PublisherId);
-            return OperationResult<bool>.CreateFailure($"Error checking update: {ex.Message}");
+            logger.LogError(ex, "Exception checking for definition update");
+            return OperationResult<bool>.CreateFailure($"Exception checking for update: {ex.Message}");
         }
     }
 
@@ -307,13 +318,14 @@ public class PublisherDefinitionService(
     {
         try
         {
-            using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
+            var normalizedUrl = CloudUrlHelper.NormalizeDirectDownloadUrl(url);
+            using var response = await client.GetAsync(normalizedUrl, HttpCompletionOption.ResponseHeadersRead, ct);
             if (!response.IsSuccessStatusCode)
             {
-                return OperationResult<PublisherCatalog>.CreateFailure($"Failed to fetch from {url}: {response.StatusCode}");
+                return OperationResult<PublisherCatalog>.CreateFailure($"Failed to fetch from {normalizedUrl}: {response.StatusCode}");
             }
 
-            var streamResult = await ReadBoundedStreamAsync(response, CatalogConstants.MaxCatalogSizeBytes, $"Catalog from {url}", ct);
+            var streamResult = await ReadBoundedStreamAsync(response, CatalogConstants.MaxCatalogSizeBytes, $"Catalog from {normalizedUrl}", ct);
             if (!streamResult.Success || streamResult.Data == null)
             {
                 return OperationResult<PublisherCatalog>.CreateFailure(streamResult.Errors);
@@ -327,7 +339,7 @@ public class PublisherDefinitionService(
             if (!parseResult.Success)
             {
                 return OperationResult<PublisherCatalog>.CreateFailure(
-                    $"Failed to parse catalog from {url}: {string.Join(", ", parseResult.Errors)}");
+                    $"Failed to parse catalog from {normalizedUrl}: {string.Join(", ", parseResult.Errors)}");
             }
 
             return parseResult;

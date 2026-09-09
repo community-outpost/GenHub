@@ -50,6 +50,13 @@ public class GenericCatalogDiscoverer(
     private static readonly ConcurrentDictionary<string, Task<GitHubRelease?>> PendingReleaseFetches = new(StringComparer.OrdinalIgnoreCase);
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
 
+    private static readonly JsonSerializerOptions DefinitionJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true,
+    };
+
     private Core.Models.Providers.PublisherSubscription? _subscription;
 
     /// <summary>
@@ -577,16 +584,36 @@ public class GenericCatalogDiscoverer(
             var httpClient = httpClientFactory.CreateClient();
             httpClient.Timeout = TimeSpan.FromSeconds(30);
 
-            if (!string.IsNullOrWhiteSpace(_subscription.DefinitionUrl))
+            var targetCatalogUrl = _subscription.CatalogUrl;
+
+            // If catalog URL is missing, resolve it from the Definition URL
+            if (string.IsNullOrWhiteSpace(targetCatalogUrl) && !string.IsNullOrWhiteSpace(_subscription.DefinitionUrl))
             {
-                return OperationResult<PublisherCatalog>.CreateFailure("Definition-resolved catalogs (Publisher Studio) are not yet supported. Only direct CatalogUrl subscriptions are supported.");
+                logger.LogInformation("Resolving catalog URL from definition: {DefinitionUrl}", _subscription.DefinitionUrl);
+                var defJson = await CatalogDocumentReader.ReadAsync(
+                    httpClient,
+                    _subscription.DefinitionUrl,
+                    CatalogConstants.MaxCatalogSizeBytes,
+                    cancellationToken);
+
+                var definition = JsonSerializer.Deserialize<PublisherDefinition>(defJson, DefinitionJsonOptions);
+                targetCatalogUrl = definition?.CatalogUrl;
+                if (string.IsNullOrWhiteSpace(targetCatalogUrl) && definition?.Catalogs?.Count > 0)
+                {
+                    targetCatalogUrl = definition.Catalogs[0].Url;
+                }
             }
 
-            logger.LogDebug("Fetching catalog from: {CatalogUrl}", _subscription.CatalogUrl);
+            if (string.IsNullOrWhiteSpace(targetCatalogUrl))
+            {
+                return OperationResult<PublisherCatalog>.CreateFailure("No catalog URL available for subscription.");
+            }
+
+            logger.LogDebug("Fetching catalog from: {CatalogUrl}", targetCatalogUrl);
 
             var catalogJson = await CatalogDocumentReader.ReadAsync(
                 httpClient,
-                _subscription.CatalogUrl,
+                targetCatalogUrl,
                 CatalogConstants.MaxCatalogSizeBytes,
                 cancellationToken);
 
