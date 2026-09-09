@@ -51,17 +51,17 @@ public sealed class BuildEngineServiceTests : IDisposable
                 It.IsAny<IProgress<ContentStorageProgress>?>(),
                 It.IsAny<CancellationToken>(),
                 It.IsAny<string?>()))
-            .ReturnsAsync((string dir, string name, GenHub.Core.Models.Enums.ContentType type, GameType game, string? src, IProgress<ContentStorageProgress>? prog, CancellationToken ct, string? entry) =>
-            {
-                var manifest = new GenHub.Core.Models.Manifest.ContentManifest
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<GenHub.Core.Models.Manifest.ContentManifest>.CreateSuccess(
+                new GenHub.Core.Models.Manifest.ContentManifest
                 {
-                    Id = GenHub.Core.Models.Manifest.ManifestId.Create($"local-{Guid.NewGuid():N}"),
-                    Name = name,
-                    TargetGame = game,
-                    ContentType = type,
-                };
-                return GenHub.Core.Models.Results.OperationResult<GenHub.Core.Models.Manifest.ContentManifest>.CreateSuccess(manifest);
-            });
+                    Id = GenHub.Core.Models.Manifest.ManifestId.Create("local-test"),
+                    Name = "ManifestProject",
+                    TargetGame = GameType.Generals,
+                    ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+                }));
+
+        _mockHashProvider.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("default_hash");
         _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDirectory);
 
@@ -137,7 +137,7 @@ public sealed class BuildEngineServiceTests : IDisposable
 
         // Assert
         result.Should().NotBeNull();
-        result.Success.Should().BeTrue();
+        result.Success.Should().BeTrue(result.ErrorMessage);
     }
 
     [Fact]
@@ -181,7 +181,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         var result = await _service.ExecuteBuildAsync(project, configuration, selectedPacks, BuildStep.Build, progressMock.Object);
 
         // Assert
-        result.Success.Should().BeTrue();
+        result.Success.Should().BeTrue(result.ErrorMessage);
         progressMock.Verify(p => p.Report(It.IsAny<string>()), Times.AtLeastOnce());
     }
 
@@ -303,7 +303,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         var result = await _service.ExecuteBuildAsync(project, configuration, selectedPacks, BuildStep.Build);
 
         // Assert
-        result.Success.Should().BeTrue();
+        result.Success.Should().BeTrue(result.ErrorMessage);
         result.FilesProcessed.Should().BeGreaterThan(0);
     }
 
@@ -361,7 +361,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         var result = await _service.ExecuteBuildAsync(project, configuration, selectedPacks, BuildStep.Build);
 
         // Assert
-        result.Success.Should().BeTrue();
+        result.Success.Should().BeTrue(result.ErrorMessage);
         result.FilesSkipped.Should().BeGreaterThan(0);
     }
 
@@ -453,7 +453,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         var result = await _service.ExecuteBuildAsync(project, configuration, selectedPacks, BuildStep.Build);
 
         // Assert
-        result.Success.Should().BeTrue();
+        result.Success.Should().BeTrue(result.ErrorMessage);
         result.FilesProcessed.Should().Be(0);
     }
 
@@ -531,7 +531,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         var result = await _service.ExecuteBuildAsync(project, configuration, selectedPacks, BuildStep.Build);
 
         // Assert
-        result.Success.Should().BeTrue();
+        result.Success.Should().BeTrue(result.ErrorMessage);
         result.FilesProcessed.Should().BeGreaterOrEqualTo(2);
     }
 
@@ -655,7 +655,7 @@ public sealed class BuildEngineServiceTests : IDisposable
             BuildStep.Build | BuildStep.Release);
 
         // Assert
-        result.Success.Should().BeTrue();
+        result.Success.Should().BeTrue(result.ErrorMessage);
         result.FilesProcessed.Should().Be(4);
     }
 
@@ -714,7 +714,7 @@ public sealed class BuildEngineServiceTests : IDisposable
             BuildStep.CreateManifest);
 
         // Assert
-        result.Success.Should().BeTrue();
+        result.Success.Should().BeTrue(result.ErrorMessage);
         _mockLocalContentService.Verify(
             x => x.CreateLocalContentManifestAsync(
                 It.IsAny<string>(),
