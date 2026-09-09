@@ -1,4 +1,7 @@
+using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Models.Tools.ModBuilder;
 
@@ -30,6 +33,12 @@ public class ModBuilderProject
     /// </summary>
     [JsonPropertyName("author")]
     public string Author { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the target game type.
+    /// </summary>
+    [JsonPropertyName("targetGame")]
+    public GameType TargetGame { get; set; } = GameType.Generals;
 
     /// <summary>
     /// Gets or sets the absolute path to the project directory.

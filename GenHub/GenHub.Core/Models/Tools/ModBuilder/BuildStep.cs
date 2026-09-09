@@ -38,17 +38,7 @@ public enum BuildStep
     Release = 1 << 4,
 
     /// <summary>
-    /// Install to game directory.
+    /// Stores compiled bundles into CAS and creates a local ContentManifest in the GenHub library.
     /// </summary>
-    Install = 1 << 5,
-
-    /// <summary>
-    /// Run the game.
-    /// </summary>
-    Run = 1 << 6,
-
-    /// <summary>
-    /// Uninstall from game directory.
-    /// </summary>
-    Uninstall = 1 << 7,
+    CreateManifest = 1 << 5,
 }

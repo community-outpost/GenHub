@@ -349,10 +349,8 @@
                   <StackPanel Spacing="6">
                     <CheckBox Content="Clean" IsChecked="{Binding CleanEnabled}" Foreground="{DynamicResource TextPrimary}" ToolTip.Tip="Deletes temporary build and output artifacts before building"/>
                     <CheckBox Content="Build" IsChecked="{Binding BuildEnabled}" Foreground="{DynamicResource TextPrimary}" ToolTip.Tip="Compiles and packages edited assets into .big bundles"/>
+                    <CheckBox Content="Create Manifest" IsChecked="{Binding CreateManifestEnabled}" Foreground="{DynamicResource TextPrimary}" ToolTip.Tip="Stores compiled bundles in CAS and registers a local ContentManifest in the GenHub library"/>
                     <CheckBox Content="Release" IsChecked="{Binding ReleaseEnabled}" Foreground="{DynamicResource TextPrimary}" ToolTip.Tip="Generates distributable release archive packages"/>
-                    <CheckBox Content="Uninstall" IsChecked="{Binding UninstallEnabled}" Foreground="{DynamicResource TextPrimary}" ToolTip.Tip="Removes previously installed mod files from the game directory"/>
-                    <CheckBox Content="Install" IsChecked="{Binding InstallEnabled}" Foreground="{DynamicResource TextPrimary}" ToolTip.Tip="Copies newly built mod files into the target game directory"/>
-                    <CheckBox Content="Run Game" IsChecked="{Binding RunGameEnabled}" Foreground="{DynamicResource TextPrimary}" ToolTip.Tip="Launches the game executable with configured arguments"/>
                   </StackPanel>
                 </Border>
               </StackPanel>
@@ -529,6 +527,18 @@
                   <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <Path Width="14" Height="14" Fill="{Binding $parent[Button].Foreground}" Data="{StaticResource IconStop}" Stretch="Uniform" VerticalAlignment="Center"/>
                     <TextBlock Text="Abort Build" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+
+                <!-- Create Manifest Button -->
+                <Button Command="{Binding CreateManifestCommand}"
+                        Classes="quick-nav-btn"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                        ToolTip.Tip="Stores compiled bundles in CAS and creates a local ContentManifest for Game Profiles">
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Path Width="14" Height="14" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconArchiveFile}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="Create Manifest" FontWeight="SemiBold" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
 

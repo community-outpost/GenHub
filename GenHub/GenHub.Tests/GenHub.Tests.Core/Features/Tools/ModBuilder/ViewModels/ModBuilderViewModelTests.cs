@@ -154,4 +154,61 @@ public class ModBuilderViewModelTests : IDisposable
             _mockLoggerFactory.Object,
             _mockLogger.Object);
     }
+
+    /// <summary>
+    /// Verifies that CreateManifestEnabled defaults to true.
+    /// </summary>
+    [Fact]
+    public void CreateManifestEnabled_DefaultsToTrue()
+    {
+        var viewModel = CreateViewModel();
+
+        Assert.True(viewModel.CreateManifestEnabled);
+    }
+
+    /// <summary>
+    /// Verifies that CreateManifestCommand invokes the build engine with BuildStep.CreateManifest.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateManifestCommand_WhenExecuted_InvokesBuildEngineWithCreateManifestStep()
+    {
+        var viewModel = CreateViewModel();
+        var project = new ModBuilderProject
+        {
+            Name = "TestMod",
+            ProjectDir = _tempDir,
+        };
+        viewModel.CurrentProject = project;
+        viewModel.ProjectPath = Path.Combine(_tempDir, "TestMod.mbproj");
+
+        _mockBuildEngine
+            .Setup(b => b.ExecuteBuildAsync(
+                project,
+                It.IsAny<BuildConfiguration>(),
+                It.IsAny<System.Collections.Generic.IReadOnlyList<string>>(),
+                BuildStep.CreateManifest,
+                It.IsAny<IProgress<string>>(),
+                It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync(new BuildResult { Success = true });
+
+        await viewModel.CreateManifestCommand.ExecuteAsync(null);
+
+        _mockBuildEngine.Verify(
+            b => b.ExecuteBuildAsync(
+                project,
+                It.IsAny<BuildConfiguration>(),
+                It.IsAny<System.Collections.Generic.IReadOnlyList<string>>(),
+                BuildStep.CreateManifest,
+                It.IsAny<IProgress<string>>(),
+                It.IsAny<System.Threading.CancellationToken>()),
+            Times.Once);
+
+        _mockNotificationService.Verify(
+            n => n.ShowSuccess(
+                "Manifest Created",
+                It.Is<string>(s => s.Contains("TestMod")),
+                It.IsAny<int?>()),
+            Times.Once);
+    }
 }

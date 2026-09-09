@@ -1,7 +1,7 @@
 namespace GenHub.Core.Models.Tools.ModBuilder;
 
 /// <summary>
-/// Represents the 17 event types across the build lifecycle.
+/// Represents the event types across the build lifecycle.
 /// </summary>
 public enum BundleEventType
 {
@@ -26,7 +26,12 @@ public enum BundleEventType
     OnRelease = 3,
 
     /// <summary>
-    /// Fired during the install process.
+    /// Fired during the manifest creation and CAS storage process.
+    /// </summary>
+    OnCreateManifest = 4,
+
+    /// <summary>
+    /// Fired during legacy install process.
     /// </summary>
     OnInstall = 4,
 
@@ -81,12 +86,12 @@ public enum BundleEventType
     OnFinishBuildReleaseBundlePack = 14,
 
     /// <summary>
-    /// Fired at the start of InstallBundlePack stage.
+    /// Fired at the start of manifest creation stage.
     /// </summary>
-    OnStartBuildInstallBundlePack = 15,
+    OnStartCreateManifest = 15,
 
     /// <summary>
-    /// Fired at the finish of InstallBundlePack stage.
+    /// Fired at the finish of manifest creation stage.
     /// </summary>
-    OnFinishBuildInstallBundlePack = 16,
+    OnFinishCreateManifest = 16,
 }
