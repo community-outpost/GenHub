@@ -29,6 +29,11 @@ public sealed class BuildSetup
     public bool PrintConfig { get; set; }
 
     /// <summary>
+    /// Gets or sets the absolute path to the project directory.
+    /// </summary>
+    public string? ProjectDir { get; set; }
+
+    /// <summary>
     /// Gets or sets the folders configuration.
     /// </summary>
     public Folders? Folders { get; set; }

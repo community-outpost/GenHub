@@ -801,7 +801,7 @@ public sealed class BuildEngineService : IBuildEngineService
             return;
         }
 
-        var projectDir = setup.Folders?.AbsProjectDir ?? Directory.GetCurrentDirectory();
+        var projectDir = setup.ProjectDir ?? Directory.GetCurrentDirectory();
         var cacheKey = Path.GetRelativePath(projectDir, filePath);
 
         // compute or reuse hash
@@ -916,7 +916,7 @@ public sealed class BuildEngineService : IBuildEngineService
 
         return stage switch
         {
-            BuildIndex.RawBundleItem => Path.Combine(buildDir, ModBuilderConstants.BundleItemsSubdir, fileName),
+            BuildIndex.RawBundleItem => Path.Combine(buildDir, ModBuilderConstants.RawBundleItemsSubdir, fileName),
             _ => Path.Combine(buildDir, fileName),
         };
     }
@@ -934,7 +934,7 @@ public sealed class BuildEngineService : IBuildEngineService
     private async Task<bool> PostBuildAsync(BuildSetup setup, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        _logger.LogInformation("PostBuild stage started for project: {ProjectName}", setup.Name);
+        _logger.LogInformation("PostBuild stage started");
         progress?.Report(new BuildProgress { CurrentStep = "PostBuild: Finalizing build" });
 
         FireBundleEvent(BundleEventType.OnPostBuild, null);
@@ -1158,15 +1158,19 @@ public sealed class BuildEngineService : IBuildEngineService
     private static string GetCachePath(BuildIndex stage, BuildSetup setup)
     {
         var buildDir = setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir;
-        var stageName = stage.ToString().ToLowerInvariant();
-        return Path.Combine(buildDir, ModBuilderConstants.CacheSubdir, $"{stageName}_cache.json");
+        return Path.Combine(buildDir, $"{stage}.json");
     }
 
-    private void FireBundleEvent(BundleEventType eventType, object? eventData)
+    private void FireBundleEvent(BundleEventType eventType, string? bundleName)
     {
         try
         {
-            BundleEventTriggered?.Invoke(this, new BundleEventArgs(eventType, eventData));
+            _logger.LogDebug("Firing bundle event: {EventType}", eventType);
+            BundleEventTriggered?.Invoke(this, new BundleEventArgs
+            {
+                EventType = eventType,
+                BundleItemName = bundleName,
+            });
         }
         catch (Exception ex)
         {
@@ -1191,7 +1195,7 @@ public sealed class BuildEngineService : IBuildEngineService
 
         _logger.LogInformation("Creating new build structure (config changed or first build)");
 
-        var buildStructure = await InitializeBuildStructureAsync(project, configuration, buildSteps, cancellationToken)
+        var buildStructure = await CreateBuildStructureAsync(project, configuration, buildSteps, cancellationToken)
             .ConfigureAwait(false);
 
         _cachedBuildStructure = buildStructure;
@@ -1252,7 +1256,7 @@ public sealed class BuildEngineService : IBuildEngineService
             }
         }
 
-        var sourceDir = Path.Combine(project.ProjectDir, project.Directories.GetValueOrDefault("gameFilesEdited", ModBuilderConstants.GameFilesEditedDir));
+        var sourceDir = Path.Combine(project.ProjectDir, !string.IsNullOrWhiteSpace(project.Directories?.GameFilesEdited) ? project.Directories.GameFilesEdited : ModBuilderConstants.GameFilesEditedDir);
         if (Directory.Exists(sourceDir))
         {
             foreach (var file in Directory.EnumerateFiles(sourceDir, "*", SearchOption.AllDirectories))
@@ -1280,7 +1284,7 @@ public sealed class BuildEngineService : IBuildEngineService
         }
     }
 
-    private async Task<BuildStructure> InitializeBuildStructureAsync(
+    private async Task<BuildStructure> CreateBuildStructureAsync(
         ModBuilderProject project,
         BuildConfiguration configuration,
         BuildStep buildSteps,
@@ -1288,39 +1292,65 @@ public sealed class BuildEngineService : IBuildEngineService
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var buildDir = Path.Combine(project.ProjectDir, project.Directories.GetValueOrDefault("build", ModBuilderConstants.DefaultBuildDir));
-        var releaseDir = Path.Combine(project.ProjectDir, project.Directories.GetValueOrDefault("release", ModBuilderConstants.DefaultReleaseDir));
+        _logger.LogDebug("Resolving wildcards in configuration");
+        configuration = await _configurationLoaderService.ResolveWildcardsAsync(configuration, cancellationToken)
+            .ConfigureAwait(false);
+
+        var projectDir = project.ProjectDir;
+        var defaultBuild = !string.IsNullOrWhiteSpace(project.Directories?.Build) ? project.Directories.Build : ModBuilderConstants.DefaultBuildDir;
+        var defaultRelease = !string.IsNullOrWhiteSpace(project.Directories?.Release) ? project.Directories.Release : ModBuilderConstants.DefaultReleaseDir;
+
+        if (!string.IsNullOrEmpty(projectDir))
+        {
+            if (string.IsNullOrEmpty(configuration.Folders.AbsBuildDir))
+            {
+                configuration.Folders.AbsBuildDir = Path.Combine(projectDir, defaultBuild);
+            }
+
+            if (string.IsNullOrEmpty(configuration.Folders.AbsReleaseDir))
+            {
+                configuration.Folders.AbsReleaseDir = Path.Combine(projectDir, defaultRelease);
+            }
+        }
+
+        var gameDir = !string.IsNullOrEmpty(configuration.Folders.AbsGameDir)
+            ? configuration.Folders.AbsGameDir
+            : project.GameDir ?? string.Empty;
 
         var setup = new BuildSetup
         {
-            Name = project.Name,
             Step = buildSteps,
             ProjectDir = project.ProjectDir,
-            Folders = new BuildFolders
+            Folders = new Folders
             {
-                AbsProjectDir = project.ProjectDir,
-                AbsBuildDir = buildDir,
-                AbsReleaseDir = releaseDir,
+                AbsBuildDir = configuration.Folders.AbsBuildDir,
+                AbsReleaseDir = configuration.Folders.AbsReleaseDir,
+                AbsGameDir = gameDir,
             },
-            Bundles = new BuildBundles
+            Bundles = new Bundles
             {
                 Items = configuration.Items.ToList(),
                 Packs = configuration.Packs.ToList(),
             },
+            Runner = new Runner(),
+            RunnerConfig = configuration.Runner,
         };
 
         var stageFiles = PopulateStageFiles(setup, configuration);
 
-        var buildStructure = new BuildStructure
-        {
-            Setup = setup,
-            Configuration = configuration,
-            Project = project,
-            StageFiles = stageFiles,
-        };
+        var bundleItems = configuration.Items.ToDictionary(item => item.Name, item => item);
+        var bundlePacks = configuration.Packs.ToDictionary(pack => pack.Name, pack => pack);
 
-        await Task.CompletedTask.ConfigureAwait(false);
-        return buildStructure;
+        return new BuildStructure
+        {
+            Project = project,
+            Configuration = configuration,
+            Setup = setup,
+            StageFiles = stageFiles,
+            BundleItems = bundleItems,
+            BundlePacks = bundlePacks,
+            CreatedAt = DateTime.UtcNow,
+        };
     }
 
     private static Dictionary<BuildIndex, List<string>> PopulateStageFiles(
