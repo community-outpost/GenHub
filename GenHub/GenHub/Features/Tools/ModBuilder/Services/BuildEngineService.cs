@@ -12,6 +12,7 @@ using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Tools.ModBuilder.Services;
@@ -27,7 +28,8 @@ public sealed class BuildEngineService : IBuildEngineService
     private readonly IMd5HashProvider _hashProvider;
     private readonly IConfigurationLoaderService _configurationLoaderService;
     private readonly IArchiveService _archiveService;
-    private readonly ILocalContentService _localContentService;
+    private readonly IServiceScopeFactory? _serviceScopeFactory;
+    private readonly ILocalContentService? _localContentService;
     private readonly ILogger<BuildEngineService> _logger;
 
     private readonly SemaphoreSlim _buildLock = new(1, 1);
@@ -43,7 +45,36 @@ public sealed class BuildEngineService : IBuildEngineService
     private string? _lastErrorMessage;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="BuildEngineService"/> class.
+    /// Initializes a new instance of the <see cref="BuildEngineService"/> class using DI scope factory.
+    /// </summary>
+    /// <param name="cacheService">The build cache service.</param>
+    /// <param name="fileConversionService">The file conversion service.</param>
+    /// <param name="hashProvider">The MD5 hash provider.</param>
+    /// <param name="configurationLoaderService">The configuration loader service.</param>
+    /// <param name="archiveService">The archive service.</param>
+    /// <param name="serviceScopeFactory">The service scope factory for resolving scoped dependencies.</param>
+    /// <param name="logger">The logger instance.</param>
+    [ActivatorUtilitiesConstructor]
+    public BuildEngineService(
+        IBuildCacheService cacheService,
+        IFileConversionService fileConversionService,
+        IMd5HashProvider hashProvider,
+        IConfigurationLoaderService configurationLoaderService,
+        IArchiveService archiveService,
+        IServiceScopeFactory serviceScopeFactory,
+        ILogger<BuildEngineService> logger)
+    {
+        _cacheService = cacheService ?? throw new ArgumentNullException(nameof(cacheService));
+        _fileConversionService = fileConversionService ?? throw new ArgumentNullException(nameof(fileConversionService));
+        _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
+        _configurationLoaderService = configurationLoaderService ?? throw new ArgumentNullException(nameof(configurationLoaderService));
+        _archiveService = archiveService ?? throw new ArgumentNullException(nameof(archiveService));
+        _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="BuildEngineService"/> class with direct local content service (for tests).
     /// </summary>
     /// <param name="cacheService">The build cache service.</param>
     /// <param name="fileConversionService">The file conversion service.</param>
@@ -997,12 +1028,30 @@ public sealed class BuildEngineService : IBuildEngineService
             manifestContentDir = stagingDir;
         }
 
+        ILocalContentService localContentService;
+        IDisposable? scopeToDispose = null;
+
+        if (_localContentService != null)
+        {
+            localContentService = _localContentService;
+        }
+        else if (_serviceScopeFactory != null)
+        {
+            var scope = _serviceScopeFactory.CreateScope();
+            scopeToDispose = scope;
+            localContentService = scope.ServiceProvider.GetRequiredService<ILocalContentService>();
+        }
+        else
+        {
+            throw new InvalidOperationException("Neither ILocalContentService nor IServiceScopeFactory is available.");
+        }
+
         try
         {
             var projectName = buildStructure.Project.Name;
             var targetGame = buildStructure.Project.TargetGame;
 
-            var manifestResult = await _localContentService.CreateLocalContentManifestAsync(
+            var manifestResult = await localContentService.CreateLocalContentManifestAsync(
                 manifestContentDir,
                 projectName,
                 ContentType.Mod,
@@ -1043,6 +1092,8 @@ public sealed class BuildEngineService : IBuildEngineService
         }
         finally
         {
+            scopeToDispose?.Dispose();
+
             if (Directory.Exists(stagingDir))
             {
                 try
