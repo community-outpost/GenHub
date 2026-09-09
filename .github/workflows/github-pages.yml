@@ -37,7 +37,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          LATEST_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null || { echo "::warning::gh release list failed; using fallback"; echo ""; })
+          if ! LATEST_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null); then
+            echo "::warning::gh release list failed; using fallback"
+            LATEST_TAG=""
+          fi
           
           if [ -n "$LATEST_TAG" ]; then
             BUILD_NUM=$(echo "$LATEST_TAG" | cut -d'.' -f3)
@@ -119,8 +122,10 @@ jobs:
           </html>
           EOF_404
           
-          SAFE_DISPLAY_NAME=$(printf '%s\n' "$DISPLAY_NAME" | sed -e 's/[\\&|]/\\&/g')
-          SAFE_DOWNLOAD_URL=$(printf '%s\n' "$DOWNLOAD_URL" | sed -e 's/[\\&|]/\\&/g')
+          HTML_DISPLAY_NAME=$(python3 -c 'import html, sys; print(html.escape(sys.argv[1]))' "$DISPLAY_NAME")
+          HTML_DOWNLOAD_URL=$(python3 -c 'import html, sys; print(html.escape(sys.argv[1], quote=True))' "$DOWNLOAD_URL")
+          SAFE_DISPLAY_NAME=$(printf '%s\n' "$HTML_DISPLAY_NAME" | sed -e 's/[\\&|]/\\&/g')
+          SAFE_DOWNLOAD_URL=$(printf '%s\n' "$HTML_DOWNLOAD_URL" | sed -e 's/[\\&|]/\\&/g')
           sed -i "s|VERSION_PLACEHOLDER|${SAFE_DISPLAY_NAME}|g" ./public/index.html
           sed -i "s|URL_PLACEHOLDER|${SAFE_DOWNLOAD_URL}|g" ./public/index.html
 
