@@ -131,6 +131,12 @@ public sealed class BuildEngineService : IBuildEngineService
                 ? BuildOperationResult.CreateSuccess(_filesProcessed, _filesSkipped, _filesFailed, sw.Elapsed)
                 : BuildOperationResult.CreateFailure(_lastErrorMessage ?? "Build failed", _filesProcessed, _filesSkipped, _filesFailed, sw.Elapsed);
         }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("ExecuteBuildAsync cancelled");
+            sw.Stop();
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "ExecuteBuildAsync failed");
@@ -207,7 +213,7 @@ public sealed class BuildEngineService : IBuildEngineService
         {
             _logger.LogWarning(ex, "Build was cancelled");
             _lastErrorMessage = "Build was cancelled by user";
-            return false;
+            throw;
         }
         catch (Exception ex)
         {
