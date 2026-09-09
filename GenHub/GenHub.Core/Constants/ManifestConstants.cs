@@ -41,6 +41,11 @@ public static class ManifestConstants
     public const int ProgressLoggingThrottleInterval = 25;
 
     /// <summary>
+    /// Throttle interval in seconds for periodic progress logging during manifest generation file verification.
+    /// </summary>
+    public const int ProgressLogThrottleSeconds = 5;
+
+    /// <summary>
     /// File size threshold in bytes (5 MB) above which a file is considered large during verification,
     /// triggering individual hashing progress status reports and notifications.
     /// </summary>

@@ -961,6 +961,7 @@ public class ManifestGenerationService(
 
         var fileCount = 0;
         var missingRequiredFiles = new List<string>();
+        var skippedRequiredFiles = new List<string>();
         var differingFiles = new List<string>();
         var lastLogTimestamp = Stopwatch.GetTimestamp();
         var lastNotificationTimestamp = Stopwatch.GetTimestamp();
@@ -1009,7 +1010,7 @@ public class ManifestGenerationService(
                     case AuthoritativeFileStatus.Skipped:
                         if (entry.IsRequired)
                         {
-                            missingRequiredFiles.Add(entry.RelativePath);
+                            skippedRequiredFiles.Add(entry.RelativePath);
                         }
 
                         break;
@@ -1022,7 +1023,7 @@ public class ManifestGenerationService(
                 if (currentIndex == 1 ||
                     currentIndex % ManifestConstants.ProgressLoggingThrottleInterval == 0 ||
                     currentIndex == totalEntries ||
-                    Stopwatch.GetElapsedTime(lastLogTimestamp).TotalSeconds >= 5)
+                    Stopwatch.GetElapsedTime(lastLogTimestamp).TotalSeconds >= ManifestConstants.ProgressLogThrottleSeconds)
                 {
                     logger.LogInformation(
                         "Generating manifest for {GameType}: {Current}/{Total} files processed ({Percent:F0}%) - {RelativePath}",
@@ -1041,21 +1042,43 @@ public class ManifestGenerationService(
         }
 
         logger.LogInformation(
-            "Completed authoritative manifest generation for {GameType}: {TotalFiles} vanilla files added ({DifferingCount} differed from catalog, {MissingCount} required files missing)",
+            "Completed authoritative manifest generation for {GameType}: {TotalFiles} vanilla files added ({DifferingCount} differed from catalog, {MissingCount} required files missing, {SkippedCount} required files skipped)",
             gameType,
             fileCount,
             differingFiles.Count,
-            missingRequiredFiles.Count);
+            missingRequiredFiles.Count,
+            skippedRequiredFiles.Count);
 
-        if (missingRequiredFiles.Count > 0)
+        var totalIncompleteRequiredCount = missingRequiredFiles.Count + skippedRequiredFiles.Count;
+        if (totalIncompleteRequiredCount > 0)
         {
-            var fileList = string.Join(", ", missingRequiredFiles.Take(ManifestConstants.MaxMissingFilesNotificationDisplayCount));
-            var extra = missingRequiredFiles.Count > ManifestConstants.MaxMissingFilesNotificationDisplayCount
-                ? $" and {missingRequiredFiles.Count - ManifestConstants.MaxMissingFilesNotificationDisplayCount} more"
-                : string.Empty;
+            string warningMessage;
+            if (missingRequiredFiles.Count > 0 && skippedRequiredFiles.Count > 0)
+            {
+                var missingList = string.Join(", ", missingRequiredFiles.Take(ManifestConstants.MaxMissingFilesNotificationDisplayCount));
+                var skippedList = string.Join(", ", skippedRequiredFiles.Take(ManifestConstants.MaxMissingFilesNotificationDisplayCount));
+                warningMessage = $"{gameType} has {missingRequiredFiles.Count} missing required file(s) ({missingList}) and {skippedRequiredFiles.Count} unreadable/skipped file(s) ({skippedList}). A game repair or permission check is recommended.";
+            }
+            else if (missingRequiredFiles.Count > 0)
+            {
+                var fileList = string.Join(", ", missingRequiredFiles.Take(ManifestConstants.MaxMissingFilesNotificationDisplayCount));
+                var extra = missingRequiredFiles.Count > ManifestConstants.MaxMissingFilesNotificationDisplayCount
+                    ? $" and {missingRequiredFiles.Count - ManifestConstants.MaxMissingFilesNotificationDisplayCount} more"
+                    : string.Empty;
+                warningMessage = $"{gameType} is missing {missingRequiredFiles.Count} required file(s): {fileList}{extra}. A clean reinstall or repair via EA App/Steam is recommended.";
+            }
+            else
+            {
+                var fileList = string.Join(", ", skippedRequiredFiles.Take(ManifestConstants.MaxMissingFilesNotificationDisplayCount));
+                var extra = skippedRequiredFiles.Count > ManifestConstants.MaxMissingFilesNotificationDisplayCount
+                    ? $" and {skippedRequiredFiles.Count - ManifestConstants.MaxMissingFilesNotificationDisplayCount} more"
+                    : string.Empty;
+                warningMessage = $"{gameType} could not read {skippedRequiredFiles.Count} required file(s) (e.g. file lock, permissions, or symlink): {fileList}{extra}. Please verify permissions or close background processes.";
+            }
+
             notificationService?.ShowWarning(
                 ManifestConstants.IncompleteInstallationNotificationTitle,
-                $"{gameType} is missing {missingRequiredFiles.Count} required file(s): {fileList}{extra}. A clean reinstall or repair via EA App/Steam is recommended.",
+                warningMessage,
                 autoDismissMs: ManifestConstants.WarningNotificationAutoDismissMs);
         }
         else
@@ -1122,7 +1145,7 @@ public class ManifestGenerationService(
 
                 if (scannedFiles == 1 ||
                     scannedFiles % ManifestConstants.ProgressLoggingThrottleInterval == 0 ||
-                    Stopwatch.GetElapsedTime(lastScanLogTimestamp).TotalSeconds >= 5)
+                    Stopwatch.GetElapsedTime(lastScanLogTimestamp).TotalSeconds >= ManifestConstants.ProgressLogThrottleSeconds)
                 {
                     logger.LogInformation(
                         "Scanning {GameType} directory: {Count} files processed ({CurrentFile})",
