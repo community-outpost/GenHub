@@ -1166,7 +1166,7 @@ public class ManifestGenerationServiceTests : IDisposable
         notificationServiceMock.Verify(
             n => n.Update(
                 It.IsAny<Guid>(),
-                It.Is<string>(msg => msg.Contains("Calculating SHA-256") || msg.Contains("game.dat")),
+                It.Is<string>(msg => msg.Contains("Calculating SHA-256") && msg.Contains("game.dat")),
                 ManifestConstants.IndexingNotificationTitle),
             Times.AtLeastOnce);
         notificationServiceMock.Verify(

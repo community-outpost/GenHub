@@ -1005,7 +1005,13 @@ public class ManifestGenerationService(
                         missingRequiredFiles.Add(entry.RelativePath);
                         break;
                     case AuthoritativeFileStatus.MissingOptional:
+                        break;
                     case AuthoritativeFileStatus.Skipped:
+                        if (entry.IsRequired)
+                        {
+                            missingRequiredFiles.Add(entry.RelativePath);
+                        }
+
                         break;
                     default:
                         break;
@@ -1092,11 +1098,11 @@ public class ManifestGenerationService(
             notificationService.Show(progressNotification);
         }
 
-        var executableName = gameType == GameType.Generals ? GameClientConstants.GeneralsExecutable : GameClientConstants.ZeroHourExecutable;
-        await TryAddPrimaryExecutableAsync(builder, installationPath, executableName);
-
         try
         {
+            var executableName = gameType == GameType.Generals ? GameClientConstants.GeneralsExecutable : GameClientConstants.ZeroHourExecutable;
+            await TryAddPrimaryExecutableAsync(builder, installationPath, executableName);
+
             var options = new EnumerationOptions
             {
                 IgnoreInaccessible = true,
@@ -1139,7 +1145,6 @@ public class ManifestGenerationService(
                 await TryAddFallbackFileAsync(builder, installationPath, file, executableName, progressNotificationId);
             }
 
-            notificationService?.Dismiss(progressNotificationId);
             notificationService?.ShowSuccess(
                 ManifestConstants.IndexedNotificationTitle,
                 $"Completed file scan for {gameType} ({scannedFiles} files scanned).",
@@ -1147,17 +1152,19 @@ public class ManifestGenerationService(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            notificationService?.Dismiss(progressNotificationId);
             throw;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            notificationService?.Dismiss(progressNotificationId);
             logger.LogWarning(ex, "Failed to enumerate files during directory scan at {InstallationPath}", installationPath);
             notificationService?.ShowWarning(
                 ManifestConstants.DirectoryScanWarningNotificationTitle,
                 $"Failed to complete directory scan for {gameType}.",
                 autoDismissMs: ManifestConstants.WarningNotificationAutoDismissMs);
+        }
+        finally
+        {
+            notificationService?.Dismiss(progressNotificationId);
         }
     }
 
