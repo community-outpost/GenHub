@@ -5,11 +5,7 @@ export default withMermaid(
     defineConfig({
         title: 'GeneralsHub',
         description: 'C&C Launcher Documentation',
-        base:
-            process.env.NODE_ENV === 'production' ||
-                process.env.GITHUB_ACTIONS === 'true'
-                ? '/wiki/'
-                : '/',
+        base: '/',
 
         ignoreDeadLinks: true,
 
