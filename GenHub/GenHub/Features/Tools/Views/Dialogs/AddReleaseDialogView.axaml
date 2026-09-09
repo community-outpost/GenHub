@@ -63,7 +63,6 @@
 
     <Grid RowDefinitions="Auto,*,Auto" Margin="24">
         <!-- Header -->
-        <!-- Header -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,24">
             <TextBlock Text="{Binding DialogTitle}"
                        FontSize="22" FontWeight="Bold"
@@ -75,7 +74,7 @@
                     CornerRadius="8"
                     BorderThickness="0"
                     VerticalAlignment="Top">
-                <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                <PathIcon Data="{StaticResource CloseIcon}"
                           Width="12" Height="12"
                           Foreground="#888888"/>
                 <Button.Styles>
@@ -133,9 +132,14 @@
                             <TextBlock Text="Artifacts (Files)" Classes="label"/>
                             <TextBlock Text="*" Foreground="#FF5555"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Content="+ Add Artifact"
+                        <Button Grid.Column="1"
                                 Command="{Binding AddArtifactCommand}"
-                                Classes="small-glass-btn"/>
+                                Classes="small-glass-btn">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="White"/>
+                                <TextBlock Text="Add Artifact" FontSize="11" Foreground="White"/>
+                            </StackPanel>
+                        </Button>
                     </Grid>
 
                     <ListBox ItemsSource="{Binding Artifacts}" MinHeight="60">
@@ -146,13 +150,14 @@
                                          <TextBlock Text="{Binding Filename}" FontWeight="SemiBold" Foreground="White"/>
                                          <TextBlock Text="{Binding Size}" FontSize="11" Foreground="#AAAAAA"/>
                                      </StackPanel>
-                                     <Button Grid.Column="1" Content="✕"
+                                     <Button Grid.Column="1"
                                              Command="{ReflectionBinding DataContext.RemoveArtifactCommand, ElementName=Root}"
                                              CommandParameter="{Binding}"
                                              Background="Transparent"
                                              BorderThickness="0"
-                                             Foreground="#FF5555"
-                                             Padding="8"/>
+                                             Padding="8">
+                                         <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="#FF5555"/>
+                                     </Button>
                                  </Grid>
                              </DataTemplate>
                          </ListBox.ItemTemplate>
@@ -164,9 +169,14 @@
                 <StackPanel Spacing="8">
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBlock Text="Dependencies" Classes="label" VerticalAlignment="Center"/>
-                        <Button Grid.Column="1" Content="+ Add Dependency"
+                        <Button Grid.Column="1"
                                 Command="{Binding AddDependencyCommand}"
-                                Classes="small-glass-btn"/>
+                                Classes="small-glass-btn">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="White"/>
+                                <TextBlock Text="Add Dependency" FontSize="11" Foreground="White"/>
+                            </StackPanel>
+                        </Button>
                     </Grid>
 
                     <ListBox ItemsSource="{Binding Dependencies}" MinHeight="60">
@@ -177,13 +187,14 @@
                                          <TextBlock Text="{Binding ContentId}" FontWeight="SemiBold" Foreground="White"/>
                                          <TextBlock Text="{Binding VersionConstraint, StringFormat='v{0}'}" FontSize="11" Foreground="#AAAAAA"/>
                                      </StackPanel>
-                                      <Button Grid.Column="1" Content="✕"
+                                      <Button Grid.Column="1"
                                               Command="{ReflectionBinding DataContext.RemoveDependencyCommand, ElementName=Root}"
                                               CommandParameter="{Binding}"
                                               Background="Transparent"
                                               BorderThickness="0"
-                                              Foreground="#FF5555"
-                                              Padding="8"/>
+                                              Padding="8">
+                                          <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="#FF5555"/>
+                                      </Button>
                                  </Grid>
                              </DataTemplate>
                          </ListBox.ItemTemplate>

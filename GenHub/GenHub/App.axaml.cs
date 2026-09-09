@@ -1,13 +1,10 @@
-using System.Net.Http;
-using Avalonia.Controls;
-using GenHub.Core.Interfaces.Providers;
-using GenHub.Features.Content.ViewModels.Catalog;
-using GenHub.Features.Downloads.Views;
 using System;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
@@ -19,9 +16,13 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Enums;
+using GenHub.Features.Content.ViewModels.Catalog;
+using GenHub.Features.Downloads.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -421,12 +422,14 @@ public partial class App : Application
             }
 
             var vmLogger = loggerFactory.CreateLogger<SubscriptionConfirmationViewModel>();
+            var definitionService = _serviceProvider.GetService<IPublisherDefinitionService>();
             var confirmationVm = new SubscriptionConfirmationViewModel(
                 targetUrl,
                 subscriptionStore,
                 catalogParser,
                 httpClientFactory.CreateClient(),
-                vmLogger);
+                vmLogger,
+                definitionService);
 
             var confirmed = await ShowSubscriptionDialogAsync(confirmationVm, mainWindow);
             if (confirmed)

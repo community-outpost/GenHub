@@ -133,7 +133,7 @@ public partial class GitHubTokenDialogViewModel(
                     var scopeString = string.Join(",", scopes);
                     if (scopeString.Contains("repo", StringComparison.OrdinalIgnoreCase))
                     {
-                        ValidationMessage = "✓ Token is valid with repo access!";
+                        ValidationMessage = "Token is valid with repo access!";
                         ValidationMessageColor = Brushes.LightGreen;
                         IsTokenValid = true;
                         logger?.LogInformation("GitHub token validated successfully with repo scope");
@@ -148,21 +148,21 @@ public partial class GitHubTokenDialogViewModel(
                 }
                 else
                 {
-                    ValidationMessage = "✓ Token is valid!";
+                    ValidationMessage = "Token is valid!";
                     ValidationMessageColor = Brushes.LightGreen;
                     IsTokenValid = true;
                 }
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
-                ValidationMessage = "✗ Token is invalid or expired.";
+                ValidationMessage = "Token is invalid or expired.";
                 ValidationMessageColor = Brushes.Salmon;
                 IsTokenValid = false;
                 logger?.LogWarning("GitHub token validation failed: Unauthorized");
             }
             else
             {
-                ValidationMessage = $"✗ Validation failed: {response.StatusCode}";
+                ValidationMessage = $"Validation failed: {response.StatusCode}";
                 ValidationMessageColor = Brushes.Salmon;
                 IsTokenValid = false;
                 logger?.LogWarning("GitHub token validation failed: {StatusCode}", response.StatusCode);
@@ -170,7 +170,7 @@ public partial class GitHubTokenDialogViewModel(
         }
         catch (Exception ex)
         {
-            ValidationMessage = $"✗ Error: {ex.Message}";
+            ValidationMessage = $"Error: {ex.Message}";
             ValidationMessageColor = Brushes.Salmon;
             IsTokenValid = false;
             logger?.LogError(ex, "Error validating GitHub token");
@@ -211,7 +211,7 @@ public partial class GitHubTokenDialogViewModel(
         }
         catch (Exception ex)
         {
-            ValidationMessage = $"✗ Failed to save token: {ex.Message}";
+            ValidationMessage = $"Failed to save token: {ex.Message}";
             ValidationMessageColor = Brushes.Salmon;
             HasValidationMessage = true;
             logger?.LogError(ex, "Failed to save GitHub token");

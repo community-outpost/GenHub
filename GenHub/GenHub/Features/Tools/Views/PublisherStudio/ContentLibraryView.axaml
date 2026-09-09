@@ -128,10 +128,11 @@
                                             Background="{DynamicResource PrimaryGradientBrush}"
                                             Margin="0,0,16,0"
                                             Opacity="0.8">
-                                        <TextBlock Text="🎮"
-                                                   FontSize="20"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center"/>
+                                        <PathIcon Data="{StaticResource GamepadIcon}"
+                                                  Width="20" Height="20"
+                                                  Foreground="White"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"/>
                                     </Border>
                                     <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Name}"

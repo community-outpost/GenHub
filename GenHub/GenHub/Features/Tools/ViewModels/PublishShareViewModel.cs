@@ -87,6 +87,17 @@ public partial class PublishShareViewModel : ObservableObject
     private string _dropboxAccessToken = string.Empty;
 
     [ObservableProperty]
+    private string _googleClientId = string.Empty;
+
+    [ObservableProperty]
+    private string _googleClientSecret = string.Empty;
+
+    /// <summary>
+    /// Gets the three-tier upload hierarchy (1. Definition / 2. Catalogs / 3. Content items and releases).
+    /// </summary>
+    public UploadHierarchyItemViewModel UploadHierarchy { get; } = new();
+
+    [ObservableProperty]
     private bool _isAuthenticating;
 
     [ObservableProperty]
@@ -206,6 +217,7 @@ public partial class PublishShareViewModel : ObservableObject
 
         // Initialize catalog statuses
         InitializeCatalogStatuses();
+        RefreshUploadHierarchy();
 
         // Load existing hosting state if available
         _ = LoadHostingStateAsync();
@@ -269,6 +281,12 @@ public partial class PublishShareViewModel : ObservableObject
 
         try
         {
+            if (SelectedHostingProvider is GoogleDriveHostingProvider gdrive)
+            {
+                if (!string.IsNullOrWhiteSpace(GoogleClientId)) gdrive.CustomClientId = GoogleClientId.Trim();
+                if (!string.IsNullOrWhiteSpace(GoogleClientSecret)) gdrive.CustomClientSecret = GoogleClientSecret.Trim();
+            }
+
             OperationResult<bool> result;
 
             // Handle GitHub PAT authentication
@@ -301,7 +319,7 @@ public partial class PublishShareViewModel : ObservableObject
 
             if (result.Success)
             {
-                AuthenticationStatusMessage = "✓ Authenticated successfully";
+                AuthenticationStatusMessage = "Authenticated successfully";
                 _logger.LogInformation("Authenticated with {Provider}", SelectedHostingProvider.DisplayName);
 
                 // Save token to hosting state for persistence
@@ -314,7 +332,7 @@ public partial class PublishShareViewModel : ObservableObject
             }
             else
             {
-                AuthenticationStatusMessage = $"✗ {result.FirstError}";
+                AuthenticationStatusMessage = $"Authentication failed: {result.FirstError}";
                 _logger.LogWarning("Authentication failed for {Provider}: {Error}", SelectedHostingProvider.DisplayName, result.FirstError);
 
                 _notificationService?.ShowError(
@@ -331,7 +349,7 @@ public partial class PublishShareViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            AuthenticationStatusMessage = $"✗ Error: {ex.Message}";
+            AuthenticationStatusMessage = $"Authentication error: {ex.Message}";
             _logger.LogError(ex, "Authentication error for {Provider}", SelectedHostingProvider.DisplayName);
         }
         finally
@@ -422,6 +440,7 @@ public partial class PublishShareViewModel : ObservableObject
 
                 GenerateSubscriptionUrl();
                 InitializeCatalogStatuses();
+                RefreshUploadHierarchy();
                 _logger.LogInformation("Loaded hosting state with {CatalogCount} catalogs", _currentHostingState.Catalogs.Count);
 
                 // After loading state, try to restore authentication
@@ -462,7 +481,7 @@ public partial class PublishShareViewModel : ObservableObject
             if (ActiveCatalog == null)
             {
                 IsValid = false;
-                ValidationMessage = "✗ No catalog selected";
+                ValidationMessage = "No catalog selected";
                 return;
             }
 
@@ -476,20 +495,20 @@ public partial class PublishShareViewModel : ObservableObject
             if (artifactErrors.Any())
             {
                 IsValid = false;
-                ValidationMessage = $"✗ {artifactErrors.Count} artifacts have invalid or missing URLs";
+                ValidationMessage = $"Validation failed: {artifactErrors.Count} artifacts have invalid or missing URLs";
                 return;
             }
 
             var result = await _publisherStudioService.ValidateCatalogAsync(ActiveCatalog.Catalog, allowPendingArtifacts: true);
             IsValid = result.Success;
-            ValidationMessage = result.Success ? $"✓ Catalog '{ActiveCatalog.Name}' is valid" : $"✗ {result.FirstError}";
+            ValidationMessage = result.Success ? $"Catalog '{ActiveCatalog.Name}' is valid" : $"Validation failed: {result.FirstError}";
 
             _logger.LogInformation("Catalog '{CatalogName}' validation: {IsValid}", ActiveCatalog.Name, IsValid);
         }
         catch (Exception ex)
         {
             IsValid = false;
-            ValidationMessage = $"✗ Validation error: {ex.Message}";
+            ValidationMessage = $"Validation error: {ex.Message}";
             _logger.LogError(ex, "Error validating catalog");
         }
     }
@@ -1014,7 +1033,8 @@ public partial class PublishShareViewModel : ObservableObject
             {
                 ProviderDefinitionUrl = result.Data.DirectDownloadUrl;
                 GenerateSubscriptionUrl(); // Regenerate based on new definition URL
-                UploadStatusMessage = "✓ Provider definition uploaded!";
+                RefreshUploadHierarchy();
+                UploadStatusMessage = "Provider definition uploaded successfully.";
                 _logger.LogInformation("Uploaded provider definition to {Url}", ProviderDefinitionUrl);
             }
             else
@@ -1265,6 +1285,19 @@ public partial class PublishShareViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Publishes a specific catalog by its ID.
+    /// </summary>
+    [RelayCommand]
+    private async Task PublishCatalogByIdAsync(string catalogId)
+    {
+        var catalog = _project.Catalogs.FirstOrDefault(c => c.Id == catalogId);
+        if (catalog != null)
+        {
+            await PublishCatalogAsync(catalog);
+        }
+    }
+
+    /// <summary>
     /// Publishes a specific catalog.
     /// </summary>
     [RelayCommand]
@@ -1331,6 +1364,7 @@ public partial class PublishShareViewModel : ObservableObject
             }
 
             GenerateSubscriptionUrl();
+            RefreshUploadHierarchy();
             PublishCompleted = true;
             UploadStatusMessage = $"Successfully published {totalCatalogs} catalogs!";
         }
@@ -1342,6 +1376,129 @@ public partial class PublishShareViewModel : ObservableObject
         finally
         {
             IsUploading = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task CopyCustomUrlAsync(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return;
+        try
+        {
+            var lifetime = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var clipboard = lifetime?.MainWindow?.Clipboard;
+            if (clipboard != null)
+            {
+                await clipboard.SetTextAsync(url);
+                _notificationService?.ShowSuccess("Copied", "Link copied to clipboard.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to copy URL to clipboard");
+        }
+    }
+
+    /// <summary>
+    /// Refreshes the three-tier upload hierarchy (1. Definition / 2. Catalogs / 3. Content items and releases).
+    /// </summary>
+    public void RefreshUploadHierarchy()
+    {
+        try
+        {
+            // Tier 1: Provider Definition
+            UploadHierarchy.PublisherName = _project.Catalog.Publisher?.Name ?? "Publisher";
+            UploadHierarchy.PublisherId = _project.Catalog.Publisher?.Id ?? "publisher";
+            UploadHierarchy.AvatarUrl = _project.Catalog.Publisher?.AvatarUrl;
+            UploadHierarchy.Website = _project.Catalog.Publisher?.Website;
+            UploadHierarchy.DefinitionUrl = ProviderDefinitionUrl;
+            UploadHierarchy.SubscriptionUrl = SubscriptionUrl;
+            UploadHierarchy.IsUploaded = !string.IsNullOrWhiteSpace(ProviderDefinitionUrl);
+            UploadHierarchy.LastUpdated = _currentHostingState?.Definition?.LastUpdated;
+
+            // Tier 2: Catalogs
+            UploadHierarchy.Catalogs.Clear();
+            foreach (var namedCat in _project.Catalogs)
+            {
+                var catNode = new UploadCatalogNodeViewModel
+                {
+                    Id = namedCat.Id,
+                    Name = namedCat.Name,
+                    Description = namedCat.Description ?? string.Empty,
+                };
+
+                var hostedInfo = _currentHostingState?.Catalogs?.FirstOrDefault(c => c.CatalogId == namedCat.Id);
+                if (hostedInfo != null)
+                {
+                    catNode.DirectDownloadUrl = hostedInfo.Url;
+                    catNode.IsPublished = true;
+                    catNode.LastUpdated = hostedInfo.LastUpdated;
+                }
+
+                // Tier 3: Content Items and Releases
+                if (namedCat.Catalog?.Content != null)
+                {
+                    foreach (var contentItem in namedCat.Catalog.Content)
+                    {
+                        var contentNode = new UploadContentNodeViewModel
+                        {
+                            Id = contentItem.Id,
+                            Name = contentItem.Name,
+                            ContentType = contentItem.ContentType.ToString(),
+                            TargetGame = contentItem.TargetGame.ToString(),
+                            Description = contentItem.Description ?? string.Empty,
+                        };
+
+                        if (contentItem.Releases != null)
+                        {
+                            foreach (var rel in contentItem.Releases)
+                            {
+                                var relNode = new UploadReleaseNodeViewModel
+                                {
+                                    Version = rel.Version,
+                                    ReleaseDate = rel.ReleaseDate?.ToString("yyyy-MM-dd") ?? string.Empty,
+                                    ReleaseNotes = rel.Changelog ?? string.Empty,
+                                    IsLatest = rel.IsLatest,
+                                };
+
+                                if (rel.Artifacts != null)
+                                {
+                                    foreach (var art in rel.Artifacts)
+                                    {
+                                        var artNode = new UploadArtifactNodeViewModel
+                                        {
+                                            FileName = art.Filename,
+                                            DownloadUrl = art.DownloadUrl,
+                                            FileSizeFormatted = GenHub.Core.Helpers.FileSizeFormatter.Format(art.Size),
+                                            Sha256 = art.Sha256 ?? string.Empty,
+                                            IsHosted = !string.IsNullOrEmpty(art.DownloadUrl),
+                                        };
+
+                                        var localArtifact = ArtifactStatuses.FirstOrDefault(a => a.ArtifactName == art.Filename);
+                                        if (localArtifact != null)
+                                        {
+                                            artNode.HasLocalFile = localArtifact.HasLocalFile;
+                                            artNode.LocalFilePath = localArtifact.LocalFilePath ?? string.Empty;
+                                        }
+
+                                        relNode.Artifacts.Add(artNode);
+                                    }
+                                }
+
+                                contentNode.Releases.Add(relNode);
+                            }
+                        }
+
+                        catNode.ContentItems.Add(contentNode);
+                    }
+                }
+
+                UploadHierarchy.Catalogs.Add(catNode);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to refresh upload hierarchy");
         }
     }
 }
