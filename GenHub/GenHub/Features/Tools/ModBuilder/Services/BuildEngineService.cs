@@ -47,6 +47,13 @@ public sealed class BuildEngineService : IBuildEngineService
     /// <summary>
     /// Initializes a new instance of the <see cref="BuildEngineService"/> class using DI scope factory.
     /// </summary>
+    /// <param name="cacheService">The build cache service.</param>
+    /// <param name="fileConversionService">The file conversion service.</param>
+    /// <param name="hashProvider">The MD5 hash provider.</param>
+    /// <param name="configurationLoaderService">The configuration loader service.</param>
+    /// <param name="archiveService">The archive service.</param>
+    /// <param name="serviceScopeFactory">The service scope factory for resolving scoped dependencies.</param>
+    /// <param name="logger">The logger instance.</param>
     public BuildEngineService(
         IBuildCacheService cacheService,
         IFileConversionService fileConversionService,
@@ -68,6 +75,13 @@ public sealed class BuildEngineService : IBuildEngineService
     /// <summary>
     /// Initializes a new instance of the <see cref="BuildEngineService"/> class with direct local content service (for tests).
     /// </summary>
+    /// <param name="cacheService">The build cache service.</param>
+    /// <param name="fileConversionService">The file conversion service.</param>
+    /// <param name="hashProvider">The MD5 hash provider.</param>
+    /// <param name="configurationLoaderService">The configuration loader service.</param>
+    /// <param name="archiveService">The archive service.</param>
+    /// <param name="localContentService">The local content service.</param>
+    /// <param name="logger">The logger instance.</param>
     public BuildEngineService(
         IBuildCacheService cacheService,
         IFileConversionService fileConversionService,
@@ -311,60 +325,25 @@ public sealed class BuildEngineService : IBuildEngineService
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        _logger.LogInformation("PreBuild stage started");
-        progress?.Report(new BuildProgress { CurrentStep = "PreBuild: Validating configuration" });
+        _logger.LogInformation("PreBuild stage started (using cached build structure)");
+        progress?.Report(new BuildProgress { CurrentStep = "PreBuild: Initializing build structure" });
 
         FireBundleEvent(BundleEventType.OnPreBuild, null);
 
-        var validationResult = ValidateProjectConfiguration(buildStructure.Configuration);
-        if (!validationResult.IsValid)
+        if (buildStructure.Configuration == null)
         {
-            _logger.LogError("Project configuration validation failed: {Errors}", string.Join(", ", validationResult.Errors));
-            _lastErrorMessage = $"Configuration validation failed: {string.Join(", ", validationResult.Errors)}";
+            _logger.LogError("Project configuration is null");
+            _lastErrorMessage = "Configuration is null";
             return false;
         }
 
+        _logger.LogDebug(
+            "Build structure contains {ItemCount} items and {PackCount} packs",
+            buildStructure.BundleItems.Count,
+            buildStructure.BundlePacks.Count);
+
         await Task.CompletedTask.ConfigureAwait(false);
         return true;
-    }
-
-    private static (bool IsValid, List<string> Errors) ValidateProjectConfiguration(BuildConfiguration configuration)
-    {
-        var errors = new List<string>();
-
-        if (configuration == null)
-        {
-            errors.Add("Configuration is null");
-            return (false, errors);
-        }
-
-        if (configuration.Items == null || configuration.Items.Count == 0)
-        {
-            errors.Add("No bundle items configured");
-        }
-
-        if (configuration.Packs == null || configuration.Packs.Count == 0)
-        {
-            errors.Add("No bundle packs configured");
-        }
-
-        if (configuration.Items != null)
-        {
-            foreach (var item in configuration.Items)
-            {
-                if (string.IsNullOrWhiteSpace(item.Name))
-                {
-                    errors.Add("Bundle item missing name");
-                }
-
-                if (item.Files == null || item.Files.Count == 0)
-                {
-                    errors.Add($"Bundle item '{item.Name}' has no files");
-                }
-            }
-        }
-
-        return (errors.Count == 0, errors);
     }
 
     private async Task<bool> CleanAsync(BuildSetup setup, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
@@ -498,6 +477,7 @@ public sealed class BuildEngineService : IBuildEngineService
                     cancellationToken.ThrowIfCancellationRequested();
                     await ProcessSingleFileAsync(filePath, stage, setup, progress, cancellationToken).ConfigureAwait(false);
                 }
+
                 break;
         }
     }
