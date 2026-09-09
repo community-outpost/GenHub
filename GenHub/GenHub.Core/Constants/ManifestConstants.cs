@@ -41,7 +41,7 @@ public static class ManifestConstants
     public const int ProgressLoggingThrottleInterval = 25;
 
     /// <summary>
-    /// Throttle interval in seconds for periodic progress logging during manifest generation file verification.
+    /// Throttle interval in seconds for periodic progress logging during manifest generation.
     /// </summary>
     public const int ProgressLogThrottleSeconds = 5;
 
