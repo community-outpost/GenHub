@@ -59,7 +59,7 @@ public sealed class PerformanceBenchmarkTests : IAsyncLifetime
         services.AddLogging(builder => builder.AddDebug().SetMinimumLevel(LogLevel.Warning));
 
         // Register ModBuilder services (match ModBuilderModule.cs)
-        services.AddSingleton<IBuildEngineService, GenHub.Features.Tools.ModBuilder.Services.BuildEngineService>();
+        services.AddTransient<IBuildEngineService, GenHub.Features.Tools.ModBuilder.Services.BuildEngineService>();
         services.AddSingleton<IProjectConfigService, GenHub.Features.Tools.ModBuilder.Services.ProjectConfigService>();
         services.AddSingleton<IConfigurationLoaderService, GenHub.Features.Tools.ModBuilder.Services.ConfigurationLoaderService>();
         services.AddSingleton<IFileConversionService, GenHub.Features.Tools.ModBuilder.Services.FileConversionService>();
