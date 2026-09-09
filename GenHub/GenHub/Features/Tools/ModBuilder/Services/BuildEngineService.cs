@@ -781,14 +781,11 @@ public sealed class BuildEngineService : IBuildEngineService
             return;
         }
 
-        var projectDir = setup.ProjectDir ?? Directory.GetCurrentDirectory();
-        var cacheKey = Path.GetRelativePath(projectDir, filePath);
-
-        // compute or reuse hash
-        var currentMd5 = await _cacheService.ComputeOrReuseMd5Async(filePath, cancellationToken).ConfigureAwait(false);
+        var projectDir = !string.IsNullOrWhiteSpace(setup.ProjectDir) ? setup.ProjectDir : Directory.GetCurrentDirectory();
+        var relativePath = Path.GetRelativePath(projectDir, filePath);
 
         // check file status using cache
-        var status = _cacheService.DetermineFileStatus(cacheKey, currentMd5, null);
+        var status = _cacheService.DetermineFileStatus(filePath, relativePath, null);
 
         if (status is BuildFileStatus.Unchanged or BuildFileStatus.Irrelevant)
         {
@@ -808,9 +805,10 @@ public sealed class BuildEngineService : IBuildEngineService
 
         if (success)
         {
+            var hash = await _hashProvider.ComputeFileHashAsync(filePath, cancellationToken).ConfigureAwait(false);
             var fileInfo = new FileInfo(filePath);
             var mtime = new DateTimeOffset(fileInfo.LastWriteTimeUtc).ToUnixTimeSeconds();
-            _cacheService.AddFile(cacheKey, mtime, currentMd5);
+            _cacheService.AddFile(relativePath, mtime, hash);
 
             Interlocked.Increment(ref _filesProcessed);
             progress?.Report(new BuildProgress
@@ -1236,7 +1234,8 @@ public sealed class BuildEngineService : IBuildEngineService
             }
         }
 
-        var sourceDir = Path.Combine(project.ProjectDir, !string.IsNullOrWhiteSpace(project.Directories?.GameFilesEdited) ? project.Directories.GameFilesEdited : ModBuilderConstants.GameFilesEditedDir);
+        var projectDir = !string.IsNullOrWhiteSpace(project.ProjectDir) ? project.ProjectDir : Directory.GetCurrentDirectory();
+        var sourceDir = Path.Combine(projectDir, !string.IsNullOrWhiteSpace(project.Directories?.GameFilesEdited) ? project.Directories.GameFilesEdited : ModBuilderConstants.GameFilesEditedDir);
         if (Directory.Exists(sourceDir))
         {
             foreach (var file in Directory.EnumerateFiles(sourceDir, "*", SearchOption.AllDirectories))
@@ -1276,21 +1275,18 @@ public sealed class BuildEngineService : IBuildEngineService
         configuration = await _configurationLoaderService.ResolveWildcardsAsync(configuration, cancellationToken)
             .ConfigureAwait(false);
 
-        var projectDir = project.ProjectDir;
+        var projectDir = !string.IsNullOrWhiteSpace(project.ProjectDir) ? project.ProjectDir : Directory.GetCurrentDirectory();
         var defaultBuild = !string.IsNullOrWhiteSpace(project.Directories?.Build) ? project.Directories.Build : ModBuilderConstants.DefaultBuildDir;
         var defaultRelease = !string.IsNullOrWhiteSpace(project.Directories?.Release) ? project.Directories.Release : ModBuilderConstants.DefaultReleaseDir;
 
-        if (!string.IsNullOrEmpty(projectDir))
+        if (string.IsNullOrEmpty(configuration.Folders.AbsBuildDir))
         {
-            if (string.IsNullOrEmpty(configuration.Folders.AbsBuildDir))
-            {
-                configuration.Folders.AbsBuildDir = Path.Combine(projectDir, defaultBuild);
-            }
+            configuration.Folders.AbsBuildDir = Path.Combine(projectDir, defaultBuild);
+        }
 
-            if (string.IsNullOrEmpty(configuration.Folders.AbsReleaseDir))
-            {
-                configuration.Folders.AbsReleaseDir = Path.Combine(projectDir, defaultRelease);
-            }
+        if (string.IsNullOrEmpty(configuration.Folders.AbsReleaseDir))
+        {
+            configuration.Folders.AbsReleaseDir = Path.Combine(projectDir, defaultRelease);
         }
 
         var gameDir = !string.IsNullOrEmpty(configuration.Folders.AbsGameDir)
@@ -1300,7 +1296,7 @@ public sealed class BuildEngineService : IBuildEngineService
         var setup = new BuildSetup
         {
             Step = buildSteps,
-            ProjectDir = project.ProjectDir,
+            ProjectDir = projectDir,
             Folders = new Folders
             {
                 AbsBuildDir = configuration.Folders.AbsBuildDir,
