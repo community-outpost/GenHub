@@ -2068,6 +2068,88 @@ public sealed class ReplayDirectoryServiceTests
     }
 
     /// <summary>
+    /// Verifies that CreateProfileForReplayAsync preserves relative subdirectory layout when detected client executable lives in a subdirectory.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateProfileForReplayAsync_WhenDetectedClientInSubdirectory_PreservesSubdirectoryLayoutAsync()
+    {
+        var installDir = Path.Combine(Path.GetTempPath(), "GenHubTests", "ZH");
+        var expectedExePath = Path.Combine(installDir, "mods", "custom", "superhackers.exe");
+
+        var replay = new ReplayFile
+        {
+            FileName = "Match_Subdir.rep",
+            FullPath = "/replays/Match_Subdir.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0x27533BB0,
+                IniCrc = 0x76B251A3,
+            },
+            MatchedClient = new CrcMappingEntry
+            {
+                ExeCrc = "0x27533BB0",
+                IniCrc = "0x76B251A3",
+                ManifestId = "1.20260821.thesuperhackers.gameclient.zerohour",
+                Publisher = "thesuperhackers",
+                GameType = "ZeroHour",
+                Version = "2026-08-21",
+                Description = "TheSuperHackers 2026-08-21",
+            },
+        };
+
+        var installation = new GameInstallation(installDir, GameInstallationType.Retail)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = installDir,
+            AvailableGameClients =
+            [
+                new GameClient
+                {
+                    ExecutablePath = expectedExePath,
+                    WorkingDirectory = installDir,
+                    PublisherType = "thesuperhackers",
+                    GameType = GameType.ZeroHour,
+                },
+            ],
+        };
+
+        _mockDependencyResolver
+            .Setup(r => r.ResolveDependenciesAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<string> ids, CancellationToken _) => new HashSet<string>(ids));
+
+        _mockInstallationService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+
+        _mockProfileManager
+            .Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        CreateProfileRequest? capturedRequest = null;
+        _mockProfileManager
+            .Setup(p => p.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<CreateProfileRequest, CancellationToken>((req, _) => capturedRequest = req)
+            .ReturnsAsync((CreateProfileRequest req, CancellationToken _) =>
+                ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "profile-sub-1", Name = req.Name }));
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var result = await service.CreateProfileForReplayAsync(replay);
+
+        Assert.True(result.Success);
+        Assert.NotNull(capturedRequest?.GameClient);
+        Assert.Equal(expectedExePath, capturedRequest.GameClient.ExecutablePath);
+    }
+
+    /// <summary>
     /// Verifies that IsProfileMatchingThirdParty rejects a profile with an incompatible data patch version.
     /// </summary>
     [Fact]

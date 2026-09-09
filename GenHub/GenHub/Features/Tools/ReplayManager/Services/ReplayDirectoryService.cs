@@ -1501,6 +1501,16 @@ public sealed class ReplayDirectoryService(
             string.Equals(c.Version, matchedClient.Version, StringComparison.OrdinalIgnoreCase));
     }
 
+    private static (GameClient? TargetClient, string WorkingDir) ResolveGameInstallationContext(
+        GameInstallation installation,
+        GameType gameVersion)
+    {
+        var targetClient = gameVersion == GameType.Generals ? installation.GeneralsClient : installation.ZeroHourClient;
+        var targetPath = gameVersion == GameType.Generals ? installation.GeneralsPath : installation.ZeroHourPath;
+        var workingDir = !string.IsNullOrEmpty(targetPath) ? targetPath : installation.InstallationPath;
+        return (targetClient, workingDir);
+    }
+
     private async Task<(string ClientManifestId, GameClient? GameClient)> ResolveReplayGameClientAsync(
         GameInstallation installation,
         ReplayFile replay,
@@ -1510,10 +1520,8 @@ public sealed class ReplayDirectoryService(
         IContentOrchestrator? contentOrchestrator,
         CancellationToken ct)
     {
-        var targetClient = replay.GameVersion == GameType.Generals ? installation.GeneralsClient : installation.ZeroHourClient;
-        var targetPath = replay.GameVersion == GameType.Generals ? installation.GeneralsPath : installation.ZeroHourPath;
+        var (targetClient, workingDir) = ResolveGameInstallationContext(installation, replay.GameVersion);
         var defaultExeName = GetDefaultExecutableName(replay.GameVersion, replay.MatchedClient?.Publisher);
-        var workingDir = !string.IsNullOrEmpty(targetPath) ? targetPath : installation.InstallationPath;
 
         if (isRetailClient)
         {
@@ -1542,9 +1550,7 @@ public sealed class ReplayDirectoryService(
         IContentOrchestrator? contentOrchestrator,
         CancellationToken ct)
     {
-        var targetClient = replay.GameVersion == GameType.Generals ? installation.GeneralsClient : installation.ZeroHourClient;
-        var targetPath = replay.GameVersion == GameType.Generals ? installation.GeneralsPath : installation.ZeroHourPath;
-        var workingDir = !string.IsNullOrEmpty(targetPath) ? targetPath : installation.InstallationPath;
+        var (targetClient, workingDir) = ResolveGameInstallationContext(installation, replay.GameVersion);
         var thirdPartyManifestId = replay.MatchedClient?.ManifestId ?? string.Empty;
         if (replay.MatchedClient != null)
         {
@@ -1569,7 +1575,17 @@ public sealed class ReplayDirectoryService(
                 string.Equals(targetClient.PublisherType, replay.MatchedClient?.Publisher, StringComparison.OrdinalIgnoreCase) &&
                 !string.IsNullOrWhiteSpace(targetClient.ExecutablePath))
             {
-                relativeExePath = Path.GetFileName(targetClient.ExecutablePath);
+                if (Path.IsPathRooted(targetClient.ExecutablePath) && !string.IsNullOrWhiteSpace(workingDir))
+                {
+                    var relPath = Path.GetRelativePath(workingDir, targetClient.ExecutablePath);
+                    relativeExePath = !relPath.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(relPath)
+                        ? relPath
+                        : GetDefaultExecutableName(replay.GameVersion, replay.MatchedClient?.Publisher);
+                }
+                else
+                {
+                    relativeExePath = targetClient.ExecutablePath.Replace('/', Path.DirectorySeparatorChar);
+                }
             }
             else
             {
