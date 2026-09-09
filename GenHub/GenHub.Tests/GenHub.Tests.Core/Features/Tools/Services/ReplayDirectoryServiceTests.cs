@@ -1770,4 +1770,158 @@ public sealed class ReplayDirectoryServiceTests
         Assert.Equal("id-1", match.Id);
         Assert.Equal("Alpha Profile", match.Name);
     }
+
+    /// <summary>
+    /// Verifies that FindMatchingProfile does not match a profile with community outpost client to a retail replay.
+    /// </summary>
+    [Fact]
+    public void FindMatchingProfile_WhenRetailReplay_DoesNotMatchCommunityOutpostProfile()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "00000000.rep",
+            FullPath = "/replays/00000000.rep",
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            MatchedClient = new CrcMappingEntry
+            {
+                Publisher = "ea",
+                ManifestId = "1.0.ea.gameinstallation.zerohour",
+                Version = "1.04",
+            },
+        };
+
+        var communityProfile = new GameProfile
+        {
+            Id = "community-id",
+            Name = "Community Patch (TheSuperHackers Build)",
+            GameClient = new GameClient
+            {
+                Id = "1.20260827.communityoutpost.gameclient.communitypatch",
+                GameType = GameType.ZeroHour,
+                PublisherType = "communityoutpost",
+            },
+            EnabledContentIds = ["1.20260827.communityoutpost.gameclient.communitypatch"],
+        };
+
+        var match = ReplayDirectoryService.FindMatchingProfile(
+            [communityProfile],
+            GameType.ZeroHour,
+            "1.0.ea.gameinstallation.zerohour",
+            null,
+            replay);
+
+        Assert.Null(match);
+    }
+
+    /// <summary>
+    /// Verifies that LaunchReplayAsync clears incompatible profile reference and creates a compatible profile when the referenced profile is third-party but the replay is retail.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LaunchReplayAsync_WhenAssociatedProfileIsIncompatible_ClearsReferenceAndCreatesNewProfileAsync()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "00000000.rep",
+            FullPath = "/replays/00000000.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            MatchingProfileId = "incompatible-community-profile",
+            MatchingProfileName = "Community Patch (TheSuperHackers Build)",
+            CompatibilityStatus = ReplayCompatibilityStatus.Compatible,
+            MatchedClient = new CrcMappingEntry
+            {
+                ExeCrc = "0x828261",
+                IniCrc = "0x000000",
+                ManifestId = "1.0.ea.gameinstallation.zerohour",
+                Publisher = "ea",
+                GameType = "ZeroHour",
+                Version = "1.04",
+                Description = "Command and Conquer Zero Hour 1.04 Retail",
+            },
+        };
+
+        var incompatibleProfile = new GameProfile
+        {
+            Id = "incompatible-community-profile",
+            Name = "Community Patch (TheSuperHackers Build)",
+            GameClient = new GameClient
+            {
+                Id = "1.20260827.communityoutpost.gameclient.communitypatch",
+                GameType = GameType.ZeroHour,
+                PublisherType = "communityoutpost",
+            },
+            EnabledContentIds = ["1.20260827.communityoutpost.gameclient.communitypatch"],
+        };
+
+        var retailClient = new GameClient
+        {
+            Id = "1.104.retail.gameclient.zerohour",
+            Name = "Command and Conquer Generals Zero Hour (Retail)",
+            Version = "1.04",
+            GameType = GameType.ZeroHour,
+            PublisherType = "retail",
+            InstallationId = "retail-inst-1",
+            ExecutablePath = "/retail/generalszh.exe",
+            WorkingDirectory = "/retail",
+        };
+
+        var installation = new GameInstallation("/retail", GameInstallationType.CDISO)
+        {
+            Id = "retail-inst-1",
+            HasZeroHour = true,
+            ZeroHourPath = "/retail",
+            AvailableGameClients = [retailClient],
+        };
+
+        _mockInstallationService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+
+        _mockProfileManager
+            .Setup(p => p.GetProfileAsync("incompatible-community-profile", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(incompatibleProfile));
+
+        _mockProfileManager
+            .Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([incompatibleProfile]));
+
+        _mockProfileManager
+            .Setup(p => p.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((CreateProfileRequest req, CancellationToken _) =>
+                ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "created-retail-profile", Name = req.Name }));
+
+        var launchInfo = new GameLaunchInfo
+        {
+            LaunchId = "launch-retail-100",
+            ProfileId = "created-retail-profile",
+            WorkspaceId = "ws-retail-100",
+            ProcessInfo = new GameProcessInfo
+            {
+                ProcessId = 65432,
+                ExecutablePath = "/retail/generalszh.exe",
+            },
+        };
+
+        _mockLauncherFacade
+            .Setup(l => l.LaunchProfileAsync("created-retail-profile", false, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var result = await service.LaunchReplayAsync(replay);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal("created-retail-profile", replay.MatchingProfileId);
+        Assert.Equal(ReplayCompatibilityStatus.Compatible, replay.CompatibilityStatus);
+        Assert.Equal("launch-retail-100", result.Data.LaunchId);
+    }
 }
