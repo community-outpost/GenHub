@@ -5,6 +5,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
 using GenHub.Features.Manifest;
@@ -955,7 +956,13 @@ public class ManifestGenerationServiceTests : IDisposable
         // Assert
         Assert.NotNull(manifest);
         notificationServiceMock.Verify(
-            n => n.ShowInfo(ManifestConstants.IndexingNotificationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            n => n.Show(It.Is<NotificationMessage>(m =>
+                m.Title == ManifestConstants.IndexingNotificationTitle &&
+                m.AutoDismissMilliseconds == null &&
+                m.IsPersistent)),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.Dismiss(It.IsAny<Guid>()),
             Times.Once);
         notificationServiceMock.Verify(
             n => n.ShowSuccess(ManifestConstants.IndexedNotificationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
@@ -999,7 +1006,13 @@ public class ManifestGenerationServiceTests : IDisposable
         // Assert
         Assert.NotNull(manifest);
         notificationServiceMock.Verify(
-            n => n.ShowInfo(ManifestConstants.IndexingNotificationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            n => n.Show(It.Is<NotificationMessage>(m =>
+                m.Title == ManifestConstants.IndexingNotificationTitle &&
+                m.AutoDismissMilliseconds == null &&
+                m.IsPersistent)),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.Dismiss(It.IsAny<Guid>()),
             Times.Once);
         notificationServiceMock.Verify(
             n => n.ShowWarning(ManifestConstants.IncompleteInstallationNotificationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
@@ -1042,7 +1055,13 @@ public class ManifestGenerationServiceTests : IDisposable
         // Assert
         Assert.NotNull(manifest);
         notificationServiceMock.Verify(
-            n => n.ShowInfo(ManifestConstants.IndexingNotificationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            n => n.Show(It.Is<NotificationMessage>(m =>
+                m.Title == ManifestConstants.IndexingNotificationTitle &&
+                m.AutoDismissMilliseconds == null &&
+                m.IsPersistent)),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.Dismiss(It.IsAny<Guid>()),
             Times.Once);
         notificationServiceMock.Verify(
             n => n.ShowSuccess(ManifestConstants.IndexedNotificationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
@@ -1084,7 +1103,13 @@ public class ManifestGenerationServiceTests : IDisposable
         // Assert
         Assert.NotNull(manifest);
         notificationServiceMock.Verify(
-            n => n.ShowInfo(ManifestConstants.IndexingNotificationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            n => n.Show(It.Is<NotificationMessage>(m =>
+                m.Title == ManifestConstants.IndexingNotificationTitle &&
+                m.AutoDismissMilliseconds == null &&
+                m.IsPersistent)),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.Dismiss(It.IsAny<Guid>()),
             Times.Once);
         notificationServiceMock.Verify(
             n => n.ShowWarning(ManifestConstants.DirectoryScanWarningNotificationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
@@ -1092,6 +1117,61 @@ public class ManifestGenerationServiceTests : IDisposable
         notificationServiceMock.Verify(
             n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Never);
+    }
+
+    /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync updates the persistent notification with file details when hashing large files.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_WhenProcessingLargeFiles_UpdatesProgressNotificationWithDetailsAsync()
+    {
+        // Arrange
+        var notificationServiceMock = new Mock<INotificationService>();
+        var serviceWithNotifications = new ManifestGenerationService(
+            NullLogger<ManifestGenerationService>.Instance,
+            _hashProviderMock.Object,
+            _manifestIdServiceMock.Object,
+            _downloadServiceMock.Object,
+            _configProviderServiceMock.Object,
+            notificationService: notificationServiceMock.Object);
+
+        var installationPath = Path.Combine(_tempDirectory, "NotificationLargeFileInstall");
+        Directory.CreateDirectory(installationPath);
+
+        // Create game.dat with size >= LargeFileProgressThresholdBytes (5 MB)
+        var largeFilePath = Path.Combine(installationPath, "game.dat");
+        using (var fs = new FileStream(largeFilePath, System.IO.FileMode.Create, System.IO.FileAccess.Write))
+        {
+            fs.SetLength(ManifestConstants.LargeFileProgressThresholdBytes + 1024);
+        }
+
+        // Act
+        var builder = await serviceWithNotifications.CreateGameInstallationManifestAsync(
+            installationPath,
+            GameType.ZeroHour,
+            GameInstallationType.Steam,
+            "1.04",
+            "EN");
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        notificationServiceMock.Verify(
+            n => n.Show(It.Is<NotificationMessage>(m =>
+                m.Title == ManifestConstants.IndexingNotificationTitle &&
+                m.AutoDismissMilliseconds == null &&
+                m.IsPersistent)),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.Update(
+                It.IsAny<Guid>(),
+                It.Is<string>(msg => msg.Contains("Calculating SHA-256") || msg.Contains("game.dat")),
+                ManifestConstants.IndexingNotificationTitle),
+            Times.AtLeastOnce);
+        notificationServiceMock.Verify(
+            n => n.Dismiss(It.IsAny<Guid>()),
+            Times.Once);
     }
 
     /// <summary>

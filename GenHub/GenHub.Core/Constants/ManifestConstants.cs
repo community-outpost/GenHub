@@ -41,6 +41,17 @@ public static class ManifestConstants
     public const int ProgressLoggingThrottleInterval = 25;
 
     /// <summary>
+    /// File size threshold in bytes (5 MB) above which a file is considered large during verification,
+    /// triggering individual hashing progress status reports and notifications.
+    /// </summary>
+    public const long LargeFileProgressThresholdBytes = 5 * 1024 * 1024;
+
+    /// <summary>
+    /// Throttle interval in milliseconds for periodic notification updates during file verification.
+    /// </summary>
+    public const int NotificationUpdateThrottleMs = 500;
+
+    /// <summary>
     /// Maximum number of missing required files to list in warning notifications before truncating.
     /// </summary>
     public const int MaxMissingFilesNotificationDisplayCount = 5;
