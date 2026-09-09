@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -23,7 +24,7 @@ namespace GenHub.Features.Tools.ViewModels;
 public partial class PublisherStudioViewModel : ObservableObject
 {
     private readonly string _settingsPath;
-
+    private readonly IConfigurationProviderService? _configurationProvider;
     private readonly ILogger<PublisherStudioViewModel> _logger;
     private readonly IPublisherStudioService _publisherStudioService;
     private readonly IPublisherStudioDialogService _dialogService;
@@ -52,6 +53,18 @@ public partial class PublisherStudioViewModel : ObservableObject
     [ObservableProperty]
     private bool _isRecoveryNeeded;
 
+    [ObservableProperty]
+    private GenHub.Features.Tools.ViewModels.PublisherProfileViewModel? _publisherProfileViewModel;
+
+    [ObservableProperty]
+    private GenHub.Features.Tools.ViewModels.ContentLibraryViewModel? _contentLibraryViewModel;
+
+    [ObservableProperty]
+    private GenHub.Features.Tools.ViewModels.PublishShareViewModel? _publishShareViewModel;
+
+    [ObservableProperty]
+    private GenHub.Features.Tools.ViewModels.ReferralsViewModel? _referralsViewModel;
+
     /// <summary>
     /// Gets a value indicating whether the selected catalog can be removed.
     /// </summary>
@@ -71,40 +84,6 @@ public partial class PublisherStudioViewModel : ObservableObject
     /// Gets a value indicating whether the setup overlay should be shown.
     /// </summary>
     public bool ShouldShowSetupOverlay => !IsSetupComplete && SelectedTabIndex != 0;
-
-    [ObservableProperty]
-    private GenHub.Features.Tools.ViewModels.PublisherProfileViewModel? _publisherProfileViewModel;
-
-    [ObservableProperty]
-    private GenHub.Features.Tools.ViewModels.ContentLibraryViewModel? _contentLibraryViewModel;
-
-    [ObservableProperty]
-    private GenHub.Features.Tools.ViewModels.PublishShareViewModel? _publishShareViewModel;
-
-    [ObservableProperty]
-    private GenHub.Features.Tools.ViewModels.ReferralsViewModel? _referralsViewModel;
-
-    partial void OnSelectedTabIndexChanged(int value)
-    {
-        OnPropertyChanged(nameof(ShouldShowSetupOverlay));
-    }
-
-    /// <summary>
-    /// Navigates to the Publisher Profile tab.
-    /// </summary>
-    [RelayCommand]
-    private void GoToProfileTab()
-    {
-        SelectedTabIndex = 0;
-    }
-
-    partial void OnSelectedCatalogChanged(NamedCatalog? value)
-    {
-        if (value != null && CurrentProject != null)
-        {
-            ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, value, this, _logger, _dialogService);
-        }
-    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PublisherStudioViewModel"/> class.
@@ -131,12 +110,13 @@ public partial class PublisherStudioViewModel : ObservableObject
         _hostingProviderFactory = hostingProviderFactory;
         _hostingStateManager = hostingStateManager ?? new HostingStateManager(Microsoft.Extensions.Logging.LoggerFactory.Create(b => { }).CreateLogger<HostingStateManager>());
         _notificationService = notificationService;
+        _configurationProvider = configurationProvider;
         _settingsPath = Path.Combine(
             configurationProvider?.GetApplicationDataPath() ?? Path.GetTempPath(),
             "GenHub",
             "publisher_studio_settings.json");
 
-        // Initialize: auto-load last project or create a new one
+        // Initialize: auto-load last project or create a default one
         _ = InitializeAsync();
     }
 
@@ -168,19 +148,10 @@ public partial class PublisherStudioViewModel : ObservableObject
 
         try
         {
-            // If path is missing, treat as "Save As"
+            // Auto-assign default project path if empty to guarantee persistence
             if (string.IsNullOrEmpty(CurrentProject.ProjectPath))
             {
-                var promptResult = await _dialogService.ShowProjectSavePromptAsync("Save Project");
-                if (promptResult != null)
-                {
-                    CurrentProject.ProjectPath = promptResult;
-                }
-                else
-                {
-                    // User cancelled
-                    return;
-                }
+                CurrentProject.ProjectPath = GetDefaultProjectPath();
             }
 
             var result = await _publisherStudioService.SaveProjectAsync(CurrentProject);
@@ -225,47 +196,92 @@ public partial class PublisherStudioViewModel : ObservableObject
         }
     }
 
-    private async Task InitializeAsync()
+    private static string Slugify(string text)
     {
-        // Check if this is a first-time user (no previous project)
-        var lastPath = await LoadLastProjectPathAsync();
-        var isFirstTime = string.IsNullOrEmpty(lastPath) || !File.Exists(lastPath);
+        if (string.IsNullOrWhiteSpace(text)) return "catalog";
+        var slug = text.ToLowerInvariant().Trim();
+        slug = Regex.Replace(slug, @"\s+", "-", RegexOptions.None, TimeSpan.FromSeconds(1));
+        slug = Regex.Replace(slug, @"[^a-z0-9-]", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(1));
+        slug = Regex.Replace(slug, @"-+", "-", RegexOptions.None, TimeSpan.FromSeconds(1));
+        slug = slug.Trim('-');
+        return string.IsNullOrEmpty(slug) ? "catalog" : slug;
+    }
 
-        if (isFirstTime)
+    partial void OnSelectedTabIndexChanged(int value)
+    {
+        OnPropertyChanged(nameof(ShouldShowSetupOverlay));
+    }
+
+    partial void OnSelectedCatalogChanged(NamedCatalog? value)
+    {
+        if (value != null && CurrentProject != null)
         {
-            // Show welcome screen for first-time users
-            var welcomeResult = await _dialogService.ShowWelcomeScreenAsync();
+            ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, value, this, _logger, _dialogService);
+        }
+    }
 
-            if (welcomeResult == null || welcomeResult.Action == WelcomeAction.Skip)
-            {
-                // User skipped or cancelled - create default project
-                await CreateNewProjectInternalAsync(showWizard: false);
-                return;
-            }
+    /// <summary>
+    /// Navigates to a specific tab index.
+    /// </summary>
+    [RelayCommand]
+    private void SelectTab(object? parameter)
+    {
+        if (parameter is int i)
+        {
+            SelectedTabIndex = i;
+        }
+        else if (parameter != null && int.TryParse(parameter.ToString(), out var parsed))
+        {
+            SelectedTabIndex = parsed;
+        }
+    }
 
-            if (welcomeResult.Action == WelcomeAction.Import && !string.IsNullOrEmpty(welcomeResult.ImportPath))
-            {
-                // User wants to import existing profile
-                await LoadProjectFromPathAsync(welcomeResult.ImportPath);
-                return;
-            }
+    /// <summary>
+    /// Navigates to the Publisher Profile tab.
+    /// </summary>
+    [RelayCommand]
+    private void GoToProfileTab()
+    {
+        SelectedTabIndex = 0;
+    }
 
-            if (welcomeResult.Action == WelcomeAction.CreateNew)
-            {
-                // User wants to create new profile - show setup wizard
-                await CreateNewProjectInternalAsync(showWizard: true);
-                return;
-            }
+    /// <summary>
+    /// Gets the default project file path in user AppData.
+    /// </summary>
+    private string GetDefaultProjectPath()
+    {
+        var baseDir = _configurationProvider?.GetApplicationDataPath()
+            ?? Path.Combine(Path.GetTempPath(), "GenHub");
+        var projectDir = Path.Combine(baseDir, "PublisherStudio", "projects");
+        if (!Directory.Exists(projectDir))
+        {
+            Directory.CreateDirectory(projectDir);
         }
 
-        // Returning user - load last project
+        return Path.Combine(projectDir, "default-publisher.json");
+    }
+
+    private async Task InitializeAsync()
+    {
+        var lastPath = await LoadLastProjectPathAsync();
         if (!string.IsNullOrEmpty(lastPath) && File.Exists(lastPath))
         {
             await LoadProjectFromPathAsync(lastPath);
+            return;
         }
-        else
+
+        var defaultPath = GetDefaultProjectPath();
+        if (File.Exists(defaultPath))
         {
-            await CreateNewProjectInternalAsync(showWizard: false);
+            await LoadProjectFromPathAsync(defaultPath);
+            return;
+        }
+
+        await CreateNewProjectInternalAsync(showWizard: false);
+        if (CurrentProject != null)
+        {
+            CurrentProject.ProjectPath = defaultPath;
+            await SaveProjectAsync();
         }
     }
 
@@ -289,28 +305,29 @@ public partial class PublisherStudioViewModel : ObservableObject
 
     private async Task LoadProjectFromPathAsync(string filePath)
     {
-        var result = await _publisherStudioService.LoadProjectAsync(filePath);
-        if (result.Success && result.Data != null)
+        try
         {
-            CurrentProject = result.Data;
-            HasUnsavedChanges = false;
-            await InitializeChildViewModelsAsync();
-            StatusMessage = $"Loaded project: {CurrentProject.ProjectName}";
-            _logger.LogInformation("Loaded project from: {Path}", filePath);
-
-            // Save as last opened project
-            await SaveLastProjectPathAsync(filePath);
-
-            _notificationService?.ShowSuccess(
-                "Project Loaded",
-                $"Publisher project '{CurrentProject.ProjectName}' loaded successfully.",
-                autoDismissMs: 4000);
+            var result = await _publisherStudioService.LoadProjectAsync(filePath);
+            if (result.Success && result.Data != null)
+            {
+                CurrentProject = result.Data;
+                CurrentProject.ProjectPath = filePath;
+                await InitializeChildViewModelsAsync();
+                await SaveLastProjectPathAsync(filePath);
+                HasUnsavedChanges = false;
+                StatusMessage = $"Project loaded: {CurrentProject.ProjectName}";
+                _logger.LogInformation("Loaded publisher project from {Path}", filePath);
+            }
+            else
+            {
+                StatusMessage = $"Failed to load project: {result.FirstError}";
+                _logger.LogError("Failed to load project: {Error}", result.FirstError);
+            }
         }
-        else
+        catch (Exception ex)
         {
-            StatusMessage = $"Failed to load project: {result.FirstError}";
-            _logger.LogError("Failed to load project: {Error}", result.FirstError);
-            _notificationService?.ShowError("Load Failed", result.FirstError ?? "Unknown error");
+            StatusMessage = $"Error loading project: {ex.Message}";
+            _logger.LogError(ex, "Error loading project from {Path}", filePath);
         }
     }
 
@@ -361,7 +378,7 @@ public partial class PublisherStudioViewModel : ObservableObject
             await SaveProjectAsync();
         }
 
-        await CreateNewProjectInternalAsync(showWizard: true);
+        await CreateNewProjectInternalAsync(showWizard: false);
     }
 
     private async Task CreateNewProjectInternalAsync(bool showWizard)
@@ -372,6 +389,7 @@ public partial class PublisherStudioViewModel : ObservableObject
             if (result.Success && result.Data != null)
             {
                 CurrentProject = result.Data;
+                CurrentProject.ProjectPath = GetDefaultProjectPath();
                 await InitializeChildViewModelsAsync();
                 StatusMessage = showWizard ? "New project created - configure your publisher profile to get started" : "New project created";
                 _logger.LogInformation("Created new publisher project");
@@ -438,6 +456,37 @@ public partial class PublisherStudioViewModel : ObservableObject
         MarkDirty();
         OnPropertyChanged(nameof(CanRemoveCatalog));
         _logger.LogInformation("Removed catalog: {CatalogId}", catalog.Id);
+    }
+
+    /// <summary>
+    /// Renames a catalog in the project.
+    /// </summary>
+    /// <param name="catalog">Optional catalog to rename. If null, the currently selected catalog is renamed.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    private async Task RenameCatalogAsync(NamedCatalog? catalog = null)
+    {
+        var target = catalog ?? SelectedCatalog;
+        if (target == null) return;
+
+        var newName = await _dialogService.ShowRenameCatalogDialogAsync(target.Name);
+        if (string.IsNullOrWhiteSpace(newName) || newName.Trim() == target.Name) return;
+
+        target.Name = newName.Trim();
+        target.Id = Slugify(newName);
+        target.FileName = $"catalog-{target.Id}.json";
+
+        var idx = Catalogs.IndexOf(target);
+        if (idx >= 0)
+        {
+            Catalogs[idx] = target;
+            SelectedCatalog = target;
+        }
+
+        MarkDirty();
+        await SaveProjectAsync();
+        StatusMessage = $"Renamed catalog to '{target.Name}'";
+        _logger.LogInformation("Renamed catalog to {CatalogName} ({CatalogId})", target.Name, target.Id);
     }
 
     /// <summary>

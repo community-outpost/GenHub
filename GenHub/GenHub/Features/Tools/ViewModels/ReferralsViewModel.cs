@@ -93,7 +93,7 @@ public partial class ReferralsViewModel : ObservableObject
     /// Saves the edited referral back to the project.
     /// </summary>
     [RelayCommand]
-    private void SaveEdit()
+    private async Task SaveEditAsync()
     {
         if (SelectedReferral == null)
         {
@@ -105,6 +105,7 @@ public partial class ReferralsViewModel : ObservableObject
         SelectedReferral.Note = string.IsNullOrWhiteSpace(EditNote) ? null : EditNote.Trim();
 
         _parentViewModel.MarkDirty();
+        await _parentViewModel.SaveProjectAsync();
         _logger.LogInformation("Updated referral: {PublisherId}", SelectedReferral.PublisherId);
     }
 
@@ -122,6 +123,7 @@ public partial class ReferralsViewModel : ObservableObject
             SelectedReferral = referral;
 
             _parentViewModel.MarkDirty();
+            await _parentViewModel.SaveProjectAsync();
             _logger.LogInformation("Added referral to publisher: {PublisherId}", referral.PublisherId);
         }
     }
@@ -130,7 +132,7 @@ public partial class ReferralsViewModel : ObservableObject
     /// Deletes the selected referral.
     /// </summary>
     [RelayCommand]
-    private void DeleteReferral()
+    private async Task DeleteReferralAsync()
     {
         if (SelectedReferral == null)
         {
@@ -143,6 +145,7 @@ public partial class ReferralsViewModel : ObservableObject
         Referrals.Remove(SelectedReferral);
 
         _parentViewModel.MarkDirty();
+        await _parentViewModel.SaveProjectAsync();
         _logger.LogInformation("Deleted referral: {PublisherId}", publisherId);
 
         SelectedReferral = Referrals.FirstOrDefault();

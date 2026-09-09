@@ -42,14 +42,14 @@ public class PublisherStudioDialogService : IPublisherStudioDialogService
     public async Task<CatalogContentItem?> ShowAddContentDialogAsync()
     {
         return await ShowDialogAsync<AddContentDialogViewModel, AddContentDialogView, CatalogContentItem>(
-            callback => new AddContentDialogViewModel(callback));
+            callback => new AddContentDialogViewModel(callback, this));
     }
 
     /// <inheritdoc/>
     public async Task<CatalogContentItem?> ShowEditContentDialogAsync(CatalogContentItem existing)
     {
         return await ShowDialogAsync<AddContentDialogViewModel, AddContentDialogView, CatalogContentItem>(
-            callback => new AddContentDialogViewModel(existing, callback));
+            callback => new AddContentDialogViewModel(existing, callback, this));
     }
 
     /// <inheritdoc/>
@@ -143,11 +143,14 @@ public class PublisherStudioDialogService : IPublisherStudioDialogService
             AllowMultiple = false,
             FileTypeFilter =
             [
-                new Avalonia.Platform.Storage.FilePickerFileType("Archive Files")
+                new Avalonia.Platform.Storage.FilePickerFileType("Supported Content Archives (*.zip, *.7z, *.rar, *.tar.gz, *.big)")
                 {
-                    Patterns = ["*.zip", "*.rar", "*.7z", "*.tar", "*.gz", "*.bz2"],
+                    Patterns = ["*.zip", "*.7z", "*.rar", "*.tar.gz", "*.big"],
                 },
-                new Avalonia.Platform.Storage.FilePickerFileType("All Files") { Patterns = ["*"] },
+                new Avalonia.Platform.Storage.FilePickerFileType("All Files")
+                {
+                    Patterns = ["*.*"],
+                },
             ],
         };
 
@@ -156,13 +159,10 @@ public class PublisherStudioDialogService : IPublisherStudioDialogService
     }
 
     /// <inheritdoc/>
-    public async Task<WelcomeScreenResult?> ShowWelcomeScreenAsync()
+    public async Task<string?> ShowRenameCatalogDialogAsync(string currentName)
     {
-        var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-        var logger = loggerFactory.CreateLogger<WelcomeScreenViewModel>();
-
-        return await ShowDialogAsync<WelcomeScreenViewModel, WelcomeScreenView, WelcomeScreenResult>(
-            callback => new WelcomeScreenViewModel(logger, this, callback));
+        return await ShowDialogAsync<RenameCatalogDialogViewModel, RenameCatalogDialogView, string>(
+            callback => new RenameCatalogDialogViewModel(currentName, callback!));
     }
 
     /// <summary>
@@ -172,19 +172,25 @@ public class PublisherStudioDialogService : IPublisherStudioDialogService
     {
         return
         [
-            new() { PublisherId = "moddb", PublisherName = "ModDB", CatalogUrl = CatalogConstants.ModDbCatalogUrl },
-            new() { PublisherId = "cnclabs", PublisherName = "CNC Labs", CatalogUrl = CatalogConstants.CncLabsCatalogUrl },
+            new()
+            {
+                PublisherId = "generals-online",
+                PublisherName = "GeneralsOnline",
+                CatalogUrl = "https://cdn.playgenerals.online/catalog.json",
+            },
+            new()
+            {
+                PublisherId = "cnc-labs",
+                PublisherName = "CNC Labs",
+                CatalogUrl = "https://www.cnclabs.com/downloads/catalog.json",
+            },
+            new()
+            {
+                PublisherId = "community-outpost",
+                PublisherName = "Community Outpost",
+                CatalogUrl = "https://raw.githubusercontent.com/community-outpost/genhub-catalog/main/catalog.json",
+            },
         ];
-    }
-
-    private static Window? GetMainWindow()
-    {
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            return desktop.MainWindow;
-        }
-
-        return null;
     }
 
     private static async Task<TResult?> ShowDialogAsync<TViewModel, TView, TResult>(
@@ -263,5 +269,15 @@ public class PublisherStudioDialogService : IPublisherStudioDialogService
         }
 
         return await tcs.Task;
+    }
+
+    private static Window? GetMainWindow()
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            return desktop.MainWindow;
+        }
+
+        return null;
     }
 }

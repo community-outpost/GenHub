@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Models.Publishers;
@@ -46,6 +47,12 @@ public partial class PublisherProfileViewModel : ObservableValidator
 
     [ObservableProperty]
     private string _tagsString = string.Empty;
+
+    [ObservableProperty]
+    private bool _isSavedSuccessfully;
+
+    [ObservableProperty]
+    private string? _statusMessage;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PublisherProfileViewModel"/> class.
@@ -93,23 +100,24 @@ public partial class PublisherProfileViewModel : ObservableValidator
                 return;
             }
 
+            IsSavedSuccessfully = false;
             _parentViewModel.MarkDirty();
         };
     }
 
     /// <summary>
-    /// Saves the publisher profile to the project.
+    /// Saves the publisher profile to the project and writes to disk immediately.
     /// </summary>
     [RelayCommand]
-    private void SaveProfile()
+    private async Task SaveProfileAsync()
     {
         ValidateAllProperties();
 
         if (HasErrors)
         {
             _logger.LogWarning("Cannot save publisher profile due to validation errors");
-
-            // Ideally assume UI shows errors.
+            StatusMessage = "Please fix the validation errors before saving.";
+            IsSavedSuccessfully = false;
             return;
         }
 
@@ -139,10 +147,16 @@ public partial class PublisherProfileViewModel : ObservableValidator
             _project.Tags.AddRange(TagsString.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
 
             _parentViewModel.MarkDirty();
+            await _parentViewModel.SaveProjectAsync();
+
+            IsSavedSuccessfully = true;
+            StatusMessage = "Publisher profile saved successfully!";
             _logger.LogInformation("Saved publisher profile: {PublisherId}", PublisherId);
         }
         catch (Exception ex)
         {
+            StatusMessage = $"Failed to save: {ex.Message}";
+            IsSavedSuccessfully = false;
             _logger.LogError(ex, "Failed to save publisher profile");
         }
     }

@@ -11,7 +11,6 @@
              x:Name="RootView">
 
     <UserControl.Styles>
-        <!-- ==================== GLASSMORPHIC STYLES ==================== -->
         <Style Selector="Border.glass-sidebar">
             <Setter Property="Background" Value="#08FFFFFF"/>
             <Setter Property="BorderBrush" Value="#15FFFFFF"/>
@@ -55,15 +54,9 @@
             <Setter Property="Background" Value="#10FFFFFF"/>
             <Setter Property="BorderBrush" Value="#20FFFFFF"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="CornerRadius" Value="10"/>
-            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12,10"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.2"/>
-                </Transitions>
-            </Setter>
         </Style>
 
         <Style Selector="TextBox:focus">
@@ -77,50 +70,15 @@
         </Style>
 
         <!-- Button Styles -->
-        <Style Selector="Button.glass-btn">
-            <Setter Property="Background" Value="#12FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#20FFFFFF"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="CornerRadius" Value="10"/>
-            <Setter Property="Padding" Value="16,10"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="RenderTransform" Value="scale(1)"/>
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15"/>
-                </Transitions>
-            </Setter>
-        </Style>
-
-        <Style Selector="Button.glass-btn:pointerover">
-            <Setter Property="Background" Value="#20FFFFFF"/>
-            <Setter Property="RenderTransform" Value="scale(1.02)"/>
-        </Style>
-
-        <Style Selector="Button.glass-btn:pressed">
-            <Setter Property="RenderTransform" Value="scale(0.98)"/>
-        </Style>
-
         <Style Selector="Button.primary-btn">
-            <Setter Property="Background" Value="{DynamicResource PSPrimaryGradient}"/>
+            <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="CornerRadius" Value="10"/>
-            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16,8"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="RenderTransform" Value="scale(1)"/>
-            <Setter Property="Transitions">
-                <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15"/>
-                </Transitions>
-            </Setter>
-        </Style>
-
-        <Style Selector="Button.primary-btn:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.02)"/>
         </Style>
 
         <Style Selector="Button.danger-btn">
@@ -128,8 +86,8 @@
             <Setter Property="BorderBrush" Value="#40EF4444"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Foreground" Value="#EF4444"/>
-            <Setter Property="CornerRadius" Value="10"/>
-            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12,8"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
 
@@ -141,32 +99,32 @@
         <Style Selector="TextBlock.field-label">
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="#E5E7EB"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Margin" Value="0,0,0,8"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
         </Style>
     </UserControl.Styles>
 
     <Grid ColumnDefinitions="320,*">
-        <!-- ==================== LEFT SIDEBAR ==================== -->
+        <!-- Left Sidebar -->
         <Border Grid.Column="0" Classes="glass-sidebar">
             <Grid RowDefinitions="Auto,*,Auto">
                 <!-- Header -->
                 <Border Grid.Row="0"
-                        Padding="20"
+                        Padding="16"
                         BorderThickness="0,0,0,1"
                         BorderBrush="#15FFFFFF">
-                    <StackPanel Spacing="8">
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <Border Width="36" Height="36"
-                                    CornerRadius="10"
-                                    Background="{DynamicResource PSPrimaryGradient}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <Border Width="32" Height="32"
+                                    CornerRadius="8"
+                                    Background="{DynamicResource PrimaryGradientBrush}">
                                 <PathIcon Data="{StaticResource LinkIcon}"
-                                          Width="18" Height="18"
+                                          Width="16" Height="16"
                                           Foreground="White"/>
                             </Border>
-                            <StackPanel Spacing="2" VerticalAlignment="Center">
+                            <StackPanel Spacing="1" VerticalAlignment="Center">
                                 <TextBlock Text="Referrals"
-                                           FontSize="16"
+                                           FontSize="15"
                                            FontWeight="Bold"
                                            Foreground="White"/>
                                 <TextBlock Text="Recommend publishers"
@@ -174,7 +132,14 @@
                                            Foreground="#9CA3AF"/>
                             </StackPanel>
                         </StackPanel>
-                    </StackPanel>
+                        <Button Grid.Column="1"
+                                Classes="primary-btn"
+                                Command="{Binding AddReferralCommand}"
+                                ToolTip.Tip="Add New Referral"
+                                Padding="8">
+                            <PathIcon Data="{StaticResource AddIcon}" Width="14" Height="14" Foreground="White"/>
+                        </Button>
+                    </Grid>
                 </Border>
 
                 <!-- Referrals List -->
@@ -182,31 +147,30 @@
                          ItemsSource="{Binding Referrals}"
                          SelectedItem="{Binding SelectedReferral}"
                          Background="Transparent"
-                         Padding="8,8">
+                         Padding="6">
                     <ListBox.ItemTemplate>
                         <DataTemplate DataType="models:PublisherReferral">
-                            <Border Padding="14"
-                                    CornerRadius="10"
+                            <Border Padding="10,8"
+                                    CornerRadius="8"
                                     BorderThickness="1"
                                     BorderBrush="Transparent">
                                 <Grid ColumnDefinitions="Auto,*">
-                                    <!-- Avatar placeholder -->
-                                    <Border Width="40" Height="40"
-                                            CornerRadius="10"
+                                    <Border Width="32" Height="32"
+                                            CornerRadius="8"
                                             Background="#15FFFFFF"
-                                            Margin="0,0,12,0">
+                                            Margin="0,0,10,0">
                                         <TextBlock Text="{Binding PublisherId, Converter={StaticResource FirstCharConverter}}"
-                                                   FontSize="16"
+                                                   FontSize="14"
                                                    FontWeight="Bold"
-                                                   Foreground="#8B5CF6"
+                                                   Foreground="#AA00FF"
                                                    HorizontalAlignment="Center"
                                                    VerticalAlignment="Center"/>
                                     </Border>
-                                    <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding PublisherId}"
                                                    FontWeight="SemiBold"
                                                    Foreground="White"
-                                                   FontSize="14"/>
+                                                   FontSize="13"/>
                                         <TextBlock Text="{Binding CatalogUrl}"
                                                    FontSize="11"
                                                    Foreground="#6B7280"
@@ -224,83 +188,94 @@
                             IsVisible="{Binding !Referrals.Count}"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
-                            Spacing="16">
-                    <Border Width="64" Height="64"
-                            CornerRadius="16"
+                            Spacing="12">
+                    <Border Width="52" Height="52"
+                            CornerRadius="14"
                             Background="#0AFFFFFF"
                             HorizontalAlignment="Center">
                         <PathIcon Data="{StaticResource LinkIcon}"
-                                  Width="28" Height="28"
+                                  Width="24" Height="24"
                                   Foreground="#4B5563"/>
                     </Border>
                     <TextBlock Text="No referrals yet"
-                               FontSize="14"
+                               FontSize="13"
                                Foreground="#6B7280"
                                HorizontalAlignment="Center"/>
                 </StackPanel>
 
                 <!-- Action Buttons -->
                 <Border Grid.Row="2"
-                        Padding="16"
+                        Padding="12"
                         BorderThickness="0,1,0,0"
                         BorderBrush="#15FFFFFF">
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Button Classes="primary-btn"
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Button Grid.Column="0"
+                                Classes="primary-btn"
                                 Command="{Binding AddReferralCommand}"
-                                HorizontalAlignment="Stretch">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                HorizontalAlignment="Stretch"
+                                Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                                 <PathIcon Data="{StaticResource AddIcon}"
-                                          Width="14" Height="14"
+                                          Width="12" Height="12"
                                           Foreground="White"/>
-                                <TextBlock Text="Add Referral"/>
+                                <TextBlock Text="Add Referral" FontSize="12"/>
                             </StackPanel>
                         </Button>
-                        <Button Classes="danger-btn"
+                        <Button Grid.Column="1"
+                                Classes="danger-btn"
                                 Command="{Binding DeleteReferralCommand}"
                                 IsEnabled="{Binding SelectedReferral, Converter={x:Static ObjectConverters.IsNotNull}}"
                                 ToolTip.Tip="Remove selected referral">
-                            <PathIcon Data="{StaticResource DeleteIcon}"
-                                      Width="16" Height="16"/>
+                            <PathIcon Data="{StaticResource DeleteIcon}" Width="14" Height="14"/>
                         </Button>
-                    </StackPanel>
+                    </Grid>
                 </Border>
             </Grid>
         </Border>
 
-        <!-- ==================== RIGHT DETAIL PANEL ==================== -->
-        <ScrollViewer Grid.Column="1" Padding="32">
-            <Panel>
+        <!-- Right Detail Panel -->
+        <ScrollViewer Grid.Column="1" Padding="24">
+            <StackPanel Spacing="16" MaxWidth="720" HorizontalAlignment="Left">
+                <!-- Explanatory Banner -->
+                <Border Background="#108B5CF6"
+                        BorderBrush="#258B5CF6"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="14,10">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <PathIcon Data="{StaticResource InfoIcon}" Width="16" Height="16" Foreground="#AA00FF" Margin="0,2,12,0" VerticalAlignment="Top"/>
+                        <StackPanel Grid.Column="1" Spacing="2">
+                            <TextBlock Text="How Referrals Work" FontWeight="SemiBold" FontSize="12" Foreground="White"/>
+                            <TextBlock Text="Referrals allow your catalog to cross-promote other trusted publishers (such as Community-Outpost or GeneralsOnline). When players subscribe to your catalog, they can easily discover and install content from your referred publishers."
+                                       FontSize="11" Foreground="#BBBBCC" TextWrapping="Wrap" LineHeight="16"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
                 <!-- Edit Form (when referral selected) -->
                 <Border Classes="glass-card"
-                        Padding="32"
-                        IsVisible="{Binding IsEditing}"
-                        MaxWidth="600"
-                        HorizontalAlignment="Left">
-                    <Border.Transitions>
-                        <Transitions>
-                            <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
-                        </Transitions>
-                    </Border.Transitions>
-                    <StackPanel Spacing="24">
+                        Padding="24"
+                        IsVisible="{Binding IsEditing}">
+                    <StackPanel Spacing="16">
                         <!-- Header -->
                         <Grid ColumnDefinitions="*,Auto">
-                            <StackPanel Spacing="4">
+                            <StackPanel Spacing="2">
                                 <TextBlock Text="Edit Referral"
-                                           FontSize="18"
+                                           FontSize="16"
                                            FontWeight="Bold"
                                            Foreground="White"/>
-                                <TextBlock Text="Update the referral details"
-                                           FontSize="13"
+                                <TextBlock Text="Update publisher recommendation details"
+                                           FontSize="12"
                                            Foreground="#9CA3AF"/>
                             </StackPanel>
                             <Button Grid.Column="1"
                                     Classes="primary-btn"
                                     Command="{Binding SaveEditCommand}">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
                                     <PathIcon Data="{StaticResource SaveIcon}"
-                                              Width="14" Height="14"
+                                              Width="13" Height="13"
                                               Foreground="White"/>
-                                    <TextBlock Text="Save"/>
+                                    <TextBlock Text="Save Changes" FontSize="12"/>
                                 </StackPanel>
                             </Button>
                         </Grid>
@@ -311,58 +286,52 @@
                         <StackPanel Spacing="4">
                             <TextBlock Text="Publisher ID" Classes="field-label"/>
                             <TextBox Text="{Binding EditPublisherId}"
-                                     Watermark="e.g. community-mods"/>
+                                     Watermark="e.g. generals-online"/>
                         </StackPanel>
 
                         <!-- Catalog URL -->
                         <StackPanel Spacing="4">
                             <TextBlock Text="Catalog URL" Classes="field-label"/>
                             <TextBox Text="{Binding EditCatalogUrl}"
-                                     Watermark="https://example.com/catalog.json"/>
+                                     Watermark="https://cdn.playgenerals.online/catalog.json"/>
                         </StackPanel>
 
                         <!-- Notes -->
                         <StackPanel Spacing="4">
-                            <TextBlock Text="Notes (optional)" Classes="field-label"/>
+                            <TextBlock Text="Recommendation Note (optional)" Classes="field-label"/>
                             <TextBox Text="{Binding EditNote}"
                                      AcceptsReturn="True"
-                                     Height="100"
+                                     Height="70"
                                      TextWrapping="Wrap"
-                                     Watermark="Why are you recommending this publisher?"/>
+                                     Watermark="Why do you recommend this publisher to your players?"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
 
-                <!-- Empty State (when no referral selected) -->
+                <!-- Empty Selection State -->
                 <StackPanel HorizontalAlignment="Center"
                             VerticalAlignment="Center"
-                            Spacing="20"
+                            Spacing="12"
+                            Margin="0,60,0,0"
                             IsVisible="{Binding !IsEditing}">
-                    <Border Width="100" Height="100"
-                            CornerRadius="24"
+                    <Border Width="64" Height="64"
+                            CornerRadius="16"
                             Background="#08FFFFFF"
                             BorderBrush="#15FFFFFF"
                             BorderThickness="1"
                             HorizontalAlignment="Center">
                         <PathIcon Data="{StaticResource LinkIcon}"
-                                  Width="44" Height="44"
+                                  Width="28" Height="28"
                                   Foreground="#374151"/>
                     </Border>
-                    <StackPanel Spacing="8" HorizontalAlignment="Center">
-                        <TextBlock Text="No Referral Selected"
-                                   FontSize="18"
-                                   FontWeight="SemiBold"
-                                   Foreground="#6B7280"
-                                   HorizontalAlignment="Center"/>
-                        <TextBlock Text="Select a referral from the list to view and edit its details"
-                                   FontSize="14"
-                                   Foreground="#4B5563"
-                                   HorizontalAlignment="Center"
-                                   TextAlignment="Center"
-                                   MaxWidth="300"/>
-                    </StackPanel>
+                    <TextBlock Text="Select a referral to view details, or click 'Add Referral' to recommend a publisher"
+                               FontSize="13"
+                               Foreground="#6B7280"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center"
+                               MaxWidth="360"/>
                 </StackPanel>
-            </Panel>
+            </StackPanel>
         </ScrollViewer>
     </Grid>
 </UserControl>
