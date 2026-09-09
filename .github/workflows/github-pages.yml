@@ -37,7 +37,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          LATEST_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null || echo "")
+          LATEST_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null || { echo "::warning::gh release list failed; using fallback"; echo ""; })
           
           if [ -n "$LATEST_TAG" ]; then
             BUILD_NUM=$(echo "$LATEST_TAG" | cut -d'.' -f3)
@@ -119,8 +119,10 @@ jobs:
           </html>
           EOF_404
           
-          sed -i "s|VERSION_PLACEHOLDER|${DISPLAY_NAME}|g" ./public/index.html
-          sed -i "s|URL_PLACEHOLDER|${DOWNLOAD_URL}|g" ./public/index.html
+          SAFE_DISPLAY_NAME=$(printf '%s\n' "$DISPLAY_NAME" | sed -e 's/[\\&|]/\\&/g')
+          SAFE_DOWNLOAD_URL=$(printf '%s\n' "$DOWNLOAD_URL" | sed -e 's/[\\&|]/\\&/g')
+          sed -i "s|VERSION_PLACEHOLDER|${SAFE_DISPLAY_NAME}|g" ./public/index.html
+          sed -i "s|URL_PLACEHOLDER|${SAFE_DOWNLOAD_URL}|g" ./public/index.html
 
       - uses: actions/upload-pages-artifact@v3
         with:

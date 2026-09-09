@@ -346,7 +346,7 @@
           const CONFIG = {
             owner: 'community-outpost',
             repo: 'GenHub',
-            cacheKey: 'genhub_stats_v1',
+            cacheKey: 'genhub_stats_v2',
             perPage: 100
           };
 
@@ -360,8 +360,11 @@
             const cached = sessionStorage.getItem(CONFIG.cacheKey);
             if (cached) {
               try {
-                renderStats(JSON.parse(cached));
-                return;
+                const parsed = JSON.parse(cached);
+                if (parsed && typeof parsed.totalInstalls === 'number' && typeof parsed.totalUpdates === 'number' && Array.isArray(parsed.breakdown)) {
+                  renderStats(parsed);
+                  return;
+                }
               } catch (parseError) {
                 // If parse fails, ignore and fetch fresh
               }
@@ -370,8 +373,12 @@
             try {
               const controller = new AbortController();
               const timeoutId = setTimeout(() => controller.abort(), 10000);
-              const response = await fetch(apiUrl, { signal: controller.signal });
-              clearTimeout(timeoutId);
+              let response;
+              try {
+                response = await fetch(apiUrl, { signal: controller.signal });
+              } finally {
+                clearTimeout(timeoutId);
+              }
 
               if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -381,8 +388,12 @@
               // Process metrics
               const stats = processReleaseData(releases);
               
-              // Cache valid response
-              sessionStorage.setItem(CONFIG.cacheKey, JSON.stringify(stats));
+              // Cache valid response (best-effort, non-fatal if storage full/blocked)
+              try {
+                sessionStorage.setItem(CONFIG.cacheKey, JSON.stringify(stats));
+              } catch (_) {
+                // Ignore storage quota or security errors
+              }
               
               // Render UI
               renderStats(stats);
@@ -453,18 +464,22 @@
 
             if (breakdownListEl && data.breakdown) {
               breakdownListEl.innerHTML = '';
-              data.breakdown.forEach(rel => {
-                const row = document.createElement('div');
-                row.className = 'breakdown-row';
-                row.innerHTML = `
-                  <span class="version-tag">${escapeHtml(rel.tag)}</span>
-                  <div class="version-stats">
-                    <span class="stat-pill" title="Installs">📦 <b>${formatNumber(rel.installs)}</b></span>
-                    <span class="stat-pill" title="Updates">🔄 <b>${formatNumber(rel.updates)}</b></span>
-                  </div>
-                `;
-                breakdownListEl.appendChild(row);
-              });
+              if (data.breakdown.length === 0) {
+                breakdownListEl.innerHTML = '<div class="loading-text">No release data found</div>';
+              } else {
+                data.breakdown.forEach(rel => {
+                  const row = document.createElement('div');
+                  row.className = 'breakdown-row';
+                  row.innerHTML = `
+                    <span class="version-tag">${escapeHtml(rel.tag)}</span>
+                    <div class="version-stats">
+                      <span class="stat-pill" title="Installs" aria-label="Installs">📦 <b>${formatNumber(rel.installs)}</b></span>
+                      <span class="stat-pill" title="Updates" aria-label="Updates">🔄 <b>${formatNumber(rel.updates)}</b></span>
+                    </div>
+                  `;
+                  breakdownListEl.appendChild(row);
+                });
+              }
             }
           }
 

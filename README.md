@@ -13,7 +13,7 @@ The modern, cross-platform launcher and workspace manager for Command & Conquer:
 - ⚡ **One-Click Patch & Mod Installer** - Effortlessly fetch, verify, and maintain popular community distributions including Generals Online and TheSuperHackers releases.
 - 🗺️ **Integrated Map & Replay Manager** - Direct integration to import, parse, preview, and share custom maps and competitive match replays.
 - 🐧 **Cross-Platform Support** - Support across modern Windows, Linux (via Wine/Proton and Flatpak Steam detection), and macOS.
-- 🔄 **Automated App Updates** - Smooth background auto-updates powered by the Velopack runtime.
+- 🔄 **Automated App Updates** - Smooth background auto-updates on Windows and Linux, powered by the Velopack runtime.
 
 ## Running on macOS
 
