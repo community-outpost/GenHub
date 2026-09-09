@@ -504,7 +504,8 @@ public sealed class BuildEngineService(
                     CurrentStep = $"Packing {item.Name} ({currentFile}/{totalFiles}): {Path.GetFileName(sourceFile)}",
                     ProcessedFiles = Volatile.Read(ref _filesProcessed),
                     TotalFiles = totalFiles,
-                    ProgressPercentage = overallProgress * 100,
+                    PercentComplete = overallProgress * 100,
+                    Percentage = overallProgress,
                 });
             }
 
@@ -516,7 +517,8 @@ public sealed class BuildEngineService(
                     CurrentIndex = BuildIndex.BigBundleItem,
                     CurrentStep = $"Compressing {item.Name}.big ({p:P0})",
                     ProcessedFiles = Volatile.Read(ref _filesProcessed),
-                    ProgressPercentage = overallProgress * 100,
+                    PercentComplete = overallProgress * 100,
+                    Percentage = overallProgress,
                 });
             });
 
@@ -701,13 +703,8 @@ public sealed class BuildEngineService(
             // compute hash and update cache
             var hash = await hashProvider.ComputeFileHashAsync(filePath, cancellationToken).ConfigureAwait(false);
             var fileInfo = new FileInfo(filePath);
-            cacheService.UpdateCache(relativePath, new BuildFilePathInfo
-            {
-                FilePath = filePath,
-                LastModifiedUtcTicks = fileInfo.LastWriteTimeUtc.Ticks,
-                Hash = hash,
-                Status = BuildFileStatus.Unchanged,
-            });
+            var mtime = new DateTimeOffset(fileInfo.LastWriteTimeUtc).ToUnixTimeSeconds();
+            cacheService.AddFile(relativePath, mtime, hash);
 
             Interlocked.Increment(ref _filesProcessed);
             progress?.Report(new BuildProgress
