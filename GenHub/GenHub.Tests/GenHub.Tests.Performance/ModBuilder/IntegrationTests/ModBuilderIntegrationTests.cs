@@ -14,10 +14,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Moq;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -67,6 +69,7 @@ public sealed class ModBuilderIntegrationTests : IAsyncLifetime
         services.AddSingleton<IExternalToolService, GenHub.Features.Tools.ModBuilder.Services.ExternalToolService>();
         services.AddSingleton<IFileHashRegistryService, GenHub.Features.Tools.ModBuilder.Services.FileHashRegistryService>();
         services.AddSingleton<IMd5HashProvider, GenHub.Features.Tools.ModBuilder.Services.Md5HashProvider>();
+        services.AddSingleton(new Mock<ILocalContentService>().Object);
 
         _serviceProvider = services.BuildServiceProvider();
         _buildEngine = _serviceProvider.GetRequiredService<IBuildEngineService>();

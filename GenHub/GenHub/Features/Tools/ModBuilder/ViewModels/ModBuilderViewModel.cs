@@ -341,22 +341,10 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     private bool _releaseEnabled = true;
 
     /// <summary>
-    /// Gets or sets a value indicating whether install action is enabled.
+    /// Gets or sets a value indicating whether manifest creation action is enabled.
     /// </summary>
     [ObservableProperty]
-    private bool _installEnabled;
-
-    /// <summary>
-    /// Gets or sets a value indicating whether run game action is enabled.
-    /// </summary>
-    [ObservableProperty]
-    private bool _runGameEnabled;
-
-    /// <summary>
-    /// Gets or sets a value indicating whether uninstall action is enabled.
-    /// </summary>
-    [ObservableProperty]
-    private bool _uninstallEnabled;
+    private bool _createManifestEnabled = true;
 
     /// <summary>
     /// Gets or sets a value indicating whether verbose logging is enabled.
@@ -1326,10 +1314,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         var buildSteps = BuildStep.None;
         if (CleanEnabled) buildSteps |= BuildStep.Clean;
         if (BuildEnabled) buildSteps |= BuildStep.Build;
+        if (CreateManifestEnabled) buildSteps |= BuildStep.CreateManifest;
         if (ReleaseEnabled) buildSteps |= BuildStep.Release;
-        if (InstallEnabled) buildSteps |= BuildStep.Install;
-        if (RunGameEnabled) buildSteps |= BuildStep.Run;
-        if (UninstallEnabled) buildSteps |= BuildStep.Uninstall;
         return buildSteps;
     }
 
@@ -1488,7 +1474,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             });
 
             var buildSteps = DetermineBuildSteps();
-            _logger.LogInformation("Build steps configured: {BuildSteps} (RunGameEnabled={RunGameEnabled})", buildSteps, RunGameEnabled);
+            _logger.LogInformation("Build steps configured: {BuildSteps} (CreateManifestEnabled={CreateManifestEnabled})", buildSteps, CreateManifestEnabled);
 
             var result = await _buildEngineService.ExecuteBuildAsync(
                 CurrentProject,
@@ -1541,6 +1527,87 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     }
 
     private bool CanBuild() => IsProjectLoaded && !IsBuildRunning;
+
+    /// <summary>
+    /// Stores built bundles in CAS and creates a local ContentManifest in the GenHub library.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanCreateManifest))]
+    private async Task CreateManifestAsync()
+    {
+        if (CurrentProject == null)
+        {
+            _notificationService.ShowWarning(NoProjectTitle, NoProjectMessage);
+            return;
+        }
+
+        IsBuildRunning = true;
+        _buildCancellationTokenSource = new CancellationTokenSource();
+        StatusMessage = "Creating ContentManifest...";
+
+        AppendBuildLog("\n=== Creating Local ContentManifest ===");
+
+        try
+        {
+            var buildConfig = await PrepareBuildConfigurationAsync(_buildCancellationTokenSource.Token).ConfigureAwait(false);
+            var selectedPacks = Bundles.Where(b => b.IsSelected).Select(b => b.Name).ToList();
+
+            var progress = new Progress<string>(AppendBuildLog);
+
+            var result = await _buildEngineService.ExecuteBuildAsync(
+                CurrentProject,
+                buildConfig,
+                selectedPacks,
+                BuildStep.CreateManifest,
+                progress,
+                _buildCancellationTokenSource.Token).ConfigureAwait(false);
+
+            if (result.Success)
+            {
+                AppendBuildLog("\n=== Manifest Created Successfully ===");
+                await InvokeOnUIThreadAsync(() =>
+                {
+                    _notificationService.ShowSuccess(
+                        "Manifest Created",
+                        $"Local ContentManifest registered in GenHub for '{CurrentProject.Name}'. You can now enable this mod in Game Profiles.");
+                });
+                StatusMessage = "Manifest created successfully";
+            }
+            else
+            {
+                AppendBuildLog("\n=== Manifest Creation Failed ===");
+                AppendBuildLog(result.FirstError ?? "Unknown error");
+                await InvokeOnUIThreadAsync(() =>
+                {
+                    _notificationService.ShowError("Manifest Creation Failed", result.FirstError ?? "Failed to create manifest");
+                });
+                StatusMessage = "Manifest creation failed";
+            }
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.LogInformation(ex, "Manifest creation cancelled by user");
+            AppendBuildLog("\n=== Manifest Creation Cancelled ===");
+            StatusMessage = "Manifest creation cancelled";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Manifest creation failed");
+            AppendBuildLog($"\n=== Manifest Creation Error: {ex.Message} ===");
+            await InvokeOnUIThreadAsync(() =>
+            {
+                _notificationService.ShowError("Manifest Creation Error", ex.Message);
+            });
+            StatusMessage = "Manifest creation error";
+        }
+        finally
+        {
+            IsBuildRunning = false;
+            _buildCancellationTokenSource?.Dispose();
+            _buildCancellationTokenSource = null;
+        }
+    }
+
+    private bool CanCreateManifest() => IsProjectLoaded && !IsBuildRunning;
 
     private string ResolveGameDirectory(BuildConfiguration buildConfig)
     {
@@ -1785,12 +1852,12 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     private void OpenReleaseFolder()
     {
         _logger.LogInformation("OpenReleaseFolder requested for: {Path}", ProjectPath);
-        if (CurrentProject == null || string.IsNullOrEmpty(ProjectPath))
+        if (CurrentProject == null)
         {
             return;
         }
 
-        var projectDir = Path.GetDirectoryName(ProjectPath);
+        var projectDir = GetEffectiveProjectDir();
         if (string.IsNullOrEmpty(projectDir))
         {
             return;
@@ -1798,7 +1865,19 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         try
         {
-            var releaseDir = CurrentProject.Directories.Release ?? ModBuilderConstants.DefaultReleaseDir;
+            var releaseDir = ModBuilderConstants.DefaultReleaseDir;
+            if (!string.IsNullOrWhiteSpace(CurrentProject.Directories?.Release))
+            {
+                var configuredRelease = CurrentProject.Directories.Release.Trim();
+                if (configuredRelease.EndsWith($"/{CurrentProject.Name}", StringComparison.OrdinalIgnoreCase) ||
+                    configuredRelease.EndsWith($"\\{CurrentProject.Name}", StringComparison.OrdinalIgnoreCase))
+                {
+                    configuredRelease = Path.GetDirectoryName(configuredRelease) ?? ModBuilderConstants.DefaultReleaseDir;
+                }
+
+                releaseDir = configuredRelease;
+            }
+
             var releasePath = Path.IsPathRooted(releaseDir) ? releaseDir : Path.Combine(projectDir, releaseDir);
             if (!Directory.Exists(releasePath))
             {
@@ -1935,6 +2014,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         CloseProjectCommand.NotifyCanExecuteChanged();
         BuildCommand.NotifyCanExecuteChanged();
         CleanCommand.NotifyCanExecuteChanged();
+        CreateManifestCommand.NotifyCanExecuteChanged();
         AddBundleCommand.NotifyCanExecuteChanged();
     }
 
@@ -1984,6 +2064,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             SaveProjectCommand.NotifyCanExecuteChanged();
             BuildCommand.NotifyCanExecuteChanged();
             CleanCommand.NotifyCanExecuteChanged();
+            CreateManifestCommand.NotifyCanExecuteChanged();
             AbortBuildCommand.NotifyCanExecuteChanged();
             CloseProjectCommand.NotifyCanExecuteChanged();
             AddBundleCommand.NotifyCanExecuteChanged();
@@ -2021,6 +2102,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             CloseProjectCommand.NotifyCanExecuteChanged();
             BuildCommand.NotifyCanExecuteChanged();
             CleanCommand.NotifyCanExecuteChanged();
+            CreateManifestCommand.NotifyCanExecuteChanged();
             AddBundleCommand.NotifyCanExecuteChanged();
             OnPropertyChanged(nameof(CurrentProjectPath));
             OnPropertyChanged(nameof(IsProjectLoaded));

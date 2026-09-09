@@ -26,7 +26,7 @@ public enum BuildIndex
     ReleaseBundlePack = 3,
 
     /// <summary>
-    /// Stage 5: Install bundle packs to the game directory.
+    /// Stage 5: Store compiled bundles in CAS and register local ContentManifest.
     /// </summary>
-    InstallBundlePack = 4,
+    CreateManifest = 4,
 }
