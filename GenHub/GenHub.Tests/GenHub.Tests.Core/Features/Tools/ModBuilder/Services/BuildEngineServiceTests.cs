@@ -45,13 +45,13 @@ public sealed class BuildEngineServiceTests : IDisposable
         _mockLocalContentService.Setup(x => x.CreateLocalContentManifestAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
-                It.IsAny<ContentType>(),
+                It.IsAny<GenHub.Core.Models.Enums.ContentType>(),
                 It.IsAny<GameType>(),
                 It.IsAny<string?>(),
                 It.IsAny<IProgress<ContentStorageProgress>?>(),
                 It.IsAny<CancellationToken>(),
                 It.IsAny<string?>()))
-            .ReturnsAsync((string dir, string name, ContentType type, GameType game, string? src, IProgress<ContentStorageProgress>? prog, CancellationToken ct, string? entry) =>
+            .ReturnsAsync((string dir, string name, GenHub.Core.Models.Enums.ContentType type, GameType game, string? src, IProgress<ContentStorageProgress>? prog, CancellationToken ct, string? entry) =>
             {
                 var manifest = new GenHub.Core.Models.Manifest.ContentManifest
                 {
@@ -719,7 +719,7 @@ public sealed class BuildEngineServiceTests : IDisposable
             x => x.CreateLocalContentManifestAsync(
                 It.IsAny<string>(),
                 "ManifestProject",
-                ContentType.Mod,
+                GenHub.Core.Models.Enums.ContentType.Mod,
                 GameType.Generals,
                 bundlesDir,
                 It.IsAny<IProgress<ContentStorageProgress>?>(),
