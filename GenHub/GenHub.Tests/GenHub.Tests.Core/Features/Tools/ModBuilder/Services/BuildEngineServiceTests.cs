@@ -54,7 +54,7 @@ public sealed class BuildEngineServiceTests : IDisposable
             .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<GenHub.Core.Models.Manifest.ContentManifest>.CreateSuccess(
                 new GenHub.Core.Models.Manifest.ContentManifest
                 {
-                    Id = GenHub.Core.Models.Manifest.ManifestId.Create("local-test"),
+                    Id = GenHub.Core.Models.Manifest.ManifestId.Create("1.0.local.mod.manifestproject"),
                     Name = "ManifestProject",
                     TargetGame = GameType.Generals,
                     ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
