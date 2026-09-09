@@ -4,7 +4,6 @@ using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Helpers;
-using GenHub.Core.Interfaces.Notifications;
 using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Content.ViewModels.Catalog;
 using GenHub.Features.Downloads.Views;
@@ -18,7 +17,6 @@ namespace GenHub.Features.Downloads.ViewModels;
 public partial class ImportSubscriptionViewModel : ObservableObject
 {
     private readonly IServiceProvider _serviceProvider;
-    private readonly INotificationService? _notificationService;
 
     [ObservableProperty]
     private string _inputUrl = string.Empty;
@@ -36,7 +34,6 @@ public partial class ImportSubscriptionViewModel : ObservableObject
     public ImportSubscriptionViewModel(IServiceProvider serviceProvider)
     {
         _serviceProvider = serviceProvider;
-        _notificationService = serviceProvider.GetService<INotificationService>();
     }
 
     /// <summary>
