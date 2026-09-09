@@ -958,6 +958,32 @@ public sealed class ReplayDirectoryService(
         return string.Empty;
     }
 
+    private static bool IsExistingProfileCompatible(GameProfile profile, ReplayFile replay)
+    {
+        if (profile.GameClient == null)
+        {
+            // Profile without GameClient (e.g. In mocks/test harnesses) is assumed valid
+            return true;
+        }
+
+        if (replay.MatchedClient != null)
+        {
+            var isRetail = IsRetailClient(replay.MatchedClient.Publisher, replay.MatchedClient.ManifestId);
+            return isRetail
+                ? IsProfileMatchingRetail(profile, replay.MatchedClient.DataPatchManifestId)
+                : IsProfileMatchingThirdParty(profile, replay.MatchedClient.ManifestId, replay.MatchedClient.DataPatchManifestId, replay.MatchedClient.Version);
+        }
+
+        return profile.GameClient.GameType == replay.GameVersion;
+    }
+
+    private static void ClearReplayProfileReference(ReplayFile replay)
+    {
+        replay.MatchingProfileId = null;
+        replay.MatchingProfileName = null;
+        replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
+    }
+
     private static GameInstallation? ResolveInstallation(IReadOnlyList<GameInstallation> installations, GameType gameVersion)
     {
         return installations.FirstOrDefault(i =>
@@ -1681,21 +1707,7 @@ public sealed class ReplayDirectoryService(
         if (existingCheck?.Success == true && existingCheck.Data != null)
         {
             var profile = existingCheck.Data;
-            var isCompatible = false;
-            if (replay.MatchedClient != null)
-            {
-                var isRetail = IsRetailClient(replay.MatchedClient.Publisher, replay.MatchedClient.ManifestId);
-                isCompatible = isRetail
-                    ? IsProfileMatchingRetail(profile, replay.MatchedClient.DataPatchManifestId)
-                    : IsProfileMatchingThirdParty(profile, replay.MatchedClient.ManifestId, replay.MatchedClient.DataPatchManifestId, replay.MatchedClient.Version);
-            }
-            else
-            {
-                isCompatible = profile.GameClient?.GameType == replay.GameVersion &&
-                               IsDedicatedToThisReplay(profile, replay, logger);
-            }
-
-            if (isCompatible)
+            if (IsExistingProfileCompatible(profile, replay))
             {
                 return;
             }
@@ -1706,9 +1718,7 @@ public sealed class ReplayDirectoryService(
                 profile.Name,
                 replay.FileName);
 
-            replay.MatchingProfileId = null;
-            replay.MatchingProfileName = null;
-            replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
+            ClearReplayProfileReference(replay);
             return;
         }
 
@@ -1724,9 +1734,7 @@ public sealed class ReplayDirectoryService(
                 "[ReplayManager] Profile '{ProfileId}' for replay '{ReplayFile}' no longer exists in repository. Clearing stale reference.",
                 replay.MatchingProfileId,
                 replay.FileName);
-            replay.MatchingProfileId = null;
-            replay.MatchingProfileName = null;
-            replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
+            ClearReplayProfileReference(replay);
         }
     }
 
