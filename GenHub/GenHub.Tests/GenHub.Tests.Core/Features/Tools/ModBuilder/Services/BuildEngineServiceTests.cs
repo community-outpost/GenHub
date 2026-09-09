@@ -11,6 +11,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.ModBuilder;
 using GenHub.Features.Tools.ModBuilder.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -28,6 +29,7 @@ public sealed class BuildEngineServiceTests : IDisposable
     private readonly Mock<IConfigurationLoaderService> _mockConfigurationLoaderService;
     private readonly Mock<IArchiveService> _mockArchiveService;
     private readonly Mock<ILocalContentService> _mockLocalContentService;
+    private readonly Mock<IServiceScopeFactory> _mockScopeFactory;
     private readonly Mock<ILogger<BuildEngineService>> _mockLogger;
     private readonly BuildEngineService _service;
     private readonly string _tempDirectory;
@@ -40,6 +42,14 @@ public sealed class BuildEngineServiceTests : IDisposable
         _mockConfigurationLoaderService = new Mock<IConfigurationLoaderService>();
         _mockArchiveService = new Mock<IArchiveService>();
         _mockLocalContentService = new Mock<ILocalContentService>();
+        var mockScope = new Mock<IServiceScope>();
+        var mockServiceProvider = new Mock<IServiceProvider>();
+        mockServiceProvider
+            .Setup(x => x.GetService(typeof(ILocalContentService)))
+            .Returns(_mockLocalContentService.Object);
+        mockScope.Setup(x => x.ServiceProvider).Returns(mockServiceProvider.Object);
+        _mockScopeFactory = new Mock<IServiceScopeFactory>();
+        _mockScopeFactory.Setup(x => x.CreateScope()).Returns(mockScope.Object);
         _mockLogger = new Mock<ILogger<BuildEngineService>>();
 
         _mockLocalContentService.Setup(x => x.CreateLocalContentManifestAsync(
@@ -80,7 +90,7 @@ public sealed class BuildEngineServiceTests : IDisposable
             _mockHashProvider.Object,
             _mockConfigurationLoaderService.Object,
             _mockArchiveService.Object,
-            _mockLocalContentService.Object,
+            _mockScopeFactory.Object,
             _mockLogger.Object);
     }
 
@@ -102,7 +112,7 @@ public sealed class BuildEngineServiceTests : IDisposable
             _mockHashProvider.Object,
             _mockConfigurationLoaderService.Object,
             _mockArchiveService.Object,
-            _mockLocalContentService.Object,
+            _mockScopeFactory.Object,
             _mockLogger.Object);
 
         // Assert
