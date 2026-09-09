@@ -8,13 +8,17 @@ namespace GenHub.Core.Helpers;
 /// </summary>
 public static class CloudUrlHelper
 {
+    private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(1);
+
     private static readonly Regex GoogleDriveRegex = new(
         @"(?:\/file\/d\/|[?&]id=)([a-zA-Z0-9_-]+)",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        RegexOptions.Compiled | RegexOptions.IgnoreCase,
+        RegexTimeout);
 
     private static readonly Regex GitHubBlobRegex = new(
         @"^https?:\/\/github\.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)$",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        RegexOptions.Compiled | RegexOptions.IgnoreCase,
+        RegexTimeout);
 
     /// <summary>
     /// Normalizes a given URL so that it points directly to the raw content stream rather than an interactive HTML viewer page.
