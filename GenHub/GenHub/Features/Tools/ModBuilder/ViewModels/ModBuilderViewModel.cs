@@ -451,7 +451,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var result = await _projectConfigService.GetRecentProjectsAsync(10, CancellationToken.None).ConfigureAwait(false);
             var projectPaths = new List<string>(result.Success && result.Data != null ? result.Data : []);
 
-            List<string> samplePaths = [];
+            IReadOnlyList<string> samplePaths = [];
             try
             {
                 samplePaths = await DiscoverSampleProjectPathsAsync().ConfigureAwait(false);

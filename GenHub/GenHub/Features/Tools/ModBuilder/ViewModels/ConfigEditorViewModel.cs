@@ -283,7 +283,7 @@ public partial class ConfigEditorViewModel(
     /// Saves the configuration changes.
     /// </summary>
     [RelayCommand]
-    private void Save()
+    private async Task SaveAsync()
     {
         if (Configuration == null || CurrentProject == null)
         {
@@ -415,9 +415,20 @@ public partial class ConfigEditorViewModel(
     [RelayCommand]
     private async Task CancelAsync()
     {
-        if (HasChanges)
+        if (HasChanges && !string.IsNullOrEmpty(CurrentProject?.ProjectDir))
         {
-            // Revert unsaved modifications by reloading current configuration state
+            // Revert unsaved modifications by reloading current configuration state from disk
+            try
+            {
+                Configuration = await configurationLoaderService.LoadProjectConfigurationAsync(
+                    CurrentProject.ProjectDir,
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to reload configuration from disk");
+            }
+
             await LoadConfigurationAsync().ConfigureAwait(false);
         }
 
