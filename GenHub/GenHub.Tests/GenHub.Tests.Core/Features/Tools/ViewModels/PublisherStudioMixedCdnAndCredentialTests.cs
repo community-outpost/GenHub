@@ -203,4 +203,139 @@ public class PublisherStudioMixedCdnAndCredentialTests
         var dropboxEx = Record.Exception(() => vm.OpenDropboxAppConsoleCommand.Execute(null));
         Assert.Null(dropboxEx);
     }
+
+    /// <summary>
+    /// Tests that ConnectButtonText and PublishButtonText dynamically adapt to the selected hosting provider.
+    /// </summary>
+    [Fact]
+    public void DynamicButtonTexts_AdaptToSelectedProvider()
+    {
+        var project = new PublisherStudioProject();
+        var vm = new PublishShareViewModel(
+            project,
+            _mockStudioService.Object,
+            _mockPublishLogger.Object,
+            null,
+            _mockHostingStateManager.Object,
+            _mockNotificationService.Object);
+
+        // Google Drive
+        var mockGoogle = new Mock<IHostingProvider>();
+        mockGoogle.Setup(p => p.DisplayName).Returns("Google Drive");
+        mockGoogle.Setup(p => p.SupportsArtifactHosting).Returns(true);
+        vm.SelectedHostingProvider = mockGoogle.Object;
+        Assert.Equal("Connect to Google Drive", vm.ConnectButtonText);
+        Assert.Equal("Publish to Google Drive", vm.PublishButtonText);
+
+        // Dropbox
+        var mockDropbox = new Mock<IHostingProvider>();
+        mockDropbox.Setup(p => p.DisplayName).Returns("Dropbox");
+        mockDropbox.Setup(p => p.SupportsArtifactHosting).Returns(true);
+        vm.SelectedHostingProvider = mockDropbox.Object;
+        Assert.Equal("Connect to Dropbox", vm.ConnectButtonText);
+        Assert.Equal("Publish to Dropbox", vm.PublishButtonText);
+
+        // GitHub Gists
+        var mockGithub = new Mock<IHostingProvider>();
+        mockGithub.Setup(p => p.DisplayName).Returns("GitHub Gists");
+        mockGithub.Setup(p => p.SupportsArtifactHosting).Returns(false);
+        vm.SelectedHostingProvider = mockGithub.Object;
+        Assert.Equal("Connect to GitHub Gists", vm.ConnectButtonText);
+        Assert.Equal("Publish to GitHub Gists", vm.PublishButtonText);
+    }
+
+    /// <summary>
+    /// Tests that TargetDestinationDescription provides clear human-readable destination information.
+    /// </summary>
+    [Fact]
+    public void TargetDestinationDescription_ProvidesClearProviderDestination()
+    {
+        var project = new PublisherStudioProject();
+        var vm = new PublishShareViewModel(
+            project,
+            _mockStudioService.Object,
+            _mockPublishLogger.Object,
+            null,
+            _mockHostingStateManager.Object,
+            _mockNotificationService.Object);
+
+        var mockGoogle = new Mock<IHostingProvider>();
+        mockGoogle.Setup(p => p.DisplayName).Returns("Google Drive");
+        mockGoogle.Setup(p => p.ProviderId).Returns(HostingConstants.GoogleDrive);
+        vm.SelectedHostingProvider = mockGoogle.Object;
+        Assert.Contains("Google Drive", vm.TargetDestinationDescription);
+        Assert.Contains("GenHub-Publishing", vm.TargetDestinationDescription);
+
+        var mockDropbox = new Mock<IHostingProvider>();
+        mockDropbox.Setup(p => p.DisplayName).Returns("Dropbox");
+        mockDropbox.Setup(p => p.ProviderId).Returns(HostingConstants.Dropbox);
+        vm.SelectedHostingProvider = mockDropbox.Object;
+        Assert.Contains("Dropbox", vm.TargetDestinationDescription);
+        Assert.Contains("/Apps/", vm.TargetDestinationDescription);
+
+        var mockGithub = new Mock<IHostingProvider>();
+        mockGithub.Setup(p => p.DisplayName).Returns("GitHub Gists");
+        mockGithub.Setup(p => p.ProviderId).Returns(HostingConstants.GitHub);
+        vm.SelectedHostingProvider = mockGithub.Object;
+        Assert.Contains("GitHub Gists", vm.TargetDestinationDescription);
+        Assert.Contains("GitHub Gists", vm.TargetDestinationDescription);
+    }
+
+    /// <summary>
+    /// Tests that HasIncompatibleArtifactsForProvider flags incompatible metadata-only providers
+    /// when pending local files require artifact hosting.
+    /// </summary>
+    [Fact]
+    public void IncompatibleArtifacts_FlaggedWhenBinaryHostingNotSupported()
+    {
+        var project = new PublisherStudioProject();
+        var namedCatalog = new NamedCatalog { Name = "Main Catalog" };
+        var item = new CatalogContentItem { Id = "item-1", Name = "Mod Item" };
+        var release = new ContentRelease { Version = "1.0.0" };
+        var artifact = new ReleaseArtifact
+        {
+            Filename = "mod.zip",
+            LocalFilePath = "/tmp/mod.zip",
+            DownloadUrl = string.Empty,
+        };
+        release.Artifacts.Add(artifact);
+        item.Releases.Add(release);
+        namedCatalog.Catalog.Content.Add(item);
+        project.Catalogs.Add(namedCatalog);
+
+        var vm = new PublishShareViewModel(
+            project,
+            _mockStudioService.Object,
+            _mockPublishLogger.Object,
+            null,
+            _mockHostingStateManager.Object,
+            _mockNotificationService.Object);
+
+        vm.ActiveCatalog = namedCatalog;
+
+        // 1 pending artifact
+        Assert.Equal(1, vm.PendingArtifactsCount);
+        Assert.Equal(0, vm.ExternalCdnArtifactsCount);
+
+        // Google Drive supports artifact hosting: compatible
+        var mockGoogle = new Mock<IHostingProvider>();
+        mockGoogle.Setup(p => p.DisplayName).Returns("Google Drive");
+        mockGoogle.Setup(p => p.ProviderId).Returns(HostingConstants.GoogleDrive);
+        mockGoogle.Setup(p => p.SupportsArtifactHosting).Returns(true);
+        vm.SelectedHostingProvider = mockGoogle.Object;
+        Assert.False(vm.HasIncompatibleArtifactsForProvider);
+
+        // GitHub Gists does NOT support artifact hosting: INCOMPATIBLE
+        var mockGithub = new Mock<IHostingProvider>();
+        mockGithub.Setup(p => p.DisplayName).Returns("GitHub Gists");
+        mockGithub.Setup(p => p.ProviderId).Returns(HostingConstants.GitHub);
+        mockGithub.Setup(p => p.SupportsArtifactHosting).Returns(false);
+        vm.SelectedHostingProvider = mockGithub.Object;
+        Assert.True(vm.HasIncompatibleArtifactsForProvider);
+        Assert.Contains("GitHub Gists only hosts catalog metadata", vm.IncompatibleArtifactsWarningMessage);
+
+        // PublishAllCatalogsCommand should block publish and show notification
+        vm.PublishAllCatalogsCommand.Execute(null);
+        _mockNotificationService.Verify(n => n.ShowError("Incompatible Provider", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
 }
