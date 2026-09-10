@@ -423,7 +423,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
                 return OperationResult<HostingState?>.CreateFailure(folderResult);
             }
 
-            var folderId = folderResult.Data!;
+            var folderId = folderResult.Data;
             var listRequest = _driveService.Files.List();
             listRequest.Q = $"'{folderId}' in parents and trashed = false";
             listRequest.Fields = "files(id, name, size, modifiedTime, webViewLink)";

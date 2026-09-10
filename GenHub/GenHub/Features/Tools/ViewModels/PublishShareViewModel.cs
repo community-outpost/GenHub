@@ -470,58 +470,65 @@ public partial class PublishShareViewModel : ObservableObject
 
     private void PopulateArtifactAssets(string providerName, ref long totalBytes, ref int artCount, ref int cdnCount)
     {
-        foreach (var catalog in _project.Catalogs)
+        var allArtifacts = _project.Catalogs
+            .SelectMany(c => c.Catalog.Content)
+            .SelectMany(content => content.Releases.SelectMany(release => release.Artifacts.Select(artifact => (content.Name, release.Version, artifact))));
+
+        foreach (var (contentName, version, artifact) in allArtifacts)
         {
-            foreach (var content in catalog.Catalog.Content)
-            {
-                foreach (var release in content.Releases)
-                {
-                    foreach (var artifact in release.Artifacts)
-                    {
-                        var isExternal = !string.IsNullOrEmpty(artifact.DownloadUrl) && !IsCloudProviderUrl(artifact.DownloadUrl);
-                        var isCloud = !string.IsNullOrEmpty(artifact.DownloadUrl) && IsCloudProviderUrl(artifact.DownloadUrl);
-                        var artHosting = _currentHostingState?.Artifacts.FirstOrDefault(a => a.FileName == artifact.Filename || a.Url == artifact.DownloadUrl);
-                        var artSize = artifact.Size > 0 ? artifact.Size : (artHosting?.FileSize ?? 0);
-                        var artUpdated = artHosting?.LastUpdated ?? DateTime.MinValue;
-
-                        string location;
-                        string status;
-                        if (isCloud)
-                        {
-                            artCount++;
-                            totalBytes += artSize;
-                            location = $"{providerName} (/GenHub_Publisher)";
-                            status = StatusLiveOnline;
-                        }
-                        else if (isExternal)
-                        {
-                            cdnCount++;
-                            location = StatusExternalCdn;
-                            status = StatusExternalCdn;
-                        }
-                        else
-                        {
-                            location = "Local file";
-                            status = StatusPendingUpload;
-                        }
-
-                        HostedAssets.Add(new HostedAssetItemViewModel
-                        {
-                            Name = artifact.Filename,
-                            Category = $"Release Binary ({content.Name} v{release.Version})",
-                            Location = location,
-                            FileSize = artSize,
-                            Url = artifact.DownloadUrl ?? string.Empty,
-                            Status = status,
-                            IsOnline = isCloud,
-                            IsExternalCdn = isExternal,
-                            LastUpdated = artUpdated,
-                            Sha256 = artifact.Sha256,
-                        });
-                    }
-                }
-            }
+            ProcessArtifactAsset(artifact, contentName, version, providerName, ref totalBytes, ref artCount, ref cdnCount);
         }
+    }
+
+    private void ProcessArtifactAsset(
+        ReleaseArtifact artifact,
+        string contentName,
+        string releaseVersion,
+        string providerName,
+        ref long totalBytes,
+        ref int artCount,
+        ref int cdnCount)
+    {
+        var isExternal = !string.IsNullOrEmpty(artifact.DownloadUrl) && !IsCloudProviderUrl(artifact.DownloadUrl);
+        var isCloud = !string.IsNullOrEmpty(artifact.DownloadUrl) && IsCloudProviderUrl(artifact.DownloadUrl);
+        var artHosting = _currentHostingState?.Artifacts.FirstOrDefault(a => a.FileName == artifact.Filename || a.Url == artifact.DownloadUrl);
+        var artSize = artifact.Size > 0 ? artifact.Size : (artHosting?.FileSize ?? 0);
+        var artUpdated = artHosting?.LastUpdated ?? DateTime.MinValue;
+
+        string location;
+        string status;
+        if (isCloud)
+        {
+            artCount++;
+            totalBytes += artSize;
+            location = $"{providerName} (/GenHub_Publisher)";
+            status = StatusLiveOnline;
+        }
+        else if (isExternal)
+        {
+            cdnCount++;
+            location = StatusExternalCdn;
+            status = StatusExternalCdn;
+        }
+        else
+        {
+            location = "Local file";
+            status = StatusPendingUpload;
+        }
+
+        HostedAssets.Add(new HostedAssetItemViewModel
+        {
+            Name = artifact.Filename,
+            Category = $"Release Binary ({contentName} v{releaseVersion})",
+            Location = location,
+            FileSize = artSize,
+            Url = artifact.DownloadUrl ?? string.Empty,
+            Status = status,
+            IsOnline = isCloud,
+            IsExternalCdn = isExternal,
+            LastUpdated = artUpdated,
+            Sha256 = artifact.Sha256,
+        });
     }
 
     private void PopulateCloudScanAssets(string providerName, ref long totalBytes, ref int catCount, ref int artCount)
