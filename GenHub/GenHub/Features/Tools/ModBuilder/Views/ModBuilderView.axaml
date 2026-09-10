@@ -133,6 +133,17 @@
       <Setter Property="Background" Value="{DynamicResource ErrorBrush}" />
       <Setter Property="Foreground" Value="White" />
     </Style>
+
+    <!-- Fast Responsive Tooltips -->
+    <Style Selector="Button">
+      <Setter Property="ToolTip.ShowDelay" Value="150" />
+    </Style>
+    <Style Selector="CheckBox">
+      <Setter Property="ToolTip.ShowDelay" Value="150" />
+    </Style>
+    <Style Selector="ComboBox">
+      <Setter Property="ToolTip.ShowDelay" Value="150" />
+    </Style>
   </UserControl.Styles>
 
   <Panel Background="Transparent">
@@ -345,8 +356,18 @@
                     <ItemsControl ItemsSource="{Binding BundlePacks}">
                       <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:BundleItemViewModel">
-                          <CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}"
-                                    Margin="0,4" Foreground="{DynamicResource TextPrimary}"/>
+                          <Grid ColumnDefinitions="*,Auto" Margin="0,3">
+                            <CheckBox Grid.Column="0" Content="{Binding Name}" IsChecked="{Binding IsSelected}"
+                                      Margin="0,2" Foreground="{DynamicResource TextPrimary}"
+                                      ToolTip.Tip="{Binding Name, StringFormat='Build {0}'}"/>
+                            <Border Grid.Column="1" Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                    BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                                    CornerRadius="4" Padding="6,2" VerticalAlignment="Center"
+                                    IsVisible="{Binding IsBig}"
+                                    ToolTip.Tip="This pack compiles directly into a .big archive instead of a .zip">
+                              <TextBlock Text=".BIG" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                            </Border>
+                          </Grid>
                         </DataTemplate>
                       </ItemsControl.ItemTemplate>
                     </ItemsControl>
@@ -390,6 +411,8 @@
                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                         CornerRadius="8" Padding="10">
                   <StackPanel Spacing="6">
+                    <CheckBox Content="Single .BIG Pack" IsChecked="{Binding SingleBigPackMode}" Foreground="{DynamicResource TextPrimary}"
+                              ToolTip.Tip="Package all bundle items into ONE .big archive instead of a .zip file (GeneralsGamePatch style)"/>
                     <CheckBox Content="Verbose Logging" IsChecked="{Binding VerboseLogging}" Foreground="{DynamicResource TextPrimary}"
                               ToolTip.Tip="Prints detailed pipeline and conversion messages in the log window"/>
                     <CheckBox Content="Multi-Processing" IsChecked="{Binding MultiProcessing}" Foreground="{DynamicResource TextPrimary}"

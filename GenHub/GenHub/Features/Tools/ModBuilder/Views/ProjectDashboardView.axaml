@@ -77,6 +77,11 @@
     <Style Selector="Button.project-card-btn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
       <Setter Property="Background" Value="Transparent" />
     </Style>
+
+    <!-- Fast Responsive Tooltips -->
+    <Style Selector="Button">
+      <Setter Property="ToolTip.ShowDelay" Value="150" />
+    </Style>
   </UserControl.Styles>
 
   <Panel Background="Transparent">
