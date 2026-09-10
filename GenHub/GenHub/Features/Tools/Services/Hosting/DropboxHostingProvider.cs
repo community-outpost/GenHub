@@ -395,6 +395,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         {
             return string.Empty;
         }
+
         // Convert Dropbox share URL to direct download URL
         // From: https://www.dropbox.com/s/xxxxx/filename?dl=0
         // To: https://dl.dropboxusercontent.com/s/xxxxx/filename
