@@ -193,15 +193,16 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
     public void ResolveSourcePath_WithRootedSourcePath_ReturnsSourcePath()
     {
         // Arrange
-        var file = new ManifestFile { SourcePath = @"C:\Games\test.exe", RelativePath = "test.exe" };
+        var rootedSourcePath = Path.Combine(_gameInstallDir, "test.exe");
+        var file = new ManifestFile { SourcePath = rootedSourcePath, RelativePath = "test.exe" };
         var manifest = new ContentManifest();
-        var config = new WorkspaceConfiguration { BaseInstallationPath = @"C:\Games" };
+        var config = new WorkspaceConfiguration { BaseInstallationPath = _gameInstallDir };
 
         // Act
         var result = WorkspaceCompatibilityHelper.ResolveSourcePath(file, manifest, config);
 
         // Assert
-        result.Should().Be(@"C:\Games\test.exe");
+        result.Should().Be(rootedSourcePath);
     }
 
     /// <summary>
@@ -212,14 +213,16 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
     {
         // Arrange
         const string manifestId = "1.0.test.gameclient.testclient";
-        var file = new ManifestFile { RelativePath = "sub/test.exe" };
+        var customSourceDir = Path.Combine(_tempDir, "custom-source");
+        var relativeFilePath = Path.Combine("sub", "test.exe");
+        var file = new ManifestFile { RelativePath = relativeFilePath };
         var manifest = new ContentManifest { Id = manifestId };
         var config = new WorkspaceConfiguration
         {
-            BaseInstallationPath = @"C:\Games",
+            BaseInstallationPath = _gameInstallDir,
             ManifestSourcePaths = new Dictionary<string, string>
             {
-                [manifestId] = @"D:\CustomSource",
+                [manifestId] = customSourceDir,
             },
         };
 
@@ -227,6 +230,6 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
         var result = WorkspaceCompatibilityHelper.ResolveSourcePath(file, manifest, config);
 
         // Assert
-        result.Should().Be(Path.Combine(@"D:\CustomSource", "sub/test.exe"));
+        result.Should().Be(Path.Combine(customSourceDir, relativeFilePath));
     }
 }
