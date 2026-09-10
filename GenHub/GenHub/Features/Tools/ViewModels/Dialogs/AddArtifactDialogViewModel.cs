@@ -61,6 +61,11 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
     private string _fileSizeDisplay = string.Empty;
 
     [ObservableProperty]
+    private string _fileSizeInput = string.Empty;
+
+    private string? _lastAutoUrlFilename;
+
+    [ObservableProperty]
     private string _artifactStatus = "No file configured";
 
     /// <summary>
@@ -102,6 +107,57 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
                 Validate();
             }
         };
+    }
+
+    /// <summary>
+    /// Attempts to parse a human-readable file size string (e.g. 500 MB, 1.2 GB, or raw bytes).
+    /// </summary>
+    /// <param name="input">The size string to parse.</param>
+    /// <param name="bytes">The resulting size in bytes.</param>
+    /// <returns>True if parsing succeeded; otherwise, false.</returns>
+    public static bool TryParseFileSize(string? input, out long bytes)
+    {
+        bytes = 0;
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return false;
+        }
+
+        var trimmed = input.Trim();
+        if (long.TryParse(trimmed, out var directBytes) && directBytes >= 0)
+        {
+            bytes = directBytes;
+            return true;
+        }
+
+        var match = System.Text.RegularExpressions.Regex.Match(
+            trimmed,
+            @"^([\d\.]+)\s*([KkMmGgTt]?[Bb]?)$",
+            System.Text.RegularExpressions.RegexOptions.None,
+            TimeSpan.FromSeconds(1));
+
+        if (!match.Success)
+        {
+            return false;
+        }
+
+        if (!double.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var number) || number < 0)
+        {
+            return false;
+        }
+
+        var unit = match.Groups[2].Value.ToUpperInvariant();
+        long multiplier = unit switch
+        {
+            "KB" or "K" => 1024L,
+            "MB" or "M" => 1024L * 1024,
+            "GB" or "G" => 1024L * 1024 * 1024,
+            "TB" or "T" => 1024L * 1024 * 1024 * 1024,
+            _ => 1L,
+        };
+
+        bytes = (long)(number * multiplier);
+        return true;
     }
 
     private static string FormatFileSize(long bytes)
@@ -151,19 +207,54 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
 
     partial void OnDownloadUrlChanged(string value)
     {
+        if (UseExistingUrl && !string.IsNullOrWhiteSpace(value))
+        {
+            try
+            {
+                if (Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri))
+                {
+                    var seg = Path.GetFileName(uri.LocalPath);
+                    if (!string.IsNullOrWhiteSpace(seg) && (string.IsNullOrWhiteSpace(Filename) || Filename == _lastAutoUrlFilename))
+                    {
+                        Filename = seg;
+                        _lastAutoUrlFilename = seg;
+                    }
+                }
+            }
+            catch
+            {
+                // Ignore parse errors while typing
+            }
+        }
+
         OnPropertyChanged(nameof(IsLocalFile));
         OnPropertyChanged(nameof(IsHosted));
         UpdateArtifactStatus();
     }
 
+    partial void OnFileSizeInputChanged(string value)
+    {
+        if (TryParseFileSize(value, out var bytes))
+        {
+            FileSize = bytes;
+            FileSizeDisplay = FormatFileSize(bytes);
+        }
+    }
+
     private void UpdateArtifactStatus()
     {
         if (!string.IsNullOrEmpty(LocalFilePath))
+        {
             ArtifactStatus = "Local file selected - will be uploaded during publish";
+        }
         else if (!string.IsNullOrEmpty(DownloadUrl))
-            ArtifactStatus = "Hosted remotely";
+        {
+            ArtifactStatus = "Hosted externally on CDN / mirror (will not be uploaded)";
+        }
         else
-            ArtifactStatus = "No file configured";
+        {
+            ArtifactStatus = "No file or URL configured";
+        }
     }
 
     /// <summary>

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -562,21 +563,23 @@ public partial class PublishShareViewModel : ObservableObject
 
     private UploadArtifactNodeViewModel BuildArtifactNode(ReleaseArtifact art)
     {
+        var hasUrl = !string.IsNullOrWhiteSpace(art.DownloadUrl);
+        var localArtifact = ArtifactStatuses.FirstOrDefault(a => a.ArtifactName == art.Filename);
+        var hasLocal = (localArtifact?.HasLocalFile ?? false) || !string.IsNullOrWhiteSpace(art.LocalFilePath);
+        var localPath = localArtifact?.LocalFilePath ?? art.LocalFilePath ?? string.Empty;
+        var isExternalCdn = hasUrl && (!hasLocal || !IsCloudProviderUrl(art.DownloadUrl));
+
         var artNode = new UploadArtifactNodeViewModel
         {
             FileName = art.Filename,
-            DownloadUrl = art.DownloadUrl,
+            DownloadUrl = art.DownloadUrl ?? string.Empty,
             FileSizeFormatted = GenHub.Core.Helpers.FileSizeFormatter.Format(art.Size),
             Sha256 = art.Sha256 ?? string.Empty,
-            IsHosted = !string.IsNullOrEmpty(art.DownloadUrl),
+            IsHosted = hasUrl,
+            HasLocalFile = hasLocal,
+            LocalFilePath = localPath,
+            IsExternalCdn = isExternalCdn,
         };
-
-        var localArtifact = ArtifactStatuses.FirstOrDefault(a => a.ArtifactName == art.Filename);
-        if (localArtifact != null)
-        {
-            artNode.HasLocalFile = localArtifact.HasLocalFile;
-            artNode.LocalFilePath = localArtifact.LocalFilePath ?? string.Empty;
-        }
 
         return artNode;
     }
@@ -1567,5 +1570,64 @@ public partial class PublishShareViewModel : ObservableObject
         {
             _logger.LogError(ex, "Failed to copy URL to clipboard");
         }
+    }
+
+    /// <summary>
+    /// Opens the Google Cloud Console credentials page in the default web browser.
+    /// </summary>
+    [RelayCommand]
+    private void OpenGoogleCredentialsConsole()
+    {
+        OpenExternalBrowserUrl(HostingConstants.GoogleCloudConsoleCredentialsUrl);
+    }
+
+    /// <summary>
+    /// Opens the GitHub Personal Access Token creation page in the default web browser.
+    /// </summary>
+    [RelayCommand]
+    private void OpenGitHubTokenConsole()
+    {
+        OpenExternalBrowserUrl(GitHubConstants.PatCreationUrl);
+    }
+
+    /// <summary>
+    /// Opens the Dropbox Developer App Console in the default web browser.
+    /// </summary>
+    [RelayCommand]
+    private void OpenDropboxAppConsole()
+    {
+        OpenExternalBrowserUrl(HostingConstants.DropboxAppConsoleUrl);
+    }
+
+    private void OpenExternalBrowserUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            _logger.LogInformation("Opened URL in browser: {Url}", url);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to open URL in browser: {Url}", url);
+            _notificationService?.ShowWarning("Browser Error", $"Could not open URL: {url}");
+        }
+    }
+
+    private bool IsCloudProviderUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return false;
+        }
+
+        return url.Contains("drive.google.com", StringComparison.OrdinalIgnoreCase)
+            || url.Contains("github.com", StringComparison.OrdinalIgnoreCase)
+            || url.Contains("dropbox.com", StringComparison.OrdinalIgnoreCase)
+            || url.Contains("dropboxusercontent.com", StringComparison.OrdinalIgnoreCase);
     }
 }

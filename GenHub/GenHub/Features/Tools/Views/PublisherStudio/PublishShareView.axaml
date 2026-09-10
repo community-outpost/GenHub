@@ -199,6 +199,17 @@
                                    FontSize="12" Foreground="#8888AA" TextWrapping="Wrap"/>
                         <TextBlock Text="Google Drive requires OAuth 2.0 Desktop app credentials from Google Cloud Console. Enter your Client ID and Secret below, or configure GENHUB_GOOGLE_CLIENT_ID and GENHUB_GOOGLE_CLIENT_SECRET environment variables:"
                                    FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap"/>
+
+                        <Button Command="{Binding OpenGoogleCredentialsConsoleCommand}"
+                                Classes="small-glass-btn"
+                                ToolTip.Tip="Open Google Cloud Console Credentials page in your default browser"
+                                HorizontalAlignment="Left">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                <TextBlock Text="Create OAuth Credentials in Google Cloud Console" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
+                            </StackPanel>
+                        </Button>
+
                         <StackPanel Spacing="8">
                             <TextBlock Text="Google Client ID:" FontSize="12" Foreground="#AAAAAA"/>
                             <TextBox Text="{Binding GoogleClientId}" Watermark="xxxxxx.apps.googleusercontent.com" FontSize="12"/>
@@ -210,12 +221,34 @@
                     <!-- GitHub PAT Input -->
                     <StackPanel IsVisible="{Binding ShowGitHubPatInput}" Spacing="8">
                         <TextBlock Text="Enter your GitHub Personal Access Token:" FontSize="12" Foreground="#AAAAAA"/>
+
+                        <Button Command="{Binding OpenGitHubTokenConsoleCommand}"
+                                Classes="small-glass-btn"
+                                ToolTip.Tip="Open GitHub Token generator page with preconfigured repo scope"
+                                HorizontalAlignment="Left">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                <TextBlock Text="Generate Personal Access Token on GitHub (with repo scope)" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
+                            </StackPanel>
+                        </Button>
+
                         <TextBox Text="{Binding GitHubPersonalAccessToken}" Watermark="ghp_xxxxxxxxxxxx" PasswordChar="●" RevealPassword="True"/>
                     </StackPanel>
 
                     <!-- Dropbox Token Input -->
                     <StackPanel IsVisible="{Binding ShowDropboxTokenInput}" Spacing="8">
                         <TextBlock Text="Enter your Dropbox Access Token:" FontSize="12" Foreground="#AAAAAA"/>
+
+                        <Button Command="{Binding OpenDropboxAppConsoleCommand}"
+                                Classes="small-glass-btn"
+                                ToolTip.Tip="Open Dropbox App Console in your default browser"
+                                HorizontalAlignment="Left">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                <TextBlock Text="Open Dropbox App Console (create app with files.content.write scope)" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
+                            </StackPanel>
+                        </Button>
+
                         <TextBox Text="{Binding DropboxAccessToken}" Watermark="sl.xxxxxxxx..." PasswordChar="●" RevealPassword="True"/>
                     </StackPanel>
 
@@ -480,21 +513,32 @@
                                                                                                             <TextBlock Grid.Column="1" Text="{Binding FileName}" FontSize="11" Foreground="White" VerticalAlignment="Center"/>
                                                                                                             <TextBlock Grid.Column="2" Text="{Binding FileSizeFormatted}" FontSize="10" Foreground="#8888AA" Margin="10,0" VerticalAlignment="Center"/>
 
-                                                                                                            <!-- Direct Download URL or local indicator -->
-                                                                                                            <TextBlock Grid.Column="3"
-                                                                                                                       Text="{Binding DownloadUrl}"
-                                                                                                                       FontSize="10"
-                                                                                                                       Foreground="#666688"
-                                                                                                                       TextTrimming="CharacterEllipsis"
-                                                                                                                       MaxWidth="200"
-                                                                                                                       VerticalAlignment="Center"
-                                                                                                                       IsVisible="{Binding HasUrl}"/>
-                                                                                                            <TextBlock Grid.Column="3"
-                                                                                                                       Text="Local file pending upload"
-                                                                                                                       FontSize="10"
-                                                                                                                       Foreground="#FFBB00"
-                                                                                                                       VerticalAlignment="Center"
-                                                                                                                       IsVisible="{Binding !HasUrl}"/>
+                                                                            <!-- Storage Badge and URL / Pending Status -->
+                                                                            <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                                                <Border Background="#201976D2" CornerRadius="3" Padding="4,1" IsVisible="{Binding IsExternalCdn}">
+                                                                                    <TextBlock Text="CDN" FontSize="9" FontWeight="Bold" Foreground="#64B5F6"/>
+                                                                                </Border>
+                                                                                <Border Background="#20388E3C" CornerRadius="3" Padding="4,1" IsVisible="{Binding IsCloudHosted}">
+                                                                                    <TextBlock Text="CLOUD" FontSize="9" FontWeight="Bold" Foreground="#81C784"/>
+                                                                                </Border>
+                                                                                <Border Background="#25FFA000" CornerRadius="3" Padding="4,1" IsVisible="{Binding IsPendingUpload}">
+                                                                                    <TextBlock Text="PENDING" FontSize="9" FontWeight="Bold" Foreground="#FFB300"/>
+                                                                                </Border>
+                                                                                <TextBlock Text="{Binding DownloadUrl}"
+                                                                                           FontSize="10"
+                                                                                           Foreground="#8888AA"
+                                                                                           TextTrimming="CharacterEllipsis"
+                                                                                           MaxWidth="220"
+                                                                                           VerticalAlignment="Center"
+                                                                                           ToolTip.Tip="{Binding DownloadUrl}"
+                                                                                           IsVisible="{Binding HasUrl}"/>
+                                                                                <TextBlock Text="Local file pending upload"
+                                                                                           FontSize="10"
+                                                                                           Foreground="#FFBB00"
+                                                                                           VerticalAlignment="Center"
+                                                                                           ToolTip.Tip="{Binding LocalFilePath}"
+                                                                                           IsVisible="{Binding !HasUrl}"/>
+                                                                            </StackPanel>
 
                                                                                                             <!-- Copy Link Button -->
                                                                                                             <Button Grid.Column="4"

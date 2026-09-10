@@ -48,6 +48,18 @@ public static class HostingConstants
     public const string DefaultMirrorUrlPrefix = "https://";
 
     /// <summary>
+    /// URL to Google Cloud Console Credentials page for creating OAuth 2.0 Client IDs.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official Google Cloud developer console URL")]
+    public const string GoogleCloudConsoleCredentialsUrl = "https://console.cloud.google.com/apis/credentials";
+
+    /// <summary>
+    /// URL to Dropbox Developer App Console for creating apps and access tokens.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official Dropbox developer console URL")]
+    public const string DropboxAppConsoleUrl = "https://www.dropbox.com/developers/apps";
+
+    /// <summary>
     /// Standard JSON MIME content type.
     /// </summary>
     public const string JsonContentType = "application/json";

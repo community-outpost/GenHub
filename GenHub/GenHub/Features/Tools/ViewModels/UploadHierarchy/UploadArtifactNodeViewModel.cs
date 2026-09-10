@@ -15,12 +15,18 @@ public partial class UploadArtifactNodeViewModel : ObservableObject
     private string _fileSizeFormatted = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUrl))]
+    [NotifyPropertyChangedFor(nameof(IsCloudHosted))]
+    [NotifyPropertyChangedFor(nameof(IsPendingUpload))]
+    [NotifyPropertyChangedFor(nameof(StorageBadgeText))]
     private string _downloadUrl = string.Empty;
 
     [ObservableProperty]
     private string _sha256 = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsPendingUpload))]
+    [NotifyPropertyChangedFor(nameof(StorageBadgeText))]
     private bool _hasLocalFile;
 
     [ObservableProperty]
@@ -29,8 +35,50 @@ public partial class UploadArtifactNodeViewModel : ObservableObject
     [ObservableProperty]
     private bool _isHosted;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCloudHosted))]
+    [NotifyPropertyChangedFor(nameof(IsPendingUpload))]
+    [NotifyPropertyChangedFor(nameof(StorageBadgeText))]
+    private bool _isExternalCdn;
+
     /// <summary>
     /// Gets a value indicating whether a valid download URL exists.
     /// </summary>
     public bool HasUrl => !string.IsNullOrWhiteSpace(DownloadUrl);
+
+    /// <summary>
+    /// Gets a value indicating whether this artifact is hosted in the cloud.
+    /// </summary>
+    public bool IsCloudHosted => HasUrl && !IsExternalCdn;
+
+    /// <summary>
+    /// Gets a value indicating whether this artifact is a local file pending cloud upload.
+    /// </summary>
+    public bool IsPendingUpload => !HasUrl && HasLocalFile;
+
+    /// <summary>
+    /// Gets the human-readable storage badge text for this artifact.
+    /// </summary>
+    public string StorageBadgeText
+    {
+        get
+        {
+            if (IsExternalCdn)
+            {
+                return "External CDN";
+            }
+
+            if (IsCloudHosted)
+            {
+                return "Cloud Hosted";
+            }
+
+            if (IsPendingUpload)
+            {
+                return "Pending Upload";
+            }
+
+            return HasUrl ? "Hosted" : "No File / URL";
+        }
+    }
 }

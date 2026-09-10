@@ -7,7 +7,6 @@
              x:Class="GenHub.Features.Tools.Views.Dialogs.AddArtifactDialogView"
              x:DataType="vm:AddArtifactDialogViewModel">
 
-
     <UserControl.Styles>
         <Style Selector="TextBox">
             <Setter Property="Background" Value="#15FFFFFF"/>
@@ -53,7 +52,6 @@
 
     <Grid RowDefinitions="Auto,*,Auto" Margin="24">
         <!-- Header -->
-        <!-- Header -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,24">
             <TextBlock Text="Add Artifact"
                        FontSize="22" FontWeight="Bold"
@@ -91,9 +89,9 @@
                                  IsChecked="{Binding UseLocalFile}"
                                  Foreground="White">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="Upload Local File (recommended)" FontWeight="SemiBold"/>
-                            <TextBlock Text="File will be uploaded to your hosting provider when you publish"
-                                       FontSize="11" Foreground="#888888" TextWrapping="Wrap" MaxWidth="400"/>
+                            <TextBlock Text="Upload Local File (Cloud Hosting)" FontWeight="SemiBold"/>
+                            <TextBlock Text="File will be uploaded to your connected cloud hosting provider when you publish"
+                                       FontSize="11" Foreground="#888888" TextWrapping="Wrap" MaxWidth="420"/>
                         </StackPanel>
                     </RadioButton>
 
@@ -111,7 +109,8 @@
                                     Margin="8,0,0,0"
                                     Padding="16,8"/>
                         </Grid>
-                        <TextBlock Text="{Binding FileSizeDisplay}" Classes="hint"/>
+                        <TextBlock Text="{Binding FileSizeDisplay}" Classes="hint"
+                                   IsVisible="{Binding LocalFilePath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                     </StackPanel>
 
                     <!-- Enter Existing URL Option -->
@@ -120,50 +119,48 @@
                                  Foreground="White"
                                  Margin="0,8,0,0">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="Enter Existing URL" FontWeight="SemiBold"/>
-                            <TextBlock Text="Use this if you've already uploaded the file elsewhere"
-                                       FontSize="11" Foreground="#888888" TextWrapping="Wrap" MaxWidth="400"/>
+                            <TextBlock Text="External CDN / Direct URL (e.g. Game Client, Fast Mirror)" FontWeight="SemiBold"/>
+                            <TextBlock Text="Pre-hosted external link (game clients, community CDN, S3, fast mirrors). Kept intact without cloud re-upload."
+                                       FontSize="11" Foreground="#888888" TextWrapping="Wrap" MaxWidth="420"/>
                         </StackPanel>
                     </RadioButton>
 
-                    <!-- URL Input (visible when UseExistingUrl is true) -->
-                    <StackPanel Spacing="8" Margin="24,8,0,0" IsVisible="{Binding UseExistingUrl}">
-                        <TextBox Text="{Binding DownloadUrl}"
-                                 Watermark="https://example.com/file.zip"/>
+                    <!-- CDN URL and Size Inputs (visible when UseExistingUrl is true) -->
+                    <StackPanel Spacing="10" Margin="24,8,0,0" IsVisible="{Binding UseExistingUrl}">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Direct Download URL *" Classes="label"/>
+                            <TextBox Text="{Binding DownloadUrl}"
+                                     Watermark="https://cdn.example.com/downloads/gameclient-v1.0.zip"/>
+                        </StackPanel>
+
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="File Size (e.g. 500 MB, 1.2 GB, or bytes)" Classes="label"/>
+                            <TextBox Text="{Binding FileSizeInput}"
+                                     Watermark="e.g. 750 MB"/>
+                            <TextBlock Text="{Binding FileSizeDisplay, StringFormat='Parsed: {0}'}" Classes="hint"
+                                       IsVisible="{Binding FileSizeDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        </StackPanel>
                     </StackPanel>
                 </StackPanel>
 
+                <!-- Status Banner -->
+                <Border Background="#10FFFFFF" CornerRadius="6" Padding="12,8" Margin="0,4">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <PathIcon Data="{StaticResource PackageIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding ArtifactStatus}" FontSize="12" Foreground="#C0C0D0" VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
                 <!-- Divider -->
-                <Rectangle Height="1" Fill="#20FFFFFF" Margin="0,8"/>
+                <Rectangle Height="1" Fill="#20FFFFFF" Margin="0,4"/>
 
                 <!-- Artifact Details -->
-                <TextBlock Text="Artifact Details:" Classes="label"/>
-
-                <!-- File Selection -->
-                <StackPanel Spacing="8" Margin="0,0,0,16">
-                    <TextBlock Text="Artifact File" Classes="label"/>
-                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
-                        <TextBox Text="{Binding LocalFilePath}"
-                                 IsReadOnly="True"
-                                 Watermark="No file selected..."
-                                 FontSize="12"/>
-                        <Button Grid.Column="1"
-                                Command="{Binding BrowseLocalFileCommand}"
-                                Content="Browse..."
-                                Classes="small-glass-btn"
-                                Margin="8,0,0,0"
-                                Padding="16,8"/>
-                    </Grid>
-                    <TextBlock Text="{Binding FileSizeDisplay}" Classes="hint"/>
-                    <TextBlock Text="{Binding ArtifactStatus}"
-                               FontSize="12"
-                               Foreground="#888888"/>
-                </StackPanel>
+                <TextBlock Text="Artifact Metadata:" Classes="label"/>
 
                 <!-- Computing hash indicator -->
                 <StackPanel IsVisible="{Binding IsComputingHash}" Orientation="Horizontal" Spacing="8">
                     <ProgressBar IsIndeterminate="True" Width="120" Height="4" Foreground="{DynamicResource AccentColorBrush}"/>
-                    <TextBlock Text="Computing hash..." FontSize="12" Foreground="#888888"/>
+                    <TextBlock Text="Computing SHA-256 hash..." FontSize="12" Foreground="#888888"/>
                 </StackPanel>
 
                 <!-- Filename -->
@@ -173,21 +170,10 @@
                         <TextBlock Text="*" Foreground="#FF5555"/>
                     </StackPanel>
                     <TextBox Text="{Binding Filename}"
-                             Watermark="e.g. MyMod_v1.0.zip"
+                             Watermark="e.g. GeneralsOnline-Client-v1.0.zip"
                              IsReadOnly="{Binding UseLocalFile}"/>
-                    <TextBlock Text="Auto-filled from selected file"
-                               Classes="hint"
-                               IsVisible="{Binding UseLocalFile}"/>
-                </StackPanel>
-
-                <!-- URL (only visible when using existing URL) -->
-                <StackPanel Spacing="8" IsVisible="{Binding UseExistingUrl}">
-                    <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="Download URL" Classes="label"/>
-                        <TextBlock Text="*" Foreground="#FF5555"/>
-                    </StackPanel>
-                    <TextBox Text="{Binding DownloadUrl}"
-                             Watermark="https://github.com/user/repo/releases/download/..."/>
+                    <TextBlock Text="Auto-filled from selected file or direct URL"
+                               Classes="hint"/>
                 </StackPanel>
 
                 <!-- SHA256 -->
@@ -201,9 +187,9 @@
                                 Classes="small-glass-btn"/>
                     </Grid>
                     <TextBox Text="{Binding Sha256Hash}"
-                             Watermark="Hash string..."
+                             Watermark="Hash string (optional for external CDN)..."
                              IsReadOnly="{Binding UseLocalFile}"/>
-                    <TextBlock Text="Auto-computed from selected file"
+                    <TextBlock Text="Auto-computed from selected local file"
                                Classes="hint"
                                IsVisible="{Binding UseLocalFile}"/>
                     <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsComputingHash}" Height="2" Foreground="{DynamicResource AccentColorBrush}"/>
