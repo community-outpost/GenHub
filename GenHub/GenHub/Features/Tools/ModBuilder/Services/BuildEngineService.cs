@@ -132,9 +132,8 @@ public sealed class BuildEngineService : IBuildEngineService
                 ? BuildOperationResult.CreateSuccess(_filesProcessed, _filesSkipped, _filesFailed, sw.Elapsed)
                 : BuildOperationResult.CreateFailure(_lastErrorMessage ?? "Build failed", _filesProcessed, _filesSkipped, _filesFailed, sw.Elapsed);
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException)
         {
-            _logger.LogInformation(ex, "ExecuteBuildAsync cancelled");
             sw.Stop();
             throw;
         }
@@ -670,29 +669,27 @@ public sealed class BuildEngineService : IBuildEngineService
             }
         }
 
-        var compressionLevel = System.IO.Compression.CompressionLevel.Optimal;
-
         foreach (var pack in packs)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await BuildSingleReleaseBundlePackAsync(pack, bundlesDir, releaseDir, buildDir, setup.Bundles?.Items, compressionLevel, progress, cancellationToken)
+            await BuildSingleReleaseBundlePackAsync(pack, setup, progress, cancellationToken)
                 .ConfigureAwait(false);
         }
     }
 
     private async Task BuildSingleReleaseBundlePackAsync(
         BundlePack pack,
-        string bundlesDir,
-        string releaseDir,
-        string buildDir,
-        IReadOnlyList<BundleItem>? items,
-        System.IO.Compression.CompressionLevel compressionLevel,
+        BuildSetup setup,
         IProgress<BuildProgress>? progress,
         CancellationToken cancellationToken)
     {
-        var packFileName = !string.IsNullOrWhiteSpace(pack.OutputFile)
-            ? Path.GetFileName(pack.OutputFile)
-            : (pack.IsBigPack ? $"{pack.GetFullName()}.big" : $"{pack.GetFullName()}.zip");
+        var releaseDir = setup.Folders?.AbsReleaseDir ?? ModBuilderConstants.DefaultReleaseDir;
+        var buildDir = setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir;
+        var bundlesDir = Path.Combine(buildDir, ModBuilderConstants.BundlesSubdir);
+        var items = setup.Bundles?.Items;
+        var compressionLevel = System.IO.Compression.CompressionLevel.Optimal;
+
+        var packFileName = GetPackFileName(pack);
         var packFilePath = Path.Combine(releaseDir, packFileName);
 
         var packStagingDir = Path.Combine(buildDir, ".staging_pack", pack.Name);
@@ -761,39 +758,49 @@ public sealed class BuildEngineService : IBuildEngineService
     {
         if (pack.IsBigPack)
         {
-            foreach (var itemName in pack.ItemNames)
+            StageBigPackFiles(pack, items, packStagingDir);
+        }
+        else
+        {
+            StageStandardPackFiles(pack, items, bundlesDir, packStagingDir);
+        }
+    }
+
+    private void StageBigPackFiles(BundlePack pack, IReadOnlyList<BundleItem> items, string packStagingDir)
+    {
+        foreach (var itemName in pack.ItemNames)
+        {
+            var item = items.FirstOrDefault(i => string.Equals(i.Name, itemName, StringComparison.OrdinalIgnoreCase));
+            if (item == null)
             {
-                var item = items.FirstOrDefault(i => string.Equals(i.Name, itemName, StringComparison.OrdinalIgnoreCase));
-                if (item == null)
-                {
-                    continue;
-                }
-
-                foreach (var file in item.Files)
-                {
-                    var sourcePath = file.AbsSourceFile;
-                    if (!File.Exists(sourcePath))
-                    {
-                        _logger.LogWarning("Source file {SourceFile} not found for bundle item {ItemName}", sourcePath, item.Name);
-                        continue;
-                    }
-
-                    var targetRelPath = GetTargetRelativePath(file);
-                    var destPath = Path.Combine(packStagingDir, targetRelPath);
-                    var destDir = Path.GetDirectoryName(destPath);
-                    if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
-                    {
-                        Directory.CreateDirectory(destDir);
-                    }
-
-                    File.Copy(sourcePath, destPath, true);
-                    _logger.LogDebug("Staged file {RelPath} for BIG pack {PackName}", targetRelPath, pack.Name);
-                }
+                continue;
             }
 
+            foreach (var file in item.Files)
+            {
+                StageBigPackFile(file, packStagingDir, pack.Name, item.Name);
+            }
+        }
+    }
+
+    private void StageBigPackFile(BundleFile file, string packStagingDir, string packName, string itemName)
+    {
+        var sourcePath = file.AbsSourceFile;
+        if (!File.Exists(sourcePath))
+        {
+            _logger.LogWarning("Source file {SourceFile} not found for bundle item {ItemName}", sourcePath, itemName);
             return;
         }
 
+        var targetRelPath = GetTargetRelativePath(file);
+        var destPath = Path.Combine(packStagingDir, targetRelPath);
+        EnsureDestinationDirectory(destPath);
+        File.Copy(sourcePath, destPath, true);
+        _logger.LogDebug("Staged file {RelPath} for BIG pack {PackName}", targetRelPath, packName);
+    }
+
+    private void StageStandardPackFiles(BundlePack pack, IReadOnlyList<BundleItem> items, string bundlesDir, string packStagingDir)
+    {
         foreach (var itemName in pack.ItemNames)
         {
             var item = items.FirstOrDefault(i => string.Equals(i.Name, itemName, StringComparison.OrdinalIgnoreCase));
@@ -804,47 +811,61 @@ public sealed class BuildEngineService : IBuildEngineService
 
             if (item.IsBig)
             {
-                var bigFileName = GetBigFileName(item);
-                var srcBig = Path.Combine(bundlesDir, bigFileName);
-                if (File.Exists(srcBig))
-                {
-                    var destBig = Path.Combine(packStagingDir, bigFileName);
-                    File.Copy(srcBig, destBig, true);
-                    _logger.LogDebug("Staged .BIG archive {BigFileName} for pack {PackName}", bigFileName, pack.Name);
-                }
-                else
-                {
-                    _logger.LogWarning("BIG bundle {BigFileName} missing when packaging pack {PackName}. Run the Build step first.", bigFileName, pack.Name);
-                }
+                StageBigBundleArchive(item, bundlesDir, packStagingDir, pack.Name);
             }
             else
             {
-                foreach (var file in item.Files)
-                {
-                    var sourcePath = file.AbsSourceFile;
-                    if (!File.Exists(sourcePath))
-                    {
-                        _logger.LogWarning("Source file {SourceFile} not found for raw bundle item {ItemName}", sourcePath, item.Name);
-                        continue;
-                    }
-
-                    var relPath = !string.IsNullOrEmpty(file.RelTargetFile) ? file.RelTargetFile : file.GetRelSourceFile();
-                    if (string.IsNullOrEmpty(relPath))
-                    {
-                        relPath = Path.GetFileName(sourcePath);
-                    }
-
-                    var destPath = Path.Combine(packStagingDir, relPath);
-                    var destDir = Path.GetDirectoryName(destPath);
-                    if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
-                    {
-                        Directory.CreateDirectory(destDir);
-                    }
-
-                    File.Copy(sourcePath, destPath, true);
-                    _logger.LogDebug("Staged loose file {RelPath} for pack {PackName}", relPath, pack.Name);
-                }
+                StageRawBundleFiles(item, packStagingDir, pack.Name);
             }
+        }
+    }
+
+    private void StageBigBundleArchive(BundleItem item, string bundlesDir, string packStagingDir, string packName)
+    {
+        var bigFileName = GetBigFileName(item);
+        var srcBig = Path.Combine(bundlesDir, bigFileName);
+        if (File.Exists(srcBig))
+        {
+            var destBig = Path.Combine(packStagingDir, bigFileName);
+            File.Copy(srcBig, destBig, true);
+            _logger.LogDebug("Staged .BIG archive {BigFileName} for pack {PackName}", bigFileName, packName);
+        }
+        else
+        {
+            _logger.LogWarning("BIG bundle {BigFileName} missing when packaging pack {PackName}. Run the Build step first.", bigFileName, packName);
+        }
+    }
+
+    private void StageRawBundleFiles(BundleItem item, string packStagingDir, string packName)
+    {
+        foreach (var file in item.Files)
+        {
+            var sourcePath = file.AbsSourceFile;
+            if (!File.Exists(sourcePath))
+            {
+                _logger.LogWarning("Source file {SourceFile} not found for raw bundle item {ItemName}", sourcePath, item.Name);
+                continue;
+            }
+
+            var relPath = !string.IsNullOrEmpty(file.RelTargetFile) ? file.RelTargetFile : file.GetRelSourceFile();
+            if (string.IsNullOrEmpty(relPath))
+            {
+                relPath = Path.GetFileName(sourcePath);
+            }
+
+            var destPath = Path.Combine(packStagingDir, relPath);
+            EnsureDestinationDirectory(destPath);
+            File.Copy(sourcePath, destPath, true);
+            _logger.LogDebug("Staged loose file {RelPath} for pack {PackName}", relPath, packName);
+        }
+    }
+
+    private static void EnsureDestinationDirectory(string filePath)
+    {
+        var destDir = Path.GetDirectoryName(filePath);
+        if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+        {
+            Directory.CreateDirectory(destDir);
         }
     }
 
@@ -1026,29 +1047,36 @@ public sealed class BuildEngineService : IBuildEngineService
 
         foreach (var packOrItemName in setup.SelectedPacks)
         {
-            var pack = setup.Bundles.Packs?.FirstOrDefault(p => string.Equals(p.Name, packOrItemName, StringComparison.OrdinalIgnoreCase));
-            if (pack != null)
-            {
-                foreach (var itemName in pack.ItemNames)
-                {
-                    var item = setup.Bundles.Items.FirstOrDefault(i => string.Equals(i.Name, itemName, StringComparison.OrdinalIgnoreCase));
-                    if (item != null && item.IsBig)
-                    {
-                        filesToInclude.Add(GetBigFileName(item));
-                    }
-                }
-            }
-            else
-            {
-                var item = setup.Bundles.Items.FirstOrDefault(i => string.Equals(i.Name, packOrItemName, StringComparison.OrdinalIgnoreCase));
-                if (item != null && item.IsBig)
-                {
-                    filesToInclude.Add(GetBigFileName(item));
-                }
-            }
+            IncludePackOrItemFiles(setup, packOrItemName, filesToInclude);
         }
 
         return filesToInclude;
+    }
+
+    private static void IncludePackOrItemFiles(BuildSetup setup, string packOrItemName, HashSet<string> filesToInclude)
+    {
+        var pack = setup.Bundles?.Packs?.FirstOrDefault(p => string.Equals(p.Name, packOrItemName, StringComparison.OrdinalIgnoreCase));
+        if (pack != null)
+        {
+            foreach (var itemName in pack.ItemNames)
+            {
+                var item = setup.Bundles?.Items?.FirstOrDefault(i => string.Equals(i.Name, itemName, StringComparison.OrdinalIgnoreCase));
+                AddBigItemFileName(filesToInclude, item);
+            }
+        }
+        else
+        {
+            var item = setup.Bundles?.Items?.FirstOrDefault(i => string.Equals(i.Name, packOrItemName, StringComparison.OrdinalIgnoreCase));
+            AddBigItemFileName(filesToInclude, item);
+        }
+    }
+
+    private static void AddBigItemFileName(HashSet<string> files, BundleItem? item)
+    {
+        if (item != null && item.IsBig)
+        {
+            files.Add(GetBigFileName(item));
+        }
     }
 
     private static void StageManifestFiles(string stagingDir, string[] bigFiles, HashSet<string> filesToInclude)
@@ -1476,18 +1504,23 @@ public sealed class BuildEngineService : IBuildEngineService
             .ToList();
     }
 
+    private static string GetPackFileName(BundlePack pack)
+    {
+        if (!string.IsNullOrWhiteSpace(pack.OutputFile))
+        {
+            return Path.GetFileName(pack.OutputFile);
+        }
+
+        var extension = pack.IsBigPack ? ".big" : ".zip";
+        return $"{pack.GetFullName()}{extension}";
+    }
+
     private static List<string> CollectReleaseBundlePackFiles(BuildSetup setup, BuildConfiguration configuration)
     {
         var releaseDir = setup.Folders?.AbsReleaseDir ?? ModBuilderConstants.DefaultReleaseDir;
         return configuration.Packs
             .Where(pack => pack.AllowBuild)
-            .Select(pack =>
-            {
-                var packFileName = !string.IsNullOrWhiteSpace(pack.OutputFile)
-                    ? Path.GetFileName(pack.OutputFile)
-                    : (pack.IsBigPack ? $"{pack.GetFullName()}.big" : $"{pack.GetFullName()}.zip");
-                return Path.Combine(releaseDir, packFileName);
-            })
+            .Select(pack => Path.Combine(releaseDir, GetPackFileName(pack)))
             .ToList();
     }
 }

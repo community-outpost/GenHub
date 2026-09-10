@@ -215,18 +215,7 @@ public partial class GameProfileSettingsViewModel
             itemToRemove.IsEnabled = false;
             EnabledContent.Remove(itemToRemove);
 
-            if (itemToRemove.ContentType == SelectedContentType && (itemToRemove.GameType == GameTypeFilter || itemToRemove.GameType == Core.Models.Enums.GameType.Unknown))
-            {
-                var alreadyInAvailable = AvailableContent.FirstOrDefault(a => a.ManifestId.Value == itemToRemove.ManifestId.Value);
-                if (alreadyInAvailable == null)
-                {
-                    AvailableContent.Add(itemToRemove);
-                }
-                else
-                {
-                    alreadyInAvailable.IsEnabled = false;
-                }
-            }
+            RestoreDisabledContentToAvailable(itemToRemove);
 
             if (itemToRemove.ContentType == ContentType.GameInstallation &&
                 SelectedGameInstallation?.ManifestId.Value == itemToRemove.ManifestId.Value)
@@ -245,6 +234,23 @@ public partial class GameProfileSettingsViewModel
         }
 
         await Task.CompletedTask;
+    }
+
+    private void RestoreDisabledContentToAvailable(ContentDisplayItem itemToRemove)
+    {
+        if (itemToRemove.ContentType == SelectedContentType &&
+            (itemToRemove.GameType == GameTypeFilter || itemToRemove.GameType == Core.Models.Enums.GameType.Unknown))
+        {
+            var alreadyInAvailable = AvailableContent.FirstOrDefault(a => a.ManifestId.Value == itemToRemove.ManifestId.Value);
+            if (alreadyInAvailable == null)
+            {
+                AvailableContent.Add(itemToRemove);
+            }
+            else
+            {
+                alreadyInAvailable.IsEnabled = false;
+            }
+        }
     }
 
     [RelayCommand]
