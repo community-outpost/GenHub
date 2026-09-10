@@ -589,7 +589,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                 }
             }
 
-            if (!EnabledContent.Any(i => i.ManifestId.Value == value.ManifestId.Value))
+            var isToolProfile = ToolProfileHelper.IsToolProfile(EnabledContent.Where(i => i.ContentType != ContentType.GameInstallation).Select(i => (i.ManifestId.Value, i.ContentType)));
+            if (!isToolProfile && !EnabledContent.Any(i => i.ManifestId.Value == value.ManifestId.Value))
             {
                 EnabledContent.Add(value);
             }
@@ -1170,7 +1171,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                 }
             }
 
-            if (AvailableGameInstallations.Any() && SelectedGameInstallation == null)
+            var isToolProfile = ToolProfileHelper.IsToolProfile(EnabledContent.Select(i => (i.ManifestId.Value, i.ContentType)));
+            if (!isToolProfile && CurrentProfileId == null && AvailableGameInstallations.Any() && SelectedGameInstallation == null)
             {
                 SelectedGameInstallation = AvailableGameInstallations
                     .OrderByDescending(i => i.GameType == Core.Models.Enums.GameType.ZeroHour)

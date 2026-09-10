@@ -86,6 +86,49 @@ public class HybridCopySymlinkStrategyTests : IDisposable
     }
 
     /// <summary>
+    /// Test that when preparation encounters an unhandled exception, it marks workspace as not prepared with validation issues instead of throwing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PrepareAsync_WhenExceptionOccurs_ReturnsUnpreparedWorkspaceWithValidationIssueAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_tempDir);
+        var sourceFile = Path.Combine(_tempDir, "test.exe");
+        await File.WriteAllTextAsync(sourceFile, "dummy");
+
+        _mockFileOperations
+            .Setup(f => f.CopyFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("Simulated disk error"));
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace-error",
+            WorkspaceRootPath = Path.Combine(_tempDir, "workspace"),
+            Strategy = WorkspaceStrategy.HybridCopySymlink,
+            Manifests =
+            [
+                new()
+                {
+                    Files =
+                    [
+                        new() { RelativePath = "test.exe", SourcePath = sourceFile, IsExecutable = true },
+                    ],
+                },
+            ],
+            BaseInstallationPath = _tempDir,
+        };
+
+        // Act
+        var result = await _strategy.PrepareAsync(config);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.False(result.IsPrepared);
+        Assert.NotEmpty(result.ValidationIssues);
+    }
+
+    /// <summary>
     /// Cleanup after each test.
     /// </summary>
     public void Dispose()

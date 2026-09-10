@@ -935,4 +935,42 @@ public class GameProfileSettingsViewModelDependencyTests
         // Assert
         Assert.Equal(1, _viewModel.EnabledContent.Count(x => x.ManifestId.Value == "dup-id"));
     }
+
+    /// <summary>
+    /// Verifies that setting SelectedGameInstallation when the profile is a standalone tool profile
+    /// does not inject the GameInstallation into EnabledContent.
+    /// </summary>
+    [Fact]
+    public void SelectedGameInstallation_WhenStandaloneToolProfile_DoesNotAddInstallationToEnabledContent()
+    {
+        // Arrange
+        var toolDisplayItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("1.0.0.moddingtool.worldbuilder"),
+            DisplayName = "World Builder",
+            ContentType = ContentType.ModdingTool,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Unknown,
+            IsEnabled = true,
+        };
+        _viewModel.EnabledContent.Add(toolDisplayItem);
+
+        var install1 = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("install-1"),
+            DisplayName = "Zero Hour Install",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+        };
+        _viewModel.AvailableGameInstallations.Add(install1);
+
+        // Act
+        _viewModel.SelectedGameInstallation = install1;
+
+        // Assert - tool remains the only enabled content; installation was not injected
+        Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ContentType == ContentType.GameInstallation);
+        Assert.Single(_viewModel.EnabledContent);
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == toolDisplayItem.ManifestId.Value);
+    }
 }

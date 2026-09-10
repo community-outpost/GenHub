@@ -16,6 +16,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Storage.Services;
+using GenHub.Features.Workspace.Strategies;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Workspace;
@@ -475,10 +476,23 @@ public class WorkspaceManager(
             var entryPointResult = await workspaceValidator.EnsureEntryPointExecutableAsync(workspace, cancellationToken);
             if (entryPointResult.Success)
             {
-                logger.LogInformation(
-                    "[Workspace] Reusing existing workspace {Id} for fast launch",
-                    configuration.Id);
-                return OperationResult<WorkspaceInfo>.CreateSuccess(workspace);
+                try
+                {
+                    WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(workspace, configuration, logger);
+                    logger.LogInformation(
+                        "[Workspace] Reusing existing workspace {Id} for fast launch",
+                        configuration.Id);
+                    return OperationResult<WorkspaceInfo>.CreateSuccess(workspace);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(
+                        ex,
+                        "[Workspace] Failed to ensure compatibility assets for existing workspace {Id}. Workspace will be recreated.",
+                        configuration.Id);
+                    configuration.ForceRecreate = true;
+                    return null;
+                }
             }
 
             logger.LogWarning(

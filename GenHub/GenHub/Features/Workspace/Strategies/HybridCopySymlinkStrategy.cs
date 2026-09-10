@@ -247,7 +247,9 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
         {
             Logger.LogError(ex, "Failed to prepare hybrid copy-symlink workspace at {WorkspacePath}", workspacePath);
             CleanupWorkspaceOnFailure(workspacePath);
-            throw;
+            workspaceInfo.IsPrepared = false;
+            workspaceInfo.ValidationIssues.Add(new() { Message = ex.Message, Severity = Core.Models.Validation.ValidationSeverity.Error });
+            return workspaceInfo;
         }
     }
 
