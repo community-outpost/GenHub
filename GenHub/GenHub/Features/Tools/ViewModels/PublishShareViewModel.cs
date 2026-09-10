@@ -352,27 +352,12 @@ public partial class PublishShareViewModel : ObservableObject
 
     private async Task<OperationResult<bool>?> ExecuteAuthenticationByProviderTypeAsync()
     {
-        if (SelectedHostingProvider is GoogleDriveHostingProvider gdrive)
+        if (SelectedHostingProvider is GoogleDriveHostingProvider gdrive && !ConfigureGoogleDrive(gdrive))
         {
-            var envClientId = Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_ID");
-            var envClientSecret = Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_SECRET");
-            var hasCustom = !string.IsNullOrWhiteSpace(GoogleClientId) && !string.IsNullOrWhiteSpace(GoogleClientSecret);
-            var hasEnv = !string.IsNullOrWhiteSpace(envClientId) && !string.IsNullOrWhiteSpace(envClientSecret);
-
-            if (!hasCustom && !hasEnv)
-            {
-                AuthenticationStatusMessage = "Google Drive requires client credentials. Enter your Client ID and Secret above, or configure GENHUB_GOOGLE_CLIENT_ID and GENHUB_GOOGLE_CLIENT_SECRET environment variables.";
-                _notificationService?.ShowWarning(
-                    "Google Drive Credentials Needed",
-                    "Please provide your Google OAuth Client ID and Secret to connect to Google Drive.");
-                return null;
-            }
-
-            if (!string.IsNullOrWhiteSpace(GoogleClientId)) gdrive.CustomClientId = GoogleClientId.Trim();
-            if (!string.IsNullOrWhiteSpace(GoogleClientSecret)) gdrive.CustomClientSecret = GoogleClientSecret.Trim();
+            return null;
         }
 
-        if (SelectedHostingProvider?.ProviderId == HostingConstants.GitHub && SelectedHostingProvider is GitHubHostingProvider githubProvider)
+        if (SelectedHostingProvider is GitHubHostingProvider githubProvider)
         {
             if (string.IsNullOrWhiteSpace(GitHubPersonalAccessToken))
             {
@@ -383,7 +368,7 @@ public partial class PublishShareViewModel : ObservableObject
             return await githubProvider.AuthenticateWithTokenAsync(GitHubPersonalAccessToken);
         }
 
-        if (SelectedHostingProvider?.ProviderId == HostingConstants.Dropbox && SelectedHostingProvider is DropboxHostingProvider dropboxProvider)
+        if (SelectedHostingProvider is DropboxHostingProvider dropboxProvider)
         {
             if (string.IsNullOrWhiteSpace(DropboxAccessToken))
             {
@@ -394,27 +379,58 @@ public partial class PublishShareViewModel : ObservableObject
             return await dropboxProvider.AuthenticateWithTokenAsync(DropboxAccessToken);
         }
 
-        return await SelectedHostingProvider!.AuthenticateAsync();
+        return SelectedHostingProvider != null
+            ? await SelectedHostingProvider.AuthenticateAsync()
+            : null;
+    }
+
+    private bool ConfigureGoogleDrive(GoogleDriveHostingProvider gdrive)
+    {
+        var envClientId = Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_ID");
+        var envClientSecret = Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_SECRET");
+        var hasCustom = !string.IsNullOrWhiteSpace(GoogleClientId) && !string.IsNullOrWhiteSpace(GoogleClientSecret);
+        var hasEnv = !string.IsNullOrWhiteSpace(envClientId) && !string.IsNullOrWhiteSpace(envClientSecret);
+
+        if (!hasCustom && !hasEnv)
+        {
+            AuthenticationStatusMessage = "Google Drive requires client credentials. Enter your Client ID and Secret above, or configure GENHUB_GOOGLE_CLIENT_ID and GENHUB_GOOGLE_CLIENT_SECRET environment variables.";
+            _notificationService?.ShowWarning(
+                "Google Drive Credentials Needed",
+                "Please provide your Google OAuth Client ID and Secret to connect to Google Drive.");
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(GoogleClientId))
+        {
+            gdrive.CustomClientId = GoogleClientId.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(GoogleClientSecret))
+        {
+            gdrive.CustomClientSecret = GoogleClientSecret.Trim();
+        }
+
+        return true;
     }
 
     private async Task HandleAuthenticationSuccessAsync()
     {
         AuthenticationStatusMessage = "Authenticated successfully";
-        _logger.LogInformation("Authenticated with {Provider}", SelectedHostingProvider!.DisplayName);
+        _logger.LogInformation("Authenticated with {Provider}", SelectedHostingProvider?.DisplayName ?? "Provider");
 
         // Save token to hosting state for persistence
         await SaveAuthTokenAsync();
 
         _notificationService?.ShowSuccess(
             "Connected",
-            $"Successfully connected to {SelectedHostingProvider.DisplayName}. You can now publish your catalog.",
+            $"Successfully connected to {SelectedHostingProvider?.DisplayName ?? "Provider"}. You can now publish your catalog.",
             autoDismissMs: 4000);
     }
 
     private void HandleAuthenticationFailure(OperationResult<bool> result)
     {
         AuthenticationStatusMessage = $"Authentication failed: {result.FirstError}";
-        _logger.LogWarning("Authentication failed for {Provider}: {Error}", SelectedHostingProvider!.DisplayName, result.FirstError);
+        _logger.LogWarning("Authentication failed for {Provider}: {Error}", SelectedHostingProvider?.DisplayName ?? "Provider", result.FirstError);
 
         _notificationService?.ShowError(
             "Connection Failed",
