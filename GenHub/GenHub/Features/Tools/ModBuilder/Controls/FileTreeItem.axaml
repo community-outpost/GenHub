@@ -41,7 +41,8 @@
               Background="Transparent"
               BorderThickness="0"
               IsVisible="{Binding HasChildren}"
-              Command="{Binding ToggleExpandCommand}">
+              Command="{Binding ToggleExpandCommand}"
+              ToolTip.Tip="Expand or collapse directory">
         <Path Width="12" Height="12"
               Fill="{DynamicResource TextSecondary}"
               Data="{StaticResource IconChevronRight}"
@@ -63,48 +64,46 @@
         </Path>
       </Button>
 
-      <!-- File Type Icon -->
+      <!-- Item Icon -->
       <Border Grid.Column="2"
               Width="24" Height="24"
-              Margin="4,0"
-              Background="{Binding FileTypeColor}"
-              CornerRadius="4">
-        <Path Width="14" Height="14"
-              Fill="{DynamicResource TextPrimary}"
-              Data="{Binding FileTypeIcon}"
+              Background="{DynamicResource AccentBadgeBackgroundBrush}"
+              BorderBrush="{DynamicResource AccentBrush}"
+              BorderThickness="1"
+              CornerRadius="4"
+              Margin="4,0,8,0">
+        <Path Width="12" Height="12"
+              Fill="{DynamicResource AccentBrush}"
+              Data="{Binding IconData}"
+              Stretch="Uniform"
               HorizontalAlignment="Center"
-              VerticalAlignment="Center"
-              Stretch="Uniform"/>
+              VerticalAlignment="Center"/>
       </Border>
 
       <!-- File Name -->
       <TextBlock Grid.Column="3"
-                 Text="{Binding FileName}"
+                 Text="{Binding Name}"
+                 VerticalAlignment="Center"
                  FontSize="12"
                  Foreground="{DynamicResource TextPrimary}"
-                 VerticalAlignment="Center"
-                 TextTrimming="CharacterEllipsis"
                  ToolTip.Tip="{Binding FullPath}"/>
 
       <!-- Status Indicator -->
       <Border Grid.Column="4"
               Width="8" Height="8"
-              Margin="8,0"
               CornerRadius="4"
               Background="{Binding StatusColor}"
-              IsVisible="{Binding HasStatus}"
+              Margin="8,0"
               ToolTip.Tip="{Binding StatusText}"/>
 
-      <!-- File Size -->
+      <!-- Size (for files) -->
       <TextBlock Grid.Column="5"
-                 Text="{Binding FileSize}"
+                 Text="{Binding SizeText}"
+                 VerticalAlignment="Center"
                  FontSize="11"
                  Foreground="{DynamicResource TextSecondary}"
-                 VerticalAlignment="Center"
-                 Margin="8,0,0,0"/>
+                 IsVisible="{Binding !IsDirectory}"/>
 
     </Grid>
-
   </Border>
-
 </UserControl>

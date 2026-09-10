@@ -386,6 +386,28 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     private bool _printConfig;
 
     /// <summary>
+    /// Gets or sets a value indicating whether bundle packs should be packaged into single .big archives instead of zip files.
+    /// </summary>
+    [ObservableProperty]
+    private bool _singleBigPackMode;
+
+    partial void OnSingleBigPackModeChanged(bool value)
+    {
+        if (CurrentProject?.Configuration?.Packs != null)
+        {
+            foreach (var pack in CurrentProject.Configuration.Packs)
+            {
+                pack.Big = value;
+            }
+        }
+
+        foreach (var bundle in Bundles)
+        {
+            bundle.IsBig = value;
+        }
+    }
+
+    /// <summary>
     /// Gets or sets the status message.
     /// </summary>
     [ObservableProperty]
@@ -1220,23 +1242,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         await InvokeOnUIThreadAsync(() =>
         {
-            Bundles.Clear();
-
-            // Load bundles from configuration
-            if (CurrentProject.Configuration?.Items != null)
-            {
-                foreach (var item in CurrentProject.Configuration.Items)
-                {
-                    Bundles.Add(new BundleItemViewModel
-                    {
-                        Name = item.Name,
-                        IsSelected = true,
-                        IsBig = item.IsBig,
-                        FileCount = item.Files?.Count ?? 0,
-                    });
-                }
-            }
-
+            PopulateProjectBundlesAndProperties(CurrentProject.Configuration);
             _logger.LogInformation("Loaded {Count} bundles", Bundles.Count);
         });
     }
@@ -1395,6 +1401,23 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             if (string.IsNullOrEmpty(GameDirectory))
             {
                 GameDirectory = resolvedGameDir;
+            }
+        }
+
+        if (buildConfig.Packs != null)
+        {
+            foreach (var pack in buildConfig.Packs)
+            {
+                var bundleVm = Bundles.FirstOrDefault(b => string.Equals(b.Name, pack.Name, StringComparison.OrdinalIgnoreCase));
+                if (bundleVm != null)
+                {
+                    pack.AllowBuild = bundleVm.IsSelected;
+                }
+
+                if (SingleBigPackMode)
+                {
+                    pack.Big = true;
+                }
             }
         }
 
@@ -1574,17 +1597,25 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
     private List<string> GetResolvedSelectedPacks(BuildConfiguration buildConfig)
     {
-        var selectedItems = Bundles.Where(b => b.IsSelected).Select(b => b.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var resolvedPacks = new List<string>(selectedItems);
-        if (buildConfig.Packs != null)
+        var selectedNames = Bundles.Where(b => b.IsSelected).Select(b => b.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var resolvedPacks = new List<string>();
+
+        if (buildConfig.Packs != null && buildConfig.Packs.Count > 0)
         {
             foreach (var pack in buildConfig.Packs)
             {
-                if (pack.ItemNames.Any(item => selectedItems.Contains(item)) && !resolvedPacks.Contains(pack.Name, StringComparer.OrdinalIgnoreCase))
+                if (selectedNames.Contains(pack.Name) || pack.ItemNames.Any(item => selectedNames.Contains(item)))
                 {
-                    resolvedPacks.Add(pack.Name);
+                    if (!resolvedPacks.Contains(pack.Name, StringComparer.OrdinalIgnoreCase))
+                    {
+                        resolvedPacks.Add(pack.Name);
+                    }
                 }
             }
+        }
+        else
+        {
+            resolvedPacks.AddRange(selectedNames);
         }
 
         return resolvedPacks;
@@ -2032,7 +2063,29 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     {
         Bundles.Clear();
 
-        if (config?.Items != null)
+        if (config?.Packs != null && config.Packs.Count > 0)
+        {
+            var anyBig = false;
+            foreach (var pack in config.Packs)
+            {
+                if (pack.IsBigPack)
+                {
+                    anyBig = true;
+                }
+
+                Bundles.Add(new BundleItemViewModel
+                {
+                    Name = pack.Name,
+                    IsSelected = pack.AllowBuild,
+                    IsBig = pack.IsBigPack,
+                    FileCount = pack.ItemNames?.Count ?? 0,
+                });
+            }
+
+            _singleBigPackMode = anyBig;
+            OnPropertyChanged(nameof(SingleBigPackMode));
+        }
+        else if (config?.Items != null)
         {
             foreach (var item in config.Items)
             {
