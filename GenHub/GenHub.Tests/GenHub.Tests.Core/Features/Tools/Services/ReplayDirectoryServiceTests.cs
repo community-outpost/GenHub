@@ -2254,4 +2254,127 @@ public sealed class ReplayDirectoryServiceTests
         Assert.NotNull(capturedRequest);
         Assert.Equal("steam-id", capturedRequest.GameInstallationId);
     }
+
+    /// <summary>
+    /// Verifies that ResolveThirdPartyRelativeExePath preserves relative paths located within the working directory.
+    /// </summary>
+    [Fact]
+    public void ResolveThirdPartyRelativeExePath_WhenPathIsWithinWorkingDir_PreservesRelativePath()
+    {
+        var workingDir = Path.Combine(Path.GetTempPath(), "genhub-test-dir");
+        var relativeExe = Path.Combine("mods", "client", "genpatcher.exe");
+        var client = new GameClient
+        {
+            PublisherType = "TheSuperHackers",
+            ExecutablePath = relativeExe,
+        };
+        var replay = CreateTestReplayForPathResolution("TheSuperHackers");
+
+        var result = ReplayDirectoryService.ResolveThirdPartyRelativeExePath(client, workingDir, null, replay);
+
+        Assert.Equal(relativeExe, result);
+    }
+
+    /// <summary>
+    /// Verifies that ResolveThirdPartyRelativeExePath falls back to the default executable name when a path escapes the working directory.
+    /// </summary>
+    [Fact]
+    public void ResolveThirdPartyRelativeExePath_WhenPathEscapesWorkingDir_FallsBackToDefaultExecutableName()
+    {
+        var workingDir = Path.Combine(Path.GetTempPath(), "genhub-test-dir");
+        var escapingExe = Path.Combine("..", "..", "escaped.exe");
+        var client = new GameClient
+        {
+            PublisherType = "TheSuperHackers",
+            ExecutablePath = escapingExe,
+        };
+        var replay = CreateTestReplayForPathResolution("TheSuperHackers");
+
+        var result = ReplayDirectoryService.ResolveThirdPartyRelativeExePath(client, workingDir, null, replay);
+
+        Assert.Equal("generalszh.exe", result);
+    }
+
+    /// <summary>
+    /// Verifies that ResolveThirdPartyRelativeExePath falls back to the generals executable for the Generals game type when escaping.
+    /// </summary>
+    [Fact]
+    public void ResolveThirdPartyRelativeExePath_WhenGeneralsGameTypeAndPathEscapes_FallsBackToGeneralsExecutable()
+    {
+        var workingDir = Path.Combine(Path.GetTempPath(), "genhub-test-dir");
+        var escapingExe = Path.Combine("..", "..", "escaped.exe");
+        var client = new GameClient
+        {
+            PublisherType = "GeneralsOnline",
+            ExecutablePath = escapingExe,
+        };
+        var replay = new ReplayFile
+        {
+            FileName = "Generals.rep",
+            FullPath = "/replays/Generals.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.Generals,
+            MatchedClient = new CrcMappingEntry
+            {
+                Publisher = "GeneralsOnline",
+            },
+        };
+
+        var result = ReplayDirectoryService.ResolveThirdPartyRelativeExePath(client, workingDir, null, replay);
+
+        Assert.Equal("generals.exe", result);
+    }
+
+    /// <summary>
+    /// Verifies that ResolveThirdPartyRelativeExePath falls back to the default executable name when the path equals the working directory.
+    /// </summary>
+    [Fact]
+    public void ResolveThirdPartyRelativeExePath_WhenPathEqualsWorkingDir_FallsBackToDefaultExecutableName()
+    {
+        var workingDir = Path.Combine(Path.GetTempPath(), "genhub-test-dir");
+        var client = new GameClient
+        {
+            PublisherType = "TheSuperHackers",
+            ExecutablePath = workingDir,
+        };
+        var replay = CreateTestReplayForPathResolution("TheSuperHackers");
+
+        var result = ReplayDirectoryService.ResolveThirdPartyRelativeExePath(client, workingDir, null, replay);
+
+        Assert.Equal("generalszh.exe", result);
+    }
+
+    /// <summary>
+    /// Verifies that ResolveThirdPartyRelativeExePath does not misclassify a valid filename starting with dots as an escaping path.
+    /// </summary>
+    [Fact]
+    public void ResolveThirdPartyRelativeExePath_WhenPathStartsWithDotsInName_PreservesRelativePath()
+    {
+        var workingDir = Path.Combine(Path.GetTempPath(), "genhub-test-dir");
+        var dotPrefixedExe = "..patched.exe";
+        var client = new GameClient
+        {
+            PublisherType = "TheSuperHackers",
+            ExecutablePath = dotPrefixedExe,
+        };
+        var replay = CreateTestReplayForPathResolution("TheSuperHackers");
+
+        var result = ReplayDirectoryService.ResolveThirdPartyRelativeExePath(client, workingDir, null, replay);
+
+        Assert.Equal(dotPrefixedExe, result);
+    }
+
+    private static ReplayFile CreateTestReplayForPathResolution(string publisher) => new()
+    {
+        FileName = "Test.rep",
+        FullPath = "/replays/Test.rep",
+        SizeInBytes = 2048,
+        LastModified = DateTime.UtcNow,
+        GameVersion = GameType.ZeroHour,
+        MatchedClient = new CrcMappingEntry
+        {
+            Publisher = publisher,
+        },
+    };
 }

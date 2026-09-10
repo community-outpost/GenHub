@@ -226,14 +226,12 @@ public partial class ReplayManagerViewModel(
             _runningProfileIds.Remove(message.ProfileId);
         }
 
-        foreach (var replay in GeneralsReplays.Concat(ZeroHourReplays))
+        foreach (var replay in GeneralsReplays.Concat(ZeroHourReplays)
+                     .Where(replay => string.Equals(replay.MatchingProfileId, message.ProfileId, StringComparison.OrdinalIgnoreCase)))
         {
-            if (string.Equals(replay.MatchingProfileId, message.ProfileId, StringComparison.OrdinalIgnoreCase))
-            {
-                replay.MatchingProfileId = null;
-                replay.MatchingProfileName = null;
-                replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
-            }
+            replay.MatchingProfileId = null;
+            replay.MatchingProfileName = null;
+            replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
         }
 
         Dispatcher.UIThread.Post(async () =>
