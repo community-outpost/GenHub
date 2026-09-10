@@ -151,7 +151,7 @@ public sealed partial class ProjectDashboardViewModel(
                 return parsed;
             }
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
             // Ignore parsing errors for quick preview
         }

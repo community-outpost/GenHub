@@ -250,38 +250,49 @@ public sealed class ArchiveServiceTests : IDisposable
     {
         // Arrange
         var workspaceExtracted = FindExtractedPatchDir();
-        if (workspaceExtracted == null)
+        if (workspaceExtracted != null)
         {
-            return;
+            var unpackedDir = Path.Combine(workspaceExtracted, "unpacked");
+            var officialBigFile = Path.Combine(workspaceExtracted, "500_900_CommunityPatch_CoreINI.big");
+
+            if (Directory.Exists(unpackedDir) && File.Exists(officialBigFile))
+            {
+                var targetBig = Path.Combine(_tempDirectory, "repacked.big");
+
+                // Act
+                var result = await _service.CreateBigArchiveAsync(unpackedDir, targetBig);
+
+                // Assert
+                result.Success.Should().BeTrue(result.FirstError);
+                File.Exists(targetBig).Should().BeTrue();
+
+                var expectedBytes = await File.ReadAllBytesAsync(officialBigFile);
+                var actualBytes = await File.ReadAllBytesAsync(targetBig);
+
+                actualBytes.Should().Equal(expectedBytes);
+                return;
+            }
         }
 
-        var unpackedDir = Path.Combine(workspaceExtracted, "unpacked");
-        var officialBigFile = Path.Combine(workspaceExtracted, "500_900_CommunityPatch_CoreINI.big");
+        // Fallback deterministic verification for CI when the 300MB reference fixture is not cloned
+        var fixtureDir = Path.Combine(_tempDirectory, "synthetic_patch");
+        Directory.CreateDirectory(Path.Combine(fixtureDir, "Data", "INI"));
+        await File.WriteAllTextAsync(Path.Combine(fixtureDir, "Data", "INI", "GameData.ini"), "GameData\n  Windowed = Yes\nEnd\n");
+        await File.WriteAllTextAsync(Path.Combine(fixtureDir, "Data", "INI", "ControlBar.ini"), "ControlBar\nEnd\n");
 
-        if (!Directory.Exists(unpackedDir) || !File.Exists(officialBigFile))
-        {
-            return;
-        }
+        var packedBig = Path.Combine(_tempDirectory, "synthetic.big");
+        var packResult = await _service.CreateBigArchiveAsync(fixtureDir, packedBig);
+        packResult.Success.Should().BeTrue(packResult.FirstError);
+        File.Exists(packedBig).Should().BeTrue();
 
-        var targetBig = Path.Combine(_tempDirectory, "repacked.big");
+        var unpackDir = Path.Combine(_tempDirectory, "unpacked_synthetic");
+        var unpackResult = await _service.ExtractBigArchiveAsync(packedBig, unpackDir);
+        unpackResult.Success.Should().BeTrue(unpackResult.FirstError);
+        unpackResult.Data.Should().Be(2);
 
-        // Act
-        var result = await _service.CreateBigArchiveAsync(unpackedDir, targetBig);
-
-        // Assert
-        result.Success.Should().BeTrue(result.FirstError);
-        File.Exists(targetBig).Should().BeTrue();
-
-        var expectedBytes = await File.ReadAllBytesAsync(officialBigFile);
-        var actualBytes = await File.ReadAllBytesAsync(targetBig);
-
-        actualBytes.Length.Should().Be(expectedBytes.Length);
-        actualBytes.Should().Equal(expectedBytes);
-
-        using var sha256 = SHA256.Create();
-        var hashBytes = sha256.ComputeHash(actualBytes);
-        var hashString = Convert.ToHexString(hashBytes).ToLowerInvariant();
-        hashString.Should().Be("6a02aca9aebe6602b3e4bb76bf6e2cf35086a33fec7c6f000d8e7a4048629775");
+        var originalContent = await File.ReadAllTextAsync(Path.Combine(fixtureDir, "Data", "INI", "GameData.ini"));
+        var unpackedContent = await File.ReadAllTextAsync(Path.Combine(unpackDir, "Data", "INI", "GameData.ini"));
+        unpackedContent.Should().Be(originalContent);
     }
 
     [Fact]

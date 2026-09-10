@@ -400,6 +400,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _printConfig;
 
+    private bool _isPopulatingBundles;
+
     /// <summary>
     /// Gets or sets a value indicating whether bundle packs should be packaged into single .big archives instead of zip files.
     /// </summary>
@@ -408,11 +410,21 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
     partial void OnSingleBigPackModeChanged(bool value)
     {
+        if (_isPopulatingBundles)
+        {
+            return;
+        }
+
         if (CurrentProject?.Configuration?.Packs != null)
         {
             foreach (var pack in CurrentProject.Configuration.Packs)
             {
                 pack.Big = value;
+                if (!string.IsNullOrWhiteSpace(pack.OutputFile))
+                {
+                    var targetExt = value ? ".big" : ".zip";
+                    pack.OutputFile = Path.ChangeExtension(pack.OutputFile, targetExt).Replace('\\', '/');
+                }
             }
         }
 
@@ -435,7 +447,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     private string _statusText = ReadyStatusLiteral;
 
     /// <summary>
-    /// Gets or sets the status color for the status bar.
+    /// Default status color value for the status bar.
     /// </summary>
     private const string DefaultStatusColor = "#10FFFFFF";
 
@@ -1064,7 +1076,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
                 var normalizedProjectDir = Path.GetFullPath(projectDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
-                if (specialFolders.Contains(normalizedProjectDir))
+                if (specialFolders.Contains(normalizedProjectDir) || IsPathInsideAppDirectory(normalizedProjectDir))
                 {
                     if (File.Exists(path))
                     {
@@ -1247,6 +1259,18 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             await CopyDirectoryAsync(templateDir, userProjectDir).ConfigureAwait(false);
         }
 
+        var buildDir = Path.Combine(userProjectDir, ".Build");
+        var releaseDir = Path.Combine(userProjectDir, ".Release");
+        if (!Directory.Exists(buildDir))
+        {
+            Directory.CreateDirectory(buildDir);
+        }
+
+        if (!Directory.Exists(releaseDir))
+        {
+            Directory.CreateDirectory(releaseDir);
+        }
+
         if (File.Exists(userProjectFile) && !userProjectPaths.Contains(userProjectFile, StringComparer.OrdinalIgnoreCase))
         {
             userProjectPaths.Add(userProjectFile);
@@ -1300,9 +1324,9 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return fullPath.StartsWith(baseDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(fullPath, baseDir, StringComparison.OrdinalIgnoreCase);
         }
-        catch
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException or IOException or System.Security.SecurityException)
         {
-            return false;
+            return true;
         }
     }
 
@@ -1922,11 +1946,11 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             if (bundleVm != null)
             {
                 pack.AllowBuild = bundleVm.IsSelected;
+                pack.Big = bundleVm.IsBig;
             }
-
-            if (SingleBigPackMode)
+            else
             {
-                pack.Big = true;
+                pack.Big = SingleBigPackMode;
             }
         }
     }
@@ -2109,7 +2133,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         if (buildConfig.Packs != null && buildConfig.Packs.Count > 0)
         {
             var matchingPacks = buildConfig.Packs
-                .Where(pack => selectedNames.Contains(pack.Name) || pack.ItemNames.Any(item => selectedNames.Contains(item)))
+                .Where(pack => selectedNames.Contains(pack.Name) || pack.ItemNames?.Any(item => selectedNames.Contains(item)) == true)
                 .Select(pack => pack.Name)
                 .Distinct(StringComparer.OrdinalIgnoreCase);
 
@@ -2608,7 +2632,15 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 });
             }
 
-            SingleBigPackMode = anyBig;
+            try
+            {
+                _isPopulatingBundles = true;
+                SingleBigPackMode = anyBig;
+            }
+            finally
+            {
+                _isPopulatingBundles = false;
+            }
         }
         else if (config?.Items != null)
         {
@@ -2833,6 +2865,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         if (disposing)
         {
+            FileManager.ImportBigFilesRequested -= ImportBigFilesAsync;
             _buildCancellationTokenSource?.Cancel();
             _buildCancellationTokenSource?.Dispose();
             _buildCancellationTokenSource = null;

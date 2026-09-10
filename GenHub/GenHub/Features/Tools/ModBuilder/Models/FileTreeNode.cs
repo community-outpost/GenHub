@@ -15,6 +15,7 @@ public partial class FileTreeNode : ObservableObject
     /// Gets or sets the display name of the file or directory.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IconData))]
     private string _name = string.Empty;
 
     /// <summary>
@@ -29,6 +30,7 @@ public partial class FileTreeNode : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FormattedSize))]
     [NotifyPropertyChangedFor(nameof(HasStatus))]
+    [NotifyPropertyChangedFor(nameof(IconData))]
     private bool _isDirectory;
 
     /// <summary>
@@ -99,6 +101,31 @@ public partial class FileTreeNode : ObservableObject
     /// Gets the formatted file size string.
     /// </summary>
     public string FormattedSize => IsDirectory ? string.Empty : FormatFileSize(Size);
+
+    /// <summary>
+    /// Gets the icon geometry data string based on node type and extension.
+    /// </summary>
+    public string IconData
+    {
+        get
+        {
+            if (IsDirectory)
+            {
+                return "M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z";
+            }
+
+            var ext = Path.GetExtension(Name).ToLowerInvariant();
+            return ext switch
+            {
+                ".tga" or ".dds" or ".psd" or ".bmp" or ".png" or ".jpg" =>
+                    "M8.5,13.5L11,16.5L14.5,12L19,18H5M21,19V5C21,3.89 20.1,3 19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19Z",
+                ".big" or ".zip" or ".rar" or ".7z" =>
+                    "M14,17H12V15H10V13H12V11H14V13H16V15H14M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3Z",
+                _ =>
+                    "M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z",
+            };
+        }
+    }
 
     /// <summary>
     /// Gets the status color based on file status.
@@ -180,22 +207,22 @@ public enum FileStatus
     Unknown,
 
     /// <summary>
-    /// File is new and doesn't exist in the game installation.
-    /// </summary>
-    New,
-
-    /// <summary>
-    /// File has been modified compared to the game installation.
-    /// </summary>
-    Modified,
-
-    /// <summary>
-    /// File is unchanged from the game installation.
+    /// File is unchanged compared to the game version.
     /// </summary>
     Unchanged,
 
     /// <summary>
-    /// File is missing from the project but exists in game.
+    /// File has been modified compared to the game version.
+    /// </summary>
+    Modified,
+
+    /// <summary>
+    /// File is new and does not exist in the game.
+    /// </summary>
+    New,
+
+    /// <summary>
+    /// File is missing from the project but exists in the game.
     /// </summary>
     Missing
 }

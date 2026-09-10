@@ -65,7 +65,7 @@ public class BundlePack
     /// Gets or sets a value indicating whether this pack is packaged as a .big file instead of a zip file.
     /// </summary>
     [JsonPropertyName("big")]
-    public bool Big { get; set; }
+    public bool? Big { get; set; }
 
     /// <summary>
     /// Gets or sets the custom output file name for this bundle pack.
@@ -77,7 +77,7 @@ public class BundlePack
     /// Gets a value indicating whether this bundle pack should be packaged into a .big archive.
     /// </summary>
     [JsonIgnore]
-    public bool IsBigPack => Big || (OutputFile != null && OutputFile.EndsWith(".big", StringComparison.OrdinalIgnoreCase));
+    public bool IsBigPack => Big ?? (OutputFile != null && OutputFile.EndsWith(".big", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// Gets or sets the game language to set on installation.

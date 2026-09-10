@@ -223,6 +223,8 @@ public class VelopackUpdateManagerTests
 
         try
         {
+            Directory.CreateDirectory(sampleDir);
+            File.WriteAllText(Path.Combine(sampleDir, "test.mbproj"), "{}");
             Directory.CreateDirectory(buildDir);
             Directory.CreateDirectory(releaseDir);
             Directory.CreateDirectory(cacheDir);
@@ -239,7 +241,7 @@ public class VelopackUpdateManagerTests
         {
             if (Directory.Exists(sampleDir))
             {
-                try { Directory.Delete(sampleDir, recursive: true); } catch { }
+                try { Directory.Delete(sampleDir, recursive: true); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
             }
         }
     }

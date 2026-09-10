@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace GenHub.Features.Tools.ModBuilder.ViewModels;
@@ -69,4 +70,17 @@ public partial class BundlePackConfigViewModel : ObservableObject
     /// Gets the display name for the bundle pack.
     /// </summary>
     public string DisplayName => $"{NamePrefix}{Name}{NameSuffix}";
+
+    /// <summary>
+    /// Synchronizes the OutputFile extension when the Big property changes.
+    /// </summary>
+    /// <param name="value">The new value of Big.</param>
+    partial void OnBigChanged(bool value)
+    {
+        if (!string.IsNullOrWhiteSpace(OutputFile))
+        {
+            var targetExt = value ? ".big" : ".zip";
+            OutputFile = Path.ChangeExtension(OutputFile, targetExt).Replace('\\', '/');
+        }
+    }
 }

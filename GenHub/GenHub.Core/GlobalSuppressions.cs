@@ -6,13 +6,6 @@
 using System.Diagnostics.CodeAnalysis;
 
 [assembly: SuppressMessage(
-    "Naming",
-    "CA1711:Identifiers should not have incorrect suffix",
-    Justification = "Legacy/established naming.",
-    Scope = "type",
-    Target = "~T:GenHub.Core.Models.Events.IEventBus")]
-
-[assembly: SuppressMessage(
     "StyleCop.CSharp.DocumentationRules",
     "SA1633:File should have header",
     Justification = "Licensing and other information is provided in seperate files.")]
@@ -33,27 +26,6 @@ using System.Diagnostics.CodeAnalysis;
     "StyleCop.CSharp.DocumentationRules",
     "SA1649:FileNameMustMatchTypeName",
     Justification = "Common exceptions are grouped in a single file for better maintainability.")]
-
-[assembly: SuppressMessage(
-    "Design",
-    "CS-R1004:Direct Task constructor usage",
-    Scope = "member",
-    Target = "~M:GenHub.Core.Models.Results.OperationResultExtensions.AsTask``1(GenHub.Core.Models.Results.OperationResult{``0})~System.Threading.Tasks.Task{GenHub.Core.Models.Results.OperationResult{``0}}",
-    Justification = "Task.FromResult is the recommended pattern for creating completed tasks.")]
-
-[assembly: SuppressMessage(
-    "Design",
-    "CS-R1004:Direct Task constructor usage",
-    Scope = "member",
-    Target = "~M:GenHub.Core.Models.Results.OperationResultExtensions.AsTask(GenHub.Core.Models.Results.OperationResult)~System.Threading.Tasks.Task{GenHub.Core.Models.Results.OperationResult}",
-    Justification = "Task.FromResult is the recommended pattern for creating completed tasks.")]
-
-[assembly: SuppressMessage(
-    "StyleCop.CSharp.DocumentationRules",
-    "SA1649:FileNameMustMatchTypeName",
-    Scope = "type",
-    Target = "~T:GenHub.Core.Models.Tools.ModBuilder.Converters.BundleFileConverter",
-    Justification = "BundleConverterModels.cs groups related converter types.")]
 
 [assembly: SuppressMessage(
     "StyleCop.CSharp.MaintainabilityRules",
@@ -82,7 +54,6 @@ using System.Diagnostics.CodeAnalysis;
     Justification = "PythonConfigModels.cs groups related DTO types.")]
 
 [assembly: SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1402:FileMayOnlyContainASingleType", Scope = "type", Target = "~T:GenHub.Core.Models.Tools.ModBuilder.PythonBundlesConfig", Justification = "Python configuration DTOs are grouped in PythonConfigModels.cs.")]
-[assembly: SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1402:FileMayOnlyContainASingleType", Scope = "type", Target = "~T:GenHub.Core.Models.Tools.ModBuilder.PythonModConfigRoot", Justification = "Python configuration DTOs are grouped in PythonConfigModels.cs.")]
 [assembly: SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1402:FileMayOnlyContainASingleType", Scope = "type", Target = "~T:GenHub.Core.Models.Tools.ModBuilder.PythonBundleItem", Justification = "Python configuration DTOs are grouped in PythonConfigModels.cs.")]
 [assembly: SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1402:FileMayOnlyContainASingleType", Scope = "type", Target = "~T:GenHub.Core.Models.Tools.ModBuilder.PythonBundlePack", Justification = "Python configuration DTOs are grouped in PythonConfigModels.cs.")]
 [assembly: SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1402:FileMayOnlyContainASingleType", Scope = "type", Target = "~T:GenHub.Core.Models.Tools.ModBuilder.PythonBundleFileGroup", Justification = "Python configuration DTOs are grouped in PythonConfigModels.cs.")]

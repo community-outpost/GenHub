@@ -951,14 +951,18 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                         dirName.StartsWith(".staging", StringComparison.OrdinalIgnoreCase) ||
                         dirName.Equals(".modbuilder_cache", StringComparison.OrdinalIgnoreCase))
                     {
-                        try
+                        var parentDir = Path.GetDirectoryName(dir);
+                        if (parentDir != null && (Directory.GetFiles(parentDir, "*.mbproj").Length > 0 || Directory.Exists(Path.Combine(parentDir, "config")) || Directory.Exists(Path.Combine(parentDir, "Configs"))))
                         {
-                            Directory.Delete(dir, recursive: true);
-                            _logger.LogInformation("Pre-update cleanup removed stray directory: {Dir}", dir);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "Pre-update cleanup could not delete directory: {Dir}", dir);
+                            try
+                            {
+                                Directory.Delete(dir, recursive: true);
+                                _logger.LogInformation("Pre-update cleanup removed stray directory: {Dir}", dir);
+                            }
+                            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                            {
+                                _logger.LogWarning(ex, "Pre-update cleanup could not delete directory: {Dir}", dir);
+                            }
                         }
                     }
                 }

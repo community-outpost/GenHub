@@ -95,8 +95,10 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             mergedConfig = MergeConfigurations(mergedConfig, config);
         }
 
-        logger.LogInformation("Successfully merged configurations with {ItemCount} items and {PackCount} packs",
-            mergedConfig.Items.Count, mergedConfig.Packs.Count);
+        logger.LogInformation(
+            "Successfully merged configurations with {ItemCount} items and {PackCount} packs",
+            mergedConfig.Items.Count,
+            mergedConfig.Packs.Count);
 
         return mergedConfig;
     }
@@ -158,7 +160,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             {
                 AbsBuildDir = Path.Combine(Directory.GetCurrentDirectory(), ModBuilderConstants.DefaultBuildDir),
                 AbsReleaseDir = Path.Combine(Directory.GetCurrentDirectory(), ModBuilderConstants.DefaultReleaseDir),
-            }
+            },
         };
 
         logger.LogInformation("Default configuration created");
@@ -177,7 +179,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             Folders = MergeFolderConfig(baseConfig.Folders, overrideConfig.Folders),
             Runner = MergeRunnerConfig(baseConfig.Runner, overrideConfig.Runner),
             Tools = new Dictionary<string, ToolConfiguration>(baseConfig.Tools),
-            LoadedConfigFiles = new List<string>(baseConfig.LoadedConfigFiles)
+            LoadedConfigFiles = new List<string>(baseConfig.LoadedConfigFiles),
         };
 
         MergeItems(merged, overrideConfig.Items);
@@ -281,8 +283,10 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                 var projectDir = ResolveProjectDirFromConfig(configPath);
                 config = ConvertSimplifiedConfig(simplified, projectDir);
                 config.LoadedConfigFiles.Add(configPath);
-                logger.LogInformation("Loaded {ItemCount} bundle items and {PackCount} bundle packs from simplified format",
-                    config.Items.Count, config.Packs.Count);
+                logger.LogInformation(
+                    "Loaded {ItemCount} bundle items and {PackCount} bundle packs from simplified format",
+                    config.Items.Count,
+                    config.Packs.Count);
                 return true;
             }
         }
@@ -332,8 +336,10 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         }
 
         directConfig.LoadedConfigFiles.Add(configPath);
-        logger.LogInformation("Successfully loaded configuration with {ItemCount} items and {PackCount} packs",
-            directConfig.Items.Count, directConfig.Packs.Count);
+        logger.LogInformation(
+            "Successfully loaded configuration with {ItemCount} items and {PackCount} packs",
+            directConfig.Items.Count,
+            directConfig.Packs.Count);
         return directConfig;
     }
 
@@ -470,7 +476,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         {
             AbsBuildDir = string.IsNullOrEmpty(overrideFolders.AbsBuildDir) ? baseFolders.AbsBuildDir : overrideFolders.AbsBuildDir,
             AbsReleaseDir = string.IsNullOrEmpty(overrideFolders.AbsReleaseDir) ? baseFolders.AbsReleaseDir : overrideFolders.AbsReleaseDir,
-            AbsGameDir = string.IsNullOrEmpty(overrideFolders.AbsGameDir) ? baseFolders.AbsGameDir : overrideFolders.AbsGameDir
+            AbsGameDir = string.IsNullOrEmpty(overrideFolders.AbsGameDir) ? baseFolders.AbsGameDir : overrideFolders.AbsGameDir,
         };
     }
 
@@ -517,8 +523,88 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         }
     }
 
+    private async Task<List<string>> TryDiscoverFromProjectFileAsync(string projectDir, CancellationToken cancellationToken)
+    {
+        var result = new List<string>();
+        try
+        {
+            var mbprojFiles = Directory.GetFiles(projectDir, "*.mbproj");
+            if (mbprojFiles.Length == 0)
+            {
+                return result;
+            }
+
+            var projectFile = mbprojFiles[0];
+            var json = await File.ReadAllTextAsync(projectFile, cancellationToken).ConfigureAwait(false);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            string configsDirName = "config";
+            if (root.TryGetProperty("directories", out var dirsEl) &&
+                dirsEl.TryGetProperty("configs", out var cfgEl) &&
+                cfgEl.GetString() is { Length: > 0 } cDir)
+            {
+                configsDirName = cDir;
+            }
+
+            if (root.TryGetProperty("bundleConfigs", out var bundleConfigsEl) &&
+                bundleConfigsEl.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in bundleConfigsEl.EnumerateArray())
+                {
+                    var pathStr = item.GetString();
+                    if (!string.IsNullOrWhiteSpace(pathStr))
+                    {
+                        var resolved = Path.IsPathRooted(pathStr)
+                            ? pathStr
+                            : Path.Combine(projectDir, pathStr);
+                        if (File.Exists(resolved) && !result.Contains(resolved, StringComparer.OrdinalIgnoreCase))
+                        {
+                            result.Add(resolved);
+                        }
+                    }
+                }
+            }
+
+            if (result.Count == 0)
+            {
+                var candidateDir = Path.Combine(projectDir, configsDirName);
+                if (Directory.Exists(candidateDir))
+                {
+                    var itemsPath = Path.Combine(candidateDir, ModBuilderConstants.BundleItemsConfigFileName);
+                    var packsPath = Path.Combine(candidateDir, ModBuilderConstants.BundlePacksConfigFileName);
+                    if (File.Exists(itemsPath))
+                    {
+                        result.Add(itemsPath);
+                    }
+
+                    if (File.Exists(packsPath))
+                    {
+                        result.Add(packsPath);
+                    }
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to parse project file in {ProjectDir}", projectDir);
+        }
+
+        return result;
+    }
+
     private async Task<List<string>> DiscoverProjectConfigFilesAsync(string projectDir, CancellationToken cancellationToken)
     {
+        var projectConfigFiles = await TryDiscoverFromProjectFileAsync(projectDir, cancellationToken).ConfigureAwait(false);
+        if (projectConfigFiles.Count > 0)
+        {
+            return projectConfigFiles;
+        }
+
         var configFiles = await TryDiscoverFromModJsonFilesAsync(projectDir, cancellationToken).ConfigureAwait(false);
         if (configFiles.Count > 0)
         {
@@ -910,14 +996,18 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         {
             foreach (var pair in fileGroup.SourceTargetList)
             {
-                AddBundleFileWithRegistry(item, new BundleFile
-                {
-                    AbsSourceParent = sourceParent,
-                    AbsSourceFile = pair.Source,
-                    RelTargetFile = pair.Target,
-                    Params = fileGroup.Params,
-                    ExcludeMarkersList = fileGroup.ExcludeMarkersList,
-                }, fileGroup.RegistryList, projectDir);
+                AddBundleFileWithRegistry(
+                    item,
+                    new BundleFile
+                    {
+                        AbsSourceParent = sourceParent,
+                        AbsSourceFile = pair.Source,
+                        RelTargetFile = pair.Target,
+                        Params = fileGroup.Params,
+                        ExcludeMarkersList = fileGroup.ExcludeMarkersList,
+                    },
+                    fileGroup.RegistryList,
+                    projectDir);
             }
         }
 
@@ -925,27 +1015,35 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         {
             foreach (var source in fileGroup.SourceList)
             {
-                AddBundleFileWithRegistry(item, new BundleFile
-                {
-                    AbsSourceParent = sourceParent,
-                    AbsSourceFile = source,
-                    RelTargetFile = source,
-                    Params = fileGroup.Params,
-                    ExcludeMarkersList = fileGroup.ExcludeMarkersList,
-                }, fileGroup.RegistryList, projectDir);
+                AddBundleFileWithRegistry(
+                    item,
+                    new BundleFile
+                    {
+                        AbsSourceParent = sourceParent,
+                        AbsSourceFile = source,
+                        RelTargetFile = source,
+                        Params = fileGroup.Params,
+                        ExcludeMarkersList = fileGroup.ExcludeMarkersList,
+                    },
+                    fileGroup.RegistryList,
+                    projectDir);
             }
         }
 
         if (!string.IsNullOrEmpty(fileGroup.Source) && !string.IsNullOrEmpty(fileGroup.Target))
         {
-            AddBundleFileWithRegistry(item, new BundleFile
-            {
-                AbsSourceParent = sourceParent,
-                AbsSourceFile = fileGroup.Source,
-                RelTargetFile = fileGroup.Target,
-                Params = fileGroup.Params,
-                ExcludeMarkersList = fileGroup.ExcludeMarkersList,
-            }, fileGroup.RegistryList, projectDir);
+            AddBundleFileWithRegistry(
+                item,
+                new BundleFile
+                {
+                    AbsSourceParent = sourceParent,
+                    AbsSourceFile = fileGroup.Source,
+                    RelTargetFile = fileGroup.Target,
+                    Params = fileGroup.Params,
+                    ExcludeMarkersList = fileGroup.ExcludeMarkersList,
+                },
+                fileGroup.RegistryList,
+                projectDir);
         }
     }
 
@@ -957,7 +1055,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             {
                 Type = BundleEventType.OnPreBuild,
                 AbsScript = Path.IsPathRooted(pythonItem.OnPreBuild.Script) ? pythonItem.OnPreBuild.Script : Path.Combine(projectDir, pythonItem.OnPreBuild.Script),
-                FuncName = "OnEvent"
+                FuncName = "OnEvent",
             };
         }
 
@@ -967,7 +1065,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             {
                 Type = BundleEventType.OnBuild,
                 AbsScript = Path.IsPathRooted(pythonItem.OnBuild.Script) ? pythonItem.OnBuild.Script : Path.Combine(projectDir, pythonItem.OnBuild.Script),
-                FuncName = "OnEvent"
+                FuncName = "OnEvent",
             };
         }
 
@@ -977,7 +1075,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             {
                 Type = BundleEventType.OnPostBuild,
                 AbsScript = Path.IsPathRooted(pythonItem.OnPostBuild.Script) ? pythonItem.OnPostBuild.Script : Path.Combine(projectDir, pythonItem.OnPostBuild.Script),
-                FuncName = "OnEvent"
+                FuncName = "OnEvent",
             };
         }
     }
@@ -1024,7 +1122,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                     ItemNames = simpPack.ItemNames ?? simpPack.Items ?? new List<string>(),
                     AllowBuild = simpPack.AllowBuild ?? true,
                     AllowInstall = simpPack.AllowInstall ?? true,
-                    Big = simpPack.Big ?? false,
+                    Big = simpPack.Big ?? (simpPack.OutputFile != null && simpPack.OutputFile.EndsWith(".big", StringComparison.OrdinalIgnoreCase)),
                     OutputFile = simpPack.OutputFile,
                 });
             }

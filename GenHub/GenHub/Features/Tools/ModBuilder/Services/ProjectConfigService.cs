@@ -370,25 +370,56 @@ public sealed class ProjectConfigService : IProjectConfigService
             }
             else
             {
-                // Validate required directories
-                var requiredDirs = new[]
+                // Ensure output directories exist, creating them if missing
+                var outputDirs = new[]
                 {
-                    Path.Combine(projectDir, project.Directories.Configs),
-                    Path.Combine(projectDir, project.Directories.GameFilesEdited),
                     Path.Combine(projectDir, project.Directories.Build),
                     Path.Combine(projectDir, project.Directories.Release),
                 };
 
-                foreach (var dir in requiredDirs.Where(dir => !Directory.Exists(dir)))
+                foreach (var dir in outputDirs.Where(dir => !Directory.Exists(dir)))
                 {
-                    errors.Add($"Required directory does not exist: {dir}");
+                    try
+                    {
+                        Directory.CreateDirectory(dir);
+                        _logger.LogDebug("Created output directory: {Directory}", dir);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Could not create output directory: {Directory}", dir);
+                    }
+                }
+
+                // Check configs directory (supporting both config and Configs)
+                var configsDir = Path.Combine(projectDir, project.Directories.Configs);
+                if (!Directory.Exists(configsDir))
+                {
+                    var altConfig = project.Directories.Configs.Equals("config", StringComparison.OrdinalIgnoreCase)
+                        ? "Configs"
+                        : "config";
+                    var altConfigsDir = Path.Combine(projectDir, altConfig);
+                    if (Directory.Exists(altConfigsDir))
+                    {
+                        project.Directories.Configs = altConfig;
+                        configsDir = altConfigsDir;
+                    }
+                    else
+                    {
+                        errors.Add($"Required directory does not exist: {configsDir}");
+                    }
+                }
+
+                // Check GameFilesEdited directory
+                var gameFilesEditedDir = Path.Combine(projectDir, project.Directories.GameFilesEdited);
+                if (!Directory.Exists(gameFilesEditedDir))
+                {
+                    errors.Add($"Required directory does not exist: {gameFilesEditedDir}");
                 }
 
                 // Validate bundle config files exist
-                var configsDir = Path.Combine(projectDir, project.Directories.Configs);
                 foreach (var config in project.BundleConfigs)
                 {
-                    var configPath = Path.Combine(configsDir, config);
+                    var configPath = ResolveBundleConfigPath(projectDir, project.Directories.Configs, config);
                     if (!File.Exists(configPath))
                     {
                         _logger.LogWarning("Bundle config file not found: {ConfigPath}", configPath);
@@ -564,6 +595,93 @@ public sealed class ProjectConfigService : IProjectConfigService
         }
     }
 
+    /// <summary>
+    /// Resolves the absolute path for a bundle configuration file, handling both
+    /// project-relative (e.g. "config/ModBundleItems.json") and configs-dir-relative (e.g. "ModBundleItems.json") paths.
+    /// </summary>
+    /// <param name="projectDir">The project directory.</param>
+    /// <param name="configsDirName">The configs directory name.</param>
+    /// <param name="config">The bundle configuration path or filename.</param>
+    /// <returns>The resolved absolute path.</returns>
+    public static string ResolveBundleConfigPath(string projectDir, string configsDirName, string config)
+    {
+        if (Path.IsPathRooted(config))
+        {
+            return config;
+        }
+
+        var normalizedConfig = config.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
+        var effectiveConfigsDirName = string.IsNullOrWhiteSpace(configsDirName) ? "config" : configsDirName;
+        var configsDir = Path.Combine(projectDir, effectiveConfigsDirName);
+
+        // 1. Direct match under configsDir (e.g. "ModBundleItems.json")
+        var pathInConfigs = Path.Combine(configsDir, normalizedConfig);
+        if (File.Exists(pathInConfigs))
+        {
+            return pathInConfigs;
+        }
+
+        // 2. Direct match under projectDir (e.g. "config/ModBundleItems.json")
+        var pathInProject = Path.Combine(projectDir, normalizedConfig);
+        if (File.Exists(pathInProject))
+        {
+            return pathInProject;
+        }
+
+        // 3. If normalizedConfig has a directory prefix, check candidate configs folders for the relative file
+        string? subPath = null;
+        if (normalizedConfig.StartsWith("config" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            subPath = normalizedConfig.Substring("config".Length + 1);
+        }
+        else if (normalizedConfig.StartsWith("Configs" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            subPath = normalizedConfig.Substring("Configs".Length + 1);
+        }
+        else if (!string.IsNullOrWhiteSpace(effectiveConfigsDirName) &&
+                 normalizedConfig.StartsWith(effectiveConfigsDirName + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            subPath = normalizedConfig.Substring(effectiveConfigsDirName.Length + 1);
+        }
+
+        if (subPath != null)
+        {
+            var candidateInConfigDir = Path.Combine(configsDir, subPath);
+            if (File.Exists(candidateInConfigDir))
+            {
+                return candidateInConfigDir;
+            }
+
+            var candidateInAltConfig = Path.Combine(projectDir, "config", subPath);
+            if (File.Exists(candidateInAltConfig))
+            {
+                return candidateInAltConfig;
+            }
+
+            var candidateInAltConfigs = Path.Combine(projectDir, "Configs", subPath);
+            if (File.Exists(candidateInAltConfigs))
+            {
+                return candidateInAltConfigs;
+            }
+
+            // Fallbacks if not yet created on disk
+            if (Directory.Exists(Path.Combine(projectDir, "config")))
+            {
+                return candidateInAltConfig;
+            }
+
+            if (Directory.Exists(Path.Combine(projectDir, "Configs")))
+            {
+                return candidateInAltConfigs;
+            }
+
+            return candidateInConfigDir;
+        }
+
+        // 4. Default fallback: if it contains a separator, prefer project-relative, otherwise configsDir-relative
+        return normalizedConfig.Contains(Path.DirectorySeparatorChar) ? pathInProject : pathInConfigs;
+    }
+
     /// <inheritdoc />
     public async Task<ProjectOperationResult<List<string>>> GetBundleConfigsAsync(
         string projectPath,
@@ -591,9 +709,8 @@ public sealed class ProjectConfigService : IProjectConfigService
                     sw.Elapsed);
             }
 
-            var configsDir = Path.Combine(projectDir, project.Directories.Configs);
             var bundleConfigPaths = project.BundleConfigs
-                .Select(config => Path.Combine(configsDir, config))
+                .Select(config => ResolveBundleConfigPath(projectDir, project.Directories.Configs, config))
                 .Where(File.Exists)
                 .ToList();
 
@@ -687,7 +804,9 @@ public sealed class ProjectConfigService : IProjectConfigService
                 }
             }
 
-            var destinationDir = Path.Combine(projectDir, "GameFilesEdited");
+            var projectLoadResult = await LoadProjectAsync(projectPath, false, cancellationToken).ConfigureAwait(false);
+            var project = projectLoadResult.Data;
+            var destinationDir = Path.Combine(projectDir, project?.Directories?.GameFilesEdited ?? ModBuilderConstants.GameFilesEditedDir);
             Directory.CreateDirectory(destinationDir);
 
             _logger.LogInformation("Importing {Count} BIG file(s) into project {ProjectPath} ({DestDir})", bigList.Count, projectPath, destinationDir);
@@ -701,7 +820,7 @@ public sealed class ProjectConfigService : IProjectConfigService
 
             if (createBundlePackForBig)
             {
-                await ConfigureBundlePacksForImportedBigsAsync(projectDir, bigList, cancellationToken).ConfigureAwait(false);
+                await ConfigureBundlePacksForImportedBigsAsync(projectDir, bigList, cancellationToken, project).ConfigureAwait(false);
             }
 
             sw.Stop();
@@ -797,9 +916,13 @@ public sealed class ProjectConfigService : IProjectConfigService
     private async Task ConfigureBundlePacksForImportedBigsAsync(
         string projectDir,
         List<string> bigFilePaths,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ModBuilderProject? project = null)
     {
-        var configsDir = Path.Combine(projectDir, "config");
+        var configFolder = !string.IsNullOrWhiteSpace(project?.Directories?.Configs)
+            ? project.Directories.Configs
+            : (Directory.Exists(Path.Combine(projectDir, "Configs")) ? "Configs" : "config");
+        var configsDir = Path.Combine(projectDir, configFolder);
         Directory.CreateDirectory(configsDir);
 
         var itemsPath = Path.Combine(configsDir, ModBuilderConstants.BundleItemsConfigFileName);
@@ -833,6 +956,7 @@ public sealed class ProjectConfigService : IProjectConfigService
 
         if (itemNames.Count == 0)
         {
+            var gameFilesDirName = project?.Directories?.GameFilesEdited ?? ModBuilderConstants.GameFilesEditedDir;
             itemNames.Add("ImportedGameFiles");
             var bundleItemsConfig = new
             {
@@ -841,7 +965,7 @@ public sealed class ProjectConfigService : IProjectConfigService
                     new
                     {
                         Name = "ImportedGameFiles",
-                        SourceFiles = new[] { "GameFilesEdited/**/*" },
+                        SourceFiles = new[] { $"{gameFilesDirName}/**/*" },
                         Description = "Files extracted from imported BIG archive(s)",
                     },
                 },
@@ -943,16 +1067,26 @@ public sealed class ProjectConfigService : IProjectConfigService
                         await File.WriteAllTextAsync(packsPath, rootObj.ToJsonString(_jsonOptions), cancellationToken).ConfigureAwait(false);
                         _logger.LogDebug("Updated ModBundlePacks.json with imported BIG packs at {Path}", packsPath);
                     }
+                    else if (node is JsonArray rootArray)
+                    {
+                        foreach (var pack in packsToAdd)
+                        {
+                            var packJson = JsonSerializer.Serialize(pack, _jsonOptions);
+                            var packNode = JsonNode.Parse(packJson);
+                            if (packNode != null)
+                            {
+                                rootArray.Add(packNode);
+                            }
+                        }
+
+                        await File.WriteAllTextAsync(packsPath, rootArray.ToJsonString(_jsonOptions), cancellationToken).ConfigureAwait(false);
+                        _logger.LogDebug("Updated array-root ModBundlePacks.json with imported BIG packs at {Path}", packsPath);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to append new packs to ModBundlePacks.json, rewriting with new packs");
-                    var bundlePacksConfig = new
-                    {
-                        BundlePacks = packsToAdd.ToArray(),
-                    };
-                    var packsJson = JsonSerializer.Serialize(bundlePacksConfig, _jsonOptions);
-                    await File.WriteAllTextAsync(packsPath, packsJson, cancellationToken).ConfigureAwait(false);
+                    _logger.LogError(ex, "Failed to append new packs to existing ModBundlePacks.json at {Path}", packsPath);
+                    throw;
                 }
             }
         }

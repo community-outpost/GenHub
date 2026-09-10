@@ -168,6 +168,11 @@ public static class BigFilePacker
 
             var size = BinaryPrimitives.ReadUInt32BigEndian(uintBuffer);
 
+            if ((ulong)offset + size > (ulong)fs.Length)
+            {
+                throw new InvalidDataException($"Entry {i} has offset ({offset}) and size ({size}) exceeding archive length ({fs.Length}).");
+            }
+
             var pathBytes = new List<byte>(64);
             int b;
             while ((b = fs.ReadByte()) > 0)
@@ -199,7 +204,8 @@ public static class BigFilePacker
             }
 
             var targetPath = Path.GetFullPath(Path.Combine(destFullPath, normalizedRel));
-            if (!targetPath.StartsWith(destFullPathWithSep, StringComparison.OrdinalIgnoreCase))
+            var relCheck = Path.GetRelativePath(destFullPath, targetPath);
+            if (relCheck.StartsWith("..", StringComparison.Ordinal) || Path.IsPathRooted(relCheck))
             {
                 // Path traversal protection
                 continue;
@@ -233,6 +239,11 @@ public static class BigFilePacker
 
                     await outFs.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
                     remaining -= read;
+                }
+
+                if (remaining > 0)
+                {
+                    throw new EndOfStreamException($"Archive truncated while extracting entry '{relPath}'. Expected {size} bytes, read {size - remaining} bytes.");
                 }
             }
 
@@ -381,6 +392,7 @@ public static class BigFilePacker
         CancellationToken cancellationToken)
     {
         var relativePaths = EnumerateBigFiles(sourceDirectory, cancellationToken);
+        relativePaths.Sort(StringComparer.OrdinalIgnoreCase);
 
         var entries = new List<BigFileEntry>();
         long headerSize = 16;
@@ -465,6 +477,13 @@ public static class BigFilePacker
 
     private static bool IsEligibleBigSourceFile(string fullPath, string destinationFullPath, string? targetArchiveFullPath)
     {
+        fullPath = Path.GetFullPath(fullPath);
+        destinationFullPath = Path.GetFullPath(destinationFullPath);
+        if (targetArchiveFullPath != null)
+        {
+            targetArchiveFullPath = Path.GetFullPath(targetArchiveFullPath);
+        }
+
         if (string.Equals(fullPath, destinationFullPath, StringComparison.OrdinalIgnoreCase))
         {
             return false;
@@ -498,13 +517,19 @@ public static class BigFilePacker
     {
         var normalized = relativePath.TrimStart('\\');
 
+        var bestIndex = -1;
         foreach (var root in KnownRoots)
         {
             var idx = normalized.IndexOf(root, StringComparison.OrdinalIgnoreCase);
-            if (idx >= 0)
+            if (idx >= 0 && (bestIndex == -1 || idx < bestIndex))
             {
-                return normalized[idx..];
+                bestIndex = idx;
             }
+        }
+
+        if (bestIndex >= 0)
+        {
+            return normalized[bestIndex..];
         }
 
         return normalized;
@@ -562,6 +587,11 @@ public static class BigFilePacker
             cancellationToken.ThrowIfCancellationRequested();
 
             await using var fileStream = new FileStream(entry.FullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            if (fileStream.Length != entry.Size)
+            {
+                throw new InvalidOperationException($"File '{entry.FullPath}' size changed from {entry.Size} to {fileStream.Length} during packing.");
+            }
+
             int bytesRead;
             while ((bytesRead = await fileStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false)) > 0)
             {
