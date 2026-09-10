@@ -87,7 +87,7 @@ public sealed class BuildEngineService : IBuildEngineService
         BuildConfiguration configuration,
         List<string> selectedBundlePacks,
         BuildStep buildSteps,
-        IProgress<string>? progress = null,
+        IProgress<BuildProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(project);
@@ -127,14 +127,7 @@ public sealed class BuildEngineService : IBuildEngineService
                 buildStructure.Setup.SelectedPacks = selectedBundlePacks;
             }
 
-            // wrap IProgress<string> to IProgress<BuildProgress>
-            IProgress<BuildProgress>? buildProgress = null;
-            if (progress != null)
-            {
-                buildProgress = new Progress<BuildProgress>(p => progress.Report(p.CurrentStep));
-            }
-
-            var success = await RunAsync(buildStructure, buildProgress, cancellationToken)
+            var success = await RunAsync(buildStructure, progress, cancellationToken)
                 .ConfigureAwait(false);
 
             sw.Stop();
@@ -1125,15 +1118,40 @@ public sealed class BuildEngineService : IBuildEngineService
         }
     }
 
-    private static string GetTargetPathForFile(string sourcePath, BuildIndex stage, BuildSetup setup)
+    private string GetTargetPathForFile(string sourcePath, BuildIndex stage, BuildSetup setup)
     {
         var buildDir = setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir;
-        var fileName = Path.GetFileName(sourcePath);
+        string? relPath = null;
+
+        if (_cachedBuildStructure?.BundleItems != null)
+        {
+            var bundleFile = _cachedBuildStructure.BundleItems.Values
+                .SelectMany(i => i.Files)
+                .FirstOrDefault(f => string.Equals(f.AbsSourceFile, sourcePath, StringComparison.OrdinalIgnoreCase));
+            if (bundleFile != null)
+            {
+                relPath = GetTargetRelativePath(bundleFile);
+            }
+        }
+
+        if (string.IsNullOrEmpty(relPath) && !string.IsNullOrEmpty(setup.ProjectDir))
+        {
+            var rel = Path.GetRelativePath(setup.ProjectDir, sourcePath);
+            if (!rel.StartsWith("..", StringComparison.Ordinal))
+            {
+                relPath = rel;
+            }
+        }
+
+        if (string.IsNullOrEmpty(relPath))
+        {
+            relPath = Path.GetFileName(sourcePath);
+        }
 
         return stage switch
         {
-            BuildIndex.RawBundleItem => Path.Combine(buildDir, ModBuilderConstants.RawBundleItemsSubdir, fileName),
-            _ => Path.Combine(buildDir, fileName),
+            BuildIndex.RawBundleItem => Path.Combine(buildDir, ModBuilderConstants.RawBundleItemsSubdir, relPath),
+            _ => Path.Combine(buildDir, relPath),
         };
     }
 

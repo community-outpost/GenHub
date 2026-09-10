@@ -54,7 +54,10 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     private readonly ILogger<ModBuilderViewModel> _logger;
     private readonly Stopwatch _buildStopwatch = new();
     private readonly HashSet<string> _packsPromotedToBig = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<RecentProjectInfo> _allRecentProjects = [];
     private CancellationTokenSource? _buildCancellationTokenSource;
+    private bool _isPopulatingBundles;
+    private bool _disposed;
 
     /// <summary>
     /// Gets the file manager view model.
@@ -178,8 +181,6 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// Gets the list of recent projects.
     /// </summary>
     public ObservableCollection<RecentProjectInfo> RecentProjects { get; } = [];
-
-    private readonly List<RecentProjectInfo> _allRecentProjects = [];
 
     /// <summary>
     /// Gets or sets the search query for filtering projects.
@@ -401,8 +402,6 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// </summary>
     [ObservableProperty]
     private bool _printConfig;
-
-    private bool _isPopulatingBundles;
 
     /// <summary>
     /// Gets or sets a value indicating whether bundle packs should be packaged into single .big archives instead of zip files.
@@ -893,7 +892,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 await LoadProjectDataAsync().ConfigureAwait(false);
                 if (CurrentProject != null)
                 {
-                    await FileManager.InitializeAsync(CurrentProject.ProjectDir).ConfigureAwait(false);
+                    var editedDir = CurrentProject.Directories?.GameFilesEdited ?? ModBuilderConstants.GameFilesEditedDir;
+                    await FileManager.InitializeAsync(CurrentProject.ProjectDir, editedDir).ConfigureAwait(false);
                 }
             }
             else
@@ -1010,7 +1010,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
                 if (CurrentProject != null)
                 {
-                    await FileManager.InitializeAsync(CurrentProject.ProjectDir).ConfigureAwait(false);
+                    var editedDir = CurrentProject.Directories?.GameFilesEdited ?? ModBuilderConstants.GameFilesEditedDir;
+                    await FileManager.InitializeAsync(CurrentProject.ProjectDir, editedDir).ConfigureAwait(false);
                 }
 
                 _notificationService.ShowSuccess(
@@ -1231,7 +1232,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var sampleDir = Path.GetDirectoryName(samplePath);
             if (!string.IsNullOrEmpty(sampleDir))
             {
-                await EnsureSampleTgaExistsAsync(sampleDir).ConfigureAwait(false);
+                var sampleEditedDir = CurrentProject?.Directories?.GameFilesEdited;
+                await EnsureSampleTgaExistsAsync(sampleDir, sampleEditedDir).ConfigureAwait(false);
             }
 
             await LoadProjectFromPathAsync(samplePath).ConfigureAwait(false);
@@ -1555,7 +1557,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var projectDir = GetEffectiveProjectDir();
             if (!string.IsNullOrEmpty(projectDir))
             {
-                await FileManager.InitializeAsync(projectDir, CancellationToken.None).ConfigureAwait(false);
+                var editedDir = CurrentProject?.Directories?.GameFilesEdited ?? ModBuilderConstants.GameFilesEditedDir;
+                await FileManager.InitializeAsync(projectDir, editedDir, CancellationToken.None).ConfigureAwait(false);
             }
 
             await InvokeOnUIThreadAsync(async () =>
@@ -1586,9 +1589,13 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Ensures the sample TGA file exists by creating it if needed.
     /// </summary>
-    private static async Task EnsureSampleTgaExistsAsync(string projectRoot)
+    private static async Task EnsureSampleTgaExistsAsync(string projectRoot, string? gameFilesEditedDir = null)
     {
-        var tgaPath = Path.Combine(projectRoot, "GameFilesEdited", "Art", "Textures", "sample.tga");
+        var editedDir = !string.IsNullOrWhiteSpace(gameFilesEditedDir)
+            ? gameFilesEditedDir
+            : ModBuilderConstants.GameFilesEditedDir;
+        var editedPath = Path.IsPathRooted(editedDir) ? editedDir : Path.Combine(projectRoot, editedDir);
+        var tgaPath = Path.Combine(editedPath, "Art", "Textures", "sample.tga");
 
         if (File.Exists(tgaPath))
         {
@@ -2104,7 +2111,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var buildConfig = await PrepareBuildConfigurationAsync(_buildCancellationTokenSource.Token).ConfigureAwait(false);
             var selectedPacks = GetResolvedSelectedPacks(buildConfig);
 
-            var progress = new Progress<string>(AppendBuildLog);
+            var progress = new Progress<BuildProgress>(OnBuildProgress);
 
             var buildSteps = DetermineBuildSteps();
             _logger.LogInformation("Build steps configured: {BuildSteps} (CreateManifestEnabled={CreateManifestEnabled})", buildSteps, CreateManifestEnabled);
@@ -2206,7 +2213,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var buildConfig = await PrepareBuildConfigurationAsync(_buildCancellationTokenSource.Token).ConfigureAwait(false);
             var selectedPacks = GetResolvedSelectedPacks(buildConfig);
 
-            var progress = new Progress<string>(AppendBuildLog);
+            var progress = new Progress<BuildProgress>(OnBuildProgress);
 
             var result = await _buildEngineService.ExecuteBuildAsync(
                 CurrentProject,
@@ -2448,7 +2455,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         try
         {
-            var editFolder = Path.Combine(projectDir, "GameFilesEdited");
+            var editedDir = CurrentProject?.Directories?.GameFilesEdited ?? ModBuilderConstants.GameFilesEditedDir;
+            var editFolder = Path.IsPathRooted(editedDir) ? editedDir : Path.Combine(projectDir, editedDir);
             if (IsPathInsideAppDirectory(editFolder))
             {
                 _logger.LogWarning("Refusing to open edit folder inside app directory: {Path}", editFolder);
@@ -2713,7 +2721,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
     private async Task InitializeFileManagerAndGameDirectoryAsync(string projectDir)
     {
-        await FileManager.InitializeAsync(projectDir, CancellationToken.None).ConfigureAwait(false);
+        var editedDir = CurrentProject?.Directories?.GameFilesEdited ?? ModBuilderConstants.GameFilesEditedDir;
+        await FileManager.InitializeAsync(projectDir, editedDir, CancellationToken.None).ConfigureAwait(false);
 
         if (CurrentProject != null && string.IsNullOrEmpty(CurrentProject.GameDir))
         {
@@ -2767,6 +2776,10 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             if (!string.IsNullOrEmpty(progress.CurrentFile))
             {
                 AppendBuildLog($"{progress.CurrentStage}: {progress.CurrentFile}");
+            }
+            else if (!string.IsNullOrEmpty(progress.CurrentStep))
+            {
+                AppendBuildLog(progress.CurrentStep);
             }
         });
     }
@@ -2880,8 +2893,6 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             Dispatcher.UIThread.Post(action);
         }
     }
-
-    private bool _disposed;
 
     /// <summary>
     /// Disposes resources.
