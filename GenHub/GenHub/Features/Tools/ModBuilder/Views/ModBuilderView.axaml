@@ -237,6 +237,14 @@
                 <TextBlock Text="Asset Manager" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
+            <Button Command="{Binding ImportBigFilesCommand}" Classes="header-action-btn"
+                    IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    ToolTip.Tip="Extract and import .BIG archives directly into this project's GameFilesEdited folder so you can edit and rebuild them.">
+              <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Path Width="13" Height="13" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconArchive}" Stretch="Uniform" VerticalAlignment="Center"/>
+                <TextBlock Text="Import .BIG" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
             <Button Command="{Binding SaveProjectCommand}" Classes="header-action-btn"
                     IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"
                     ToolTip.Tip="Save project configuration (.mbproj)">

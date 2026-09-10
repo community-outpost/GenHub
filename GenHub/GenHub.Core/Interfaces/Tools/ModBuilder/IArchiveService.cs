@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO.Compression;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,7 +8,7 @@ using GenHub.Core.Models.Results;
 namespace GenHub.Core.Interfaces.Tools.ModBuilder;
 
 /// <summary>
-/// Service for creating various archive formats (BIG, ZIP, TAR, TAR.GZ).
+/// Service for creating and extracting various archive formats (BIG, ZIP, TAR, TAR.GZ).
 /// </summary>
 public interface IArchiveService
 {
@@ -22,6 +23,38 @@ public interface IArchiveService
     Task<OperationResult<bool>> CreateBigArchiveAsync(
         string sourceDirectory,
         string targetBigPath,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Extracts files from a BIG archive to the specified target directory.
+    /// </summary>
+    /// <param name="bigFilePath">Path to the .big archive.</param>
+    /// <param name="targetDirectory">Target directory to extract files into.</param>
+    /// <param name="overwrite">Whether to overwrite existing files.</param>
+    /// <param name="progress">Optional progress reporter (0.0 to 1.0).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Operation result containing the number of extracted files.</returns>
+    Task<OperationResult<int>> ExtractBigArchiveAsync(
+        string bigFilePath,
+        string targetDirectory,
+        bool overwrite = true,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Extracts files from multiple BIG archives sequentially to the specified target directory.
+    /// </summary>
+    /// <param name="bigFilePaths">Collection of paths to .big archives.</param>
+    /// <param name="targetDirectory">Target directory to extract files into.</param>
+    /// <param name="overwrite">Whether to overwrite existing files.</param>
+    /// <param name="progress">Optional progress reporter (0.0 to 1.0).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Operation result containing the total number of extracted files.</returns>
+    Task<OperationResult<int>> ExtractBigArchivesAsync(
+        IEnumerable<string> bigFilePaths,
+        string targetDirectory,
+        bool overwrite = true,
         IProgress<double>? progress = null,
         CancellationToken cancellationToken = default);
 

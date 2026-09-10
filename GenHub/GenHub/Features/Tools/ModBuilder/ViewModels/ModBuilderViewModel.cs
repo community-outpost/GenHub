@@ -88,6 +88,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         _projectStructureGenerator = projectStructureGenerator;
         _notificationService = notificationService;
         FileManager = fileManager;
+        FileManager.ImportBigFilesRequested += ImportBigFilesAsync;
         _loggerFactory = loggerFactory;
         _logger = logger;
         _dialogService = dialogService;
@@ -768,6 +769,212 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// Imports one or more .BIG archives into the current project's GameFilesEdited directory.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    private async Task ImportBigFilesAsync()
+    {
+        if (CurrentProject == null || string.IsNullOrWhiteSpace(ProjectPath))
+        {
+            _notificationService.ShowWarning(
+                "No Project Open",
+                "Please open or create a project first before importing .BIG files.");
+            return;
+        }
+
+        var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+        var topLevel = TopLevel.GetTopLevel(lifetime?.MainWindow);
+        if (topLevel == null)
+        {
+            return;
+        }
+
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Import .BIG Archives into Project",
+            AllowMultiple = true,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("Command & Conquer BIG Archive (*.big)") { Patterns = ["*.big"], },
+                new FilePickerFileType("All Files (*.*)") { Patterns = ["*.*"], },
+            ],
+        }).ConfigureAwait(false);
+
+        if (files == null || files.Count == 0)
+        {
+            return;
+        }
+
+        var selectedPaths = files.Select(f => f.Path.LocalPath).Where(File.Exists).ToList();
+        if (selectedPaths.Count == 0)
+        {
+            return;
+        }
+
+        _logger.LogInformation("Importing {Count} .BIG file(s) into current project: {ProjectPath}", selectedPaths.Count, ProjectPath);
+        AppendBuildLog($"Importing {selectedPaths.Count} .BIG archive(s) into project...");
+
+        try
+        {
+            var result = await _projectConfigService.ImportBigFilesAsync(
+                ProjectPath,
+                selectedPaths,
+                createBundlePackForBig: true,
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+            if (result.Success)
+            {
+                AppendBuildLog($"Successfully imported {result.Data} files from {selectedPaths.Count} BIG archive(s).");
+                _notificationService.ShowSuccess(
+                    "Import Complete",
+                    $"Imported {result.Data} file(s) from {selectedPaths.Count} .BIG archive(s) into GameFilesEdited.");
+
+                await LoadProjectDataAsync().ConfigureAwait(false);
+                if (CurrentProject != null)
+                {
+                    await FileManager.InitializeAsync(CurrentProject.ProjectDir).ConfigureAwait(false);
+                }
+            }
+            else
+            {
+                _notificationService.ShowError("Import Failed", result.FirstError ?? UnknownErrorLiteral);
+                AppendBuildLog($"Import failed: {result.FirstError}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to import BIG file(s)");
+            _notificationService.ShowError("Import Error", ex.Message);
+            AppendBuildLog($"Error importing BIG archive: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Creates a new project initialized from one or more existing .BIG files.
+    /// Extracts all files into GameFilesEdited and automatically creates bundle pack configurations.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    private async Task ImportBigModAsync()
+    {
+        var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+        var topLevel = TopLevel.GetTopLevel(lifetime?.MainWindow);
+        if (topLevel == null)
+        {
+            return;
+        }
+
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Select .BIG Mod Archives to Import",
+            AllowMultiple = true,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("Command & Conquer BIG Archive (*.big)") { Patterns = ["*.big"], },
+                new FilePickerFileType("All Files (*.*)") { Patterns = ["*.*"], },
+            ],
+        }).ConfigureAwait(false);
+
+        if (files == null || files.Count == 0)
+        {
+            return;
+        }
+
+        var selectedPaths = files.Select(f => f.Path.LocalPath).Where(File.Exists).ToList();
+        if (selectedPaths.Count == 0)
+        {
+            return;
+        }
+
+        var primaryBigName = Path.GetFileNameWithoutExtension(selectedPaths[0]);
+        var defaultFolder = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            "ModBuilder");
+        if (!Directory.Exists(defaultFolder))
+        {
+            try
+            {
+                Directory.CreateDirectory(defaultFolder);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not create default ModBuilder directory at {Folder}", defaultFolder);
+            }
+        }
+
+        var suggestedFolder = Directory.Exists(defaultFolder)
+            ? await topLevel.StorageProvider.TryGetFolderFromPathAsync(defaultFolder).ConfigureAwait(false)
+            : null;
+
+        var saveFile = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Save Imported ModBuilder Project",
+            SuggestedFileName = $"{primaryBigName}.mbproj",
+            SuggestedStartLocation = suggestedFolder,
+            FileTypeChoices =
+            [
+                new FilePickerFileType("ModBuilder Project") { Patterns = ["*.mbproj"], },
+            ],
+        }).ConfigureAwait(false);
+
+        if (saveFile == null)
+        {
+            return;
+        }
+
+        var projectPath = saveFile.Path.LocalPath;
+        var projectName = Path.GetFileNameWithoutExtension(projectPath);
+
+        _logger.LogInformation("Creating imported project '{ProjectName}' at {ProjectPath} from {BigCount} BIG archives", projectName, projectPath, selectedPaths.Count);
+        AppendBuildLog($"Creating project '{projectName}' from {selectedPaths.Count} .BIG archive(s)...");
+
+        try
+        {
+            var result = await _projectConfigService.CreateProjectFromBigFilesAsync(
+                projectPath,
+                projectName,
+                selectedPaths,
+                contentType: SelectedContentType,
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+            if (result.Success && result.Data != null)
+            {
+                CurrentProject = result.Data;
+                ProjectPath = projectPath;
+                ProjectName = projectName;
+                SelectedContentType = result.Data.ContentType;
+                IsProjectLoaded = true;
+
+                await LoadProjectDataAsync().ConfigureAwait(false);
+                await _projectConfigService.AddToRecentProjectsAsync(projectPath, CancellationToken.None).ConfigureAwait(false);
+                await LoadRecentProjectsAsync().ConfigureAwait(false);
+
+                if (CurrentProject != null)
+                {
+                    await FileManager.InitializeAsync(CurrentProject.ProjectDir).ConfigureAwait(false);
+                }
+
+                _notificationService.ShowSuccess(
+                    "BIG Mod Imported",
+                    $"Project '{projectName}' created from {selectedPaths.Count} .BIG archive(s).\nExtracted to GameFilesEdited and bundle packs configured.");
+                AppendBuildLog($"Imported project created successfully: {projectPath}");
+            }
+            else
+            {
+                _notificationService.ShowError("Import Failed", result.FirstError ?? UnknownErrorLiteral);
+                AppendBuildLog($"Failed to create imported project: {result.FirstError}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create project from BIG archive(s)");
+            _notificationService.ShowError("Import Error", ex.Message);
+            AppendBuildLog($"Error importing BIG archive(s): {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// Opens a recent project from its file path or info object.
     /// </summary>
     /// <param name="parameter">The file path or recent project info to open.</param>
@@ -858,7 +1065,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     Path.GetPathRoot(projectDir),
                 }.Where(p => !string.IsNullOrEmpty(p))
-                 .Select(p => Path.GetFullPath(p).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+                 .Select(p => Path.GetFullPath(p!).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
                  .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
                 var normalizedProjectDir = Path.GetFullPath(projectDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);

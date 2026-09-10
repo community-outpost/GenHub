@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -12,6 +13,7 @@ using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
+using GenHub.Features.Content.Services.CommunityOutpost;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Tools.ModBuilder.Services;
@@ -68,7 +70,6 @@ public sealed class ProjectConfigService : IProjectConfigService
     {
         var sw = Stopwatch.StartNew();
 
-        cancellationToken.ThrowIfCancellationRequested();
         try
         {
             if (string.IsNullOrWhiteSpace(projectPath))
@@ -106,6 +107,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             var project = new ModBuilderProject
             {
                 Name = projectName,
+                Description = template.Description ?? string.Empty,
                 GameInstallationId = gameInstallationId,
                 ContentType = contentType,
                 Directories = new ProjectDirectories(),
@@ -196,11 +198,11 @@ public sealed class ProjectConfigService : IProjectConfigService
             if (!File.Exists(projectPath))
             {
                 return ProjectOperationResult<ModBuilderProject>.CreateFailure(
-                    $"Project file not found: {projectPath}",
+                    $"Project file not found at: {projectPath}",
                     sw.Elapsed);
             }
 
-            // Read and deserialize project file using streaming
+            // Read and deserialize project file
             await using var stream = new FileStream(
                 projectPath,
                 FileMode.Open,
@@ -208,7 +210,12 @@ public sealed class ProjectConfigService : IProjectConfigService
                 FileShare.Read,
                 IoConstants.DefaultFileBufferSize,
                 FileOptions.Asynchronous | FileOptions.SequentialScan);
-            var project = await JsonSerializer.DeserializeAsync<ModBuilderProject>(stream, _jsonOptions, cancellationToken).ConfigureAwait(false);
+
+            var project = await JsonSerializer.DeserializeAsync<ModBuilderProject>(
+                stream,
+                _jsonOptions,
+                cancellationToken)
+                .ConfigureAwait(false);
 
             if (project == null)
             {
@@ -217,6 +224,7 @@ public sealed class ProjectConfigService : IProjectConfigService
                     sw.Elapsed);
             }
 
+            // Set project directory
             project.ProjectDir = Path.GetDirectoryName(projectPath) ?? string.Empty;
 
             // Validate integrity if requested
@@ -225,8 +233,7 @@ public sealed class ProjectConfigService : IProjectConfigService
                 var validationResult = await ValidateProjectAsync(projectPath, project, cancellationToken).ConfigureAwait(false);
                 if (!validationResult.Success)
                 {
-                    return ProjectOperationResult<ModBuilderProject>.CreateValidationFailure(
-                        "Project validation failed",
+                    return ProjectOperationResult<ModBuilderProject>.CreateFailure(
                         validationResult.Errors,
                         sw.Elapsed);
                 }
@@ -235,18 +242,17 @@ public sealed class ProjectConfigService : IProjectConfigService
             // Add to recent projects
             await AddToRecentProjectsAsync(projectPath, cancellationToken).ConfigureAwait(false);
 
-            _logger.LogInformation("Loaded ModBuilder project from {ProjectPath}", projectPath);
+            _logger.LogInformation(
+                "Loaded ModBuilder project '{ProjectName}' from {ProjectPath}",
+                project.Name,
+                projectPath);
 
             sw.Stop();
             return ProjectOperationResult<ModBuilderProject>.CreateSuccess(project, sw.Elapsed);
         }
-        catch (JsonException ex)
+        catch (OperationCanceledException)
         {
-            _logger.LogError(ex, "Failed to parse project file at {ProjectPath}", projectPath);
-            sw.Stop();
-            return ProjectOperationResult<ModBuilderProject>.CreateFailure(
-                $"Invalid project file format: {ex.Message}",
-                sw.Elapsed);
+            throw;
         }
         catch (Exception ex)
         {
@@ -271,7 +277,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             if (string.IsNullOrWhiteSpace(projectPath))
             {
                 return ProjectOperationResult<ModBuilderProject>.CreateFailure(
-                    "Project path cannot be empty",
+                    ProjectPathEmptyError,
                     sw.Elapsed);
             }
 
@@ -282,9 +288,6 @@ public sealed class ProjectConfigService : IProjectConfigService
                     sw.Elapsed);
             }
 
-            // Update last modified timestamp
-            project.LastModified = DateTime.UtcNow;
-
             // Ensure directory exists
             var projectDir = Path.GetDirectoryName(projectPath);
             if (!string.IsNullOrEmpty(projectDir) && !Directory.Exists(projectDir))
@@ -292,7 +295,10 @@ public sealed class ProjectConfigService : IProjectConfigService
                 Directory.CreateDirectory(projectDir);
             }
 
-            // Serialize and save using streaming
+            // Update last modified timestamp
+            project.LastModified = DateTime.UtcNow;
+
+            // Serialize and write to file
             await using var stream = new FileStream(
                 projectPath,
                 FileMode.Create,
@@ -300,12 +306,25 @@ public sealed class ProjectConfigService : IProjectConfigService
                 FileShare.None,
                 IoConstants.DefaultFileBufferSize,
                 FileOptions.Asynchronous | FileOptions.SequentialScan);
-            await JsonSerializer.SerializeAsync(stream, project, _jsonOptions, cancellationToken).ConfigureAwait(false);
 
-            _logger.LogInformation("Saved ModBuilder project to {ProjectPath}", projectPath);
+            await JsonSerializer.SerializeAsync(
+                stream,
+                project,
+                _jsonOptions,
+                cancellationToken)
+                .ConfigureAwait(false);
+
+            _logger.LogInformation(
+                "Saved ModBuilder project '{ProjectName}' to {ProjectPath}",
+                project.Name,
+                projectPath);
 
             sw.Stop();
             return ProjectOperationResult<ModBuilderProject>.CreateSuccess(project, sw.Elapsed);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -326,7 +345,7 @@ public sealed class ProjectConfigService : IProjectConfigService
         cancellationToken.ThrowIfCancellationRequested();
         await Task.Yield();
         var sw = Stopwatch.StartNew();
-        var validationErrors = new List<string>();
+        var errors = new List<string>();
 
         try
         {
@@ -337,29 +356,50 @@ public sealed class ProjectConfigService : IProjectConfigService
                     sw.Elapsed);
             }
 
-            if (string.IsNullOrWhiteSpace(projectPath) || !File.Exists(projectPath))
+            // Validate project name
+            if (string.IsNullOrWhiteSpace(project.Name))
             {
-                validationErrors.Add($"Project file not found at: {projectPath}");
+                errors.Add("Project name cannot be empty");
             }
 
+            // Validate project directory
             var projectDir = Path.GetDirectoryName(projectPath);
-            if (string.IsNullOrEmpty(projectDir))
+            if (string.IsNullOrEmpty(projectDir) || !Directory.Exists(projectDir))
             {
-                validationErrors.Add("Invalid project path");
+                errors.Add($"Project directory does not exist: {projectDir}");
             }
             else
             {
-                EnsureProjectDirectories(projectDir, project.Directories);
+                // Validate required directories
+                var requiredDirs = new[]
+                {
+                    Path.Combine(projectDir, project.Directories.Configs),
+                    Path.Combine(projectDir, project.Directories.GameFilesEdited),
+                    Path.Combine(projectDir, project.Directories.Build),
+                    Path.Combine(projectDir, project.Directories.Release),
+                };
+
+                foreach (var dir in requiredDirs.Where(dir => !Directory.Exists(dir)))
+                {
+                    errors.Add($"Required directory does not exist: {dir}");
+                }
+
+                // Validate bundle config files exist
+                var configsDir = Path.Combine(projectDir, project.Directories.Configs);
+                foreach (var config in project.BundleConfigs)
+                {
+                    var configPath = Path.Combine(configsDir, config);
+                    if (!File.Exists(configPath))
+                    {
+                        _logger.LogWarning("Bundle config file not found: {ConfigPath}", configPath);
+                    }
+                }
             }
 
             sw.Stop();
-
-            if (validationErrors.Count > 0)
+            if (errors.Count > 0)
             {
-                return ProjectOperationResult<bool>.CreateValidationFailure(
-                    "Project validation failed",
-                    validationErrors,
-                    sw.Elapsed);
+                return ProjectOperationResult<bool>.CreateFailure(errors, sw.Elapsed);
             }
 
             return ProjectOperationResult<bool>.CreateSuccess(true, sw.Elapsed);
@@ -369,43 +409,8 @@ public sealed class ProjectConfigService : IProjectConfigService
             _logger.LogError(ex, "Failed to validate project at {ProjectPath}", projectPath);
             sw.Stop();
             return ProjectOperationResult<bool>.CreateFailure(
-                $"Failed to validate project: {ex.Message}",
+                $"Validation failed: {ex.Message}",
                 sw.Elapsed);
-        }
-    }
-
-    private static void EnsureProjectDirectories(string projectDir, ProjectDirectories directories)
-    {
-        var configsDir = Path.Combine(projectDir, directories.Configs);
-        if (!Directory.Exists(configsDir))
-        {
-            var fallbackConfigDir = Path.Combine(projectDir, "config");
-            if (Directory.Exists(fallbackConfigDir))
-            {
-                directories.Configs = "config";
-            }
-            else
-            {
-                Directory.CreateDirectory(configsDir);
-            }
-        }
-
-        var gameFilesDir = Path.Combine(projectDir, directories.GameFilesEdited);
-        if (!Directory.Exists(gameFilesDir))
-        {
-            Directory.CreateDirectory(gameFilesDir);
-        }
-
-        var buildDir = Path.Combine(projectDir, directories.Build);
-        if (!Directory.Exists(buildDir))
-        {
-            Directory.CreateDirectory(buildDir);
-        }
-
-        var releaseDir = Path.Combine(projectDir, directories.Release);
-        if (!Directory.Exists(releaseDir))
-        {
-            Directory.CreateDirectory(releaseDir);
         }
     }
 
@@ -418,99 +423,54 @@ public sealed class ProjectConfigService : IProjectConfigService
 
         try
         {
-            var discoveredProjects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            // 1. Read stored recent projects
-            if (File.Exists(_recentProjectsPath))
+            if (!File.Exists(_recentProjectsPath))
             {
-                try
-                {
-                    var jsonContent = await File.ReadAllTextAsync(_recentProjectsPath, cancellationToken).ConfigureAwait(false);
-                    var recentProjects = JsonSerializer.Deserialize<List<string>>(jsonContent, _jsonOptions);
-                    if (recentProjects != null)
-                    {
-                        foreach (var path in recentProjects.Where(File.Exists))
-                        {
-                            discoveredProjects.Add(path);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to parse recent projects file");
-                }
+                sw.Stop();
+                return ProjectOperationResult<List<string>>.CreateSuccess(new List<string>(), sw.Elapsed);
             }
 
-            // 2. Discover in common folders
-            await Task.Run(() =>
-            {
-                var searchLocations = BuildSearchLocations();
-                DiscoverProjectsInSearchLocations(searchLocations, discoveredProjects);
-            }, cancellationToken).ConfigureAwait(false);
+            await using var stream = new FileStream(
+                _recentProjectsPath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                IoConstants.DefaultFileBufferSize,
+                FileOptions.Asynchronous | FileOptions.SequentialScan);
 
-            var validProjects = discoveredProjects
+            var recentProjects = await JsonSerializer.DeserializeAsync<List<string>>(
+                stream,
+                _jsonOptions,
+                cancellationToken)
+                .ConfigureAwait(false);
+
+            recentProjects ??= new List<string>();
+
+            // Filter out projects that no longer exist
+            var existingProjects = recentProjects
                 .Where(File.Exists)
-                .OrderByDescending(File.GetLastWriteTimeUtc)
                 .Take(maxCount)
                 .ToList();
 
+            // If some projects were filtered out, update the file
+            if (existingProjects.Count != recentProjects.Count)
+            {
+                await SaveRecentProjectsAsync(existingProjects, cancellationToken).ConfigureAwait(false);
+            }
+
             sw.Stop();
-            return ProjectOperationResult<List<string>>.CreateSuccess(validProjects, sw.Elapsed);
+            return ProjectOperationResult<List<string>>.CreateSuccess(existingProjects, sw.Elapsed);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get recent projects");
+            _logger.LogError(ex, "Failed to get recent projects from {Path}", _recentProjectsPath);
             sw.Stop();
             return ProjectOperationResult<List<string>>.CreateFailure(
                 $"Failed to get recent projects: {ex.Message}",
                 sw.Elapsed);
-        }
-    }
-
-    private static List<string> BuildSearchLocations()
-    {
-        var searchLocations = new List<string>();
-
-        var myDocs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-        if (!string.IsNullOrEmpty(myDocs) && Directory.Exists(myDocs))
-        {
-            searchLocations.Add(Path.Combine(myDocs, ModBuilderDirName));
-            searchLocations.Add(Path.Combine(myDocs, "GenHub"));
-            searchLocations.Add(Path.Combine(myDocs, "GenHub", ModBuilderDirName));
-            searchLocations.Add(Path.Combine(myDocs, "GenHub", "Projects"));
-        }
-
-        var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-        if (!string.IsNullOrEmpty(desktop) && Directory.Exists(desktop))
-        {
-            searchLocations.Add(Path.Combine(desktop, ModBuilderDirName));
-        }
-
-        var sampleDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SampleProjects");
-        if (Directory.Exists(sampleDir))
-        {
-            searchLocations.Add(sampleDir);
-        }
-
-        return searchLocations;
-    }
-
-    private void DiscoverProjectsInSearchLocations(IEnumerable<string> searchLocations, HashSet<string> discoveredProjects)
-    {
-        foreach (var loc in searchLocations.Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            try
-            {
-                var files = Directory.GetFiles(loc, "*.mbproj", SearchOption.AllDirectories);
-                foreach (var f in files)
-                {
-                    discoveredProjects.Add(f);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogTrace(ex, "Error scanning directory {Location} for projects", loc);
-            }
         }
     }
 
@@ -535,13 +495,18 @@ public sealed class ProjectConfigService : IProjectConfigService
                 ? recentProjectsResult.Data
                 : new List<string>();
 
-            // Remove if already exists (to move it to the top)
+            // Remove if already exists (to move to front)
             recentProjects.Remove(projectPath);
 
-            // Add to the beginning
+            // Add to front
             recentProjects.Insert(0, projectPath);
 
-            // Save updated list
+            // Keep only top 20
+            if (recentProjects.Count > 20)
+            {
+                recentProjects = recentProjects.Take(20).ToList();
+            }
+
             await SaveRecentProjectsAsync(recentProjects, cancellationToken).ConfigureAwait(false);
 
             sw.Stop();
@@ -681,6 +646,314 @@ public sealed class ProjectConfigService : IProjectConfigService
             return ProjectOperationResult<bool>.CreateFailure(
                 $"Failed to update last build time: {ex.Message}",
                 sw.Elapsed);
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<ProjectOperationResult<int>> ImportBigFilesAsync(
+        string projectPath,
+        IEnumerable<string> bigFilePaths,
+        bool createBundlePackForBig = true,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        var sw = Stopwatch.StartNew();
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(projectPath))
+            {
+                return ProjectOperationResult<int>.CreateFailure(ProjectPathEmptyError, sw.Elapsed);
+            }
+
+            var projectDir = Path.GetDirectoryName(projectPath);
+            if (string.IsNullOrEmpty(projectDir) || !Directory.Exists(projectDir))
+            {
+                return ProjectOperationResult<int>.CreateFailure($"Project directory not found: {projectDir}", sw.Elapsed);
+            }
+
+            var bigList = bigFilePaths.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
+            if (bigList.Count == 0)
+            {
+                return ProjectOperationResult<int>.CreateFailure("No valid BIG files specified for import", sw.Elapsed);
+            }
+
+            foreach (var bigPath in bigList)
+            {
+                if (!File.Exists(bigPath))
+                {
+                    return ProjectOperationResult<int>.CreateFailure($"BIG file not found: {bigPath}", sw.Elapsed);
+                }
+            }
+
+            var destinationDir = Path.Combine(projectDir, "GameFilesEdited");
+            Directory.CreateDirectory(destinationDir);
+
+            _logger.LogInformation("Importing {Count} BIG file(s) into project {ProjectPath} ({DestDir})", bigList.Count, projectPath, destinationDir);
+
+            var totalExtracted = await BigFilePacker.UnpackMultipleAsync(
+                bigList,
+                destinationDir,
+                overwrite: true,
+                progress: progress,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            if (createBundlePackForBig)
+            {
+                await ConfigureBundlePacksForImportedBigsAsync(projectDir, bigList, cancellationToken).ConfigureAwait(false);
+            }
+
+            sw.Stop();
+            _logger.LogInformation("Successfully imported {Count} files from {BigCount} BIG archives in {Elapsed}ms", totalExtracted, bigList.Count, sw.ElapsedMilliseconds);
+            return ProjectOperationResult<int>.CreateSuccess(totalExtracted, sw.Elapsed);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to import BIG file(s) into project: {ProjectPath}", projectPath);
+            sw.Stop();
+            return ProjectOperationResult<int>.CreateFailure($"Failed to import BIG file(s): {ex.Message}", sw.Elapsed);
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<ProjectOperationResult<ModBuilderProject>> CreateProjectFromBigFilesAsync(
+        string projectPath,
+        string projectName,
+        IEnumerable<string> bigFilePaths,
+        string? gameInstallationId = null,
+        ContentType contentType = ContentType.Mod,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        var sw = Stopwatch.StartNew();
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(projectPath))
+            {
+                return ProjectOperationResult<ModBuilderProject>.CreateFailure(ProjectPathEmptyError, sw.Elapsed);
+            }
+
+            var bigList = bigFilePaths.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
+            if (bigList.Count == 0)
+            {
+                return ProjectOperationResult<ModBuilderProject>.CreateFailure("No BIG files specified to create project from", sw.Elapsed);
+            }
+
+            // 1. Create base project with ImportedBig template
+            var createResult = await CreateProjectAsync(
+                projectPath,
+                projectName,
+                gameInstallationId,
+                template: ProjectTemplate.ImportedBig,
+                contentType: contentType,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            if (!createResult.Success || createResult.Data == null)
+            {
+                sw.Stop();
+                return createResult;
+            }
+
+            // 2. Import the BIG files and auto-configure bundle packs
+            var importResult = await ImportBigFilesAsync(
+                projectPath,
+                bigList,
+                createBundlePackForBig: true,
+                progress: progress,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            if (!importResult.Success)
+            {
+                sw.Stop();
+                return ProjectOperationResult<ModBuilderProject>.CreateFailure(importResult.Errors, sw.Elapsed);
+            }
+
+            // 3. Reload project to return fresh project state
+            var loadResult = await LoadProjectAsync(projectPath, validateIntegrity: false, cancellationToken).ConfigureAwait(false);
+            sw.Stop();
+            return loadResult;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create project from BIG files: {ProjectPath}", projectPath);
+            sw.Stop();
+            return ProjectOperationResult<ModBuilderProject>.CreateFailure($"Failed to create project from BIG files: {ex.Message}", sw.Elapsed);
+        }
+    }
+
+    /// <summary>
+    /// Configures ModBundleItems.json and ModBundlePacks.json for imported BIG archives.
+    /// </summary>
+    private async Task ConfigureBundlePacksForImportedBigsAsync(
+        string projectDir,
+        List<string> bigFilePaths,
+        CancellationToken cancellationToken)
+    {
+        var configsDir = Path.Combine(projectDir, "config");
+        Directory.CreateDirectory(configsDir);
+
+        var itemsPath = Path.Combine(configsDir, ModBuilderConstants.BundleItemsConfigFileName);
+        var packsPath = Path.Combine(configsDir, ModBuilderConstants.BundlePacksConfigFileName);
+
+        // 1. Configure ModBundleItems.json
+        var itemNames = new List<string>();
+
+        if (File.Exists(itemsPath))
+        {
+            try
+            {
+                using var stream = File.OpenRead(itemsPath);
+                using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+                if (doc.RootElement.TryGetProperty("bundleItems", out var itemsElem) && itemsElem.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var item in itemsElem.EnumerateArray())
+                    {
+                        if (item.TryGetProperty("name", out var nameProp) && !string.IsNullOrWhiteSpace(nameProp.GetString()))
+                        {
+                            itemNames.Add(nameProp.GetString()!);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not parse existing ModBundleItems.json at {Path}", itemsPath);
+            }
+        }
+
+        if (itemNames.Count == 0)
+        {
+            itemNames.Add("ImportedGameFiles");
+            var bundleItemsConfig = new
+            {
+                BundleItems = new object[]
+                {
+                    new
+                    {
+                        Name = "ImportedGameFiles",
+                        SourceFiles = new[] { "GameFilesEdited/**/*" },
+                        Description = "Files extracted from imported BIG archive(s)",
+                    },
+                },
+            };
+
+            var itemsJson = JsonSerializer.Serialize(bundleItemsConfig, _jsonOptions);
+            await File.WriteAllTextAsync(itemsPath, itemsJson, cancellationToken).ConfigureAwait(false);
+            _logger.LogDebug("Created ModBundleItems.json for imported BIG files at {Path}", itemsPath);
+        }
+
+        // 2. Configure ModBundlePacks.json
+        var existingPacks = new List<string>();
+        if (File.Exists(packsPath))
+        {
+            try
+            {
+                using var stream = File.OpenRead(packsPath);
+                using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+                if (doc.RootElement.TryGetProperty("bundlePacks", out var packsElem) && packsElem.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var pack in packsElem.EnumerateArray())
+                    {
+                        if (pack.TryGetProperty("name", out var nameProp) && !string.IsNullOrWhiteSpace(nameProp.GetString()))
+                        {
+                            existingPacks.Add(nameProp.GetString()!);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not parse existing ModBundlePacks.json at {Path}", packsPath);
+            }
+        }
+
+        var packsToAdd = new List<object>();
+        foreach (var bigPath in bigFilePaths)
+        {
+            var bigFileName = Path.GetFileName(bigPath);
+            var packName = Path.GetFileNameWithoutExtension(bigPath).Replace(" ", string.Empty);
+            if (string.IsNullOrWhiteSpace(packName))
+            {
+                packName = "ImportedMod";
+            }
+
+            if (!existingPacks.Contains(packName, StringComparer.OrdinalIgnoreCase))
+            {
+                packsToAdd.Add(new
+                {
+                    Name = packName,
+                    Items = itemNames.ToArray(),
+                    ItemNames = itemNames.ToArray(),
+                    AllowBuild = true,
+                    AllowInstall = true,
+                    Big = true,
+                    OutputFile = $".Release/{bigFileName}",
+                    Description = $"Build pack to generate {bigFileName} from edited mod files",
+                });
+                existingPacks.Add(packName);
+            }
+        }
+
+        if (packsToAdd.Count > 0)
+        {
+            if (!File.Exists(packsPath))
+            {
+                var bundlePacksConfig = new
+                {
+                    BundlePacks = packsToAdd.ToArray(),
+                };
+                var packsJson = JsonSerializer.Serialize(bundlePacksConfig, _jsonOptions);
+                await File.WriteAllTextAsync(packsPath, packsJson, cancellationToken).ConfigureAwait(false);
+                _logger.LogDebug("Created ModBundlePacks.json for imported BIG files at {Path}", packsPath);
+            }
+            else
+            {
+                try
+                {
+                    var existingContent = await File.ReadAllTextAsync(packsPath, cancellationToken).ConfigureAwait(false);
+                    var node = JsonNode.Parse(existingContent);
+                    if (node is JsonObject rootObj)
+                    {
+                        if (!rootObj.TryGetPropertyValue("bundlePacks", out var packsNode) || packsNode is not JsonArray packsArray)
+                        {
+                            packsArray = new JsonArray();
+                            rootObj["bundlePacks"] = packsArray;
+                        }
+
+                        foreach (var pack in packsToAdd)
+                        {
+                            var packJson = JsonSerializer.Serialize(pack, _jsonOptions);
+                            var packNode = JsonNode.Parse(packJson);
+                            if (packNode != null)
+                            {
+                                packsArray.Add(packNode);
+                            }
+                        }
+
+                        await File.WriteAllTextAsync(packsPath, rootObj.ToJsonString(_jsonOptions), cancellationToken).ConfigureAwait(false);
+                        _logger.LogDebug("Updated ModBundlePacks.json with imported BIG packs at {Path}", packsPath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to append new packs to ModBundlePacks.json, rewriting with new packs");
+                    var bundlePacksConfig = new
+                    {
+                        BundlePacks = packsToAdd.ToArray(),
+                    };
+                    var packsJson = JsonSerializer.Serialize(bundlePacksConfig, _jsonOptions);
+                    await File.WriteAllTextAsync(packsPath, packsJson, cancellationToken).ConfigureAwait(false);
+                }
+            }
         }
     }
 

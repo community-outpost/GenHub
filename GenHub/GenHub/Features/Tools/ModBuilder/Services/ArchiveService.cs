@@ -17,7 +17,7 @@ using SharpCompress.Writers.Tar;
 namespace GenHub.Features.Tools.ModBuilder.Services;
 
 /// <summary>
-/// Service for creating various archive formats (BIG, ZIP, TAR, TAR.GZ).
+/// Service for creating and extracting various archive formats (BIG, ZIP, TAR, TAR.GZ).
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("AsyncUsage", "S6966:Await async methods", Justification = "ZipArchiveEntry.Open and TarWriter.Write do not provide async overloads in standard BCL / SharpCompress")]
 public sealed class ArchiveService(
@@ -91,6 +91,83 @@ public sealed class ArchiveService(
         {
             logger.LogError(ex, "Error creating BIG archive: {Source} -> {Target}", sourceDirectory, targetBigPath);
             return OperationResult<bool>.CreateFailure($"Error creating BIG archive: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<int>> ExtractBigArchiveAsync(
+        string bigFilePath,
+        string targetDirectory,
+        bool overwrite = true,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (!File.Exists(bigFilePath))
+            {
+                logger.LogError("BIG archive not found: {Path}", bigFilePath);
+                return OperationResult<int>.CreateFailure($"BIG archive not found: {bigFilePath}");
+            }
+
+            logger.LogInformation("Extracting BIG archive: {Source} -> {Target}", bigFilePath, targetDirectory);
+
+            var count = await BigFilePacker.UnpackAsync(bigFilePath, targetDirectory, overwrite, progress, cancellationToken).ConfigureAwait(false);
+
+            logger.LogInformation("Successfully extracted {Count} files from BIG archive {Source}", count, bigFilePath);
+            return OperationResult<int>.CreateSuccess(count);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error extracting BIG archive: {Source} -> {Target}", bigFilePath, targetDirectory);
+            return OperationResult<int>.CreateFailure($"Error extracting BIG archive: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<int>> ExtractBigArchivesAsync(
+        IEnumerable<string> bigFilePaths,
+        string targetDirectory,
+        bool overwrite = true,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var filesList = bigFilePaths.ToList();
+            if (filesList.Count == 0)
+            {
+                return OperationResult<int>.CreateSuccess(0);
+            }
+
+            foreach (var path in filesList)
+            {
+                if (!File.Exists(path))
+                {
+                    logger.LogError("BIG archive not found: {Path}", path);
+                    return OperationResult<int>.CreateFailure($"BIG archive not found: {path}");
+                }
+            }
+
+            logger.LogInformation("Extracting {Count} BIG archives to {Target}", filesList.Count, targetDirectory);
+
+            var count = await BigFilePacker.UnpackMultipleAsync(filesList, targetDirectory, overwrite, progress, cancellationToken).ConfigureAwait(false);
+
+            logger.LogInformation("Successfully extracted total of {Count} files from {ArchiveCount} BIG archives", count, filesList.Count);
+            return OperationResult<int>.CreateSuccess(count);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error extracting multiple BIG archives to {Target}", targetDirectory);
+            return OperationResult<int>.CreateFailure($"Error extracting BIG archives: {ex.Message}");
         }
     }
 
