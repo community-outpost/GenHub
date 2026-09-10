@@ -63,7 +63,7 @@ public sealed class ReplayCheckpointServiceTests
         var replay = new ReplayFile
         {
             FileName = "Test.rep",
-            FullPath = "C:\\Games\\Replays\\Test.rep",
+            FullPath = @"C:\Games\Replays\Test.rep",
             GameVersion = GameType.ZeroHour,
             SizeInBytes = 1024,
             LastModified = DateTime.UtcNow,
@@ -77,6 +77,120 @@ public sealed class ReplayCheckpointServiceTests
     }
 
     /// <summary>
+    /// Verifies that MintCheckpointAsync successfully discovers the generated checkpoint save on exit.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task MintCheckpointAsync_ProcessExitsAndSaveExists_ReturnsSuccess()
+    {
+        var saveDir = _service.GetSaveDirectory(GameType.ZeroHour);
+        Directory.CreateDirectory(saveDir);
+
+        const int targetFrame = 88888;
+        var saveFilePath = Path.Combine(saveDir, $"cp_{targetFrame}.sav");
+
+        try
+        {
+            // Pre-create the save file simulating game client having saved it
+            await File.WriteAllBytesAsync(saveFilePath, [0x01, 0x02, 0x03]);
+
+            var replay = new ReplayFile
+            {
+                FileName = "Tournament.rep",
+                FullPath = @"C:\Games\Replays\Tournament.rep",
+                GameVersion = GameType.ZeroHour,
+                SizeInBytes = 4096,
+                LastModified = DateTime.UtcNow,
+            };
+            var profile = new GameProfile { Id = "profile-zh", Name = "Zero Hour Profile" };
+
+            _mockLauncherFacade
+                .Setup(l => l.LaunchProfileAsync(
+                    profile.Id,
+                    false,
+                    It.IsAny<CancellationToken>(),
+                    It.IsAny<IReadOnlyDictionary<string, string>>()))
+                .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
+                {
+                    LaunchId = "launch-mint",
+                    ProfileId = profile.Id,
+                    WorkspaceId = "ws-mint",
+                    ProcessInfo = new GameProcessInfo
+                    {
+                        ProcessId = 99999,
+                        ProcessName = "generalszh",
+                        StartTime = DateTime.UtcNow,
+                    },
+                }));
+
+            _mockProcessManager
+                .Setup(p => p.GetProcessInfoAsync(99999, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ProfileOperationResult<GameProcessInfo>.CreateFailure("Process has exited"));
+
+            var result = await _service.MintCheckpointAsync(replay, profile, targetFrame);
+
+            Assert.True(result.Success);
+            Assert.NotNull(result.Data);
+            Assert.Equal(targetFrame, result.Data.TargetFrame);
+            Assert.Equal($"cp_{targetFrame}.sav", result.Data.FileName);
+            Assert.Equal("Tournament.rep", result.Data.AssociatedReplayFileName);
+        }
+        finally
+        {
+            if (File.Exists(saveFilePath))
+            {
+                File.Delete(saveFilePath);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that GetCheckpointsForReplayAsync ignores files that do not match the cp_NNN pattern.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task GetCheckpointsForReplayAsync_IgnoresNonMatchingSaveFiles()
+    {
+        var saveDir = _service.GetSaveDirectory(GameType.ZeroHour);
+        Directory.CreateDirectory(saveDir);
+
+        var validFile = Path.Combine(saveDir, "cp_7777.sav");
+        var nonCheckpointFile = Path.Combine(saveDir, "mycp_5.sav");
+
+        try
+        {
+            await File.WriteAllBytesAsync(validFile, [1, 2]);
+            await File.WriteAllBytesAsync(nonCheckpointFile, [3, 4]);
+
+            var replay = new ReplayFile
+            {
+                FileName = "Sample.rep",
+                FullPath = @"C:\Games\Replays\Sample.rep",
+                GameVersion = GameType.ZeroHour,
+                SizeInBytes = 2048,
+                LastModified = DateTime.UtcNow,
+            };
+
+            var checkpoints = await _service.GetCheckpointsForReplayAsync(replay);
+
+            Assert.Contains(checkpoints, cp => cp.TargetFrame == 7777);
+            Assert.DoesNotContain(checkpoints, cp => cp.FileName == "mycp_5.sav");
+        }
+        finally
+        {
+            if (File.Exists(validFile))
+            {
+                File.Delete(validFile);
+            }
+
+            if (File.Exists(nonCheckpointFile))
+            {
+                File.Delete(nonCheckpointFile);
+            }
+        }
+    }
+
+    /// <summary>
     /// Verifies that ResumeReplayAsync passes -loadsave and -resumereplay CLI arguments.
     /// </summary>
     /// <returns>A task representing the test.</returns>
@@ -86,7 +200,7 @@ public sealed class ReplayCheckpointServiceTests
         var replay = new ReplayFile
         {
             FileName = "EpicBattle.rep",
-            FullPath = "C:\\Games\\Replays\\EpicBattle.rep",
+            FullPath = @"C:\Games\Replays\EpicBattle.rep",
             GameVersion = GameType.ZeroHour,
             SizeInBytes = 2048,
             LastModified = DateTime.UtcNow,
@@ -96,7 +210,7 @@ public sealed class ReplayCheckpointServiceTests
         {
             FileName = "cp_12000.sav",
             TargetFrame = 12000,
-            FilePath = "C:\\Games\\Save\\cp_12000.sav",
+            FilePath = @"C:\Games\Save\cp_12000.sav",
             CreatedAt = DateTime.UtcNow,
             FileSizeBytes = 4096,
         };
@@ -141,7 +255,7 @@ public sealed class ReplayCheckpointServiceTests
         var replay = new ReplayFile
         {
             FileName = "EpicBattle.rep",
-            FullPath = "C:\\Games\\Replays\\EpicBattle.rep",
+            FullPath = @"C:\Games\Replays\EpicBattle.rep",
             GameVersion = GameType.ZeroHour,
             SizeInBytes = 2048,
             LastModified = DateTime.UtcNow,
@@ -151,7 +265,7 @@ public sealed class ReplayCheckpointServiceTests
         {
             FileName = "cp_12000.sav",
             TargetFrame = 12000,
-            FilePath = "C:\\Games\\Save\\cp_12000.sav",
+            FilePath = @"C:\Games\Save\cp_12000.sav",
             CreatedAt = DateTime.UtcNow,
             FileSizeBytes = 4096,
         };

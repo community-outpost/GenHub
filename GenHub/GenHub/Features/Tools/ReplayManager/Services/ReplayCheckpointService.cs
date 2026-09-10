@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -20,11 +21,15 @@ namespace GenHub.Features.Tools.ReplayManager.Services;
 /// Service responsible for managing replay checkpoints, minting save states from replays,
 /// resuming playback deterministically, and taking over live player control.
 /// </summary>
-public sealed class ReplayCheckpointService(
+public sealed partial class ReplayCheckpointService(
     IProfileLauncherFacade launcherFacade,
     IGameProcessManager processManager,
     ILogger<ReplayCheckpointService> logger) : IReplayCheckpointService
 {
+    private static readonly Regex CheckpointPattern = new(
+        @"^cp_(\d+)$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
     /// <inheritdoc/>
     public string GetSaveDirectory(GameType gameType)
     {
@@ -254,14 +259,10 @@ public sealed class ReplayCheckpointService(
 
     private static int? ExtractFrameFromName(string name)
     {
-        var idx = name.LastIndexOf("cp_", StringComparison.OrdinalIgnoreCase);
-        if (idx >= 0 && idx + 3 < name.Length)
+        var match = CheckpointPattern.Match(name);
+        if (match.Success && int.TryParse(match.Groups[1].Value, out var frame))
         {
-            var numStr = name[(idx + 3)..];
-            if (int.TryParse(numStr, out var frame))
-            {
-                return frame;
-            }
+            return frame;
         }
 
         return null;
