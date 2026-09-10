@@ -509,6 +509,28 @@ public class GameLauncher(
         return OperationResult<bool>.CreateSuccess(true);
     }
 
+    private static OperationResult<bool> MergeAdditionalArguments(
+        IReadOnlyDictionary<string, string> additionalArguments,
+        Dictionary<string, string> arguments)
+    {
+        foreach (var kvp in additionalArguments)
+        {
+            if (!IsValidCommandArgument(kvp.Key))
+            {
+                return OperationResult<bool>.CreateFailure($"Invalid additional command argument key: {kvp.Key}");
+            }
+
+            if (!string.IsNullOrEmpty(kvp.Value) && !IsValidCommandArgument(kvp.Value))
+            {
+                return OperationResult<bool>.CreateFailure($"Invalid additional command argument value for '{kvp.Key}': {kvp.Value}");
+            }
+
+            arguments[kvp.Key] = kvp.Value;
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
     /// <summary>
     /// Builds the child process environment for a game client.
     /// </summary>
@@ -1477,28 +1499,6 @@ public class GameLauncher(
         {
             logger.LogWarning("[GameLauncher] Skip EA Logo enabled but EA_LOGO.BIK not found in workspace. Checked paths: {Paths}", string.Join(", ", possiblePaths));
         }
-    }
-
-    private OperationResult<bool> MergeAdditionalArguments(
-        IReadOnlyDictionary<string, string> additionalArguments,
-        Dictionary<string, string> arguments)
-    {
-        foreach (var kvp in additionalArguments)
-        {
-            if (!IsValidCommandArgument(kvp.Key))
-            {
-                return OperationResult<bool>.CreateFailure($"Invalid additional command argument key: {kvp.Key}");
-            }
-
-            if (!string.IsNullOrEmpty(kvp.Value) && !IsValidCommandArgument(kvp.Value))
-            {
-                return OperationResult<bool>.CreateFailure($"Invalid additional command argument value for '{kvp.Key}': {kvp.Value}");
-            }
-
-            arguments[kvp.Key] = kvp.Value;
-        }
-
-        return OperationResult<bool>.CreateSuccess(true);
     }
 
     private OperationResult<Dictionary<string, string>> BuildCommandLineArguments(
