@@ -22,6 +22,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameSettings;
 using GenHub.Core.Models.Launching;
