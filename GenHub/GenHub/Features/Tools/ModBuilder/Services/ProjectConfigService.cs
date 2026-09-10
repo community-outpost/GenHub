@@ -446,19 +446,20 @@ public sealed class ProjectConfigService : IProjectConfigService
             recentProjects ??= new List<string>();
 
             // Filter out projects that no longer exist
-            var existingProjects = recentProjects
+            var validProjects = recentProjects
                 .Where(File.Exists)
-                .Take(maxCount)
                 .ToList();
 
-            // If some projects were filtered out, update the file
-            if (existingProjects.Count != recentProjects.Count)
+            // If some projects were filtered out because they no longer exist on disk, update the file
+            if (validProjects.Count != recentProjects.Count)
             {
-                await SaveRecentProjectsAsync(existingProjects, cancellationToken).ConfigureAwait(false);
+                await SaveRecentProjectsAsync(validProjects, cancellationToken).ConfigureAwait(false);
             }
 
+            var resultProjects = validProjects.Take(maxCount).ToList();
+
             sw.Stop();
-            return ProjectOperationResult<List<string>>.CreateSuccess(existingProjects, sw.Elapsed);
+            return ProjectOperationResult<List<string>>.CreateSuccess(resultProjects, sw.Elapsed);
         }
         catch (OperationCanceledException)
         {
