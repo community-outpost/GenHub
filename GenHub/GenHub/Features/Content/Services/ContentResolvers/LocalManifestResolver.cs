@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -17,6 +18,12 @@ namespace GenHub.Features.Content.Services.ContentResolvers;
 /// </summary>
 public class LocalManifestResolver(ILogger<LocalManifestResolver> logger) : IContentResolver
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter(), new ManifestIdJsonConverter() },
+    };
+
     /// <summary>
     /// Gets the resolver ID for local manifest content.
     /// </summary>
@@ -49,7 +56,7 @@ public class LocalManifestResolver(ILogger<LocalManifestResolver> logger) : ICon
         try
         {
             var manifestJson = await File.ReadAllTextAsync(manifestPath, cancellationToken);
-            var manifest = JsonSerializer.Deserialize<ContentManifest>(manifestJson);
+            var manifest = JsonSerializer.Deserialize<ContentManifest>(manifestJson, JsonOptions);
 
             if (manifest == null)
             {

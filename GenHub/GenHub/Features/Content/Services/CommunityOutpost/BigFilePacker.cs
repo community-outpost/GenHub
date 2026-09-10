@@ -205,7 +205,13 @@ public static class BigFilePacker
 
             var targetPath = Path.GetFullPath(Path.Combine(destFullPath, normalizedRel));
             var relCheck = Path.GetRelativePath(destFullPath, targetPath);
-            if (relCheck.StartsWith("..", StringComparison.Ordinal) || Path.IsPathRooted(relCheck))
+
+            if (!targetPath.StartsWith(destFullPathWithSep, StringComparison.OrdinalIgnoreCase) ||
+                relCheck == "." ||
+                relCheck == ".." ||
+                relCheck.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+                relCheck.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal) ||
+                Path.IsPathRooted(relCheck))
             {
                 // Path traversal protection
                 continue;
@@ -392,10 +398,8 @@ public static class BigFilePacker
         CancellationToken cancellationToken)
     {
         var relativePaths = EnumerateBigFiles(sourceDirectory, cancellationToken);
-        relativePaths.Sort(StringComparer.OrdinalIgnoreCase);
 
-        var entries = new List<BigFileEntry>();
-        long headerSize = 16;
+        var candidateEntries = new List<(string FullPath, string NormalizedRelPath, long Size)>();
 
         foreach (var relPath in relativePaths)
         {
@@ -413,6 +417,17 @@ public static class BigFilePacker
                 throw new NotSupportedException($"File path contains non-ASCII characters, which are not supported by the .big format: {normalizedRelPath}");
             }
 
+            candidateEntries.Add((fullPath, normalizedRelPath, new FileInfo(fullPath).Length));
+        }
+
+        // Deterministic ordinal sort by normalized backslash relative path across all platforms
+        candidateEntries.Sort((a, b) => string.Compare(a.NormalizedRelPath, b.NormalizedRelPath, StringComparison.Ordinal));
+
+        var entries = new List<BigFileEntry>(candidateEntries.Count);
+        long headerSize = 16;
+
+        foreach (var (fullPath, normalizedRelPath, size) in candidateEntries)
+        {
             var nameBytes = Encoding.ASCII.GetBytes(normalizedRelPath);
             headerSize += 4 + 4 + nameBytes.Length + 1;
 
@@ -420,7 +435,7 @@ public static class BigFilePacker
             {
                 FullPath = fullPath,
                 RelativePath = normalizedRelPath,
-                Size = new FileInfo(fullPath).Length,
+                Size = size,
             });
         }
 

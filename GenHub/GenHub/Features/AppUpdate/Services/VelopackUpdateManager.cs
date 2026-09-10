@@ -946,23 +946,25 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 foreach (var dir in Directory.GetDirectories(sampleProjectsDir, "*", SearchOption.AllDirectories))
                 {
                     var dirName = Path.GetFileName(dir);
-                    if (dirName.Equals(".Build", StringComparison.OrdinalIgnoreCase) ||
-                        dirName.Equals(".Release", StringComparison.OrdinalIgnoreCase) ||
+                    if (dirName.Equals(ModBuilderConstants.DefaultBuildDir, StringComparison.OrdinalIgnoreCase) ||
+                        dirName.Equals(ModBuilderConstants.DefaultReleaseDir, StringComparison.OrdinalIgnoreCase) ||
                         dirName.StartsWith(".staging", StringComparison.OrdinalIgnoreCase) ||
-                        dirName.Equals(".modbuilder_cache", StringComparison.OrdinalIgnoreCase))
+                        dirName.Equals(ModBuilderConstants.CacheDirectoryName, StringComparison.OrdinalIgnoreCase))
                     {
-                        var parentDir = Path.GetDirectoryName(dir);
-                        if (parentDir != null && (Directory.GetFiles(parentDir, "*.mbproj").Length > 0 || Directory.Exists(Path.Combine(parentDir, "config")) || Directory.Exists(Path.Combine(parentDir, "Configs"))))
+                        try
                         {
-                            try
+                            var parentDir = Path.GetDirectoryName(dir);
+                            if (parentDir != null && (Directory.GetFiles(parentDir, ModBuilderConstants.ProjectFilePattern).Length > 0 ||
+                                Directory.Exists(Path.Combine(parentDir, ModBuilderConstants.LowercaseConfigDir)) ||
+                                Directory.Exists(Path.Combine(parentDir, ModBuilderConstants.ConfigDir))))
                             {
                                 Directory.Delete(dir, recursive: true);
                                 _logger.LogInformation("Pre-update cleanup removed stray directory: {Dir}", dir);
                             }
-                            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                            {
-                                _logger.LogWarning(ex, "Pre-update cleanup could not delete directory: {Dir}", dir);
-                            }
+                        }
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                        {
+                            _logger.LogWarning(ex, "Pre-update cleanup could not delete directory: {Dir}", dir);
                         }
                     }
                 }

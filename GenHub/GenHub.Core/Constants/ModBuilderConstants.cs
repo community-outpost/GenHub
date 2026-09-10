@@ -68,6 +68,16 @@ public static class ModBuilderConstants
     public const string ConfigDir = "Configs";
 
     /// <summary>
+    /// Legacy or alternate lowercase directory name for project configuration files.
+    /// </summary>
+    public const string LowercaseConfigDir = "config";
+
+    /// <summary>
+    /// Directory name for ModBuilder cache.
+    /// </summary>
+    public const string CacheDirectoryName = ".modbuilder_cache";
+
+    /// <summary>
     /// File name for bundle items configuration.
     /// </summary>
     public const string BundleItemsConfigFileName = "ModBundleItems.json";

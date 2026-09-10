@@ -20,7 +20,7 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 /// </summary>
 public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logger) : IConfigurationLoaderService
 {
-    private const string ConfigDirLower = "config";
+    private const string ConfigDirLower = ModBuilderConstants.LowercaseConfigDir;
     private const string ConfigsDirLower = "configs";
     private const string ModFoldersFileName = "ModFolders.json";
     private const string ModJsonFilesFileName = "ModJsonFiles.json";
@@ -231,18 +231,30 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             return null;
         }
 
-        var configFiles = await DiscoverProjectConfigFilesAsync(projectDir, cancellationToken).ConfigureAwait(false);
-        if (configFiles.Count == 0)
+        try
         {
+            var configFiles = await DiscoverProjectConfigFilesAsync(projectDir, cancellationToken).ConfigureAwait(false);
+            if (configFiles.Count == 0)
+            {
+                return null;
+            }
+
+            var config = await LoadAndMergeConfigurationsAsync(configFiles, cancellationToken).ConfigureAwait(false);
+            await ApplyModFoldersOverrideAsync(config, projectDir, cancellationToken).ConfigureAwait(false);
+
+            config = await ResolveWildcardsAsync(config, cancellationToken).ConfigureAwait(false);
+            NormalizePaths(config);
+            return config;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException or InvalidOperationException or NotSupportedException)
+        {
+            logger.LogWarning(ex, "Failed to load project configuration from {ProjectPath}", projectPath);
             return null;
         }
-
-        var config = await LoadAndMergeConfigurationsAsync(configFiles, cancellationToken).ConfigureAwait(false);
-        await ApplyModFoldersOverrideAsync(config, projectDir, cancellationToken).ConfigureAwait(false);
-
-        config = await ResolveWildcardsAsync(config, cancellationToken).ConfigureAwait(false);
-        NormalizePaths(config);
-        return config;
     }
 
     private static string ResolveProjectDirFromConfig(string configPath)
@@ -528,7 +540,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         var result = new List<string>();
         try
         {
-            var mbprojFiles = Directory.GetFiles(projectDir, "*.mbproj");
+            var mbprojFiles = Directory.GetFiles(projectDir, ModBuilderConstants.ProjectFilePattern);
             if (mbprojFiles.Length == 0)
             {
                 return result;
@@ -539,8 +551,10 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
-            string configsDirName = "config";
-            if (root.TryGetProperty("directories", out var dirsEl) &&
+            string configsDirName = ModBuilderConstants.LowercaseConfigDir;
+            if (root.ValueKind == JsonValueKind.Object &&
+                root.TryGetProperty("directories", out var dirsEl) &&
+                dirsEl.ValueKind == JsonValueKind.Object &&
                 dirsEl.TryGetProperty("configs", out var cfgEl) &&
                 cfgEl.GetString() is { Length: > 0 } cDir)
             {
@@ -589,7 +603,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException or InvalidOperationException or NotSupportedException)
         {
             logger.LogWarning(ex, "Failed to parse project file in {ProjectDir}", projectDir);
         }
@@ -1092,7 +1106,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                 var item = new BundleItem
                 {
                     Name = simpItem.Name!,
-                    IsBig = true,
+                    IsBig = simpItem.Big ?? true,
                 };
 
                 if (simpItem.SourceFiles != null)

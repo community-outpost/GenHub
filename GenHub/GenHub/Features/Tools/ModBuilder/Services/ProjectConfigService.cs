@@ -384,23 +384,25 @@ public sealed class ProjectConfigService : IProjectConfigService
                         Directory.CreateDirectory(dir);
                         _logger.LogDebug("Created output directory: {Directory}", dir);
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
                         _logger.LogWarning(ex, "Could not create output directory: {Directory}", dir);
+                        errors.Add($"Failed to create required output directory: {dir} ({ex.Message})");
                     }
                 }
 
                 // Check configs directory (supporting both config and Configs)
-                var configsDir = Path.Combine(projectDir, project.Directories.Configs);
+                var effectiveConfigs = project.Directories.Configs;
+                var configsDir = Path.Combine(projectDir, effectiveConfigs);
                 if (!Directory.Exists(configsDir))
                 {
-                    var altConfig = project.Directories.Configs.Equals("config", StringComparison.OrdinalIgnoreCase)
-                        ? "Configs"
-                        : "config";
+                    var altConfig = effectiveConfigs.Equals(ModBuilderConstants.LowercaseConfigDir, StringComparison.OrdinalIgnoreCase)
+                        ? ModBuilderConstants.ConfigDir
+                        : ModBuilderConstants.LowercaseConfigDir;
                     var altConfigsDir = Path.Combine(projectDir, altConfig);
                     if (Directory.Exists(altConfigsDir))
                     {
-                        project.Directories.Configs = altConfig;
+                        effectiveConfigs = altConfig;
                         configsDir = altConfigsDir;
                     }
                     else
@@ -419,7 +421,7 @@ public sealed class ProjectConfigService : IProjectConfigService
                 // Validate bundle config files exist
                 foreach (var config in project.BundleConfigs)
                 {
-                    var configPath = ResolveBundleConfigPath(projectDir, project.Directories.Configs, config);
+                    var configPath = ResolveBundleConfigPath(projectDir, effectiveConfigs, config);
                     if (!File.Exists(configPath))
                     {
                         _logger.LogWarning("Bundle config file not found: {ConfigPath}", configPath);
@@ -1081,6 +1083,11 @@ public sealed class ProjectConfigService : IProjectConfigService
 
                         await File.WriteAllTextAsync(packsPath, rootArray.ToJsonString(_jsonOptions), cancellationToken).ConfigureAwait(false);
                         _logger.LogDebug("Updated array-root ModBundlePacks.json with imported BIG packs at {Path}", packsPath);
+                    }
+                    else
+                    {
+                        _logger.LogError("Existing ModBundlePacks.json at {Path} is neither an object nor an array", packsPath);
+                        throw new InvalidDataException($"Existing ModBundlePacks.json at '{packsPath}' has an unsupported JSON root type ({node?.GetType().Name ?? "null"}).");
                     }
                 }
                 catch (Exception ex)
