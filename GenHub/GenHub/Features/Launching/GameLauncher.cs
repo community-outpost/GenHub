@@ -479,6 +479,57 @@ public class GameLauncher(
         return true;
     }
 
+    private static OperationResult<bool> PopulateCommandLineArguments(
+        string commandLineArguments,
+        Dictionary<string, string> arguments)
+    {
+        var args = commandLineArguments.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var arg in args)
+        {
+            if (!IsValidCommandArgument(arg))
+            {
+                return OperationResult<bool>.CreateFailure($"Invalid command argument: {arg}");
+            }
+        }
+
+        var positionalIndex = 0;
+        foreach (var arg in args)
+        {
+            if (arg.StartsWith('-'))
+            {
+                arguments[arg] = string.Empty;
+            }
+            else
+            {
+                arguments[$"_pos{positionalIndex}"] = arg;
+                positionalIndex++;
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static OperationResult<bool> MergeAdditionalArguments(
+        IReadOnlyDictionary<string, string> additionalArguments,
+        Dictionary<string, string> arguments)
+    {
+        foreach (var kvp in additionalArguments)
+        {
+            if (!IsValidCommandArgument(kvp.Key))
+            {
+                return OperationResult<bool>.CreateFailure($"Invalid additional command argument key: {kvp.Key}");
+            }
+
+            if (!string.IsNullOrEmpty(kvp.Value) && !IsValidCommandArgument(kvp.Value))
+            {
+                return OperationResult<bool>.CreateFailure($"Invalid additional command argument value for '{kvp.Key}': {kvp.Value}");
+            }
+
+            arguments[kvp.Key] = kvp.Value;
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
     /// <summary>
     /// Builds the child process environment for a game client.
     /// </summary>
@@ -1452,28 +1503,6 @@ public class GameLauncher(
         }
     }
 
-    private OperationResult<bool> MergeAdditionalArguments(
-        IReadOnlyDictionary<string, string> additionalArguments,
-        Dictionary<string, string> arguments)
-    {
-        foreach (var kvp in additionalArguments)
-        {
-            if (!IsValidCommandArgument(kvp.Key))
-            {
-                return OperationResult<bool>.CreateFailure($"Invalid additional command argument key: {kvp.Key}");
-            }
-
-            if (!string.IsNullOrEmpty(kvp.Value) && !IsValidCommandArgument(kvp.Value))
-            {
-                return OperationResult<bool>.CreateFailure($"Invalid additional command argument value for '{kvp.Key}': {kvp.Value}");
-            }
-
-            arguments[kvp.Key] = kvp.Value;
-        }
-
-        return OperationResult<bool>.CreateSuccess(true);
-    }
-
     private OperationResult<Dictionary<string, string>> BuildCommandLineArguments(
         GameProfile profile,
         IReadOnlyDictionary<string, string>? additionalArguments = null)
@@ -1509,36 +1538,6 @@ public class GameLauncher(
         }
 
         return OperationResult<Dictionary<string, string>>.CreateSuccess(arguments);
-    }
-
-    private static OperationResult<bool> PopulateCommandLineArguments(
-        string commandLineArguments,
-        Dictionary<string, string> arguments)
-    {
-        var args = commandLineArguments.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var arg in args)
-        {
-            if (!IsValidCommandArgument(arg))
-            {
-                return OperationResult<bool>.CreateFailure($"Invalid command argument: {arg}");
-            }
-        }
-
-        var positionalIndex = 0;
-        foreach (var arg in args)
-        {
-            if (arg.StartsWith('-'))
-            {
-                arguments[arg] = string.Empty;
-            }
-            else
-            {
-                arguments[$"_pos{positionalIndex}"] = arg;
-                positionalIndex++;
-            }
-        }
-
-        return OperationResult<bool>.CreateSuccess(true);
     }
 
     private async Task<OperationResult<(SteamLaunchPrepResult PrepResult, string SteamAppId)>> PrepareSteamProxyAsync(
