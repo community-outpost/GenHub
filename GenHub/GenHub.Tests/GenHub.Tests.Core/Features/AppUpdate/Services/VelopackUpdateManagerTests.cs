@@ -211,6 +211,39 @@ public class VelopackUpdateManagerTests
         Assert.False(manager.IsUpdatePendingRestart);
     }
 
+    [Fact]
+    public void CleanStrayAppDirectoryArtifacts_CleansBuildAndReleaseDirsInSampleProjects()
+    {
+        // Arrange
+        var manager = CreateManager();
+        var sampleDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SampleProjects", "TestClean_" + Guid.NewGuid().ToString("N"));
+        var buildDir = Path.Combine(sampleDir, ".Build");
+        var releaseDir = Path.Combine(sampleDir, ".Release");
+        var cacheDir = Path.Combine(sampleDir, ".modbuilder_cache");
+
+        try
+        {
+            Directory.CreateDirectory(buildDir);
+            Directory.CreateDirectory(releaseDir);
+            Directory.CreateDirectory(cacheDir);
+
+            // Act
+            manager.CleanStrayAppDirectoryArtifacts();
+
+            // Assert
+            Assert.False(Directory.Exists(buildDir));
+            Assert.False(Directory.Exists(releaseDir));
+            Assert.False(Directory.Exists(cacheDir));
+        }
+        finally
+        {
+            if (Directory.Exists(sampleDir))
+            {
+                try { Directory.Delete(sampleDir, recursive: true); } catch { }
+            }
+        }
+    }
+
     /// <summary>
     /// Creates a new VelopackUpdateManager instance with mocked dependencies.
     /// </summary>

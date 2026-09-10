@@ -78,6 +78,17 @@ public class ModBuilderViewModelTests : IDisposable
     }
 
     [Fact]
+    public void IsPathInsideAppDirectory_ReturnsTrueForBaseDirectoryAndSubpaths()
+    {
+        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+        var subPath = Path.Combine(baseDir, "SampleProjects", "ModBuilder", "Test");
+
+        Assert.True(ModBuilderViewModel.IsPathInsideAppDirectory(baseDir));
+        Assert.True(ModBuilderViewModel.IsPathInsideAppDirectory(subPath));
+        Assert.False(ModBuilderViewModel.IsPathInsideAppDirectory(Path.GetTempPath()));
+    }
+
+    [Fact]
     public void InitialState_IsUnloadedAndReady()
     {
         var viewModel = CreateViewModel();

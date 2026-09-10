@@ -89,6 +89,13 @@ public sealed class BuildEngineService : IBuildEngineService
         ArgumentNullException.ThrowIfNull(project);
         cancellationToken.ThrowIfCancellationRequested();
 
+        if (IsPathInsideAppDirectory(project.ProjectDir))
+        {
+            var msg = $"Cannot execute build within the application installation directory: '{project.ProjectDir}'. The project must be located in a user directory.";
+            _logger.LogError(msg);
+            return BuildOperationResult.CreateFailure(msg);
+        }
+
         var sw = Stopwatch.StartNew();
 
         if (!await _buildLock.WaitAsync(0, cancellationToken).ConfigureAwait(false))
@@ -628,9 +635,7 @@ public sealed class BuildEngineService : IBuildEngineService
 
     private async Task ExecuteReleaseBundlePackStageAsync(BuildSetup setup, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
     {
-        var bundlesDir = Path.Combine(setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.BundlesSubdir);
         var releaseDir = setup.Folders?.AbsReleaseDir ?? ModBuilderConstants.DefaultReleaseDir;
-        var buildDir = setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir;
 
         var candidatePacks = setup.Bundles?.Packs?.ToList() ?? new List<BundlePack>();
 
@@ -1254,8 +1259,35 @@ public sealed class BuildEngineService : IBuildEngineService
 
     private static string GetCachePath(BuildIndex stage, BuildSetup setup)
     {
-        var buildDir = setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir;
+        var buildDir = setup.Folders?.AbsBuildDir;
+        if (string.IsNullOrWhiteSpace(buildDir))
+        {
+            buildDir = !string.IsNullOrWhiteSpace(setup.ProjectDir)
+                ? Path.Combine(setup.ProjectDir, ModBuilderConstants.DefaultBuildDir)
+                : Path.Combine(Path.GetTempPath(), "GenHub_ModBuilder", ModBuilderConstants.DefaultBuildDir);
+        }
+
         return Path.Combine(buildDir, $"{stage}.json");
+    }
+
+    private static bool IsPathInsideAppDirectory(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            var baseDir = Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var fullPath = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            return fullPath.StartsWith(baseDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(fullPath, baseDir, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private void FireBundleEvent(BundleEventType eventType, string? bundleName)

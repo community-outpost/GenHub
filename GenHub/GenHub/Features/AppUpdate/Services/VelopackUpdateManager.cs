@@ -325,6 +325,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         try
         {
+            CleanStrayAppDirectoryArtifacts();
             _logger.LogInformation("Applying update {Version} and restarting...", updateInfo.TargetFullRelease.Version);
             _logger.LogInformation("Update package: {Package}", updateInfo.TargetFullRelease.FileName);
             _logger.LogInformation("Current app will exit and restart with new version");
@@ -367,6 +368,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         try
         {
+            CleanStrayAppDirectoryArtifacts();
             _logger.LogInformation("Applying update {Version} and exiting...", updateInfo.TargetFullRelease.Version);
             _updateManager.ApplyUpdatesAndExit(updateInfo.TargetFullRelease);
         }
@@ -847,6 +849,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
                 progress?.Report(new UpdateProgress { Status = "Installing update...", PercentComplete = 90 });
 
+                CleanStrayAppDirectoryArtifacts();
                 _logger.LogInformation("Applying {Label} update and restarting", label);
 
                 localUpdateManager.ApplyUpdatesAndRestart(updateInfo.TargetFullRelease);
@@ -925,6 +928,59 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         _latestVersionFromGitHub = null;
         IsPrMergedOrClosed = false;
         _logger.LogInformation("Update manager cache cleared");
+    }
+
+    /// <summary>
+    /// Cleans stray mutable build artifacts (.Build, .Release, .modbuilder_cache, etc.)
+    /// from the application directory prior to applying an update.
+    /// This prevents Windows file-lock (ERROR_ACCESS_DENIED) errors during Velopack package replacement.
+    /// </summary>
+    internal void CleanStrayAppDirectoryArtifacts()
+    {
+        try
+        {
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            var sampleProjectsDir = Path.Combine(baseDir, "SampleProjects");
+            if (Directory.Exists(sampleProjectsDir))
+            {
+                foreach (var dir in Directory.GetDirectories(sampleProjectsDir, "*", SearchOption.AllDirectories))
+                {
+                    var dirName = Path.GetFileName(dir);
+                    if (dirName.Equals(".Build", StringComparison.OrdinalIgnoreCase) ||
+                        dirName.Equals(".Release", StringComparison.OrdinalIgnoreCase) ||
+                        dirName.StartsWith(".staging", StringComparison.OrdinalIgnoreCase) ||
+                        dirName.Equals(".modbuilder_cache", StringComparison.OrdinalIgnoreCase))
+                    {
+                        try
+                        {
+                            Directory.Delete(dir, recursive: true);
+                            _logger.LogInformation("Pre-update cleanup removed stray directory: {Dir}", dir);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Pre-update cleanup could not delete directory: {Dir}", dir);
+                        }
+                    }
+                }
+            }
+
+            foreach (var file in Directory.GetFiles(baseDir, "*.msgpack", SearchOption.TopDirectoryOnly))
+            {
+                try
+                {
+                    File.Delete(file);
+                    _logger.LogInformation("Pre-update cleanup removed stray file: {File}", file);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Pre-update cleanup could not delete file: {File}", file);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error during pre-update app directory cleanup");
+        }
     }
 
     /// <inheritdoc/>

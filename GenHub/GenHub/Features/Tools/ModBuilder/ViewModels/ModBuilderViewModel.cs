@@ -1099,7 +1099,6 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 ProjectPath = projectPath;
                 ProjectName = result.Data.Name;
                 IsProjectLoaded = true;
-                ShowQuickStartGuide = true;
 
                 await LoadProjectDataAsync().ConfigureAwait(false);
                 await _projectConfigService.AddToRecentProjectsAsync(projectPath, CancellationToken.None).ConfigureAwait(false);
@@ -1373,6 +1372,15 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
     private async Task<BuildConfiguration> PrepareBuildConfigurationAsync(CancellationToken cancellationToken)
     {
+        var buildConfig = await EnsureProjectConfigurationLoadedAsync(cancellationToken).ConfigureAwait(false);
+        ApplyResolvedGameDirectory(buildConfig);
+        ApplyPackSelections(buildConfig);
+        buildConfig.ZipCompressionLevel = SelectedCompressionLevel;
+        return buildConfig;
+    }
+
+    private async Task<BuildConfiguration> EnsureProjectConfigurationLoadedAsync(CancellationToken cancellationToken)
+    {
         var buildConfig = CurrentProject?.Configuration;
         var projectDir = GetEffectiveProjectDir();
 
@@ -1387,42 +1395,49 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             }
         }
 
-        buildConfig ??= new BuildConfiguration();
+        return buildConfig ?? new BuildConfiguration();
+    }
 
+    private void ApplyResolvedGameDirectory(BuildConfiguration buildConfig)
+    {
         var resolvedGameDir = ResolveGameDirectory(buildConfig);
-        if (!string.IsNullOrEmpty(resolvedGameDir))
+        if (string.IsNullOrEmpty(resolvedGameDir))
         {
-            buildConfig.Folders.AbsGameDir = resolvedGameDir;
-            if (CurrentProject != null && string.IsNullOrEmpty(CurrentProject.GameDir))
-            {
-                CurrentProject.GameDir = resolvedGameDir;
-            }
-
-            if (string.IsNullOrEmpty(GameDirectory))
-            {
-                GameDirectory = resolvedGameDir;
-            }
+            return;
         }
 
-        if (buildConfig.Packs != null)
+        buildConfig.Folders.AbsGameDir = resolvedGameDir;
+        if (CurrentProject != null && string.IsNullOrEmpty(CurrentProject.GameDir))
         {
-            foreach (var pack in buildConfig.Packs)
-            {
-                var bundleVm = Bundles.FirstOrDefault(b => string.Equals(b.Name, pack.Name, StringComparison.OrdinalIgnoreCase));
-                if (bundleVm != null)
-                {
-                    pack.AllowBuild = bundleVm.IsSelected;
-                }
-
-                if (SingleBigPackMode)
-                {
-                    pack.Big = true;
-                }
-            }
+            CurrentProject.GameDir = resolvedGameDir;
         }
 
-        buildConfig.ZipCompressionLevel = SelectedCompressionLevel;
-        return buildConfig;
+        if (string.IsNullOrEmpty(GameDirectory))
+        {
+            GameDirectory = resolvedGameDir;
+        }
+    }
+
+    private void ApplyPackSelections(BuildConfiguration buildConfig)
+    {
+        if (buildConfig.Packs == null)
+        {
+            return;
+        }
+
+        foreach (var pack in buildConfig.Packs)
+        {
+            var bundleVm = Bundles.FirstOrDefault(b => string.Equals(b.Name, pack.Name, StringComparison.OrdinalIgnoreCase));
+            if (bundleVm != null)
+            {
+                pack.AllowBuild = bundleVm.IsSelected;
+            }
+
+            if (SingleBigPackMode)
+            {
+                pack.Big = true;
+            }
+        }
     }
 
     private async Task HandleBuildSuccessAsync(int filesProcessed, int bundlesCreated)
@@ -1602,13 +1617,12 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         if (buildConfig.Packs != null && buildConfig.Packs.Count > 0)
         {
-            foreach (var pack in buildConfig.Packs.Where(pack => selectedNames.Contains(pack.Name) || pack.ItemNames.Any(item => selectedNames.Contains(item))))
-            {
-                if (!resolvedPacks.Contains(pack.Name, StringComparer.OrdinalIgnoreCase))
-                {
-                    resolvedPacks.Add(pack.Name);
-                }
-            }
+            var matchingPacks = buildConfig.Packs
+                .Where(pack => selectedNames.Contains(pack.Name) || pack.ItemNames.Any(item => selectedNames.Contains(item)))
+                .Select(pack => pack.Name)
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+
+            resolvedPacks.AddRange(matchingPacks);
         }
         else
         {

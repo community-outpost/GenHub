@@ -87,7 +87,7 @@
 
     <!-- Copy sample projects to output directory -->
     <ItemGroup>
-      <Content Include="..\..\SampleProjects\**\*.*">
+      <Content Include="..\..\SampleProjects\**\*.*" Exclude="..\..\SampleProjects\**\.Build\**;..\..\SampleProjects\**\.Release\**;..\..\SampleProjects\**\*.msgpack;..\..\SampleProjects\**\.modbuilder_cache\**">
         <Link>SampleProjects\%(RecursiveDir)%(Filename)%(Extension)</Link>
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>

@@ -134,15 +134,17 @@
       <Setter Property="Foreground" Value="White" />
     </Style>
 
-    <!-- Fast Responsive Tooltips -->
+    <!-- Fast Responsive Tooltips & Cursors -->
     <Style Selector="Button">
       <Setter Property="ToolTip.ShowDelay" Value="150" />
     </Style>
     <Style Selector="CheckBox">
       <Setter Property="ToolTip.ShowDelay" Value="150" />
+      <Setter Property="Cursor" Value="Hand" />
     </Style>
     <Style Selector="ComboBox">
       <Setter Property="ToolTip.ShowDelay" Value="150" />
+      <Setter Property="Cursor" Value="Hand" />
     </Style>
   </UserControl.Styles>
 
@@ -252,53 +254,24 @@
         <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,4,0">
           <StackPanel Spacing="12">
 
-            <!-- Quick Start Guide (Removable with X) -->
-            <Border Background="{DynamicResource AccentTintBackgroundBrush}"
-                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                    CornerRadius="10" Padding="14"
-                    IsVisible="{Binding ShowQuickStartGuide}">
-              <StackPanel Spacing="10">
-                <Grid ColumnDefinitions="*,Auto">
-                  <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Path Width="14" Height="14" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconPlay}" Stretch="Uniform" VerticalAlignment="Center"/>
-                    <TextBlock Text="Quick Start" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
-                  </StackPanel>
-                  <Button Grid.Column="1" Command="{Binding DismissQuickStartGuideCommand}"
-                          Background="Transparent" BorderThickness="0"
-                          CornerRadius="6" Width="24" Height="24" Padding="0"
-                          HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                          ToolTip.Tip="Dismiss Quick Start Guide" Cursor="Hand" VerticalAlignment="Center">
-                    <Path Width="10" Height="10" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconClear}" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                  </Button>
-                </Grid>
-                <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
-                <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" FontSize="12" LineHeight="18">
-                  <Run Text="1." FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/> Copy game assets to GameFilesEdited
-                </TextBlock>
-                <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" FontSize="12" LineHeight="18">
-                  <Run Text="2." FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/> Configure bundles in Edit Configuration
-                </TextBlock>
-                <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" FontSize="12" LineHeight="18">
-                  <Run Text="3." FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/> Click Execute Build to generate packages
-                </TextBlock>
-              </StackPanel>
-            </Border>
-
             <!-- File Count Card -->
             <Border Background="{DynamicResource CardBackground}"
                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                     CornerRadius="10" Padding="16"
                     IsVisible="{Binding IsProjectLoaded}">
               <Grid RowDefinitions="Auto,Auto,Auto">
-                <TextBlock Grid.Row="0" Text="Files to Build" FontSize="12" Foreground="{DynamicResource TextSecondary}"
-                           HorizontalAlignment="Center" FontWeight="SemiBold"/>
-                <TextBlock Grid.Row="1" Text="{Binding FilesToBuildCount}" FontSize="36" FontWeight="Bold"
-                           Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" Margin="0,4"/>
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" Margin="0,0,0,4">
+                  <Path Width="12" Height="12" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconPackage}" Stretch="Uniform" VerticalAlignment="Center"/>
+                  <TextBlock Text="Files in Staging" FontSize="12" Foreground="{DynamicResource TextSecondary}"
+                             FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock Grid.Row="1" Text="{Binding FilesToBuildCount}" FontSize="32" FontWeight="Bold"
+                           Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" Margin="0,2,0,8"/>
                 <Button Grid.Row="2" Command="{Binding RefreshFileCountCommand}"
                         Classes="quick-nav-btn"
                         HorizontalContentAlignment="Center"
-                        Padding="10,6"
-                        ToolTip.Tip="Recalculate files in GameFilesEdited">
+                        Padding="10,7"
+                        ToolTip.Tip="Recalculate files in GameFilesEdited directory">
                   <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <Path Width="12" Height="12" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconReload}" Stretch="Uniform" VerticalAlignment="Center"/>
                     <TextBlock Text="Refresh Count" FontSize="12" VerticalAlignment="Center"/>
@@ -440,9 +413,18 @@
               <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                 <Path Width="16" Height="16" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconTerminal}" Stretch="Uniform" VerticalAlignment="Center"/>
                 <TextBlock Text="Build Output" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                        CornerRadius="4" Padding="6,2" Margin="4,0,0,0">
+                  <TextBlock Text="Terminal" FontSize="10.5" Foreground="{DynamicResource TextSecondary}" FontWeight="Medium"/>
+                </Border>
               </StackPanel>
-              <Button Grid.Column="1" Content="Clear Output" Command="{Binding ClearOutputCommand}" ToolTip.Tip="Clear build output log"
-                      Classes="header-action-btn" Padding="10,5"/>
+              <Button Grid.Column="1" Command="{Binding ClearOutputCommand}" ToolTip.Tip="Clear console log output"
+                      Classes="header-action-btn" Padding="10,6">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                  <Path Width="11" Height="11" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconClear}" Stretch="Uniform" VerticalAlignment="Center"/>
+                  <TextBlock Text="Clear Output" FontSize="12" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
             </Grid>
 
             <!-- Live Streaming Console Output -->
