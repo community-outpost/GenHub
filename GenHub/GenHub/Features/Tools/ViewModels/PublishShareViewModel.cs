@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -634,6 +635,7 @@ public partial class PublishShareViewModel : ObservableObject
             await _authCts.CancelAsync().ConfigureAwait(false);
             _authCts.Dispose();
         }
+
         _authCts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(120));
 
         IsAuthenticating = true;
