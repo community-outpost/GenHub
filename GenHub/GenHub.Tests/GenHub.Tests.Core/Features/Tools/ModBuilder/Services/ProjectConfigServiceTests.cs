@@ -302,7 +302,7 @@ public sealed class ProjectConfigServiceTests : IDisposable
 
         // Assert
         result.Success.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.Contains("Invalid") || e.Contains("parse"));
+        result.Errors.Should().Contain(e => e.Contains("invalid", StringComparison.OrdinalIgnoreCase) || e.Contains("parse", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -348,5 +348,74 @@ public sealed class ProjectConfigServiceTests : IDisposable
         var loaded = await _service.LoadProjectAsync(projectPath);
         loaded.Success.Should().BeTrue();
         loaded.Data!.ContentType.Should().Be(GenHub.Core.Models.Enums.ContentType.Addon);
+    }
+
+    [Fact]
+    public async Task ImportBigFilesAsync_WithValidBigArchives_UnpacksAndConfiguresPacks()
+    {
+        // Arrange
+        var archiveLogger = new Mock<ILogger<ArchiveService>>();
+        var archiveService = new ArchiveService(archiveLogger.Object);
+
+        var bigSourceDir = Path.Combine(_tempDirectory, "big_source");
+        Directory.CreateDirectory(Path.Combine(bigSourceDir, "Data", "INI"));
+        await File.WriteAllTextAsync(Path.Combine(bigSourceDir, "Data", "INI", "Weapon.ini"), "Weapon StandardGun");
+
+        var bigPath = Path.Combine(_tempDirectory, "WeaponPatch.big");
+        var packResult = await archiveService.CreateBigArchiveAsync(bigSourceDir, bigPath);
+        packResult.Success.Should().BeTrue();
+
+        var projectPath = Path.Combine(_tempDirectory, "TestImportProject.mbproj");
+        var createResult = await _service.CreateProjectAsync(projectPath, "TestImportProject");
+        createResult.Success.Should().BeTrue();
+
+        // Act
+        var importResult = await _service.ImportBigFilesAsync(projectPath, new[] { bigPath });
+
+        // Assert
+        importResult.Success.Should().BeTrue();
+        var extractedFile = Path.Combine(_tempDirectory, "GameFilesEdited", "Data", "INI", "Weapon.ini");
+        File.Exists(extractedFile).Should().BeTrue();
+        (await File.ReadAllTextAsync(extractedFile)).Should().Be("Weapon StandardGun");
+
+        var packsConfigPath = Path.Combine(_tempDirectory, "config", "ModBundlePacks.json");
+        File.Exists(packsConfigPath).Should().BeTrue();
+        var packsContent = await File.ReadAllTextAsync(packsConfigPath);
+        packsContent.Should().Contain("WeaponPatch.big");
+    }
+
+    [Fact]
+    public async Task CreateProjectFromBigFilesAsync_WithValidBigArchives_InitializesProjectAndExtracts()
+    {
+        // Arrange
+        var archiveLogger = new Mock<ILogger<ArchiveService>>();
+        var archiveService = new ArchiveService(archiveLogger.Object);
+
+        var bigSourceDir = Path.Combine(_tempDirectory, "source_mod");
+        Directory.CreateDirectory(Path.Combine(bigSourceDir, "Art", "Textures"));
+        await File.WriteAllTextAsync(Path.Combine(bigSourceDir, "Art", "Textures", "Icon.dds"), "DDS_BYTES");
+
+        var bigPath = Path.Combine(_tempDirectory, "ArtMod.big");
+        var packResult = await archiveService.CreateBigArchiveAsync(bigSourceDir, bigPath);
+        packResult.Success.Should().BeTrue();
+
+        var projectDir = Path.Combine(_tempDirectory, "ImportedArtProject");
+        Directory.CreateDirectory(projectDir);
+        var projectPath = Path.Combine(projectDir, "ImportedArtProject.mbproj");
+
+        // Act
+        var result = await _service.CreateProjectFromBigFilesAsync(
+            projectPath,
+            "ImportedArtProject",
+            new[] { bigPath });
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Name.Should().Be("ImportedArtProject");
+        result.Data!.Description.Should().ContainEquivalentOf("imported from");
+
+        var extractedFile = Path.Combine(projectDir, "GameFilesEdited", "Art", "Textures", "Icon.dds");
+        File.Exists(extractedFile).Should().BeTrue();
     }
 }

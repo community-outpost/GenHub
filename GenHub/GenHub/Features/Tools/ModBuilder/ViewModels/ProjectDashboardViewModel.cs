@@ -103,21 +103,7 @@ public sealed partial class ProjectDashboardViewModel(
         {
             foreach (var path in recentResult.Data.Where(File.Exists))
             {
-                var contentType = ContentType.Mod;
-                try
-                {
-                    using var stream = File.OpenRead(path);
-                    using var doc = JsonDocument.Parse(stream);
-                    if (doc.RootElement.TryGetProperty("contentType", out var ctProp) &&
-                        Enum.TryParse<ContentType>(ctProp.GetString(), true, out var parsed))
-                    {
-                        contentType = parsed;
-                    }
-                }
-                catch
-                {
-                    // Ignore parsing errors for quick preview
-                }
+                var contentType = await ReadProjectContentTypeAsync(path).ConfigureAwait(false);
 
                 projects.Add(new RecentProjectInfo
                 {
@@ -151,6 +137,26 @@ public sealed partial class ProjectDashboardViewModel(
         {
             await Dispatcher.UIThread.InvokeAsync(PopulateRecentProjects);
         }
+    }
+
+    private static async Task<ContentType> ReadProjectContentTypeAsync(string path)
+    {
+        try
+        {
+            await using var stream = File.OpenRead(path);
+            using var doc = await JsonDocument.ParseAsync(stream).ConfigureAwait(false);
+            if (doc.RootElement.TryGetProperty("contentType", out var ctProp) &&
+                Enum.TryParse<ContentType>(ctProp.GetString(), true, out var parsed))
+            {
+                return parsed;
+            }
+        }
+        catch
+        {
+            // Ignore parsing errors for quick preview
+        }
+
+        return ContentType.Mod;
     }
 
     /// <summary>

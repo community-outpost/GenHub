@@ -140,6 +140,19 @@
               <TextBlock Text="Open Project" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
+
+          <Button Command="{Binding ImportBigModCommand}"
+                  Classes="dashboard-secondary-btn"
+                  ToolTip.Tip="Import existing .BIG file(s) to create a new project. Extracted files will be placed into GameFilesEdited ready for editing and rebuilding.">
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <Path Width="14" Height="14"
+                    Fill="{DynamicResource TextPrimary}"
+                    Data="{StaticResource IconArchive}"
+                    Stretch="Uniform"
+                    VerticalAlignment="Center"/>
+              <TextBlock Text="Import .BIG Mod" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Button>
         </StackPanel>
 
       </Grid>
@@ -483,6 +496,46 @@
                               Stretch="Uniform"
                               VerticalAlignment="Center"/>
                         <TextBlock Text="Explore Sample Project" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                      </StackPanel>
+                    </Button>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+
+              <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
+
+              <!-- Import BIG Mod Card -->
+              <StackPanel Spacing="12">
+                <TextBlock Text="Import Existing Mod"
+                           FontSize="16"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimary}"/>
+
+                <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="14">
+                  <StackPanel Spacing="10">
+                    <TextBlock Text="Import existing .BIG archives to unpack files into GameFilesEdited and configure build packs to generate updated .BIG files."
+                               FontSize="12"
+                               Foreground="{DynamicResource TextSecondary}"
+                               TextWrapping="Wrap"
+                               LineHeight="16"/>
+
+                    <Button Command="{Binding ImportBigModCommand}"
+                            Classes="dashboard-secondary-btn"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            Padding="12,9"
+                            ToolTip.Tip="Import existing .BIG file(s) to create a new project. Extracted files will be placed into GameFilesEdited ready for editing and rebuilding.">
+                      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Path Width="14" Height="14"
+                              Fill="{DynamicResource TextPrimary}"
+                              Data="{StaticResource IconArchive}"
+                              Stretch="Uniform"
+                              VerticalAlignment="Center"/>
+                        <TextBlock Text="Import .BIG Files" FontWeight="SemiBold" VerticalAlignment="Center"/>
                       </StackPanel>
                     </Button>
                   </StackPanel>

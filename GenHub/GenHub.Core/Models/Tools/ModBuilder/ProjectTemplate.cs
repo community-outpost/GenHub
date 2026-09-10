@@ -61,6 +61,21 @@ public class ProjectTemplate
     };
 
     /// <summary>
+    /// Gets the imported BIG archive project template.
+    /// </summary>
+    public static ProjectTemplate ImportedBig => new()
+    {
+        Name = "Imported BIG Mod",
+        Description = "Project imported from existing .BIG archive(s) with unpacked game files",
+        DefaultBundleConfigs = new List<string>
+        {
+            "config/ModBundleItems.json",
+            "config/ModBundlePacks.json",
+        },
+        CreateSampleFiles = false,
+    };
+
+    /// <summary>
     /// Gets or sets the template name.
     /// </summary>
     public required string Name { get; set; }
@@ -78,5 +93,5 @@ public class ProjectTemplate
     /// <summary>
     /// Gets or sets a value indicating whether to create sample files.
     /// </summary>
-    public bool CreateSampleFiles { get; set; }
+    public bool CreateSampleFiles { get; set; } = false;
 }

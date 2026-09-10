@@ -13,9 +13,11 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
+using GenHub.Core.Models.Content;
 using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using ContentManifest = GenHub.Core.Models.Manifest.ContentManifest;
 
 namespace GenHub.Features.Tools.ModBuilder.Services;
 
@@ -1179,53 +1181,95 @@ public sealed class BuildEngineService : IBuildEngineService
         var buildDir = setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir;
         var bundlesDir = Path.Combine(buildDir, ModBuilderConstants.BundlesSubdir);
 
-        if (!Directory.Exists(bundlesDir))
-        {
-            Directory.CreateDirectory(bundlesDir);
-        }
+        Directory.CreateDirectory(bundlesDir);
 
-        var allBundleFiles = Directory.GetFiles(bundlesDir, "*", SearchOption.AllDirectories);
-
-        // If bundlesDir has no files, automatically build big items or stage raw files
-        if (allBundleFiles.Length == 0 && setup.Bundles?.Items != null && setup.Bundles.Items.Count > 0)
-        {
-            _logger.LogInformation("No files found in bundles directory; preparing bundle files before creating manifest...");
-            foreach (var item in setup.Bundles.Items)
-            {
-                if (item.IsBig && item.Files.Count > 0)
-                {
-                    await BuildSingleBigBundleItemAsync(item, bundlesDir, progress, cancellationToken, 1, 1).ConfigureAwait(false);
-                }
-                else if (!item.IsBig && item.Files.Count > 0)
-                {
-                    StageRawBundleFiles(item, bundlesDir, item.Name);
-                }
-            }
-
-            allBundleFiles = Directory.GetFiles(bundlesDir, "*", SearchOption.AllDirectories);
-        }
-
-        if (allBundleFiles.Length == 0)
+        if (!await EnsureBundlesPreparedAsync(setup, bundlesDir, progress, cancellationToken).ConfigureAwait(false))
         {
             _logger.LogError("No bundle files found in {BundlesDir} to create manifest.", bundlesDir);
             _lastErrorMessage = $"No bundle files found in {bundlesDir}. Ensure bundle items have source files.";
             return false;
         }
 
-        var filesToInclude = ResolveManifestFilesToInclude(setup);
         var stagingDir = Path.Combine(buildDir, ".staging_manifest");
-        var manifestContentDir = bundlesDir;
+        var manifestContentDir = PrepareManifestContentDirectory(setup, bundlesDir, stagingDir);
 
-        if (filesToInclude.Count > 0)
+        try
         {
-            StageManifestFiles(stagingDir, bundlesDir, filesToInclude);
-            var stagedCount = Directory.Exists(stagingDir) ? Directory.GetFiles(stagingDir, "*", SearchOption.AllDirectories).Length : 0;
-            if (stagedCount > 0)
+            return await ExecuteCreateLocalManifestAsync(
+                buildStructure,
+                manifestContentDir,
+                bundlesDir,
+                buildDir,
+                setup.Folders?.AbsReleaseDir,
+                progress,
+                cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            CleanupStagingDirectory(stagingDir);
+        }
+    }
+
+    private async Task<bool> EnsureBundlesPreparedAsync(
+        BuildSetup setup,
+        string bundlesDir,
+        IProgress<BuildProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var allBundleFiles = Directory.GetFiles(bundlesDir, "*", SearchOption.AllDirectories);
+        if (allBundleFiles.Length > 0)
+        {
+            return true;
+        }
+
+        if (setup.Bundles?.Items == null || setup.Bundles.Items.Count == 0)
+        {
+            return false;
+        }
+
+        _logger.LogInformation("No files found in bundles directory; preparing bundle files before creating manifest...");
+        foreach (var item in setup.Bundles.Items)
+        {
+            if (item.Files.Count == 0)
             {
-                manifestContentDir = stagingDir;
+                continue;
+            }
+
+            if (item.IsBig)
+            {
+                await BuildSingleBigBundleItemAsync(item, bundlesDir, progress, cancellationToken, 1, 1).ConfigureAwait(false);
+            }
+            else
+            {
+                StageRawBundleFiles(item, bundlesDir, item.Name);
             }
         }
 
+        return Directory.GetFiles(bundlesDir, "*", SearchOption.AllDirectories).Length > 0;
+    }
+
+    private static string PrepareManifestContentDirectory(BuildSetup setup, string bundlesDir, string stagingDir)
+    {
+        var filesToInclude = ResolveManifestFilesToInclude(setup);
+        if (filesToInclude.Count == 0)
+        {
+            return bundlesDir;
+        }
+
+        StageManifestFiles(stagingDir, bundlesDir, filesToInclude);
+        var stagedCount = Directory.Exists(stagingDir) ? Directory.GetFiles(stagingDir, "*", SearchOption.AllDirectories).Length : 0;
+        return stagedCount > 0 ? stagingDir : bundlesDir;
+    }
+
+    private async Task<bool> ExecuteCreateLocalManifestAsync(
+        BuildStructure buildStructure,
+        string manifestContentDir,
+        string bundlesDir,
+        string buildDir,
+        string? releaseDir,
+        IProgress<BuildProgress>? progress,
+        CancellationToken cancellationToken)
+    {
         using var scope = _serviceScopeFactory.CreateScope();
         var localContentService = scope.ServiceProvider.GetRequiredService<ILocalContentService>();
 
@@ -1233,9 +1277,7 @@ public sealed class BuildEngineService : IBuildEngineService
         {
             var projectName = buildStructure.Project.Name;
             var targetGame = buildStructure.Project.TargetGame;
-            var contentType = buildStructure.Project.ContentType != ContentType.UnknownContentType
-                ? buildStructure.Project.ContentType
-                : ContentType.Mod;
+            var contentType = ResolveProjectContentType(buildStructure.Project.ContentType);
 
             var manifestResult = await localContentService.CreateLocalContentManifestAsync(
                 manifestContentDir,
@@ -1260,33 +1302,7 @@ public sealed class BuildEngineService : IBuildEngineService
 
             if (manifest != null)
             {
-                try
-                {
-                    CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default.Send(new Core.Models.Content.ContentAcquiredMessage(manifest));
-                    _logger.LogInformation("Published ContentAcquiredMessage for manifest {ManifestId}", manifest.Id);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to publish ContentAcquiredMessage for manifest {ManifestId}", manifest.Id);
-                }
-
-                var manifestJson = JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true });
-                var buildManifestPath = Path.Combine(buildDir, "manifest.json");
-                await File.WriteAllTextAsync(buildManifestPath, manifestJson, cancellationToken).ConfigureAwait(false);
-                _logger.LogInformation("Saved manifest file to {Path}", buildManifestPath);
-
-                var releaseDir = setup.Folders?.AbsReleaseDir;
-                if (!string.IsNullOrEmpty(releaseDir))
-                {
-                    if (!Directory.Exists(releaseDir))
-                    {
-                        Directory.CreateDirectory(releaseDir);
-                    }
-
-                    var releaseManifestPath = Path.Combine(releaseDir, "manifest.json");
-                    await File.WriteAllTextAsync(releaseManifestPath, manifestJson, cancellationToken).ConfigureAwait(false);
-                    _logger.LogInformation("Saved manifest file to {Path}", releaseManifestPath);
-                }
+                await PersistManifestOutputsAsync(manifest, buildDir, releaseDir, cancellationToken).ConfigureAwait(false);
             }
 
             progress?.Report(new BuildProgress
@@ -1307,19 +1323,60 @@ public sealed class BuildEngineService : IBuildEngineService
             _lastErrorMessage = $"Failed to create manifest: {ex.Message}";
             return false;
         }
-        finally
+    }
+
+    private static ContentType ResolveProjectContentType(ContentType contentType) =>
+        contentType != ContentType.UnknownContentType ? contentType : ContentType.Mod;
+
+    private async Task PersistManifestOutputsAsync(
+        ContentManifest manifest,
+        string buildDir,
+        string? releaseDir,
+        CancellationToken cancellationToken)
+    {
+        PublishContentAcquiredSafely(manifest);
+
+        var manifestJson = JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true });
+        var buildManifestPath = Path.Combine(buildDir, "manifest.json");
+        await File.WriteAllTextAsync(buildManifestPath, manifestJson, cancellationToken).ConfigureAwait(false);
+        _logger.LogInformation("Saved manifest file to {Path}", buildManifestPath);
+
+        if (!string.IsNullOrEmpty(releaseDir))
         {
-            if (Directory.Exists(stagingDir))
-            {
-                try
-                {
-                    Directory.Delete(stagingDir, true);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogDebug(ex, "Failed to clean up manifest staging directory: {StagingDir}", stagingDir);
-                }
-            }
+            Directory.CreateDirectory(releaseDir);
+            var releaseManifestPath = Path.Combine(releaseDir, "manifest.json");
+            await File.WriteAllTextAsync(releaseManifestPath, manifestJson, cancellationToken).ConfigureAwait(false);
+            _logger.LogInformation("Saved manifest file to {Path}", releaseManifestPath);
+        }
+    }
+
+    private void PublishContentAcquiredSafely(ContentManifest manifest)
+    {
+        try
+        {
+            WeakReferenceMessenger.Default.Send(new ContentAcquiredMessage(manifest));
+            _logger.LogInformation("Published ContentAcquiredMessage for manifest {ManifestId}", manifest.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to publish ContentAcquiredMessage for manifest {ManifestId}", manifest.Id);
+        }
+    }
+
+    private void CleanupStagingDirectory(string stagingDir)
+    {
+        if (!Directory.Exists(stagingDir))
+        {
+            return;
+        }
+
+        try
+        {
+            Directory.Delete(stagingDir, true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Failed to clean up manifest staging directory: {StagingDir}", stagingDir);
         }
     }
 

@@ -355,4 +355,72 @@ public sealed class ArchiveServiceTests : IDisposable
 
         return null;
     }
+
+    [Fact]
+    public async Task ExtractBigArchiveAsync_WithValidBigArchive_ExtractsFilesSuccessfully()
+    {
+        // Arrange
+        var sourceDir = Path.Combine(_tempDirectory, "big_source");
+        Directory.CreateDirectory(Path.Combine(sourceDir, "Data", "INI"));
+        await File.WriteAllTextAsync(Path.Combine(sourceDir, "Data", "INI", "GameData.ini"), "DefaultCameraHeight = 350.0");
+        await File.WriteAllTextAsync(Path.Combine(sourceDir, "Readme.txt"), "Sample Readme");
+
+        var bigPath = Path.Combine(_tempDirectory, "TestArchive.big");
+        var packResult = await _service.CreateBigArchiveAsync(sourceDir, bigPath);
+        packResult.Success.Should().BeTrue();
+
+        var extractDir = Path.Combine(_tempDirectory, "extracted_output");
+
+        // Act
+        var extractResult = await _service.ExtractBigArchiveAsync(bigPath, extractDir);
+
+        // Assert
+        extractResult.Success.Should().BeTrue();
+        File.Exists(Path.Combine(extractDir, "Data", "INI", "GameData.ini")).Should().BeTrue();
+        (await File.ReadAllTextAsync(Path.Combine(extractDir, "Data", "INI", "GameData.ini"))).Should().Be("DefaultCameraHeight = 350.0");
+        File.Exists(Path.Combine(extractDir, "Readme.txt")).Should().BeTrue();
+        (await File.ReadAllTextAsync(Path.Combine(extractDir, "Readme.txt"))).Should().Be("Sample Readme");
+    }
+
+    [Fact]
+    public async Task ExtractBigArchivesAsync_WithMultipleArchives_ExtractsAllFiles()
+    {
+        // Arrange
+        var source1 = Path.Combine(_tempDirectory, "big1_src");
+        Directory.CreateDirectory(source1);
+        await File.WriteAllTextAsync(Path.Combine(source1, "Mod1.txt"), "Mod 1 Content");
+        var big1 = Path.Combine(_tempDirectory, "Mod1.big");
+        (await _service.CreateBigArchiveAsync(source1, big1)).Success.Should().BeTrue();
+
+        var source2 = Path.Combine(_tempDirectory, "big2_src");
+        Directory.CreateDirectory(source2);
+        await File.WriteAllTextAsync(Path.Combine(source2, "Mod2.txt"), "Mod 2 Content");
+        var big2 = Path.Combine(_tempDirectory, "Mod2.big");
+        (await _service.CreateBigArchiveAsync(source2, big2)).Success.Should().BeTrue();
+
+        var extractDir = Path.Combine(_tempDirectory, "multi_extracted");
+
+        // Act
+        var result = await _service.ExtractBigArchivesAsync(new[] { big1, big2 }, extractDir);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        File.Exists(Path.Combine(extractDir, "Mod1.txt")).Should().BeTrue();
+        File.Exists(Path.Combine(extractDir, "Mod2.txt")).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ExtractBigArchiveAsync_WithNonExistentFile_ReturnsFailure()
+    {
+        // Arrange
+        var nonExistent = Path.Combine(_tempDirectory, "NonExistent.big");
+        var extractDir = Path.Combine(_tempDirectory, "fail_output");
+
+        // Act
+        var result = await _service.ExtractBigArchiveAsync(nonExistent, extractDir);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Contains("not found"));
+    }
 }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -116,5 +117,42 @@ public interface IProjectConfigService
     /// <returns>A result indicating success or failure.</returns>
     Task<ProjectOperationResult<bool>> UpdateLastBuildTimeAsync(
         string projectPath,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Imports one or more .big files into an existing project.
+    /// Unpacks files into GameFilesEdited and optionally configures bundle packs and items.
+    /// </summary>
+    /// <param name="projectPath">The full path to the .mbproj file.</param>
+    /// <param name="bigFilePaths">Collection of paths to .big archives to import.</param>
+    /// <param name="createBundlePackForBig">Whether to auto-configure bundle items and packs for the imported archives.</param>
+    /// <param name="progress">Optional progress reporter (0.0 to 1.0).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A result containing the total number of files extracted.</returns>
+    Task<ProjectOperationResult<int>> ImportBigFilesAsync(
+        string projectPath,
+        IEnumerable<string> bigFilePaths,
+        bool createBundlePackForBig = true,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Creates a new ModBuilder project pre-populated from one or more .big files.
+    /// </summary>
+    /// <param name="projectPath">The full path where the .mbproj file will be created.</param>
+    /// <param name="projectName">The name of the project.</param>
+    /// <param name="bigFilePaths">Collection of paths to .big archives to unpack into the project.</param>
+    /// <param name="gameInstallationId">Optional game installation ID.</param>
+    /// <param name="contentType">The content type (Mod, Patch, Addon, etc.). Defaults to Mod.</param>
+    /// <param name="progress">Optional progress reporter (0.0 to 1.0).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A result containing the created project.</returns>
+    Task<ProjectOperationResult<ModBuilderProject>> CreateProjectFromBigFilesAsync(
+        string projectPath,
+        string projectName,
+        IEnumerable<string> bigFilePaths,
+        string? gameInstallationId = null,
+        ContentType contentType = ContentType.Mod,
+        IProgress<double>? progress = null,
         CancellationToken cancellationToken = default);
 }

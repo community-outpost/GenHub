@@ -736,6 +736,27 @@ public partial class FileManagerViewModel(
     /// <summary>
     /// Refreshes both game and project file trees.
     /// </summary>
+    /// <summary>
+    /// Event raised when the user requests importing .BIG files into the project.
+    /// Handled by the parent ModBuilderViewModel which has access to the window dialog service.
+    /// </summary>
+    public event Func<Task>? ImportBigFilesRequested;
+
+    /// <summary>
+    /// Requests importing one or more .BIG archives into the project's GameFilesEdited folder.
+    /// </summary>
+    [RelayCommand]
+    private async Task ImportBigFilesAsync()
+    {
+        if (ImportBigFilesRequested != null)
+        {
+            await ImportBigFilesRequested.Invoke().ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Refreshes both game and project file trees.
+    /// </summary>
     [RelayCommand]
     private async Task RefreshAsync()
     {
