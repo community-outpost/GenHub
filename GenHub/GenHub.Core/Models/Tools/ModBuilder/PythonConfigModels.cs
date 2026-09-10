@@ -96,7 +96,7 @@ public sealed class PythonBundlePack
     public bool AllowInstall { get; set; }
 
     [JsonPropertyName("big")]
-    public bool Big { get; set; }
+    public bool? Big { get; set; }
 
     [JsonPropertyName("outputFile")]
     public string? OutputFile { get; set; }
@@ -250,6 +250,9 @@ public sealed class SimplifiedBundleItem
 
     [JsonPropertyName("GenerateMipmaps")]
     public bool GenerateMipmaps { get; set; }
+
+    [JsonPropertyName("Big")]
+    public bool? Big { get; set; }
 }
 
 /// <summary>

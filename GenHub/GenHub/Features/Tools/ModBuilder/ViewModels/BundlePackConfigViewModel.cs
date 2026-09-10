@@ -1,3 +1,4 @@
+using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -79,8 +80,14 @@ public partial class BundlePackConfigViewModel : ObservableObject
     {
         if (!string.IsNullOrWhiteSpace(OutputFile))
         {
-            var targetExt = value ? ".big" : ".zip";
-            OutputFile = Path.ChangeExtension(OutputFile, targetExt).Replace('\\', '/');
+            if (value && OutputFile.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            {
+                OutputFile = Path.ChangeExtension(OutputFile, ".big").Replace('\\', '/');
+            }
+            else if (!value && OutputFile.EndsWith(".big", StringComparison.OrdinalIgnoreCase))
+            {
+                OutputFile = Path.ChangeExtension(OutputFile, ".zip").Replace('\\', '/');
+            }
         }
     }
 }

@@ -419,11 +419,27 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         {
             foreach (var pack in CurrentProject.Configuration.Packs)
             {
-                pack.Big = value;
-                if (!string.IsNullOrWhiteSpace(pack.OutputFile))
+                if (value)
                 {
-                    var targetExt = value ? ".big" : ".zip";
-                    pack.OutputFile = Path.ChangeExtension(pack.OutputFile, targetExt).Replace('\\', '/');
+                    if (pack.Big != false)
+                    {
+                        pack.Big = true;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(pack.OutputFile) &&
+                        pack.OutputFile.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                    {
+                        pack.OutputFile = Path.ChangeExtension(pack.OutputFile, ".big").Replace('\\', '/');
+                    }
+                }
+                else
+                {
+                    pack.Big = null;
+                    if (!string.IsNullOrWhiteSpace(pack.OutputFile) &&
+                        pack.OutputFile.EndsWith(".big", StringComparison.OrdinalIgnoreCase))
+                    {
+                        pack.OutputFile = Path.ChangeExtension(pack.OutputFile, ".zip").Replace('\\', '/');
+                    }
                 }
             }
         }
@@ -1259,8 +1275,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             await CopyDirectoryAsync(templateDir, userProjectDir).ConfigureAwait(false);
         }
 
-        var buildDir = Path.Combine(userProjectDir, ".Build");
-        var releaseDir = Path.Combine(userProjectDir, ".Release");
+        var buildDir = Path.Combine(userProjectDir, ModBuilderConstants.DefaultBuildDir);
+        var releaseDir = Path.Combine(userProjectDir, ModBuilderConstants.DefaultReleaseDir);
         if (!Directory.Exists(buildDir))
         {
             Directory.CreateDirectory(buildDir);
@@ -1413,8 +1429,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         foreach (var subDir in Directory.GetDirectories(sourceDir))
         {
             var subDirName = Path.GetFileName(subDir);
-            if (subDirName.Equals(".Build", StringComparison.OrdinalIgnoreCase) ||
-                subDirName.Equals(".Release", StringComparison.OrdinalIgnoreCase) ||
+            if (subDirName.Equals(ModBuilderConstants.DefaultBuildDir, StringComparison.OrdinalIgnoreCase) ||
+                subDirName.Equals(ModBuilderConstants.DefaultReleaseDir, StringComparison.OrdinalIgnoreCase) ||
                 subDirName.StartsWith(".staging", StringComparison.OrdinalIgnoreCase) ||
                 subDirName.Equals(".modbuilder_cache", StringComparison.OrdinalIgnoreCase))
             {
@@ -1435,13 +1451,13 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            var buildDir = Path.Combine(dir, ".Build");
+            var buildDir = Path.Combine(dir, ModBuilderConstants.DefaultBuildDir);
             if (Directory.Exists(buildDir))
             {
                 Directory.Delete(buildDir, recursive: true);
             }
 
-            var releaseDir = Path.Combine(dir, ".Release");
+            var releaseDir = Path.Combine(dir, ModBuilderConstants.DefaultReleaseDir);
             if (Directory.Exists(releaseDir))
             {
                 Directory.Delete(releaseDir, recursive: true);

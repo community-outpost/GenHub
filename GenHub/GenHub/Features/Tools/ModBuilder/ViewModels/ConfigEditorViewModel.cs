@@ -491,13 +491,13 @@ public partial class ConfigEditorViewModel(
         {
             configDir = Path.Combine(projectDir, configDirName);
         }
-        else if (Directory.Exists(Path.Combine(projectDir, "config")))
+        else if (Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir)))
         {
-            configDir = Path.Combine(projectDir, "config");
+            configDir = Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir);
         }
-        else if (Directory.Exists(Path.Combine(projectDir, "Configs")))
+        else if (Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.ConfigDir)))
         {
-            configDir = Path.Combine(projectDir, "Configs");
+            configDir = Path.Combine(projectDir, ModBuilderConstants.ConfigDir);
         }
         else
         {
@@ -549,10 +549,10 @@ public partial class ConfigEditorViewModel(
         var existingItemsText = File.Exists(itemsPath) ? await File.ReadAllTextAsync(itemsPath).ConfigureAwait(false) : null;
         if (existingItemsText != null && existingItemsText.Contains("\"BundleItems\"", StringComparison.OrdinalIgnoreCase))
         {
-            var simplifiedItems = Configuration.Items.Select(i => new
+            var simplifiedItems = Configuration.Items.Select(i => new SimplifiedBundleItem
             {
-                i.Name,
-                Files = i.Files.Select(f => f.AbsSourceFile).ToList(),
+                Name = i.Name,
+                SourceFiles = i.Files.Select(f => f.AbsSourceFile).ToList(),
                 Big = i.IsBig,
             }).ToList();
             var itemsData = new Dictionary<string, object>
@@ -568,7 +568,7 @@ public partial class ConfigEditorViewModel(
         }
 
         // Keep alternate directory in sync if both config and Configs exist
-        var altDirName = configDir.EndsWith("config", StringComparison.OrdinalIgnoreCase) ? "Configs" : "config";
+        var altDirName = configDir.EndsWith(ModBuilderConstants.LowercaseConfigDir, StringComparison.OrdinalIgnoreCase) ? ModBuilderConstants.ConfigDir : ModBuilderConstants.LowercaseConfigDir;
         var altDir = Path.Combine(projectDir, altDirName);
         if (Directory.Exists(altDir))
         {
@@ -576,6 +576,12 @@ public partial class ConfigEditorViewModel(
             if (File.Exists(altPacks) && !string.Equals(altPacks, packsPath, StringComparison.OrdinalIgnoreCase))
             {
                 File.Copy(packsPath, altPacks, true);
+            }
+
+            var altItems = Path.Combine(altDir, ModBuilderConstants.BundleItemsConfigFileName);
+            if (File.Exists(altItems) && !string.Equals(altItems, itemsPath, StringComparison.OrdinalIgnoreCase))
+            {
+                File.Copy(itemsPath, altItems, true);
             }
         }
     }

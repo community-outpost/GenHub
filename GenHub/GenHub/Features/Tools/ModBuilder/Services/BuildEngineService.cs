@@ -409,7 +409,14 @@ public sealed class BuildEngineService : IBuildEngineService
         var cacheDir = Path.GetDirectoryName(cachePath);
         if (!string.IsNullOrEmpty(cacheDir))
         {
-            Directory.CreateDirectory(cacheDir);
+            try
+            {
+                Directory.CreateDirectory(cacheDir);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogWarning(ex, "Could not create cache directory {CacheDir}, build caching disabled", cacheDir);
+            }
         }
 
         await _cacheService.LoadCacheAsync(cachePath, cancellationToken).ConfigureAwait(false);
@@ -808,32 +815,89 @@ public sealed class BuildEngineService : IBuildEngineService
         }
     }
 
-    private void StageBigPackFile(BundleFile file, string packStagingDir, string packName, string itemName, string? buildDir = null)
+    private static (string Path, string TargetRelPath) ResolveStagedSource(
+        BundleFile file,
+        string targetRelPath,
+        string? buildDir)
     {
         var sourcePath = file.AbsSourceFile;
-        var fileName = Path.GetFileName(sourcePath);
-        string? buildOutputDir = null;
-        if (!string.IsNullOrEmpty(buildDir))
+        if (string.IsNullOrEmpty(buildDir))
         {
-            var candidate = Path.Combine(buildDir, ModBuilderConstants.RawBundleItemsSubdir, fileName);
-            if (File.Exists(candidate))
+            return (sourcePath, targetRelPath);
+        }
+
+        var rawDir = Path.Combine(buildDir, ModBuilderConstants.RawBundleItemsSubdir);
+        if (!Directory.Exists(rawDir))
+        {
+            return (sourcePath, targetRelPath);
+        }
+
+        var ext = Path.GetExtension(sourcePath).ToLowerInvariant();
+
+        // Check if converted output exists (DDS for image, CSF for string table)
+        if (ext is ".tga" or ".png")
+        {
+            var ddsRel = Path.ChangeExtension(targetRelPath, ".dds");
+            var ddsSub = Path.Combine(rawDir, ddsRel);
+            if (File.Exists(ddsSub))
             {
-                buildOutputDir = candidate;
+                return (ddsSub, ddsRel);
+            }
+
+            var ddsFlat = Path.Combine(rawDir, Path.GetFileName(ddsRel));
+            if (File.Exists(ddsFlat))
+            {
+                return (ddsFlat, ddsRel);
+            }
+        }
+        else if (ext == ".str")
+        {
+            var csfRel = Path.ChangeExtension(targetRelPath, ".csf");
+            var csfSub = Path.Combine(rawDir, csfRel);
+            if (File.Exists(csfSub))
+            {
+                return (csfSub, csfRel);
+            }
+
+            var csfFlat = Path.Combine(rawDir, Path.GetFileName(csfRel));
+            if (File.Exists(csfFlat))
+            {
+                return (csfFlat, csfRel);
             }
         }
 
-        var actualSource = buildOutputDir ?? sourcePath;
-        if (!File.Exists(actualSource))
+        // Passthrough candidate
+        var candidateRel = Path.Combine(rawDir, targetRelPath);
+        if (File.Exists(candidateRel))
         {
-            _logger.LogWarning("Source file {SourceFile} not found for bundle item {ItemName}", actualSource, itemName);
+            return (candidateRel, targetRelPath);
+        }
+
+        var candidateFlat = Path.Combine(rawDir, Path.GetFileName(sourcePath));
+        if (File.Exists(candidateFlat))
+        {
+            return (candidateFlat, targetRelPath);
+        }
+
+        return (sourcePath, targetRelPath);
+    }
+
+    private void StageBigPackFile(BundleFile file, string packStagingDir, string packName, string itemName, string? buildDir = null)
+    {
+        var sourcePath = file.AbsSourceFile;
+        if (!File.Exists(sourcePath))
+        {
+            _logger.LogWarning("Source file {SourceFile} not found for bundle item {ItemName}", sourcePath, itemName);
             return;
         }
 
         var targetRelPath = GetTargetRelativePath(file);
-        var destPath = Path.Combine(packStagingDir, targetRelPath);
+        var (actualSource, finalTargetRelPath) = ResolveStagedSource(file, targetRelPath, buildDir);
+
+        var destPath = Path.Combine(packStagingDir, finalTargetRelPath);
         EnsureDestinationDirectory(destPath);
         File.Copy(actualSource, destPath, true);
-        _logger.LogDebug("Staged file {RelPath} for BIG pack {PackName}", targetRelPath, packName);
+        _logger.LogDebug("Staged file {RelPath} for BIG pack {PackName}", finalTargetRelPath, packName);
     }
 
     private async Task StageStandardPackFilesAsync(BundlePack pack, IReadOnlyList<BundleItem> items, string bundlesDir, string packStagingDir, string buildDir, CancellationToken cancellationToken)
@@ -894,36 +958,24 @@ public sealed class BuildEngineService : IBuildEngineService
         foreach (var file in item.Files)
         {
             var sourcePath = file.AbsSourceFile;
-            var fileName = Path.GetFileName(sourcePath);
-
-            // Check if there is a converted/processed output from Build stage in buildDir/raw_bundle_items
-            string? buildOutputDir = null;
-            if (!string.IsNullOrEmpty(buildDir))
+            if (!File.Exists(sourcePath))
             {
-                var candidate = Path.Combine(buildDir, ModBuilderConstants.RawBundleItemsSubdir, fileName);
-                if (File.Exists(candidate))
-                {
-                    buildOutputDir = candidate;
-                }
-            }
-
-            var actualSource = buildOutputDir ?? sourcePath;
-            if (!File.Exists(actualSource))
-            {
-                _logger.LogWarning("Source file {SourceFile} not found for raw bundle item {ItemName}", actualSource, item.Name);
+                _logger.LogWarning("Source file {SourceFile} not found for raw bundle item {ItemName}", sourcePath, item.Name);
                 continue;
             }
 
             var relPath = !string.IsNullOrEmpty(file.RelTargetFile) ? file.RelTargetFile : file.GetRelSourceFile();
             if (string.IsNullOrEmpty(relPath))
             {
-                relPath = Path.GetFileName(actualSource);
+                relPath = Path.GetFileName(sourcePath);
             }
 
-            var destPath = Path.Combine(packStagingDir, relPath);
+            var (actualSource, finalRelPath) = ResolveStagedSource(file, relPath, buildDir);
+
+            var destPath = Path.Combine(packStagingDir, finalRelPath);
             EnsureDestinationDirectory(destPath);
             File.Copy(actualSource, destPath, true);
-            _logger.LogDebug("Staged loose file {RelPath} for pack {PackName}", relPath, packName);
+            _logger.LogDebug("Staged loose file {RelPath} for pack {PackName}", finalRelPath, packName);
         }
     }
 
@@ -1308,7 +1360,7 @@ public sealed class BuildEngineService : IBuildEngineService
                 projectName,
                 contentType,
                 targetGame,
-                sourcePath: manifestContentDir,
+                sourcePath: bundlesDir,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
 
             if (!manifestResult.Success)
@@ -1442,7 +1494,7 @@ public sealed class BuildEngineService : IBuildEngineService
         {
             buildDir = !string.IsNullOrWhiteSpace(setup.ProjectDir)
                 ? Path.Combine(setup.ProjectDir, ModBuilderConstants.DefaultBuildDir)
-                : Path.Combine(Directory.GetCurrentDirectory(), ModBuilderConstants.DefaultBuildDir);
+                : Path.Combine(Path.GetTempPath(), "GenHub_ModBuilder", ModBuilderConstants.DefaultBuildDir);
         }
 
         return Path.Combine(buildDir, $"{stage}.json");
