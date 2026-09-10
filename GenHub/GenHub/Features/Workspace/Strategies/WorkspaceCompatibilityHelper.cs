@@ -19,9 +19,9 @@ public static class WorkspaceCompatibilityHelper
     /// Ensures DRM marker directory and compatibility assets (ZH_Generals base assets, d3d8 wrapper)
     /// exist so the game engine binary can run reliably without crashing.
     /// </summary>
-    /// <param name=\"workspaceInfo\">The workspace info.</param>
-    /// <param name=\"configuration\">The workspace configuration.</param>
-    /// <param name=\"logger\">Logger instance.</param>
+    /// <param name="workspaceInfo">The workspace info.</param>
+    /// <param name="configuration">The workspace configuration.</param>
+    /// <param name="logger">Logger instance.</param>
     public static void EnsureDrmAndAssetCompatibility(
         WorkspaceInfo workspaceInfo,
         WorkspaceConfiguration configuration,
@@ -136,9 +136,9 @@ public static class WorkspaceCompatibilityHelper
     /// <summary>
     /// Resolves the source path for a manifest file based on configuration and manifest details.
     /// </summary>
-    /// <param name=\"file\">The manifest file.</param>
-    /// <param name=\"manifest\">The manifest containing the file.</param>
-    /// <param name=\"configuration\">The workspace configuration.</param>
+    /// <param name="file">The manifest file.</param>
+    /// <param name="manifest">The manifest containing the file.</param>
+    /// <param name="configuration">The workspace configuration.</param>
     /// <returns>The resolved absolute source path.</returns>
     public static string ResolveSourcePath(ManifestFile file, ContentManifest manifest, WorkspaceConfiguration configuration)
     {
@@ -180,9 +180,9 @@ public static class WorkspaceCompatibilityHelper
     /// <summary>
     /// Attempts to create an NTFS directory junction targeting the source path without requiring admin elevation.
     /// </summary>
-    /// <param name=\"linkPath\">The junction path to create.</param>
-    /// <param name=\"targetPath\">The target directory path.</param>
-    /// <param name=\"logger\">Optional logger instance.</param>
+    /// <param name="linkPath">The junction path to create.</param>
+    /// <param name="targetPath">The target directory path.</param>
+    /// <param name="logger">Optional logger instance.</param>
     /// <returns><c>true</c> if junction creation succeeded; otherwise, <c>false</c>.</returns>
     private static bool TryCreateDirectoryJunction(string linkPath, string targetPath, ILogger? logger = null)
     {
