@@ -271,21 +271,6 @@ public abstract class WorkspaceStrategyBase<T>(
                     workspaceInfo.WorkspacePath,
                     resolution.RelativePath!.Replace('/', Path.DirectorySeparatorChar));
 
-                if (OperatingSystem.IsWindows() &&
-                    (Path.GetFileName(workspaceInfo.ExecutablePath).Equals(GameClientConstants.SteamGameDatExecutable, StringComparison.OrdinalIgnoreCase) ||
-                     workspaceInfo.ExecutablePath.EndsWith(".dat", StringComparison.OrdinalIgnoreCase)))
-                {
-                    var generalsExePath = Path.Combine(workspaceInfo.WorkspacePath, GameClientConstants.GeneralsExecutable);
-                    if (File.Exists(generalsExePath))
-                    {
-                        workspaceInfo.ExecutablePath = generalsExePath;
-                        logger.LogInformation(
-                            "Redirected executable from {Original} to {GeneralsExe}",
-                            resolution.RelativePath,
-                            generalsExePath);
-                    }
-                }
-
                 logger.LogInformation(
                     "Executable resolved from GameClient manifest: {ExecutablePath} ({Reason})",
                     workspaceInfo.ExecutablePath,
@@ -329,6 +314,8 @@ public abstract class WorkspaceStrategyBase<T>(
         {
             logger.LogDebug("No GameClient configuration or manifest available - executable path not set");
         }
+
+        EnsureDrmAndAssetCompatibility(workspaceInfo, configuration);
     }
 
     /// <summary>
@@ -698,5 +685,93 @@ public abstract class WorkspaceStrategyBase<T>(
         }
 
         return path;
+    }
+
+    /// <summary>
+    /// Ensures DRM marker directory and compatibility assets (ZH_Generals base assets, d3d8 wrapper)
+    /// exist so the game engine binary can run reliably without crashing.
+    /// </summary>
+    private void EnsureDrmAndAssetCompatibility(WorkspaceInfo workspaceInfo, WorkspaceConfiguration configuration)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        // 1. Ensure __Installer exists in the parent directory of the workspace.
+        // Modern game.dat (EA 2024 update) checks for '..\__Installer'; finding it skips Steam DRM checks.
+        try
+        {
+            var parentDir = Path.GetDirectoryName(workspaceInfo.WorkspacePath);
+            if (!string.IsNullOrEmpty(parentDir) && Directory.Exists(parentDir))
+            {
+                var installerDir = Path.Combine(parentDir, "__Installer");
+                if (!Directory.Exists(installerDir))
+                {
+                    Directory.CreateDirectory(installerDir);
+                    logger.LogDebug("Ensured __Installer directory at {InstallerDir} for DRM compatibility", installerDir);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to ensure __Installer directory for workspace at {WorkspacePath}", workspaceInfo.WorkspacePath);
+        }
+
+        // 2. Ensure ZH_Generals base assets are linked if present in the game installation.
+        try
+        {
+            var zhGeneralsTargetPath = Path.Combine(workspaceInfo.WorkspacePath, "ZH_Generals");
+            if (!Directory.Exists(zhGeneralsTargetPath))
+            {
+                var sourceDirWithZhGenerals = configuration.Manifests
+                    .SelectMany(m => m.Files ?? [])
+                    .Select(f => Path.GetDirectoryName(f.SourcePath))
+                    .FirstOrDefault(d => !string.IsNullOrEmpty(d) && Directory.Exists(Path.Combine(d, "ZH_Generals")));
+
+                if (!string.IsNullOrEmpty(sourceDirWithZhGenerals))
+                {
+                    var zhGeneralsSource = Path.Combine(sourceDirWithZhGenerals, "ZH_Generals");
+                    try
+                    {
+                        Directory.CreateSymbolicLink(zhGeneralsTargetPath, zhGeneralsSource);
+                        logger.LogInformation("Linked ZH_Generals directory from {Source} to {Target}", zhGeneralsSource, zhGeneralsTargetPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Failed to create symbolic link for ZH_Generals directory at {Target}", zhGeneralsTargetPath);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to resolve ZH_Generals directory for workspace at {WorkspacePath}", workspaceInfo.WorkspacePath);
+        }
+
+        // 3. Ensure d3d8.dll is present in workspace (Direct3D 8 wrapper required for modern Windows 10/11)
+        try
+        {
+            var d3d8TargetPath = Path.Combine(workspaceInfo.WorkspacePath, "d3d8.dll");
+            if (!File.Exists(d3d8TargetPath))
+            {
+                var d3d8Source = configuration.Manifests
+                    .SelectMany(m => m.Files ?? [])
+                    .Select(f => Path.GetDirectoryName(f.SourcePath))
+                    .Where(d => !string.IsNullOrEmpty(d))
+                    .Select(d => Path.Combine(d!, "d3d8.dll"))
+                    .FirstOrDefault(File.Exists);
+
+                if (!string.IsNullOrEmpty(d3d8Source))
+                {
+                    File.Copy(d3d8Source, d3d8TargetPath, overwrite: false);
+                    logger.LogInformation("Copied d3d8.dll from {Source} to {Target}", d3d8Source, d3d8TargetPath);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to copy d3d8.dll to workspace at {WorkspacePath}", workspaceInfo.WorkspacePath);
+        }
     }
 }

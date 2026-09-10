@@ -38,10 +38,33 @@ public partial class ContentDisplayItem : ObservableObject
     /// </summary>
     public required ManifestId ManifestId { get; set; }
 
+    private string _displayName = string.Empty;
+
     /// <summary>
     /// Gets or sets the display name.
     /// </summary>
-    public required string DisplayName { get; set; }
+    public required string DisplayName
+    {
+        get => _displayName;
+        set
+        {
+            if (SetProperty(ref _displayName, value))
+            {
+                OnPropertyChanged(nameof(RemoveToolTip));
+                OnPropertyChanged(nameof(AddToolTip));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the tooltip text for removing this content item.
+    /// </summary>
+    public string RemoveToolTip => $"Click to remove {DisplayName}";
+
+    /// <summary>
+    /// Gets the tooltip text for adding this content item.
+    /// </summary>
+    public string AddToolTip => $"Click to add {DisplayName}";
 
     /// <summary>
     /// Gets or sets the content type.

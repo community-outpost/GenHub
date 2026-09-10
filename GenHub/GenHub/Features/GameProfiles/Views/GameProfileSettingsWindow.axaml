@@ -247,7 +247,7 @@
             <Setter Property="CornerRadius" Value="8" />
             <Setter Property="Padding" Value="12" />
             <Setter Property="Margin" Value="4" />
-            <Setter Property="MaxWidth" Value="400" />
+            <Setter Property="MaxWidth" Value="240" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalContentAlignment" Value="Stretch" />
             <Setter Property="Cursor" Value="Hand" />
@@ -403,30 +403,33 @@
                         Height="60"
                         PointerPressed="OnHeaderPointerPressed">
                     <Grid ColumnDefinitions="Auto,*,Auto" Margin="24,0">
-                        <!-- Profile Icon & Name Group -->
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
-                            <Border Width="36" Height="36"
-                                    Background="#25FFFFFF"
-                                    CornerRadius="18"
-                                    ClipToBounds="True"
-                                    BorderBrush="White"
-                                    BorderThickness="1.5">
-                                <Image Source="{Binding IconPath, Mode=OneWay, Converter={StaticResource StringToImageConverter}}"
-                                       Width="36" Height="36"
-                                       Stretch="UniformToFill" />
-                            </Border>
+                        <!-- Profile Icon -->
+                        <Border Grid.Column="0"
+                                Width="36" Height="36"
+                                Background="#25FFFFFF"
+                                CornerRadius="18"
+                                ClipToBounds="True"
+                                BorderBrush="White"
+                                BorderThickness="1.5"
+                                Margin="0,0,16,0"
+                                VerticalAlignment="Center">
+                            <Image Source="{Binding IconPath, Mode=OneWay, Converter={StaticResource StringToImageConverter}}"
+                                   Width="36" Height="36"
+                                   Stretch="UniformToFill" />
+                        </Border>
+
+                        <!-- Profile Info (Truncates if title is long) -->
+                        <Grid Grid.Column="1" VerticalAlignment="Center" Margin="0,0,16,0">
                             <StackPanel VerticalAlignment="Center">
-                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Name, Mode=OneWay, FallbackValue='New Profile'}"
-                                               Foreground="White"
-                                               FontSize="18"
-                                               FontWeight="Bold" />
-                                    <Border IsVisible="{Binding IsHotswapMode}"
+                                <DockPanel LastChildFill="True">
+                                    <Border DockPanel.Dock="Right"
+                                            IsVisible="{Binding IsHotswapMode}"
                                             Background="#254CAF50"
                                             BorderBrush="#804CAF50"
                                             BorderThickness="1"
                                             CornerRadius="4"
                                             Padding="6,2"
+                                            Margin="8,0,0,0"
                                             VerticalAlignment="Center">
                                         <TextBlock Text="HOTSWAP MODE"
                                                    Foreground="#81C784"
@@ -434,7 +437,14 @@
                                                    FontWeight="Bold"
                                                    LetterSpacing="0.5" />
                                     </Border>
-                                </StackPanel>
+                                    <TextBlock Text="{Binding Name, Mode=OneWay, FallbackValue='New Profile'}"
+                                               Foreground="White"
+                                               FontSize="18"
+                                               FontWeight="Bold"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip.Tip="{Binding Name, Mode=OneWay, FallbackValue='New Profile'}"
+                                               VerticalAlignment="Center" />
+                                </DockPanel>
                                 <TextBlock Text="Profile Settings"
                                            Foreground="{DynamicResource AccentLightBrush}"
                                            FontSize="10"
@@ -442,7 +452,7 @@
                                            LetterSpacing="1"
                                            Opacity="0.8" />
                             </StackPanel>
-                        </StackPanel>
+                        </Grid>
 
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <!-- Randomize Color -->

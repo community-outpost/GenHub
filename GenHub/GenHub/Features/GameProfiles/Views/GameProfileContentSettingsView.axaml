@@ -23,6 +23,12 @@
     </UserControl.Resources>
 
     <UserControl.Styles>
+        <Style Selector="Border.content-card-btn">
+            <Setter Property="MaxWidth" Value="240" />
+        </Style>
+        <Style Selector="Grid.content-card">
+            <Setter Property="MaxWidth" Value="240" />
+        </Style>
         <Style Selector="Button.edit-content-btn">
             <Setter Property="Opacity" Value="0" />
             <Setter Property="Transitions">
@@ -98,7 +104,7 @@
                                                     HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                                     Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).DisableContentCommand}"
                                                     CommandParameter="{Binding}"
-                                                    ToolTip.Tip="Remove from profile">
+                                                    ToolTip.Tip="{Binding RemoveToolTip}">
                                                 <StackPanel Spacing="6" HorizontalAlignment="Left" VerticalAlignment="Center">
                                                     <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimary}"/>
                                                     <WrapPanel Orientation="Horizontal">
@@ -198,7 +204,7 @@
                                                          Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).EnableContentCommand}"
                                                          CommandParameter="{Binding}"
                                                          IsVisible="{Binding IsEnabled, Converter={x:Static conv:InvertedBoolToVisibilityConverter.Instance}}"
-                                                         ToolTip.Tip="Click to add to profile">
+                                                         ToolTip.Tip="{Binding AddToolTip}">
                                                      <StackPanel Spacing="6" HorizontalAlignment="Left" VerticalAlignment="Center">
                                                          <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimary}"/>
                                                          <WrapPanel Orientation="Horizontal">
