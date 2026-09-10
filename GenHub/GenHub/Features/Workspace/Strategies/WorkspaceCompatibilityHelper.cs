@@ -7,6 +7,7 @@ using System.Linq;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Validation;
 using GenHub.Core.Models.Workspace;
 using Microsoft.Extensions.Logging;
 
@@ -37,14 +38,14 @@ public static class WorkspaceCompatibilityHelper
         // 1. Ensure __Installer exists in the parent directory of the workspace.
         // The 2024 updated game executable inspects parent directories for the __Installer folder.
         // When present, Steam DRM verification is bypassed.
-        EnsureDrmMarkerDirectory(workspaceInfo.WorkspacePath, logger);
+        EnsureDrmMarkerDirectory(workspaceInfo.WorkspacePath, workspaceInfo, logger);
 
         // 2. Ensure ZH_Generals base assets and Core runtime are linked if present in the game installation.
-        EnsureDirectoryLink(workspaceInfo.WorkspacePath, configuration, GameClientConstants.ZhGeneralsDirectory, logger);
-        EnsureDirectoryLink(workspaceInfo.WorkspacePath, configuration, GameClientConstants.CoreDirectory, logger);
+        EnsureDirectoryLink(workspaceInfo, configuration, GameClientConstants.ZhGeneralsDirectory, logger);
+        EnsureDirectoryLink(workspaceInfo, configuration, GameClientConstants.CoreDirectory, logger);
 
         // 3. Ensure d3d8.dll is present in workspace (Direct3D 8 wrapper required for modern Windows 10/11).
-        EnsureDirect3DWrapper(workspaceInfo.WorkspacePath, configuration, logger);
+        EnsureDirect3DWrapper(workspaceInfo, configuration, logger);
     }
 
     /// <summary>
@@ -91,7 +92,7 @@ public static class WorkspaceCompatibilityHelper
         return Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
     }
 
-    private static void EnsureDrmMarkerDirectory(string workspacePath, ILogger logger)
+    private static void EnsureDrmMarkerDirectory(string workspacePath, WorkspaceInfo workspaceInfo, ILogger logger)
     {
         try
         {
@@ -109,31 +110,40 @@ public static class WorkspaceCompatibilityHelper
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to ensure DRM marker directory for workspace at {WorkspacePath}", workspacePath);
+            workspaceInfo.ValidationIssues.Add(new ValidationIssue(
+                $"Failed to ensure DRM marker directory for workspace at {workspacePath}: {ex.Message}",
+                ValidationSeverity.Warning));
         }
     }
 
     private static void EnsureDirectoryLink(
-        string workspacePath,
+        WorkspaceInfo workspaceInfo,
         WorkspaceConfiguration configuration,
         string directoryName,
         ILogger logger)
     {
-        var targetPath = Path.Combine(workspacePath, directoryName);
+        var targetPath = Path.Combine(workspaceInfo.WorkspacePath, directoryName);
         if (Directory.Exists(targetPath))
         {
             return;
         }
 
-        if (Path.Exists(targetPath) || File.Exists(targetPath))
+        try
         {
-            try
-            {
-                FileOperationsService.DeleteDirectoryIfExists(targetPath);
-            }
-            catch (Exception ex)
-            {
-                logger.LogDebug(ex, "Failed to clean up dangling reparse point at {Target}", targetPath);
-            }
+            FileOperationsService.DeleteDirectoryIfExists(targetPath);
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to clean up stale entry at {Target}", targetPath);
+        }
+
+        if (Path.Exists(targetPath))
+        {
+            logger.LogWarning("Target path {Target} still exists after cleanup attempt; skipping link creation", targetPath);
+            workspaceInfo.ValidationIssues.Add(new ValidationIssue(
+                $"Conflicting target path {targetPath} could not be cleaned up prior to linking",
+                ValidationSeverity.Warning));
+            return;
         }
 
         var sourceDir = EnumerateCandidateDirectories(configuration)
@@ -175,23 +185,29 @@ public static class WorkspaceCompatibilityHelper
                 catch (Exception copyEx)
                 {
                     logger.LogWarning(copyEx, "Failed to copy {Directory} directory to {Target}", directoryName, targetPath);
+                    workspaceInfo.ValidationIssues.Add(new ValidationIssue(
+                        $"Failed to copy fallback {directoryName} directory contents to {targetPath}: {copyEx.Message}",
+                        ValidationSeverity.Warning));
                 }
             }
             else
             {
                 logger.LogWarning("Failed to create symbolic link or junction for {Directory} directory at {Target}; skipping materialization to avoid freezing UI with large directory copy", directoryName, targetPath);
+                workspaceInfo.ValidationIssues.Add(new ValidationIssue(
+                    $"Failed to create symbolic link or junction for {directoryName} directory at {targetPath}",
+                    ValidationSeverity.Warning));
             }
         }
     }
 
     private static void EnsureDirect3DWrapper(
-        string workspacePath,
+        WorkspaceInfo workspaceInfo,
         WorkspaceConfiguration configuration,
         ILogger logger)
     {
         try
         {
-            var d3d8TargetPath = Path.Combine(workspacePath, GameClientConstants.Direct3D8WrapperDll);
+            var d3d8TargetPath = Path.Combine(workspaceInfo.WorkspacePath, GameClientConstants.Direct3D8WrapperDll);
             if (File.Exists(d3d8TargetPath))
             {
                 return;
@@ -210,7 +226,10 @@ public static class WorkspaceCompatibilityHelper
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to materialize {Dll} to workspace at {WorkspacePath}", GameClientConstants.Direct3D8WrapperDll, workspacePath);
+            logger.LogWarning(ex, "Failed to materialize {Dll} to workspace at {WorkspacePath}", GameClientConstants.Direct3D8WrapperDll, workspaceInfo.WorkspacePath);
+            workspaceInfo.ValidationIssues.Add(new ValidationIssue(
+                $"Failed to materialize {GameClientConstants.Direct3D8WrapperDll} to workspace: {ex.Message}",
+                ValidationSeverity.Warning));
         }
     }
 
@@ -224,16 +243,13 @@ public static class WorkspaceCompatibilityHelper
         catch (Exception symlinkEx)
         {
             logger.LogDebug(symlinkEx, "Failed to create symlink for {Dll}, falling back to copy: {Target}", GameClientConstants.Direct3D8WrapperDll, targetPath);
-            if (File.Exists(targetPath))
+            try
             {
-                try
-                {
-                    File.Delete(targetPath);
-                }
-                catch
-                {
-                    // Best effort delete
-                }
+                File.Delete(targetPath);
+            }
+            catch (Exception delEx)
+            {
+                logger.LogDebug(delEx, "Failed to delete existing target file before copy: {Target}", targetPath);
             }
 
             File.Copy(sourcePath, targetPath, overwrite: true);
@@ -274,8 +290,10 @@ public static class WorkspaceCompatibilityHelper
 
         var manifestDirs = configuration.Manifests
             .Where(m => m.ContentType is ContentType.GameClient or ContentType.GameInstallation)
-            .SelectMany(m => (m.Files ?? []).Select(f => Path.GetDirectoryName(ResolveSourcePath(f, m, configuration))))
-            .Where(d => !string.IsNullOrEmpty(d));
+            .SelectMany(m => ManifestVariantResolver.ResolveFiles(m)
+                .Select(f => Path.GetDirectoryName(ResolveSourcePath(f, m, configuration))))
+            .Where(d => !string.IsNullOrEmpty(d))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
 
         foreach (var dir in manifestDirs)
         {

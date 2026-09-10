@@ -577,6 +577,17 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
     private void SyncInstallationSelection(ContentDisplayItem value)
     {
+        var isToolProfile = ToolProfileHelper.IsToolProfile(EnabledContent
+            .Where(i => i.ContentType != ContentType.GameInstallation)
+            .Select(i => (i.ManifestId.Value, i.ContentType)));
+        if (isToolProfile)
+        {
+            _logger?.LogInformation("SelectedGameInstallation ignored because profile is a standalone tool profile");
+            value.IsEnabled = false;
+            ClearInstallationSelection();
+            return;
+        }
+
         value.IsEnabled = true;
         foreach (var item in AvailableGameInstallations)
         {
@@ -593,8 +604,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             }
         }
 
-        var isToolProfile = ToolProfileHelper.IsToolProfile(EnabledContent.Where(i => i.ContentType != ContentType.GameInstallation).Select(i => (i.ManifestId.Value, i.ContentType)));
-        if (!isToolProfile && !EnabledContent.Any(i => i.ManifestId.Value == value.ManifestId.Value))
+        if (!EnabledContent.Any(i => i.ManifestId.Value == value.ManifestId.Value))
         {
             EnabledContent.Add(value);
         }
@@ -654,6 +664,19 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         if (contentItem == null || (IsLoadingContent && !bypassLoadingGuard))
         {
             return false;
+        }
+
+        if (contentItem.ContentType == ContentType.GameInstallation)
+        {
+            var isToolProfile = ToolProfileHelper.IsToolProfile(EnabledContent
+                .Where(i => i.ContentType != ContentType.GameInstallation)
+                .Select(i => (i.ManifestId.Value, i.ContentType)));
+            if (isToolProfile)
+            {
+                StatusMessage = "Standalone tool profiles do not require or support game installations";
+                _logger?.LogInformation("Cannot enable GameInstallation for standalone tool profile");
+                return false;
+            }
         }
 
         if (contentItem.ContentType == ContentType.GameInstallation && SelectedGameInstallation == contentItem && contentItem.IsEnabled)
@@ -849,39 +872,47 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         List<string> autoEnabledNames,
         HashSet<string> warnedLockedNames)
     {
-        bool isSatisfied = false;
-        var isDefaultDep = dependency.Id.ToString() == ManifestConstants.DefaultContentDependencyId;
-
-        if (isDefaultDep)
+        if (IsGameInstallationDependencySatisfied(dependency))
         {
-            if (dependency.CompatibleGameTypes is { Count: > 0 } compatibleGameTypes &&
-                SelectedGameInstallation is { IsEnabled: true } selectedInstallation &&
-                compatibleGameTypes.Contains(selectedInstallation.GameType))
-            {
-                isSatisfied = true;
-            }
-        }
-        else
-        {
-            if (SelectedGameInstallation is { IsEnabled: true } selectedInst &&
-                selectedInst.ManifestId.Value == dependency.Id.ToString())
-            {
-                isSatisfied = true;
-            }
-        }
-
-        if (isSatisfied)
-        {
-            if (SelectedGameInstallation != null &&
-                !EnabledContent.Any(e => e.ManifestId.Value == SelectedGameInstallation.ManifestId.Value))
-            {
-                SelectedGameInstallation.IsEnabled = true;
-                EnabledContent.Add(SelectedGameInstallation);
-            }
-
+            EnsureSelectedInstallationEnabled();
             return;
         }
 
+        var compatibleInstallation = FindCompatibleGameInstallation(contentItem, dependency);
+        if (compatibleInstallation != null)
+        {
+            ApplyGameInstallationDependency(compatibleInstallation, autoEnabledNames, warnedLockedNames);
+        }
+    }
+
+    private bool IsGameInstallationDependencySatisfied(ContentDependency dependency)
+    {
+        var isDefaultDep = dependency.Id.ToString() == ManifestConstants.DefaultContentDependencyId;
+        if (isDefaultDep)
+        {
+            return dependency.CompatibleGameTypes is { Count: > 0 } compatibleGameTypes &&
+                   SelectedGameInstallation is { IsEnabled: true } selectedInstallation &&
+                   compatibleGameTypes.Contains(selectedInstallation.GameType);
+        }
+
+        return SelectedGameInstallation is { IsEnabled: true } selectedInst &&
+               selectedInst.ManifestId.Value == dependency.Id.ToString();
+    }
+
+    private void EnsureSelectedInstallationEnabled()
+    {
+        if (SelectedGameInstallation != null &&
+            !EnabledContent.Any(e => e.ManifestId.Value == SelectedGameInstallation.ManifestId.Value))
+        {
+            SelectedGameInstallation.IsEnabled = true;
+            EnabledContent.Add(SelectedGameInstallation);
+        }
+    }
+
+    private ContentDisplayItem? FindCompatibleGameInstallation(
+        ContentDisplayItem contentItem,
+        ContentDependency dependency)
+    {
         ContentDisplayItem? compatibleInstallation = null;
         if (dependency.Id.ToString() != ManifestConstants.DefaultContentDependencyId)
         {
@@ -901,24 +932,29 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             compatibleInstallation ??= AvailableGameInstallations.FirstOrDefault(x => dependency.CompatibleGameTypes.Contains(x.GameType));
         }
 
-        if (compatibleInstallation != null)
-        {
-            if (!compatibleInstallation.IsLocked && compatibleInstallation.CanToggle)
-            {
-                if (!autoEnabledNames.Contains(compatibleInstallation.DisplayName))
-                {
-                    autoEnabledNames.Add(compatibleInstallation.DisplayName);
-                }
+        return compatibleInstallation;
+    }
 
-                SelectedGameInstallation = compatibleInstallation;
-            }
-            else
+    private void ApplyGameInstallationDependency(
+        ContentDisplayItem compatibleInstallation,
+        List<string> autoEnabledNames,
+        HashSet<string> warnedLockedNames)
+    {
+        if (!compatibleInstallation.IsLocked && compatibleInstallation.CanToggle)
+        {
+            if (!autoEnabledNames.Contains(compatibleInstallation.DisplayName))
             {
-                _logger?.LogWarning("Auto-resolve skipped: Installation {DisplayName} is locked or cannot toggle", compatibleInstallation.DisplayName);
-                if (compatibleInstallation.IsLocked && warnedLockedNames.Add(compatibleInstallation.DisplayName))
-                {
-                    _localNotificationService.ShowWarning("Content Locked", $"Required dependency '{compatibleInstallation.DisplayName}' is locked and cannot be automatically enabled while the game is running.");
-                }
+                autoEnabledNames.Add(compatibleInstallation.DisplayName);
+            }
+
+            SelectedGameInstallation = compatibleInstallation;
+        }
+        else
+        {
+            _logger?.LogWarning("Auto-resolve skipped: Installation {DisplayName} is locked or cannot toggle", compatibleInstallation.DisplayName);
+            if (compatibleInstallation.IsLocked && warnedLockedNames.Add(compatibleInstallation.DisplayName))
+            {
+                _localNotificationService.ShowWarning("Content Locked", $"Required dependency '{compatibleInstallation.DisplayName}' is locked and cannot be automatically enabled while the game is running.");
             }
         }
     }

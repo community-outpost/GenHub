@@ -973,4 +973,42 @@ public class GameProfileSettingsViewModelDependencyTests
         Assert.Single(_viewModel.EnabledContent);
         Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == toolDisplayItem.ManifestId.Value);
     }
+    /// <summary>
+    /// Verifies that executing EnableContentCommand with a GameInstallation on a standalone tool profile
+    /// is rejected and does not add the installation to EnabledContent.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task EnableContentCommand_WhenStandaloneToolProfile_RejectsGameInstallationAsync()
+    {
+        // Arrange
+        var toolDisplayItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("1.0.0.moddingtool.worldbuilder"),
+            DisplayName = "World Builder",
+            ContentType = ContentType.ModdingTool,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Unknown,
+            IsEnabled = true,
+        };
+        _viewModel.EnabledContent.Add(toolDisplayItem);
+
+        var installItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("1.0.0.gameinstallation.steam-zh"),
+            DisplayName = "Zero Hour Install",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+            IsEnabled = false,
+        };
+        _viewModel.AvailableContent.Add(installItem);
+
+        // Act
+        await _viewModel.EnableContentCommand.ExecuteAsync(installItem);
+
+        // Assert
+        Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ContentType == ContentType.GameInstallation);
+        Assert.Equal("Standalone tool profiles do not require or support game installations", _viewModel.StatusMessage);
+    }
 }

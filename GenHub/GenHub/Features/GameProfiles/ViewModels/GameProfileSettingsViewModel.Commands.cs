@@ -439,12 +439,15 @@ public partial class GameProfileSettingsViewModel
             return;
         }
 
+        var isStandaloneProfile = ToolProfileHelper.IsToolProfile(
+            EnabledContent.Where(c => c.IsEnabled).Select(c => (c.ManifestId.Value, c.ContentType)));
+
         var createRequest = new CreateProfileRequest
         {
             Name = Name,
             Description = Description,
-            GameInstallationId = SelectedGameInstallation?.SourceId,
-            GameClientId = SelectedGameInstallation?.GameClientId,
+            GameInstallationId = isStandaloneProfile ? null : SelectedGameInstallation?.SourceId,
+            GameClientId = isStandaloneProfile ? null : SelectedGameInstallation?.GameClientId,
             WorkspaceStrategy = SelectedWorkspaceStrategy,
             EnabledContentIds = enabledContentIds,
             CommandLineArguments = CommandLineArguments,
@@ -686,12 +689,15 @@ public partial class GameProfileSettingsViewModel
 
     private UpdateProfileRequest BuildUpdateRequest(List<string> enabledContentIds, UpdateProfileRequest? gameSettings)
     {
+        var isStandaloneProfile = ToolProfileHelper.IsToolProfile(
+            EnabledContent.Where(c => c.IsEnabled).Select(c => (c.ManifestId.Value, c.ContentType)));
+
         var updateRequest = new UpdateProfileRequest
         {
             Name = Name,
             Description = Description,
             ThemeColor = ColorValue,
-            GameInstallationId = SelectedGameInstallation?.SourceId,
+            GameInstallationId = isStandaloneProfile ? null : SelectedGameInstallation?.SourceId,
             WorkspaceStrategy = OriginalWorkspaceStrategy.HasValue && SelectedWorkspaceStrategy != OriginalWorkspaceStrategy.Value
                 ? SelectedWorkspaceStrategy
                 : null,

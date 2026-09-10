@@ -256,9 +256,6 @@
         </Style>
 
         <!-- New Content Card Styles -->
-        <Style Selector="Grid.content-card">
-            <Setter Property="MaxWidth" Value="240" />
-        </Style>
         <Style Selector="Button.content-card-btn">
             <Setter Property="Background" Value="#08FFFFFF" />
             <Setter Property="BorderBrush" Value="#15FFFFFF" />
