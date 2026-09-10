@@ -1,32 +1,39 @@
-# GenHub
+# GenHub - Universal C&C Launcher
 
-Launcher for C&C: Generals and Zero Hour with patch management and mod support
+[![License](https://img.shields.io/github/license/community-outpost/GenHub)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/community-outpost/GenHub)](https://github.com/community-outpost/GenHub/releases)
+[![Issues](https://img.shields.io/github/issues/community-outpost/GenHub)](https://github.com/community-outpost/GenHub/issues)
+[![Discord](https://img.shields.io/discord/1077717467645169724?color=7289da&label=Discord&logo=discord&logoColor=white)](https://discord.gg/ZGtT3Qwd3Y)
 
-## Features
+The modern, cross-platform launcher and workspace manager for Command & Conquer: Generals and Zero Hour. Manage isolated game workspaces, install community mods and patches with one click, run replays seamlessly, and jump straight into modern multiplayer matches — all without ever breaking your vanilla game installation.
 
-- [ ] Easy launching of both C&C: Generals and Zero Hour
-- [ ] Automatic patch management and updates
-- [ ] Comprehensive mod support with easy installation
-- [ ] Authoritative vanilla game installation validation via [CSV Registry](docs/GameInstallationFilesRegistry/)
-- [ ] Multi-language installation detection and verification across 10 official game locales
-- [ ] Compatibility fixes for Windows 10/11
+## Key Features
 
-## Installing on macOS
+- 🎮 **Universal C&C Workspace Management** - Isolate configurations, mods, and versions with zero cross-contamination.
+- ⚡ **One-Click Patch & Mod Installer** - Effortlessly fetch, verify, and maintain popular community distributions including Generals Online and TheSuperHackers releases.
+- 🗺️ **Integrated Map & Replay Manager** - Direct integration to import, parse, preview, and share custom maps and competitive match replays.
+- 🐧 **Cross-Platform Support** - Support across modern Windows, Linux (via Wine/Proton and Flatpak Steam detection), and macOS.
+- 🔄 **Automated App Updates** - Smooth background auto-updates on Windows and Linux, powered by the Velopack runtime.
 
-GenHub is not signed with an Apple Developer ID, so macOS quarantines it after
-download and Gatekeeper refuses to open it. Clear the quarantine attribute once,
-before the first launch:
+## Running on macOS
 
-```sh
-xattr -dr com.apple.quarantine /Applications/GenHub.app
+On macOS, binaries downloaded from GitHub releases are quarantined by Gatekeeper. Because
+GenHub relies on dynamic code generation (which Avalonia and the runtime JIT use heavily),
+quarantined execution will either abort on launch or be killed by `amfid`.
+
+Before running an unpacked release for the first time, strip the quarantine flag:
+
+```bash
+xattr -dr com.apple.quarantine GenHub.app
 ```
 
-You can instead open **System Settings → Privacy & Security**, find the blocked-app
-notice after a failed launch attempt, and choose **Open Anyway**. The Control-click →
-*Open* shortcut no longer works for unsigned apps; Apple removed it in macOS 15.
+or on the standalone executable:
 
-Prefer the command. macOS propagates quarantine from a quarantined application to the
-files it writes, and if GenHub is still marked when it first runs, that can reach the
+```bash
+xattr -d com.apple.quarantine GenHub
+```
+
+This applies only to the GenHub launcher itself; it is not required for the underlying
 game files it prepares. GenHub clears the attribute from the game executables it
 materializes, so the game itself launches either way — but clearing it on the app up
 front avoids the situation entirely.
@@ -36,7 +43,7 @@ downloaded files.
 
 ## Documentation
 
-For detailed documentation and guides, visit our [Wiki](https://generalshub.netlify.app/wiki/).
+For detailed documentation and guides, visit our [Wiki](https://wiki.generalshub.com/).
 
 ## Contributing
 
@@ -49,4 +56,4 @@ Join our Discord server for support, suggestions, and community discussions: [Co
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GPL-3.0 License - see the [LICENSE](LICENSE) file for details.

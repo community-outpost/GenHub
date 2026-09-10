@@ -4,17 +4,22 @@ using GenHub.Core.Constants;
 using GenHub.Core.Features.GameInstallations;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Core.Models.Validation;
 using GenHub.Core.Utilities;
 using GenHub.Features.Content.Services.ContentResolvers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -32,6 +37,7 @@ namespace GenHub.Features.Manifest;
 /// Provides methods to create <see cref="ContentManifest"/> objects for different content types
 /// including GameInstallation and GameClient manifests with proper metadata and file references.
 /// </remarks>
+[SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ManifestGenerationService coordinates manifest creation across file hashing, catalog resolution, configuration, and notification services injected via dependency injection.")]
 public class ManifestGenerationService(
     ILogger<ManifestGenerationService> logger,
     IFileHashProvider hashProvider,
@@ -39,8 +45,18 @@ public class ManifestGenerationService(
     IDownloadService downloadService,
     IConfigurationProviderService configurationProvider,
     ILanguageDetector? languageDetector = null,
-    CsvResolver? csvResolver = null) : IManifestGenerationService
+    CsvResolver? csvResolver = null,
+    INotificationService? notificationService = null) : IManifestGenerationService
 {
+    private enum AuthoritativeFileStatus
+    {
+        AddedMatching,
+        AddedDiffering,
+        MissingRequired,
+        MissingOptional,
+        Skipped,
+    }
+
     private static readonly CsvConfiguration CsvConfig = new(CultureInfo.InvariantCulture)
     {
         HasHeaderRecord = true,
@@ -97,12 +113,42 @@ public class ManifestGenerationService(
     /// <param name="language">Optional explicit language code (e.g., "EN", "DE"). If null, language is detected automatically.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
-    public async Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
+    public Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
         string gameInstallationPath,
         GameType gameType,
         GameInstallationType installationType,
         string? manifestVersion = null,
         string? language = null,
+        CancellationToken cancellationToken = default)
+    {
+        return CreateGameInstallationManifestAsync(
+            gameInstallationPath,
+            gameType,
+            installationType,
+            manifestVersion,
+            language,
+            progress: null,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Creates a manifest builder for a game installation with string version normalization and progress reporting.
+    /// </summary>
+    /// <param name="gameInstallationPath">Path to the game installation.</param>
+    /// <param name="gameType">The game type (Generals, ZeroHour).</param>
+    /// <param name="installationType">The installation type (Steam, EaApp).</param>
+    /// <param name="manifestVersion">The manifest version (e.g., "1.08", "1.04", or integer like 0, 1, 2). If null, defaults to 0.</param>
+    /// <param name="language">Optional explicit language code (e.g., "EN", "DE"). If null, language is detected automatically.</param>
+    /// <param name="progress">Optional progress reporter receiving file indexing progress updates.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
+    public async Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
+        string gameInstallationPath,
+        GameType gameType,
+        GameInstallationType installationType,
+        string? manifestVersion,
+        string? language,
+        IProgress<ValidationProgress>? progress,
         CancellationToken cancellationToken = default)
     {
         try
@@ -131,7 +177,7 @@ public class ManifestGenerationService(
             builder.WithPublisher(publisher.Name, publisher.Website, publisher.SupportUrl, string.Empty, publisher.PublisherType);
 
             // Add essential game files
-            await AddGameFilesToManifest(builder, gameInstallationPath, gameType, resolvedVersion, language, cancellationToken);
+            await AddGameFilesToManifest(builder, gameInstallationPath, gameType, resolvedVersion, language, progress, cancellationToken);
 
             logger.LogInformation(
                 "Created GameInstallation manifest for {InstallationType} {GameType} (Publisher: {PublisherName})",
@@ -166,7 +212,7 @@ public class ManifestGenerationService(
     /// <param name="language">Optional explicit language code (e.g., "EN", "DE"). If null, language is detected automatically.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
-    public async Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
+    public Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
         string gameInstallationPath,
         GameType gameType,
         GameInstallationType installationType,
@@ -174,7 +220,44 @@ public class ManifestGenerationService(
         string? language = null,
         CancellationToken cancellationToken = default)
     {
-        return await CreateGameInstallationManifestAsync(gameInstallationPath, gameType, installationType, manifestVersion.ToString(), language, cancellationToken);
+        return CreateGameInstallationManifestAsync(
+            gameInstallationPath,
+            gameType,
+            installationType,
+            manifestVersion.ToString(),
+            language,
+            progress: null,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Creates a manifest builder for a game installation with integer version and progress reporting.
+    /// </summary>
+    /// <param name="gameInstallationPath">Path to the game installation.</param>
+    /// <param name="gameType">The game type (Generals, ZeroHour).</param>
+    /// <param name="installationType">The installation type (Steam, EaApp).</param>
+    /// <param name="manifestVersion">The manifest version (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
+    /// <param name="language">Optional explicit language code (e.g., "EN", "DE"). If null, language is detected automatically.</param>
+    /// <param name="progress">Optional progress reporter receiving file indexing progress updates.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
+    public Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
+        string gameInstallationPath,
+        GameType gameType,
+        GameInstallationType installationType,
+        int manifestVersion,
+        string? language,
+        IProgress<ValidationProgress>? progress,
+        CancellationToken cancellationToken = default)
+    {
+        return CreateGameInstallationManifestAsync(
+            gameInstallationPath,
+            gameType,
+            installationType,
+            manifestVersion.ToString(),
+            language,
+            progress,
+            cancellationToken);
     }
 
     /// <summary>
@@ -548,6 +631,49 @@ public class ManifestGenerationService(
     }
 
     /// <summary>
+    /// Formats a list of file paths with truncation and an ellipsis suffix if count exceeds <see cref="ManifestConstants.MaxMissingFilesNotificationDisplayCount"/>.
+    /// </summary>
+    /// <param name="files">The list of file paths.</param>
+    /// <returns>A formatted comma-separated string of files, truncated if necessary.</returns>
+    internal static string FormatFileListWithEllipsis(IReadOnlyList<string> files)
+    {
+        var list = string.Join(", ", files.Take(ManifestConstants.MaxMissingFilesNotificationDisplayCount));
+        var extra = files.Count > ManifestConstants.MaxMissingFilesNotificationDisplayCount
+            ? $" and {files.Count - ManifestConstants.MaxMissingFilesNotificationDisplayCount} more"
+            : string.Empty;
+        return $"{list}{extra}";
+    }
+
+    /// <summary>
+    /// Constructs a user-facing warning notification message detailing missing and/or skipped required files.
+    /// </summary>
+    /// <param name="gameType">The target game type.</param>
+    /// <param name="missingRequiredFiles">The list of required files missing from disk.</param>
+    /// <param name="skippedRequiredFiles">The list of required files skipped due to access errors or symlinks.</param>
+    /// <returns>A formatted warning message.</returns>
+    internal static string GetIncompleteInstallationWarningMessage(
+        GameType gameType,
+        IReadOnlyList<string> missingRequiredFiles,
+        IReadOnlyList<string> skippedRequiredFiles)
+    {
+        if (missingRequiredFiles.Count > 0 && skippedRequiredFiles.Count > 0)
+        {
+            var missingList = FormatFileListWithEllipsis(missingRequiredFiles);
+            var skippedList = FormatFileListWithEllipsis(skippedRequiredFiles);
+            return $"{gameType} has {missingRequiredFiles.Count} missing required file(s) ({missingList}) and {skippedRequiredFiles.Count} unreadable/skipped file(s) ({skippedList}). A game repair or permission check is recommended.";
+        }
+
+        if (missingRequiredFiles.Count > 0)
+        {
+            var missingList = FormatFileListWithEllipsis(missingRequiredFiles);
+            return $"{gameType} is missing {missingRequiredFiles.Count} required file(s): {missingList}. A clean reinstall or repair via EA App/Steam is recommended.";
+        }
+
+        var unreadableList = FormatFileListWithEllipsis(skippedRequiredFiles);
+        return $"{gameType} could not read {skippedRequiredFiles.Count} required file(s) (e.g. file lock, permissions, or symlink): {unreadableList}. Please verify permissions or close background processes.";
+    }
+
+    /// <summary>
     /// Determines if a file should be skipped during manifest generation.
     /// </summary>
     private static bool ShouldSkipFile(string relativePath)
@@ -810,6 +936,48 @@ public class ManifestGenerationService(
         }
     }
 
+    private static void RecordAuthoritativeStatus(
+        AuthoritativeFileStatus status,
+        CsvCatalogEntry entry,
+        ref int fileCount,
+        List<string> differingFiles,
+        List<string> missingRequiredFiles,
+        List<string> skippedRequiredFiles)
+    {
+        switch (status)
+        {
+            case AuthoritativeFileStatus.AddedMatching:
+                fileCount++;
+                break;
+            case AuthoritativeFileStatus.AddedDiffering:
+                fileCount++;
+                differingFiles.Add(entry.RelativePath);
+                break;
+            case AuthoritativeFileStatus.MissingRequired:
+                missingRequiredFiles.Add(entry.RelativePath);
+                break;
+            case AuthoritativeFileStatus.MissingOptional:
+                break;
+            case AuthoritativeFileStatus.Skipped:
+                if (entry.IsRequired)
+                {
+                    skippedRequiredFiles.Add(entry.RelativePath);
+                }
+
+                break;
+            default:
+                break;
+        }
+    }
+
+    private static bool IsAuthoritativeMatch(CsvCatalogEntry entry, long actualLength, string computedHash)
+    {
+        return entry.Size > 0 &&
+               actualLength == entry.Size &&
+               !string.IsNullOrWhiteSpace(entry.Sha256) &&
+               string.Equals(computedHash, entry.Sha256, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>
     /// Adds authoritative vanilla game files to a manifest builder using the CSV catalog authority.
     /// </summary>
@@ -818,6 +986,7 @@ public class ManifestGenerationService(
     /// <param name="gameType">The game type.</param>
     /// <param name="manifestVersion">Optional manifest version.</param>
     /// <param name="language">Optional explicit language code.</param>
+    /// <param name="progress">Optional progress reporter receiving file indexing progress updates.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     private async Task AddGameFilesToManifest(
@@ -826,6 +995,7 @@ public class ManifestGenerationService(
         GameType gameType,
         string? manifestVersion,
         string? language,
+        IProgress<ValidationProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -858,21 +1028,175 @@ public class ManifestGenerationService(
             return;
         }
 
-        var fileCount = 0;
-
-        foreach (var entry in authoritativeEntries)
+        var totalEntries = authoritativeEntries.Count;
+        var progressNotificationId = Guid.NewGuid();
+        if (notificationService != null)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (await TryAddAuthoritativeEntryAsync(builder, installationPath, entry, cancellationToken))
+            var progressNotification = new NotificationMessage(
+                NotificationType.Info,
+                ManifestConstants.IndexingNotificationTitle,
+                $"Scanning {gameType} installation files (0/{totalEntries} verified)...",
+                autoDismissMilliseconds: null,
+                isPersistent: true)
             {
-                fileCount++;
+                Id = progressNotificationId,
+            };
+            notificationService.Show(progressNotification);
+        }
+
+        var fileCount = 0;
+        var missingRequiredFiles = new List<string>();
+        var skippedRequiredFiles = new List<string>();
+        var differingFiles = new List<string>();
+        var lastLogTimestamp = Stopwatch.GetTimestamp();
+        var lastNotificationTimestamp = Stopwatch.GetTimestamp();
+
+        try
+        {
+            for (var i = 0; i < totalEntries; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var entry = authoritativeEntries[i];
+                var currentIndex = i + 1;
+
+                UpdateVerificationNotification(
+                    progressNotificationId,
+                    gameType,
+                    currentIndex,
+                    totalEntries,
+                    entry.RelativePath,
+                    ref lastNotificationTimestamp);
+
+                var result = await TryAddAuthoritativeEntryAsync(
+                    builder,
+                    installationPath,
+                    entry,
+                    currentIndex,
+                    totalEntries,
+                    progressNotificationId,
+                    cancellationToken);
+
+                RecordAuthoritativeStatus(
+                    result,
+                    entry,
+                    ref fileCount,
+                    differingFiles,
+                    missingRequiredFiles,
+                    skippedRequiredFiles);
+
+                progress?.Report(new ValidationProgress(currentIndex, totalEntries, entry.RelativePath));
+
+                LogVerificationProgress(
+                    gameType,
+                    currentIndex,
+                    totalEntries,
+                    entry.RelativePath,
+                    ref lastLogTimestamp);
             }
+        }
+        finally
+        {
+            notificationService?.Dismiss(progressNotificationId);
         }
 
         logger.LogInformation(
-            "Completed authoritative manifest generation for {GameType}: {TotalFiles} vanilla files added",
+            "Completed authoritative manifest generation for {GameType}: {TotalFiles} vanilla files added ({DifferingCount} differed from catalog, {MissingCount} required files missing, {SkippedCount} required files skipped)",
             gameType,
-            fileCount);
+            fileCount,
+            differingFiles.Count,
+            missingRequiredFiles.Count,
+            skippedRequiredFiles.Count);
+
+        NotifyManifestGenerationCompletion(
+            gameType,
+            fileCount,
+            totalEntries,
+            missingRequiredFiles,
+            skippedRequiredFiles,
+            differingFiles);
+    }
+
+    private void UpdateVerificationNotification(
+        Guid progressNotificationId,
+        GameType gameType,
+        int currentIndex,
+        int totalEntries,
+        string relativePath,
+        ref long lastNotificationTimestamp)
+    {
+        if (currentIndex != 1 &&
+            !(Stopwatch.GetElapsedTime(lastNotificationTimestamp).TotalMilliseconds >= ManifestConstants.NotificationUpdateThrottleMs))
+        {
+            return;
+        }
+
+        var percent = (double)currentIndex / totalEntries * 100;
+        notificationService?.Update(
+            progressNotificationId,
+            $"Verifying {gameType} files: {currentIndex}/{totalEntries} ({percent:F0}%) - {relativePath}",
+            ManifestConstants.IndexingNotificationTitle);
+        lastNotificationTimestamp = Stopwatch.GetTimestamp();
+    }
+
+    private void LogVerificationProgress(
+        GameType gameType,
+        int currentIndex,
+        int totalEntries,
+        string relativePath,
+        ref long lastLogTimestamp)
+    {
+        var isThrottled = currentIndex != 1 &&
+            currentIndex % ManifestConstants.ProgressLoggingThrottleInterval != 0 &&
+            currentIndex != totalEntries &&
+            !(Stopwatch.GetElapsedTime(lastLogTimestamp).TotalSeconds >= ManifestConstants.ProgressLogThrottleSeconds);
+
+        if (isThrottled)
+        {
+            return;
+        }
+
+        var percent = (double)currentIndex / totalEntries * 100;
+        logger.LogInformation(
+            "Generating manifest for {GameType}: {Current}/{Total} files processed ({Percent:F0}%) - {RelativePath}",
+            gameType,
+            currentIndex,
+            totalEntries,
+            percent,
+            relativePath);
+        lastLogTimestamp = Stopwatch.GetTimestamp();
+    }
+
+    private void NotifyManifestGenerationCompletion(
+        GameType gameType,
+        int fileCount,
+        int totalEntries,
+        IReadOnlyList<string> missingRequiredFiles,
+        IReadOnlyList<string> skippedRequiredFiles,
+        IReadOnlyList<string> differingFiles)
+    {
+        var totalIncompleteRequiredCount = missingRequiredFiles.Count + skippedRequiredFiles.Count;
+        if (totalIncompleteRequiredCount > 0)
+        {
+            var warningMessage = GetIncompleteInstallationWarningMessage(
+                gameType,
+                missingRequiredFiles,
+                skippedRequiredFiles);
+
+            notificationService?.ShowWarning(
+                ManifestConstants.IncompleteInstallationNotificationTitle,
+                warningMessage,
+                autoDismissMs: ManifestConstants.WarningNotificationAutoDismissMs);
+        }
+        else
+        {
+            var differingMessage = differingFiles.Count > 0
+                ? $" ({differingFiles.Count} differing from catalog)"
+                : string.Empty;
+            notificationService?.ShowSuccess(
+                ManifestConstants.IndexedNotificationTitle,
+                $"Completed verification for {gameType} ({fileCount}/{totalEntries} files verified{differingMessage}).",
+                autoDismissMs: ManifestConstants.DefaultNotificationAutoDismissMs);
+        }
     }
 
     /// <summary>
@@ -888,11 +1212,26 @@ public class ManifestGenerationService(
         cancellationToken.ThrowIfCancellationRequested();
         logger.LogInformation("Starting fallback directory scan manifest generation for {GameType} at {InstallationPath}", gameType, installationPath);
 
-        var executableName = gameType == GameType.Generals ? GameClientConstants.GeneralsExecutable : GameClientConstants.ZeroHourExecutable;
-        await TryAddPrimaryExecutableAsync(builder, installationPath, executableName);
+        var progressNotificationId = Guid.NewGuid();
+        if (notificationService != null)
+        {
+            var progressNotification = new NotificationMessage(
+                NotificationType.Info,
+                ManifestConstants.IndexingNotificationTitle,
+                $"Scanning {gameType} directory files...",
+                autoDismissMilliseconds: null,
+                isPersistent: true)
+            {
+                Id = progressNotificationId,
+            };
+            notificationService.Show(progressNotification);
+        }
 
         try
         {
+            var executableName = gameType == GameType.Generals ? GameClientConstants.GeneralsExecutable : GameClientConstants.ZeroHourExecutable;
+            await TryAddPrimaryExecutableAsync(builder, installationPath, executableName);
+
             var options = new EnumerationOptions
             {
                 IgnoreInaccessible = true,
@@ -900,11 +1239,45 @@ public class ManifestGenerationService(
                 AttributesToSkip = FileAttributes.ReparsePoint,
             };
 
+            var scannedFiles = 0;
+            var lastScanNotificationTimestamp = Stopwatch.GetTimestamp();
+            var lastScanLogTimestamp = Stopwatch.GetTimestamp();
+
             foreach (var file in Directory.EnumerateFiles(installationPath, "*", options))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                await TryAddFallbackFileAsync(builder, installationPath, file, executableName);
+                scannedFiles++;
+                var relativePath = Path.GetRelativePath(installationPath, file).Replace('\\', '/');
+
+                if (scannedFiles == 1 ||
+                    scannedFiles % ManifestConstants.ProgressLoggingThrottleInterval == 0 ||
+                    Stopwatch.GetElapsedTime(lastScanLogTimestamp).TotalSeconds >= ManifestConstants.ProgressLogThrottleSeconds)
+                {
+                    logger.LogInformation(
+                        "Scanning {GameType} directory: {Count} files processed ({CurrentFile})",
+                        gameType,
+                        scannedFiles,
+                        relativePath);
+                    lastScanLogTimestamp = Stopwatch.GetTimestamp();
+                }
+
+                if (scannedFiles == 1 ||
+                    Stopwatch.GetElapsedTime(lastScanNotificationTimestamp).TotalMilliseconds >= ManifestConstants.NotificationUpdateThrottleMs)
+                {
+                    notificationService?.Update(
+                        progressNotificationId,
+                        $"Scanning {gameType} directory: {scannedFiles} files processed ({relativePath})",
+                        ManifestConstants.IndexingNotificationTitle);
+                    lastScanNotificationTimestamp = Stopwatch.GetTimestamp();
+                }
+
+                await TryAddFallbackFileAsync(builder, installationPath, file, executableName, progressNotificationId);
             }
+
+            notificationService?.ShowSuccess(
+                ManifestConstants.IndexedNotificationTitle,
+                $"Completed file scan for {gameType} ({scannedFiles} files scanned).",
+                autoDismissMs: ManifestConstants.DefaultNotificationAutoDismissMs);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -913,6 +1286,14 @@ public class ManifestGenerationService(
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(ex, "Failed to enumerate files during directory scan at {InstallationPath}", installationPath);
+            notificationService?.ShowWarning(
+                ManifestConstants.DirectoryScanWarningNotificationTitle,
+                $"Failed to complete directory scan for {gameType}.",
+                autoDismissMs: ManifestConstants.WarningNotificationAutoDismissMs);
+        }
+        finally
+        {
+            notificationService?.Dismiss(progressNotificationId);
         }
     }
 
@@ -962,7 +1343,8 @@ public class ManifestGenerationService(
         IContentManifestBuilder builder,
         string installationPath,
         string file,
-        string executableName)
+        string executableName,
+        Guid? progressNotificationId = null)
     {
         var relativePath = Path.GetRelativePath(installationPath, file).Replace('\\', '/');
 
@@ -987,6 +1369,24 @@ public class ManifestGenerationService(
 
         try
         {
+            var fileInfo = new FileInfo(sourcePath);
+            if (fileInfo.Length >= ManifestConstants.LargeFileProgressThresholdBytes)
+            {
+                var sizeMb = fileInfo.Length / (1024.0 * 1024.0);
+                logger.LogInformation(
+                    "Calculating hash for fallback file {RelativePath} ({SizeMB:F1} MB)...",
+                    relativePath,
+                    sizeMb);
+
+                if (progressNotificationId.HasValue)
+                {
+                    notificationService?.Update(
+                        progressNotificationId.Value,
+                        $"Calculating hash for {relativePath} ({sizeMb:F1} MB)...",
+                        ManifestConstants.IndexingNotificationTitle);
+                }
+            }
+
             await builder.AddGameInstallationFileAsync(relativePath, sourcePath, isExecutable);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -995,15 +1395,18 @@ public class ManifestGenerationService(
         }
     }
 
-    private async Task<bool> TryAddAuthoritativeEntryAsync(
+    private async Task<AuthoritativeFileStatus> TryAddAuthoritativeEntryAsync(
         IContentManifestBuilder builder,
         string installationPath,
         CsvCatalogEntry entry,
+        int currentIndex,
+        int totalEntries,
+        Guid? progressNotificationId,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(entry.RelativePath))
         {
-            return false;
+            return AuthoritativeFileStatus.Skipped;
         }
 
         try
@@ -1018,9 +1421,10 @@ public class ManifestGenerationService(
                     logger.LogWarning(
                         "Required vanilla file missing from installation: {RelativePath}",
                         entry.RelativePath);
+                    return AuthoritativeFileStatus.MissingRequired;
                 }
 
-                return false;
+                return AuthoritativeFileStatus.MissingOptional;
             }
 
             var sourcePath = ResolveSourcePathWithBackup(resolvedFilePath, entry.RelativePath);
@@ -1030,15 +1434,22 @@ public class ManifestGenerationService(
                     "Source path {SourcePath} for {RelativePath} is a reparse point or symbolic link and will be skipped",
                     sourcePath,
                     entry.RelativePath);
-                return false;
+                return AuthoritativeFileStatus.Skipped;
             }
 
             var fileInfo = new FileInfo(sourcePath);
+            if (fileInfo.Length >= ManifestConstants.LargeFileProgressThresholdBytes)
+            {
+                ReportLargeFileHashProgress(
+                    entry.RelativePath,
+                    fileInfo.Length,
+                    currentIndex,
+                    totalEntries,
+                    progressNotificationId);
+            }
+
             var computedHash = await hashProvider.ComputeFileHashAsync(sourcePath, cancellationToken);
-            var isAuthoritativeMatch = entry.Size > 0 &&
-                                       fileInfo.Length == entry.Size &&
-                                       !string.IsNullOrWhiteSpace(entry.Sha256) &&
-                                       string.Equals(computedHash, entry.Sha256, StringComparison.OrdinalIgnoreCase);
+            var isAuthoritativeMatch = IsAuthoritativeMatch(entry, fileInfo.Length, computedHash);
 
             if (entry.Size > 0 && !isAuthoritativeMatch)
             {
@@ -1054,19 +1465,16 @@ public class ManifestGenerationService(
 
             var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(entry.RelativePath, sourcePath);
 
-            var fileHash = computedHash;
-            var fileSize = fileInfo.Length;
-
             await builder.AddGameInstallationFileAsync(
                 entry.RelativePath,
                 sourcePath,
                 isExecutable,
                 permissions: null,
-                hash: fileHash,
-                size: fileSize,
+                hash: computedHash,
+                size: fileInfo.Length,
                 isRequired: entry.IsRequired);
 
-            return true;
+            return isAuthoritativeMatch ? AuthoritativeFileStatus.AddedMatching : AuthoritativeFileStatus.AddedDiffering;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -1078,7 +1486,33 @@ public class ManifestGenerationService(
                 ex,
                 "Failed to add authoritative vanilla file {RelativePath} to manifest",
                 entry.RelativePath);
-            return false;
+            return AuthoritativeFileStatus.Skipped;
+        }
+    }
+
+    private void ReportLargeFileHashProgress(
+        string relativePath,
+        long length,
+        int currentIndex,
+        int totalEntries,
+        Guid? progressNotificationId)
+    {
+        var sizeMb = length / (1024.0 * 1024.0);
+        var percent = (double)currentIndex / totalEntries * 100;
+        logger.LogInformation(
+            "Calculating SHA-256 for {RelativePath} ({SizeMB:F1} MB) [{Current}/{Total} ({Percent:F0}%)]...",
+            relativePath,
+            sizeMb,
+            currentIndex,
+            totalEntries,
+            percent);
+
+        if (progressNotificationId.HasValue)
+        {
+            notificationService?.Update(
+                progressNotificationId.Value,
+                $"Calculating SHA-256 for {relativePath} ({sizeMb:F1} MB) - {currentIndex}/{totalEntries} ({percent:F0}%)",
+                ManifestConstants.IndexingNotificationTitle);
         }
     }
 

@@ -212,7 +212,7 @@
                 GeneralsHub
             </a>
             <div class="nav-links">
-                <a href="https://generalshub.netlify.app/wiki/" target="_blank">Docs</a>
+                <a href="https://wiki.generalshub.com/" target="_blank">Docs</a>
                 <a href="https://github.com/community-outpost/GenHub" target="_blank">GitHub</a>
                 <a href="https://github.com/community-outpost/GenHub/releases" target="_blank">Releases</a>
             </div>
@@ -328,9 +328,9 @@
             <p>&copy; 2025 Community Outpost &bull; Built for the C&C Community</p>
             <div class="footer-links">
                 <a href="https://github.com/community-outpost/GenHub" target="_blank">Source Code</a>
-                <span class="footer-divider">•</span>
-                <a href="https://generalshub.netlify.app/" target="_blank">Documentation</a>
-                <span class="footer-divider">•</span>
+                <span class="footer-divider">&bull;</span>
+                <a href="https://wiki.generalshub.com/" target="_blank">Documentation</a>
+                <span class="footer-divider">&bull;</span>
                 <a href="https://github.com/community-outpost/GenHub/issues" target="_blank">Report Issue</a>
             </div>
         </div>
@@ -346,7 +346,7 @@
           const CONFIG = {
             owner: 'community-outpost',
             repo: 'GenHub',
-            cacheKey: 'genhub_stats_v1',
+            cacheKey: 'genhub_stats_v2',
             perPage: 100
           };
 
@@ -360,167 +360,149 @@
             const cached = sessionStorage.getItem(CONFIG.cacheKey);
             if (cached) {
               try {
-                renderStats(JSON.parse(cached));
-                return;
+                const parsed = JSON.parse(cached);
+                if (parsed && typeof parsed.totalInstalls === 'number' && typeof parsed.totalUpdates === 'number' && Array.isArray(parsed.breakdown)) {
+                  renderStats(parsed);
+                  return;
+                }
               } catch (parseError) {
-                // Cache is corrupted, clear it and proceed to fetch
-                sessionStorage.removeItem(CONFIG.cacheKey);
+                // If parse fails, ignore and fetch fresh
               }
             }
 
             try {
-              const data = await fetchGitHubStats();
-              // Cache for this browser session only
-              sessionStorage.setItem(CONFIG.cacheKey, JSON.stringify(data));
-              renderStats(data);
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 10000);
+              let response;
+              try {
+                response = await fetch(apiUrl, { signal: controller.signal });
+              } finally {
+                clearTimeout(timeoutId);
+              }
+
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              const releases = await response.json();
+              
+              // Process metrics
+              const stats = processReleaseData(releases);
+              
+              // Cache valid response (best-effort, non-fatal if storage full/blocked)
+              try {
+                sessionStorage.setItem(CONFIG.cacheKey, JSON.stringify(stats));
+              } catch (_) {
+                // Ignore storage quota or security errors
+              }
+              
+              // Render UI
+              renderStats(stats);
             } catch (error) {
-              handleError(error);
+              console.error('Error fetching GitHub releases:', error);
+              renderError();
             }
           }
 
-          async function fetchGitHubStats() {
-            // Add timeout to prevent indefinite hanging
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-
-            const response = await fetch(apiUrl, { signal: controller.signal });
-            clearTimeout(timeoutId);
-
-            if (response.status === 403) {
-              throw new Error('Rate limit exceeded. Try again later.');
-            }
-            if (!response.ok) {
-              throw new Error(`API Error: ${response.status}`);
-            }
-
-            const releases = await response.json();
-            
-            let totals = { installs: 0, updates: 0 };
-            let history = [];
+          function processReleaseData(releases) {
+            let totalInstalls = 0;
+            let totalUpdates = 0;
+            const releaseBreakdown = [];
 
             releases.forEach(release => {
+              if (release.draft) return;
+
               let releaseInstalls = 0;
               let releaseUpdates = 0;
 
-              // Categorize assets based on Velopack naming conventions
-              release.assets.forEach(asset => {
-                const name = asset.name.toLowerCase();
-                
-                // Setup.exe = Fresh installs
-                if (name.endsWith('-setup.exe') || (name.endsWith('.exe') && !name.includes('full') && !name.includes('delta'))) {
-                  releaseInstalls += asset.download_count;
-                }
-                // .nupkg = Updates (both full and delta count as update mechanisms)
-                else if (name.endsWith('.nupkg')) {
-                  releaseUpdates += asset.download_count;
-                }
-              });
+              if (release.assets && Array.isArray(release.assets)) {
+                release.assets.forEach(asset => {
+                  const name = asset.name.toLowerCase();
+                  const count = asset.download_count || 0;
 
-              totals.installs += releaseInstalls;
-              totals.updates += releaseUpdates;
+                  // Installs: Standard installer and portable binaries
+                  if (name.endsWith('-setup.exe') || (name.endsWith('.exe') && !name.includes('full') && !name.includes('delta')) || name.endsWith('.msi') || name.endsWith('.dmg') || name.endsWith('.appimage') || name.endsWith('.deb') || (name.endsWith('.zip') && name.includes('portable'))) {
+                    releaseInstalls += count;
+                  } 
+                  // Updates: Velopack / delta update packages (.nupkg, etc)
+                  else if (name.endsWith('.nupkg') || name.includes('delta')) {
+                    releaseUpdates += count;
+                  }
+                });
+              }
 
-              // Only add to history if this version had any activity
+              totalInstalls += releaseInstalls;
+              totalUpdates += releaseUpdates;
+
               if (releaseInstalls > 0 || releaseUpdates > 0) {
-                history.push({
-                  version: release.tag_name,
-                  date: release.published_at,
+                releaseBreakdown.push({
+                  tag: release.tag_name,
+                  name: release.name || release.tag_name,
                   installs: releaseInstalls,
                   updates: releaseUpdates
                 });
               }
             });
 
-            // Sort by date (newest first)
-            history.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-            return { totals, history, lastUpdated: new Date().toISOString() };
+            return {
+              totalInstalls,
+              totalUpdates,
+              breakdown: releaseBreakdown
+            };
           }
 
           function renderStats(data) {
-            // Update summary numbers with animation
-            animateNumber('gh-total-installs', data.totals.installs);
-            animateNumber('gh-total-updates', data.totals.updates);
+            const totalInstallsEl = document.getElementById('gh-total-installs');
+            const totalUpdatesEl = document.getElementById('gh-total-updates');
+            const breakdownListEl = document.getElementById('gh-breakdown-list');
 
-            // Build breakdown list
-            const listContainer = document.getElementById('gh-breakdown-list');
-            if (listContainer) {
-              listContainer.innerHTML = '';
-
-              if (data.history.length === 0) {
-                listContainer.innerHTML = '<div class="loading-text">No release data found</div>';
-                return;
-              }
-
-              data.history.forEach(item => {
-                const row = document.createElement('div');
-                row.className = 'breakdown-row';
-                row.innerHTML = `
-                  <span class="version-tag">${escapeHtml(item.version)}</span>
-                  <div class="version-stats">
-                    <span class="stat-pill" title="New Installs">
-                      <b>${formatNumber(item.installs)}</b> installs
-                    </span>
-                    <span class="stat-pill" title="Updates">
-                      <b>${formatNumber(item.updates)}</b> updates
-                    </span>
-                  </div>
-                `;
-                listContainer.appendChild(row);
-              });
+            if (totalInstallsEl) {
+              totalInstallsEl.textContent = formatNumber(data.totalInstalls);
             }
-          }
-
-          function handleError(error) {
-            console.error('[GitHub Stats]', error);
-            const container = document.getElementById('gh-breakdown-list');
-            if (container) {
-              container.innerHTML = `<div class="error-text">Stats unavailable<br><small>${escapeHtml(error.message)}</small></div>`;
+            if (totalUpdatesEl) {
+              totalUpdatesEl.textContent = formatNumber(data.totalUpdates);
             }
-            const installsElem = document.getElementById('gh-total-installs');
-            const updatesElem = document.getElementById('gh-total-updates');
-            if (installsElem) installsElem.textContent = '-';
-            if (updatesElem) updatesElem.textContent = '-';
-          }
 
-          // Utility: Animate number counting up
-          function animateNumber(elementId, targetValue) {
-            const element = document.getElementById(elementId);
-            if (!element) return;
-            
-            const duration = 1000;
-            const start = 0;
-            const startTime = performance.now();
-
-            function update(currentTime) {
-              const elapsed = currentTime - startTime;
-              const progress = Math.min(elapsed / duration, 1);
-              const easeOutQuart = 1 - Math.pow(1 - progress, 4);
-              const current = Math.floor(start + (targetValue - start) * easeOutQuart);
-              
-              element.textContent = formatNumber(current);
-              
-              if (progress < 1) {
-                requestAnimationFrame(update);
+            if (breakdownListEl && data.breakdown) {
+              breakdownListEl.innerHTML = '';
+              if (data.breakdown.length === 0) {
+                breakdownListEl.innerHTML = '<div class="loading-text">No release data found</div>';
+              } else {
+                data.breakdown.forEach(rel => {
+                  const row = document.createElement('div');
+                  row.className = 'breakdown-row';
+                  row.innerHTML = `
+                    <span class="version-tag">${escapeHtml(rel.tag)}</span>
+                    <div class="version-stats">
+                      <span class="stat-pill" title="Installs" aria-label="Installs">📦 <b>${formatNumber(rel.installs)}</b></span>
+                      <span class="stat-pill" title="Updates" aria-label="Updates">🔄 <b>${formatNumber(rel.updates)}</b></span>
+                    </div>
+                  `;
+                  breakdownListEl.appendChild(row);
+                });
               }
             }
-            
-            requestAnimationFrame(update);
           }
 
-          // Utility: Format large numbers (1,234)
+          function renderError() {
+            const totalInstallsEl = document.getElementById('gh-total-installs');
+            const totalUpdatesEl = document.getElementById('gh-total-updates');
+            const breakdownListEl = document.getElementById('gh-breakdown-list');
+            if (totalInstallsEl) totalInstallsEl.textContent = '-';
+            if (totalUpdatesEl) totalUpdatesEl.textContent = '-';
+            if (breakdownListEl) {
+              breakdownListEl.innerHTML = '<div class="error-text">Stats unavailable</div>';
+            }
+          }
+
           function formatNumber(num) {
-            return num.toLocaleString();
+            return new Intl.NumberFormat('en-US').format(num);
           }
 
-          // Utility: Escape HTML to prevent XSS
-          function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+          function escapeHtml(str) {
+            return str.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
           }
         })();
     </script>
-
 </body>
 
 </html>

@@ -138,6 +138,14 @@ public partial class GameProfileSettingsViewModel
             CurrentProfileId = profileId;
             _logger?.LogInformation("InitializeForProfileAsync called with profileId: {ProfileId}", profileId);
 
+            if (_gameProfileManager == null)
+            {
+                _logger?.LogWarning("Failed to load profile {ProfileId}: GameProfileManager is null", profileId);
+                StatusMessage = "Error loading profile";
+                LoadingError = true;
+                return;
+            }
+
             var profileResult = await _gameProfileManager.GetProfileAsync(profileId);
             if (!profileResult.Success || profileResult.Data == null)
             {
@@ -265,6 +273,11 @@ public partial class GameProfileSettingsViewModel
 
     private async Task SaveDefaultGameSettingsAsync(string profileId)
     {
+        if (_gameProfileManager == null)
+        {
+            return;
+        }
+
         var gameSettings = GameSettingsViewModel.GetProfileSettings();
         var updateRequest = new UpdateProfileRequest();
         PopulateGameSettings(updateRequest, gameSettings);

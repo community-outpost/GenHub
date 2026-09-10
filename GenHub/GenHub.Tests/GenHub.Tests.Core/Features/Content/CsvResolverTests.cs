@@ -400,6 +400,24 @@ public class CsvResolverTests
     }
 
     /// <summary>
+    /// Verifies that <see cref="CsvResolver.ResolveAsync(ContentSearchResult, CancellationToken)"/> propagates cancellation when reading local files.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenLocalFileAndCancelled_ThrowsOperationCanceledExceptionAsync()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        using var tempCsv = new TempCsvFile(FullSampleCsv);
+        var resolver = CreateResolver();
+        var item = CreateDiscoveredItem(tempCsv.FilePath, GameType.Generals, CsvConstants.LanguageEn);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            resolver.ResolveAsync(item, cts.Token));
+    }
+
+    /// <summary>
     /// Verifies that <see cref="CsvResolver.ResolverId"/> returns the expected constant.
     /// </summary>
     [Fact]
@@ -621,6 +639,29 @@ public class CsvResolverTests
     }
 
     /// <summary>
+    /// Verifies that when a remote catalog URL returns 404 Not Found, <see cref="CsvResolver"/> gracefully falls back
+    /// to the embedded assembly asset matching the registry filename without failing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ResolveAsync_WhenRemoteReturns404_FallsBackToEmbeddedResourceAsync()
+    {
+        var remote404Url = "https://raw.githubusercontent.com/community-outpost/GenHub/main/docs/GameInstallationFilesRegistry/ZeroHour-1.04.csv";
+        var httpHandler = new StubHttpMessageHandler(expectedUrl: remote404Url, statusCode: HttpStatusCode.NotFound);
+        var resolver = CreateResolver(httpHandler);
+
+        var item = CreateDiscoveredItem(remote404Url, GameType.ZeroHour, CsvConstants.LanguageEn);
+        item.ResolverMetadata[CsvConstants.Sha256MetadataKey] = CsvConstants.ZeroHour104Sha256;
+
+        var result = await resolver.ResolveAsync(item);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Files.Should().NotBeEmpty();
+        result.Data.Files.Should().Contain(f => f.RelativePath == "generals.exe");
+    }
+
+    /// <summary>
     /// Verifies that the embedded authoritative CSV registries match their pinned SHA-256 checksum constants.
     /// </summary>
     /// <param name="fileName">The embedded CSV catalog file name.</param>
@@ -645,6 +686,47 @@ public class CsvResolverTests
         var actualHash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
 
         actualHash.Should().Be(expectedSha256);
+    }
+
+    /// <summary>
+    /// Verifies that the embedded index.json is synchronized with docs/GameInstallationFilesRegistry/index.json.
+    /// </summary>
+    [Fact]
+    public void EmbeddedIndexJson_MatchesDocsIndexJson()
+    {
+        var assembly = typeof(CsvConstants).Assembly;
+        var resourceName = $"{CsvConstants.EmbeddedResourceNamespace}.{CsvConstants.RegistryIndexFileName}";
+        using var stream = assembly.GetManifestResourceStream(resourceName);
+        stream.Should().NotBeNull($"Resource '{resourceName}' must exist in {assembly.GetName().Name}");
+
+        using var memoryStream = new MemoryStream();
+        stream!.CopyTo(memoryStream);
+        var embeddedText = Encoding.UTF8.GetString(memoryStream.ToArray()).Trim();
+
+        var currentDir = new DirectoryInfo(AppContext.BaseDirectory);
+        string? docsIndexJsonPath = null;
+        while (currentDir != null)
+        {
+            var candidate = Path.Combine(currentDir.FullName, "docs", CsvConstants.RegistryDocsFolder, CsvConstants.RegistryIndexFileName);
+            if (File.Exists(candidate))
+            {
+                docsIndexJsonPath = candidate;
+                break;
+            }
+
+            // Stop search at repo root boundary (.git file/directory) to prevent escaping outside the repository
+            if (Path.Exists(Path.Combine(currentDir.FullName, ".git")))
+            {
+                break;
+            }
+
+            currentDir = currentDir.Parent;
+        }
+
+        docsIndexJsonPath.Should().NotBeNull(
+            $"docs/{CsvConstants.RegistryDocsFolder}/{CsvConstants.RegistryIndexFileName} must exist in the repository tree above {AppContext.BaseDirectory}");
+        var docsText = File.ReadAllText(docsIndexJsonPath!).Trim();
+        embeddedText.Should().Be(docsText);
     }
 
     private static CsvResolver CreateResolver(HttpMessageHandler? handler = null, string? applicationDataPath = null)

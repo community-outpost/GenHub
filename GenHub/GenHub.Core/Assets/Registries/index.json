@@ -7,7 +7,7 @@
       "id": "generals-1.08",
       "gameType": "Generals",
       "version": "1.08",
-      "url": "https://raw.githubusercontent.com/community-outpost/GenHub/main/docs/GameInstallationFilesRegistry/Generals-1.08.csv",
+      "url": "https://raw.githubusercontent.com/community-outpost/GenHub/development/docs/GameInstallationFilesRegistry/Generals-1.08.csv",
       "fileCount": 164,
       "totalSizeBytes": 28977,
       "languages": [
@@ -35,7 +35,7 @@
       "id": "zerohour-1.04",
       "gameType": "ZeroHour",
       "version": "1.04",
-      "url": "https://raw.githubusercontent.com/community-outpost/GenHub/main/docs/GameInstallationFilesRegistry/ZeroHour-1.04.csv",
+      "url": "https://raw.githubusercontent.com/community-outpost/GenHub/development/docs/GameInstallationFilesRegistry/ZeroHour-1.04.csv",
       "fileCount": 175,
       "totalSizeBytes": 31246,
       "languages": [
