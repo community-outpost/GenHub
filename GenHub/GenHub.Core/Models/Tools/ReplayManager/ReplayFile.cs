@@ -137,9 +137,7 @@ public sealed class ReplayFile : IExportableFile
     /// <summary>
     /// Gets a value indicating whether this replay's matched client supports checkpoint saves, replay resumption, and live player takeover.
     /// </summary>
-    public bool SupportsCheckpoints =>
-        MatchedClient?.SupportsCheckpoints == true ||
-        string.Equals(MatchedClient?.Publisher, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
+    public bool SupportsCheckpoints => MatchedClient?.SupportsCheckpoints == true;
 
     /// <summary>
     /// Gets the tooltip explaining the Checkpoint / Takeover feature availability.
