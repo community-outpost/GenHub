@@ -1,18 +1,21 @@
-using GenHub.Core.Constants;
 using System;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using Microsoft.Extensions.Logging;
+using SharpCompress.Archives;
 
 namespace GenHub.Features.Tools.ReplayManager.Services;
 
 /// <summary>
-/// Implementation of <see cref="IZipValidationService"/> for validating ZIP archives.
+/// Implementation of <see cref="IZipValidationService"/> for validating ZIP and other archives for replays.
 /// </summary>
 public sealed class ZipValidationService(ILogger<ZipValidationService> logger) : IZipValidationService
 {
+    private static readonly char[] PathSeparators = ['/', '\\'];
+
     /// <inheritdoc />
     public (bool IsValid, string? ErrorMessage) ValidateZip(string zipPath)
     {
@@ -24,51 +27,49 @@ public sealed class ZipValidationService(ILogger<ZipValidationService> logger) :
             }
 
             using var archive = ZipFile.OpenRead(zipPath);
-            if (archive.Entries.Count == 0)
+            var nonDirEntries = archive.Entries.Where(e => !string.IsNullOrEmpty(e.Name)).ToList();
+            if (nonDirEntries.Count == 0)
             {
                 return (false, "ZIP archive is empty.");
             }
 
-            if (archive.Entries.Count > ReplayManagerConstants.MaxZipEntries)
+            if (nonDirEntries.Count > ReplayManagerConstants.MaxZipEntries)
             {
-                return (false, $"ZIP contains too many entries ({archive.Entries.Count} > {ReplayManagerConstants.MaxZipEntries}).");
+                return (false, $"ZIP contains too many entries ({nonDirEntries.Count} > {ReplayManagerConstants.MaxZipEntries}).");
             }
 
             long totalUncompressedBytes = 0;
+            int replayCount = 0;
 
-            foreach (var entry in archive.Entries)
+            foreach (var entry in nonDirEntries)
             {
-                // Check for directories (Name is empty for directory entries)
-                if (string.IsNullOrEmpty(entry.Name))
+                var segments = entry.FullName.Split(PathSeparators, StringSplitOptions.RemoveEmptyEntries);
+                if (segments.Any(s => s == "." || s == ".." || s.Contains(':') || Path.IsPathRooted(s)))
                 {
-                    return (false, "ZIP contains directories. Only a single layer of files is allowed.");
+                    return (false, $"ZIP contains invalid path traversal segment in '{entry.FullName}'.");
                 }
 
-                // Check for nested files (FullName should equal Name for root files)
-                // Normalize slashes just in case
-                var normalizedFullName = entry.FullName.Replace('\\', '/');
-                if (normalizedFullName != entry.Name)
-                {
-                    return (false, $"ZIP contains nested files ({entry.FullName}). Only a single layer of files is allowed.");
-                }
+                var fileName = Path.GetFileName(entry.FullName);
 
                 // Check extension
-                if (!entry.Name.EndsWith(".rep", StringComparison.OrdinalIgnoreCase))
+                if (!fileName.EndsWith(".rep", StringComparison.OrdinalIgnoreCase))
                 {
-                    return (false, $"ZIP contains non-replay file: {entry.Name}. Only .rep files are allowed.");
+                    return (false, $"ZIP contains non-replay file: {fileName}. Only .rep files are allowed.");
                 }
+
+                replayCount++;
 
                 // Check single entry size
                 if (entry.Length > ReplayManagerConstants.MaxReplaySizeBytes)
                 {
-                    return (false, $"File {entry.Name} in ZIP exceeds {ReplayManagerConstants.MaxReplaySizeBytes / ConversionConstants.BytesPerMegabyte} MB limit.");
+                    return (false, $"File {fileName} in ZIP exceeds {ReplayManagerConstants.MaxReplaySizeBytes / ConversionConstants.BytesPerMegabyte} MB limit.");
                 }
 
                 // Check compression ratio
                 if (entry.CompressedLength > 0 &&
                     ((double)entry.Length / entry.CompressedLength) > ReplayManagerConstants.MaxCompressionRatio)
                 {
-                    return (false, $"File {entry.Name} exceeds maximum compression ratio (potential zip bomb).");
+                    return (false, $"File {fileName} exceeds maximum compression ratio (potential zip bomb).");
                 }
 
                 totalUncompressedBytes += entry.Length;
@@ -78,16 +79,83 @@ public sealed class ZipValidationService(ILogger<ZipValidationService> logger) :
                 }
             }
 
+            if (replayCount == 0)
+            {
+                return (false, "ZIP archive contains no .rep replay files.");
+            }
+
             return (true, null);
         }
         catch (InvalidDataException)
         {
-            return (false, "The file is not a valid ZIP archive.");
+            return ValidateWithSharpCompress(zipPath);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error validating ZIP: {Path}", zipPath);
             return (false, $"Validation error: {ex.Message}");
+        }
+    }
+
+    private (bool IsValid, string? ErrorMessage) ValidateWithSharpCompress(string archivePath)
+    {
+        try
+        {
+            using var archive = ArchiveFactory.OpenArchive(archivePath);
+            var nonDirEntries = archive.Entries.Where(e => !e.IsDirectory && !string.IsNullOrEmpty(e.Key)).ToList();
+            if (nonDirEntries.Count == 0)
+            {
+                return (false, "Archive is empty.");
+            }
+
+            if (nonDirEntries.Count > ReplayManagerConstants.MaxZipEntries)
+            {
+                return (false, $"Archive contains too many entries ({nonDirEntries.Count} > {ReplayManagerConstants.MaxZipEntries}).");
+            }
+
+            long totalUncompressedBytes = 0;
+            int replayCount = 0;
+
+            foreach (var entry in nonDirEntries)
+            {
+                var entryKey = entry.Key ?? string.Empty;
+                var segments = entryKey.Split(PathSeparators, StringSplitOptions.RemoveEmptyEntries);
+                if (segments.Any(s => s == "." || s == ".." || s.Contains(':') || Path.IsPathRooted(s)))
+                {
+                    return (false, $"Archive contains invalid path traversal segment in '{entryKey}'.");
+                }
+
+                var fileName = Path.GetFileName(entryKey);
+                if (!fileName.EndsWith(".rep", StringComparison.OrdinalIgnoreCase))
+                {
+                    return (false, $"Archive contains non-replay file: {fileName}. Only .rep files are allowed.");
+                }
+
+                replayCount++;
+
+                if (entry.Size > ReplayManagerConstants.MaxReplaySizeBytes)
+                {
+                    return (false, $"File {fileName} in archive exceeds {ReplayManagerConstants.MaxReplaySizeBytes / ConversionConstants.BytesPerMegabyte} MB limit.");
+                }
+
+                totalUncompressedBytes += entry.Size;
+                if (totalUncompressedBytes > ReplayManagerConstants.MaxAggregateUncompressedBytes)
+                {
+                    return (false, $"Archive aggregate uncompressed size exceeds maximum allowed limit ({totalUncompressedBytes} > {ReplayManagerConstants.MaxAggregateUncompressedBytes} bytes).");
+                }
+            }
+
+            if (replayCount == 0)
+            {
+                return (false, "Archive contains no .rep replay files.");
+            }
+
+            return (true, null);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "SharpCompress failed to validate archive: {Path}", archivePath);
+            return (false, "The file is not a valid archive.");
         }
     }
 }

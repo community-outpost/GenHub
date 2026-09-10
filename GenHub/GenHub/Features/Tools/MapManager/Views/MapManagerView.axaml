@@ -222,14 +222,13 @@
                   Classes="Secondary" IsEnabled="{Binding SelectedMaps.Count}"
                   ToolTip.Tip="Create a new ZIP archive containing the selected maps.">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <PathIcon Data="{StaticResource ToolIcon.ZipBoxOutline}" Width="16" Height="16"/>
+              <PathIcon Data="{StaticResource ToolIcon.ArchiveOutline}" Width="16" Height="16"/>
               <TextBlock Text="Zip" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
           <StackPanel Orientation="Horizontal" Spacing="0">
             <Button Command="{Binding UploadAndShareCommand}"
-                    Classes="Primary"
-                    CornerRadius="6,0,0,6"
+                    Classes="Primary SplitLeft"
                     ToolTip.Tip="Upload selected maps to cloud and copy share link.">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <PathIcon Data="{StaticResource ToolIcon.CloudUploadOutline}" Width="16" Height="16"/>
@@ -238,11 +237,9 @@
             </Button>
             <ToggleButton
                     IsChecked="{Binding IsHistoryOpen, Mode=TwoWay}"
-                    Classes="Primary"
-                    CornerRadius="0,6,6,0"
-                    Padding="8,0"
+                    Classes="Primary SplitRight"
                     ToolTip.Tip="View the history of your uploaded maps.">
-              <PathIcon Data="{StaticResource ToolIcon.ChevronDown}" Width="14" Height="14" VerticalAlignment="Center"/>
+              <PathIcon Data="{StaticResource ToolIcon.ChevronRight}" Width="14" Height="14" VerticalAlignment="Center"/>
             </ToggleButton>
             <Popup IsOpen="{Binding IsHistoryOpen}"
                    Placement="Bottom" PlacementTarget="{Binding $parent[StackPanel]}"
@@ -462,6 +459,33 @@
     </Style>
     <Style Selector="Button.Primary:pointerover, ToggleButton.Primary:pointerover">
       <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+    </Style>
+
+    <!-- Flush split button styles for Upload + Chevron Toggle -->
+    <Style Selector="Button.SplitLeft">
+      <Setter Property="CornerRadius" Value="6,0,0,6" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Margin" Value="0" />
+    </Style>
+    <Style Selector="ToggleButton.SplitRight">
+      <Setter Property="CornerRadius" Value="0,6,6,0" />
+      <Setter Property="BorderThickness" Value="1,0,0,0" />
+      <Setter Property="BorderBrush" Value="#40FFFFFF" />
+      <Setter Property="Padding" Value="7,0" />
+      <Setter Property="Margin" Value="0" />
+    </Style>
+    <Style Selector="ToggleButton.SplitRight:checked">
+      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+    </Style>
+    <Style Selector="ToggleButton.SplitRight:checked PathIcon">
+      <Setter Property="RenderTransform" Value="rotate(90deg)" />
+    </Style>
+    <Style Selector="ToggleButton.SplitRight PathIcon">
+      <Setter Property="Transitions">
+        <Transitions>
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
+        </Transitions>
+      </Setter>
     </Style>
 
     <Style Selector="Button.Secondary">

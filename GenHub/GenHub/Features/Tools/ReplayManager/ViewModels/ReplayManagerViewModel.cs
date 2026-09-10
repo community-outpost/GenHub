@@ -42,13 +42,15 @@ namespace GenHub.Features.Tools.ReplayManager.ViewModels;
 /// <param name="uploadHistoryService">The upload history and rate limit service.</param>
 /// <param name="notificationService">The notification service.</param>
 /// <param name="logger">The logger instance.</param>
+/// <param name="dialogService">Optional dialog service for user confirmations.</param>
 public partial class ReplayManagerViewModel(
     IReplayDirectoryService directoryService,
     IReplayImportService importService,
     IReplayExportService exportService,
     IUploadHistoryService uploadHistoryService,
     INotificationService notificationService,
-    ILogger<ReplayManagerViewModel> logger) : ObservableObject,
+    ILogger<ReplayManagerViewModel> logger,
+    IDialogService? dialogService = null) : ObservableObject,
     IRecipient<ProfileLaunchedMessage>,
     IRecipient<ProfileStoppedMessage>,
     IRecipient<ProfileDeletedMessage>,
@@ -492,6 +494,19 @@ public partial class ReplayManagerViewModel(
             return;
         }
 
+        if (dialogService != null)
+        {
+            var confirmed = await dialogService.ShowConfirmationAsync(
+                "Delete Upload",
+                $"Are you sure you want to delete '{item.FileName}' from cloud storage and remove it from history?",
+                confirmText: "Delete",
+                cancelText: "Cancel");
+            if (!confirmed)
+            {
+                return;
+            }
+        }
+
         try
         {
             var success = await uploadHistoryService.RemoveHistoryItemAsync(item.Url, deleteFromCloud: true);
@@ -528,6 +543,19 @@ public partial class ReplayManagerViewModel(
                 "Clear History",
                 "Permanently deletes all uploaded files from cloud storage and clears upload history.");
             return;
+        }
+
+        if (dialogService != null)
+        {
+            var confirmed = await dialogService.ShowConfirmationAsync(
+                "Clear Upload History",
+                "Are you sure you want to delete all uploaded replays from cloud storage and clear your upload history? This cannot be undone.",
+                confirmText: "Clear All",
+                cancelText: "Cancel");
+            if (!confirmed)
+            {
+                return;
+            }
         }
 
         try
