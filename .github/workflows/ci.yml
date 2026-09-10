@@ -496,7 +496,15 @@ jobs:
             kill "$APP_PID" 2>/dev/null || true
             sleep 2
             kill -9 "$APP_PID" 2>/dev/null || true
-            wait "$APP_PID" 2>/dev/null || true
+            set +e
+            wait "$APP_PID" 2>/dev/null
+            TERM_STATUS=$?
+            set -e
+            if [ "$TERM_STATUS" -ne 0 ] && [ "$TERM_STATUS" -ne 143 ] && [ "$TERM_STATUS" -ne 137 ] && [ "$TERM_STATUS" -ne 127 ]; then
+              echo "::error::GenHub.app exited abnormally during shutdown (status $TERM_STATUS). Log follows."
+              cat app-launch.log
+              exit 1
+            fi
           else
             set +e
             wait "$APP_PID"

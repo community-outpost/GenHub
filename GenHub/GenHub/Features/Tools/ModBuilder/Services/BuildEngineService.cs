@@ -407,6 +407,7 @@ public sealed class BuildEngineService : IBuildEngineService
 
         var cachePath = GetCachePath(stage, setup);
         var cacheDir = Path.GetDirectoryName(cachePath);
+        var cachingEnabled = true;
         if (!string.IsNullOrEmpty(cacheDir))
         {
             try
@@ -415,11 +416,15 @@ public sealed class BuildEngineService : IBuildEngineService
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                _logger.LogWarning(ex, "Could not create cache directory {CacheDir}, build caching disabled", cacheDir);
+                cachingEnabled = false;
+                _logger.LogWarning(ex, "Could not create cache directory {CacheDir}, build caching disabled for this stage", cacheDir);
             }
         }
 
-        await _cacheService.LoadCacheAsync(cachePath, cancellationToken).ConfigureAwait(false);
+        if (cachingEnabled)
+        {
+            await _cacheService.LoadCacheAsync(cachePath, cancellationToken).ConfigureAwait(false);
+        }
 
         var initialFailed = Volatile.Read(ref _filesFailed);
         var filesToProcess = GetFilesForStage(stage);
@@ -428,7 +433,10 @@ public sealed class BuildEngineService : IBuildEngineService
 
         await ExecuteStageFilesAsync(stage, setup, progress, filesToProcess, cancellationToken).ConfigureAwait(false);
 
-        await _cacheService.SaveCacheAsync(cachePath, cancellationToken).ConfigureAwait(false);
+        if (cachingEnabled)
+        {
+            await _cacheService.SaveCacheAsync(cachePath, cancellationToken).ConfigureAwait(false);
+        }
 
         var finishEvent = GetFinishBuildEvent(stage);
         FireBundleEvent(finishEvent, null);
@@ -815,7 +823,7 @@ public sealed class BuildEngineService : IBuildEngineService
         }
     }
 
-    private static (string Path, string TargetRelPath) ResolveStagedSource(
+    private (string Path, string TargetRelPath) ResolveStagedSource(
         BundleFile file,
         string targetRelPath,
         string? buildDir)
@@ -839,44 +847,54 @@ public sealed class BuildEngineService : IBuildEngineService
         {
             var ddsRel = Path.ChangeExtension(targetRelPath, ".dds");
             var ddsSub = Path.Combine(rawDir, ddsRel);
-            if (File.Exists(ddsSub))
+            if (IsSubpathOf(rawDir, ddsSub) && File.Exists(ddsSub))
             {
                 return (ddsSub, ddsRel);
             }
 
-            var ddsFlat = Path.Combine(rawDir, Path.GetFileName(ddsRel));
-            if (File.Exists(ddsFlat))
+            var ddsFlatTarget = Path.Combine(rawDir, Path.GetFileName(ddsRel));
+            if (File.Exists(ddsFlatTarget))
             {
-                return (ddsFlat, ddsRel);
+                return (ddsFlatTarget, ddsRel);
             }
+
+            var ddsFlatSource = Path.Combine(rawDir, Path.ChangeExtension(Path.GetFileName(sourcePath), ".dds"));
+            if (File.Exists(ddsFlatSource))
+            {
+                return (ddsFlatSource, ddsRel);
+            }
+
+            _logger.LogWarning("Expected converted DDS output not found for {SourcePath}; falling back to raw source", sourcePath);
         }
         else if (ext == ".str")
         {
             var csfRel = Path.ChangeExtension(targetRelPath, ".csf");
             var csfSub = Path.Combine(rawDir, csfRel);
-            if (File.Exists(csfSub))
+            if (IsSubpathOf(rawDir, csfSub) && File.Exists(csfSub))
             {
                 return (csfSub, csfRel);
             }
 
-            var csfFlat = Path.Combine(rawDir, Path.GetFileName(csfRel));
-            if (File.Exists(csfFlat))
+            var csfFlatTarget = Path.Combine(rawDir, Path.GetFileName(csfRel));
+            if (File.Exists(csfFlatTarget))
             {
-                return (csfFlat, csfRel);
+                return (csfFlatTarget, csfRel);
             }
+
+            var csfFlatSource = Path.Combine(rawDir, Path.ChangeExtension(Path.GetFileName(sourcePath), ".csf"));
+            if (File.Exists(csfFlatSource))
+            {
+                return (csfFlatSource, csfRel);
+            }
+
+            _logger.LogWarning("Expected converted CSF output not found for {SourcePath}; falling back to raw source", sourcePath);
         }
 
         // Passthrough candidate
         var candidateRel = Path.Combine(rawDir, targetRelPath);
-        if (File.Exists(candidateRel))
+        if (IsSubpathOf(rawDir, candidateRel) && File.Exists(candidateRel))
         {
             return (candidateRel, targetRelPath);
-        }
-
-        var candidateFlat = Path.Combine(rawDir, Path.GetFileName(sourcePath));
-        if (File.Exists(candidateFlat))
-        {
-            return (candidateFlat, targetRelPath);
         }
 
         return (sourcePath, targetRelPath);
@@ -1839,5 +1857,17 @@ public sealed class BuildEngineService : IBuildEngineService
             .Where(pack => pack.AllowBuild)
             .Select(pack => Path.Combine(releaseDir, GetPackFileName(pack)))
             .ToList();
+    }
+
+    private static bool IsSubpathOf(string basePath, string candidatePath)
+    {
+        var fullBase = Path.GetFullPath(basePath);
+        if (!fullBase.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal))
+        {
+            fullBase += Path.DirectorySeparatorChar;
+        }
+
+        var fullCandidate = Path.GetFullPath(candidatePath);
+        return fullCandidate.StartsWith(fullBase, StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -956,17 +956,32 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
     private void CleanSampleProjectArtifacts(string sampleProjectsDir)
     {
-        foreach (var dir in Directory.GetDirectories(sampleProjectsDir, "*", SearchOption.AllDirectories)
-                     .Where(d => IsStrayArtifactDirectory(Path.GetFileName(d))))
+        var options = new EnumerationOptions
         {
-            TryDeleteStrayDirectory(dir);
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = true,
+            MatchCasing = MatchCasing.CaseInsensitive,
+            AttributesToSkip = FileAttributes.None,
+        };
+
+        try
+        {
+            foreach (var dir in Directory.EnumerateDirectories(sampleProjectsDir, "*", options)
+                         .Where(d => IsStrayArtifactDirectory(Path.GetFileName(d))))
+            {
+                TryDeleteStrayDirectory(dir);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "Error enumerating sample projects directory: {Dir}", sampleProjectsDir);
         }
     }
 
     private static bool IsStrayArtifactDirectory(string dirName) =>
         dirName.Equals(ModBuilderConstants.DefaultBuildDir, StringComparison.OrdinalIgnoreCase) ||
         dirName.Equals(ModBuilderConstants.DefaultReleaseDir, StringComparison.OrdinalIgnoreCase) ||
-        dirName.StartsWith(".staging", StringComparison.OrdinalIgnoreCase) ||
+        dirName.StartsWith(ModBuilderConstants.StagingDirectoryPrefix, StringComparison.OrdinalIgnoreCase) ||
         dirName.Equals(ModBuilderConstants.CacheDirectoryName, StringComparison.OrdinalIgnoreCase);
 
     private void TryDeleteStrayDirectory(string dir)

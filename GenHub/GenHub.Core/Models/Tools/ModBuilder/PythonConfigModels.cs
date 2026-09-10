@@ -243,15 +243,19 @@ public sealed class SimplifiedBundleItem
     public List<string>? SourceFiles { get; set; }
 
     [JsonPropertyName("OutputFormat")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? OutputFormat { get; set; }
 
     [JsonPropertyName("Compression")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Compression { get; set; }
 
     [JsonPropertyName("GenerateMipmaps")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool GenerateMipmaps { get; set; }
 
     [JsonPropertyName("Big")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? Big { get; set; }
 }
 
