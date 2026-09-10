@@ -20,7 +20,7 @@ public interface IBuildEngineService
     /// <param name="configuration">The build configuration.</param>
     /// <param name="selectedBundlePacks">The list of selected bundle pack names.</param>
     /// <param name="buildSteps">The build steps to execute (flags).</param>
-    /// <param name="progress">Optional progress reporter for build output.</param>
+    /// <param name="progress">Optional progress reporter for build status.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A result indicating success or failure.</returns>
     Task<BuildOperationResult> ExecuteBuildAsync(
@@ -28,7 +28,7 @@ public interface IBuildEngineService
         BuildConfiguration configuration,
         List<string> selectedBundlePacks,
         BuildStep buildSteps,
-        IProgress<string>? progress = null,
+        IProgress<BuildProgress>? progress = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>

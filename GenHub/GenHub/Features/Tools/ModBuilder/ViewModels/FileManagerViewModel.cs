@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.GameInstallations;
@@ -28,6 +29,7 @@ public partial class FileManagerViewModel(
 {
     private string? _projectPath;
     private string? _gameInstallationPath;
+    private string? _gameFilesEditedDir;
 
     /// <summary>
     /// Gets the collection of available game installations.
@@ -188,9 +190,13 @@ public partial class FileManagerViewModel(
     /// Initializes the file manager with project and game paths.
     /// </summary>
     /// <param name="projectPath">The root path of the project.</param>
+    /// <param name="gameFilesEditedDir">The optional configured game files edited directory name or path.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public async Task InitializeAsync(string projectPath, CancellationToken cancellationToken = default)
+    public async Task InitializeAsync(
+        string projectPath,
+        string? gameFilesEditedDir = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -199,6 +205,7 @@ public partial class FileManagerViewModel(
             StatusMessage = "Initializing file manager...";
 
             _projectPath = projectPath;
+            _gameFilesEditedDir = gameFilesEditedDir;
 
             // Load all available installations
             var installationsResult = await gameInstallationService.GetAllInstallationsAsync(cancellationToken).ConfigureAwait(false);
@@ -303,6 +310,17 @@ public partial class FileManagerViewModel(
         }, cancellationToken).ConfigureAwait(false);
     }
 
+    private string GetGameFilesEditedPath()
+    {
+        var dirName = !string.IsNullOrWhiteSpace(_gameFilesEditedDir)
+            ? _gameFilesEditedDir
+            : ModBuilderConstants.GameFilesEditedDir;
+
+        return Path.IsPathRooted(dirName)
+            ? dirName
+            : Path.Combine(_projectPath ?? string.Empty, dirName);
+    }
+
     /// <summary>
     /// Loads project files into the tree.
     /// </summary>
@@ -311,7 +329,7 @@ public partial class FileManagerViewModel(
         if (string.IsNullOrEmpty(_projectPath))
             return;
 
-        var gameFilesEditedPath = Path.Combine(_projectPath, "GameFilesEdited");
+        var gameFilesEditedPath = GetGameFilesEditedPath();
         if (!Directory.Exists(gameFilesEditedPath))
         {
             Directory.CreateDirectory(gameFilesEditedPath);
@@ -588,7 +606,7 @@ public partial class FileManagerViewModel(
 
             var fileList = filesToAdd.Values.ToList();
             var total = fileList.Count;
-            var gameFilesEditedPath = Path.Combine(_projectPath, "GameFilesEdited");
+            var gameFilesEditedPath = GetGameFilesEditedPath();
 
             var copiedCount = await Task.Run(() =>
             {
@@ -759,7 +777,7 @@ public partial class FileManagerViewModel(
     {
         if (!string.IsNullOrEmpty(_projectPath))
         {
-            await InitializeAsync(_projectPath).ConfigureAwait(false);
+            await InitializeAsync(_projectPath, _gameFilesEditedDir).ConfigureAwait(false);
         }
     }
 }

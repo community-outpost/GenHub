@@ -203,7 +203,7 @@ public class ModBuilderViewModelTests : IDisposable
                 It.IsAny<BuildConfiguration>(),
                 It.IsAny<List<string>>(),
                 BuildStep.CreateManifest,
-                It.IsAny<IProgress<string>?>(),
+                It.IsAny<IProgress<BuildProgress>?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(BuildOperationResult.CreateSuccess());
 
@@ -215,7 +215,7 @@ public class ModBuilderViewModelTests : IDisposable
                 It.IsAny<BuildConfiguration>(),
                 It.IsAny<List<string>>(),
                 BuildStep.CreateManifest,
-                It.IsAny<IProgress<string>?>(),
+                It.IsAny<IProgress<BuildProgress>?>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);
 
