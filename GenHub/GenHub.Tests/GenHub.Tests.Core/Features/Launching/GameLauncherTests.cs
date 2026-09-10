@@ -1265,6 +1265,4 @@ public class GameLauncherTests : IDisposable
         _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
     }
-
-
 }
