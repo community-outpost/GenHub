@@ -347,10 +347,14 @@
                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                         CornerRadius="8" Padding="10">
                   <StackPanel Spacing="6">
-                    <CheckBox Content="Clean" IsChecked="{Binding CleanEnabled}" Foreground="{DynamicResource TextPrimary}" ToolTip.Tip="Deletes temporary build and output artifacts before building"/>
-                    <CheckBox Content="Build" IsChecked="{Binding BuildEnabled}" Foreground="{DynamicResource TextPrimary}" ToolTip.Tip="Compiles and packages edited assets into .big bundles"/>
-                    <CheckBox Content="Create Manifest" IsChecked="{Binding CreateManifestEnabled}" Foreground="{DynamicResource TextPrimary}" ToolTip.Tip="Stores compiled bundles in CAS and registers a local ContentManifest in the GenHub library"/>
-                    <CheckBox Content="Release" IsChecked="{Binding ReleaseEnabled}" Foreground="{DynamicResource TextPrimary}" ToolTip.Tip="Generates distributable release archive packages"/>
+                    <CheckBox Content="Clean" IsChecked="{Binding CleanEnabled}" Foreground="{DynamicResource TextPrimary}"
+                              ToolTip.Tip="Deletes output folders (.Build and Releases) before starting the build"/>
+                    <CheckBox Content="Build" IsChecked="{Binding BuildEnabled}" Foreground="{DynamicResource TextPrimary}"
+                              ToolTip.Tip="Processes assets (texture conversion, CSF string tables) and compiles .big archives into .Build/bundles"/>
+                    <CheckBox Content="Release" IsChecked="{Binding ReleaseEnabled}" Foreground="{DynamicResource TextPrimary}"
+                              ToolTip.Tip="Packages built .big archives and loose assets into zip archives in the Releases folder"/>
+                    <CheckBox Content="Create Manifest" IsChecked="{Binding CreateManifestEnabled}" Foreground="{DynamicResource TextPrimary}"
+                              ToolTip.Tip="Generates manifest.json and registers the mod in GenHub CAS for launch in isolated workspaces"/>
                   </StackPanel>
                 </Border>
               </StackPanel>
@@ -367,9 +371,12 @@
                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                         CornerRadius="8" Padding="10">
                   <StackPanel Spacing="6">
-                    <CheckBox Content="Verbose Logging" IsChecked="{Binding VerboseLogging}" Foreground="{DynamicResource TextPrimary}"/>
-                    <CheckBox Content="Multi-Processing" IsChecked="{Binding MultiProcessing}" Foreground="{DynamicResource TextPrimary}"/>
-                    <CheckBox Content="Print Config" IsChecked="{Binding PrintConfig}" Foreground="{DynamicResource TextPrimary}"/>
+                    <CheckBox Content="Verbose Logging" IsChecked="{Binding VerboseLogging}" Foreground="{DynamicResource TextPrimary}"
+                              ToolTip.Tip="Prints detailed pipeline and conversion messages in the log window"/>
+                    <CheckBox Content="Multi-Processing" IsChecked="{Binding MultiProcessing}" Foreground="{DynamicResource TextPrimary}"
+                              ToolTip.Tip="Processes asset conversions in parallel using all CPU cores"/>
+                    <CheckBox Content="Print Config" IsChecked="{Binding PrintConfig}" Foreground="{DynamicResource TextPrimary}"
+                              ToolTip.Tip="Outputs the resolved configuration to the log before building"/>
                   </StackPanel>
                 </Border>
               </StackPanel>

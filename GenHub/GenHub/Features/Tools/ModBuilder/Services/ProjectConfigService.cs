@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -29,7 +28,6 @@ public sealed class ProjectConfigService : IProjectConfigService
     private readonly ILogger<ProjectConfigService> _logger;
     private readonly string _recentProjectsPath;
     private readonly JsonSerializerOptions _jsonOptions;
-    private readonly ConcurrentDictionary<string, bool> _fileExistsCache = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ProjectConfigService"/> class.
@@ -92,7 +90,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             }
 
             // Check if project already exists
-            if (FileExistsCached(projectPath))
+            if (File.Exists(projectPath))
             {
                 return ProjectOperationResult<ModBuilderProject>.CreateFailure(
                     $"Project file already exists at: {projectPath}",
@@ -192,7 +190,7 @@ public sealed class ProjectConfigService : IProjectConfigService
                     sw.Elapsed);
             }
 
-            if (!FileExistsCached(projectPath))
+            if (!File.Exists(projectPath))
             {
                 return ProjectOperationResult<ModBuilderProject>.CreateFailure(
                     $"Project file not found: {projectPath}",
@@ -301,9 +299,6 @@ public sealed class ProjectConfigService : IProjectConfigService
                 FileOptions.Asynchronous | FileOptions.SequentialScan);
             await JsonSerializer.SerializeAsync(stream, project, _jsonOptions, cancellationToken).ConfigureAwait(false);
 
-            // Invalidate cache for the saved file
-            InvalidateFileExistsCache(projectPath);
-
             _logger.LogInformation("Saved ModBuilder project to {ProjectPath}", projectPath);
 
             sw.Stop();
@@ -339,7 +334,7 @@ public sealed class ProjectConfigService : IProjectConfigService
                     sw.Elapsed);
             }
 
-            if (string.IsNullOrWhiteSpace(projectPath) || !FileExistsCached(projectPath))
+            if (string.IsNullOrWhiteSpace(projectPath) || !File.Exists(projectPath))
             {
                 validationErrors.Add($"Project file not found at: {projectPath}");
             }
@@ -423,7 +418,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             var discoveredProjects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             // 1. Read stored recent projects
-            if (FileExistsCached(_recentProjectsPath))
+            if (File.Exists(_recentProjectsPath))
             {
                 try
                 {
@@ -630,7 +625,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             var configsDir = Path.Combine(projectDir, project.Directories.Configs);
             var bundleConfigPaths = project.BundleConfigs
                 .Select(config => Path.Combine(configsDir, config))
-                .Where(FileExistsCached)
+                .Where(File.Exists)
                 .ToList();
 
             sw.Stop();
@@ -684,23 +679,6 @@ public sealed class ProjectConfigService : IProjectConfigService
                 $"Failed to update last build time: {ex.Message}",
                 sw.Elapsed);
         }
-    }
-
-    /// <summary>
-    /// Invalidates the entire file existence cache.
-    /// </summary>
-    public void InvalidateFileExistsCache()
-    {
-        _fileExistsCache.Clear();
-    }
-
-    /// <summary>
-    /// Invalidates a specific file path in the file existence cache.
-    /// </summary>
-    /// <param name="path">The file path to invalidate.</param>
-    public void InvalidateFileExistsCache(string path)
-    {
-        _fileExistsCache.TryRemove(path, out _);
     }
 
     /// <summary>
@@ -762,7 +740,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             Directory.CreateDirectory(configsDir);
 
             var itemsPath = Path.Combine(configsDir, ModBuilderConstants.BundleItemsConfigFileName);
-            if (!FileExistsCached(itemsPath))
+            if (!File.Exists(itemsPath))
             {
                 var bundleItemsConfig = new
                 {
@@ -780,12 +758,11 @@ public sealed class ProjectConfigService : IProjectConfigService
 
                 var itemsJson = JsonSerializer.Serialize(bundleItemsConfig, _jsonOptions);
                 await File.WriteAllTextAsync(itemsPath, itemsJson, cancellationToken).ConfigureAwait(false);
-                InvalidateFileExistsCache(itemsPath);
                 _logger.LogDebug("Created ModBundleItems.json at {Path}", itemsPath);
             }
 
             var packsPath = Path.Combine(configsDir, ModBuilderConstants.BundlePacksConfigFileName);
-            if (!FileExistsCached(packsPath))
+            if (!File.Exists(packsPath))
             {
                 var bundlePacksConfig = new
                 {
@@ -806,7 +783,6 @@ public sealed class ProjectConfigService : IProjectConfigService
 
                 var packsJson = JsonSerializer.Serialize(bundlePacksConfig, _jsonOptions);
                 await File.WriteAllTextAsync(packsPath, packsJson, cancellationToken).ConfigureAwait(false);
-                InvalidateFileExistsCache(packsPath);
                 _logger.LogDebug("Created ModBundlePacks.json at {Path}", packsPath);
             }
 
@@ -814,7 +790,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             var iniDir = Path.Combine(projectDir, directories.GameFilesEdited, "Data", "INI");
             Directory.CreateDirectory(iniDir);
             var sampleIniPath = Path.Combine(iniDir, "SampleTank.ini");
-            if (!FileExistsCached(sampleIniPath))
+            if (!File.Exists(sampleIniPath))
             {
                 var sampleIniContent = "; Sample ModBuilder INI file\n" +
                                        "; Edit unit properties or game settings here\n\n" +
@@ -823,7 +799,6 @@ public sealed class ProjectConfigService : IProjectConfigService
                                        "  InitialHealth = 1000.0\n" +
                                        "End\n";
                 await File.WriteAllTextAsync(sampleIniPath, sampleIniContent, cancellationToken).ConfigureAwait(false);
-                InvalidateFileExistsCache(sampleIniPath);
                 _logger.LogDebug("Created sample INI at {Path}", sampleIniPath);
             }
 
@@ -831,13 +806,12 @@ public sealed class ProjectConfigService : IProjectConfigService
             var gameFilesDir = Path.Combine(projectDir, directories.GameFilesEdited);
             var readmePath = Path.Combine(gameFilesDir, "README.txt");
 
-            if (!FileExistsCached(readmePath))
+            if (!File.Exists(readmePath))
             {
                 var readmeContent = "Place your modified game files in this directory.\n" +
                                   "Maintain the same folder structure as the game (e.g. Data/INI/, Art/Textures/).\n" +
                                   "ModBuilder will automatically pack them into .BIG files when you click Execute Build.\n";
                 await File.WriteAllTextAsync(readmePath, readmeContent, cancellationToken).ConfigureAwait(false);
-                InvalidateFileExistsCache(readmePath);
                 _logger.LogDebug("Created README at {Path}", readmePath);
             }
         }
@@ -875,11 +849,6 @@ public sealed class ProjectConfigService : IProjectConfigService
             IoConstants.DefaultFileBufferSize,
             FileOptions.Asynchronous | FileOptions.SequentialScan);
         await JsonSerializer.SerializeAsync(stream, recentProjects, _jsonOptions, cancellationToken).ConfigureAwait(false);
-        _fileExistsCache[_recentProjectsPath] = true;
     }
 
-    private static bool FileExistsCached(string path)
-    {
-        return File.Exists(path);
-    }
 }

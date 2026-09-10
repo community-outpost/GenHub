@@ -26,7 +26,6 @@ public partial class ConfigEditorViewModel(
     INotificationService notificationService,
     ILogger<ConfigEditorViewModel> logger) : ObservableObject
 {
-
     /// <summary>
     /// Gets or sets the current project.
     /// </summary>

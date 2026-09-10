@@ -6,7 +6,8 @@
         "HDTextures"
       ],
       "OutputFile": ".Release/TextureOverhaul.big",
-      "Description": "Complete HD textures package"
+      "Description": "Complete HD textures package",
+      "AllowBuild": true
     }
   ]
 }

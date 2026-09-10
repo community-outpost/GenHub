@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Interfaces.Notifications;
@@ -144,6 +145,7 @@ public partial class BundlePackEditorViewModel : ObservableObject
 
             if (files.Count > 0)
             {
+                var newFiles = new List<BundleFileInfo>();
                 foreach (var file in files)
                 {
                     var fileInfo = new FileInfo(file.Path.LocalPath);
@@ -157,14 +159,21 @@ public partial class BundlePackEditorViewModel : ObservableObject
                         FileSizeFormatted = FormatFileSize(fileInfo.Length),
                         LastModified = fileInfo.LastWriteTime,
                         IconKey = GetIconKeyForFileType(fileInfo.Extension),
-                        Order = Files.Count
+                        Order = Files.Count + newFiles.Count
                     };
-
-                    Files.Add(bundleFile);
+                    newFiles.Add(bundleFile);
                 }
 
-                UpdateStatistics();
-                HasChanges = true;
+                Dispatcher.UIThread.Post(() =>
+                {
+                    foreach (var bf in newFiles)
+                    {
+                        Files.Add(bf);
+                    }
+
+                    UpdateStatistics();
+                    HasChanges = true;
+                });
 
                 _notificationService.ShowSuccess(
                     "Files Added",

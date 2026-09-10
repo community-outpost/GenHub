@@ -1477,7 +1477,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         try
         {
             var buildConfig = await PrepareBuildConfigurationAsync(_buildCancellationTokenSource.Token).ConfigureAwait(false);
-            var selectedPacks = Bundles.Where(b => b.IsSelected).Select(b => b.Name).ToList();
+            var selectedPacks = GetResolvedSelectedPacks(buildConfig);
 
             var progress = new Progress<string>(message =>
             {
@@ -1549,6 +1549,24 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
     }
 
+    private List<string> GetResolvedSelectedPacks(BuildConfiguration buildConfig)
+    {
+        var selectedItems = Bundles.Where(b => b.IsSelected).Select(b => b.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var resolvedPacks = new List<string>(selectedItems);
+        if (buildConfig.Packs != null)
+        {
+            foreach (var pack in buildConfig.Packs)
+            {
+                if (pack.ItemNames.Any(item => selectedItems.Contains(item)) && !resolvedPacks.Contains(pack.Name, StringComparer.OrdinalIgnoreCase))
+                {
+                    resolvedPacks.Add(pack.Name);
+                }
+            }
+        }
+
+        return resolvedPacks;
+    }
+
     private bool CanBuild() => IsProjectLoaded && !IsBuildRunning;
 
     /// <summary>
@@ -1572,7 +1590,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         try
         {
             var buildConfig = await PrepareBuildConfigurationAsync(_buildCancellationTokenSource.Token).ConfigureAwait(false);
-            var selectedPacks = Bundles.Where(b => b.IsSelected).Select(b => b.Name).ToList();
+            var selectedPacks = GetResolvedSelectedPacks(buildConfig);
 
             var progress = new Progress<string>(AppendBuildLog);
 
