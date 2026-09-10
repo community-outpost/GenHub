@@ -35,6 +35,10 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
         _tempSaveDir = Path.Combine(Path.GetTempPath(), "GenHubSaveTests_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempSaveDir);
 
+        _mockProcessManager
+            .Setup(p => p.TerminateProcessAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
         _service = new ReplayCheckpointService(
             _mockLauncherFacade.Object,
             _mockProcessManager.Object,
@@ -112,9 +116,6 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
         const int targetFrame = 88888;
         var saveFilePath = Path.Combine(_tempSaveDir, $"cp_Tournament_{targetFrame}.sav");
 
-        // Pre-create the save file in the isolated temp dir simulating game client output
-        await File.WriteAllBytesAsync(saveFilePath, [0x01, 0x02, 0x03]);
-
         var replay = new ReplayFile
         {
             FileName = "Tournament.rep",
@@ -131,6 +132,7 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
                 false,
                 It.IsAny<CancellationToken>(),
                 It.IsAny<IReadOnlyDictionary<string, string>>()))
+            .Callback(() => File.WriteAllBytes(saveFilePath, [0x01, 0x02, 0x03]))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
             {
                 LaunchId = "launch-mint",
@@ -211,6 +213,7 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
             FilePath = Path.Combine(_tempSaveDir, "cp_EpicBattle_12000.sav"),
             CreatedAt = DateTime.UtcNow,
             FileSizeBytes = 4096,
+            AssociatedReplayFileName = "EpicBattle.rep",
         };
 
         IReadOnlyDictionary<string, string>? capturedArgs = null;
@@ -267,6 +270,7 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
             FilePath = Path.Combine(_tempSaveDir, "cp_EpicBattle_12000.sav"),
             CreatedAt = DateTime.UtcNow,
             FileSizeBytes = 4096,
+            AssociatedReplayFileName = "EpicBattle.rep",
         };
 
         IReadOnlyDictionary<string, string>? capturedArgs = null;
@@ -404,7 +408,6 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
     {
         const int targetFrame = 6000;
         var saveFilePath = Path.Combine(_tempSaveDir, $"cp_RecoverTest_{targetFrame}.sav");
-        await File.WriteAllBytesAsync(saveFilePath, [0x05, 0x06]);
 
         var serviceWithShortTimeout = new ReplayCheckpointService(
             _mockLauncherFacade.Object,
@@ -429,6 +432,7 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
                 false,
                 It.IsAny<CancellationToken>(),
                 It.IsAny<IReadOnlyDictionary<string, string>>()))
+            .Callback(() => File.WriteAllBytes(saveFilePath, [0x05, 0x06]))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
             {
                 LaunchId = "launch-recover",
@@ -457,5 +461,178 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
         Assert.NotNull(result.Data);
         Assert.Equal(targetFrame, result.Data.TargetFrame);
         Assert.Equal($"cp_RecoverTest_{targetFrame}.sav", result.Data.FileName);
+    }
+
+    /// <summary>
+    /// Verifies that MintCheckpointAsync fails if a stale save file was pre-existing and not updated.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task MintCheckpointAsync_PreExistingSaveNotUpdated_ReturnsFailure()
+    {
+        const int targetFrame = 4444;
+        var saveFilePath = Path.Combine(_tempSaveDir, $"cp_Stale_{targetFrame}.sav");
+        await File.WriteAllBytesAsync(saveFilePath, [0x01]);
+        File.SetLastWriteTimeUtc(saveFilePath, DateTime.UtcNow.AddMinutes(-5));
+
+        var replay = new ReplayFile
+        {
+            FileName = "Stale.rep",
+            FullPath = @"C:\Games\Replays\Stale.rep",
+            GameVersion = GameType.ZeroHour,
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+        };
+        var profile = new GameProfile { Id = "profile-stale", Name = "Stale Profile" };
+
+        _mockLauncherFacade
+            .Setup(l => l.LaunchProfileAsync(
+                profile.Id,
+                false,
+                It.IsAny<CancellationToken>(),
+                It.IsAny<IReadOnlyDictionary<string, string>>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
+            {
+                LaunchId = "launch-stale",
+                ProfileId = profile.Id,
+                WorkspaceId = "ws-stale",
+                ProcessInfo = new GameProcessInfo
+                {
+                    ProcessId = 55555,
+                    ProcessName = "generalszh",
+                    StartTime = DateTime.UtcNow,
+                },
+            }));
+
+        _mockProcessManager
+            .Setup(p => p.GetProcessInfoAsync(55555, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProcessInfo>.CreateFailure("Process not found"));
+
+        var result = await _service.MintCheckpointAsync(replay, profile, targetFrame);
+
+        Assert.False(result.Success);
+        Assert.Contains("stale file detected", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that ResumeReplayAsync fails if the checkpoint belongs to a different replay.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ResumeReplayAsync_MismatchedReplayFileName_ReturnsFailure()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "ReplayA.rep",
+            FullPath = @"C:\Games\Replays\ReplayA.rep",
+            GameVersion = GameType.ZeroHour,
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+        };
+        var profile = new GameProfile { Id = "profile-1", Name = "Test Profile" };
+        var checkpoint = new ReplayCheckpointInfo
+        {
+            FileName = "cp_ReplayB_5000.sav",
+            TargetFrame = 5000,
+            FilePath = Path.Combine(_tempSaveDir, "cp_ReplayB_5000.sav"),
+            CreatedAt = DateTime.UtcNow,
+            FileSizeBytes = 1024,
+            AssociatedReplayFileName = "ReplayB.rep",
+        };
+
+        var result = await _service.ResumeReplayAsync(replay, profile, checkpoint);
+
+        Assert.False(result.Success);
+        Assert.Contains("does not belong to replay", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that TakeoverMatchAsync fails if the checkpoint belongs to a different replay.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task TakeoverMatchAsync_MismatchedReplayFileName_ReturnsFailure()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "ReplayA.rep",
+            FullPath = @"C:\Games\Replays\ReplayA.rep",
+            GameVersion = GameType.ZeroHour,
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+        };
+        var profile = new GameProfile { Id = "profile-1", Name = "Test Profile" };
+        var checkpoint = new ReplayCheckpointInfo
+        {
+            FileName = "cp_ReplayB_5000.sav",
+            TargetFrame = 5000,
+            FilePath = Path.Combine(_tempSaveDir, "cp_ReplayB_5000.sav"),
+            CreatedAt = DateTime.UtcNow,
+            FileSizeBytes = 1024,
+            AssociatedReplayFileName = "ReplayB.rep",
+        };
+
+        var result = await _service.TakeoverMatchAsync(replay, profile, checkpoint, 1);
+
+        Assert.False(result.Success);
+        Assert.Contains("does not belong to replay", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that MintCheckpointAsync terminates the launched game process on timeout.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task MintCheckpointAsync_ProcessTimesOut_TerminatesGameProcess()
+    {
+        var serviceWithShortTimeout = new ReplayCheckpointService(
+            _mockLauncherFacade.Object,
+            _mockProcessManager.Object,
+            NullLogger<ReplayCheckpointService>.Instance,
+            customSaveDirectory: _tempSaveDir,
+            mintTimeout: TimeSpan.FromMilliseconds(50));
+
+        var replay = new ReplayFile
+        {
+            FileName = "TimeoutKill.rep",
+            FullPath = @"C:\Games\Replays\TimeoutKill.rep",
+            GameVersion = GameType.ZeroHour,
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+        };
+        var profile = new GameProfile { Id = "profile-timeout", Name = "Timeout Profile" };
+
+        _mockLauncherFacade
+            .Setup(l => l.LaunchProfileAsync(
+                profile.Id,
+                false,
+                It.IsAny<CancellationToken>(),
+                It.IsAny<IReadOnlyDictionary<string, string>>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
+            {
+                LaunchId = "launch-timeout-kill",
+                ProfileId = profile.Id,
+                WorkspaceId = "ws-timeout-kill",
+                ProcessInfo = new GameProcessInfo
+                {
+                    ProcessId = 88881,
+                    ProcessName = "generalszh",
+                    StartTime = DateTime.UtcNow,
+                },
+            }));
+
+        _mockProcessManager
+            .Setup(p => p.GetProcessInfoAsync(88881, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProcessInfo>.CreateSuccess(new GameProcessInfo
+            {
+                ProcessId = 88881,
+                ProcessName = "generalszh",
+                StartTime = DateTime.UtcNow,
+            }));
+
+        var result = await serviceWithShortTimeout.MintCheckpointAsync(replay, profile, 5000);
+
+        Assert.False(result.Success);
+        _mockProcessManager.Verify(p => p.TerminateProcessAsync(88881, CancellationToken.None), Times.Once);
     }
 }
