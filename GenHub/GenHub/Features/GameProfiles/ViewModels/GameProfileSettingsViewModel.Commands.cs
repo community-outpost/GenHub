@@ -156,7 +156,7 @@ public partial class GameProfileSettingsViewModel
 
         foreach (var coreItem in coreItems)
         {
-            if (enabledContentIds.Contains(coreItem.ManifestId) || coreItem.GameType != targetFilter)
+            if (enabledContentIds.Contains(coreItem.ManifestId) || (coreItem.GameType != targetFilter && coreItem.GameType != GameType.Unknown))
             {
                 continue;
             }
@@ -339,7 +339,8 @@ public partial class GameProfileSettingsViewModel
 
     private void UpdateAvailableContentOnDisable(ContentDisplayItem itemToRemove)
     {
-        if (itemToRemove.ContentType != SelectedContentType || itemToRemove.GameType != GameTypeFilter)
+        if (itemToRemove.ContentType != SelectedContentType ||
+            (itemToRemove.GameType != GameTypeFilter && itemToRemove.GameType != GameType.Unknown))
         {
             return;
         }

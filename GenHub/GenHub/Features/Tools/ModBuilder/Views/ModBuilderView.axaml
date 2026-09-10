@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
              xmlns:views="using:GenHub.Features.Tools.ModBuilder.Views"
+             xmlns:conv="using:GenHub.Infrastructure.Converters"
              mc:Ignorable="d" d:DesignWidth="1400" d:DesignHeight="900"
              x:Class="GenHub.Features.Tools.ModBuilder.Views.ModBuilderView"
              x:DataType="vm:ModBuilderViewModel"
@@ -157,12 +158,29 @@
               <TextBlock Text="{Binding ProjectName, FallbackValue='No project loaded'}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
             </StackPanel>
             <TextBox Text="{Binding CurrentProjectPath}" IsReadOnly="True"
-                     Watermark="No project loaded..." Width="240" MaxWidth="280"
+                     Watermark="No project loaded..." Width="200" MaxWidth="240"
                      Background="{DynamicResource SurfaceElevatedBrush}"
                      BorderBrush="{DynamicResource BorderBrush}"
                      CornerRadius="8" Padding="10,6"
                      VerticalAlignment="Center" VerticalContentAlignment="Center"
                      Foreground="{DynamicResource TextSecondary}" FontSize="11.5" Margin="8,0,0,0"/>
+
+            <!-- Target Game Selector -->
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="8,0,0,0"
+                        IsVisible="{Binding IsProjectLoaded}">
+              <TextBlock Text="Target:" FontSize="11" Foreground="{DynamicResource TextSecondary}"
+                         VerticalAlignment="Center" FontWeight="SemiBold"/>
+              <ComboBox ItemsSource="{Binding AvailableTargetGames}"
+                        SelectedItem="{Binding SelectedTargetGame}"
+                        Padding="8,4" CornerRadius="6" FontSize="11.5"
+                        ToolTip.Tip="Target game for this project and its manifests">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Converter={x:Static conv:GameTypeShortDisplayConverter.Instance}}" />
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+            </StackPanel>
           </StackPanel>
 
           <!-- Quick Actions -->
@@ -183,7 +201,7 @@
             </Button>
             <Button Command="{Binding OpenFileManagerCommand}" Classes="header-action-btn"
                     IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"
-                    ToolTip.Tip="Open dedicated Game Asset &amp; File Manager">
+                    ToolTip.Tip="Browse game assets and import them into the project">
               <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                 <Path Width="13" Height="13" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconPackage}" Stretch="Uniform" VerticalAlignment="Center"/>
                 <TextBlock Text="Asset Manager" VerticalAlignment="Center"/>
@@ -191,7 +209,7 @@
             </Button>
             <Button Command="{Binding SaveProjectCommand}" Classes="header-action-btn"
                     IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"
-                    ToolTip.Tip="Save current project configuration">
+                    ToolTip.Tip="Save project configuration (.mbproj)">
               <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                 <Path Width="13" Height="13" Fill="{DynamicResource TextPrimary}" Data="{StaticResource IconSave}" Stretch="Uniform" VerticalAlignment="Center"/>
                 <TextBlock Text="Save" VerticalAlignment="Center"/>
@@ -268,7 +286,8 @@
                 <Button Grid.Row="2" Command="{Binding RefreshFileCountCommand}"
                         Classes="quick-nav-btn"
                         HorizontalContentAlignment="Center"
-                        Padding="10,6">
+                        Padding="10,6"
+                        ToolTip.Tip="Recalculate files in GameFilesEdited">
                   <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <Path Width="12" Height="12" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconReload}" Stretch="Uniform" VerticalAlignment="Center"/>
                     <TextBlock Text="Refresh Count" FontSize="12" VerticalAlignment="Center"/>
@@ -285,25 +304,25 @@
               <StackPanel Spacing="10">
                 <TextBlock Text="Quick Access" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
                 <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
-                <Button Command="{Binding OpenProjectFolderCommand}" Classes="quick-nav-btn">
+                <Button Command="{Binding OpenProjectFolderCommand}" Classes="quick-nav-btn" ToolTip.Tip="Open the project root directory in File Explorer">
                   <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <Path Width="14" Height="14" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
                     <TextBlock Text="Open Project Folder" FontWeight="Medium" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
-                <Button Command="{Binding OpenEditFolderCommand}" Classes="quick-nav-btn">
+                <Button Command="{Binding OpenEditFolderCommand}" Classes="quick-nav-btn" ToolTip.Tip="Open the GameFilesEdited directory in File Explorer">
                   <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <Path Width="14" Height="14" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconEdit}" Stretch="Uniform" VerticalAlignment="Center"/>
                     <TextBlock Text="Open GameFilesEdited" FontWeight="Medium" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
-                <Button Command="{Binding OpenFileManagerCommand}" Classes="quick-nav-btn">
+                <Button Command="{Binding OpenFileManagerCommand}" Classes="quick-nav-btn" ToolTip.Tip="Browse game assets and import them into the project">
                   <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <Path Width="14" Height="14" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconPackage}" Stretch="Uniform" VerticalAlignment="Center"/>
                     <TextBlock Text="Game Asset Manager" FontWeight="Medium" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
-                <Button Command="{Binding OpenConfigEditorCommand}" Classes="quick-nav-btn">
+                <Button Command="{Binding OpenConfigEditorCommand}" Classes="quick-nav-btn" ToolTip.Tip="Edit bundle items, packs, and build targets">
                   <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <Path Width="14" Height="14" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconSettings}" Stretch="Uniform" VerticalAlignment="Center"/>
                     <TextBlock Text="Edit Configuration" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
@@ -399,7 +418,7 @@
                 <Path Width="16" Height="16" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconTerminal}" Stretch="Uniform" VerticalAlignment="Center"/>
                 <TextBlock Text="Build Output" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
               </StackPanel>
-              <Button Grid.Column="1" Content="Clear Output" Command="{Binding ClearOutputCommand}"
+              <Button Grid.Column="1" Content="Clear Output" Command="{Binding ClearOutputCommand}" ToolTip.Tip="Clear build output log"
                       Classes="header-action-btn" Padding="10,5"/>
             </Grid>
 
@@ -490,6 +509,20 @@
                                  FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
                     </Grid>
                     <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Grid.Column="0" Text="Target:" Foreground="{DynamicResource TextSecondary}" Width="65" VerticalAlignment="Center"/>
+                      <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableTargetGames}"
+                                SelectedItem="{Binding SelectedTargetGame}"
+                                FontSize="11.5" Padding="6,2" Height="28" CornerRadius="6"
+                                ToolTip.Tip="Target game for this project and its manifests"
+                                HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                          <DataTemplate>
+                            <TextBlock Text="{Binding Converter={x:Static conv:GameTypeShortDisplayConverter.Instance}}" />
+                          </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                      </ComboBox>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
                       <TextBlock Grid.Column="0" Text="Version:" Foreground="{DynamicResource TextSecondary}" Width="65"/>
                       <TextBlock Grid.Column="1" Text="{Binding CurrentProject.Version, FallbackValue='—'}"
                                  Foreground="{DynamicResource TextPrimary}"/>
@@ -517,6 +550,7 @@
                 <!-- Execute Build Button -->
                 <Button Command="{Binding BuildCommand}"
                         Classes="build-cta-btn"
+                        ToolTip.Tip="Run selected build actions (Clean, Build, Release, Create Manifest)"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
                   <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
@@ -528,6 +562,7 @@
                 <!-- Abort Build Button -->
                 <Button Command="{Binding AbortBuildCommand}"
                         Classes="abort-danger-btn"
+                        ToolTip.Tip="Cancel the active build process"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                         IsEnabled="{Binding IsBuilding}">
@@ -542,7 +577,7 @@
                         Classes="quick-nav-btn"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                        ToolTip.Tip="Stores compiled bundles in CAS and creates a local ContentManifest for Game Profiles">
+                        ToolTip.Tip="Store compiled bundles in CAS and create a local ContentManifest for Game Profiles">
                   <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <Path Width="14" Height="14" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconArchiveFile}" Stretch="Uniform" VerticalAlignment="Center"/>
                     <TextBlock Text="Create Manifest" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -555,6 +590,7 @@
                 <Button Command="{Binding OpenBuildFolderCommand}"
                         Classes="quick-nav-btn"
                         HorizontalContentAlignment="Center"
+                        ToolTip.Tip="Open the .Build intermediate output folder in File Explorer"
                         IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}">
                   <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <Path Width="14" Height="14" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
@@ -565,6 +601,7 @@
                 <Button Command="{Binding OpenReleaseFolderCommand}"
                         Classes="quick-nav-btn"
                         HorizontalContentAlignment="Center"
+                        ToolTip.Tip="Open the Releases folder in File Explorer"
                         IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}">
                   <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <Path Width="14" Height="14" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>

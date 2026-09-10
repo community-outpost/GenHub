@@ -343,6 +343,7 @@
 
       <Button Grid.Column="1"
               Command="{Binding SaveCommand}"
+              ToolTip.Tip="Save bundle pack changes"
               Background="{DynamicResource AccentBrush}"
               Foreground="White" BorderThickness="0"
               Padding="18,8" CornerRadius="8"
@@ -359,6 +360,7 @@
 
       <Button Grid.Column="2"
               Command="{Binding CancelCommand}"
+              ToolTip.Tip="Close without saving changes"
               Background="{DynamicResource SurfaceElevatedBrush}"
               Foreground="{DynamicResource TextPrimary}"
               BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"

@@ -1,3 +1,10 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
@@ -8,13 +15,6 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 
@@ -98,6 +98,53 @@ public partial class ConfigEditorViewModel(
     }
 
     /// <summary>
+    /// Handles changes when the selected bundle pack changes.
+    /// </summary>
+    /// <param name="value">The new selected pack.</param>
+    partial void OnSelectedBundlePackChanged(BundlePackConfigViewModel? value)
+    {
+        UpdatePackItemSelections();
+    }
+
+    private void UpdatePackItemSelections()
+    {
+        PackItemSelections.Clear();
+        if (SelectedBundlePack == null)
+        {
+            return;
+        }
+
+        foreach (var item in BundleItems)
+        {
+            var itemName = item.Name;
+            var isSelected = SelectedBundlePack.ItemNames.Contains(itemName);
+            var selectionVm = new BundleItemSelectionItemViewModel(
+                itemName,
+                isSelected,
+                selected =>
+                {
+                    if (SelectedBundlePack != null)
+                    {
+                        if (selected)
+                        {
+                            if (!SelectedBundlePack.ItemNames.Contains(itemName))
+                            {
+                                SelectedBundlePack.ItemNames.Add(itemName);
+                            }
+                        }
+                        else
+                        {
+                            SelectedBundlePack.ItemNames.Remove(itemName);
+                        }
+
+                        HasChanges = true;
+                    }
+                });
+            PackItemSelections.Add(selectionVm);
+        }
+    }
+
+    /// <summary>
     /// Loads the configuration into the editor.
     /// </summary>
     private async Task LoadConfigurationAsync()
@@ -164,6 +211,8 @@ public partial class ConfigEditorViewModel(
                 NameSuffix = pack.NameSuffix,
                 AllowBuild = pack.AllowBuild,
                 AllowInstall = pack.AllowInstall,
+                Big = pack.Big,
+                OutputFile = pack.OutputFile,
                 SetGameLanguageOnInstall = pack.SetGameLanguageOnInstall,
             };
             foreach (var itemName in pack.ItemNames)
@@ -246,6 +295,8 @@ public partial class ConfigEditorViewModel(
             NameSuffix = string.Empty,
             AllowBuild = true,
             AllowInstall = true,
+            Big = false,
+            OutputFile = null,
             SetGameLanguageOnInstall = string.Empty,
         };
 
@@ -323,6 +374,8 @@ public partial class ConfigEditorViewModel(
                     NameSuffix = packVm.NameSuffix,
                     AllowBuild = packVm.AllowBuild,
                     AllowInstall = packVm.AllowInstall,
+                    Big = packVm.Big,
+                    OutputFile = packVm.OutputFile,
                     SetGameLanguageOnInstall = packVm.SetGameLanguageOnInstall,
                     ItemNames = packVm.ItemNames.ToList(),
                 });
@@ -419,19 +472,20 @@ public partial class ConfigEditorViewModel(
             // Revert unsaved modifications by reloading current configuration state from disk
             try
             {
-                Configuration = await configurationLoaderService.LoadProjectConfigurationAsync(
-                    CurrentProject.ProjectDir,
-                    CancellationToken.None).ConfigureAwait(false);
+                var loaded = await configurationLoaderService.LoadConfigurationAsync(CurrentProject.ProjectDir).ConfigureAwait(false);
+                if (loaded != null)
+                {
+                    Configuration = loaded;
+                    CurrentProject.Configuration = loaded;
+                }
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Failed to reload configuration from disk");
+                logger.LogWarning(ex, "Failed to reload configuration on cancel");
             }
-
-            await LoadConfigurationAsync().ConfigureAwait(false);
         }
 
-        // Close the dialog
+        HasChanges = false;
         if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
         {
             CloseDialog();
@@ -449,49 +503,6 @@ public partial class ConfigEditorViewModel(
             var windows = lifetime.Windows;
             var configDialog = windows.FirstOrDefault(w => w is Views.ConfigEditorDialog);
             configDialog?.Close();
-        }
-    }
-
-    partial void OnSelectedBundleItemChanged(BundleItemEditorViewModel? value)
-    {
-        RemoveBundleItemCommand.NotifyCanExecuteChanged();
-    }
-
-    partial void OnSelectedBundlePackChanged(BundlePackConfigViewModel? value)
-    {
-        RemoveBundlePackCommand.NotifyCanExecuteChanged();
-        UpdatePackItemSelections();
-    }
-
-    private void UpdatePackItemSelections()
-    {
-        PackItemSelections.Clear();
-        if (SelectedBundlePack == null)
-        {
-            return;
-        }
-
-        foreach (var item in BundleItems)
-        {
-            var itemName = item.Name;
-            var isIncluded = SelectedBundlePack.ItemNames.Contains(itemName, StringComparer.OrdinalIgnoreCase);
-            PackItemSelections.Add(new BundleItemSelectionItemViewModel(itemName, isIncluded, selected =>
-            {
-                if (SelectedBundlePack == null) return;
-                HasChanges = true;
-                if (selected && !SelectedBundlePack.ItemNames.Contains(itemName, StringComparer.OrdinalIgnoreCase))
-                {
-                    SelectedBundlePack.ItemNames.Add(itemName);
-                }
-                else if (!selected && SelectedBundlePack.ItemNames.Contains(itemName, StringComparer.OrdinalIgnoreCase))
-                {
-                    var match = SelectedBundlePack.ItemNames.FirstOrDefault(n => string.Equals(n, itemName, StringComparison.OrdinalIgnoreCase));
-                    if (match != null)
-                    {
-                        SelectedBundlePack.ItemNames.Remove(match);
-                    }
-                }
-            }));
         }
     }
 }

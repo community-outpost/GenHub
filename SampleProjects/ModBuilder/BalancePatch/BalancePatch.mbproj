@@ -2,6 +2,7 @@
   "name": "BalancePatch",
   "version": "1.0.0",
   "author": "Community Modder",
+  "targetGame": "ZeroHour",
   "description": "Multiplayer balance tuning and unit attribute overhaul",
   "directories": {
     "configs": "config",

@@ -10,6 +10,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
 using Microsoft.Extensions.DependencyInjection;
@@ -408,7 +409,7 @@ public sealed class BuildEngineService : IBuildEngineService
 
         _logger.LogInformation("Processing {Count} files for stage {Stage}", filesToProcess.Count, stage);
 
-        await ExecuteStageFilesAsync(stage, setup, filesToProcess, progress, cancellationToken).ConfigureAwait(false);
+        await ExecuteStageFilesAsync(stage, setup, progress, filesToProcess, cancellationToken).ConfigureAwait(false);
 
         await _cacheService.SaveCacheAsync(cachePath, cancellationToken).ConfigureAwait(false);
 
@@ -422,8 +423,8 @@ public sealed class BuildEngineService : IBuildEngineService
     private async Task ExecuteStageFilesAsync(
         BuildIndex stage,
         BuildSetup setup,
-        IReadOnlyList<string> filesToProcess,
         IProgress<BuildProgress>? progress,
+        IReadOnlyList<string> filesToProcess,
         CancellationToken cancellationToken)
     {
         switch (stage)
@@ -584,7 +585,6 @@ public sealed class BuildEngineService : IBuildEngineService
             }
             else
             {
-                Interlocked.Increment(ref _filesProcessed);
                 _logger.LogInformation("Successfully created BIG archive: {Path}", bigFilePath);
             }
         }
@@ -690,8 +690,10 @@ public sealed class BuildEngineService : IBuildEngineService
         IProgress<BuildProgress>? progress,
         CancellationToken cancellationToken)
     {
-        var zipFileName = $"{pack.GetFullName()}.zip";
-        var zipFilePath = Path.Combine(releaseDir, zipFileName);
+        var packFileName = !string.IsNullOrWhiteSpace(pack.OutputFile)
+            ? Path.GetFileName(pack.OutputFile)
+            : (pack.IsBigPack ? $"{pack.GetFullName()}.big" : $"{pack.GetFullName()}.zip");
+        var packFilePath = Path.Combine(releaseDir, packFileName);
 
         var packStagingDir = Path.Combine(buildDir, ".staging_pack", pack.Name);
         if (Directory.Exists(packStagingDir))
@@ -715,17 +717,28 @@ public sealed class BuildEngineService : IBuildEngineService
                 ProcessedFiles = Volatile.Read(ref _filesProcessed),
             });
 
-            var archiveResult = await _archiveService.CreateZipArchiveAsync(packStagingDir, zipFilePath, compressionLevel, null, cancellationToken).ConfigureAwait(false);
+            var archiveResult = pack.IsBigPack
+                ? await _archiveService.CreateBigArchiveAsync(packStagingDir, packFilePath, new Progress<double>(p =>
+                {
+                    progress?.Report(new BuildProgress
+                    {
+                        CurrentIndex = BuildIndex.ReleaseBundlePack,
+                        CurrentStep = $"Packing {packFileName} ({p:P0})",
+                        ProcessedFiles = Volatile.Read(ref _filesProcessed),
+                    });
+                }), cancellationToken).ConfigureAwait(false)
+                : await _archiveService.CreateZipArchiveAsync(packStagingDir, packFilePath, compressionLevel, null, cancellationToken).ConfigureAwait(false);
+
             if (!archiveResult.Success)
             {
                 Interlocked.Increment(ref _filesFailed);
-                _logger.LogError("Failed to create ZIP archive for pack {PackName}: {Error}", pack.Name, archiveResult.FirstError);
-                _lastErrorMessage = $"Failed to create ZIP archive for pack {pack.Name}: {archiveResult.FirstError}";
+                _logger.LogError("Failed to create archive for pack {PackName}: {Error}", pack.Name, archiveResult.FirstError);
+                _lastErrorMessage = $"Failed to create archive for pack {pack.Name}: {archiveResult.FirstError}";
             }
             else
             {
                 Interlocked.Increment(ref _filesProcessed);
-                _logger.LogInformation("Successfully created ZIP archive: {Path}", zipFilePath);
+                _logger.LogInformation("Successfully created archive: {Path}", packFilePath);
             }
         }
         finally
@@ -746,6 +759,41 @@ public sealed class BuildEngineService : IBuildEngineService
 
     private void StagePackFiles(BundlePack pack, IReadOnlyList<BundleItem> items, string bundlesDir, string packStagingDir)
     {
+        if (pack.IsBigPack)
+        {
+            foreach (var itemName in pack.ItemNames)
+            {
+                var item = items.FirstOrDefault(i => string.Equals(i.Name, itemName, StringComparison.OrdinalIgnoreCase));
+                if (item == null)
+                {
+                    continue;
+                }
+
+                foreach (var file in item.Files)
+                {
+                    var sourcePath = file.AbsSourceFile;
+                    if (!File.Exists(sourcePath))
+                    {
+                        _logger.LogWarning("Source file {SourceFile} not found for bundle item {ItemName}", sourcePath, item.Name);
+                        continue;
+                    }
+
+                    var targetRelPath = GetTargetRelativePath(file);
+                    var destPath = Path.Combine(packStagingDir, targetRelPath);
+                    var destDir = Path.GetDirectoryName(destPath);
+                    if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+                    {
+                        Directory.CreateDirectory(destDir);
+                    }
+
+                    File.Copy(sourcePath, destPath, true);
+                    _logger.LogDebug("Staged file {RelPath} for BIG pack {PackName}", targetRelPath, pack.Name);
+                }
+            }
+
+            return;
+        }
+
         foreach (var itemName in pack.ItemNames)
         {
             var item = items.FirstOrDefault(i => string.Equals(i.Name, itemName, StringComparison.OrdinalIgnoreCase));
@@ -815,15 +863,15 @@ public sealed class BuildEngineService : IBuildEngineService
             return;
         }
 
-        var projectDir = !string.IsNullOrWhiteSpace(setup.ProjectDir) ? setup.ProjectDir : Directory.GetCurrentDirectory();
-        var relativePath = Path.GetRelativePath(projectDir, filePath);
-
-        // check file status using cache
-        var status = _cacheService.DetermineFileStatus(filePath, relativePath, null);
+        var currentMd5 = await _cacheService.ComputeOrReuseMd5Async(filePath, cancellationToken).ConfigureAwait(false);
+        var status = _cacheService.DetermineFileStatus(filePath, currentMd5, null);
 
         if (status is BuildFileStatus.Unchanged or BuildFileStatus.Irrelevant)
         {
             _logger.LogDebug("Skipping unchanged/irrelevant file: {FilePath}", filePath);
+            var fileInfo = new FileInfo(filePath);
+            var mtime = new DateTimeOffset(fileInfo.LastWriteTimeUtc).ToUnixTimeSeconds();
+            _cacheService.AddFile(filePath, mtime, currentMd5);
             Interlocked.Increment(ref _filesSkipped);
             return;
         }
@@ -839,10 +887,9 @@ public sealed class BuildEngineService : IBuildEngineService
 
         if (success)
         {
-            var hash = await _hashProvider.ComputeFileHashAsync(filePath, cancellationToken).ConfigureAwait(false);
             var fileInfo = new FileInfo(filePath);
             var mtime = new DateTimeOffset(fileInfo.LastWriteTimeUtc).ToUnixTimeSeconds();
-            _cacheService.AddFile(relativePath, mtime, hash);
+            _cacheService.AddFile(filePath, mtime, currentMd5);
 
             Interlocked.Increment(ref _filesProcessed);
             progress?.Report(new BuildProgress
@@ -1434,7 +1481,13 @@ public sealed class BuildEngineService : IBuildEngineService
         var releaseDir = setup.Folders?.AbsReleaseDir ?? ModBuilderConstants.DefaultReleaseDir;
         return configuration.Packs
             .Where(pack => pack.AllowBuild)
-            .Select(pack => Path.Combine(releaseDir, $"{pack.GetFullName()}.zip"))
+            .Select(pack =>
+            {
+                var packFileName = !string.IsNullOrWhiteSpace(pack.OutputFile)
+                    ? Path.GetFileName(pack.OutputFile)
+                    : (pack.IsBigPack ? $"{pack.GetFullName()}.big" : $"{pack.GetFullName()}.zip");
+                return Path.Combine(releaseDir, packFileName);
+            })
             .ToList();
     }
 }

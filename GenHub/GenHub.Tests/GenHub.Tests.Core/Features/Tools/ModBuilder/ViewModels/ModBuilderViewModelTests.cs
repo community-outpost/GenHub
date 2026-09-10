@@ -14,6 +14,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Results.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
+using GenHub.Core.Models.Enums;
 using GenHub.Features.Tools.ModBuilder.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -214,5 +215,46 @@ public class ModBuilderViewModelTests : IDisposable
                 It.IsAny<int?>(),
                 It.IsAny<bool>()),
             Times.Once);
+    }
+
+    [Fact]
+    public void TargetGame_DefaultsToZeroHour()
+    {
+        var viewModel = CreateViewModel();
+
+        Assert.Equal(GameType.ZeroHour, viewModel.SelectedTargetGame);
+        Assert.Contains(GameType.ZeroHour, viewModel.AvailableTargetGames);
+        Assert.Contains(GameType.Generals, viewModel.AvailableTargetGames);
+    }
+
+    [Fact]
+    public void TargetGame_WhenProjectLoaded_SynchronizesWithProject()
+    {
+        var viewModel = CreateViewModel();
+        var project = new ModBuilderProject
+        {
+            Name = "GeneralsPatch",
+            TargetGame = GameType.Generals,
+        };
+
+        viewModel.CurrentProject = project;
+
+        Assert.Equal(GameType.Generals, viewModel.SelectedTargetGame);
+    }
+
+    [Fact]
+    public void TargetGame_WhenChanged_UpdatesProjectTargetGame()
+    {
+        var viewModel = CreateViewModel();
+        var project = new ModBuilderProject
+        {
+            Name = "TestMod",
+            TargetGame = GameType.ZeroHour,
+        };
+
+        viewModel.CurrentProject = project;
+        viewModel.SelectedTargetGame = GameType.Generals;
+
+        Assert.Equal(GameType.Generals, project.TargetGame);
     }
 }
