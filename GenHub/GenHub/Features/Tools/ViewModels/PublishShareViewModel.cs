@@ -460,30 +460,19 @@ public partial class PublishShareViewModel : ObservableObject
 
     private bool ConfigureGoogleDrive(GoogleDriveHostingProvider gdrive)
     {
-        var envClientId = Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_ID");
-        var envClientSecret = Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_SECRET");
-        var hasCustom = !string.IsNullOrWhiteSpace(GoogleClientId) && !string.IsNullOrWhiteSpace(GoogleClientSecret);
-        var hasEnv = !string.IsNullOrWhiteSpace(envClientId) && !string.IsNullOrWhiteSpace(envClientSecret);
+        var hasCredentials = !string.IsNullOrWhiteSpace(GoogleClientId) && !string.IsNullOrWhiteSpace(GoogleClientSecret);
 
-        if (!hasCustom && !hasEnv)
+        if (!hasCredentials)
         {
-            AuthenticationStatusMessage = "Google Drive requires client credentials. Enter your Client ID and Secret above, or configure GENHUB_GOOGLE_CLIENT_ID and GENHUB_GOOGLE_CLIENT_SECRET environment variables.";
+            AuthenticationStatusMessage = "Google Drive requires client credentials. Enter your Client ID and Client Secret above.";
             _notificationService?.ShowWarning(
                 "Google Drive Credentials Needed",
-                "Please provide your Google OAuth Client ID and Secret to connect to Google Drive.");
+                "Please enter your Google OAuth Client ID and Secret to connect to Google Drive.");
             return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(GoogleClientId))
-        {
-            gdrive.CustomClientId = GoogleClientId.Trim();
-        }
-
-        if (!string.IsNullOrWhiteSpace(GoogleClientSecret))
-        {
-            gdrive.CustomClientSecret = GoogleClientSecret.Trim();
-        }
-
+        gdrive.CustomClientId = GoogleClientId.Trim();
+        gdrive.CustomClientSecret = GoogleClientSecret.Trim();
         return true;
     }
 

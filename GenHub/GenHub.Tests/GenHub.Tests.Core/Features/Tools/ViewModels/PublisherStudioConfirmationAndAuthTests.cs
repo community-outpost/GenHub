@@ -158,43 +158,29 @@ public class PublisherStudioConfirmationAndAuthTests
     [Fact]
     public async Task AuthenticateAsync_GoogleDriveWithNoCredentials_SetsFriendlyMessageAndWarns()
     {
-        // Clear environment variables for test isolation
-        var originalId = System.Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_ID");
-        var originalSecret = System.Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_SECRET");
-        System.Environment.SetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_ID", null);
-        System.Environment.SetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_SECRET", null);
+        var project = new PublisherStudioProject();
+        var vm = new PublishShareViewModel(
+            project,
+            _mockStudioService.Object,
+            _mockPublishLogger.Object,
+            null,
+            _mockHostingStateManager.Object,
+            _mockNotificationService.Object);
 
-        try
-        {
-            var project = new PublisherStudioProject();
-            var vm = new PublishShareViewModel(
-                project,
-                _mockStudioService.Object,
-                _mockPublishLogger.Object,
-                null,
-                _mockHostingStateManager.Object,
-                _mockNotificationService.Object);
+        var googleProvider = new GoogleDriveHostingProvider(new Mock<ILogger<GoogleDriveHostingProvider>>().Object);
+        vm.SelectedHostingProvider = googleProvider;
+        vm.GoogleClientId = string.Empty;
+        vm.GoogleClientSecret = string.Empty;
 
-            var googleProvider = new GoogleDriveHostingProvider(new Mock<ILogger<GoogleDriveHostingProvider>>().Object);
-            vm.SelectedHostingProvider = googleProvider;
-            vm.GoogleClientId = string.Empty;
-            vm.GoogleClientSecret = string.Empty;
+        // Act
+        await vm.AuthenticateCommand.ExecuteAsync(null);
 
-            // Act
-            await vm.AuthenticateCommand.ExecuteAsync(null);
-
-            // Assert
-            Assert.False(vm.IsAuthenticating);
-            Assert.Contains("Google Drive requires client credentials", vm.AuthenticationStatusMessage);
-            _mockNotificationService.Verify(
-                n => n.ShowWarning("Google Drive Credentials Needed", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
-                Times.Once);
-        }
-        finally
-        {
-            System.Environment.SetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_ID", originalId);
-            System.Environment.SetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_SECRET", originalSecret);
-        }
+        // Assert
+        Assert.False(vm.IsAuthenticating);
+        Assert.Contains("Google Drive requires client credentials", vm.AuthenticationStatusMessage);
+        _mockNotificationService.Verify(
+            n => n.ShowWarning("Google Drive Credentials Needed", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
     }
 
     /// <summary>

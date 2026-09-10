@@ -96,19 +96,19 @@ public class GoogleDriveHostingProvider : IHostingProvider
         {
             _logger.LogInformation("Starting Google Drive authentication...");
 
-            // Check for credentials from custom properties or environment
+            // Check for credentials from custom properties
             var clientId = !string.IsNullOrWhiteSpace(CustomClientId)
                 ? CustomClientId.Trim()
-                : Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_ID");
+                : null;
             var clientSecret = !string.IsNullOrWhiteSpace(CustomClientSecret)
                 ? CustomClientSecret.Trim()
-                : Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_SECRET");
+                : null;
 
             if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
             {
-                _logger.LogWarning("Google Drive credentials not configured. Please set GENHUB_GOOGLE_CLIENT_ID and GENHUB_GOOGLE_CLIENT_SECRET environment variables.");
+                _logger.LogWarning("Google Drive credentials not configured. Client ID and Client Secret are required.");
                 return OperationResult<bool>.CreateFailure(
-                    "Google Drive is not configured. Set GENHUB_GOOGLE_CLIENT_ID and GENHUB_GOOGLE_CLIENT_SECRET environment variables, or use a different hosting provider.");
+                    "Google Drive is not configured. Enter your Client ID and Client Secret in Publisher Studio.");
             }
 
             var clientSecrets = new ClientSecrets
