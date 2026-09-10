@@ -256,9 +256,110 @@ public class MockReplayDirectoryService : IReplayDirectoryService
     }
 
     /// <inheritdoc/>
+    public IReadOnlyList<GameProfile> FindCompatibleProfiles(ReplayFile replay, IReadOnlyList<GameProfile> profiles)
+    {
+        return profiles;
+    }
+
+    /// <inheritdoc/>
     public Task<bool> IsProfileRunningAsync(string profileId, CancellationToken ct = default)
     {
         return Task.FromResult(false);
+    }
+}
+
+/// <summary>
+/// Mock implementation of <see cref="IReplayCheckpointService"/> for testing and demos.
+/// </summary>
+public class MockReplayCheckpointService : IReplayCheckpointService
+{
+    /// <inheritdoc/>
+    public string GetSaveDirectory(GameType gameType) => @"C:\Mock\Save";
+
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<ReplayCheckpointInfo>> GetCheckpointsForReplayAsync(ReplayFile replay, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult<IReadOnlyList<ReplayCheckpointInfo>>(new List<ReplayCheckpointInfo>
+        {
+            new()
+            {
+                FilePath = @"C:\Mock\Save\cp_12000.sav",
+                FileName = "cp_12000.sav",
+                TargetFrame = 12000,
+                CreatedAt = DateTime.UtcNow,
+                FileSizeBytes = 1048576,
+                AssociatedReplayFileName = replay.FileName,
+            },
+        });
+    }
+
+    /// <inheritdoc/>
+    public Task<ProfileOperationResult<ReplayCheckpointInfo>> MintCheckpointAsync(
+        ReplayFile replay,
+        GameProfile profile,
+        int targetFrame,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(ProfileOperationResult<ReplayCheckpointInfo>.CreateSuccess(new ReplayCheckpointInfo
+        {
+            FilePath = $@"C:\Mock\Save\cp_{targetFrame}.sav",
+            FileName = $"cp_{targetFrame}.sav",
+            TargetFrame = targetFrame,
+            CreatedAt = DateTime.UtcNow,
+            FileSizeBytes = 1048576,
+            AssociatedReplayFileName = replay.FileName,
+        }));
+    }
+
+    /// <inheritdoc/>
+    public Task<ProfileOperationResult<GameLaunchInfo>> ResumeReplayAsync(
+        ReplayFile replay,
+        GameProfile profile,
+        ReplayCheckpointInfo checkpoint,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
+        {
+            LaunchId = Guid.NewGuid().ToString(),
+            ProfileId = profile.Id,
+            WorkspaceId = Guid.NewGuid().ToString(),
+            ProcessInfo = new GameProcessInfo
+            {
+                ProcessId = 12345,
+                ExecutablePath = @"C:\Mock\generalszh.exe",
+                CommandLine = $"-loadsave {checkpoint.FileName} -resumereplay {replay.FileName}",
+                WorkingDirectory = @"C:\Mock",
+            },
+        }));
+    }
+
+    /// <inheritdoc/>
+    public Task<ProfileOperationResult<GameLaunchInfo>> TakeoverMatchAsync(
+        ReplayFile replay,
+        GameProfile profile,
+        ReplayCheckpointInfo checkpoint,
+        int slotIndex,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
+        {
+            LaunchId = Guid.NewGuid().ToString(),
+            ProfileId = profile.Id,
+            WorkspaceId = Guid.NewGuid().ToString(),
+            ProcessInfo = new GameProcessInfo
+            {
+                ProcessId = 12345,
+                ExecutablePath = @"C:\Mock\generalszh.exe",
+                CommandLine = $"-loadsave {checkpoint.FileName} -resumeas {slotIndex}",
+                WorkingDirectory = @"C:\Mock",
+            },
+        }));
+    }
+
+    /// <inheritdoc/>
+    public Task<bool> DeleteCheckpointAsync(ReplayCheckpointInfo checkpoint, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(true);
     }
 }
 

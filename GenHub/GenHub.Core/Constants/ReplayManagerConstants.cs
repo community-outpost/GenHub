@@ -18,6 +18,51 @@ public static class ReplayManagerConstants
     public const string ZipFileExtension = ".zip";
 
     /// <summary>
+    /// File extension for Command &amp; Conquer save files.
+    /// </summary>
+    public const string SaveFileExtension = ".sav";
+
+    /// <summary>
+    /// Default folder name for game save files within user data.
+    /// </summary>
+    public const string SaveFolderName = "Save";
+
+    /// <summary>
+    /// Command line argument flag to specify the replay file to play or scrub through.
+    /// </summary>
+    public const string CliReplay = "-replay";
+
+    /// <summary>
+    /// Command line argument flag to mint a checkpoint save at a target frame or comma-separated list of frames.
+    /// </summary>
+    public const string CliSaveAtFrame = "-saveatframe";
+
+    /// <summary>
+    /// Command line argument flag to specify the output checkpoint save file name.
+    /// </summary>
+    public const string CliSaveTo = "-saveto";
+
+    /// <summary>
+    /// Command line argument flag to quit the game cleanly after reaching a target frame.
+    /// </summary>
+    public const string CliQuitAtFrame = "-quitatframe";
+
+    /// <summary>
+    /// Command line argument flag to load a save file.
+    /// </summary>
+    public const string CliLoadSave = "-loadsave";
+
+    /// <summary>
+    /// Command line argument flag to resume playback of a replay file deterministically from a checkpoint save.
+    /// </summary>
+    public const string CliResumeReplay = "-resumereplay";
+
+    /// <summary>
+    /// Command line argument flag to take over live control of a specified player slot index from a save.
+    /// </summary>
+    public const string CliResumeAs = "-resumeas";
+
+    /// <summary>
     /// Environment variable name to override the default community CRC mapping catalog endpoint.
     /// </summary>
     public const string CrcCatalogUrlEnvironmentVariable = "GENHUB_CRC_CATALOG_URL";

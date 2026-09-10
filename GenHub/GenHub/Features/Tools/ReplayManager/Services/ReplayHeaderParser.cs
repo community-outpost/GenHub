@@ -43,7 +43,14 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
 
         try
         {
-            await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true);
+            await using var stream = new FileStream(
+                filePath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize: 4096,
+                useAsync: true);
+
             return await ParseHeaderAsync(stream, cancellationToken);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -169,8 +176,8 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             return OperationResult<ReplayMetadata>.CreateFailure("Unterminated ASCII game options string in replay header.");
         }
 
-        // 8. Extract map name and players from init string if present
-        var (mapName, players) = ParseMatchMetadata(initString);
+        // 8. Extract map name, players, and structured slots from init string if present
+        var (mapName, players, slots) = ParseMatchMetadata(initString);
 
         var metadata = new ReplayMetadata
         {
@@ -182,6 +189,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             IniCrc = iniCrc,
             MapName = mapName,
             Players = players,
+            Slots = slots,
         };
 
         return OperationResult<ReplayMetadata>.CreateSuccess(metadata);
@@ -195,8 +203,8 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             if (buffer[offset] == 0 && buffer[offset + 1] == 0)
             {
                 var length = offset - start;
+                value = length > 0 ? Encoding.Unicode.GetString(buffer, start, length) : string.Empty;
                 offset += 2;
-                value = length == 0 ? null : Encoding.Unicode.GetString(buffer, start, length);
                 return true;
             }
 
@@ -215,8 +223,8 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             if (buffer[offset] == 0)
             {
                 var length = offset - start;
+                value = length > 0 ? Encoding.ASCII.GetString(buffer, start, length) : string.Empty;
                 offset += 1;
-                value = length == 0 ? null : Encoding.ASCII.GetString(buffer, start, length);
                 return true;
             }
 
@@ -227,15 +235,16 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         return false;
     }
 
-    private static (string? MapName, IReadOnlyList<string>? Players) ParseMatchMetadata(string? initString)
+    private static (string? MapName, IReadOnlyList<string>? Players, IReadOnlyList<ReplaySlotInfo>? Slots) ParseMatchMetadata(string? initString)
     {
         if (string.IsNullOrWhiteSpace(initString))
         {
-            return (null, null);
+            return (null, null, null);
         }
 
         string? mapName = null;
         var players = new List<string>();
+        var slots = new List<ReplaySlotInfo>();
 
         var tokens = initString.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         foreach (var token in tokens)
@@ -246,32 +255,58 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             }
             else if (token.StartsWith("S=", StringComparison.OrdinalIgnoreCase))
             {
-                ExtractSlotPlayers(token[2..], players, isSlotDefinition: true);
+                ExtractSlotPlayers(token[2..], players, slots, isSlotDefinition: true);
             }
             else if (token.StartsWith("H=", StringComparison.OrdinalIgnoreCase))
             {
-                ExtractSlotPlayers(token[2..], players, isSlotDefinition: false);
+                ExtractSlotPlayers(token[2..], players, slots, isSlotDefinition: false);
             }
         }
 
-        return (mapName, players.Count > 0 ? players.AsReadOnly() : null);
+        return (
+            mapName,
+            players.Count > 0 ? players.AsReadOnly() : null,
+            slots.Count > 0 ? slots.AsReadOnly() : null);
     }
 
-    private static void ExtractSlotPlayers(string slotData, List<string> players, bool isSlotDefinition)
+    private static void ExtractSlotPlayers(
+        string slotData,
+        List<string> players,
+        List<ReplaySlotInfo> structuredSlots,
+        bool isSlotDefinition)
     {
         var slots = slotData.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        foreach (var slot in slots)
+        for (var i = 0; i < slots.Length; i++)
         {
-            var parts = slot.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var slot = slots[i];
+            var parts = slot.Split(',', StringSplitOptions.TrimEntries);
             if (parts.Length == 0)
             {
                 continue;
             }
 
-            var playerName = CleanPlayerName(parts[0], isSlotDefinition);
-            if (!string.IsNullOrWhiteSpace(playerName) && players.All(p => !string.Equals(p, playerName, StringComparison.OrdinalIgnoreCase)))
+            var rawMarkerAndName = parts[0];
+            var playerName = CleanPlayerName(rawMarkerAndName, isSlotDefinition);
+            if (!string.IsNullOrWhiteSpace(playerName))
             {
-                players.Add(playerName);
+                if (players.All(p => !string.Equals(p, playerName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    players.Add(playerName);
+                }
+
+                if (isSlotDefinition)
+                {
+                    var isHuman = !rawMarkerAndName.StartsWith('C') && !rawMarkerAndName.StartsWith('c');
+                    int? factionIndex = parts.Length > 2 && int.TryParse(parts[2], out var f) ? f : null;
+                    int? colorIndex = parts.Length > 3 && int.TryParse(parts[3], out var c) ? c : null;
+
+                    structuredSlots.Add(new ReplaySlotInfo(
+                        i,
+                        playerName,
+                        isHuman,
+                        factionIndex,
+                        colorIndex));
+                }
             }
         }
     }

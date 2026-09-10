@@ -330,10 +330,25 @@ public sealed class ReplayDirectoryService(
                 replay.MatchingProfileId,
                 replay.FileName);
 
-            var launchResult = await launcherFacade.LaunchProfileAsync(
-                replay.MatchingProfileId ?? string.Empty,
-                skipUserDataCleanup: false,
-                cancellationToken: ct);
+            IReadOnlyDictionary<string, string>? additionalArgs = null;
+            if (replay.MatchedClient?.Capabilities.HasFlag(GameClientCapabilities.ReplayCliLaunch) == true)
+            {
+                additionalArgs = new Dictionary<string, string>
+                {
+                    [ReplayManagerConstants.CliReplay] = replay.FileName,
+                };
+            }
+
+            var launchResult = additionalArgs != null
+                ? await launcherFacade.LaunchProfileAsync(
+                    replay.MatchingProfileId ?? string.Empty,
+                    skipUserDataCleanup: false,
+                    cancellationToken: ct,
+                    additionalArguments: additionalArgs)
+                : await launcherFacade.LaunchProfileAsync(
+                    replay.MatchingProfileId ?? string.Empty,
+                    skipUserDataCleanup: false,
+                    cancellationToken: ct);
 
             if (launchResult.Success)
             {
@@ -383,6 +398,44 @@ public sealed class ReplayDirectoryService(
         }
 
         return false;
+    }
+
+    /// <inheritdoc/>
+    public IReadOnlyList<GameProfile> FindCompatibleProfiles(ReplayFile replay, IReadOnlyList<GameProfile> profiles)
+    {
+        ArgumentNullException.ThrowIfNull(replay);
+        if (profiles == null || profiles.Count == 0)
+        {
+            return Array.Empty<GameProfile>();
+        }
+
+        var clientManifestId = replay.MatchedClient?.ManifestId ?? string.Empty;
+        var isRetailClient = IsRetailClient(null, clientManifestId);
+
+        var compatibleCandidates = profiles.Where(p =>
+        {
+            if (p.GameClient?.GameType != replay.GameVersion)
+            {
+                return false;
+            }
+
+            return isRetailClient
+                ? IsProfileMatchingRetail(p, replay.MatchedClient?.DataPatchManifestId)
+                : IsProfileMatchingThirdParty(p, clientManifestId, replay.MatchedClient?.DataPatchManifestId, replay.MatchedClient?.Version);
+        }).ToList();
+
+        if (compatibleCandidates.Count == 0)
+        {
+            return Array.Empty<GameProfile>();
+        }
+
+        return compatibleCandidates
+            .Select(p => new { Profile = p, Score = ScoreCandidateProfile(p, clientManifestId, replay.MatchedClient?.DataPatchManifestId, replay, logger) })
+            .OrderByDescending(x => x.Score)
+            .ThenBy(x => x.Profile.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Profile.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(x => x.Profile)
+            .ToList();
     }
 
     /// <summary>
@@ -1715,7 +1768,7 @@ public sealed class ReplayDirectoryService(
         // Verify with GetAllProfilesAsync whether the profile is truly absent from the repository
         // before clearing the reference, preventing transient load errors or string mismatch from unlinking valid profiles.
         var allProfilesResult = await profileManager.GetAllProfilesAsync(ct);
-        var isDefinitivelyMissing = allProfilesResult.Success &&
+        var isDefinitivelyMissing = allProfilesResult?.Success == true &&
                                     allProfilesResult.Data?.All(p => p.Id != replay.MatchingProfileId) == true;
 
         if (isDefinitivelyMissing)

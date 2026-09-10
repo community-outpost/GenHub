@@ -240,7 +240,21 @@ public class GameLauncher(
     /// <param name="skipUserDataCleanup">Whether to skip cleanup of user data files (maps, etc.) from other profiles.</param>
     /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <returns>A <see cref="LaunchOperationResult{T}"/> representing the result of the launch operation.</returns>
-    public async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(string profileId, IProgress<LaunchProgress>? progress = null, bool skipUserDataCleanup = false, CancellationToken cancellationToken = default)
+    public Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(string profileId, IProgress<LaunchProgress>? progress = null, bool skipUserDataCleanup = false, CancellationToken cancellationToken = default)
+    {
+        return LaunchProfileAsync(profileId, progress, skipUserDataCleanup, cancellationToken, null);
+    }
+
+    /// <summary>
+    /// Launches a game profile by its ID with transient command line arguments.
+    /// </summary>
+    /// <param name="profileId">The ID of the game profile to launch.</param>
+    /// <param name="progress">Optional progress reporter for launch progress.</param>
+    /// <param name="skipUserDataCleanup">Whether to skip cleanup of user data files (maps, etc.) from other profiles.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <param name="additionalArguments">Optional transient command line arguments to merge with profile launch options.</param>
+    /// <returns>A <see cref="LaunchOperationResult{T}"/> representing the result of the launch operation.</returns>
+    public async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(string profileId, IProgress<LaunchProgress>? progress, bool skipUserDataCleanup, CancellationToken cancellationToken, IReadOnlyDictionary<string, string>? additionalArguments)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
 
@@ -255,7 +269,7 @@ public class GameLauncher(
         }
 
         var profile = profileResult.Data;
-        return await LaunchProfileAsync(profile, progress, skipUserDataCleanup, cancellationToken);
+        return await LaunchProfileAsync(profile, progress, skipUserDataCleanup, cancellationToken, additionalArguments);
     }
 
     /// <summary>
@@ -266,7 +280,21 @@ public class GameLauncher(
     /// <param name="skipUserDataCleanup">Whether to skip cleanup of user data files (maps, etc.) from other profiles.</param>
     /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <returns>A <see cref="LaunchOperationResult{T}"/> representing the result of the launch operation.</returns>
-    public async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, IProgress<LaunchProgress>? progress = null, bool skipUserDataCleanup = false, CancellationToken cancellationToken = default)
+    public Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, IProgress<LaunchProgress>? progress = null, bool skipUserDataCleanup = false, CancellationToken cancellationToken = default)
+    {
+        return LaunchProfileAsync(profile, progress, skipUserDataCleanup, cancellationToken, null);
+    }
+
+    /// <summary>
+    /// Launches a game using the provided game profile object with transient command line arguments.
+    /// </summary>
+    /// <param name="profile">The game profile to launch.</param>
+    /// <param name="progress">Optional progress reporter for launch progress.</param>
+    /// <param name="skipUserDataCleanup">Whether to skip cleanup of user data files (maps, etc.) from other profiles.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <param name="additionalArguments">Optional transient command line arguments to merge with profile launch options.</param>
+    /// <returns>A <see cref="LaunchOperationResult{T}"/> representing the result of the launch operation.</returns>
+    public async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, IProgress<LaunchProgress>? progress, bool skipUserDataCleanup, CancellationToken cancellationToken, IReadOnlyDictionary<string, string>? additionalArguments)
     {
         ArgumentNullException.ThrowIfNull(profile);
 
@@ -313,7 +341,7 @@ public class GameLauncher(
             };
             await launchRegistry.RegisterLaunchAsync(placeholderLaunchInfo);
             logger.LogDebug("Registered placeholder launch {LaunchId} for profile {ProfileId} to prevent deletion during launch", launchId, profile.Id);
-            return await LaunchProfileAsync(profile, skipUserDataCleanup, progress, launchId, cancellationToken);
+            return await LaunchProfileAsync(profile, skipUserDataCleanup, additionalArguments, progress, launchId, cancellationToken);
         }
         finally
         {
@@ -720,7 +748,7 @@ public class GameLauncher(
         return path.Replace('\\', '/');
     }
 
-    private async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, bool skipUserDataCleanup, IProgress<LaunchProgress>? progress, string launchId, CancellationToken cancellationToken)
+    private async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, bool skipUserDataCleanup, IReadOnlyDictionary<string, string>? additionalArguments, IProgress<LaunchProgress>? progress, string launchId, CancellationToken cancellationToken)
     {
         IDisposable? steamInstallationLock = null;
 
@@ -820,6 +848,7 @@ public class GameLauncher(
                 finalExecutablePath,
                 workspaceInfo,
                 isSteamLaunch,
+                additionalArguments,
                 cancellationToken);
 
             if (!prepResult.Success || prepResult.Data.LaunchConfig == null)
@@ -944,9 +973,10 @@ public class GameLauncher(
         string finalExecutablePath,
         WorkspaceInfo workspaceInfo,
         bool isSteamLaunch,
+        IReadOnlyDictionary<string, string>? additionalArguments,
         CancellationToken cancellationToken)
     {
-        var argsResult = BuildCommandLineArguments(profile);
+        var argsResult = BuildCommandLineArguments(profile, additionalArguments);
         if (!argsResult.Success || argsResult.Data == null)
         {
             return OperationResult<(GameLaunchConfiguration, SteamLaunchPrepResult?, string?)>.CreateFailure(argsResult.FirstError ?? "Invalid command line arguments");
@@ -1435,7 +1465,9 @@ public class GameLauncher(
         }
     }
 
-    private OperationResult<Dictionary<string, string>> BuildCommandLineArguments(GameProfile profile)
+    private OperationResult<Dictionary<string, string>> BuildCommandLineArguments(
+        GameProfile profile,
+        IReadOnlyDictionary<string, string>? additionalArguments = null)
     {
         var arguments = new Dictionary<string, string>();
         if (!string.IsNullOrEmpty(profile.CommandLineArguments))
@@ -1467,6 +1499,14 @@ public class GameLauncher(
         foreach (var kvp in profile.LaunchOptions)
         {
             arguments[kvp.Key] = kvp.Value;
+        }
+
+        if (additionalArguments != null)
+        {
+            foreach (var kvp in additionalArguments)
+            {
+                arguments[kvp.Key] = kvp.Value;
+            }
         }
 
         if (profile.VideoWindowed == true && !arguments.ContainsKey("-win"))

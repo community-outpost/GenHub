@@ -57,7 +57,20 @@ public class ProfileLauncherFacade(
     ILogger<ProfileLauncherFacade> logger) : IProfileLauncherFacade
 {
     /// <inheritdoc/>
-    public async Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(string profileId, bool skipUserDataCleanup = false, CancellationToken cancellationToken = default)
+    public Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(
+        string profileId,
+        bool skipUserDataCleanup = false,
+        CancellationToken cancellationToken = default)
+    {
+        return LaunchProfileAsync(profileId, skipUserDataCleanup, cancellationToken, null);
+    }
+
+    /// <inheritdoc/>
+    public async Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(
+        string profileId,
+        bool skipUserDataCleanup,
+        CancellationToken cancellationToken,
+        IReadOnlyDictionary<string, string>? additionalArguments)
     {
         try
         {
@@ -103,7 +116,7 @@ public class ProfileLauncherFacade(
                 return await LaunchToolProfileAsync(profile, profileId, cancellationToken);
             }
 
-            return await LaunchGameProfileAsync(profile, profileId, skipUserDataCleanup, cancellationToken);
+            return await LaunchGameProfileAsync(profile, profileId, skipUserDataCleanup, additionalArguments, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -718,6 +731,7 @@ public class ProfileLauncherFacade(
         GameProfile profile,
         string profileId,
         bool skipUserDataCleanup,
+        IReadOnlyDictionary<string, string>? additionalArguments,
         CancellationToken cancellationToken)
     {
         try
@@ -807,7 +821,7 @@ public class ProfileLauncherFacade(
             // Launch the game using the profile
             logger.LogDebug("[Launch] Step 6: Delegating to GameLauncher for workspace prep and process start");
 
-            var launchResult = await gameLauncher.LaunchProfileAsync(profile, progress: null, skipUserDataCleanup: skipUserDataCleanup, cancellationToken: cancellationToken);
+            var launchResult = await gameLauncher.LaunchProfileAsync(profile, progress: null, skipUserDataCleanup: skipUserDataCleanup, additionalArguments: additionalArguments, cancellationToken: cancellationToken);
 
             if (launchResult.Failed)
             {

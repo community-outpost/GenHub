@@ -20,6 +20,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Messages;
@@ -37,6 +38,8 @@ namespace GenHub.Features.Tools.ReplayManager.ViewModels;
 /// ViewModel for Replay Manager tool.
 /// </summary>
 /// <param name="directoryService">The directory service.</param>
+/// <param name="checkpointService">The replay checkpoint recovery service.</param>
+/// <param name="profileManager">The game profile manager.</param>
 /// <param name="importService">The import service.</param>
 /// <param name="exportService">The export service.</param>
 /// <param name="uploadHistoryService">The upload history and rate limit service.</param>
@@ -44,6 +47,8 @@ namespace GenHub.Features.Tools.ReplayManager.ViewModels;
 /// <param name="logger">The logger instance.</param>
 public partial class ReplayManagerViewModel(
     IReplayDirectoryService directoryService,
+    IReplayCheckpointService checkpointService,
+    IGameProfileManager profileManager,
     IReplayImportService importService,
     IReplayExportService exportService,
     IUploadHistoryService uploadHistoryService,
@@ -84,6 +89,63 @@ public partial class ReplayManagerViewModel(
 
     [ObservableProperty]
     private string statusMessage = "Ready";
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the checkpoint recovery drawer is open.
+    /// </summary>
+    [ObservableProperty]
+    private bool isCheckpointDrawerOpen;
+
+    /// <summary>
+    /// Gets or sets the replay currently active in the checkpoint recovery drawer.
+    /// </summary>
+    [ObservableProperty]
+    private ReplayFile? activeCheckpointReplay;
+
+    /// <summary>
+    /// Gets the list of compatible game profiles available for the active replay.
+    /// </summary>
+    public ObservableCollection<GameProfile> CompatibleProfiles { get; } = [];
+
+    /// <summary>
+    /// Gets or sets the game profile selected for checkpoint recovery operations.
+    /// </summary>
+    [ObservableProperty]
+    private GameProfile? selectedCompatibleProfile;
+
+    /// <summary>
+    /// Gets the list of existing checkpoint saves for the active replay.
+    /// </summary>
+    public ObservableCollection<ReplayCheckpointInfo> AvailableCheckpoints { get; } = [];
+
+    /// <summary>
+    /// Gets or sets the selected checkpoint save.
+    /// </summary>
+    [ObservableProperty]
+    private ReplayCheckpointInfo? selectedCheckpoint;
+
+    /// <summary>
+    /// Gets the list of player slots parsed from the active replay.
+    /// </summary>
+    public ObservableCollection<ReplaySlotInfo> AvailableSlots { get; } = [];
+
+    /// <summary>
+    /// Gets or sets the player slot selected for live match takeover.
+    /// </summary>
+    [ObservableProperty]
+    private ReplaySlotInfo? selectedSlot;
+
+    /// <summary>
+    /// Gets or sets the target frame number for minting a new checkpoint.
+    /// </summary>
+    [ObservableProperty]
+    private int targetCheckpointFrame = 12000;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether a checkpoint is currently being minted.
+    /// </summary>
+    [ObservableProperty]
+    private bool isMintingCheckpoint;
 
     [ObservableProperty]
     private string searchText = string.Empty;
@@ -1222,6 +1284,276 @@ public partial class ReplayManagerViewModel(
         {
             IsBusy = false;
             IsIndeterminate = false;
+        }
+    }
+
+    /// <summary>
+    /// Opens the checkpoint recovery drawer for the specified replay.
+    /// </summary>
+    /// <param name="replay">The replay file.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [RelayCommand]
+    private async Task OpenCheckpointDrawerAsync(ReplayFile replay)
+    {
+        if (replay == null)
+        {
+            return;
+        }
+
+        ActiveCheckpointReplay = replay;
+        CompatibleProfiles.Clear();
+        AvailableCheckpoints.Clear();
+        AvailableSlots.Clear();
+
+        try
+        {
+            var allProfilesResult = await profileManager.GetAllProfilesAsync();
+            if (allProfilesResult.Success && allProfilesResult.Data != null)
+            {
+                var compatible = directoryService.FindCompatibleProfiles(replay, allProfilesResult.Data);
+                foreach (var p in compatible)
+                {
+                    CompatibleProfiles.Add(p);
+                }
+
+                SelectedCompatibleProfile = CompatibleProfiles.FirstOrDefault(p => p.Id == replay.MatchingProfileId)
+                    ?? CompatibleProfiles.FirstOrDefault();
+            }
+
+            var checkpoints = await checkpointService.GetCheckpointsForReplayAsync(replay);
+            foreach (var cp in checkpoints)
+            {
+                AvailableCheckpoints.Add(cp);
+            }
+
+            SelectedCheckpoint = AvailableCheckpoints.LastOrDefault();
+
+            if (replay.Metadata?.Slots != null)
+            {
+                foreach (var slot in replay.Metadata.Slots)
+                {
+                    AvailableSlots.Add(slot);
+                }
+            }
+
+            SelectedSlot = AvailableSlots.FirstOrDefault(s => s.IsHuman) ?? AvailableSlots.FirstOrDefault();
+            IsCheckpointDrawerOpen = true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to load checkpoint recovery data for replay {FileName}", replay.FileName);
+            notificationService.ShowError("Recovery Error", "Failed to load checkpoint data.");
+        }
+    }
+
+    /// <summary>
+    /// Closes the checkpoint recovery drawer.
+    /// </summary>
+    [RelayCommand]
+    private void CloseCheckpointDrawer()
+    {
+        IsCheckpointDrawerOpen = false;
+        ActiveCheckpointReplay = null;
+    }
+
+    /// <summary>
+    /// Mints a new checkpoint save at the target frame for the active replay.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [RelayCommand]
+    private async Task MintCheckpointAsync()
+    {
+        if (ActiveCheckpointReplay == null)
+        {
+            return;
+        }
+
+        if (SelectedCompatibleProfile == null)
+        {
+            notificationService.ShowWarning("No Profile Selected", "Please select a compatible game profile to mint the checkpoint.");
+            return;
+        }
+
+        IsMintingCheckpoint = true;
+        StatusMessage = $"Minting checkpoint at frame {TargetCheckpointFrame}...";
+
+        try
+        {
+            var result = await checkpointService.MintCheckpointAsync(
+                ActiveCheckpointReplay,
+                SelectedCompatibleProfile,
+                TargetCheckpointFrame);
+
+            if (result.Success && result.Data != null)
+            {
+                AvailableCheckpoints.Add(result.Data);
+                SelectedCheckpoint = result.Data;
+                notificationService.ShowSuccess(
+                    "Checkpoint Created",
+                    $"Minted checkpoint {result.Data.FileName} at frame {result.Data.TargetFrame}.");
+                StatusMessage = $"Checkpoint {result.Data.FileName} created.";
+            }
+            else
+            {
+                var error = result.FirstError ?? "Failed to mint checkpoint.";
+                notificationService.ShowError("Minting Failed", error);
+                StatusMessage = "Minting failed.";
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to mint checkpoint at frame {Frame}", TargetCheckpointFrame);
+            notificationService.ShowError("Minting Error", ex.Message);
+            StatusMessage = "Minting error.";
+        }
+        finally
+        {
+            IsMintingCheckpoint = false;
+        }
+    }
+
+    /// <summary>
+    /// Resumes replay playback deterministically from the selected checkpoint.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [RelayCommand]
+    private async Task ResumeReplayFromCheckpointAsync()
+    {
+        if (ActiveCheckpointReplay == null || SelectedCheckpoint == null)
+        {
+            notificationService.ShowWarning("No Checkpoint Selected", "Please select a checkpoint save to resume.");
+            return;
+        }
+
+        if (SelectedCompatibleProfile == null)
+        {
+            notificationService.ShowWarning("No Profile Selected", "Please select a compatible game profile.");
+            return;
+        }
+
+        IsBusy = true;
+        StatusMessage = $"Resuming replay from {SelectedCheckpoint.FileName}...";
+
+        try
+        {
+            var result = await checkpointService.ResumeReplayAsync(
+                ActiveCheckpointReplay,
+                SelectedCompatibleProfile,
+                SelectedCheckpoint);
+
+            if (result.Success)
+            {
+                notificationService.ShowSuccess("Replay Resumed", $"Resumed playback from frame {SelectedCheckpoint.TargetFrame}.");
+                StatusMessage = "Replay playback resumed.";
+                CloseCheckpointDrawer();
+            }
+            else
+            {
+                var error = result.FirstError ?? "Failed to resume replay.";
+                notificationService.ShowError("Resume Failed", error);
+                StatusMessage = "Resume failed.";
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to resume replay from checkpoint");
+            notificationService.ShowError("Resume Error", ex.Message);
+            StatusMessage = "Resume error.";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// Takes over live gameplay control from the selected checkpoint as the chosen player slot.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [RelayCommand]
+    private async Task TakeoverMatchFromCheckpointAsync()
+    {
+        if (ActiveCheckpointReplay == null || SelectedCheckpoint == null)
+        {
+            notificationService.ShowWarning("No Checkpoint Selected", "Please select a checkpoint save to take over.");
+            return;
+        }
+
+        if (SelectedCompatibleProfile == null)
+        {
+            notificationService.ShowWarning("No Profile Selected", "Please select a compatible game profile.");
+            return;
+        }
+
+        var slotIndex = SelectedSlot?.SlotIndex ?? 0;
+        IsBusy = true;
+        StatusMessage = $"Taking over match as slot {slotIndex}...";
+
+        try
+        {
+            var result = await checkpointService.TakeoverMatchAsync(
+                ActiveCheckpointReplay,
+                SelectedCompatibleProfile,
+                SelectedCheckpoint,
+                slotIndex);
+
+            if (result.Success)
+            {
+                var playerName = SelectedSlot?.PlayerName ?? $"Slot {slotIndex}";
+                notificationService.ShowSuccess("Match Takeover", $"Live match takeover initiated as {playerName}!");
+                StatusMessage = $"Took over match as {playerName}.";
+                CloseCheckpointDrawer();
+            }
+            else
+            {
+                var error = result.FirstError ?? "Failed to take over match.";
+                notificationService.ShowError("Takeover Failed", error);
+                StatusMessage = "Takeover failed.";
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to take over match from checkpoint");
+            notificationService.ShowError("Takeover Error", ex.Message);
+            StatusMessage = "Takeover error.";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// Deletes a checkpoint save.
+    /// </summary>
+    /// <param name="checkpoint">The checkpoint to delete.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [RelayCommand]
+    private async Task DeleteCheckpointAsync(ReplayCheckpointInfo checkpoint)
+    {
+        if (checkpoint == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var deleted = await checkpointService.DeleteCheckpointAsync(checkpoint);
+            if (deleted)
+            {
+                AvailableCheckpoints.Remove(checkpoint);
+                if (SelectedCheckpoint == checkpoint)
+                {
+                    SelectedCheckpoint = AvailableCheckpoints.LastOrDefault();
+                }
+
+                notificationService.ShowSuccess("Deleted", $"Checkpoint {checkpoint.FileName} deleted.");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to delete checkpoint {File}", checkpoint.FileName);
+            notificationService.ShowError("Delete Error", ex.Message);
         }
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
 
@@ -132,6 +133,20 @@ public sealed class ReplayFile : IExportableFile
     public string PlayButtonTooltip => CompatibilityStatus == ReplayCompatibilityStatus.Compatible && !string.IsNullOrEmpty(MatchingProfileName)
         ? $"Launch profile '{MatchingProfileName}' to watch this replay"
         : "Launch game profile matching this replay";
+
+    /// <summary>
+    /// Gets a value indicating whether this replay's matched client supports checkpoint saves, replay resumption, and live player takeover.
+    /// </summary>
+    public bool SupportsCheckpoints =>
+        MatchedClient?.SupportsCheckpoints == true ||
+        string.Equals(MatchedClient?.Publisher, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the tooltip explaining the Checkpoint / Takeover feature availability.
+    /// </summary>
+    public string TakeoverButtonTooltip => SupportsCheckpoints
+        ? "Resume replay from a checkpoint save, or take over and play the match live as any player."
+        : "Checkpoint recovery and match takeover require a modern game engine (TheSuperHackers build). This replay is mapped to a legacy client.";
 
     private static string FormatFileSize(long bytes) => bytes switch
     {
