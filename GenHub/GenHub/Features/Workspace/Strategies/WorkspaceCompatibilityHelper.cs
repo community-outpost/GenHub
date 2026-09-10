@@ -127,7 +127,7 @@ public static class WorkspaceCompatibilityHelper
         {
             try
             {
-                Directory.Delete(targetPath);
+                FileOperationsService.DeleteDirectoryIfExists(targetPath);
             }
             catch (Exception ex)
             {
@@ -135,10 +135,38 @@ public static class WorkspaceCompatibilityHelper
             }
         }
 
-        var sourceDir = configuration.Manifests
-            .Where(m => m.ContentType is ContentType.GameClient or ContentType.GameInstallation)
-            .SelectMany(m => (m.Files ?? []).Select(f => Path.GetDirectoryName(ResolveSourcePath(f, m, configuration))))
-            .FirstOrDefault(d => !string.IsNullOrEmpty(d) && Directory.Exists(Path.Combine(d, directoryName)));
+        // Candidate 1: Check configuration.BaseInstallationPath directly
+        var sourceDir = !string.IsNullOrEmpty(configuration.BaseInstallationPath) &&
+                        Directory.Exists(Path.Combine(configuration.BaseInstallationPath, directoryName))
+            ? configuration.BaseInstallationPath
+            : null;
+
+        // Candidate 2: Check GameClient executable or working directory
+        if (string.IsNullOrEmpty(sourceDir) && configuration.GameClient != null)
+        {
+            if (!string.IsNullOrEmpty(configuration.GameClient.WorkingDirectory) &&
+                Directory.Exists(Path.Combine(configuration.GameClient.WorkingDirectory, directoryName)))
+            {
+                sourceDir = configuration.GameClient.WorkingDirectory;
+            }
+            else if (!string.IsNullOrEmpty(configuration.GameClient.ExecutablePath))
+            {
+                var exeDir = Path.GetDirectoryName(configuration.GameClient.ExecutablePath);
+                if (!string.IsNullOrEmpty(exeDir) && Directory.Exists(Path.Combine(exeDir, directoryName)))
+                {
+                    sourceDir = exeDir;
+                }
+            }
+        }
+
+        // Candidate 3: Manifest files
+        if (string.IsNullOrEmpty(sourceDir))
+        {
+            sourceDir = configuration.Manifests
+                .Where(m => m.ContentType is ContentType.GameClient or ContentType.GameInstallation)
+                .SelectMany(m => (m.Files ?? []).Select(f => Path.GetDirectoryName(ResolveSourcePath(f, m, configuration))))
+                .FirstOrDefault(d => !string.IsNullOrEmpty(d) && Directory.Exists(Path.Combine(d, directoryName)));
+        }
 
         if (string.IsNullOrEmpty(sourceDir))
         {
@@ -157,6 +185,26 @@ public static class WorkspaceCompatibilityHelper
             if (TryCreateDirectoryJunction(targetPath, sourcePath, logger))
             {
                 logger.LogInformation("Linked {Directory} directory via junction from {Source} to {Target}", directoryName, sourcePath, targetPath);
+            }
+            else if (string.Equals(directoryName, GameClientConstants.CoreDirectory, StringComparison.OrdinalIgnoreCase))
+            {
+                // Core contains critical DRM and activation libraries (Activation.dll, ~2MB total).
+                // If symlink and junction fail, copy files directly so retail/EA/Steam client does not crash with 0xC0000135.
+                try
+                {
+                    Directory.CreateDirectory(targetPath);
+                    foreach (var file in Directory.GetFiles(sourcePath))
+                    {
+                        var destFile = Path.Combine(targetPath, Path.GetFileName(file));
+                        File.Copy(file, destFile, overwrite: true);
+                    }
+
+                    logger.LogInformation("Copied {Directory} directory contents from {Source} to {Target} as fallback", directoryName, sourcePath, targetPath);
+                }
+                catch (Exception copyEx)
+                {
+                    logger.LogWarning(copyEx, "Failed to copy {Directory} directory to {Target}", directoryName, targetPath);
+                }
             }
             else
             {
@@ -178,12 +226,37 @@ public static class WorkspaceCompatibilityHelper
                 return;
             }
 
-            var d3d8Source = configuration.Manifests
-                .Where(m => m.ContentType is ContentType.GameClient or ContentType.GameInstallation)
-                .SelectMany(m => (m.Files ?? []).Select(f => Path.GetDirectoryName(ResolveSourcePath(f, m, configuration))))
-                .Where(d => !string.IsNullOrEmpty(d))
-                .Select(d => Path.Combine(d!, GameClientConstants.Direct3D8WrapperDll))
-                .FirstOrDefault(File.Exists);
+            var d3d8Source = !string.IsNullOrEmpty(configuration.BaseInstallationPath) &&
+                             File.Exists(Path.Combine(configuration.BaseInstallationPath, GameClientConstants.Direct3D8WrapperDll))
+                ? Path.Combine(configuration.BaseInstallationPath, GameClientConstants.Direct3D8WrapperDll)
+                : null;
+
+            if (string.IsNullOrEmpty(d3d8Source) && configuration.GameClient != null)
+            {
+                if (!string.IsNullOrEmpty(configuration.GameClient.WorkingDirectory) &&
+                    File.Exists(Path.Combine(configuration.GameClient.WorkingDirectory, GameClientConstants.Direct3D8WrapperDll)))
+                {
+                    d3d8Source = Path.Combine(configuration.GameClient.WorkingDirectory, GameClientConstants.Direct3D8WrapperDll);
+                }
+                else if (!string.IsNullOrEmpty(configuration.GameClient.ExecutablePath))
+                {
+                    var exeDir = Path.GetDirectoryName(configuration.GameClient.ExecutablePath);
+                    if (!string.IsNullOrEmpty(exeDir) && File.Exists(Path.Combine(exeDir, GameClientConstants.Direct3D8WrapperDll)))
+                    {
+                        d3d8Source = Path.Combine(exeDir, GameClientConstants.Direct3D8WrapperDll);
+                    }
+                }
+            }
+
+            if (string.IsNullOrEmpty(d3d8Source))
+            {
+                d3d8Source = configuration.Manifests
+                    .Where(m => m.ContentType is ContentType.GameClient or ContentType.GameInstallation)
+                    .SelectMany(m => (m.Files ?? []).Select(f => Path.GetDirectoryName(ResolveSourcePath(f, m, configuration))))
+                    .Where(d => !string.IsNullOrEmpty(d))
+                    .Select(d => Path.Combine(d!, GameClientConstants.Direct3D8WrapperDll))
+                    .FirstOrDefault(File.Exists);
+            }
 
             if (string.IsNullOrEmpty(d3d8Source))
             {
@@ -207,7 +280,7 @@ public static class WorkspaceCompatibilityHelper
         }
         catch (Exception symlinkEx)
         {
-            logger.LogWarning(symlinkEx, "Failed to create symlink for {Dll}, falling back to copy: {Target}", GameClientConstants.Direct3D8WrapperDll, targetPath);
+            logger.LogDebug(symlinkEx, "Failed to create symlink for {Dll}, falling back to copy: {Target}", GameClientConstants.Direct3D8WrapperDll, targetPath);
             if (File.Exists(targetPath))
             {
                 try

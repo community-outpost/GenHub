@@ -82,10 +82,10 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
             cancellationToken.ThrowIfCancellationRequested();
 
             // Clean existing workspace if force recreate is requested
-            if (Directory.Exists(workspacePath) && configuration.ForceRecreate)
+            if ((Directory.Exists(workspacePath) || Path.Exists(workspacePath)) && configuration.ForceRecreate)
             {
                 Logger.LogDebug("Removing existing workspace directory: {WorkspacePath}", workspacePath);
-                Directory.Delete(workspacePath, true);
+                FileOperationsService.DeleteDirectoryIfExists(workspacePath);
             }
 
             // Create workspace directory
