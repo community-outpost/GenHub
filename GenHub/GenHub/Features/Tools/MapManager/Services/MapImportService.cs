@@ -292,14 +292,6 @@ public sealed class MapImportService(
                 return await ImportWithSharpCompressAsync(zipPath, targetVersion, progress, ct);
             }
 
-            var extractionContext = new SharpCompressExtractionContext(
-                archivePath,
-                targetDir,
-                targetVersion,
-                result,
-                bytes => expandedBytes += bytes,
-                ct);
-
             foreach (var (directoryName, entries) in entriesByDirectory)
             {
                 var mapEntries = entries.Where(e => e.Name.EndsWith(".map", StringComparison.OrdinalIgnoreCase)).ToList();
