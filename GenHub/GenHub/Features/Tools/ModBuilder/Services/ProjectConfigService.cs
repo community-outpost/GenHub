@@ -656,7 +656,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             return candidateInConfigDir;
         }
 
-        var candidateInAltConfig = Path.Combine(projectDir, "config", subPath);
+        var candidateInAltConfig = Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir, subPath);
         if (File.Exists(candidateInAltConfig))
         {
             return candidateInAltConfig;
@@ -673,9 +673,9 @@ public sealed class ProjectConfigService : IProjectConfigService
 
     private static string? ExtractConfigSubPath(string normalizedConfig, string effectiveConfigsDirName)
     {
-        if (normalizedConfig.StartsWith("config" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        if (normalizedConfig.StartsWith(ModBuilderConstants.LowercaseConfigDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
         {
-            return normalizedConfig.Substring("config".Length + 1);
+            return normalizedConfig.Substring(ModBuilderConstants.LowercaseConfigDir.Length + 1);
         }
 
         if (normalizedConfig.StartsWith(ModBuilderConstants.ConfigDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
@@ -694,7 +694,7 @@ public sealed class ProjectConfigService : IProjectConfigService
 
     private static string FallbackPrefixedConfigPath(string projectDir, string inConfigDir, string inAltConfig, string inAltConfigs)
     {
-        if (Directory.Exists(Path.Combine(projectDir, "config")))
+        if (Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir)))
         {
             return inAltConfig;
         }

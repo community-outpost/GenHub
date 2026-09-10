@@ -127,28 +127,28 @@ public partial class ConfigEditorViewModel(
             var selectionVm = new BundleItemSelectionItemViewModel(
                 itemName,
                 isSelected,
-                selected => OnPackItemSelectedChanged(itemName, selected));
+                selected => OnPackItemSelectedChanged(this, itemName, selected));
             PackItemSelections.Add(selectionVm);
         }
     }
 
-    private void OnPackItemSelectedChanged(string itemName, bool selected)
+    private static void OnPackItemSelectedChanged(ConfigEditorViewModel vm, string itemName, bool selected)
     {
-        if (SelectedBundlePack == null)
+        if (vm.SelectedBundlePack == null)
         {
             return;
         }
 
         if (selected)
         {
-            AddPackItem(SelectedBundlePack.ItemNames, itemName);
+            AddPackItem(vm.SelectedBundlePack.ItemNames, itemName);
         }
         else
         {
-            RemovePackItem(SelectedBundlePack.ItemNames, itemName);
+            RemovePackItem(vm.SelectedBundlePack.ItemNames, itemName);
         }
 
-        HasChanges = true;
+        vm.HasChanges = true;
     }
 
     private static void AddPackItem(IList<string> itemNames, string itemName)
@@ -494,24 +494,24 @@ public partial class ConfigEditorViewModel(
 
         if (CurrentProject?.BundleConfigs != null)
         {
-            (packsPath, itemsPath) = ResolveFromBundleConfigs(projectDir, packsPath, itemsPath);
+            (packsPath, itemsPath) = ResolveFromBundleConfigs(CurrentProject, projectDir, packsPath, itemsPath);
         }
 
-        var configDir = DetermineConfigDirectory(projectDir);
+        var configDir = DetermineConfigDirectory(CurrentProject, projectDir);
         packsPath ??= Path.Combine(configDir, ModBuilderConstants.BundlePacksConfigFileName);
         itemsPath ??= Path.Combine(configDir, ModBuilderConstants.BundleItemsConfigFileName);
 
         return (packsPath, itemsPath, configDir);
     }
 
-    private (string? PacksPath, string? ItemsPath) ResolveFromBundleConfigs(string projectDir, string? packsPath, string? itemsPath)
+    private static (string? PacksPath, string? ItemsPath) ResolveFromBundleConfigs(ModBuilderProject? currentProject, string projectDir, string? packsPath, string? itemsPath)
     {
-        if (CurrentProject?.BundleConfigs == null)
+        if (currentProject?.BundleConfigs == null)
         {
             return (packsPath, itemsPath);
         }
 
-        foreach (var cfgRel in CurrentProject.BundleConfigs)
+        foreach (var cfgRel in currentProject.BundleConfigs)
         {
             var candidate = Path.IsPathRooted(cfgRel) ? cfgRel : Path.Combine(projectDir, cfgRel);
             var fileName = Path.GetFileName(candidate);
@@ -528,9 +528,9 @@ public partial class ConfigEditorViewModel(
         return (packsPath, itemsPath);
     }
 
-    private string DetermineConfigDirectory(string projectDir)
+    private static string DetermineConfigDirectory(ModBuilderProject? currentProject, string projectDir)
     {
-        var configDirName = CurrentProject?.Directories?.Configs;
+        var configDirName = currentProject?.Directories?.Configs;
         if (!string.IsNullOrWhiteSpace(configDirName) && Directory.Exists(Path.Combine(projectDir, configDirName)))
         {
             return Path.Combine(projectDir, configDirName);

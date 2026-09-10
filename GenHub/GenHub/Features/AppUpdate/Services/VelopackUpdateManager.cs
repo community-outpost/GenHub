@@ -956,12 +956,10 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
     private void CleanSampleProjectArtifacts(string sampleProjectsDir)
     {
-        foreach (var dir in Directory.GetDirectories(sampleProjectsDir, "*", SearchOption.AllDirectories))
+        foreach (var dir in Directory.GetDirectories(sampleProjectsDir, "*", SearchOption.AllDirectories)
+                     .Where(d => IsStrayArtifactDirectory(Path.GetFileName(d))))
         {
-            if (IsStrayArtifactDirectory(Path.GetFileName(dir)))
-            {
-                TryDeleteStrayDirectory(dir);
-            }
+            TryDeleteStrayDirectory(dir);
         }
     }
 
