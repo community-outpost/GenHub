@@ -638,9 +638,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var defaultFolder = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-            "ModBuilder");
+        var defaultFolder = GetUserModBuilderDirectory();
         if (!Directory.Exists(defaultFolder))
         {
             try
@@ -743,9 +741,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var defaultFolder = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-            "ModBuilder");
+        var defaultFolder = GetUserModBuilderDirectory();
         var suggestedFolder = Directory.Exists(defaultFolder)
             ? await topLevel.StorageProvider.TryGetFolderFromPathAsync(defaultFolder).ConfigureAwait(false)
             : null;
@@ -888,9 +884,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
 
         var primaryBigName = Path.GetFileNameWithoutExtension(selectedPaths[0]);
-        var defaultFolder = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-            "ModBuilder");
+        var defaultFolder = GetUserModBuilderDirectory();
         if (!Directory.Exists(defaultFolder))
         {
             try
