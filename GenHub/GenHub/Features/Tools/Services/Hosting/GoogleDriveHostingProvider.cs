@@ -256,9 +256,8 @@ public class GoogleDriveHostingProvider : IHostingProvider
             return OperationResult<HostingUploadResult>.CreateSuccess(new HostingUploadResult
             {
                 FileId = uploadedFile.Id,
-                FileName = fileName,
+                PublicUrl = uploadedFile.WebViewLink ?? directDownloadUrl,
                 DirectDownloadUrl = directDownloadUrl,
-                WebUrl = uploadedFile.WebViewLink ?? directDownloadUrl,
                 FileSize = uploadedFile.Size ?? fileStream.Length,
             });
         }
@@ -340,9 +339,8 @@ public class GoogleDriveHostingProvider : IHostingProvider
             return OperationResult<HostingUploadResult>.CreateSuccess(new HostingUploadResult
             {
                 FileId = fileId,
-                FileName = fileName,
+                PublicUrl = updatedFile.WebViewLink ?? directDownloadUrl,
                 DirectDownloadUrl = directDownloadUrl,
-                WebUrl = updatedFile.WebViewLink ?? directDownloadUrl,
                 FileSize = updatedFile.Size ?? fileStream.Length,
             });
         }
@@ -444,32 +442,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
             {
                 foreach (var file in result.Files)
                 {
-                    var fileInfo = new HostedFileInfo
-                    {
-                        FileId = file.Id,
-                        FileName = file.Name,
-                        Url = string.Format(HostingConstants.GoogleDriveDownloadUrlTemplate, file.Id),
-                        FileSize = file.Size ?? 0,
-                        LastUpdated = file.ModifiedTimeDateTimeOffset?.UtcDateTime ?? DateTime.UtcNow,
-                    };
-
-                    if (file.Name.Equals("publisher.json", StringComparison.OrdinalIgnoreCase))
-                    {
-                        state.Definition = fileInfo;
-                        _logger.LogInformation("Discovered publisher definition on Google Drive: {Url}", fileInfo.Url);
-                    }
-                    else if (file.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && file.Name.StartsWith("catalog-", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var catId = file.Name.Replace("catalog-", string.Empty).Replace(".json", string.Empty);
-                        fileInfo.CatalogId = catId;
-                        state.Catalogs.Add(fileInfo);
-                        _logger.LogInformation("Discovered catalog '{CatalogId}' on Google Drive: {Url}", catId, fileInfo.Url);
-                    }
-                    else
-                    {
-                        state.Artifacts.Add(fileInfo);
-                        _logger.LogInformation("Discovered artifact '{File}' on Google Drive: {Url}", file.Name, fileInfo.Url);
-                    }
+                    ProcessGoogleDriveFile(file, state);
                 }
             }
 
@@ -573,6 +546,52 @@ public class GoogleDriveHostingProvider : IHostingProvider
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to set public permission for {FileId}", fileId);
+        }
+    }
+
+    private void ProcessGoogleDriveFile(Google.Apis.Drive.v3.Data.File file, HostingState state)
+    {
+        var directUrl = string.Format(HostingConstants.GoogleDriveDownloadUrlTemplate, file.Id);
+        var fileSize = file.Size ?? 0;
+        var lastUpdated = file.ModifiedTimeDateTimeOffset?.UtcDateTime ?? DateTime.UtcNow;
+
+        if (file.Name.Equals("publisher.json", StringComparison.OrdinalIgnoreCase))
+        {
+            state.Definition = new HostedFileInfo
+            {
+                FileId = file.Id,
+                Url = directUrl,
+                FileSize = fileSize,
+                LastUpdated = lastUpdated,
+            };
+            _logger.LogInformation("Discovered publisher definition on Google Drive: {Url}", directUrl);
+        }
+        else if (file.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && file.Name.StartsWith("catalog-", StringComparison.OrdinalIgnoreCase))
+        {
+            var catId = file.Name.Replace("catalog-", string.Empty).Replace(".json", string.Empty);
+            state.Catalogs.Add(new CatalogHostingInfo
+            {
+                FileId = file.Id,
+                CatalogId = catId,
+                FileName = file.Name,
+                CatalogName = catId,
+                Url = directUrl,
+                FileSize = fileSize,
+                LastUpdated = lastUpdated,
+            });
+            _logger.LogInformation("Discovered catalog '{CatalogId}' on Google Drive: {Url}", catId, directUrl);
+        }
+        else
+        {
+            state.Artifacts.Add(new ArtifactHostingInfo
+            {
+                FileId = file.Id,
+                FileName = file.Name,
+                Url = directUrl,
+                FileSize = fileSize,
+                LastUpdated = lastUpdated,
+            });
+            _logger.LogInformation("Discovered artifact '{File}' on Google Drive: {Url}", file.Name, directUrl);
         }
     }
 }
