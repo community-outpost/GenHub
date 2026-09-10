@@ -28,11 +28,10 @@ using GenHub.Core.Helpers;
 /// Enables publishers to host catalogs and artifacts on their personal Google Drive.
 /// </summary>
 /// <remarks>
-/// Google Drive is the recommended hosting option because:
-/// - Free storage (15GB shared with Gmail/Photos).
-/// - Stable URLs when updating files in-place.
-/// - OAuth flow for secure authentication.
-/// - No technical setup required (unlike GitHub Pages).
+/// Google Drive allows decentralized hosting on a personal Google Drive:
+/// - 15GB free storage with stable download links.
+/// - Requires creating a Google Cloud Project, completing "Project configuration" (Google Auth Platform / consent screen) to create an App,
+///   and generating an OAuth 2.0 Client ID with application type 'Desktop app'.
 /// </remarks>
 public class GoogleDriveHostingProvider : IHostingProvider
 {
@@ -59,7 +58,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
     public string DisplayName => "Google Drive";
 
     /// <inheritdoc />
-    public string Description => "Host your catalogs and artifacts on Google Drive. 15GB free storage with stable download links.";
+    public string Description => "Host your catalogs and artifacts on Google Drive. Requires Google Cloud Project with a Desktop OAuth app.";
 
     /// <inheritdoc />
     public string IconName => "GoogleDrive";
@@ -108,7 +107,9 @@ public class GoogleDriveHostingProvider : IHostingProvider
             {
                 _logger.LogWarning("Google Drive credentials not configured. Client ID and Client Secret are required.");
                 return OperationResult<bool>.CreateFailure(
-                    "Google Drive is not configured. Enter your Client ID and Client Secret in Publisher Studio.");
+                    "Google Drive is not configured. Enter your Client ID and Client Secret in Publisher Studio. " +
+                    "Google requires creating a Google Cloud Project, completing 'Project configuration' under Google Auth Platform to create an App, " +
+                    "and creating an OAuth Client ID with Application type set to 'Desktop app'.");
             }
 
             var clientSecrets = new ClientSecrets
@@ -140,6 +141,23 @@ public class GoogleDriveHostingProvider : IHostingProvider
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to authenticate with Google Drive");
+            var errorMsg = ex.Message;
+
+            if (errorMsg.Contains("redirect_uri_mismatch", StringComparison.OrdinalIgnoreCase))
+            {
+                return OperationResult<bool>.CreateFailure(
+                    "Google OAuth Error (redirect_uri_mismatch): The OAuth Client ID was created as a 'Web application' instead of 'Desktop app'. " +
+                    "In Google Cloud Console, create a new OAuth Client ID with Application type set to 'Desktop app' and use its credentials.");
+            }
+
+            if (errorMsg.Contains("access_denied", StringComparison.OrdinalIgnoreCase) ||
+                errorMsg.Contains("unauthorized_client", StringComparison.OrdinalIgnoreCase))
+            {
+                return OperationResult<bool>.CreateFailure(
+                    "Google OAuth Error (Access Denied): In your Google Cloud Project Configuration, make sure your Google account email " +
+                    "is added under Audience > Test users, and verify that your OAuth Client type is set to 'Desktop app'.");
+            }
+
             return OperationResult<bool>.CreateFailure($"Authentication failed: {ex.Message}");
         }
     }

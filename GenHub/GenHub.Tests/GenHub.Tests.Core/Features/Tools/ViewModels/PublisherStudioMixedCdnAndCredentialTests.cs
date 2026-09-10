@@ -194,6 +194,9 @@ public class PublisherStudioMixedCdnAndCredentialTests
 
         // Execute commands; on headless linux without a default browser launcher configured,
         // they should catch and log warning without crashing.
+        var googleAuthEx = Record.Exception(() => vm.OpenGoogleAuthPlatformConsoleCommand.Execute(null));
+        Assert.Null(googleAuthEx);
+
         var googleEx = Record.Exception(() => vm.OpenGoogleCredentialsConsoleCommand.Execute(null));
         Assert.Null(googleEx);
 

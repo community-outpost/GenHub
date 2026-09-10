@@ -202,53 +202,72 @@
                         <Border Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="6" Padding="14">
                             <StackPanel Spacing="8">
                                 <TextBlock Text="Google Cloud OAuth Setup Guide (Step-by-Step):" FontWeight="Bold" FontSize="13" Foreground="White"/>
-                                <TextBlock Text="Google Drive requires you to create a free Google Cloud Project and register a Desktop App before it allows any app to upload files to your Drive." FontSize="11" Foreground="#AAAAAA" TextWrapping="Wrap"/>
+                                <TextBlock Text="Google Drive requires you to: 1) Create a Google Cloud Project, 2) Create an App in Project Configuration (Google Auth Platform), and 3) Generate a Desktop OAuth Client ID before allowing file uploads." FontSize="11" Foreground="#AAAAAA" TextWrapping="Wrap"/>
 
                                 <Border Height="1" Background="#20FFFFFF" Margin="0,2"/>
 
                                 <TextBlock Text="Step 1: Create a Project in Google Cloud" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF"/>
-                                <TextBlock Text="1. Click 'Open Google Cloud Console' below and log into your Google account." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                <TextBlock Text="1. Click '1. Open Google Auth Platform' or '2. Open Credentials Console' below and log into your Google account." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
                                 <TextBlock Text="2. In the top navigation bar (next to 'Google Cloud'), click the project selector dropdown, then click 'NEW PROJECT'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
                                 <TextBlock Text="3. Enter a Project name (e.g. 'GenHub Publisher'), leave Organization as 'No organization', and click 'CREATE'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
-                                <TextBlock Text="4. Wait a few seconds for creation, then click the top project selector dropdown again and click your new project to select it." FontSize="11" Foreground="#FFD54F" TextWrapping="Wrap"/>
+                                <TextBlock Text="4. Wait a few seconds for creation, then click the top project selector dropdown again and select your new project." FontSize="11" Foreground="#FFD54F" TextWrapping="Wrap"/>
 
-                                <TextBlock Text="Step 2: Enable the Google Drive API" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF" Margin="0,4,0,0"/>
-                                <TextBlock Text="1. In the top search bar, search for 'Google Drive API' and select it." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                <TextBlock Text="Step 2: Create App via 'Project Configuration' (Google Auth Platform)" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF" Margin="0,4,0,0"/>
+                                <TextBlock Text="⚠️ Note: Google will NOT allow creating OAuth credentials until your project has an App configured!" FontSize="11" Foreground="#FFCC80" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                <TextBlock Text="1. Click '1. Open Google Auth Platform' below. If you see 'Google auth platform not configured yet', click the blue 'Get started' button. (If you see a yellow banner 'To create an OAuth client ID, you must first configure your consent screen', click 'Configure consent screen')." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                <TextBlock Text="2. The 'Project configuration' wizard will open with 4 steps:" FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                <TextBlock Text="   • App Information: Enter App name (e.g. 'GenHub'), select your email in 'User support email', and click 'Next'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                <TextBlock Text="   • Audience: Select 'External' (Internal is only for Google Workspace orgs; External allows your Google account to test). Click 'Next'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                <TextBlock Text="   • Contact Information: Enter your email address in 'Developer contact information', then click 'Next'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                <TextBlock Text="   • Finish: Review and click 'Create'. You will see a confirmation toast: 'OAuth configuration created'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+
+                                <TextBlock Text="Step 3: Enable the Google Drive API" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF" Margin="0,4,0,0"/>
+                                <TextBlock Text="1. In the top search bar, search for 'Google Drive API' and click on it." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
                                 <TextBlock Text="2. Click the blue 'ENABLE' button." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
 
-                                <TextBlock Text="Step 3: Create OAuth App (Configure Consent Screen)" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF" Margin="0,4,0,0"/>
-                                <TextBlock Text="1. In the left navigation menu (☰), go to 'APIs &amp; Services' &gt; 'OAuth consent screen'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
-                                <TextBlock Text="2. Under User Type, choose 'External' and click 'CREATE'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
-                                <TextBlock Text="3. App Information: enter App name ('GenHub Publisher'), User support email (your email), and Developer contact email (your email). Click 'SAVE AND CONTINUE'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
-                                <TextBlock Text="4. Scopes: Click 'SAVE AND CONTINUE' (no scopes needed here)." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
-                                <TextBlock Text="5. Test users: Click '+ ADD USERS', type your Google email, click 'ADD', then click 'SAVE AND CONTINUE'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
-                                <TextBlock Text="6. Click 'BACK TO DASHBOARD'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
-
                                 <TextBlock Text="Step 4: Create Desktop OAuth Client Credentials" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF" Margin="0,4,0,0"/>
-                                <TextBlock Text="1. In the left menu, click 'Credentials'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
-                                <TextBlock Text="2. Click '+ CREATE CREDENTIALS' at the top &gt; select 'OAuth client ID'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
-                                <TextBlock Text="3. Application type: choose 'Desktop app' (⚠️ do NOT choose Web application)." FontSize="11" Foreground="#FFD54F" TextWrapping="Wrap"/>
-                                <TextBlock Text="4. Name: 'GenHub Desktop' and click 'CREATE'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
-                                <TextBlock Text="5. Google will pop up a dialog with your 'Client ID' (ending in .apps.googleusercontent.com) and 'Client Secret'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                <TextBlock Text="1. In Google Auth Platform, click 'Clients' in the left menu (or click '2. Open Credentials Console' below)." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                <TextBlock Text="2. Click '+ Create client' (or '+ CREATE CREDENTIALS' &gt; 'OAuth client ID')." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                <TextBlock Text="3. ⚠️ Application type: You MUST choose 'Desktop app' (DO NOT leave it as 'Web application' — Google defaults to Web application, which will FAIL with redirect URI errors in desktop apps!)." FontSize="11" Foreground="#FF5252" FontWeight="Bold" TextWrapping="Wrap"/>
+                                <TextBlock Text="4. Enter a name (e.g. 'GenHub Desktop') and click 'CREATE'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                <TextBlock Text="5. An 'OAuth client created' popup will appear showing your 'Client ID' (ending in .apps.googleusercontent.com) and 'Client secret' (starting with GOCSPX-)." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                <TextBlock Text="6. ⚠️ Important: Copy both now! Google warns you will not be able to view the secret again once the dialog is closed." FontSize="11" Foreground="#FFCC80" TextWrapping="Wrap"/>
 
-                                <TextBlock Text="Step 5: Paste and Connect" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF" Margin="0,4,0,0"/>
-                                <TextBlock Text="1. Copy and paste your Client ID and Client Secret into the two fields below." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
-                                <TextBlock Text="2. Click 'Connect to Google Drive'. A browser window will open asking you to sign into your Google account and grant Drive permissions." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                <TextBlock Text="Step 5: Add your Google Account to Test Users" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF" Margin="0,4,0,0"/>
+                                <TextBlock Text="1. In Google Auth Platform, click the 'Audience' tab in the left menu." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                <TextBlock Text="2. Under 'Test users', click '+ ADD USERS', enter your Google account email, and click 'SAVE'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                <TextBlock Text="   (Without this, Google blocks authorization with an 'Access blocked: unverified app' error)." FontSize="11" Foreground="#AAAAAA" TextWrapping="Wrap"/>
+
+                                <TextBlock Text="Step 6: Paste and Connect in GenHub" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF" Margin="0,4,0,0"/>
+                                <TextBlock Text="1. Copy and paste your Client ID and Client Secret into the two input fields below." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                <TextBlock Text="2. Click 'Connect to Google Drive'. A browser window will open asking you to sign into your Google account and grant Drive file permissions to your project." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
 
                                 <Border Height="1" Background="#20FFFFFF" Margin="0,2"/>
-                                <TextBlock Text="💡 Tip: If you prefer to avoid creating a Google Cloud Project, switch to Dropbox above! Dropbox does not require a cloud project or consent screen — you can generate a token in 30 seconds." FontSize="11" Foreground="#80D8FF" TextWrapping="Wrap"/>
+                                <TextBlock Text="💡 Tip: If you prefer to avoid setting up a Google Cloud Project and OAuth app, switch to Dropbox above! Dropbox does not require a cloud project or consent screen — you can generate a token in 30 seconds." FontSize="11" Foreground="#80D8FF" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 
-                        <Button Command="{Binding OpenGoogleCredentialsConsoleCommand}"
-                                Classes="small-glass-btn"
-                                ToolTip.Tip="Open Google Cloud Console Credentials page in your default browser"
-                                HorizontalAlignment="Left">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                <TextBlock Text="Open Google Cloud Console (Credentials)" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
-                            </StackPanel>
-                        </Button>
+                        <WrapPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <Button Command="{Binding OpenGoogleAuthPlatformConsoleCommand}"
+                                    Classes="small-glass-btn"
+                                    ToolTip.Tip="Open Google Auth Platform / Project Configuration wizard in your default browser"
+                                    Margin="0,0,10,6">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                    <TextBlock Text="1. Open Google Auth Platform (Project Configuration)" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button Command="{Binding OpenGoogleCredentialsConsoleCommand}"
+                                    Classes="small-glass-btn"
+                                    ToolTip.Tip="Open Google Cloud Console Credentials page in your default browser"
+                                    Margin="0,0,0,6">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                    <TextBlock Text="2. Open Credentials Console (Create Client ID)" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                </StackPanel>
+                            </Button>
+                        </WrapPanel>
 
                         <StackPanel Spacing="8">
                             <TextBlock Text="Google Client ID:" FontSize="12" Foreground="#AAAAAA"/>

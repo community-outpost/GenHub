@@ -467,7 +467,7 @@ public partial class PublishShareViewModel : ObservableObject
             AuthenticationStatusMessage = "Google Drive requires client credentials. Enter your Client ID and Client Secret above.";
             _notificationService?.ShowWarning(
                 "Google Drive Credentials Needed",
-                "Please enter your Google OAuth Client ID and Secret to connect to Google Drive.");
+                "Please enter your Google OAuth Client ID and Secret to connect to Google Drive. Follow the Project Configuration guide above.");
             return false;
         }
 
@@ -1673,6 +1673,15 @@ public partial class PublishShareViewModel : ObservableObject
         {
             _logger.LogError(ex, "Failed to copy URL to clipboard");
         }
+    }
+
+    /// <summary>
+    /// Opens the Google Auth Platform / Project Configuration page in the default web browser.
+    /// </summary>
+    [RelayCommand]
+    private void OpenGoogleAuthPlatformConsole()
+    {
+        OpenExternalBrowserUrl(HostingConstants.GoogleAuthPlatformUrl);
     }
 
     /// <summary>
