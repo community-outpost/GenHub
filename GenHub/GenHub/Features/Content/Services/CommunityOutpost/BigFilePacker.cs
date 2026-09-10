@@ -35,8 +35,8 @@ public static class BigFilePacker
     /// <param name="sourceDirectory">The directory containing files to pack.</param>
     /// <param name="destinationPath">The output .big file path.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public static Task PackAsync(string sourceDirectory, string destinationPath, CancellationToken cancellationToken = default)
+    /// <returns>The number of duplicate or colliding entries dropped during packing.</returns>
+    public static Task<int> PackAsync(string sourceDirectory, string destinationPath, CancellationToken cancellationToken = default)
         => PackAsync(sourceDirectory, destinationPath, null, cancellationToken);
 
     /// <summary>
@@ -46,14 +46,14 @@ public static class BigFilePacker
     /// <param name="destinationPath">The output .big file path.</param>
     /// <param name="targetArchivePath">Optional target archive path to exclude if packing in-place.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public static async Task PackAsync(string sourceDirectory, string destinationPath, string? targetArchivePath, CancellationToken cancellationToken = default)
+    /// <returns>The number of duplicate or colliding entries dropped during packing.</returns>
+    public static async Task<int> PackAsync(string sourceDirectory, string destinationPath, string? targetArchivePath, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         var destinationFullPath = Path.GetFullPath(destinationPath);
         var targetArchiveFullPath = !string.IsNullOrEmpty(targetArchivePath) ? Path.GetFullPath(targetArchivePath) : null;
-        var (entries, headerSize, totalSize) = CollectBigEntries(sourceDirectory, destinationFullPath, targetArchiveFullPath, cancellationToken);
+        var (entries, headerSize, totalSize, duplicateCount) = CollectBigEntries(sourceDirectory, destinationFullPath, targetArchiveFullPath, cancellationToken);
 
         var destinationDir = Path.GetDirectoryName(destinationPath);
         if (!string.IsNullOrEmpty(destinationDir) && !Directory.Exists(destinationDir))
@@ -71,6 +71,7 @@ public static class BigFilePacker
             }
 
             File.Move(tempPath, destinationPath, overwrite: true);
+            return duplicateCount;
         }
         finally
         {
@@ -394,7 +395,7 @@ public static class BigFilePacker
         }
     }
 
-    private static (List<BigFileEntry> Entries, long HeaderSize, long TotalSize) CollectBigEntries(
+    private static (List<BigFileEntry> Entries, long HeaderSize, long TotalSize, int DuplicateCount) CollectBigEntries(
         string sourceDirectory,
         string destinationFullPath,
         string? targetArchiveFullPath,
@@ -432,15 +433,9 @@ public static class BigFilePacker
         });
 
         // De-duplicate colliding normalized relative paths to guarantee total order and prevent duplicate archive entries
-        var uniqueEntries = new List<(string FullPath, string NormalizedRelPath, long Size)>(candidateEntries.Count);
         var seenRelPaths = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var entry in candidateEntries)
-        {
-            if (seenRelPaths.Add(entry.NormalizedRelPath))
-            {
-                uniqueEntries.Add(entry);
-            }
-        }
+        var uniqueEntries = candidateEntries.Where(entry => seenRelPaths.Add(entry.NormalizedRelPath)).ToList();
+        var duplicateCount = candidateEntries.Count - uniqueEntries.Count;
 
         var entries = new List<BigFileEntry>(uniqueEntries.Count);
         long headerSize = 16;
@@ -466,7 +461,7 @@ public static class BigFilePacker
             throw new NotSupportedException($"Generated BIG archive size ({totalSize} bytes) exceeds the 4GB limit supported by the .big format.");
         }
 
-        return (entries, headerSize, totalSize);
+        return (entries, headerSize, totalSize, duplicateCount);
     }
 
     private static List<string> EnumerateBigFiles(string rootDirectory, CancellationToken cancellationToken)

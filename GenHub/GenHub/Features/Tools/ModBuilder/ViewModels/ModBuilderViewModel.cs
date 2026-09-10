@@ -53,6 +53,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<ModBuilderViewModel> _logger;
     private readonly Stopwatch _buildStopwatch = new();
+    private readonly HashSet<string> _packsPromotedToBig = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? _buildCancellationTokenSource;
 
     /// <summary>
@@ -426,7 +427,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
     }
 
-    private static void UpdatePacksForSingleBigMode(IEnumerable<BundlePack>? packs, bool singleBigMode)
+    private void UpdatePacksForSingleBigMode(IEnumerable<BundlePack>? packs, bool singleBigMode)
     {
         if (packs == null)
         {
@@ -435,29 +436,43 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         foreach (var pack in packs)
         {
-            ApplyPackSingleBigMode(pack, singleBigMode);
+            ApplyPackSingleBigMode(pack, singleBigMode, _packsPromotedToBig);
         }
     }
 
-    private static void ApplyPackSingleBigMode(BundlePack pack, bool singleBigMode)
+    private static void ApplyPackSingleBigMode(BundlePack pack, bool singleBigMode, ISet<string>? promotedPacks = null)
     {
         if (singleBigMode)
         {
             if (pack.Big != false)
             {
+                if (!pack.IsBigPack && promotedPacks != null)
+                {
+                    promotedPacks.Add(pack.Name);
+                }
+
                 pack.Big = true;
                 pack.OutputFile = ReplaceExtension(pack.OutputFile, ".zip", ".big");
             }
         }
         else
         {
-            if (pack.Big == false || (pack.Big == true && (pack.OutputFile == null || pack.OutputFile.EndsWith(".big", StringComparison.OrdinalIgnoreCase))))
+            if (pack.Big == false)
             {
                 return;
             }
 
-            pack.Big = null;
-            pack.OutputFile = ReplaceExtension(pack.OutputFile, ".big", ".zip");
+            if (promotedPacks != null && promotedPacks.Contains(pack.Name))
+            {
+                promotedPacks.Remove(pack.Name);
+                pack.Big = null;
+                pack.OutputFile = ReplaceExtension(pack.OutputFile, ".big", ".zip");
+            }
+            else if (promotedPacks == null && pack.IsBigPack)
+            {
+                pack.Big = null;
+                pack.OutputFile = ReplaceExtension(pack.OutputFile, ".big", ".zip");
+            }
         }
     }
 
@@ -2071,9 +2086,6 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         _buildCancellationTokenSource = new CancellationTokenSource();
         _buildStopwatch.Restart();
 
-        int filesProcessed = 0;
-        int bundlesCreated = 0;
-
         await InvokeOnUIThreadAsync(() =>
         {
             BuildLog.Clear();
@@ -2092,22 +2104,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var buildConfig = await PrepareBuildConfigurationAsync(_buildCancellationTokenSource.Token).ConfigureAwait(false);
             var selectedPacks = GetResolvedSelectedPacks(buildConfig);
 
-            var progress = new Progress<string>(message =>
-            {
-                AppendBuildLog(message);
-                if (message.Contains("Processing file:", StringComparison.OrdinalIgnoreCase) ||
-                    message.Contains("Converted", StringComparison.OrdinalIgnoreCase))
-                {
-                    Interlocked.Increment(ref filesProcessed);
-                }
-
-                if (message.Contains("Created bundle:", StringComparison.OrdinalIgnoreCase) ||
-                    message.Contains("Created release pack:", StringComparison.OrdinalIgnoreCase) ||
-                    message.Contains(".big", StringComparison.OrdinalIgnoreCase))
-                {
-                    Interlocked.Increment(ref bundlesCreated);
-                }
-            });
+            var progress = new Progress<string>(AppendBuildLog);
 
             var buildSteps = DetermineBuildSteps();
             _logger.LogInformation("Build steps configured: {BuildSteps} (CreateManifestEnabled={CreateManifestEnabled})", buildSteps, CreateManifestEnabled);
@@ -2125,8 +2122,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
             if (result.Success)
             {
-                var totalProcessed = Math.Max(filesProcessed, result.FilesProcessed);
-                var totalBundles = bundlesCreated > 0 ? bundlesCreated : selectedPacks.Count;
+                var totalProcessed = result.FilesProcessed > 0 ? result.FilesProcessed : fileCount;
+                var totalBundles = selectedPacks.Count;
                 await HandleBuildSuccessAsync(totalProcessed, totalBundles).ConfigureAwait(false);
             }
             else
@@ -2361,14 +2358,19 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         try
         {
-            var buildDir = CurrentProject.Directories.Build;
-            if (!string.IsNullOrEmpty(buildDir) && Directory.Exists(buildDir))
+            var projectDir = !string.IsNullOrEmpty(ProjectPath) ? Path.GetDirectoryName(ProjectPath) : null;
+            var buildDir = CurrentProject.Directories.Build ?? ModBuilderConstants.DefaultBuildDir;
+            var buildPath = Path.IsPathRooted(buildDir) || string.IsNullOrEmpty(projectDir)
+                ? buildDir
+                : Path.Combine(projectDir, buildDir);
+
+            if (!string.IsNullOrEmpty(buildPath) && Directory.Exists(buildPath))
             {
-                await Task.Run(() => Directory.Delete(buildDir, recursive: true), CancellationToken.None).ConfigureAwait(false);
-                AppendBuildLog($"Cleaned build directory: {buildDir}");
+                await Task.Run(() => Directory.Delete(buildPath, recursive: true), CancellationToken.None).ConfigureAwait(false);
+                AppendBuildLog($"Cleaned build directory: {buildPath}");
                 _notificationService.ShowSuccess("Clean Complete", "Build directory cleaned");
                 StatusMessage = "Build directory cleaned";
-                _logger.LogInformation("Cleaned build directory: {Dir}", buildDir);
+                _logger.LogInformation("Cleaned build directory: {Dir}", buildPath);
             }
 
             _buildEngineService.InvalidateBuildStructureCache();
@@ -2671,6 +2673,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
             try
             {
+                _packsPromotedToBig.Clear();
                 _isPopulatingBundles = true;
                 SingleBigPackMode = anyBig;
             }

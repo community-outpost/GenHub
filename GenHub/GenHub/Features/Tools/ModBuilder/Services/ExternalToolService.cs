@@ -119,7 +119,13 @@ public sealed class ExternalToolService(ILogger<ExternalToolService> logger) : I
                     // Ignore failure killing already exited process
                 }
 
-                throw;
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+
+                logger.LogError("Tool execution timed out after 120 seconds: {ToolPath}", toolPath);
+                return ToolOperationResult.CreateFailure($"Tool execution timed out after 120 seconds: {toolPath}");
             }
 
             var exitCode = process.ExitCode;

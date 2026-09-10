@@ -378,7 +378,6 @@ public sealed class ProjectConfigService : IProjectConfigService
 
         EnsureOutputDirectoriesExist(projectDir, project);
         var effectiveConfigs = ResolveAndValidateConfigsDir(projectDir, project.Directories.Configs, errors);
-        project.Directories.Configs = effectiveConfigs;
         ValidateGameFilesEditedDir(projectDir, project.Directories.GameFilesEdited, errors);
         ValidateBundleConfigsExist(projectDir, effectiveConfigs, project.BundleConfigs);
     }
@@ -414,12 +413,16 @@ public sealed class ProjectConfigService : IProjectConfigService
                 return configuredConfigs;
             }
 
-            var altConfig = configuredConfigs.Equals(ModBuilderConstants.LowercaseConfigDir, StringComparison.OrdinalIgnoreCase)
-                ? ModBuilderConstants.ConfigDir
-                : ModBuilderConstants.LowercaseConfigDir;
-            if (Directory.Exists(Path.Combine(projectDir, altConfig)))
+            if (configuredConfigs.Equals(ModBuilderConstants.LowercaseConfigDir, StringComparison.OrdinalIgnoreCase) ||
+                configuredConfigs.Equals(ModBuilderConstants.ConfigDir, StringComparison.OrdinalIgnoreCase))
             {
-                return altConfig;
+                var altConfig = configuredConfigs.Equals(ModBuilderConstants.LowercaseConfigDir, StringComparison.OrdinalIgnoreCase)
+                    ? ModBuilderConstants.ConfigDir
+                    : ModBuilderConstants.LowercaseConfigDir;
+                if (Directory.Exists(Path.Combine(projectDir, altConfig)))
+                {
+                    return altConfig;
+                }
             }
 
             return configuredConfigs;
@@ -436,6 +439,12 @@ public sealed class ProjectConfigService : IProjectConfigService
         }
 
         return ModBuilderConstants.ConfigDir;
+    }
+
+    private static string ResolveConfigsDir(string projectDir, ModBuilderProject? project)
+    {
+        var configFolder = ResolveConfigsDir(projectDir, project?.Directories?.Configs);
+        return Path.Combine(projectDir, configFolder);
     }
 
     private static string ResolveAndValidateConfigsDir(string projectDir, string configuredConfigs, List<string> errors)
@@ -977,12 +986,6 @@ public sealed class ProjectConfigService : IProjectConfigService
         await EnsureImportedBundlePacksAsync(packsPath, bigFilePaths, itemNames, cancellationToken).ConfigureAwait(false);
     }
 
-    private static string ResolveConfigsDir(string projectDir, ModBuilderProject? project)
-    {
-        var configFolder = ResolveConfigsDir(projectDir, project?.Directories?.Configs);
-        return Path.Combine(projectDir, configFolder);
-    }
-
     private async Task<List<string>> EnsureImportedBundleItemsAsync(
         string itemsPath,
         ModBuilderProject? project,
@@ -997,7 +1000,8 @@ public sealed class ProjectConfigService : IProjectConfigService
         var itemNames = await ReadExistingBundleItemNamesAsync(itemsPath, cancellationToken).ConfigureAwait(false);
         if (itemNames.Count == 0)
         {
-            _logger.LogWarning("Existing ModBundleItems.json at {Path} yielded no bundle item names; using fallback item name without overwriting file", itemsPath);
+            _logger.LogWarning("Existing ModBundleItems.json at {Path} yielded no bundle item names; ensuring default imported bundle item is defined", itemsPath);
+            await EnsureDefaultImportedItemInFileAsync(itemsPath, project, cancellationToken).ConfigureAwait(false);
             itemNames.Add("ImportedGameFiles");
         }
 
@@ -1033,6 +1037,50 @@ public sealed class ProjectConfigService : IProjectConfigService
         }
 
         return itemNames;
+    }
+
+    private async Task EnsureDefaultImportedItemInFileAsync(
+        string itemsPath,
+        ModBuilderProject? project,
+        CancellationToken cancellationToken)
+    {
+        var gameFilesDirName = project?.Directories?.GameFilesEdited ?? ModBuilderConstants.GameFilesEditedDir;
+        var defaultItem = new
+        {
+            Name = "ImportedGameFiles",
+            SourceFiles = new[] { $"{gameFilesDirName}/**/*" },
+            Description = "Files extracted from imported BIG archive(s)",
+        };
+
+        try
+        {
+            var content = await File.ReadAllTextAsync(itemsPath, cancellationToken).ConfigureAwait(false);
+            var node = JsonNode.Parse(content);
+            if (node is JsonObject rootObj)
+            {
+                if (!rootObj.TryGetPropertyValue("bundleItems", out var itemsNode) || itemsNode is not JsonArray itemsArr)
+                {
+                    itemsArr = new JsonArray();
+                    rootObj["bundleItems"] = itemsArr;
+                }
+
+                itemsArr.Add(JsonNode.Parse(JsonSerializer.Serialize(defaultItem, _jsonOptions)));
+                await AtomicWriteJsonFileAsync(itemsPath, rootObj, _jsonOptions, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+            else if (node is JsonArray rootArr)
+            {
+                rootArr.Add(JsonNode.Parse(JsonSerializer.Serialize(defaultItem, _jsonOptions)));
+                await AtomicWriteJsonFileAsync(itemsPath, rootArr, _jsonOptions, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Failed to append default bundle item to existing {Path}; re-creating default file", itemsPath);
+        }
+
+        await CreateDefaultImportedBundleItemsFileAsync(itemsPath, project, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task CreateDefaultImportedBundleItemsFileAsync(
@@ -1208,7 +1256,7 @@ public sealed class ProjectConfigService : IProjectConfigService
                 nameProp != null &&
                 !string.IsNullOrWhiteSpace(nameProp.ToString()))
             {
-                existingNames.Add(nameProp.ToString()!);
+                existingNames.Add(nameProp.ToString());
             }
         }
 
@@ -1221,9 +1269,14 @@ public sealed class ProjectConfigService : IProjectConfigService
                 packNameProp != null &&
                 !string.IsNullOrWhiteSpace(packNameProp.ToString()))
             {
-                if (existingNames.Add(packNameProp.ToString()!))
+                var packName = packNameProp.ToString();
+                if (existingNames.Add(packName))
                 {
                     targetArray.Add(packNode);
+                }
+                else
+                {
+                    _logger.LogWarning("Duplicate pack name '{PackName}' already exists in bundle packs file; skipping", packName);
                 }
             }
             else if (packNode != null)
