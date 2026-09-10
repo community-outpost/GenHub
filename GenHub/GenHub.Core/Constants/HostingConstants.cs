@@ -72,6 +72,24 @@ public static class HostingConstants
     public const string DropboxCreateAppUrl = "https://www.dropbox.com/developers/apps/create";
 
     /// <summary>
+    /// URL to Dropbox web folder for publisher assets.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official Dropbox web home URL")]
+    public const string DropboxWebFolderUrl = "https://www.dropbox.com/home/GenHub_Publisher";
+
+    /// <summary>
+    /// URL to Google Drive web home.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official Google Drive web URL")]
+    public const string GoogleDriveWebHomeUrl = "https://drive.google.com/drive/my-drive";
+
+    /// <summary>
+    /// URL to GitHub Gist web home.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official GitHub Gist web URL")]
+    public const string GitHubGistWebHomeUrl = "https://gist.github.com";
+
+    /// <summary>
     /// URL to GitHub Personal Access Token creation page pre-filled for Gists.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official GitHub token generator URL")]
