@@ -150,21 +150,6 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     private readonly List<RecentProjectInfo> _allRecentProjects = [];
 
     /// <summary>
-    /// Gets or sets a value indicating whether the quick start guide is visible.
-    /// </summary>
-    [ObservableProperty]
-    private bool _showQuickStartGuide = true;
-
-    /// <summary>
-    /// Dismisses the quick start guide.
-    /// </summary>
-    [RelayCommand]
-    private void DismissQuickStartGuide()
-    {
-        ShowQuickStartGuide = false;
-    }
-
-    /// <summary>
     /// Gets or sets the search query for filtering projects.
     /// </summary>
     [ObservableProperty]
@@ -492,7 +477,26 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         try
         {
             var result = await _projectConfigService.GetRecentProjectsAsync(10, CancellationToken.None).ConfigureAwait(false);
-            var projectPaths = new List<string>(result.Success && result.Data != null ? result.Data : []);
+            var rawPaths = new List<string>(result.Success && result.Data != null ? result.Data : []);
+            var projectPaths = new List<string>();
+
+            // Sanitize recent projects: if any project is located inside the application installation directory,
+            // migrate it to user documents and scrub old app-dir paths so Velopack updates won't be blocked.
+            foreach (var rawPath in rawPaths)
+            {
+                if (IsPathInsideAppDirectory(rawPath))
+                {
+                    var migrated = await MigrateProjectOutOfAppDirectoryAsync(rawPath).ConfigureAwait(false);
+                    if (!string.IsNullOrEmpty(migrated) && !projectPaths.Contains(migrated, StringComparer.OrdinalIgnoreCase))
+                    {
+                        projectPaths.Add(migrated);
+                    }
+                }
+                else if (!string.IsNullOrWhiteSpace(rawPath) && !projectPaths.Contains(rawPath, StringComparer.OrdinalIgnoreCase))
+                {
+                    projectPaths.Add(rawPath);
+                }
+            }
 
             IReadOnlyList<string> samplePaths = [];
             try
@@ -913,36 +917,50 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", SampleProjectsDirLiteral, ModBuilderLiteral)),
         };
 
-        var foundProjects = new List<string>();
+        var userSamplesDir = Path.Combine(GetUserModBuilderDirectory(), "Samples");
+        var userProjectPaths = new List<string>();
+
         foreach (var baseDir in sampleBaseDirs.Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase))
         {
             try
             {
                 var files = Directory.GetFiles(baseDir, "*.mbproj", SearchOption.AllDirectories);
-                foreach (var file in files)
+                foreach (var templateFile in files)
                 {
-                    var fullPath = Path.GetFullPath(file);
-                    if (!foundProjects.Contains(fullPath, StringComparer.OrdinalIgnoreCase))
+                    var templateDir = Path.GetDirectoryName(templateFile);
+                    if (string.IsNullOrEmpty(templateDir))
                     {
-                        foundProjects.Add(fullPath);
+                        continue;
+                    }
+
+                    var projectName = Path.GetFileName(templateDir);
+                    var userProjectDir = Path.Combine(userSamplesDir, projectName);
+                    var userProjectFile = Path.Combine(userProjectDir, Path.GetFileName(templateFile));
+
+                    // Provision template to user directory if not present
+                    if (!File.Exists(userProjectFile))
+                    {
+                        await CopyDirectoryAsync(templateDir, userProjectDir).ConfigureAwait(false);
+                    }
+
+                    if (File.Exists(userProjectFile) && !userProjectPaths.Contains(userProjectFile, StringComparer.OrdinalIgnoreCase))
+                    {
+                        userProjectPaths.Add(userProjectFile);
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogDebug(ex, "Failed to scan sample directory {Dir}", baseDir);
+                _logger.LogDebug(ex, "Failed to provision sample templates from {Dir}", baseDir);
             }
         }
 
-        if (foundProjects.Count > 0)
+        if (userProjectPaths.Count > 0)
         {
-            return foundProjects;
+            return userProjectPaths;
         }
 
-        var defaultFolder = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-            ModBuilderLiteral,
-            BasicModLiteral);
+        var defaultFolder = Path.Combine(GetUserModBuilderDirectory(), BasicModLiteral);
         Directory.CreateDirectory(defaultFolder);
         var generatedPath = Path.Combine(defaultFolder, BasicModProjectFileLiteral);
 
@@ -966,6 +984,165 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     {
         var samplePaths = await DiscoverSampleProjectPathsAsync().ConfigureAwait(false);
         return samplePaths.FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Determines whether the specified path is located inside the application installation directory.
+    /// </summary>
+    /// <param name="path">The file or directory path to check.</param>
+    /// <returns><c>true</c> if the path is inside the application directory; otherwise, <c>false</c>.</returns>
+    internal static bool IsPathInsideAppDirectory(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            var baseDir = Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var fullPath = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            return fullPath.StartsWith(baseDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(fullPath, baseDir, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string GetUserModBuilderDirectory()
+    {
+        var docs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        if (!string.IsNullOrWhiteSpace(docs) && Directory.Exists(docs))
+        {
+            return Path.Combine(docs, ModBuilderLiteral);
+        }
+
+        var localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (!string.IsNullOrWhiteSpace(localApp))
+        {
+            return Path.Combine(localApp, "GenHub", ModBuilderLiteral);
+        }
+
+        return Path.Combine(Path.GetTempPath(), "GenHub", ModBuilderLiteral);
+    }
+
+    private async Task<string?> MigrateProjectOutOfAppDirectoryAsync(string oldProjectPath)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(oldProjectPath) || !IsPathInsideAppDirectory(oldProjectPath))
+            {
+                return oldProjectPath;
+            }
+
+            var oldProjectDir = Path.GetDirectoryName(oldProjectPath);
+            if (string.IsNullOrEmpty(oldProjectDir))
+            {
+                return null;
+            }
+
+            var projectName = Path.GetFileName(oldProjectDir);
+            var userSamplesDir = Path.Combine(GetUserModBuilderDirectory(), "Samples");
+            var targetDir = Path.Combine(userSamplesDir, projectName);
+            var targetProjectPath = Path.Combine(targetDir, Path.GetFileName(oldProjectPath));
+
+            if (Directory.Exists(oldProjectDir))
+            {
+                await CopyDirectoryAsync(oldProjectDir, targetDir).ConfigureAwait(false);
+                TryCleanAppDirectoryBuildArtifacts(oldProjectDir);
+            }
+
+            await _projectConfigService.RemoveFromRecentProjectsAsync(oldProjectPath, CancellationToken.None).ConfigureAwait(false);
+            if (File.Exists(targetProjectPath))
+            {
+                await _projectConfigService.AddToRecentProjectsAsync(targetProjectPath, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            _logger.LogInformation("Successfully migrated project from {Old} to {New}", oldProjectPath, targetProjectPath);
+            return targetProjectPath;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to migrate project from app directory: {Path}", oldProjectPath);
+            return null;
+        }
+    }
+
+    private static async Task CopyDirectoryAsync(string sourceDir, string destinationDir)
+    {
+        Directory.CreateDirectory(destinationDir);
+
+        foreach (var file in Directory.GetFiles(sourceDir))
+        {
+            var fileName = Path.GetFileName(file);
+            if (fileName.EndsWith(".msgpack", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var destFile = Path.Combine(destinationDir, fileName);
+            if (!File.Exists(destFile))
+            {
+                await using var sourceStream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true);
+                await using var destinationStream = new FileStream(destFile, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: true);
+                await sourceStream.CopyToAsync(destinationStream).ConfigureAwait(false);
+            }
+        }
+
+        foreach (var subDir in Directory.GetDirectories(sourceDir))
+        {
+            var subDirName = Path.GetFileName(subDir);
+            if (subDirName.Equals(".Build", StringComparison.OrdinalIgnoreCase) ||
+                subDirName.Equals(".Release", StringComparison.OrdinalIgnoreCase) ||
+                subDirName.StartsWith(".staging", StringComparison.OrdinalIgnoreCase) ||
+                subDirName.Equals(".modbuilder_cache", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var destSubDir = Path.Combine(destinationDir, subDirName);
+            await CopyDirectoryAsync(subDir, destSubDir).ConfigureAwait(false);
+        }
+    }
+
+    private void TryCleanAppDirectoryBuildArtifacts(string dir)
+    {
+        try
+        {
+            if (!IsPathInsideAppDirectory(dir))
+            {
+                return;
+            }
+
+            var buildDir = Path.Combine(dir, ".Build");
+            if (Directory.Exists(buildDir))
+            {
+                Directory.Delete(buildDir, recursive: true);
+            }
+
+            var releaseDir = Path.Combine(dir, ".Release");
+            if (Directory.Exists(releaseDir))
+            {
+                Directory.Delete(releaseDir, recursive: true);
+            }
+
+            var cacheDir = Path.Combine(dir, ".modbuilder_cache");
+            if (Directory.Exists(cacheDir))
+            {
+                Directory.Delete(cacheDir, recursive: true);
+            }
+
+            foreach (var f in Directory.GetFiles(dir, "*.msgpack", SearchOption.TopDirectoryOnly))
+            {
+                try { File.Delete(f); } catch { }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not clean app directory build artifacts in {Dir}", dir);
+        }
     }
 
     /// <summary>
@@ -1080,6 +1257,16 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             {
                 _notificationService.ShowError("Invalid Path", "Project path cannot be empty");
                 return;
+            }
+
+            if (IsPathInsideAppDirectory(projectPath))
+            {
+                _logger.LogInformation("Project path is inside app directory. Auto-migrating to user space: {Path}", projectPath);
+                var migrated = await MigrateProjectOutOfAppDirectoryAsync(projectPath).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(migrated))
+                {
+                    projectPath = migrated;
+                }
             }
 
             if (!File.Exists(projectPath))
@@ -1892,6 +2079,13 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         try
         {
             var editFolder = Path.Combine(projectDir, "GameFilesEdited");
+            if (IsPathInsideAppDirectory(editFolder))
+            {
+                _logger.LogWarning("Refusing to open edit folder inside app directory: {Path}", editFolder);
+                _notificationService.ShowWarning("Folder Restricted", "Cannot open folder located inside application installation directory.");
+                return;
+            }
+
             if (!Directory.Exists(editFolder))
             {
                 Directory.CreateDirectory(editFolder);
@@ -1933,6 +2127,13 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
             var buildDir = CurrentProject.Directories.Build ?? ModBuilderConstants.DefaultBuildDir;
             var buildPath = Path.IsPathRooted(buildDir) ? buildDir : Path.Combine(projectDir, buildDir);
+            if (IsPathInsideAppDirectory(buildPath))
+            {
+                _logger.LogWarning("Refusing to open build folder inside app directory: {Path}", buildPath);
+                _notificationService.ShowWarning("Folder Restricted", "Cannot open build folder located inside application installation directory.");
+                return;
+            }
+
             if (!Directory.Exists(buildPath))
             {
                 Directory.CreateDirectory(buildPath);
@@ -1985,6 +2186,13 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             }
 
             var releasePath = Path.IsPathRooted(releaseDir) ? releaseDir : Path.Combine(projectDir, releaseDir);
+            if (IsPathInsideAppDirectory(releasePath))
+            {
+                _logger.LogWarning("Refusing to open release folder inside app directory: {Path}", releasePath);
+                _notificationService.ShowWarning("Folder Restricted", "Cannot open release folder located inside application installation directory.");
+                return;
+            }
+
             if (!Directory.Exists(releasePath))
             {
                 Directory.CreateDirectory(releasePath);
