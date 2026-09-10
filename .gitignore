@@ -198,3 +198,7 @@ __pycache__/
 .vs/*
 !.vs/Project-Overview.md
 !.vs/prompt.md
+
+# ModBuilder cache and serialization files
+*.msgpack
+.modbuilder_cache/

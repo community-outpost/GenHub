@@ -918,4 +918,35 @@ public sealed class BuildEngineServiceTests : IDisposable
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WhenProjectIsInsideAppDirectory_ReturnsFailure()
+    {
+        // Arrange
+        var appDirProject = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SampleProjects", "ModBuilder", "TestProject");
+        var project = new ModBuilderProject
+        {
+            Name = "TestAppDirProject",
+            ProjectDir = appDirProject,
+            Directories = new ProjectDirectories
+            {
+                GameFilesEdited = Path.Combine(appDirProject, "GameFilesEdited"),
+                Build = ".Build",
+                Release = ".Release",
+            },
+        };
+
+        var configuration = new BuildConfiguration();
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(
+            project,
+            configuration,
+            new List<string>(),
+            BuildStep.Build);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.FirstError.Should().Contain("Cannot execute build within the application installation directory");
+    }
 }
