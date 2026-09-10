@@ -5,6 +5,9 @@ namespace GenHub.Core.Models.Tools.ModBuilder;
 /// </summary>
 public class ProjectTemplate
 {
+    private const string DefaultBundleItemsConfig = "config/ModBundleItems.json";
+    private const string DefaultBundlePacksConfig = "config/ModBundlePacks.json";
+
     /// <summary>
     /// Gets the empty project template.
     /// </summary>
@@ -24,8 +27,8 @@ public class ProjectTemplate
         Description = "Basic mod project with standard configurations",
         DefaultBundleConfigs = new List<string>
         {
-            "config/ModBundleItems.json",
-            "config/ModBundlePacks.json",
+            DefaultBundleItemsConfig,
+            DefaultBundlePacksConfig,
         },
         CreateSampleFiles = true,
     };
@@ -39,8 +42,8 @@ public class ProjectTemplate
         Description = "Custom unit cameo icons, Legionnaire QWERTY hotkeys, and indicator overlays",
         DefaultBundleConfigs = new List<string>
         {
-            "config/ModBundleItems.json",
-            "config/ModBundlePacks.json",
+            DefaultBundleItemsConfig,
+            DefaultBundlePacksConfig,
         },
         CreateSampleFiles = true,
     };
@@ -54,8 +57,8 @@ public class ProjectTemplate
         Description = "16:9 widescreen menu overhauls and custom UI windows (.wnd)",
         DefaultBundleConfigs = new List<string>
         {
-            "config/ModBundleItems.json",
-            "config/ModBundlePacks.json",
+            DefaultBundleItemsConfig,
+            DefaultBundlePacksConfig,
         },
         CreateSampleFiles = true,
     };
@@ -69,8 +72,8 @@ public class ProjectTemplate
         Description = "Project imported from existing .BIG archive(s) with unpacked game files",
         DefaultBundleConfigs = new List<string>
         {
-            "config/ModBundleItems.json",
-            "config/ModBundlePacks.json",
+            DefaultBundleItemsConfig,
+            DefaultBundlePacksConfig,
         },
         CreateSampleFiles = false,
     };

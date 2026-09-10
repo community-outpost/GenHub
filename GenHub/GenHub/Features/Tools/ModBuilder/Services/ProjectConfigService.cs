@@ -403,7 +403,6 @@ public sealed class ProjectConfigService : IProjectConfigService
                     if (Directory.Exists(altConfigsDir))
                     {
                         effectiveConfigs = altConfig;
-                        configsDir = altConfigsDir;
                     }
                     else
                     {
@@ -636,9 +635,9 @@ public sealed class ProjectConfigService : IProjectConfigService
         {
             subPath = normalizedConfig.Substring("config".Length + 1);
         }
-        else if (normalizedConfig.StartsWith("Configs" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        else if (normalizedConfig.StartsWith(ModBuilderConstants.ConfigDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
         {
-            subPath = normalizedConfig.Substring("Configs".Length + 1);
+            subPath = normalizedConfig.Substring(ModBuilderConstants.ConfigDir.Length + 1);
         }
         else if (!string.IsNullOrWhiteSpace(effectiveConfigsDirName) &&
                  normalizedConfig.StartsWith(effectiveConfigsDirName + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
@@ -660,7 +659,7 @@ public sealed class ProjectConfigService : IProjectConfigService
                 return candidateInAltConfig;
             }
 
-            var candidateInAltConfigs = Path.Combine(projectDir, "Configs", subPath);
+            var candidateInAltConfigs = Path.Combine(projectDir, ModBuilderConstants.ConfigDir, subPath);
             if (File.Exists(candidateInAltConfigs))
             {
                 return candidateInAltConfigs;
@@ -672,7 +671,7 @@ public sealed class ProjectConfigService : IProjectConfigService
                 return candidateInAltConfig;
             }
 
-            if (Directory.Exists(Path.Combine(projectDir, "Configs")))
+            if (Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.ConfigDir)))
             {
                 return candidateInAltConfigs;
             }
@@ -798,12 +797,10 @@ public sealed class ProjectConfigService : IProjectConfigService
                 return ProjectOperationResult<int>.CreateFailure("No valid BIG files specified for import", sw.Elapsed);
             }
 
-            foreach (var bigPath in bigList)
+            var missingBig = bigList.FirstOrDefault(p => !File.Exists(p));
+            if (missingBig != null)
             {
-                if (!File.Exists(bigPath))
-                {
-                    return ProjectOperationResult<int>.CreateFailure($"BIG file not found: {bigPath}", sw.Elapsed);
-                }
+                return ProjectOperationResult<int>.CreateFailure($"BIG file not found: {missingBig}", sw.Elapsed);
             }
 
             var projectLoadResult = await LoadProjectAsync(projectPath, false, cancellationToken).ConfigureAwait(false);
@@ -826,7 +823,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             }
 
             sw.Stop();
-            _logger.LogInformation("Successfully imported {Count} files from {BigCount} BIG archives in {Elapsed}ms", totalExtracted, bigList.Count, sw.ElapsedMilliseconds);
+            _logger.LogInformation("Successfully imported {TotalExtracted} files from {BigCount} BIG archives in {Elapsed}ms", totalExtracted, bigList.Count, sw.ElapsedMilliseconds);
             return ProjectOperationResult<int>.CreateSuccess(totalExtracted, sw.Elapsed);
         }
         catch (OperationCanceledException)
@@ -921,9 +918,20 @@ public sealed class ProjectConfigService : IProjectConfigService
         CancellationToken cancellationToken,
         ModBuilderProject? project = null)
     {
-        var configFolder = !string.IsNullOrWhiteSpace(project?.Directories?.Configs)
-            ? project.Directories.Configs
-            : (Directory.Exists(Path.Combine(projectDir, "Configs")) ? "Configs" : "config");
+        string configFolder;
+        if (!string.IsNullOrWhiteSpace(project?.Directories?.Configs))
+        {
+            configFolder = project.Directories.Configs;
+        }
+        else if (Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.ConfigDir)))
+        {
+            configFolder = ModBuilderConstants.ConfigDir;
+        }
+        else
+        {
+            configFolder = ModBuilderConstants.LowercaseConfigDir;
+        }
+
         var configsDir = Path.Combine(projectDir, configFolder);
         Directory.CreateDirectory(configsDir);
 
@@ -1092,8 +1100,7 @@ public sealed class ProjectConfigService : IProjectConfigService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to append new packs to existing ModBundlePacks.json at {Path}", packsPath);
-                    throw;
+                    throw new InvalidOperationException($"Failed to append new packs to existing ModBundlePacks.json at '{packsPath}': {ex.Message}", ex);
                 }
             }
         }
