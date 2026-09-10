@@ -463,12 +463,7 @@ public sealed class MapImportService(
             logger.LogInformation(ex, "ZipFile.OpenRead failed for {ZipPath}, falling back to SharpCompress", zipPath);
             return await ImportWithSharpCompressAsync(zipPath, targetVersion, progress, ct);
         }
-        catch (OperationCanceledException ex)
-        {
-            logger.LogInformation(ex, "Import from ZIP was cancelled: {ZipPath}", zipPath);
-            throw;
-        }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to import from ZIP: {ZipPath}", zipPath);
             result.Errors.Add($"ZIP extraction failed: {ex.Message}");
@@ -1000,12 +995,7 @@ public sealed class MapImportService(
 
             progress?.Report(1.0);
         }
-        catch (OperationCanceledException ex)
-        {
-            logger.LogInformation(ex, "Import from archive was cancelled: {ArchivePath}", archivePath);
-            throw;
-        }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to import from archive: {ArchivePath}", archivePath);
             result.Errors.Add($"Archive extraction failed: {ex.Message}");
