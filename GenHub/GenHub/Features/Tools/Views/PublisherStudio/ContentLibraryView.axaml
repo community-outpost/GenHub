@@ -79,7 +79,7 @@
                             <TextBlock Text="Catalog:"
                                        FontSize="11"
                                        FontWeight="SemiBold"
-                                       Foreground="#9CA3AF"
+                                       Foreground="{DynamicResource TextMuted}"
                                        VerticalAlignment="Center"/>
                             <TextBlock Text="{Binding ActiveCatalogName}"
                                        FontSize="11"

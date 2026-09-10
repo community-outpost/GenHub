@@ -17,6 +17,7 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// <summary>
 /// ViewModel for adding or editing a content item in the catalog.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI and CommunityToolkit ObservableProperty generated properties.")]
 public partial class AddContentDialogViewModel : ObservableValidator
 {
     private readonly Action<CatalogContentItem> _onContentCreated;
@@ -375,49 +376,72 @@ public partial class AddContentDialogViewModel : ObservableValidator
 
         if (!IsEditMode && IncludeInitialRelease)
         {
-            var version = string.IsNullOrWhiteSpace(InitialVersion) ? "1.0.0" : InitialVersion.Trim();
-            var release = new ContentRelease
-            {
-                Version = version,
-                ReleaseDate = DateTime.UtcNow,
-                IsLatest = true,
-                Artifacts = [],
-            };
-
-            var artifactName = !string.IsNullOrWhiteSpace(PackageFilename)
-                ? PackageFilename.Trim()
-                : (!string.IsNullOrWhiteSpace(LocalFilePath)
-                    ? Path.GetFileName(LocalFilePath)
-                    : $"{contentItem.Id}-{version}.zip");
-
-            var artifact = new ReleaseArtifact
-            {
-                Filename = artifactName,
-                DownloadUrl = DownloadUrl?.Trim() ?? string.Empty,
-                LocalFilePath = LocalFilePath,
-                Size = FileSize,
-                Sha256 = Sha256Hash?.Trim() ?? string.Empty,
-                IsPrimary = true,
-            };
-
-            release.Artifacts.Add(artifact);
-            contentItem.Releases.Add(release);
+            AttachInitialRelease(contentItem);
         }
-        else if (IsEditMode && _existingItem != null)
+        else if (IsEditMode)
         {
-            // Preserve existing releases & dependencies
-            foreach (var rel in _existingItem.Releases)
-            {
-                contentItem.Releases.Add(rel);
-            }
-
-            foreach (var dep in _existingItem.BundledItems)
-            {
-                contentItem.BundledItems.Add(dep);
-            }
+            CopyFromExistingItem(contentItem);
         }
 
         _onContentCreated(contentItem);
+    }
+
+    private string DetermineArtifactName(string contentId, string version)
+    {
+        if (!string.IsNullOrWhiteSpace(PackageFilename))
+        {
+            return PackageFilename.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(LocalFilePath))
+        {
+            return Path.GetFileName(LocalFilePath);
+        }
+
+        return $"{contentId}-{version}.zip";
+    }
+
+    private void AttachInitialRelease(CatalogContentItem contentItem)
+    {
+        var version = string.IsNullOrWhiteSpace(InitialVersion) ? "1.0.0" : InitialVersion.Trim();
+        var release = new ContentRelease
+        {
+            Version = version,
+            ReleaseDate = DateTime.UtcNow,
+            IsLatest = true,
+            Artifacts = [],
+        };
+
+        var artifactName = DetermineArtifactName(contentItem.Id, version);
+
+        var artifact = new ReleaseArtifact
+        {
+            Filename = artifactName,
+            DownloadUrl = DownloadUrl?.Trim() ?? string.Empty,
+            LocalFilePath = LocalFilePath,
+            Size = FileSize,
+            Sha256 = Sha256Hash?.Trim() ?? string.Empty,
+            IsPrimary = true,
+        };
+
+        release.Artifacts.Add(artifact);
+        contentItem.Releases.Add(release);
+    }
+
+    private void CopyFromExistingItem(CatalogContentItem contentItem)
+    {
+        if (_existingItem == null) return;
+
+        // Preserve existing releases & dependencies
+        foreach (var rel in _existingItem.Releases)
+        {
+            contentItem.Releases.Add(rel);
+        }
+
+        foreach (var dep in _existingItem.BundledItems)
+        {
+            contentItem.BundledItems.Add(dep);
+        }
     }
 
     private void Validate()

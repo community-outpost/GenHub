@@ -17,7 +17,7 @@
     <Window.Styles>
         <Style Selector="Button.primary-btn">
             <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="18,10"/>
@@ -26,7 +26,7 @@
         </Style>
         <Style Selector="Button.secondary-btn">
             <Setter Property="Background" Value="#15FFFFFF"/>
-            <Setter Property="Foreground" Value="#E0E0E0"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
             <Setter Property="BorderBrush" Value="#25FFFFFF"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
@@ -35,7 +35,7 @@
         </Style>
         <Style Selector="TextBox">
             <Setter Property="Background" Value="#14FFFFFF"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
             <Setter Property="BorderBrush" Value="#25FFFFFF"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="12,10"/>
@@ -57,7 +57,7 @@
                         Margin="0,0,14,0">
                     <PathIcon Data="{StaticResource DownloadIcon}"
                               Width="20" Height="20"
-                              Foreground="White"
+                              Foreground="{DynamicResource TextPrimary}"
                               HorizontalAlignment="Center"
                               VerticalAlignment="Center"/>
                 </Border>
@@ -65,10 +65,10 @@
                     <TextBlock Text="Import Catalog or Provider"
                                FontSize="18"
                                FontWeight="Bold"
-                               Foreground="White"/>
+                               Foreground="{DynamicResource TextPrimary}"/>
                     <TextBlock Text="Subscribe to custom community content"
                                FontSize="12"
-                               Foreground="#8E8E9F"/>
+                               Foreground="{DynamicResource TextMuted}"/>
                 </StackPanel>
                 <Button Grid.Column="2"
                         Command="{Binding CancelCommand}"
@@ -77,7 +77,7 @@
                         Cursor="Hand">
                     <PathIcon Data="{StaticResource CloseIcon}"
                               Width="14" Height="14"
-                              Foreground="#8E8E9F"/>
+                              Foreground="{DynamicResource TextMuted}"/>
                 </Button>
             </Grid>
 
@@ -85,7 +85,7 @@
             <StackPanel Grid.Row="1" Spacing="14">
                 <TextBlock Text="Paste a genhub:// subscription link, Google Drive link, or direct catalog/definition URL:"
                            FontSize="13"
-                           Foreground="#D0D0E0"
+                           Foreground="{DynamicResource TextSecondary}"
                            TextWrapping="Wrap"/>
 
                 <TextBox Text="{Binding InputUrl}"
@@ -103,11 +103,11 @@
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <PathIcon Data="{StaticResource ErrorIcon}"
                                   Width="14" Height="14"
-                                  Foreground="#FF5555"
+                                  Foreground="{DynamicResource StatusErrorBrush}"
                                   VerticalAlignment="Center"/>
                         <TextBlock Text="{Binding ErrorMessage}"
                                    FontSize="12"
-                                   Foreground="#FF8888"
+                                   Foreground="{DynamicResource StatusErrorBrush}"
                                    VerticalAlignment="Center"
                                    TextWrapping="Wrap"/>
                     </StackPanel>
@@ -115,7 +115,7 @@
 
                 <TextBlock Text="Supported: Google Drive direct links, Dropbox, GitHub, and custom HTTPS publisher endpoints."
                            FontSize="11"
-                           Foreground="#6E6E82"
+                           Foreground="{DynamicResource TextMuted}"
                            TextWrapping="Wrap"/>
             </StackPanel>
 
@@ -130,7 +130,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <PathIcon Data="{StaticResource LinkIcon}"
                                   Width="14" Height="14"
-                                  Foreground="White"
+                                  Foreground="{DynamicResource TextPrimary}"
                                   VerticalAlignment="Center"/>
                         <TextBlock Text="Load and Subscribe" VerticalAlignment="Center"/>
                     </StackPanel>

@@ -16,8 +16,8 @@
             <Setter Property="Padding" Value="12,10"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
-            <Setter Property="SelectionForegroundBrush" Value="White"/>
-            <Setter Property="CaretBrush" Value="White"/>
+            <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
         </Style>
         <Style Selector="TextBox:focus">
             <Setter Property="Background" Value="#18FFFFFF"/>
@@ -52,7 +52,7 @@
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,20">
             <TextBlock Text="{Binding DialogTitle}"
                        FontSize="22" FontWeight="Bold"
-                       Foreground="White"/>
+                       Foreground="{DynamicResource TextPrimary}"/>
             <Button Grid.Column="1"
                     Command="{Binding CloseCommand}"
                     Background="Transparent"
@@ -62,7 +62,7 @@
                     VerticalAlignment="Top">
                 <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
                           Width="12" Height="12"
-                          Foreground="#888888"/>
+                          Foreground="{DynamicResource TextMuted}"/>
             </Button>
         </Grid>
 
@@ -154,7 +154,7 @@
                         <CheckBox IsChecked="{Binding IncludeInitialRelease}"
                                   Content="Include initial release and package artifact"
                                   FontWeight="SemiBold"
-                                  Foreground="White"/>
+                                  Foreground="{DynamicResource TextPrimary}"/>
 
                         <StackPanel Spacing="12" IsVisible="{Binding IncludeInitialRelease}">
                             <!-- Version and Filename -->
@@ -202,11 +202,11 @@
                                             Padding="16,8"
                                             Background="#20FFFFFF"
                                             CornerRadius="6"
-                                            Foreground="White"/>
+                                            Foreground="{DynamicResource TextPrimary}"/>
                                 </Grid>
                                 <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0" IsVisible="{Binding LocalFilePath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                     <TextBlock Text="{Binding FileSizeDisplay}" FontSize="12" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Sha256Hash, StringFormat='SHA256: {0}'}" FontSize="11" Foreground="#888888" Margin="12,0,0,0" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Sha256Hash, StringFormat='SHA256: {0}'}" FontSize="11" Foreground="{DynamicResource TextMuted}" Margin="12,0,0,0" TextTrimming="CharacterEllipsis"/>
                                 </Grid>
                                 <ProgressBar IsIndeterminate="True" Height="2" IsVisible="{Binding IsComputingHash}" Margin="0,4,0,0"/>
                             </StackPanel>
@@ -227,7 +227,7 @@
             <Button Content="{Binding SubmitButtonText}"
                     Command="{Binding CreateContentCommand}"
                     Background="{DynamicResource PrimaryGradientBrush}"
-                    Foreground="White"
+                    Foreground="{DynamicResource TextPrimary}"
                     CornerRadius="8"
                     Padding="36,12"
                     FontWeight="Bold"

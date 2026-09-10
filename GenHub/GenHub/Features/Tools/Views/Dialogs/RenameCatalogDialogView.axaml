@@ -12,7 +12,7 @@
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
             <TextBlock Text="Rename Catalog"
                        FontSize="18" FontWeight="Bold"
-                       Foreground="White"/>
+                       Foreground="{DynamicResource TextPrimary}"/>
             <Button Grid.Column="1"
                     Command="{Binding CancelCommand}"
                     Background="Transparent"
@@ -22,7 +22,7 @@
                     VerticalAlignment="Top">
                 <PathIcon Data="{StaticResource CloseIcon}"
                           Width="12" Height="12"
-                          Foreground="#888888"/>
+                          Foreground="{DynamicResource TextMuted}"/>
             </Button>
         </Grid>
 
@@ -30,7 +30,7 @@
         <StackPanel Grid.Row="1" Spacing="12">
             <TextBlock Text="Catalog Name"
                        FontWeight="SemiBold"
-                       Foreground="#D0D0E0"
+                       Foreground="{DynamicResource TextPrimary}"
                        FontSize="13"/>
             <TextBox Text="{Binding CatalogName, Mode=TwoWay}"
                      Watermark="e.g. Maps, Mods, Zero Hour Content"
@@ -38,10 +38,10 @@
                      Padding="12,10"/>
             <TextBlock Text="Renaming will update the catalog title and its export filename (e.g. catalog-maps.json)."
                        FontSize="11"
-                       Foreground="#888888"
+                       Foreground="{DynamicResource TextMuted}"
                        TextWrapping="Wrap"/>
             <TextBlock Text="{Binding ValidationError}"
-                       Foreground="#FF5555"
+                       Foreground="{DynamicResource StatusErrorBrush}"
                        FontSize="12"
                        IsVisible="{Binding !IsValid}"
                        TextWrapping="Wrap"/>
@@ -56,7 +56,7 @@
             <Button Content="Rename"
                     Command="{Binding SaveCommand}"
                     Background="{DynamicResource PrimaryGradientBrush}"
-                    Foreground="White"
+                    Foreground="{DynamicResource TextPrimary}"
                     CornerRadius="8"
                     Padding="24,10"
                     FontWeight="Bold"

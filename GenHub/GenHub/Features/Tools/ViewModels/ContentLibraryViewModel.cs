@@ -16,6 +16,7 @@ namespace GenHub.Features.Tools.ViewModels;
 /// <summary>
 /// ViewModel for the Content Library tab.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI and CommunityToolkit ObservableProperty generated properties.")]
 public partial class ContentLibraryViewModel : ObservableObject
 {
     private readonly NamedCatalog _activeCatalog;
