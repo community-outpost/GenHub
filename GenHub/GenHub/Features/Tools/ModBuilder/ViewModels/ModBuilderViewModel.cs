@@ -1602,14 +1602,11 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         if (buildConfig.Packs != null && buildConfig.Packs.Count > 0)
         {
-            foreach (var pack in buildConfig.Packs)
+            foreach (var pack in buildConfig.Packs.Where(pack => selectedNames.Contains(pack.Name) || pack.ItemNames.Any(item => selectedNames.Contains(item))))
             {
-                if (selectedNames.Contains(pack.Name) || pack.ItemNames.Any(item => selectedNames.Contains(item)))
+                if (!resolvedPacks.Contains(pack.Name, StringComparer.OrdinalIgnoreCase))
                 {
-                    if (!resolvedPacks.Contains(pack.Name, StringComparer.OrdinalIgnoreCase))
-                    {
-                        resolvedPacks.Add(pack.Name);
-                    }
+                    resolvedPacks.Add(pack.Name);
                 }
             }
         }
@@ -2082,8 +2079,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 });
             }
 
-            _singleBigPackMode = anyBig;
-            OnPropertyChanged(nameof(SingleBigPackMode));
+            SingleBigPackMode = anyBig;
         }
         else if (config?.Items != null)
         {
