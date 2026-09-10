@@ -195,10 +195,21 @@
 
                     <!-- Google Drive OAuth Section -->
                     <StackPanel IsVisible="{Binding ShowGoogleOAuthButton}" Spacing="10">
-                        <TextBlock Text="Uploads will generate direct download streams for client subscriptions and catalog discovery."
+                        <TextBlock Text="Google Drive enables hosting both your catalog manifests and large binary release artifacts directly in your personal Drive."
                                    FontSize="12" Foreground="#8888AA" TextWrapping="Wrap"/>
-                        <TextBlock Text="Google Drive requires OAuth 2.0 Desktop app credentials from Google Cloud Console. Enter your Client ID and Secret below, or configure GENHUB_GOOGLE_CLIENT_ID and GENHUB_GOOGLE_CLIENT_SECRET environment variables:"
-                                   FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap"/>
+
+                        <!-- Google Step-by-Step Guide Card -->
+                        <Border Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="6" Padding="12">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="How to set up Google Cloud credentials (one-time developer setup):" FontWeight="SemiBold" FontSize="12" Foreground="White"/>
+                                <TextBlock Text="1. Click the button below to open Google Cloud Console in your browser." FontSize="11" Foreground="#CCCCCC"/>
+                                <TextBlock Text="2. Select or create any project (e.g. 'GenHub Publisher')." FontSize="11" Foreground="#CCCCCC"/>
+                                <TextBlock Text="3. If prompted 'configure your consent screen': click it, select User Type: 'External', enter an App Name and your Email, then Save." FontSize="11" Foreground="#CCCCCC"/>
+                                <TextBlock Text="4. Go to 'Clients' / 'Credentials' -> 'Create Credentials' -> 'OAuth client ID' -> select 'Desktop app', then click Create." FontSize="11" Foreground="#CCCCCC"/>
+                                <TextBlock Text="5. Copy the generated Client ID and Client Secret into the boxes below, then click 'Connect'." FontSize="11" Foreground="#CCCCCC"/>
+                                <TextBlock Text="💡 Tip: Google requires this developer project setup for desktop OAuth. If you prefer a simpler setup, Dropbox takes only 30 seconds!" FontSize="11" Foreground="#80D8FF" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
 
                         <Button Command="{Binding OpenGoogleCredentialsConsoleCommand}"
                                 Classes="small-glass-btn"
@@ -206,7 +217,7 @@
                                 HorizontalAlignment="Left">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                <TextBlock Text="Create OAuth Credentials in Google Cloud Console" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                <TextBlock Text="Open Google Cloud Console (Credentials)" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
                             </StackPanel>
                         </Button>
 
@@ -219,8 +230,22 @@
                     </StackPanel>
 
                     <!-- GitHub PAT Input -->
-                    <StackPanel IsVisible="{Binding ShowGitHubPatInput}" Spacing="8">
-                        <TextBlock Text="Enter your GitHub Personal Access Token:" FontSize="12" Foreground="#AAAAAA"/>
+                    <StackPanel IsVisible="{Binding ShowGitHubPatInput}" Spacing="10">
+                        <TextBlock Text="GitHub Gists hosts your catalog manifests and provider definition as public Gists on your personal GitHub profile."
+                                   FontSize="12" Foreground="#8888AA" TextWrapping="Wrap"/>
+
+                        <!-- GitHub Gists Guide Card -->
+                        <Border Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="6" Padding="12">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="How GitHub Gists hosting works:" FontWeight="SemiBold" FontSize="12" Foreground="White"/>
+                                <TextBlock Text="• Manifests only: It publishes 'catalog.json' and 'publisher.json' as public Gists under your GitHub account." FontSize="11" Foreground="#CCCCCC"/>
+                                <TextBlock Text="• No repository commits: No files are committed to your repositories; Gists are standalone snippets." FontSize="11" Foreground="#CCCCCC"/>
+                                <TextBlock Text="• No binary hosting: Gists DO NOT store binary archives (zip/exe). All release artifacts must use external CDN or direct download links." FontSize="11" Foreground="#FFCC80"/>
+                                <TextBlock Text="1. Click 'Generate Personal Access Token on GitHub' below." FontSize="11" Foreground="#CCCCCC"/>
+                                <TextBlock Text="2. Ensure the 'gist' scope (or 'repo') is selected." FontSize="11" Foreground="#CCCCCC"/>
+                                <TextBlock Text="3. Click 'Generate token' at bottom, copy the 'ghp_...' token, paste it below, and connect." FontSize="11" Foreground="#CCCCCC"/>
+                            </StackPanel>
+                        </Border>
 
                         <Button Command="{Binding OpenGitHubTokenConsoleCommand}"
                                 Classes="small-glass-btn"
@@ -228,7 +253,7 @@
                                 HorizontalAlignment="Left">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                <TextBlock Text="Generate Personal Access Token on GitHub (with repo scope)" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                <TextBlock Text="Generate Personal Access Token on GitHub" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
                             </StackPanel>
                         </Button>
 
@@ -236,8 +261,21 @@
                     </StackPanel>
 
                     <!-- Dropbox Token Input -->
-                    <StackPanel IsVisible="{Binding ShowDropboxTokenInput}" Spacing="8">
-                        <TextBlock Text="Enter your Dropbox Access Token:" FontSize="12" Foreground="#AAAAAA"/>
+                    <StackPanel IsVisible="{Binding ShowDropboxTokenInput}" Spacing="10">
+                        <TextBlock Text="Dropbox enables hosting both catalog manifests and binary release artifacts inside your personal Dropbox account."
+                                   FontSize="12" Foreground="#8888AA" TextWrapping="Wrap"/>
+
+                        <!-- Dropbox Step-by-Step Guide Card -->
+                        <Border Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="6" Padding="12">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="How to generate a Dropbox Access Token in 30 seconds:" FontWeight="SemiBold" FontSize="12" Foreground="White"/>
+                                <TextBlock Text="1. Click 'Open Dropbox App Console' below (or create an app if you haven't yet: Scoped access > App folder or Full Dropbox)." FontSize="11" Foreground="#CCCCCC"/>
+                                <TextBlock Text="2. In the 'Permissions' tab at the top: check 'files.content.write', 'files.content.read', and 'sharing.write', then click 'Submit' at the bottom." FontSize="11" Foreground="#CCCCCC"/>
+                                <TextBlock Text="3. In the 'Settings' tab: scroll down to the 'OAuth 2' section -> find 'Generated access token'." FontSize="11" Foreground="#CCCCCC"/>
+                                <TextBlock Text="4. Click the 'Generate' button right there on the page. Dropbox will reveal your access token (starts with 'sl.')." FontSize="11" Foreground="#CCCCCC"/>
+                                <TextBlock Text="5. Copy that token, paste it below, and click 'Connect'." FontSize="11" Foreground="#CCCCCC"/>
+                            </StackPanel>
+                        </Border>
 
                         <Button Command="{Binding OpenDropboxAppConsoleCommand}"
                                 Classes="small-glass-btn"
@@ -245,7 +283,7 @@
                                 HorizontalAlignment="Left">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                <TextBlock Text="Open Dropbox App Console (create app with files.content.write scope)" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                <TextBlock Text="Open Dropbox App Console" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
                             </StackPanel>
                         </Button>
 
@@ -265,7 +303,7 @@
                                 IsEnabled="{Binding !IsAuthenticating}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <PathIcon Data="{StaticResource LinkIcon}" Width="14" Height="14" Foreground="White"/>
-                                <TextBlock Text="Connect Provider" Foreground="White" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding ConnectButtonText}" Foreground="White" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Button>
                         <Button Command="{Binding SignOutCommand}"
@@ -595,14 +633,63 @@
                                        Foreground="#AAAAAA"
                                        IsVisible="{Binding UploadStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
-                            <!-- Publish All Catalogs and Definition Button -->
+                            <!-- Pre-Publish Destination & Routing Summary Card -->
+                            <Border Background="#18000000" BorderBrush="#30FFFFFF" BorderThickness="1" CornerRadius="6" Padding="14">
+                                <StackPanel Spacing="10">
+                                    <Grid ColumnDefinitions="Auto,*">
+                                        <PathIcon Data="{StaticResource LinkIcon}" Width="16" Height="16" Foreground="{DynamicResource AccentColorBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="Target Hosting Destination:" FontSize="11" Foreground="#AAAAAA"/>
+                                            <TextBlock Text="{Binding TargetDestinationDescription}" FontSize="13" FontWeight="SemiBold" Foreground="White"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Incompatible provider warning -->
+                                    <Border Background="#25FF5555" BorderBrush="#80FF5555" BorderThickness="1" CornerRadius="4" Padding="10"
+                                            IsVisible="{Binding HasIncompatibleArtifactsForProvider}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <PathIcon Data="{StaticResource ErrorIcon}" Width="14" Height="14" Foreground="#FF6666" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding IncompatibleArtifactsWarningMessage}" FontSize="11" Foreground="#FFCCCC" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Breakdown counters -->
+                                    <Grid ColumnDefinitions="*,*,*">
+                                        <!-- Pending local uploads -->
+                                        <Border Grid.Column="0" Background="#10FFFFFF" CornerRadius="4" Padding="8,6" Margin="0,0,4,0">
+                                            <StackPanel>
+                                                <TextBlock Text="Local Files to Upload" FontSize="10" Foreground="#AAAAAA"/>
+                                                <TextBlock Text="{Binding PendingArtifactsCount}" FontSize="14" FontWeight="Bold" Foreground="#FFBB00"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- External CDN / Direct URLs -->
+                                        <Border Grid.Column="1" Background="#10FFFFFF" CornerRadius="4" Padding="8,6" Margin="2,0,2,0">
+                                            <StackPanel>
+                                                <TextBlock Text="External CDN (Preserved)" FontSize="10" Foreground="#AAAAAA"/>
+                                                <TextBlock Text="{Binding ExternalCdnArtifactsCount}" FontSize="14" FontWeight="Bold" Foreground="#64B5F6"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Catalog Manifests -->
+                                        <Border Grid.Column="2" Background="#10FFFFFF" CornerRadius="4" Padding="8,6" Margin="4,0,0,0">
+                                            <StackPanel>
+                                                <TextBlock Text="Catalogs &amp; Definition" FontSize="10" Foreground="#AAAAAA"/>
+                                                <TextBlock Text="{Binding CatalogStatuses.Count, StringFormat='{}{0} Catalogs'}" FontSize="14" FontWeight="Bold" Foreground="#40FF40"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Publish Button -->
                             <Button Command="{Binding PublishAllCatalogsCommand}"
                                     Classes="primary-btn"
                                     IsEnabled="{Binding !IsUploading}"
                                     HorizontalAlignment="Stretch">
                                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                                     <PathIcon Data="{StaticResource PublishIcon}" Width="16" Height="16" Foreground="White"/>
-                                    <TextBlock Text="Publish All Catalogs &amp; Update Definition" FontSize="14"/>
+                                    <TextBlock Text="{Binding PublishButtonText}" FontSize="14" FontWeight="SemiBold"/>
                                 </StackPanel>
                             </Button>
                         </StackPanel>

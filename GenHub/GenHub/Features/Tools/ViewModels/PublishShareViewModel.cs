@@ -150,6 +150,74 @@ public partial class PublishShareViewModel : ObservableObject
     public bool ShowDropboxTokenInput => SelectedHostingProvider?.ProviderId == HostingConstants.Dropbox && !IsProviderAuthenticated;
 
     /// <summary>
+    /// Gets the text to display on the primary connect button.
+    /// </summary>
+    public string ConnectButtonText => SelectedHostingProvider != null
+        ? $"Connect to {SelectedHostingProvider.DisplayName}"
+        : "Connect Provider";
+
+    /// <summary>
+    /// Gets the text to display on the primary publish button.
+    /// </summary>
+    public string PublishButtonText => SelectedHostingProvider != null
+        ? $"Publish to {SelectedHostingProvider.DisplayName}"
+        : "Publish All Catalogs & Update Definition";
+
+    /// <summary>
+    /// Gets the human-readable description of where files will be uploaded.
+    /// </summary>
+    public string TargetDestinationDescription
+    {
+        get
+        {
+            if (SelectedHostingProvider == null)
+            {
+                return "No hosting provider selected";
+            }
+
+            return SelectedHostingProvider.ProviderId switch
+            {
+                HostingConstants.GoogleDrive => "Your Google Drive (inside 'GenHub-Publishing' folder)",
+                HostingConstants.Dropbox => "Your Dropbox account (inside '/Apps/GenHub/' app folder)",
+                HostingConstants.GitHub => "Your GitHub Gists (manifests & definitions only; binaries require CDN URLs)",
+                _ => SelectedHostingProvider.DisplayName,
+            };
+        }
+    }
+
+    /// <summary>
+    /// Gets the count of pending local artifacts awaiting upload.
+    /// </summary>
+    public int PendingArtifactsCount => _project.Catalogs
+        .SelectMany(c => c.Catalog.Content)
+        .SelectMany(c => c.Releases)
+        .SelectMany(r => r.Artifacts)
+        .Count(a => !string.IsNullOrEmpty(a.LocalFilePath) && string.IsNullOrEmpty(a.DownloadUrl));
+
+    /// <summary>
+    /// Gets the count of artifacts served via external CDN or direct download links.
+    /// </summary>
+    public int ExternalCdnArtifactsCount => _project.Catalogs
+        .SelectMany(c => c.Catalog.Content)
+        .SelectMany(c => c.Releases)
+        .SelectMany(r => r.Artifacts)
+        .Count(a => !string.IsNullOrEmpty(a.DownloadUrl) && !IsCloudProviderUrl(a.DownloadUrl));
+
+    /// <summary>
+    /// Gets a value indicating whether the selected provider cannot host binary artifacts but the project has pending local artifacts.
+    /// </summary>
+    public bool HasIncompatibleArtifactsForProvider =>
+        SelectedHostingProvider != null &&
+        !SelectedHostingProvider.SupportsArtifactHosting &&
+        PendingArtifactsCount > 0;
+
+    /// <summary>
+    /// Gets an explanatory warning message when the provider cannot host the pending local files.
+    /// </summary>
+    public string IncompatibleArtifactsWarningMessage =>
+        $"{SelectedHostingProvider?.DisplayName ?? "This provider"} only hosts catalog metadata (JSON). Your project has {PendingArtifactsCount} local file(s) pending upload. Either provide direct CDN URLs for those files, or switch to Google Drive or Dropbox to host binary archives.";
+
+    /// <summary>
     /// Gets the available catalogs in the project.
     /// </summary>
     public ObservableCollection<NamedCatalog> AvailableCatalogs { get; } = new();
@@ -289,6 +357,11 @@ public partial class PublishShareViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowGitHubPatInput));
         OnPropertyChanged(nameof(ShowGoogleOAuthButton));
         OnPropertyChanged(nameof(ShowDropboxTokenInput));
+        OnPropertyChanged(nameof(ConnectButtonText));
+        OnPropertyChanged(nameof(PublishButtonText));
+        OnPropertyChanged(nameof(TargetDestinationDescription));
+        OnPropertyChanged(nameof(HasIncompatibleArtifactsForProvider));
+        OnPropertyChanged(nameof(IncompatibleArtifactsWarningMessage));
 
         if (value == null) return;
 
@@ -422,6 +495,12 @@ public partial class PublishShareViewModel : ObservableObject
         // Save token to hosting state for persistence
         await SaveAuthTokenAsync();
 
+        OnPropertyChanged(nameof(IsProviderAuthenticated));
+        OnPropertyChanged(nameof(NeedsAuthentication));
+        OnPropertyChanged(nameof(ConnectButtonText));
+        OnPropertyChanged(nameof(PublishButtonText));
+        OnPropertyChanged(nameof(TargetDestinationDescription));
+
         _notificationService?.ShowSuccess(
             "Connected",
             $"Successfully connected to {SelectedHostingProvider?.DisplayName ?? "Provider"}. You can now publish your catalog.",
@@ -445,6 +524,11 @@ public partial class PublishShareViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowGitHubPatInput));
         OnPropertyChanged(nameof(ShowGoogleOAuthButton));
         OnPropertyChanged(nameof(ShowDropboxTokenInput));
+        OnPropertyChanged(nameof(ConnectButtonText));
+        OnPropertyChanged(nameof(PublishButtonText));
+        OnPropertyChanged(nameof(TargetDestinationDescription));
+        OnPropertyChanged(nameof(HasIncompatibleArtifactsForProvider));
+        OnPropertyChanged(nameof(IncompatibleArtifactsWarningMessage));
     }
 
     /// <summary>
@@ -471,6 +555,9 @@ public partial class PublishShareViewModel : ObservableObject
             OnPropertyChanged(nameof(ShowGitHubPatInput));
             OnPropertyChanged(nameof(ShowGoogleOAuthButton));
             OnPropertyChanged(nameof(ShowDropboxTokenInput));
+            OnPropertyChanged(nameof(ConnectButtonText));
+            OnPropertyChanged(nameof(PublishButtonText));
+            OnPropertyChanged(nameof(TargetDestinationDescription));
 
             _logger.LogInformation("Signed out from {Provider}", SelectedHostingProvider.DisplayName);
         }
@@ -500,6 +587,11 @@ public partial class PublishShareViewModel : ObservableObject
                 }
             }
         }
+
+        OnPropertyChanged(nameof(PendingArtifactsCount));
+        OnPropertyChanged(nameof(ExternalCdnArtifactsCount));
+        OnPropertyChanged(nameof(HasIncompatibleArtifactsForProvider));
+        OnPropertyChanged(nameof(IncompatibleArtifactsWarningMessage));
     }
 
     private async Task LoadHostingStateAsync()
@@ -738,6 +830,13 @@ public partial class PublishShareViewModel : ObservableObject
         if (SelectedHostingProvider == null)
         {
             UploadStatusMessage = "Please select a hosting provider";
+            return;
+        }
+
+        if (HasIncompatibleArtifactsForProvider)
+        {
+            UploadStatusMessage = IncompatibleArtifactsWarningMessage;
+            _notificationService?.ShowError("Incompatible Provider", IncompatibleArtifactsWarningMessage);
             return;
         }
 
@@ -1127,6 +1226,9 @@ public partial class PublishShareViewModel : ObservableObject
             OnPropertyChanged(nameof(ShowGitHubPatInput));
             OnPropertyChanged(nameof(ShowGoogleOAuthButton));
             OnPropertyChanged(nameof(ShowDropboxTokenInput));
+            OnPropertyChanged(nameof(ConnectButtonText));
+            OnPropertyChanged(nameof(PublishButtonText));
+            OnPropertyChanged(nameof(TargetDestinationDescription));
         }
         catch (Exception ex)
         {
@@ -1506,7 +1608,19 @@ public partial class PublishShareViewModel : ObservableObject
     [RelayCommand]
     private async Task PublishAllCatalogsAsync()
     {
-        if (SelectedHostingProvider == null || !IsValid)
+        if (SelectedHostingProvider == null)
+        {
+            return;
+        }
+
+        if (HasIncompatibleArtifactsForProvider)
+        {
+            UploadStatusMessage = IncompatibleArtifactsWarningMessage;
+            _notificationService?.ShowError("Incompatible Provider", IncompatibleArtifactsWarningMessage);
+            return;
+        }
+
+        if (!IsValid)
         {
             return;
         }
