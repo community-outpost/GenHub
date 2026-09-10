@@ -23,6 +23,21 @@ namespace GenHub.Features.Tools.ViewModels;
 /// </summary>
 public partial class PublisherStudioViewModel : ObservableObject
 {
+    /// <summary>Tab index for the Profile tab.</summary>
+    public const int TabProfile = 0;
+
+    /// <summary>Tab index for the Catalogs tab.</summary>
+    public const int TabCatalogs = 1;
+
+    /// <summary>Tab index for the Hosting &amp; Storage tab.</summary>
+    public const int TabHostingStorage = 2;
+
+    /// <summary>Tab index for the Referrals tab.</summary>
+    public const int TabReferrals = 3;
+
+    /// <summary>Tab index for the Publish &amp; Share tab.</summary>
+    public const int TabPublishShare = 4;
+
     private readonly string _settingsPath;
     private readonly IConfigurationProviderService? _configurationProvider;
     private readonly ILogger<PublisherStudioViewModel> _logger;
@@ -95,6 +110,7 @@ public partial class PublisherStudioViewModel : ObservableObject
     /// <param name="hostingStateManager">The hosting state manager.</param>
     /// <param name="notificationService">The notification service.</param>
     /// <param name="configurationProvider">The configuration provider service.</param>
+    /// <param name="autoInitialize">Whether to automatically initialize the project on creation.</param>
     public PublisherStudioViewModel(
         ILogger<PublisherStudioViewModel> logger,
         IPublisherStudioService publisherStudioService,
@@ -102,7 +118,8 @@ public partial class PublisherStudioViewModel : ObservableObject
         IHostingProviderFactory? hostingProviderFactory = null,
         IHostingStateManager? hostingStateManager = null,
         INotificationService? notificationService = null,
-        IConfigurationProviderService? configurationProvider = null)
+        IConfigurationProviderService? configurationProvider = null,
+        bool autoInitialize = true)
     {
         _logger = logger;
         _publisherStudioService = publisherStudioService;
@@ -116,8 +133,11 @@ public partial class PublisherStudioViewModel : ObservableObject
             "GenHub",
             "publisher_studio_settings.json");
 
-        // Initialize: auto-load last project or create a default one
-        _ = InitializeAsync();
+        if (autoInitialize)
+        {
+            // Initialize: auto-load last project or create a default one
+            _ = InitializeAsync();
+        }
     }
 
     /// <summary>
@@ -210,7 +230,7 @@ public partial class PublisherStudioViewModel : ObservableObject
     partial void OnSelectedTabIndexChanged(int value)
     {
         OnPropertyChanged(nameof(ShouldShowSetupOverlay));
-        if (value is 2 or 4 && PublishShareViewModel != null)
+        if (value is TabHostingStorage or TabPublishShare && PublishShareViewModel != null)
         {
             PublishShareViewModel.RefreshUploadHierarchy();
             PublishShareViewModel.RefreshHostedAssets();
@@ -439,6 +459,7 @@ public partial class PublisherStudioViewModel : ObservableObject
         SelectedCatalog = newCatalog;
         MarkDirty();
         OnPropertyChanged(nameof(CanRemoveCatalog));
+        PublishShareViewModel?.SyncAvailableCatalogs();
         _logger.LogInformation("Added new catalog: {CatalogId}", newId);
     }
 
@@ -471,6 +492,7 @@ public partial class PublisherStudioViewModel : ObservableObject
         SelectedCatalog = Catalogs.FirstOrDefault();
         MarkDirty();
         OnPropertyChanged(nameof(CanRemoveCatalog));
+        PublishShareViewModel?.SyncAvailableCatalogs();
         _logger.LogInformation("Removed catalog: {CatalogId}", catalog.Id);
     }
 
@@ -500,6 +522,7 @@ public partial class PublisherStudioViewModel : ObservableObject
         }
 
         MarkDirty();
+        PublishShareViewModel?.SyncAvailableCatalogs();
         await SaveProjectAsync();
         StatusMessage = $"Renamed catalog to '{target.Name}'";
         _logger.LogInformation("Renamed catalog to {CatalogName} ({CatalogId})", target.Name, target.Id);

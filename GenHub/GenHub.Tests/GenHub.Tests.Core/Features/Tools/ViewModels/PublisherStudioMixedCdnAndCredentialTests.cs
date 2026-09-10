@@ -1,4 +1,3 @@
-using System;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Notifications;
@@ -13,7 +12,6 @@ using GenHub.Features.Tools.ViewModels.Dialogs;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
-using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Tools.ViewModels;
 
@@ -92,8 +90,6 @@ public class PublisherStudioMixedCdnAndCredentialTests
         var cdnStatus = new ArtifactUrlStatus(cdnArtifact, "Test Content", "1.0.0");
         Assert.True(cdnStatus.IsExternalCdn);
         Assert.False(cdnStatus.IsPendingUpload);
-
-        cdnStatus.Validate();
         Assert.Contains("External CDN", cdnStatus.StatusMessage);
 
         var tempFile = System.IO.Path.GetTempFileName();
@@ -105,11 +101,7 @@ public class PublisherStudioMixedCdnAndCredentialTests
                 DownloadUrl = string.Empty,
                 LocalFilePath = tempFile,
             };
-            var pendingStatus = new ArtifactUrlStatus(pendingArtifact, "Test Content", "1.0.0")
-            {
-                HasLocalFile = true,
-                LocalFilePath = tempFile,
-            };
+            var pendingStatus = new ArtifactUrlStatus(pendingArtifact, "Test Content", "1.0.0");
             Assert.False(pendingStatus.IsExternalCdn);
             Assert.True(pendingStatus.IsPendingUpload);
 
@@ -170,7 +162,7 @@ public class PublisherStudioMixedCdnAndCredentialTests
         };
 
         // Act
-        vm.SelectedContentType = ContentType.GameClient;
+        vm.SelectedContentType = GenHub.Core.Models.Enums.ContentType.GameClient;
 
         // Assert
         Assert.True(vm.IsGameClientType);
@@ -281,15 +273,16 @@ public class PublisherStudioMixedCdnAndCredentialTests
         mockGithub.Setup(p => p.ProviderId).Returns(HostingConstants.GitHub);
         vm.SelectedHostingProvider = mockGithub.Object;
         Assert.Contains("GitHub Gists", vm.TargetDestinationDescription);
-        Assert.Contains("GitHub Gists", vm.TargetDestinationDescription);
+        Assert.Contains("manifests", vm.TargetDestinationDescription);
     }
 
     /// <summary>
     /// Tests that HasIncompatibleArtifactsForProvider flags incompatible metadata-only providers
     /// when pending local files require artifact hosting.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public void IncompatibleArtifacts_FlaggedWhenBinaryHostingNotSupported()
+    public async Task IncompatibleArtifacts_FlaggedWhenBinaryHostingNotSupported()
     {
         var project = new PublisherStudioProject();
         var namedCatalog = new NamedCatalog { Name = "Main Catalog" };
@@ -338,7 +331,7 @@ public class PublisherStudioMixedCdnAndCredentialTests
         Assert.Contains("GitHub Gists only hosts catalog metadata", vm.IncompatibleArtifactsWarningMessage);
 
         // PublishAllCatalogsCommand should block publish and show notification
-        vm.PublishAllCatalogsCommand.Execute(null);
+        await vm.PublishAllCatalogsCommand.ExecuteAsync(null);
         _mockNotificationService.Verify(n => n.ShowError("Incompatible Provider", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
     }
 }

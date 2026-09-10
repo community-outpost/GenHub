@@ -14,9 +14,4 @@ public class CatalogHostingInfo : HostedFileInfo
     /// Gets or sets the catalog display name.
     /// </summary>
     public string CatalogName { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Gets or sets the file name of the catalog.
-    /// </summary>
-    public string FileName { get; set; } = string.Empty;
 }

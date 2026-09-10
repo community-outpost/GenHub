@@ -313,7 +313,10 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
             using var doc = JsonDocument.Parse(content);
-            var entries = doc.RootElement.GetProperty("entries");
+            if (!doc.RootElement.TryGetProperty("entries", out var entries))
+            {
+                return OperationResult<HostingState?>.CreateFailure("Dropbox list_folder response missing entries property.");
+            }
 
             var state = new HostingState
             {
@@ -325,6 +328,42 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             foreach (var entry in entries.EnumerateArray())
             {
                 await ProcessDropboxEntryAsync(entry, state, cancellationToken).ConfigureAwait(false);
+            }
+
+            var hasMore = doc.RootElement.TryGetProperty("has_more", out var hasMoreProp) && hasMoreProp.GetBoolean();
+            var cursor = doc.RootElement.TryGetProperty("cursor", out var cursorProp) ? cursorProp.GetString() : null;
+
+            while (hasMore && !string.IsNullOrEmpty(cursor))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var continueArgs = new { cursor };
+                using var continueRequest = new HttpRequestMessage(HttpMethod.Post, $"{DropboxApiUrl}/files/list_folder/continue");
+                continueRequest.Content = new StringContent(
+                    JsonSerializer.Serialize(continueArgs),
+                    Encoding.UTF8,
+                    HostingConstants.JsonContentType);
+
+                using var continueResponse = await _httpClient.SendAsync(continueRequest, cancellationToken);
+                if (!continueResponse.IsSuccessStatusCode)
+                {
+                    var continueError = await continueResponse.Content.ReadAsStringAsync(cancellationToken);
+                    logger.LogWarning("Dropbox list_folder/continue failed: {Error}", continueError);
+                    break;
+                }
+
+                var continueContent = await continueResponse.Content.ReadAsStringAsync(cancellationToken);
+                using var continueDoc = JsonDocument.Parse(continueContent);
+                if (continueDoc.RootElement.TryGetProperty("entries", out var continueEntries))
+                {
+                    foreach (var entry in continueEntries.EnumerateArray())
+                    {
+                        await ProcessDropboxEntryAsync(entry, state, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+
+                hasMore = continueDoc.RootElement.TryGetProperty("has_more", out var nextHasMore) && nextHasMore.GetBoolean();
+                cursor = continueDoc.RootElement.TryGetProperty("cursor", out var nextCursor) ? nextCursor.GetString() : null;
             }
 
             return OperationResult<HostingState?>.CreateSuccess(state);
@@ -428,20 +467,21 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         HostingState state,
         CancellationToken cancellationToken)
     {
-        var tag = entry.GetProperty(".tag").GetString();
-        if (tag != "file")
+        if (!entry.TryGetProperty(".tag", out var tagProp) || tagProp.GetString() != "file")
         {
             return;
         }
 
-        var fileName = entry.GetProperty("name").GetString() ?? string.Empty;
-        var fileId = entry.GetProperty("id").GetString() ?? string.Empty;
-        var fileSize = entry.GetProperty("size").GetInt64();
-        var pathLower = entry.GetProperty("path_lower").GetString() ?? $"{PublisherFolderPath}/{fileName}".ToLowerInvariant();
+        var fileName = entry.TryGetProperty("name", out var nameProp) ? nameProp.GetString() ?? string.Empty : string.Empty;
+        var fileId = entry.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? string.Empty : string.Empty;
+        var fileSize = entry.TryGetProperty("size", out var sizeProp) && sizeProp.TryGetInt64(out var size) ? size : 0L;
+        var pathLower = entry.TryGetProperty("path_lower", out var pathLowerProp)
+            ? pathLowerProp.GetString() ?? $"{PublisherFolderPath}/{fileName}".ToLowerInvariant()
+            : $"{PublisherFolderPath}/{fileName}".ToLowerInvariant();
 
-        // Get or create shared link for this file
-        var linkResult = await CreateSharedLinkAsync(pathLower, cancellationToken).ConfigureAwait(false);
-        var directUrl = linkResult.Success ? ConvertToDirectDownloadUrl(linkResult.Data) : string.Empty;
+        // Check for existing shared link without creating a new public link for unshared files during scan/recovery
+        var linkResult = await TryGetExistingSharedLinkAsync(pathLower, cancellationToken).ConfigureAwait(false);
+        var directUrl = (linkResult is { Success: true, Data: not null }) ? ConvertToDirectDownloadUrl(linkResult.Data) : string.Empty;
 
         if (fileName.Equals("publisher.json", StringComparison.OrdinalIgnoreCase))
         {

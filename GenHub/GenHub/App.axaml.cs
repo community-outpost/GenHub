@@ -135,7 +135,7 @@ public partial class App : Application
     {
         var sanitizedUrl = subscriptionUrl.Replace("\r", string.Empty).Replace("\n", string.Empty).Trim('"', '\'', ' ', '\t');
         if (!Uri.TryCreate(sanitizedUrl, UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            uri.Scheme != Uri.UriSchemeHttps)
         {
             logger?.LogWarning("Invalid or unsafe subscription URL: {Url}", subscriptionUrl);
             return null;

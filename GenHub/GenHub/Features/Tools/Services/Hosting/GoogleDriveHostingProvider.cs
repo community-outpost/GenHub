@@ -23,14 +23,16 @@ namespace GenHub.Features.Tools.Services.Hosting;
 /// Hosting provider for Google Drive.
 /// Enables publishers to host catalogs and artifacts on Google Drive using OAuth 2.0.
 /// </summary>
-public class GoogleDriveHostingProvider : IHostingProvider
+public class GoogleDriveHostingProvider(
+    ILogger<GoogleDriveHostingProvider> logger,
+    IConfigurationProviderService? configurationProvider = null) : IHostingProvider
 {
     private const string ApplicationName = "GenHub Publisher Studio";
     private const string PublisherFolderName = "GenHub_Publisher";
     private static readonly string[] Scopes = [DriveService.Scope.DriveFile];
 
-    private readonly ILogger<GoogleDriveHostingProvider> _logger;
-    private readonly IConfigurationProviderService? _configurationProvider;
+    private readonly ILogger<GoogleDriveHostingProvider> _logger = logger;
+    private readonly IConfigurationProviderService? _configurationProvider = configurationProvider;
     private DriveService? _driveService;
 
     /// <summary>
@@ -76,19 +78,6 @@ public class GoogleDriveHostingProvider : IHostingProvider
     public bool SupportsUpdate => true;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="GoogleDriveHostingProvider"/> class.
-    /// </summary>
-    /// <param name="logger">The logger instance.</param>
-    /// <param name="configurationProvider">Optional configuration provider service for application data path resolution.</param>
-    public GoogleDriveHostingProvider(
-        ILogger<GoogleDriveHostingProvider> logger,
-        IConfigurationProviderService? configurationProvider = null)
-    {
-        _logger = logger;
-        _configurationProvider = configurationProvider;
-    }
-
-    /// <summary>
     /// Authenticates with Google Drive using OAuth 2.0 authorization code flow.
     /// Opens the system browser for user consent.
     /// </summary>
@@ -113,15 +102,6 @@ public class GoogleDriveHostingProvider : IHostingProvider
                     "and paste your Client ID and Client Secret into the fields above.");
             }
 
-            // Reject web client secrets if user accidentally pasted Web application credentials
-            if (clientId.Contains("apps.googleusercontent.com", StringComparison.OrdinalIgnoreCase) &&
-                !string.IsNullOrEmpty(clientSecret) &&
-                clientSecret.StartsWith("GOCSPX-", StringComparison.OrdinalIgnoreCase))
-            {
-                // This is a typical Google OAuth client secret format
-                _logger.LogDebug("Client credentials format verified");
-            }
-
             var secrets = new ClientSecrets
             {
                 ClientId = clientId,
@@ -131,7 +111,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
             // Store credentials in the GenHub app data directory
             var baseDataPath = _configurationProvider?.GetApplicationDataPath()
                 ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".genhub");
-            var credPath = Path.Combine(baseDataPath, "google-drive-tokens");
+            var credPath = Path.Combine(baseDataPath, HostingConstants.GoogleDriveTokenDirectoryName);
 
             var dataStore = new FileDataStore(credPath, true);
 
@@ -151,11 +131,16 @@ public class GoogleDriveHostingProvider : IHostingProvider
             _logger.LogInformation("Successfully authenticated with Google Drive");
             return OperationResult<bool>.CreateSuccess(true);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogInformation("Google Drive authentication was canceled by user.");
+            throw;
+        }
         catch (OperationCanceledException ex)
         {
-            _logger.LogWarning(ex, "Google Drive authentication was canceled or timed out.");
+            _logger.LogWarning(ex, "Google Drive authentication timed out.");
             return OperationResult<bool>.CreateFailure(
-                "Google Drive authentication timed out or was canceled. " +
+                "Google Drive authentication timed out. " +
                 "If your browser displayed 'Error 400: redirect_uri_mismatch', your OAuth Client ID was created as a 'Web application' instead of a 'Desktop app'. " +
                 "In Google Cloud Console, delete this Client ID, create a new OAuth Client ID with Application type set to 'Desktop app', and try again.");
         }
@@ -163,17 +148,12 @@ public class GoogleDriveHostingProvider : IHostingProvider
         {
             _logger.LogError(ex, "Failed to authenticate with Google Drive");
             var errorMsg = ex.Message;
-
-            if (errorMsg.Contains("redirect_uri_mismatch", StringComparison.OrdinalIgnoreCase))
+            if (errorMsg.Contains("access_denied", StringComparison.OrdinalIgnoreCase))
             {
-                return OperationResult<bool>.CreateFailure(
-                    "Google OAuth Error (redirect_uri_mismatch): Your OAuth Client ID was created with Application type 'Web application'. " +
-                    "Desktop applications cannot use web application credentials. " +
-                    "Fix: In Google Cloud Console (APIs & Services -> Credentials), delete your current client ID, click 'Create Credentials' -> 'OAuth client ID', " +
-                    "select Application type 'Desktop app', and use the newly generated Client ID and Client Secret.");
+                errorMsg = "Access was denied. Please approve the requested permissions to allow GenHub to host your files.";
             }
 
-            return OperationResult<bool>.CreateFailure($"Failed to authenticate with Google Drive: {ex.Message}");
+            return OperationResult<bool>.CreateFailure($"Authentication failed: {errorMsg}");
         }
     }
 
@@ -231,7 +211,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
             {
                 uploadRequest.ProgressChanged += uploadProgress =>
                 {
-                    if (uploadProgress.Status == UploadStatus.Uploading)
+                    if (uploadProgress.Status == UploadStatus.Uploading && fileStream.CanSeek && fileStream.Length > 0)
                     {
                         var percentage = (int)((double)uploadProgress.BytesSent / fileStream.Length * 100);
                         progress.Report(percentage);
@@ -263,7 +243,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
                 FileId = uploadedFile.Id,
                 PublicUrl = uploadedFile.WebViewLink ?? directDownloadUrl,
                 DirectDownloadUrl = directDownloadUrl,
-                FileSize = uploadedFile.Size ?? fileStream.Length,
+                FileSize = uploadedFile.Size ?? (fileStream.CanSeek ? fileStream.Length : 0),
             });
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -272,7 +252,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error uploading {FileName} to Google Drive", fileName);
+            _logger.LogError(ex, "Failed to upload {FileName} to Google Drive", fileName);
             return OperationResult<HostingUploadResult>.CreateFailure($"Upload error: {ex.Message}");
         }
     }
@@ -317,7 +297,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
             {
                 updateRequest.ProgressChanged += uploadProgress =>
                 {
-                    if (uploadProgress.Status == UploadStatus.Uploading)
+                    if (uploadProgress.Status == UploadStatus.Uploading && fileStream.CanSeek && fileStream.Length > 0)
                     {
                         var percentage = (int)((double)uploadProgress.BytesSent / fileStream.Length * 100);
                         progress.Report(percentage);
@@ -339,14 +319,14 @@ public class GoogleDriveHostingProvider : IHostingProvider
 
             var directDownloadUrl = string.Format(
                 HostingConstants.GoogleDriveDownloadUrlTemplate,
-                fileId);
+                updatedFile.Id);
 
             return OperationResult<HostingUploadResult>.CreateSuccess(new HostingUploadResult
             {
-                FileId = fileId,
+                FileId = updatedFile.Id,
                 PublicUrl = updatedFile.WebViewLink ?? directDownloadUrl,
                 DirectDownloadUrl = directDownloadUrl,
-                FileSize = updatedFile.Size ?? fileStream.Length,
+                FileSize = updatedFile.Size ?? (fileStream.CanSeek ? fileStream.Length : 0),
             });
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -355,7 +335,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating file {FileId} on Google Drive", fileId);
+            _logger.LogError(ex, "Failed to update file {FileId} on Google Drive", fileId);
             return OperationResult<HostingUploadResult>.CreateFailure($"Update error: {ex.Message}");
         }
     }
@@ -422,13 +402,18 @@ public class GoogleDriveHostingProvider : IHostingProvider
 
         try
         {
-            var folderResult = await GetOrCreatePublisherFolderAsync(cancellationToken);
-            if (!folderResult.Success)
+            var listFolderRequest = _driveService.Files.List();
+            listFolderRequest.Q = $"name = '{PublisherFolderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
+            listFolderRequest.Fields = "files(id, name)";
+
+            var folderListResult = await listFolderRequest.ExecuteAsync(cancellationToken);
+            var existingFolder = folderListResult.Files?.FirstOrDefault();
+            if (existingFolder == null)
             {
-                return OperationResult<HostingState?>.CreateFailure(folderResult);
+                return OperationResult<HostingState?>.CreateSuccess(null);
             }
 
-            var folderId = folderResult.Data;
+            var folderId = existingFolder.Id;
             var listRequest = _driveService.Files.List();
             listRequest.Q = $"'{folderId}' in parents and trashed = false";
             listRequest.Fields = "files(id, name, size, modifiedTime, webViewLink)";
@@ -479,7 +464,8 @@ public class GoogleDriveHostingProvider : IHostingProvider
             return false;
         }
 
-        return url.Contains("drive.google.com", StringComparison.OrdinalIgnoreCase);
+        return url.Contains("drive.google.com", StringComparison.OrdinalIgnoreCase) ||
+               url.Contains("docs.google.com", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <inheritdoc />

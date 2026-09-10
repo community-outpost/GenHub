@@ -73,7 +73,7 @@
                 <StackPanel Spacing="6">
                     <StackPanel Orientation="Horizontal" Spacing="4">
                         <TextBlock Text="Content Name" Classes="label"/>
-                        <TextBlock Text="*" Foreground="#FF5555"/>
+                        <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                     </StackPanel>
                     <TextBox Text="{Binding ContentName}" Watermark="e.g. Generals Online, Modern Wars"/>
                     <Button Content="Use Suggested ID"
@@ -91,7 +91,7 @@
                 <StackPanel Spacing="6">
                     <StackPanel Orientation="Horizontal" Spacing="4">
                         <TextBlock Text="Content ID" Classes="label"/>
-                        <TextBlock Text="*" Foreground="#FF5555"/>
+                        <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                     </StackPanel>
                     <TextBox Text="{Binding ContentId}" Watermark="e.g. generals-online"
                              IsReadOnly="{Binding IsEditMode}"/>
@@ -128,7 +128,7 @@
                 <StackPanel Spacing="6">
                     <StackPanel Orientation="Horizontal" Spacing="4">
                         <TextBlock Text="Description" Classes="label"/>
-                        <TextBlock Text="*" Foreground="#FF5555"/>
+                        <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                     </StackPanel>
                     <TextBox Text="{Binding Description}"
                              TextWrapping="Wrap"
@@ -170,11 +170,11 @@
                             </Grid>
 
                             <!-- GameClient CDN Recommendation Banner -->
-                            <Border Background="#1A64B5F6" BorderBrush="#3364B5F6" BorderThickness="1" CornerRadius="6" Padding="10,8" IsVisible="{Binding IsGameClientType}">
+                            <Border Background="{DynamicResource StatusInfoBadgeBackgroundBrush}" BorderBrush="{DynamicResource StatusInfoBrush}" BorderThickness="1" CornerRadius="6" Padding="10,8" IsVisible="{Binding IsGameClientType}">
                                 <Grid ColumnDefinitions="Auto,*">
-                                    <PathIcon Data="{StaticResource GamepadIcon}" Width="14" Height="14" Foreground="#64B5F6" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <PathIcon Data="{StaticResource GamepadIcon}" Width="14" Height="14" Foreground="{DynamicResource StatusInfoBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBlock Grid.Column="1" Text="Game clients and standalone base packages are typically large and distributed via external CDNs or high-speed mirrors. Use Direct Download URL to point players to your CDN without re-uploading."
-                                               FontSize="11" Foreground="#90CAF9" TextWrapping="Wrap"/>
+                                               FontSize="11" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap"/>
                                 </Grid>
                             </Border>
 
@@ -193,6 +193,7 @@
                             <StackPanel Spacing="4" IsVisible="{Binding UseDirectUrl}">
                                 <TextBlock Text="Download URL" Classes="label"/>
                                 <TextBox Text="{Binding DownloadUrl, Mode=TwoWay}"
+                                         AutomationProperties.Name="Download URL"
                                          Watermark="https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip"/>
                                 <TextBlock Text="Direct URL where players download this package (Google Drive, CDN, GitHub, etc.)" Classes="hint"/>
                             </StackPanel>
@@ -228,7 +229,7 @@
         <!-- Footer -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="16" HorizontalAlignment="Right">
             <TextBlock Text="{Binding ValidationError}"
-                       Foreground="#FF5555"
+                       Foreground="{DynamicResource StatusErrorBrush}"
                        VerticalAlignment="Center"
                        TextWrapping="Wrap"
                        MaxWidth="300"/>

@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using GenHub.Core.Constants;
 
 namespace GenHub.Features.Tools.ViewModels;
 
@@ -65,20 +66,20 @@ public partial class UploadArtifactNodeViewModel : ObservableObject
         {
             if (IsExternalCdn)
             {
-                return "External CDN";
+                return HostingConstants.StatusExternalCdn;
             }
 
             if (IsCloudHosted)
             {
-                return "Cloud Hosted";
+                return HostingConstants.StatusCloudHosted;
             }
 
             if (IsPendingUpload)
             {
-                return "Pending Upload";
+                return HostingConstants.StatusPendingUpload;
             }
 
-            return HasUrl ? "Hosted" : "No File / URL";
+            return HasUrl ? HostingConstants.StatusCloudHosted : HostingConstants.StatusNoFileOrUrl;
         }
     }
 }

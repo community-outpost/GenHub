@@ -113,6 +113,7 @@
     <Color x:Key="SuccessColor">#10B981</Color>
     <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}" />
     <SolidColorBrush x:Key="StatusSuccessBrush" Color="{StaticResource SuccessColor}" />
+    <SolidColorBrush x:Key="StatusSuccessBadgeBackgroundBrush" Color="#2010B981" />
 
     <!-- Status Tokens: Warning -->
     <Color x:Key="WarningColor">#FFA500</Color>
@@ -120,11 +121,18 @@
     <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" />
     <SolidColorBrush x:Key="WarningHighlightBrush" Color="{StaticResource WarningHighlightColor}" />
     <SolidColorBrush x:Key="WarningForegroundBrush" Color="{StaticResource SurfaceBackgroundDark}" />
+    <SolidColorBrush x:Key="StatusWarningBadgeBackgroundBrush" Color="#20FFA500" />
 
     <!-- Status Tokens: Error -->
     <Color x:Key="ErrorColor">#EF4444</Color>
     <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}" />
     <SolidColorBrush x:Key="StatusErrorBrush" Color="{StaticResource ErrorColor}" />
+    <SolidColorBrush x:Key="StatusErrorBadgeBackgroundBrush" Color="#20EF4444" />
+
+    <!-- Status Tokens: Info -->
+    <Color x:Key="StatusInfoColor">#3B82F6</Color>
+    <SolidColorBrush x:Key="StatusInfoBrush" Color="{StaticResource StatusInfoColor}" />
+    <SolidColorBrush x:Key="StatusInfoBadgeBackgroundBrush" Color="#203B82F6" />
 
     <!-- Gradients and UI Elements -->
     <Color x:Key="PrimaryGradientStart">#E040FB</Color>
@@ -134,56 +142,50 @@
         <GradientStop Color="{StaticResource PrimaryGradientEnd}" Offset="1" />
     </LinearGradientBrush>
 
-    <Color x:Key="CheckBoxCheckedColor">#AA00FF</Color>
-    <SolidColorBrush x:Key="CheckBoxCheckedBrush" Color="{StaticResource CheckBoxCheckedColor}" />
-
-    <!-- ==================================================================== -->
-    <!-- 5. Compatibility / Legacy Colors & Brushes                           -->
-    <!-- ==================================================================== -->
-    <!-- Light theme colors -->
-    <Color x:Key="WindowBackgroundLight">#F7F7F9</Color>
-    <Color x:Key="TitleBarBackgroundLight">#EAEAEF</Color>
-    <Color x:Key="SidebarBackgroundLight">#F0F0F4</Color>
-    <Color x:Key="DetailsBackgroundLight">#FFFFFF</Color>
+    <!-- Unified Status Bar Colors -->
+    <!-- Light Mode: Subtle light grey background with refined border -->
     <Color x:Key="StatusBarBackgroundLight">#EAEAEF</Color>
-    <Color x:Key="TreeViewBackgroundLight">#FFFFFF</Color>
-    <Color x:Key="BorderBrushLight">#D0D0D8</Color>
-    <Color x:Key="ComboBoxBackgroundLight">#FFFFFF</Color>
-    <Color x:Key="TextBoxBackgroundLight">#FFFFFF</Color>
-    <Color x:Key="ButtonBackgroundLight">#F0F0F4</Color>
-    <Color x:Key="PrimaryButtonBackgroundLight">#A855F7</Color>
+    <Color x:Key="StatusBarBorderLight">#D5D5E0</Color>
+    <Color x:Key="StatusBarTextLight">#3C3C46</Color>
+    <Color x:Key="StatusBarTextMutedLight">#767682</Color>
+    <SolidColorBrush x:Key="StatusBarBackgroundLightBrush" Color="{StaticResource StatusBarBackgroundLight}" />
+    <SolidColorBrush x:Key="StatusBarBorderLightBrush" Color="{StaticResource StatusBarBorderLight}" />
+    <SolidColorBrush x:Key="StatusBarTextLightBrush" Color="{StaticResource StatusBarTextLight}" />
+    <SolidColorBrush x:Key="StatusBarTextMutedLightBrush" Color="{StaticResource StatusBarTextMutedLight}" />
 
-    <!-- Dark theme colors -->
-    <Color x:Key="WindowBackgroundDark">#08080C</Color>
-    <Color x:Key="TitleBarBackgroundDark">#08080C</Color>
-    <Color x:Key="SidebarBackgroundDark">#08080C</Color>
-    <Color x:Key="DetailsBackgroundDark">#181822</Color>
+    <!-- Dark Mode: Match SurfaceBackgroundDark for a borderless, grounded look -->
     <Color x:Key="StatusBarBackgroundDark">#08080C</Color>
-    <Color x:Key="TreeViewBackgroundDark">#111118</Color>
-    <Color x:Key="BorderBrushDark">#282838</Color>
-    <Color x:Key="ComboBoxBackgroundDark">#181822</Color>
-    <Color x:Key="TextBoxBackgroundDark">#181822</Color>
-    <Color x:Key="ButtonBackgroundDark">#181822</Color>
+    <Color x:Key="StatusBarBorderDark">#1A1A26</Color>
+    <Color x:Key="StatusBarTextDark">#CCCCCC</Color>
+    <Color x:Key="StatusBarTextMutedDark">#888896</Color>
+    <SolidColorBrush x:Key="StatusBarBackgroundDarkBrush" Color="{StaticResource StatusBarBackgroundDark}" />
+    <SolidColorBrush x:Key="StatusBarBorderDarkBrush" Color="{StaticResource StatusBarBorderDark}" />
+    <SolidColorBrush x:Key="StatusBarTextDarkBrush" Color="{StaticResource StatusBarTextDark}" />
+    <SolidColorBrush x:Key="StatusBarTextMutedDarkBrush" Color="{StaticResource StatusBarTextMutedDark}" />
 
-    <!-- Component Brushes -->
-    <SolidColorBrush x:Key="TitleBarBackground" Color="{DynamicResource TitleBarBackgroundDark}" />
-    <SolidColorBrush x:Key="TitleBarForeground" Color="#F0F0F8" />
-    <SolidColorBrush x:Key="SidebarBackground" Color="{DynamicResource SidebarBackgroundDark}" />
+    <!-- Semantic aliases (resolve to Dark values in dark theme context) -->
     <SolidColorBrush x:Key="StatusBarBackground" Color="{DynamicResource StatusBarBackgroundDark}" />
     <SolidColorBrush x:Key="StatusBarForeground" Color="#9A9AB0" />
-    <SolidColorBrush x:Key="EmptyStateForeground" Color="#9A9AB0" />
-    <SolidColorBrush x:Key="TreeViewBackground" Color="{DynamicResource TreeViewBackgroundDark}" />
-    <SolidColorBrush x:Key="ComboBoxBackground" Color="{DynamicResource ComboBoxBackgroundDark}" />
-    <SolidColorBrush x:Key="TextBoxBackground" Color="{DynamicResource TextBoxBackgroundDark}" />
-    <SolidColorBrush x:Key="ButtonBackground" Color="{DynamicResource ButtonBackgroundDark}" />
-    <SolidColorBrush x:Key="PrimaryButtonForeground" Color="White" />
+    <SolidColorBrush x:Key="StatusBarBorder" Color="{DynamicResource StatusBarBorderDark}" />
+    <SolidColorBrush x:Key="StatusBarItemHover" Color="#15FFFFFF" />
+
+    <!-- ==================================================================== -->
+    <!-- 5. Component Dimensions and Radii                                    -->
+    <!-- ==================================================================== -->
+    <CornerRadius x:Key="CardCornerRadius">12</CornerRadius>
+    <CornerRadius x:Key="InputCornerRadius">8</CornerRadius>
+    <CornerRadius x:Key="BadgeCornerRadius">6</CornerRadius>
+    <CornerRadius x:Key="ButtonCornerRadius">8</CornerRadius>
+    <Thickness x:Key="CardPadding">16</Thickness>
 
     <!-- ==================================================================== -->
     <!-- 6. StreamGeometry Icons                                              -->
     <!-- ==================================================================== -->
     <StreamGeometry x:Key="CheckmarkIcon">M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z</StreamGeometry>
     <StreamGeometry x:Key="WarningIcon">M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 12,2Z</StreamGeometry>
+    <StreamGeometry x:Key="InfoIcon">M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M13,17H11V11H13V17M13,9H11V7H13V9Z</StreamGeometry>
     <StreamGeometry x:Key="ConfirmationCheckIcon">M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z</StreamGeometry>
+    <StreamGeometry x:Key="CloudStorageIcon">M19.35,10.04C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.04C2.34,8.36 0,10.91 0,14C0,17.31 2.69,20 6,20H19C21.76,20 24,17.76 24,15C24,12.36 21.95,10.22 19.35,10.04Z</StreamGeometry>
     <StreamGeometry x:Key="WrenchIcon">M22.7,19L13.6,9.9C14.5,7.6 14,4.9 12.1,3C10.1,1 7.1,0.6 4.7,1.7L9,6L6,9L1.7,4.7C0.6,7.1 1,10.1 3,12.1C4.9,14 7.6,14.5 9.9,13.6L19,22.7L22.7,19Z</StreamGeometry>
     <StreamGeometry x:Key="PersonIcon">M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z</StreamGeometry>
     <StreamGeometry x:Key="PublishIcon">M5,4V6H19V4H5M5,14H9V20H15V14H19L12,7L5,14Z</StreamGeometry>

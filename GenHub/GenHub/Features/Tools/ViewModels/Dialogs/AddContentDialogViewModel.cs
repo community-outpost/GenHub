@@ -264,9 +264,13 @@ public partial class AddContentDialogViewModel : ObservableValidator
         OnPropertyChanged(nameof(CanExtend));
         OnPropertyChanged(nameof(ShowAddonParentSelection));
         OnPropertyChanged(nameof(IsGameClientType));
-        if (value == ContentType.GameClient && !UseDirectUrl)
+        if (value == ContentType.GameClient)
         {
             UseDirectUrl = true;
+            LocalFilePath = null;
+            FileSize = 0;
+            FileSizeDisplay = string.Empty;
+            Sha256Hash = null;
         }
     }
 

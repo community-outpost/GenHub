@@ -13,6 +13,11 @@ public class HostedFileInfo
     public string FileId { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets or sets the file name.
+    /// </summary>
+    public string FileName { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets or sets the public download URL for this file.
     /// </summary>
     public string Url { get; set; } = string.Empty;

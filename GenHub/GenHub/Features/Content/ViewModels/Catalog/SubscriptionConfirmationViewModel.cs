@@ -13,9 +13,7 @@ using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
-using GenHub.Core.Models.Publishers;
 using GenHub.Core.Models.Results;
-using GenHub.Core.Services.Publishers;
 using GenHub.Features.Content.Services.Catalog;
 using Microsoft.Extensions.Logging;
 

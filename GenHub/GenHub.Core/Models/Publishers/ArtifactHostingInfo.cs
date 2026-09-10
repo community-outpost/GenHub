@@ -21,11 +21,6 @@ public class ArtifactHostingInfo : HostedFileInfo
     public string Version { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the filename of the artifact.
-    /// </summary>
-    public string FileName { get; set; } = string.Empty;
-
-    /// <summary>
     /// Gets or sets the SHA256 checksum of the artifact.
     /// </summary>
     public string? Sha256 { get; set; }
