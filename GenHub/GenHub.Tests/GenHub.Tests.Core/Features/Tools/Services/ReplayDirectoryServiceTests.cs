@@ -2369,18 +2369,6 @@ public sealed class ReplayDirectoryServiceTests
         Assert.Equal(dotPrefixedExe, result);
     }
 
-    private static ReplayFile CreateTestReplayForPathResolution(string publisher) => new()
-    {
-        FileName = "Test.rep",
-        FullPath = "/replays/Test.rep",
-        SizeInBytes = 2048,
-        LastModified = DateTime.UtcNow,
-        GameVersion = GameType.ZeroHour,
-        MatchedClient = new CrcMappingEntry
-        {
-            Publisher = publisher,
-        },
-    };
     /// <summary>
     /// Verifies that profile creation initializes the dynamic installation CAS pool path for cross-drive compatibility.
     /// </summary>
@@ -2428,7 +2416,7 @@ public sealed class ReplayDirectoryServiceTests
 
         _mockCasPoolService
             .Setup(c => c.EnsurePoolPathAsync(It.IsAny<IReadOnlyList<GameInstallation>>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync(true);
 
         var service = new ReplayDirectoryService(
             _mockHeaderParser.Object,
@@ -2443,4 +2431,17 @@ public sealed class ReplayDirectoryServiceTests
             c => c.EnsurePoolPathAsync(It.Is<IReadOnlyList<GameInstallation>>(list => list.Contains(installation)), It.IsAny<CancellationToken>()),
             Times.Once);
     }
+
+    private static ReplayFile CreateTestReplayForPathResolution(string publisher) => new()
+    {
+        FileName = "Test.rep",
+        FullPath = "/replays/Test.rep",
+        SizeInBytes = 2048,
+        LastModified = DateTime.UtcNow,
+        GameVersion = GameType.ZeroHour,
+        MatchedClient = new CrcMappingEntry
+        {
+            Publisher = publisher,
+        },
+    };
 }

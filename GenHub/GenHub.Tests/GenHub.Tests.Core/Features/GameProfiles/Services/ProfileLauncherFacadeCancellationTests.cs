@@ -71,23 +71,6 @@ public class ProfileLauncherFacadeCancellationTests
         Assert.True(result.Failed);
     }
 
-    private ProfileLauncherFacade CreateFacade() => new(
-        _profileManagerMock.Object,
-        Mock.Of<IGameLauncher>(),
-        Mock.Of<IWorkspaceManager>(),
-        Mock.Of<ILaunchRegistry>(),
-        Mock.Of<IContentManifestPool>(),
-        Mock.Of<IGameInstallationService>(),
-        Mock.Of<IDependencyResolver>(),
-        Mock.Of<ICasService>(),
-        Mock.Of<IGameSettingsService>(),
-        Mock.Of<IStorageLocationService>(),
-        Mock.Of<INotificationService>(),
-        Mock.Of<IPublisherReconcilerRegistry>(),
-        Mock.Of<IConfigurationProviderService>(),
-        Mock.Of<IGameProcessManager>(),
-        Mock.Of<ISymlinkCapabilityProvider>(),
-        Mock.Of<ILogger<ProfileLauncherFacade>>());
     /// <summary>
     /// Verifies that LaunchProfileAsync initializes the dynamic installation CAS pool path when an installation is resolved.
     /// </summary>
@@ -104,8 +87,8 @@ public class ProfileLauncherFacadeCancellationTests
             Id = "profile-1",
             Name = "Profile 1",
             GameInstallationId = "install-1",
-            Client = new GameClient { Id = "client-1", WorkingDirectory = "/games/ZeroHour", ExecutablePath = "/games/ZeroHour/generals.exe" },
-            WorkspaceStrategy = WorkspaceStrategy.DynamicIsolated,
+            GameClient = new GameClient { Id = "client-1", WorkingDirectory = "/games/ZeroHour", ExecutablePath = "/games/ZeroHour/generals.exe" },
+            WorkspaceStrategy = WorkspaceStrategy.HardLink,
         };
 
         _profileManagerMock
@@ -120,7 +103,7 @@ public class ProfileLauncherFacadeCancellationTests
         var casPoolServiceMock = new Mock<IInstallationCasPoolService>();
         casPoolServiceMock
             .Setup(c => c.EnsurePoolPathAsync(It.IsAny<IReadOnlyList<GameInstallation>>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync(true);
 
         var facade = new ProfileLauncherFacade(
             _profileManagerMock.Object,
@@ -147,4 +130,22 @@ public class ProfileLauncherFacadeCancellationTests
             c => c.EnsurePoolPathAsync(It.Is<IReadOnlyList<GameInstallation>>(list => list.Contains(installation)), It.IsAny<CancellationToken>()),
             Times.AtLeastOnce);
     }
+
+    private ProfileLauncherFacade CreateFacade() => new(
+        _profileManagerMock.Object,
+        Mock.Of<IGameLauncher>(),
+        Mock.Of<IWorkspaceManager>(),
+        Mock.Of<ILaunchRegistry>(),
+        Mock.Of<IContentManifestPool>(),
+        Mock.Of<IGameInstallationService>(),
+        Mock.Of<IDependencyResolver>(),
+        Mock.Of<ICasService>(),
+        Mock.Of<IGameSettingsService>(),
+        Mock.Of<IStorageLocationService>(),
+        Mock.Of<INotificationService>(),
+        Mock.Of<IPublisherReconcilerRegistry>(),
+        Mock.Of<IConfigurationProviderService>(),
+        Mock.Of<IGameProcessManager>(),
+        Mock.Of<ISymlinkCapabilityProvider>(),
+        Mock.Of<ILogger<ProfileLauncherFacade>>());
 }
