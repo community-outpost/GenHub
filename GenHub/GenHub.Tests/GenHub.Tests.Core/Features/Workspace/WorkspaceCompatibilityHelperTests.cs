@@ -98,7 +98,7 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
 
         var manifest = new ContentManifest
         {
-            Id = "test.gameinstallation.zerohour",
+            Id = "1.104.ea.gameinstallation.zerohour",
             ContentType = ContentType.GameInstallation,
             Files =
             [
@@ -151,7 +151,7 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
 
         var manifest = new ContentManifest
         {
-            Id = "test.gameinstallation.zerohour",
+            Id = "1.104.ea.gameinstallation.zerohour",
             ContentType = ContentType.GameInstallation,
             Files =
             [
@@ -211,14 +211,15 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
     public void ResolveSourcePath_WithManifestSourcePath_UsesManifestDirectory()
     {
         // Arrange
+        const string manifestId = "1.0.test.gameclient.testclient";
         var file = new ManifestFile { RelativePath = "sub/test.exe" };
-        var manifest = new ContentManifest { Id = "test-id" };
+        var manifest = new ContentManifest { Id = manifestId };
         var config = new WorkspaceConfiguration
         {
             BaseInstallationPath = @"C:\Games",
             ManifestSourcePaths = new Dictionary<string, string>
             {
-                ["test-id"] = @"D:\CustomSource",
+                [manifestId] = @"D:\CustomSource",
             },
         };
 
