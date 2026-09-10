@@ -13,6 +13,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
+using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -654,6 +655,8 @@ public sealed class BuildEngineService : IBuildEngineService
         if (candidatePacks.Count == 0)
         {
             _logger.LogWarning("No bundle packs or items found to release");
+            Interlocked.Increment(ref _filesFailed);
+            _lastErrorMessage = "No bundle packs or items found to release. Please configure bundle items or packs in ModBuilder.";
             return;
         }
 
@@ -672,6 +675,14 @@ public sealed class BuildEngineService : IBuildEngineService
             {
                 packs = selectedFiltered;
             }
+        }
+
+        if (packs.Count == 0)
+        {
+            _logger.LogWarning("No bundle packs enabled or selected for release");
+            Interlocked.Increment(ref _filesFailed);
+            _lastErrorMessage = "No bundle packs are enabled or selected for release. Check 'Allow Build' in Bundle Pack settings.";
+            return;
         }
 
         foreach (var pack in packs)
@@ -709,7 +720,16 @@ public sealed class BuildEngineService : IBuildEngineService
         {
             if (items != null)
             {
-                StagePackFiles(pack, items, bundlesDir, packStagingDir);
+                await StagePackFilesAsync(pack, items, bundlesDir, packStagingDir, cancellationToken).ConfigureAwait(false);
+            }
+
+            var stagedFiles = Directory.GetFiles(packStagingDir, "*", SearchOption.AllDirectories);
+            if (stagedFiles.Length == 0)
+            {
+                Interlocked.Increment(ref _filesFailed);
+                _logger.LogError("No files were staged for pack {PackName}; release archive cannot be created.", pack.Name);
+                _lastErrorMessage = $"No files were staged for pack '{pack.Name}'. Check that bundle items exist and contain files.";
+                return;
             }
 
             progress?.Report(new BuildProgress
@@ -759,7 +779,7 @@ public sealed class BuildEngineService : IBuildEngineService
         }
     }
 
-    private void StagePackFiles(BundlePack pack, IReadOnlyList<BundleItem> items, string bundlesDir, string packStagingDir)
+    private async Task StagePackFilesAsync(BundlePack pack, IReadOnlyList<BundleItem> items, string bundlesDir, string packStagingDir, CancellationToken cancellationToken)
     {
         if (pack.IsBigPack)
         {
@@ -767,7 +787,7 @@ public sealed class BuildEngineService : IBuildEngineService
         }
         else
         {
-            StageStandardPackFiles(pack, items, bundlesDir, packStagingDir);
+            await StageStandardPackFilesAsync(pack, items, bundlesDir, packStagingDir, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -804,7 +824,7 @@ public sealed class BuildEngineService : IBuildEngineService
         _logger.LogDebug("Staged file {RelPath} for BIG pack {PackName}", targetRelPath, packName);
     }
 
-    private void StageStandardPackFiles(BundlePack pack, IReadOnlyList<BundleItem> items, string bundlesDir, string packStagingDir)
+    private async Task StageStandardPackFilesAsync(BundlePack pack, IReadOnlyList<BundleItem> items, string bundlesDir, string packStagingDir, CancellationToken cancellationToken)
     {
         foreach (var itemName in pack.ItemNames)
         {
@@ -816,7 +836,7 @@ public sealed class BuildEngineService : IBuildEngineService
 
             if (item.IsBig)
             {
-                StageBigBundleArchive(item, bundlesDir, packStagingDir, pack.Name);
+                await StageBigBundleArchiveAsync(item, bundlesDir, packStagingDir, pack.Name, cancellationToken).ConfigureAwait(false);
             }
             else
             {
@@ -825,10 +845,24 @@ public sealed class BuildEngineService : IBuildEngineService
         }
     }
 
-    private void StageBigBundleArchive(BundleItem item, string bundlesDir, string packStagingDir, string packName)
+    private async Task StageBigBundleArchiveAsync(BundleItem item, string bundlesDir, string packStagingDir, string packName, CancellationToken cancellationToken)
     {
         var bigFileName = GetBigFileName(item);
         var srcBig = Path.Combine(bundlesDir, bigFileName);
+        if (!File.Exists(srcBig))
+        {
+            _logger.LogInformation("BIG bundle {BigFileName} missing in bundles directory; building it on demand...", bigFileName);
+            if (item.Files.Count > 0)
+            {
+                if (!Directory.Exists(bundlesDir))
+                {
+                    Directory.CreateDirectory(bundlesDir);
+                }
+
+                await BuildSingleBigBundleItemAsync(item, bundlesDir, null, cancellationToken, 1, 1).ConfigureAwait(false);
+            }
+        }
+
         if (File.Exists(srcBig))
         {
             var destBig = Path.Combine(packStagingDir, bigFileName);
@@ -837,7 +871,9 @@ public sealed class BuildEngineService : IBuildEngineService
         }
         else
         {
-            _logger.LogWarning("BIG bundle {BigFileName} missing when packaging pack {PackName}. Run the Build step first.", bigFileName, packName);
+            _logger.LogError("BIG bundle {BigFileName} missing for pack {PackName} and could not be built.", bigFileName, packName);
+            Interlocked.Increment(ref _filesFailed);
+            _lastErrorMessage = $"BIG bundle '{bigFileName}' missing for pack '{packName}'.";
         }
     }
 
@@ -1066,25 +1102,42 @@ public sealed class BuildEngineService : IBuildEngineService
             foreach (var itemName in pack.ItemNames)
             {
                 var item = setup.Bundles?.Items?.FirstOrDefault(i => string.Equals(i.Name, itemName, StringComparison.OrdinalIgnoreCase));
-                AddBigItemFileName(filesToInclude, item);
+                AddItemFileNames(filesToInclude, item);
             }
         }
         else
         {
             var item = setup.Bundles?.Items?.FirstOrDefault(i => string.Equals(i.Name, packOrItemName, StringComparison.OrdinalIgnoreCase));
-            AddBigItemFileName(filesToInclude, item);
+            AddItemFileNames(filesToInclude, item);
         }
     }
 
-    private static void AddBigItemFileName(HashSet<string> files, BundleItem? item)
+    private static void AddItemFileNames(HashSet<string> files, BundleItem? item)
     {
-        if (item != null && item.IsBig)
+        if (item == null)
+        {
+            return;
+        }
+
+        if (item.IsBig)
         {
             files.Add(GetBigFileName(item));
         }
+        else
+        {
+            foreach (var file in item.Files)
+            {
+                var relPath = !string.IsNullOrEmpty(file.RelTargetFile) ? file.RelTargetFile : file.GetRelSourceFile();
+                if (!string.IsNullOrEmpty(relPath))
+                {
+                    files.Add(relPath);
+                    files.Add(Path.GetFileName(relPath));
+                }
+            }
+        }
     }
 
-    private static void StageManifestFiles(string stagingDir, string[] bigFiles, HashSet<string> filesToInclude)
+    private static void StageManifestFiles(string stagingDir, string bundlesDir, HashSet<string> filesToInclude)
     {
         if (Directory.Exists(stagingDir))
         {
@@ -1093,12 +1146,16 @@ public sealed class BuildEngineService : IBuildEngineService
 
         Directory.CreateDirectory(stagingDir);
 
-        foreach (var file in bigFiles)
+        var allFiles = Directory.GetFiles(bundlesDir, "*", SearchOption.AllDirectories);
+        foreach (var file in allFiles)
         {
             var fileName = Path.GetFileName(file);
-            if (filesToInclude.Contains(fileName))
+            var relPath = Path.GetRelativePath(bundlesDir, file);
+            if (filesToInclude.Contains(fileName) || filesToInclude.Contains(relPath))
             {
-                File.Copy(file, Path.Combine(stagingDir, fileName), overwrite: true);
+                var destPath = Path.Combine(stagingDir, relPath);
+                EnsureDestinationDirectory(destPath);
+                File.Copy(file, destPath, overwrite: true);
             }
         }
     }
@@ -1124,16 +1181,34 @@ public sealed class BuildEngineService : IBuildEngineService
 
         if (!Directory.Exists(bundlesDir))
         {
-            _logger.LogError("Bundles directory does not exist: {BundlesDir}. Please run the Build step first.", bundlesDir);
-            _lastErrorMessage = $"Bundles directory does not exist: {bundlesDir}";
-            return false;
+            Directory.CreateDirectory(bundlesDir);
         }
 
-        var bigFiles = Directory.GetFiles(bundlesDir, "*.big");
-        if (bigFiles.Length == 0)
+        var allBundleFiles = Directory.GetFiles(bundlesDir, "*", SearchOption.AllDirectories);
+
+        // If bundlesDir has no files, automatically build big items or stage raw files
+        if (allBundleFiles.Length == 0 && setup.Bundles?.Items != null && setup.Bundles.Items.Count > 0)
         {
-            _logger.LogError("No .big bundle files found in {BundlesDir} to create manifest.", bundlesDir);
-            _lastErrorMessage = $"No .big bundle files found in {bundlesDir}";
+            _logger.LogInformation("No files found in bundles directory; preparing bundle files before creating manifest...");
+            foreach (var item in setup.Bundles.Items)
+            {
+                if (item.IsBig && item.Files.Count > 0)
+                {
+                    await BuildSingleBigBundleItemAsync(item, bundlesDir, progress, cancellationToken, 1, 1).ConfigureAwait(false);
+                }
+                else if (!item.IsBig && item.Files.Count > 0)
+                {
+                    StageRawBundleFiles(item, bundlesDir, item.Name);
+                }
+            }
+
+            allBundleFiles = Directory.GetFiles(bundlesDir, "*", SearchOption.AllDirectories);
+        }
+
+        if (allBundleFiles.Length == 0)
+        {
+            _logger.LogError("No bundle files found in {BundlesDir} to create manifest.", bundlesDir);
+            _lastErrorMessage = $"No bundle files found in {bundlesDir}. Ensure bundle items have source files.";
             return false;
         }
 
@@ -1143,8 +1218,12 @@ public sealed class BuildEngineService : IBuildEngineService
 
         if (filesToInclude.Count > 0)
         {
-            StageManifestFiles(stagingDir, bigFiles, filesToInclude);
-            manifestContentDir = stagingDir;
+            StageManifestFiles(stagingDir, bundlesDir, filesToInclude);
+            var stagedCount = Directory.Exists(stagingDir) ? Directory.GetFiles(stagingDir, "*", SearchOption.AllDirectories).Length : 0;
+            if (stagedCount > 0)
+            {
+                manifestContentDir = stagingDir;
+            }
         }
 
         using var scope = _serviceScopeFactory.CreateScope();
@@ -1178,6 +1257,16 @@ public sealed class BuildEngineService : IBuildEngineService
 
             if (manifest != null)
             {
+                try
+                {
+                    CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default.Send(new Core.Models.Content.ContentAcquiredMessage(manifest));
+                    _logger.LogInformation("Published ContentAcquiredMessage for manifest {ManifestId}", manifest.Id);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to publish ContentAcquiredMessage for manifest {ManifestId}", manifest.Id);
+                }
+
                 var manifestJson = JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true });
                 var buildManifestPath = Path.Combine(buildDir, "manifest.json");
                 await File.WriteAllTextAsync(buildManifestPath, manifestJson, cancellationToken).ConfigureAwait(false);
