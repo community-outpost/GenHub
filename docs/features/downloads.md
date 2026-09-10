@@ -605,7 +605,7 @@ if (result.WasContentSwapped)
 
 TheSuperHackers releases ship **both** a Generals and a Zero Hour executable in the same archive.
 Rather than showing one card and requiring a variant picker, the discoverer emits **one grid card per
-game-client variant** (e.g. "SuperHackers Weekly <date> — Generals" and "…— Zero Hour"). Each card
+game-client variant** (e.g. `SuperHackers Weekly <date> — Generals` and `…— Zero Hour`). Each card
 carries its own `TargetGame`, a distinct manifest ID suffix (`...gameclient.generals` /
 `...gameclient.zerohour`), and independent download state. Downloading a variant card downloads the
 release once and stores only that variant's manifest (`SuperHackersManifestFactory` honors the
