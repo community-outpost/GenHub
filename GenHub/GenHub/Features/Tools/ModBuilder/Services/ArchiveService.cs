@@ -54,7 +54,11 @@ public sealed class ArchiveService(
             try
             {
                 // use existing BigFilePacker
-                await BigFilePacker.PackAsync(sourceDirectory, tempBigPath, targetBigPath, cancellationToken).ConfigureAwait(false);
+                var duplicateCount = await BigFilePacker.PackAsync(sourceDirectory, tempBigPath, targetBigPath, cancellationToken).ConfigureAwait(false);
+                if (duplicateCount > 0)
+                {
+                    logger.LogWarning("BIG archive creation dropped {Count} duplicate/colliding entry paths in {Source}", duplicateCount, sourceDirectory);
+                }
 
                 if (!File.Exists(tempBigPath))
                 {

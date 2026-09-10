@@ -1007,8 +1007,11 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         try
         {
-            foreach (var dir in Directory.EnumerateDirectories(sampleProjectsDir, "*", options)
-                         .Where(d => IsStrayArtifactDirectory(Path.GetFileName(d))))
+            var strayDirs = Directory.EnumerateDirectories(sampleProjectsDir, "*", options)
+                         .Where(d => IsStrayArtifactDirectory(Path.GetFileName(d)))
+                         .ToList();
+
+            foreach (var dir in strayDirs)
             {
                 TryDeleteStrayDirectory(dir);
             }
@@ -1029,6 +1032,11 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     {
         try
         {
+            if (!Directory.Exists(dir))
+            {
+                return;
+            }
+
             var parentDir = Path.GetDirectoryName(dir);
             if (IsProjectDirectory(parentDir))
             {

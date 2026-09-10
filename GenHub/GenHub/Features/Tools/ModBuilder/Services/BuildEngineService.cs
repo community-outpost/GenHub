@@ -823,6 +823,35 @@ public sealed class BuildEngineService : IBuildEngineService
         }
     }
 
+    private (string Path, string TargetRelPath)? ProbeConvertedOutput(
+        string rawDir,
+        string targetRelPath,
+        string sourcePath,
+        string targetExtension)
+    {
+        var convertedRel = Path.ChangeExtension(targetRelPath, targetExtension);
+        var subPath = Path.Combine(rawDir, convertedRel);
+        if (IsSubpathOf(rawDir, subPath) && File.Exists(subPath))
+        {
+            return (subPath, convertedRel);
+        }
+
+        var flatSource = Path.Combine(rawDir, Path.ChangeExtension(Path.GetFileName(sourcePath), targetExtension));
+        if (File.Exists(flatSource))
+        {
+            return (flatSource, convertedRel);
+        }
+
+        var flatTarget = Path.Combine(rawDir, Path.GetFileName(convertedRel));
+        if (File.Exists(flatTarget))
+        {
+            return (flatTarget, convertedRel);
+        }
+
+        _logger.LogWarning("Expected converted {Extension} output not found for {SourcePath}; falling back to raw source", targetExtension.ToUpperInvariant(), sourcePath);
+        return null;
+    }
+
     private (string Path, string TargetRelPath) ResolveStagedSource(
         BundleFile file,
         string targetRelPath,
@@ -845,49 +874,19 @@ public sealed class BuildEngineService : IBuildEngineService
         // Check if converted output exists (DDS for image, CSF for string table)
         if (ext is ".tga" or ".png")
         {
-            var ddsRel = Path.ChangeExtension(targetRelPath, ".dds");
-            var ddsSub = Path.Combine(rawDir, ddsRel);
-            if (IsSubpathOf(rawDir, ddsSub) && File.Exists(ddsSub))
+            var probed = ProbeConvertedOutput(rawDir, targetRelPath, sourcePath, ".dds");
+            if (probed != null)
             {
-                return (ddsSub, ddsRel);
+                return probed.Value;
             }
-
-            var ddsFlatTarget = Path.Combine(rawDir, Path.GetFileName(ddsRel));
-            if (File.Exists(ddsFlatTarget))
-            {
-                return (ddsFlatTarget, ddsRel);
-            }
-
-            var ddsFlatSource = Path.Combine(rawDir, Path.ChangeExtension(Path.GetFileName(sourcePath), ".dds"));
-            if (File.Exists(ddsFlatSource))
-            {
-                return (ddsFlatSource, ddsRel);
-            }
-
-            _logger.LogWarning("Expected converted DDS output not found for {SourcePath}; falling back to raw source", sourcePath);
         }
         else if (ext == ".str")
         {
-            var csfRel = Path.ChangeExtension(targetRelPath, ".csf");
-            var csfSub = Path.Combine(rawDir, csfRel);
-            if (IsSubpathOf(rawDir, csfSub) && File.Exists(csfSub))
+            var probed = ProbeConvertedOutput(rawDir, targetRelPath, sourcePath, ".csf");
+            if (probed != null)
             {
-                return (csfSub, csfRel);
+                return probed.Value;
             }
-
-            var csfFlatTarget = Path.Combine(rawDir, Path.GetFileName(csfRel));
-            if (File.Exists(csfFlatTarget))
-            {
-                return (csfFlatTarget, csfRel);
-            }
-
-            var csfFlatSource = Path.Combine(rawDir, Path.ChangeExtension(Path.GetFileName(sourcePath), ".csf"));
-            if (File.Exists(csfFlatSource))
-            {
-                return (csfFlatSource, csfRel);
-            }
-
-            _logger.LogWarning("Expected converted CSF output not found for {SourcePath}; falling back to raw source", sourcePath);
         }
 
         // Passthrough candidate
