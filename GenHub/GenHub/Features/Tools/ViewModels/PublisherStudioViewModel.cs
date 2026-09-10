@@ -110,7 +110,6 @@ public partial class PublisherStudioViewModel : ObservableObject
     /// <param name="hostingStateManager">The hosting state manager.</param>
     /// <param name="notificationService">The notification service.</param>
     /// <param name="configurationProvider">The configuration provider service.</param>
-    /// <param name="autoInitialize">Whether to automatically initialize the project on creation.</param>
     public PublisherStudioViewModel(
         ILogger<PublisherStudioViewModel> logger,
         IPublisherStudioService publisherStudioService,
@@ -118,18 +117,42 @@ public partial class PublisherStudioViewModel : ObservableObject
         IHostingProviderFactory? hostingProviderFactory = null,
         IHostingStateManager? hostingStateManager = null,
         INotificationService? notificationService = null,
-        IConfigurationProviderService? configurationProvider = null,
-        bool autoInitialize = true)
+        IConfigurationProviderService? configurationProvider = null)
+        : this(logger, publisherStudioService, dialogService, autoInitialize: true)
     {
-        _logger = logger;
-        _publisherStudioService = publisherStudioService;
-        _dialogService = dialogService;
         _hostingProviderFactory = hostingProviderFactory;
-        _hostingStateManager = hostingStateManager ?? new HostingStateManager(Microsoft.Extensions.Logging.LoggerFactory.Create(b => { }).CreateLogger<HostingStateManager>());
+        if (hostingStateManager != null)
+        {
+            _hostingStateManager = hostingStateManager;
+        }
+
         _notificationService = notificationService;
         _configurationProvider = configurationProvider;
         _settingsPath = Path.Combine(
             configurationProvider?.GetApplicationDataPath() ?? Path.GetTempPath(),
+            "GenHub",
+            "publisher_studio_settings.json");
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PublisherStudioViewModel"/> class for testing or lightweight usage.
+    /// </summary>
+    /// <param name="logger">The logger instance.</param>
+    /// <param name="publisherStudioService">The publisher studio service.</param>
+    /// <param name="dialogService">The dialog service.</param>
+    /// <param name="autoInitialize">Whether to automatically initialize the project on creation.</param>
+    public PublisherStudioViewModel(
+        ILogger<PublisherStudioViewModel> logger,
+        IPublisherStudioService publisherStudioService,
+        IPublisherStudioDialogService dialogService,
+        bool autoInitialize)
+    {
+        _logger = logger;
+        _publisherStudioService = publisherStudioService;
+        _dialogService = dialogService;
+        _hostingStateManager = new HostingStateManager(Microsoft.Extensions.Logging.LoggerFactory.Create(b => { }).CreateLogger<HostingStateManager>());
+        _settingsPath = Path.Combine(
+            Path.GetTempPath(),
             "GenHub",
             "publisher_studio_settings.json");
 

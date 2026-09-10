@@ -331,39 +331,13 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             }
 
             var hasMore = doc.RootElement.TryGetProperty("has_more", out var hasMoreProp) && hasMoreProp.GetBoolean();
-            var cursor = doc.RootElement.TryGetProperty("cursor", out var cursorProp) ? cursorProp.GetString() : null;
-
-            while (hasMore && !string.IsNullOrEmpty(cursor))
+            if (hasMore && doc.RootElement.TryGetProperty("cursor", out var cursorProp))
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var continueArgs = new { cursor };
-                using var continueRequest = new HttpRequestMessage(HttpMethod.Post, $"{DropboxApiUrl}/files/list_folder/continue");
-                continueRequest.Content = new StringContent(
-                    JsonSerializer.Serialize(continueArgs),
-                    Encoding.UTF8,
-                    HostingConstants.JsonContentType);
-
-                using var continueResponse = await _httpClient.SendAsync(continueRequest, cancellationToken);
-                if (!continueResponse.IsSuccessStatusCode)
+                var cursor = cursorProp.GetString();
+                if (!string.IsNullOrEmpty(cursor))
                 {
-                    var continueError = await continueResponse.Content.ReadAsStringAsync(cancellationToken);
-                    logger.LogWarning("Dropbox list_folder/continue failed: {Error}", continueError);
-                    break;
+                    await FetchRemainingPagesAsync(cursor, state, cancellationToken).ConfigureAwait(false);
                 }
-
-                var continueContent = await continueResponse.Content.ReadAsStringAsync(cancellationToken);
-                using var continueDoc = JsonDocument.Parse(continueContent);
-                if (continueDoc.RootElement.TryGetProperty("entries", out var continueEntries))
-                {
-                    foreach (var entry in continueEntries.EnumerateArray())
-                    {
-                        await ProcessDropboxEntryAsync(entry, state, cancellationToken).ConfigureAwait(false);
-                    }
-                }
-
-                hasMore = continueDoc.RootElement.TryGetProperty("has_more", out var nextHasMore) && nextHasMore.GetBoolean();
-                cursor = continueDoc.RootElement.TryGetProperty("cursor", out var nextCursor) ? nextCursor.GetString() : null;
             }
 
             return OperationResult<HostingState?>.CreateSuccess(state);
@@ -460,6 +434,43 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         }
 
         return null;
+    }
+
+    private async Task FetchRemainingPagesAsync(string initialCursor, HostingState state, CancellationToken cancellationToken)
+    {
+        var cursor = initialCursor;
+        while (!string.IsNullOrEmpty(cursor))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var continueArgs = new { cursor };
+            using var continueRequest = new HttpRequestMessage(HttpMethod.Post, $"{DropboxApiUrl}/files/list_folder/continue");
+            continueRequest.Content = new StringContent(
+                JsonSerializer.Serialize(continueArgs),
+                Encoding.UTF8,
+                HostingConstants.JsonContentType);
+
+            using var continueResponse = await _httpClient.SendAsync(continueRequest, cancellationToken);
+            if (!continueResponse.IsSuccessStatusCode)
+            {
+                var continueError = await continueResponse.Content.ReadAsStringAsync(cancellationToken);
+                logger.LogWarning("Dropbox list_folder/continue failed: {Error}", continueError);
+                break;
+            }
+
+            var continueContent = await continueResponse.Content.ReadAsStringAsync(cancellationToken);
+            using var continueDoc = JsonDocument.Parse(continueContent);
+            if (continueDoc.RootElement.TryGetProperty("entries", out var continueEntries))
+            {
+                foreach (var entry in continueEntries.EnumerateArray())
+                {
+                    await ProcessDropboxEntryAsync(entry, state, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            var hasMore = continueDoc.RootElement.TryGetProperty("has_more", out var nextHasMore) && nextHasMore.GetBoolean();
+            cursor = hasMore && continueDoc.RootElement.TryGetProperty("cursor", out var nextCursor) ? nextCursor.GetString() : null;
+        }
     }
 
     private async Task ProcessDropboxEntryAsync(
