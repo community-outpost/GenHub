@@ -797,19 +797,6 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
                     gameType == GameType.ZeroHour ? "zerohour" : "generals",
                     normalizedVersion);
 
-                if (ManifestId.TryCreate(clientId, out var clientManifestId))
-                {
-                    var clientManifestCheck = await contentManifestPool.GetManifestAsync(clientManifestId, cancellationToken);
-                    if (clientManifestCheck == null || !clientManifestCheck.Success || clientManifestCheck.Data == null)
-                    {
-                        logger.LogWarning(
-                            "GameInstallation manifest {ManifestId} exists but corresponding GameClient manifest {ClientId} is missing from pool. Triggering full client detection.",
-                            matchingManifest.Id,
-                            clientId);
-                        return null;
-                    }
-                }
-
                 var defaultExe = gameType == GameType.ZeroHour ? GameClientConstants.ZeroHourExecutable : GameClientConstants.GeneralsExecutable;
                 var exePath = Path.Combine(gamePath, defaultExe);
 
@@ -825,6 +812,15 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
                     InstallationId = installation.Id,
                     Version = matchingManifest.Version,
                 };
+
+                // Ensure the corresponding GameClient manifest exists in the pool as well
+                await EnsureGameClientManifestAsync(
+                    installation,
+                    gameType,
+                    gamePath,
+                    gameClient,
+                    matchingManifest.Version,
+                    cancellationToken);
 
                 logger.LogInformation(
                     "Loaded {GameType} client from existing manifest {ManifestId} using ClientId {ClientId} (version {Version})",

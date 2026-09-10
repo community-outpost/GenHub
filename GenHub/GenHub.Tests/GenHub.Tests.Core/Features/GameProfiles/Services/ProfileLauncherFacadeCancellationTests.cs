@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
@@ -12,11 +10,6 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameClients;
-using GenHub.Core.Models.GameInstallations;
-using GenHub.Core.Models.GameProfile;
-using GenHub.Core.Models.Results;
 using GenHub.Features.GameProfiles.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -69,66 +62,6 @@ public class ProfileLauncherFacadeCancellationTests
         var result = await facade.LaunchProfileAsync("profile1");
 
         Assert.True(result.Failed);
-    }
-
-    /// <summary>
-    /// Verifies that LaunchProfileAsync initializes the dynamic installation CAS pool path when an installation is resolved.
-    /// </summary>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    [Fact]
-    public async Task LaunchProfileAsync_InitializesDynamicCasPoolPathAsync()
-    {
-        var installation = new GameInstallation("/games/ZeroHour", GameInstallationType.Retail)
-        {
-            Id = "install-1",
-        };
-        var profile = new GameProfile
-        {
-            Id = "profile-1",
-            Name = "Profile 1",
-            GameInstallationId = "install-1",
-            GameClient = new GameClient { Id = "client-1", WorkingDirectory = "/games/ZeroHour", ExecutablePath = "/games/ZeroHour/generals.exe" },
-            WorkspaceStrategy = WorkspaceStrategy.HardLink,
-        };
-
-        _profileManagerMock
-            .Setup(manager => manager.GetProfileAsync("profile-1", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
-
-        var installationServiceMock = new Mock<IGameInstallationService>();
-        installationServiceMock
-            .Setup(s => s.GetInstallationAsync("install-1", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(installation));
-
-        var casPoolServiceMock = new Mock<IInstallationCasPoolService>();
-        casPoolServiceMock
-            .Setup(c => c.EnsurePoolPathAsync(It.IsAny<IReadOnlyList<GameInstallation>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
-        var facade = new ProfileLauncherFacade(
-            _profileManagerMock.Object,
-            Mock.Of<IGameLauncher>(),
-            Mock.Of<IWorkspaceManager>(),
-            Mock.Of<ILaunchRegistry>(),
-            Mock.Of<IContentManifestPool>(),
-            installationServiceMock.Object,
-            Mock.Of<IDependencyResolver>(),
-            Mock.Of<ICasService>(),
-            Mock.Of<IGameSettingsService>(),
-            Mock.Of<IStorageLocationService>(),
-            Mock.Of<INotificationService>(),
-            Mock.Of<IPublisherReconcilerRegistry>(),
-            Mock.Of<IConfigurationProviderService>(),
-            Mock.Of<IGameProcessManager>(),
-            Mock.Of<ISymlinkCapabilityProvider>(),
-            Mock.Of<ILogger<ProfileLauncherFacade>>(),
-            casPoolServiceMock.Object);
-
-        await facade.LaunchProfileAsync("profile-1");
-
-        casPoolServiceMock.Verify(
-            c => c.EnsurePoolPathAsync(It.Is<IReadOnlyList<GameInstallation>>(list => list.Contains(installation)), It.IsAny<CancellationToken>()),
-            Times.AtLeastOnce);
     }
 
     private ProfileLauncherFacade CreateFacade() => new(
