@@ -477,45 +477,10 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         try
         {
             var result = await _projectConfigService.GetRecentProjectsAsync(10, CancellationToken.None).ConfigureAwait(false);
-            var rawPaths = new List<string>(result.Success && result.Data != null ? result.Data : []);
-            var projectPaths = new List<string>();
+            var rawPaths = result.Success && result.Data != null ? result.Data : (IReadOnlyList<string>)[];
+            var projectPaths = await SanitizeAndMigrateRecentPathsAsync(rawPaths).ConfigureAwait(false);
 
-            // Sanitize recent projects: if any project is located inside the application installation directory,
-            // migrate it to user documents and scrub old app-dir paths so Velopack updates won't be blocked.
-            foreach (var rawPath in rawPaths)
-            {
-                if (IsPathInsideAppDirectory(rawPath))
-                {
-                    var migrated = await MigrateProjectOutOfAppDirectoryAsync(rawPath).ConfigureAwait(false);
-                    if (!string.IsNullOrEmpty(migrated) && !projectPaths.Contains(migrated, StringComparer.OrdinalIgnoreCase))
-                    {
-                        projectPaths.Add(migrated);
-                    }
-                }
-                else if (!string.IsNullOrWhiteSpace(rawPath) && !projectPaths.Contains(rawPath, StringComparer.OrdinalIgnoreCase))
-                {
-                    projectPaths.Add(rawPath);
-                }
-            }
-
-            IReadOnlyList<string> samplePaths = [];
-            try
-            {
-                samplePaths = await DiscoverSampleProjectPathsAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to discover sample project paths");
-            }
-
-            for (var i = samplePaths.Count - 1; i >= 0; i--)
-            {
-                var samplePath = samplePaths[i];
-                if (!string.IsNullOrEmpty(samplePath) && File.Exists(samplePath) && !projectPaths.Contains(samplePath, StringComparer.OrdinalIgnoreCase))
-                {
-                    projectPaths.Insert(0, samplePath);
-                }
-            }
+            await PrependDiscoveredSampleProjectsAsync(projectPaths).ConfigureAwait(false);
 
             var projectInfos = projectPaths.Select(CreateRecentProjectInfo).ToList();
 
@@ -531,6 +496,53 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to load recent projects");
+        }
+    }
+
+    private async Task<List<string>> SanitizeAndMigrateRecentPathsAsync(IEnumerable<string> rawPaths)
+    {
+        var projectPaths = new List<string>();
+
+        // Sanitize recent projects: if any project is located inside the application installation directory,
+        // migrate it to user documents and scrub old app-dir paths so Velopack updates won't be blocked.
+        foreach (var rawPath in rawPaths)
+        {
+            if (IsPathInsideAppDirectory(rawPath))
+            {
+                var migrated = await MigrateProjectOutOfAppDirectoryAsync(rawPath).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(migrated) && !projectPaths.Contains(migrated, StringComparer.OrdinalIgnoreCase))
+                {
+                    projectPaths.Add(migrated);
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(rawPath) && !projectPaths.Contains(rawPath, StringComparer.OrdinalIgnoreCase))
+            {
+                projectPaths.Add(rawPath);
+            }
+        }
+
+        return projectPaths;
+    }
+
+    private async Task PrependDiscoveredSampleProjectsAsync(List<string> projectPaths)
+    {
+        IReadOnlyList<string> samplePaths = [];
+        try
+        {
+            samplePaths = await DiscoverSampleProjectPathsAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to discover sample project paths");
+        }
+
+        for (var i = samplePaths.Count - 1; i >= 0; i--)
+        {
+            var samplePath = samplePaths[i];
+            if (!string.IsNullOrEmpty(samplePath) && File.Exists(samplePath) && !projectPaths.Contains(samplePath, StringComparer.OrdinalIgnoreCase))
+            {
+                projectPaths.Insert(0, samplePath);
+            }
         }
     }
 
@@ -922,37 +934,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         foreach (var baseDir in sampleBaseDirs.Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            try
-            {
-                var files = Directory.GetFiles(baseDir, "*.mbproj", SearchOption.AllDirectories);
-                foreach (var templateFile in files)
-                {
-                    var templateDir = Path.GetDirectoryName(templateFile);
-                    if (string.IsNullOrEmpty(templateDir))
-                    {
-                        continue;
-                    }
-
-                    var projectName = Path.GetFileName(templateDir);
-                    var userProjectDir = Path.Combine(userSamplesDir, projectName);
-                    var userProjectFile = Path.Combine(userProjectDir, Path.GetFileName(templateFile));
-
-                    // Provision template to user directory if not present
-                    if (!File.Exists(userProjectFile))
-                    {
-                        await CopyDirectoryAsync(templateDir, userProjectDir).ConfigureAwait(false);
-                    }
-
-                    if (File.Exists(userProjectFile) && !userProjectPaths.Contains(userProjectFile, StringComparer.OrdinalIgnoreCase))
-                    {
-                        userProjectPaths.Add(userProjectFile);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogDebug(ex, "Failed to provision sample templates from {Dir}", baseDir);
-            }
+            await ProvisionSampleTemplatesFromDirectoryAsync(baseDir, userSamplesDir, userProjectPaths).ConfigureAwait(false);
         }
 
         if (userProjectPaths.Count > 0)
@@ -960,6 +942,54 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return userProjectPaths;
         }
 
+        var fallbackPath = await EnsureFallbackBasicModProjectAsync().ConfigureAwait(false);
+        return !string.IsNullOrEmpty(fallbackPath) && File.Exists(fallbackPath)
+            ? new[] { fallbackPath }
+            : Array.Empty<string>();
+    }
+
+    private async Task ProvisionSampleTemplatesFromDirectoryAsync(string baseDir, string userSamplesDir, List<string> userProjectPaths)
+    {
+        try
+        {
+            var files = Directory.GetFiles(baseDir, "*.mbproj", SearchOption.AllDirectories);
+            foreach (var templateFile in files)
+            {
+                await ProvisionSingleSampleTemplateAsync(templateFile, userSamplesDir, userProjectPaths).ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Failed to provision sample templates from {Dir}", baseDir);
+        }
+    }
+
+    private async Task ProvisionSingleSampleTemplateAsync(string templateFile, string userSamplesDir, List<string> userProjectPaths)
+    {
+        var templateDir = Path.GetDirectoryName(templateFile);
+        if (string.IsNullOrEmpty(templateDir))
+        {
+            return;
+        }
+
+        var projectName = Path.GetFileName(templateDir);
+        var userProjectDir = Path.Combine(userSamplesDir, projectName);
+        var userProjectFile = Path.Combine(userProjectDir, Path.GetFileName(templateFile));
+
+        // Provision template to user directory if not present
+        if (!File.Exists(userProjectFile))
+        {
+            await CopyDirectoryAsync(templateDir, userProjectDir).ConfigureAwait(false);
+        }
+
+        if (File.Exists(userProjectFile) && !userProjectPaths.Contains(userProjectFile, StringComparer.OrdinalIgnoreCase))
+        {
+            userProjectPaths.Add(userProjectFile);
+        }
+    }
+
+    private async Task<string?> EnsureFallbackBasicModProjectAsync()
+    {
         var defaultFolder = Path.Combine(GetUserModBuilderDirectory(), BasicModLiteral);
         Directory.CreateDirectory(defaultFolder);
         var generatedPath = Path.Combine(defaultFolder, BasicModProjectFileLiteral);
@@ -977,7 +1007,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             }
         }
 
-        return File.Exists(generatedPath) ? new[] { generatedPath } : Array.Empty<string>();
+        return generatedPath;
     }
 
     private async Task<string?> ResolveSampleProjectPathAsync()
@@ -1136,7 +1166,15 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
             foreach (var f in Directory.GetFiles(dir, "*.msgpack", SearchOption.TopDirectoryOnly))
             {
-                try { File.Delete(f); } catch { }
+                try
+                {
+                    File.Delete(f);
+                }
+                catch (Exception ex)
+                {
+                    // Best-effort cleanup of temporary msgpack files; ignore locked or inaccessible files
+                    _logger.LogTrace(ex, "Failed to delete temporary file {FilePath}", f);
+                }
             }
         }
         catch (Exception ex)
