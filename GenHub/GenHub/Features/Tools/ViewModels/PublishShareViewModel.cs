@@ -32,6 +32,9 @@ namespace GenHub.Features.Tools.ViewModels;
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI and CommunityToolkit ObservableProperty generated properties.")]
 public partial class PublishShareViewModel : ObservableObject
 {
+    private const string StatusLiveOnline = "Live Online";
+    private const string StatusPendingUpload = "Pending Upload";
+    private const string StatusExternalCdn = "External CDN";
     private readonly PublisherStudioProject _project;
     private readonly IPublisherStudioService _publisherStudioService;
     private readonly IHostingProviderFactory? _hostingProviderFactory;
@@ -376,7 +379,33 @@ public partial class PublishShareViewModel : ObservableObject
 
         var providerName = SelectedHostingProvider?.DisplayName ?? "Cloud Storage";
 
-        // 1. Publisher Definition
+        PopulatePublisherDefinitionAsset(providerName, ref totalBytes, ref defCount);
+        PopulateCatalogAssets(providerName, ref totalBytes, ref catCount);
+        PopulateArtifactAssets(providerName, ref totalBytes, ref artCount, ref cdnCount);
+        PopulateCloudScanAssets(providerName, ref totalBytes, ref catCount, ref artCount);
+
+        TotalStorageUsedFormatted = GenHub.Core.Helpers.FileSizeFormatter.Format(totalBytes);
+        TotalHostedFilesCount = defCount + catCount + artCount;
+        HostedDefinitionCount = defCount;
+        HostedCatalogsCount = catCount;
+        HostedArtifactsCount = artCount;
+        ExternalCdnCount = cdnCount;
+    }
+
+    private static string BuildPublishSummary(string catalogUrl, string providerDefinitionUrl, string subscriptionUrl)
+    {
+        var sb = new System.Text.StringBuilder();
+        if (!string.IsNullOrEmpty(catalogUrl))
+            sb.AppendLine($"Catalog URL: {catalogUrl}");
+        if (!string.IsNullOrEmpty(providerDefinitionUrl))
+            sb.AppendLine($"Definition URL: {providerDefinitionUrl}");
+        if (!string.IsNullOrEmpty(subscriptionUrl))
+            sb.AppendLine($"Subscription URL: {subscriptionUrl}");
+        return sb.ToString();
+    }
+
+    private void PopulatePublisherDefinitionAsset(string providerName, ref long totalBytes, ref int defCount)
+    {
         var defUrl = ProviderDefinitionUrl;
         if (string.IsNullOrWhiteSpace(defUrl))
         {
@@ -400,13 +429,15 @@ public partial class PublishShareViewModel : ObservableObject
             Location = isDefHosted ? $"{providerName} (/GenHub_Publisher)" : "Local only",
             FileSize = defSize,
             Url = defUrl ?? string.Empty,
-            Status = isDefHosted ? "Live Online" : "Pending Upload",
+            Status = isDefHosted ? StatusLiveOnline : StatusPendingUpload,
             IsOnline = isDefHosted,
             IsExternalCdn = false,
             LastUpdated = defUpdated,
         });
+    }
 
-        // 2. Catalogs in current project
+    private void PopulateCatalogAssets(string providerName, ref long totalBytes, ref int catCount)
+    {
         foreach (var catalog in _project.Catalogs)
         {
             var catHosting = _currentHostingState?.Catalogs.FirstOrDefault(c => c.CatalogId == catalog.Id || c.FileName == catalog.FileName);
@@ -428,14 +459,16 @@ public partial class PublishShareViewModel : ObservableObject
                 Location = isCatHosted ? $"{providerName} (/GenHub_Publisher)" : "Local only",
                 FileSize = catSize,
                 Url = catUrl,
-                Status = isCatHosted ? "Live Online" : "Pending Upload",
+                Status = isCatHosted ? StatusLiveOnline : StatusPendingUpload,
                 IsOnline = isCatHosted,
                 IsExternalCdn = false,
                 LastUpdated = catUpdated,
             });
         }
+    }
 
-        // 3. Artifacts in current project
+    private void PopulateArtifactAssets(string providerName, ref long totalBytes, ref int artCount, ref int cdnCount)
+    {
         foreach (var catalog in _project.Catalogs)
         {
             foreach (var content in catalog.Catalog.Content)
@@ -450,24 +483,35 @@ public partial class PublishShareViewModel : ObservableObject
                         var artSize = artifact.Size > 0 ? artifact.Size : (artHosting?.FileSize ?? 0);
                         var artUpdated = artHosting?.LastUpdated ?? DateTime.MinValue;
 
+                        string location;
+                        string status;
                         if (isCloud)
                         {
                             artCount++;
                             totalBytes += artSize;
+                            location = $"{providerName} (/GenHub_Publisher)";
+                            status = StatusLiveOnline;
                         }
                         else if (isExternal)
                         {
                             cdnCount++;
+                            location = StatusExternalCdn;
+                            status = StatusExternalCdn;
+                        }
+                        else
+                        {
+                            location = "Local file";
+                            status = StatusPendingUpload;
                         }
 
                         HostedAssets.Add(new HostedAssetItemViewModel
                         {
                             Name = artifact.Filename,
                             Category = $"Release Binary ({content.Name} v{release.Version})",
-                            Location = isCloud ? $"{providerName} (/GenHub_Publisher)" : (isExternal ? "External CDN" : "Local file"),
+                            Location = location,
                             FileSize = artSize,
                             Url = artifact.DownloadUrl ?? string.Empty,
-                            Status = isCloud ? "Live Online" : (isExternal ? "External CDN" : "Pending Upload"),
+                            Status = status,
                             IsOnline = isCloud,
                             IsExternalCdn = isExternal,
                             LastUpdated = artUpdated,
@@ -477,72 +521,51 @@ public partial class PublishShareViewModel : ObservableObject
                 }
             }
         }
-
-        // 4. Any discovered files from cloud scan not currently in the project
-        if (_currentHostingState != null)
-        {
-            foreach (var cloudCat in _currentHostingState.Catalogs)
-            {
-                if (!HostedAssets.Any(a => a.Name == cloudCat.FileName || a.Url == cloudCat.Url))
-                {
-                    catCount++;
-                    totalBytes += cloudCat.FileSize;
-                    HostedAssets.Add(new HostedAssetItemViewModel
-                    {
-                        Name = string.IsNullOrEmpty(cloudCat.FileName) ? $"catalog-{cloudCat.CatalogId}.json" : cloudCat.FileName,
-                        Category = $"Cloud Catalog ({cloudCat.CatalogId})",
-                        Location = $"{providerName} (/GenHub_Publisher)",
-                        FileSize = cloudCat.FileSize,
-                        Url = cloudCat.Url,
-                        Status = "Live Online",
-                        IsOnline = true,
-                        IsExternalCdn = false,
-                        LastUpdated = cloudCat.LastUpdated,
-                    });
-                }
-            }
-
-            foreach (var cloudArt in _currentHostingState.Artifacts)
-            {
-                if (!HostedAssets.Any(a => a.Name == cloudArt.FileName || a.Url == cloudArt.Url))
-                {
-                    artCount++;
-                    totalBytes += cloudArt.FileSize;
-                    HostedAssets.Add(new HostedAssetItemViewModel
-                    {
-                        Name = cloudArt.FileName,
-                        Category = "Cloud Artifact",
-                        Location = $"{providerName} (/GenHub_Publisher)",
-                        FileSize = cloudArt.FileSize,
-                        Url = cloudArt.Url,
-                        Status = "Live Online",
-                        IsOnline = true,
-                        IsExternalCdn = false,
-                        LastUpdated = cloudArt.LastUpdated,
-                        Sha256 = cloudArt.Sha256,
-                    });
-                }
-            }
-        }
-
-        TotalStorageUsedFormatted = GenHub.Core.Helpers.FileSizeFormatter.Format(totalBytes);
-        TotalHostedFilesCount = defCount + catCount + artCount;
-        HostedDefinitionCount = defCount;
-        HostedCatalogsCount = catCount;
-        HostedArtifactsCount = artCount;
-        ExternalCdnCount = cdnCount;
     }
 
-    private static string BuildPublishSummary(string catalogUrl, string providerDefinitionUrl, string subscriptionUrl)
+    private void PopulateCloudScanAssets(string providerName, ref long totalBytes, ref int catCount, ref int artCount)
     {
-        var sb = new System.Text.StringBuilder();
-        if (!string.IsNullOrEmpty(catalogUrl))
-            sb.AppendLine($"Catalog URL: {catalogUrl}");
-        if (!string.IsNullOrEmpty(providerDefinitionUrl))
-            sb.AppendLine($"Definition URL: {providerDefinitionUrl}");
-        if (!string.IsNullOrEmpty(subscriptionUrl))
-            sb.AppendLine($"Subscription URL: {subscriptionUrl}");
-        return sb.ToString();
+        if (_currentHostingState == null)
+        {
+            return;
+        }
+
+        foreach (var cloudCat in _currentHostingState.Catalogs.Where(cloudCat => !HostedAssets.Any(a => a.Name == cloudCat.FileName || a.Url == cloudCat.Url)))
+        {
+            catCount++;
+            totalBytes += cloudCat.FileSize;
+            HostedAssets.Add(new HostedAssetItemViewModel
+            {
+                Name = string.IsNullOrEmpty(cloudCat.FileName) ? $"catalog-{cloudCat.CatalogId}.json" : cloudCat.FileName,
+                Category = $"Cloud Catalog ({cloudCat.CatalogId})",
+                Location = $"{providerName} (/GenHub_Publisher)",
+                FileSize = cloudCat.FileSize,
+                Url = cloudCat.Url,
+                Status = StatusLiveOnline,
+                IsOnline = true,
+                IsExternalCdn = false,
+                LastUpdated = cloudCat.LastUpdated,
+            });
+        }
+
+        foreach (var cloudArt in _currentHostingState.Artifacts.Where(cloudArt => !HostedAssets.Any(a => a.Name == cloudArt.FileName || a.Url == cloudArt.Url)))
+        {
+            artCount++;
+            totalBytes += cloudArt.FileSize;
+            HostedAssets.Add(new HostedAssetItemViewModel
+            {
+                Name = cloudArt.FileName,
+                Category = "Cloud Artifact",
+                Location = $"{providerName} (/GenHub_Publisher)",
+                FileSize = cloudArt.FileSize,
+                Url = cloudArt.Url,
+                Status = StatusLiveOnline,
+                IsOnline = true,
+                IsExternalCdn = false,
+                LastUpdated = cloudArt.LastUpdated,
+                Sha256 = cloudArt.Sha256,
+            });
+        }
     }
 
     partial void OnActiveCatalogChanged(NamedCatalog? value)
@@ -606,8 +629,11 @@ public partial class PublishShareViewModel : ObservableObject
             return;
         }
 
-        _authCts?.Cancel();
-        _authCts?.Dispose();
+        if (_authCts != null)
+        {
+            await _authCts.CancelAsync().ConfigureAwait(false);
+            _authCts.Dispose();
+        }
         _authCts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(120));
 
         IsAuthenticating = true;
@@ -835,7 +861,7 @@ public partial class PublishShareViewModel : ObservableObject
 
         try
         {
-            var result = await _hostingStateManager.LoadStateAsync(_project.ProjectPath);
+            var result = await _hostingStateManager.LoadStateAsync(_project.ProjectPath, CancellationToken.None);
             if (result.Success && result.Data != null)
             {
                 _currentHostingState = result.Data;
@@ -1011,7 +1037,7 @@ public partial class PublishShareViewModel : ObservableObject
                 return;
             }
 
-            var result = await _publisherStudioService.ValidateCatalogAsync(ActiveCatalog.Catalog, allowPendingArtifacts: true);
+            var result = await _publisherStudioService.ValidateCatalogAsync(ActiveCatalog.Catalog, allowPendingArtifacts: true, cancellationToken: CancellationToken.None);
             IsValid = result.Success;
             ValidationMessage = result.Success ? $"Catalog '{ActiveCatalog.Name}' is valid" : $"Validation failed: {result.FirstError}";
 
@@ -1039,7 +1065,7 @@ public partial class PublishShareViewModel : ObservableObject
                 return;
             }
 
-            var result = await _publisherStudioService.ExportCatalogAsync(_project, ActiveCatalog);
+            var result = await _publisherStudioService.ExportCatalogAsync(_project, ActiveCatalog, cancellationToken: CancellationToken.None);
             if (result.Success && result.Data != null)
             {
                 CatalogJson = result.Data;
@@ -1111,7 +1137,7 @@ public partial class PublishShareViewModel : ObservableObject
             }
 
             UploadStatusMessage = $"Generating catalog '{ActiveCatalog.Name}'...";
-            var exportResult = await _publisherStudioService.ExportCatalogAsync(_project, ActiveCatalog);
+            var exportResult = await _publisherStudioService.ExportCatalogAsync(_project, ActiveCatalog, cancellationToken: CancellationToken.None);
             if (!exportResult.Success || string.IsNullOrEmpty(exportResult.Data))
             {
                 UploadStatusMessage = $"Failed to export catalog: {exportResult.FirstError}";
@@ -1157,7 +1183,7 @@ public partial class PublishShareViewModel : ObservableObject
         if (SelectedHostingProvider.RequiresAuthentication && !SelectedHostingProvider.IsAuthenticated)
         {
             UploadStatusMessage = "Authenticating...";
-            var authResult = await SelectedHostingProvider.AuthenticateAsync();
+            var authResult = await SelectedHostingProvider.AuthenticateAsync(CancellationToken.None);
             if (!authResult.Success)
             {
                 UploadStatusMessage = $"Authentication failed: {authResult.FirstError}";
@@ -1186,10 +1212,10 @@ public partial class PublishShareViewModel : ObservableObject
         {
             UploadStatusMessage = $"Updating existing catalog '{ActiveCatalog.Name}'...";
             using var stream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(CatalogJson));
-            return await SelectedHostingProvider.UpdateFileAsync(existingCatalogFileId, stream, catalogFileName, progress);
+            return await SelectedHostingProvider.UpdateFileAsync(existingCatalogFileId, stream, catalogFileName, progress, CancellationToken.None);
         }
 
-        return await SelectedHostingProvider.UploadCatalogAsync(CatalogJson, _project.Catalog.Publisher.Id, progress);
+        return await SelectedHostingProvider.UploadCatalogAsync(CatalogJson, _project.Catalog.Publisher.Id, progress, CancellationToken.None);
     }
 
     private async Task CompletePublishSuccessAsync(HostingUploadResult data)
@@ -1239,8 +1265,8 @@ public partial class PublishShareViewModel : ObservableObject
 
         using var defStream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(ProviderDefinitionJson));
         var defUploadResult = (!string.IsNullOrEmpty(existingDefFileId) && SelectedHostingProvider.SupportsUpdate)
-            ? await SelectedHostingProvider.UpdateFileAsync(existingDefFileId, defStream, defFileName)
-            : await SelectedHostingProvider.UploadFileAsync(defStream, defFileName);
+            ? await SelectedHostingProvider.UpdateFileAsync(existingDefFileId, defStream, defFileName, cancellationToken: CancellationToken.None)
+            : await SelectedHostingProvider.UploadFileAsync(defStream, defFileName, cancellationToken: CancellationToken.None);
 
         if (defUploadResult.Success && defUploadResult.Data != null)
         {
@@ -1254,7 +1280,7 @@ public partial class PublishShareViewModel : ObservableObject
                     FileSize = defUploadResult.Data.FileSize,
                     LastUpdated = DateTime.UtcNow,
                 };
-                await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState);
+                await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, CancellationToken.None);
             }
 
             RefreshHostedAssets();
@@ -1349,7 +1375,7 @@ public partial class PublishShareViewModel : ObservableObject
                 UploadProgress = (int)(((double)(current - 1) / total * 80) + (p / total * 80.0 / 100.0));
             });
 
-            var result = await provider.UploadFileAsync(stream, task.Artifact.Filename, null, progress);
+            var result = await provider.UploadFileAsync(stream, task.Artifact.Filename, null, progress, CancellationToken.None);
             if (result.Success && result.Data != null)
             {
                 task.Artifact.DownloadUrl = result.Data.DirectDownloadUrl;
@@ -1432,7 +1458,7 @@ public partial class PublishShareViewModel : ObservableObject
 
         _currentHostingState.LastPublished = DateTime.UtcNow;
 
-        var result = await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState);
+        var result = await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, CancellationToken.None);
         if (result.Success)
         {
             HasPreviouslyPublished = true;
@@ -1456,7 +1482,7 @@ public partial class PublishShareViewModel : ObservableObject
         else if (SelectedHostingProvider.ProviderId == HostingConstants.Dropbox)
             _currentHostingState.AuthToken = DropboxAccessToken;
 
-        await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState);
+        await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, CancellationToken.None);
     }
 
     private async Task RestoreAuthenticationAsync()
@@ -1475,7 +1501,7 @@ public partial class PublishShareViewModel : ObservableObject
             if (provider.ProviderId == HostingConstants.GitHub && provider is GitHubHostingProvider githubProvider)
             {
                 GitHubPersonalAccessToken = _currentHostingState.AuthToken;
-                var result = await githubProvider.AuthenticateWithTokenAsync(_currentHostingState.AuthToken);
+                var result = await githubProvider.AuthenticateWithTokenAsync(_currentHostingState.AuthToken, CancellationToken.None);
                 if (result.Success)
                 {
                     AuthenticationStatusMessage = "Restored connection";
@@ -1485,7 +1511,7 @@ public partial class PublishShareViewModel : ObservableObject
             else if (provider.ProviderId == HostingConstants.Dropbox && provider is DropboxHostingProvider dropboxProvider)
             {
                 DropboxAccessToken = _currentHostingState.AuthToken;
-                var result = await dropboxProvider.AuthenticateWithTokenAsync(_currentHostingState.AuthToken);
+                var result = await dropboxProvider.AuthenticateWithTokenAsync(_currentHostingState.AuthToken, CancellationToken.None);
                 if (result.Success)
                 {
                     AuthenticationStatusMessage = "Restored connection";
@@ -1538,7 +1564,8 @@ public partial class PublishShareViewModel : ObservableObject
             var result = await _publisherStudioService.ExportProviderDefinitionAsync(
                 _project,
                 catalogHostingInfo,
-                ProviderDefinitionUrl);
+                ProviderDefinitionUrl,
+                cancellationToken: CancellationToken.None);
 
             if (result.Success && result.Data != null)
             {
@@ -1587,7 +1614,7 @@ public partial class PublishShareViewModel : ObservableObject
 
             // Upload as a file
             using var stream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(ProviderDefinitionJson));
-            var result = await SelectedHostingProvider.UploadFileAsync(stream, fileName);
+            var result = await SelectedHostingProvider.UploadFileAsync(stream, fileName, cancellationToken: CancellationToken.None);
 
             if (result.Success && result.Data != null)
             {
@@ -2054,7 +2081,7 @@ public partial class PublishShareViewModel : ObservableObject
     {
         if (SelectedHostingProvider?.ProviderId == HostingConstants.Dropbox)
         {
-            OpenExternalBrowserUrl("https://www.dropbox.com/home/GenHub_Publisher");
+            OpenExternalBrowserUrl(HostingConstants.DropboxWebFolderUrl);
         }
         else if (SelectedHostingProvider?.ProviderId == HostingConstants.GoogleDrive && !string.IsNullOrEmpty(_currentHostingState?.FolderUrl))
         {
@@ -2062,11 +2089,11 @@ public partial class PublishShareViewModel : ObservableObject
         }
         else if (SelectedHostingProvider?.ProviderId == HostingConstants.GoogleDrive)
         {
-            OpenExternalBrowserUrl("https://drive.google.com/drive/my-drive");
+            OpenExternalBrowserUrl(HostingConstants.GoogleDriveWebHomeUrl);
         }
         else if (SelectedHostingProvider?.ProviderId == HostingConstants.GitHub)
         {
-            OpenExternalBrowserUrl("https://gist.github.com");
+            OpenExternalBrowserUrl(HostingConstants.GitHubGistWebHomeUrl);
         }
     }
 
@@ -2093,14 +2120,14 @@ public partial class PublishShareViewModel : ObservableObject
 
         try
         {
-            var result = await SelectedHostingProvider.RecoverHostingStateAsync();
+            var result = await SelectedHostingProvider.RecoverHostingStateAsync(CancellationToken.None);
             if (result.Success && result.Data != null)
             {
                 MergeCloudHostingState(result.Data);
 
                 if (!string.IsNullOrEmpty(_project.ProjectPath) && _currentHostingState != null)
                 {
-                    await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState);
+                    await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, CancellationToken.None);
                 }
 
                 InitializeCatalogStatuses();
@@ -2138,13 +2165,13 @@ public partial class PublishShareViewModel : ObservableObject
                 return;
             }
 
-            var result = await SelectedHostingProvider.RecoverHostingStateAsync();
+            var result = await SelectedHostingProvider.RecoverHostingStateAsync(CancellationToken.None);
             if (result.Success && result.Data != null)
             {
                 MergeCloudHostingState(result.Data);
                 if (!string.IsNullOrEmpty(_project.ProjectPath) && _currentHostingState != null)
                 {
-                    await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState);
+                    await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, CancellationToken.None);
                 }
 
                 InitializeCatalogStatuses();
