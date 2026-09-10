@@ -902,21 +902,9 @@ public class ManifestGenerationService(
 
             while (!string.IsNullOrEmpty(currentPath) && !string.Equals(currentPath, normalizedBase, StringComparison.OrdinalIgnoreCase))
             {
-                if (cache != null && cache.TryGetValue(currentPath, out var cachedIsReparse))
+                if (IsPathOrCacheReparsePoint(currentPath, cache))
                 {
-                    if (cachedIsReparse)
-                    {
-                        return true;
-                    }
-                }
-                else
-                {
-                    var isReparsePoint = (File.Exists(currentPath) || Directory.Exists(currentPath)) && IsReparsePoint(currentPath);
-                    cache?.TryAdd(currentPath, isReparsePoint);
-                    if (isReparsePoint)
-                    {
-                        return true;
-                    }
+                    return true;
                 }
 
                 currentPath = Path.GetDirectoryName(currentPath);
@@ -928,6 +916,18 @@ public class ManifestGenerationService(
         {
             return true;
         }
+    }
+
+    private static bool IsPathOrCacheReparsePoint(string currentPath, ConcurrentDictionary<string, bool>? cache)
+    {
+        if (cache != null && cache.TryGetValue(currentPath, out var cachedIsReparse))
+        {
+            return cachedIsReparse;
+        }
+
+        var isReparsePoint = (File.Exists(currentPath) || Directory.Exists(currentPath)) && IsReparsePoint(currentPath);
+        cache?.TryAdd(currentPath, isReparsePoint);
+        return isReparsePoint;
     }
 
     private static string ResolveManifestVersion(GameType gameType, string? manifestVersion)

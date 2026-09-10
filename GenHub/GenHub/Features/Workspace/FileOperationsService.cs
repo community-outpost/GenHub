@@ -48,44 +48,16 @@ public class FileOperationsService(
     {
         try
         {
-            // Check for file symlink FIRST (LinkTarget check works even for broken symlinks)
-            // File.Exists() returns false for broken symlinks on Windows, but they still exist
-            // and will prevent creating a new symlink at the same path
-            var fileInfo = new FileInfo(filePath);
-            if (fileInfo.LinkTarget != null || (fileInfo.Exists && (fileInfo.Attributes & FileAttributes.ReparsePoint) != 0))
+            if (TryDeleteReparsePointOrSymlink(filePath))
             {
-                // This is a file symlink or reparse point (even if broken)
-                if (fileInfo.Exists && (fileInfo.Attributes & FileAttributes.ReadOnly) != 0)
-                {
-                    fileInfo.Attributes &= ~FileAttributes.ReadOnly;
-                }
-
-                File.Delete(filePath);
-                return true;
-            }
-
-            // Check for directory symlink or junction
-            var dirInfo = new DirectoryInfo(filePath);
-            if (dirInfo.LinkTarget != null || (dirInfo.Exists && (dirInfo.Attributes & FileAttributes.ReparsePoint) != 0))
-            {
-                // This is a directory symlink or junction (even if broken)
-                if (dirInfo.Exists && (dirInfo.Attributes & FileAttributes.ReadOnly) != 0)
-                {
-                    dirInfo.Attributes &= ~FileAttributes.ReadOnly;
-                }
-
-                Directory.Delete(filePath, recursive: false);
                 return true;
             }
 
             // Finally check for regular file (not a symlink)
             if (File.Exists(filePath))
             {
-                if ((fileInfo.Attributes & FileAttributes.ReadOnly) != 0)
-                {
-                    fileInfo.Attributes &= ~FileAttributes.ReadOnly;
-                }
-
+                var fileInfo = new FileInfo(filePath);
+                ClearReadOnlyAttribute(fileInfo);
                 File.Delete(filePath);
                 return true;
             }
@@ -873,37 +845,68 @@ public class FileOperationsService(
         // Strip read-only attributes and delete all files.
         foreach (var file in directory.EnumerateFiles())
         {
-            if ((file.Attributes & FileAttributes.ReadOnly) != 0)
-            {
-                file.Attributes &= ~FileAttributes.ReadOnly;
-            }
-
+            ClearReadOnlyAttribute(file);
             file.Delete();
         }
 
         // Process subdirectories: delete junctions/reparse points non-recursively, recurse into regular dirs.
         foreach (var subDir in directory.EnumerateDirectories())
         {
-            if ((subDir.Attributes & FileAttributes.ReadOnly) != 0)
-            {
-                subDir.Attributes &= ~FileAttributes.ReadOnly;
-            }
-
-            if ((subDir.Attributes & FileAttributes.ReparsePoint) != 0 || subDir.LinkTarget != null)
-            {
-                subDir.Delete(false);
-            }
-            else
-            {
-                DeleteDirectoryInternal(subDir);
-            }
+            DeleteDirectoryChild(subDir);
         }
 
-        if ((directory.Attributes & FileAttributes.ReadOnly) != 0)
-        {
-            directory.Attributes &= ~FileAttributes.ReadOnly;
-        }
-
+        ClearReadOnlyAttribute(directory);
         directory.Delete(false);
+    }
+
+    private static void DeleteDirectoryChild(DirectoryInfo subDir)
+    {
+        ClearReadOnlyAttribute(subDir);
+        if ((subDir.Attributes & FileAttributes.ReparsePoint) != 0 || subDir.LinkTarget != null)
+        {
+            subDir.Delete(false);
+        }
+        else
+        {
+            DeleteDirectoryInternal(subDir);
+        }
+    }
+
+    private static bool TryDeleteReparsePointOrSymlink(string path)
+    {
+        // Check for file symlink FIRST (LinkTarget check works even for broken symlinks)
+        // File.Exists() returns false for broken symlinks on Windows, but they still exist
+        // and will prevent creating a new symlink at the same path
+        var fileInfo = new FileInfo(path);
+        if (IsReparsePointOrSymlink(fileInfo))
+        {
+            ClearReadOnlyAttribute(fileInfo);
+            File.Delete(path);
+            return true;
+        }
+
+        // Check for directory symlink or junction
+        var dirInfo = new DirectoryInfo(path);
+        if (IsReparsePointOrSymlink(dirInfo))
+        {
+            ClearReadOnlyAttribute(dirInfo);
+            Directory.Delete(path, recursive: false);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsReparsePointOrSymlink(FileSystemInfo info)
+    {
+        return info.LinkTarget != null || (info.Exists && (info.Attributes & FileAttributes.ReparsePoint) != 0);
+    }
+
+    private static void ClearReadOnlyAttribute(FileSystemInfo info)
+    {
+        if (info.Exists && (info.Attributes & FileAttributes.ReadOnly) != 0)
+        {
+            info.Attributes &= ~FileAttributes.ReadOnly;
+        }
     }
 }
