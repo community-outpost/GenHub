@@ -973,6 +973,7 @@ public class GameProfileSettingsViewModelDependencyTests
         Assert.Single(_viewModel.EnabledContent);
         Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == toolDisplayItem.ManifestId.Value);
     }
+
     /// <summary>
     /// Verifies that executing EnableContentCommand with a GameInstallation on a standalone tool profile
     /// is rejected and does not add the installation to EnabledContent.
