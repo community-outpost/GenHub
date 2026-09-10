@@ -5,9 +5,10 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
-using GenHub.Core.Constants;
+using GenHub.Core.Models.Enums;
 using GenHub.Features.Tools.ModBuilder.Models;
 using Microsoft.Extensions.Logging;
 using System;
@@ -15,6 +16,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.ModBuilder.ViewModels;
@@ -101,10 +103,27 @@ public sealed partial class ProjectDashboardViewModel(
         {
             foreach (var path in recentResult.Data.Where(File.Exists))
             {
+                var contentType = ContentType.Mod;
+                try
+                {
+                    using var stream = File.OpenRead(path);
+                    using var doc = JsonDocument.Parse(stream);
+                    if (doc.RootElement.TryGetProperty("contentType", out var ctProp) &&
+                        Enum.TryParse<ContentType>(ctProp.GetString(), true, out var parsed))
+                    {
+                        contentType = parsed;
+                    }
+                }
+                catch
+                {
+                    // Ignore parsing errors for quick preview
+                }
+
                 projects.Add(new RecentProjectInfo
                 {
                     Name = Path.GetFileNameWithoutExtension(path),
                     Path = path,
+                    ContentType = contentType,
                     Version = ModBuilderConstants.DefaultProjectVersion,
                     LastBuildTime = File.GetLastWriteTime(path),
                 });

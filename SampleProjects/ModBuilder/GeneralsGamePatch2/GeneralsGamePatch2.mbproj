@@ -1,5 +1,6 @@
 {
   "name": "GeneralsGamePatch2",
+  "contentType": "Patch",
   "version": "2.0.0",
   "author": "TheSuperHackers & Community Outpost",
   "targetGame": "Generals",

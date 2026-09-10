@@ -1,5 +1,6 @@
 {
   "name": "BasicMod",
+  "contentType": "Mod",
   "version": "1.0.0",
   "author": "Sample Project",
   "targetGame": "ZeroHour",

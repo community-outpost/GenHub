@@ -20,6 +20,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
+using System.Text.Json;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -127,6 +128,34 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         {
             CurrentProject.TargetGame = value;
             _logger.LogInformation("Project '{Name}' TargetGame changed to {TargetGame}", CurrentProject.Name, value);
+        }
+    }
+
+    /// <summary>
+    /// Gets the available content type options (e.g. Mod, Patch, Addon).
+    /// </summary>
+    public IReadOnlyList<ContentType> AvailableContentTypes { get; } =
+    [
+        ContentType.Mod,
+        ContentType.Patch,
+        ContentType.Addon,
+        ContentType.MapPack,
+        ContentType.LanguagePack,
+        ContentType.ModdingTool,
+    ];
+
+    /// <summary>
+    /// Gets or sets the content type for the current project.
+    /// </summary>
+    [ObservableProperty]
+    private ContentType _selectedContentType = ContentType.Mod;
+
+    partial void OnSelectedContentTypeChanged(ContentType value)
+    {
+        if (CurrentProject != null && CurrentProject.ContentType != value)
+        {
+            CurrentProject.ContentType = value;
+            _logger.LogInformation("Project '{Name}' ContentType changed to {ContentType}", CurrentProject.Name, value);
         }
     }
 
@@ -560,11 +589,19 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
 
         DateTime? lastWriteTime = null;
+        var contentType = ContentType.Mod;
         try
         {
             if (File.Exists(path))
             {
                 lastWriteTime = File.GetLastWriteTime(path);
+                using var stream = File.OpenRead(path);
+                using var doc = JsonDocument.Parse(stream);
+                if (doc.RootElement.TryGetProperty("contentType", out var ctProp) &&
+                    Enum.TryParse<ContentType>(ctProp.GetString(), true, out var parsed))
+                {
+                    contentType = parsed;
+                }
             }
             else if (Directory.Exists(path))
             {
@@ -573,7 +610,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
         catch (Exception)
         {
-            // Ignore I/O errors reading timestamp
+            // Ignore I/O errors reading timestamp and content type
         }
 
         return new RecentProjectInfo
@@ -582,6 +619,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             Path = path,
             LastBuildTime = lastWriteTime,
             Version = "1.0.0",
+            ContentType = contentType,
         };
     }
 
@@ -649,6 +687,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 var result = await _projectConfigService.CreateProjectAsync(
                     projectPath,
                     projectName,
+                    contentType: SelectedContentType,
                     cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
                 if (result.Success && result.Data != null)
@@ -656,6 +695,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                     CurrentProject = result.Data;
                     ProjectPath = projectPath;
                     ProjectName = projectName;
+                    SelectedContentType = result.Data.ContentType;
                     IsProjectLoaded = true;
 
                     // Generate complete project structure
@@ -809,7 +849,31 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var projectDir = Path.GetDirectoryName(path);
             if (!string.IsNullOrEmpty(projectDir) && Directory.Exists(projectDir))
             {
-                Directory.Delete(projectDir, recursive: true);
+                var specialFolders = new[]
+                {
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    Path.GetPathRoot(projectDir),
+                }.Where(p => !string.IsNullOrEmpty(p))
+                 .Select(p => Path.GetFullPath(p).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                var normalizedProjectDir = Path.GetFullPath(projectDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+                if (specialFolders.Contains(normalizedProjectDir))
+                {
+                    if (File.Exists(path))
+                    {
+                        File.Delete(path);
+                    }
+                }
+                else
+                {
+                    Directory.Delete(projectDir, recursive: true);
+                }
             }
             else if (File.Exists(path))
             {
@@ -1374,6 +1438,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         try
         {
             CurrentProject.TargetGame = SelectedTargetGame;
+            CurrentProject.ContentType = SelectedContentType;
 
             // Update compression level in configuration
             if (CurrentProject.Configuration != null)
@@ -1897,9 +1962,12 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 AppendBuildLog("\n=== Manifest Created Successfully ===");
                 await InvokeOnUIThreadAsync(() =>
                 {
+                    var typeName = CurrentProject.ContentType != ContentType.UnknownContentType
+                        ? CurrentProject.ContentType.ToString().ToLowerInvariant()
+                        : "mod";
                     _notificationService.ShowSuccess(
                         "Manifest Created",
-                        $"Local ContentManifest registered in GenHub for '{CurrentProject.Name}'. You can now enable this mod in Game Profiles.");
+                        $"Local ContentManifest registered in GenHub for '{CurrentProject.Name}'. You can now enable this {typeName} in Game Profiles.");
                 });
                 StatusMessage = "Manifest created successfully";
             }
@@ -2473,6 +2541,9 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         if (value != null)
         {
             SelectedTargetGame = value.TargetGame;
+            SelectedContentType = value.ContentType != ContentType.UnknownContentType
+                ? value.ContentType
+                : ContentType.Mod;
         }
 
         // Dispatch UI updates to UI thread

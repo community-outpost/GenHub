@@ -1233,11 +1233,14 @@ public sealed class BuildEngineService : IBuildEngineService
         {
             var projectName = buildStructure.Project.Name;
             var targetGame = buildStructure.Project.TargetGame;
+            var contentType = buildStructure.Project.ContentType != ContentType.UnknownContentType
+                ? buildStructure.Project.ContentType
+                : ContentType.Mod;
 
             var manifestResult = await localContentService.CreateLocalContentManifestAsync(
                 manifestContentDir,
                 projectName,
-                ContentType.Mod,
+                contentType,
                 targetGame,
                 sourcePath: bundlesDir,
                 cancellationToken: cancellationToken).ConfigureAwait(false);

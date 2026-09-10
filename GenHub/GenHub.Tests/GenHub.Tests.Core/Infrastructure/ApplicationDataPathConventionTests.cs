@@ -44,6 +44,9 @@ public class ApplicationDataPathConventionTests
 
         // UI image cache service fallback when used outside DI.
         ["GenHub/GenHub/Infrastructure/Services/ImageCacheService.cs"] = "Fallback default path when used outside DI; DI registration injects IConfigurationProviderService.",
+
+        // Safety check protecting special OS folders from accidental recursive deletion.
+        ["GenHub/GenHub/Features/Tools/ModBuilder/ViewModels/ModBuilderViewModel.cs"] = "Safety check protecting special OS folders from accidental recursive deletion.",
     };
 
     /// <summary>

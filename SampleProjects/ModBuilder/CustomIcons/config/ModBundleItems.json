@@ -1,0 +1,30 @@
+{
+  "BundleItems": [
+    {
+      "Name": "CustomIconTextures",
+      "SourceFiles": [
+        "GameFilesEdited/Art/Textures/**/*.tga"
+      ],
+      "OutputFormat": "DDS",
+      "Compression": "DXT5",
+      "GenerateMipmaps": true,
+      "Description": "Custom unit cameos and hotkey indicator overlay textures"
+    },
+    {
+      "Name": "CustomIconINIs",
+      "SourceFiles": [
+        "GameFilesEdited/Data/INI/**/*.ini"
+      ],
+      "OutputFormat": "INI",
+      "Description": "Command button assignments, command sets, and mapped image coordinates"
+    },
+    {
+      "Name": "CustomIconStrings",
+      "SourceFiles": [
+        "GameFilesEdited/Data/English/**/*.str"
+      ],
+      "OutputFormat": "STR",
+      "Description": "Tooltip string overrides showing hotkey keybindings [Q], [W], etc."
+    }
+  ]
+}

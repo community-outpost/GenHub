@@ -1,0 +1,23 @@
+// -----------------------------------------------------------------------------
+// ModBuilder Sample Project: CustomIcons & Hotkeys
+// Data/English/Generals.str
+//
+// Localized tooltip string definitions with hotkey indicators in square brackets.
+// This allows players to see hotkeys both in the tooltip and on the control bar.
+// -----------------------------------------------------------------------------
+
+CONTROLBAR:ToolTipAmericaVehicleCrusaderHotkey
+"Construct Crusader Tank [Q]\nMedium battle tank equipped with a 105mm high-velocity cannon. Can be upgraded with Composite Armor and Battle Drone."
+End
+
+CONTROLBAR:ToolTipAmericaVehiclePaladinHotkey
+"Construct Paladin Tank [W]\nAdvanced battle tank equipped with a point-defense laser system that shoots down incoming missiles and mortars."
+End
+
+CONTROLBAR:ToolTipGLAInfantryWorkerHotkey
+"Recruit Worker [Q]\nConstructs and repairs GLA structures and collects supplies."
+End
+
+CONTROLBAR:ToolTipChinaInfantryTankHunterHotkey
+"Train Tank Hunter [W]\nAnti-vehicle infantry armed with rocket launchers. Capable of TNT attacks against buildings."
+End

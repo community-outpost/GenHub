@@ -1,0 +1,30 @@
+{
+  "BundleItems": [
+    {
+      "Name": "MenuWindows",
+      "SourceFiles": [
+        "GameFilesEdited/window/Menus/**/*.wnd"
+      ],
+      "OutputFormat": "WINDOW",
+      "Description": "Widescreen adapted .wnd menu layout definitions"
+    },
+    {
+      "Name": "MenuMappedImages",
+      "SourceFiles": [
+        "GameFilesEdited/Data/INI/MappedImages/**/*.ini"
+      ],
+      "OutputFormat": "INI",
+      "Description": "MappedImage coordinate definitions for widescreen menu textures and buttons"
+    },
+    {
+      "Name": "MenuTextures",
+      "SourceFiles": [
+        "GameFilesEdited/Data/English/Art/Textures/**/*.tga"
+      ],
+      "OutputFormat": "DDS",
+      "Compression": "DXT5",
+      "GenerateMipmaps": false,
+      "Description": "High resolution menu backdrops and UI frame textures"
+    }
+  ]
+}

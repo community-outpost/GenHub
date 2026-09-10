@@ -24,9 +24,38 @@ public class ProjectTemplate
         Description = "Basic mod project with standard configurations",
         DefaultBundleConfigs = new List<string>
         {
-            "Configs/ModBundleItems.json",
-            "Configs/ModBundlePacks.json",
-            "Configs/ModFolders.json",
+            "config/ModBundleItems.json",
+            "config/ModBundlePacks.json",
+        },
+        CreateSampleFiles = true,
+    };
+
+    /// <summary>
+    /// Gets the custom icons and hotkeys template.
+    /// </summary>
+    public static ProjectTemplate CustomIcons => new()
+    {
+        Name = "Custom Icons & Hotkeys",
+        Description = "Custom unit cameo icons, Legionnaire QWERTY hotkeys, and indicator overlays",
+        DefaultBundleConfigs = new List<string>
+        {
+            "config/ModBundleItems.json",
+            "config/ModBundlePacks.json",
+        },
+        CreateSampleFiles = true,
+    };
+
+    /// <summary>
+    /// Gets the improved menus template.
+    /// </summary>
+    public static ProjectTemplate ImprovedMenus => new()
+    {
+        Name = "Improved Menus",
+        Description = "16:9 widescreen menu overhauls and custom UI windows (.wnd)",
+        DefaultBundleConfigs = new List<string>
+        {
+            "config/ModBundleItems.json",
+            "config/ModBundlePacks.json",
         },
         CreateSampleFiles = true,
     };
