@@ -10,6 +10,8 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// </summary>
 public partial class ContentDisplayItem : ObservableObject
 {
+    private string _displayName = string.Empty;
+
     /// <summary>
     /// Gets or sets a value indicating whether this content is enabled.
     /// </summary>
@@ -37,8 +39,6 @@ public partial class ContentDisplayItem : ObservableObject
     /// Gets or sets the manifest ID.
     /// </summary>
     public required ManifestId ManifestId { get; set; }
-
-    private string _displayName = string.Empty;
 
     /// <summary>
     /// Gets or sets the display name.

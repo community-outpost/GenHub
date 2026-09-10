@@ -858,4 +858,81 @@ public class GameProfileSettingsViewModelDependencyTests
         // Assert
         _mockGameProfileManager.Verify(x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    /// <summary>
+    /// Verifies that changing SelectedGameInstallation synchronizes IsEnabled flags and replaces the item in EnabledContent.
+    /// </summary>
+    [Fact]
+    public void SelectedGameInstallation_WhenChanged_SynchronizesIsEnabledAndReplacesInEnabledContent()
+    {
+        // Arrange
+        var install1 = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("install-1"),
+            DisplayName = "Zero Hour Install 1",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.EaApp,
+        };
+        var install2 = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("install-2"),
+            DisplayName = "Zero Hour Install 2",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+        };
+
+        _viewModel.AvailableGameInstallations.Add(install1);
+        _viewModel.AvailableGameInstallations.Add(install2);
+
+        // Act 1: select install1
+        _viewModel.SelectedGameInstallation = install1;
+
+        // Assert 1
+        Assert.True(install1.IsEnabled);
+        Assert.False(install2.IsEnabled);
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == install1.ManifestId.Value);
+
+        // Act 2: switch to install2
+        _viewModel.SelectedGameInstallation = install2;
+
+        // Assert 2
+        Assert.False(install1.IsEnabled);
+        Assert.True(install2.IsEnabled);
+        Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ManifestId.Value == install1.ManifestId.Value);
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == install2.ManifestId.Value);
+    }
+
+    /// <summary>
+    /// Verifies that adding a duplicate ManifestId to EnabledContent deduplicates the collection.
+    /// </summary>
+    [Fact]
+    public void EnabledContent_WhenDuplicateItemAdded_DeduplicatesManifestId()
+    {
+        // Arrange
+        var item1 = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("dup-id"),
+            DisplayName = "Mod Item 1",
+            ContentType = ContentType.Mod,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Unknown,
+        };
+        var item2 = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("dup-id"),
+            DisplayName = "Mod Item 2",
+            ContentType = ContentType.Mod,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Unknown,
+        };
+
+        // Act
+        _viewModel.EnabledContent.Add(item1);
+        _viewModel.EnabledContent.Add(item2);
+
+        // Assert
+        Assert.Equal(1, _viewModel.EnabledContent.Count(x => x.ManifestId.Value == "dup-id"));
+    }
 }

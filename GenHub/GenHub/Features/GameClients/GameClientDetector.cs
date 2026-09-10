@@ -479,8 +479,7 @@ public class GameClientDetector(
         var hashResult = await DetectVersionFromHashAsync(installationPath, gameType, cancellationToken);
         if (hashResult.HasValue)
         {
-            var (version, detectedExecutablePath) = hashResult.Value;
-            return (version, detectedExecutablePath);
+            return hashResult.Value;
         }
 
         var defaultExecutableName = gameType == GameType.Generals

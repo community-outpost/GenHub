@@ -270,6 +270,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly List<string> _originalEnabledContentIds = [];
     private GameProfile? _originalProfile;
     private UpdateProfileRequest? _originalGameSettings;
+    private bool _isSynchronizingEnabledContent;
 
     private WorkspaceStrategy? OriginalWorkspaceStrategy { get; set; }
 
@@ -481,8 +482,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         _ = RefreshFiltersAndContentAsync();
     }
 
-    private bool _isSynchronizingEnabledContent;
-
     /// <summary>
     /// Handles synchronizing the EnabledContent collection with SelectedGameInstallation and deduplicating items.
     /// </summary>
@@ -539,18 +538,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             try
             {
                 _isSynchronizingEnabledContent = true;
-                var currentInstallation = EnabledContent.FirstOrDefault(c => c.ContentType == ContentType.GameInstallation);
-                if (currentInstallation != null)
-                {
-                    if (SelectedGameInstallation?.ManifestId.Value != currentInstallation.ManifestId.Value)
-                    {
-                        SelectedGameInstallation = AvailableGameInstallations.FirstOrDefault(i => i.ManifestId.Value == currentInstallation.ManifestId.Value) ?? currentInstallation;
-                    }
-                }
-                else
-                {
-                    SelectedGameInstallation = null;
-                }
+                SelectedGameInstallation = null;
             }
             finally
             {

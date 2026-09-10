@@ -235,9 +235,9 @@ public partial class GameProfileSettingsViewModel
                 SelectedGameInstallation = null;
                 _logger?.LogInformation("Cleared SelectedGameInstallation");
             }
-            else if ((itemToRemove.ContentType == ContentType.GameClient || itemToRemove.ContentType == ContentType.Mod) &&
+            else if (itemToRemove.ContentType is ContentType.GameClient or ContentType.Mod &&
                      SelectedGameInstallation != null &&
-                     !EnabledContent.Any(e => e.ContentType == ContentType.GameClient || e.ContentType == ContentType.Mod))
+                     !EnabledContent.Any(e => e.ContentType is ContentType.GameClient or ContentType.Mod))
             {
                 SelectedGameInstallation = null;
                 _logger?.LogInformation("Auto-disabled SelectedGameInstallation as no GameClient or Mod remains enabled");

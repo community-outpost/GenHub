@@ -1667,7 +1667,7 @@ public class ManifestGenerationService(
             }
 
             var generalsExeInInstall = Path.Combine(installationPath, GameClientConstants.GeneralsExecutable);
-            if (File.Exists(generalsExeInInstall) && !executablePath.EndsWith(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase))
+            if (File.Exists(generalsExeInInstall) && !string.Equals(Path.GetFileName(executablePath), GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase))
             {
                 var generalsFileName = Path.GetFileName(generalsExeInInstall);
                 var generalsSourcePath = ResolveSourcePathWithBackup(generalsExeInInstall, generalsFileName);

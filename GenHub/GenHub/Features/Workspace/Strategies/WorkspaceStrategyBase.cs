@@ -699,37 +699,39 @@ public abstract class WorkspaceStrategyBase<T>(
         }
 
         // 1. Ensure __Installer exists in the parent directory of the workspace.
-        // Modern game.dat (EA 2024 update) checks for '..\__Installer'; finding it skips Steam DRM checks.
+        // Modern game.dat (EA 2024 update) checks for '..\__Installer' relative to the executing process;
+        // finding it skips Steam DRM checks. This shared marker at the workspace parent root is intentionally
+        // preserved across per-workspace lifecycles to allow sibling workspaces to bypass DRM.
         try
         {
             var parentDir = Path.GetDirectoryName(workspaceInfo.WorkspacePath);
             if (!string.IsNullOrEmpty(parentDir) && Directory.Exists(parentDir))
             {
-                var installerDir = Path.Combine(parentDir, "__Installer");
+                var installerDir = Path.Combine(parentDir, GameClientConstants.SteamDrmMarkerDirectory);
                 if (!Directory.Exists(installerDir))
                 {
                     Directory.CreateDirectory(installerDir);
-                    logger.LogDebug("Ensured __Installer directory at {InstallerDir} for DRM compatibility", installerDir);
+                    logger.LogDebug("Ensured DRM marker directory at {InstallerDir}", installerDir);
                 }
             }
         }
         catch (Exception ex)
         {
-            logger.LogDebug(ex, "Failed to ensure __Installer directory for workspace at {WorkspacePath}", workspaceInfo.WorkspacePath);
+            logger.LogWarning(ex, "Failed to ensure DRM marker directory for workspace at {WorkspacePath}", workspaceInfo.WorkspacePath);
         }
 
         // 2. Ensure ZH_Generals base assets are linked if present in the game installation.
-        var zhGeneralsTargetPath = Path.Combine(workspaceInfo.WorkspacePath, "ZH_Generals");
+        var zhGeneralsTargetPath = Path.Combine(workspaceInfo.WorkspacePath, GameClientConstants.ZhGeneralsDirectory);
         if (!Directory.Exists(zhGeneralsTargetPath))
         {
             var sourceDirWithZhGenerals = configuration.Manifests
                 .SelectMany(m => m.Files ?? [])
                 .Select(f => Path.GetDirectoryName(f.SourcePath))
-                .FirstOrDefault(d => !string.IsNullOrEmpty(d) && Directory.Exists(Path.Combine(d, "ZH_Generals")));
+                .FirstOrDefault(d => !string.IsNullOrEmpty(d) && Directory.Exists(Path.Combine(d, GameClientConstants.ZhGeneralsDirectory)));
 
             if (!string.IsNullOrEmpty(sourceDirWithZhGenerals))
             {
-                var zhGeneralsSource = Path.Combine(sourceDirWithZhGenerals, "ZH_Generals");
+                var zhGeneralsSource = Path.Combine(sourceDirWithZhGenerals, GameClientConstants.ZhGeneralsDirectory);
                 try
                 {
                     Directory.CreateSymbolicLink(zhGeneralsTargetPath, zhGeneralsSource);
@@ -755,26 +757,40 @@ public abstract class WorkspaceStrategyBase<T>(
         // 3. Ensure d3d8.dll is present in workspace (Direct3D 8 wrapper required for modern Windows 10/11)
         try
         {
-            var d3d8TargetPath = Path.Combine(workspaceInfo.WorkspacePath, "d3d8.dll");
+            var d3d8TargetPath = Path.Combine(workspaceInfo.WorkspacePath, GameClientConstants.Direct3D8WrapperDll);
             if (!File.Exists(d3d8TargetPath))
             {
                 var d3d8Source = configuration.Manifests
                     .SelectMany(m => m.Files ?? [])
                     .Select(f => Path.GetDirectoryName(f.SourcePath))
                     .Where(d => !string.IsNullOrEmpty(d))
-                    .Select(d => Path.Combine(d!, "d3d8.dll"))
+                    .Select(d => Path.Combine(d!, GameClientConstants.Direct3D8WrapperDll))
                     .FirstOrDefault(File.Exists);
 
                 if (!string.IsNullOrEmpty(d3d8Source))
                 {
-                    File.Copy(d3d8Source, d3d8TargetPath, overwrite: false);
-                    logger.LogInformation("Copied d3d8.dll from {Source} to {Target}", d3d8Source, d3d8TargetPath);
+                    try
+                    {
+                        File.CreateSymbolicLink(d3d8TargetPath, d3d8Source);
+                        logger.LogInformation("Linked {Dll} from {Source} to {Target}", GameClientConstants.Direct3D8WrapperDll, d3d8Source, d3d8TargetPath);
+                    }
+                    catch (Exception symlinkEx)
+                    {
+                        logger.LogWarning(symlinkEx, "Failed to create symlink for {Dll}, falling back to copy: {Target}", GameClientConstants.Direct3D8WrapperDll, d3d8TargetPath);
+                        if (File.Exists(d3d8TargetPath))
+                        {
+                            File.Delete(d3d8TargetPath);
+                        }
+
+                        File.Copy(d3d8Source, d3d8TargetPath, overwrite: true);
+                        logger.LogInformation("Copied {Dll} from {Source} to {Target}", GameClientConstants.Direct3D8WrapperDll, d3d8Source, d3d8TargetPath);
+                    }
                 }
             }
         }
         catch (Exception ex)
         {
-            logger.LogDebug(ex, "Failed to copy d3d8.dll to workspace at {WorkspacePath}", workspaceInfo.WorkspacePath);
+            logger.LogWarning(ex, "Failed to materialize {Dll} to workspace at {WorkspacePath}", GameClientConstants.Direct3D8WrapperDll, workspaceInfo.WorkspacePath);
         }
     }
 

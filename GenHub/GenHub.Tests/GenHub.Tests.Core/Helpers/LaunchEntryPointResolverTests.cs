@@ -1,3 +1,4 @@
+using System.IO;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 
@@ -50,14 +51,14 @@ public class LaunchEntryPointResolverTests
     }
 
     /// <summary>
-    /// The generals.exe / generalszh.exe launcher spawns game.dat (named "game") and exits.
+    /// The generals.exe launcher spawns game.dat (named "game") and exits.
     /// </summary>
     [Fact]
     public void ResolveExpectedChildProcessName_ForGeneralsExecutable_ReturnsGameChildProcess()
     {
         var path = Path.Combine("/workspace", GameClientConstants.GeneralsExecutable);
 
-        Assert.Equal("game", LaunchEntryPointResolver.ResolveExpectedChildProcessName(path));
+        Assert.Equal(GameClientConstants.GameProcessName, LaunchEntryPointResolver.ResolveExpectedChildProcessName(path));
     }
 
     /// <summary>
