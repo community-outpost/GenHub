@@ -320,22 +320,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         if (isSlotDefinition)
         {
             var isHuman = !rawMarkerAndName.StartsWith('C') && !rawMarkerAndName.StartsWith('c');
-            int? factionIndex;
-            int? colorIndex;
-
-            // Wire format per GameInfo.cpp (GameInfoToAsciiString):
-            // Human: H<name>,IP,port,flags,color,template,...
-            // AI:    C<difficulty>,color,template,startPos,team
-            if (isHuman)
-            {
-                colorIndex = parts.Length > 4 && int.TryParse(parts[4], out var c) ? c : null;
-                factionIndex = parts.Length > 5 && int.TryParse(parts[5], out var f) ? f : null;
-            }
-            else
-            {
-                colorIndex = parts.Length > 1 && int.TryParse(parts[1], out var c) ? c : null;
-                factionIndex = parts.Length > 2 && int.TryParse(parts[2], out var f) ? f : null;
-            }
+            var (colorIndex, factionIndex) = ParseSlotIndices(parts, isHuman);
 
             slotInfo = new ReplaySlotInfo(
                 slotIndex,
@@ -346,6 +331,21 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         }
 
         return true;
+    }
+
+    private static (int? Color, int? Faction) ParseSlotIndices(string[] parts, bool isHuman)
+    {
+        // Wire format per GameInfo.cpp (GameInfoToAsciiString):
+        // Human: H<name>,IP,port,flags,color,template,...
+        // AI:    C<difficulty>,color,template,startPos,team
+        return isHuman
+            ? (ParseSlotPart(parts, 4), ParseSlotPart(parts, 5))
+            : (ParseSlotPart(parts, 1), ParseSlotPart(parts, 2));
+    }
+
+    private static int? ParseSlotPart(string[] parts, int index)
+    {
+        return parts.Length > index && int.TryParse(parts[index], out var val) ? val : null;
     }
 
     /// <summary>

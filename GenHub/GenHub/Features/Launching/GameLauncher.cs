@@ -479,6 +479,36 @@ public class GameLauncher(
         return true;
     }
 
+    private static OperationResult<bool> PopulateCommandLineArguments(
+        string commandLineArguments,
+        Dictionary<string, string> arguments)
+    {
+        var args = commandLineArguments.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var arg in args)
+        {
+            if (!IsValidCommandArgument(arg))
+            {
+                return OperationResult<bool>.CreateFailure($"Invalid command argument: {arg}");
+            }
+        }
+
+        var positionalIndex = 0;
+        foreach (var arg in args)
+        {
+            if (arg.StartsWith('-'))
+            {
+                arguments[arg] = string.Empty;
+            }
+            else
+            {
+                arguments[$"_pos{positionalIndex}"] = arg;
+                positionalIndex++;
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
     /// <summary>
     /// Builds the child process environment for a game client.
     /// </summary>
@@ -1483,36 +1513,6 @@ public class GameLauncher(
         }
 
         return OperationResult<Dictionary<string, string>>.CreateSuccess(arguments);
-    }
-
-    private OperationResult<bool> PopulateCommandLineArguments(
-        string commandLineArguments,
-        Dictionary<string, string> arguments)
-    {
-        var args = commandLineArguments.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var arg in args)
-        {
-            if (!IsValidCommandArgument(arg))
-            {
-                return OperationResult<bool>.CreateFailure($"Invalid command argument: {arg}");
-            }
-        }
-
-        var positionalIndex = 0;
-        foreach (var arg in args)
-        {
-            if (arg.StartsWith('-'))
-            {
-                arguments[arg] = string.Empty;
-            }
-            else
-            {
-                arguments[$"_pos{positionalIndex}"] = arg;
-                positionalIndex++;
-            }
-        }
-
-        return OperationResult<bool>.CreateSuccess(true);
     }
 
     private async Task<OperationResult<(SteamLaunchPrepResult PrepResult, string SteamAppId)>> PrepareSteamProxyAsync(

@@ -1365,11 +1365,11 @@ public partial class ReplayManagerViewModel(
     /// Cancels an active checkpoint minting operation.
     /// </summary>
     [RelayCommand]
-    private void CancelMintCheckpoint()
+    private async Task CancelMintCheckpointAsync()
     {
         if (IsMintingCheckpoint && _mintCts != null)
         {
-            _mintCts.Cancel();
+            await _mintCts.CancelAsync();
             StatusMessage = "Canceling checkpoint minting...";
         }
     }
@@ -1395,8 +1395,12 @@ public partial class ReplayManagerViewModel(
         IsMintingCheckpoint = true;
         StatusMessage = $"Minting checkpoint at frame {TargetCheckpointFrame}...";
 
-        _mintCts?.Cancel();
-        _mintCts?.Dispose();
+        if (_mintCts != null)
+        {
+            await _mintCts.CancelAsync();
+            _mintCts.Dispose();
+        }
+
         _mintCts = new CancellationTokenSource();
 
         try
