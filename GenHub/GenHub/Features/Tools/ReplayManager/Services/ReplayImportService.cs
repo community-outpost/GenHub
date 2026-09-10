@@ -17,6 +17,8 @@ using SharpCompress.Archives;
 
 namespace GenHub.Features.Tools.ReplayManager.Services;
 
+#pragma warning disable S6966 // OpenAsync is only available in .NET 10+; net8.0 target provides Open()
+
 /// <summary>
 /// Implementation of <see cref="IReplayImportService"/> for importing replay files.
 /// </summary>
@@ -220,56 +222,16 @@ public sealed class ReplayImportService(
                 count++;
                 progress?.Report((double)count / total);
 
-                var targetPath = GetUniquePath(Path.Combine(targetDir, Path.GetFileName(entry.Name)));
-
-                try
-                {
-                    await using var stream = entry.Open();
-                    expandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
-                        stream,
-                        targetPath,
-                        entry.FullName,
-                        ReplayManagerConstants.MaxReplaySizeBytes,
-                        ReplayManagerConstants.MaxAggregateUncompressedBytes - expandedBytes,
-                        cancellationToken: ct);
-                    imported.Add(targetPath);
-                }
-                catch (InvalidDataException ex)
-                {
-                    logger.LogInformation(ex, "Decompression via ZipArchive failed for {Entry}, attempting SharpCompress fallback", entry.FullName);
-                    try
-                    {
-                        var written = await TryExtractEntryWithSharpCompressAsync(
-                            zipPath,
-                            entry.FullName,
-                            targetPath,
-                            ReplayManagerConstants.MaxReplaySizeBytes,
-                            ReplayManagerConstants.MaxAggregateUncompressedBytes - expandedBytes,
-                            ct);
-
-                        if (written > 0)
-                        {
-                            expandedBytes += written;
-                            imported.Add(targetPath);
-                        }
-                        else
-                        {
-                            throw;
-                        }
-                    }
-                    catch (Exception sharpEx) when (sharpEx is not OperationCanceledException)
-                    {
-                        logger.LogWarning(sharpEx, "Discarding replay entry {Entry} from {ZipPath}", entry.FullName, zipPath);
-                        errors.Add(sharpEx.Message);
-                        skipped++;
-                    }
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    logger.LogWarning(ex, "Discarding replay entry {Entry} from {ZipPath}", entry.FullName, zipPath);
-                    errors.Add(ex.Message);
-                    skipped++;
-                }
+                await ProcessZipEntryAsync(
+                    entry,
+                    zipPath,
+                    targetDir,
+                    expandedBytes,
+                    bytes => expandedBytes += bytes,
+                    imported,
+                    errors,
+                    () => skipped++,
+                    ct);
             }
         }
         catch (InvalidDataException ex)
@@ -430,6 +392,37 @@ public sealed class ReplayImportService(
         }
     }
 
+    private static async Task<long> TryExtractEntryWithSharpCompressAsync(
+        string archivePath,
+        string entryFullName,
+        string destinationPath,
+        long maxEntryBytes,
+        long remainingAggregateBytes,
+        CancellationToken ct)
+    {
+        using var archive = ArchiveFactory.OpenArchive(archivePath);
+        var entryName = Path.GetFileName(entryFullName);
+        var entry = archive.Entries.FirstOrDefault(e =>
+            !e.IsDirectory &&
+            (string.Equals(e.Key, entryFullName, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(Path.GetFileName(e.Key), entryName, StringComparison.OrdinalIgnoreCase)));
+
+        if (entry == null)
+        {
+            return 0;
+        }
+
+        using var entryStream = entry.OpenEntryStream();
+        return await BoundedArchiveExtractor.CopyEntryToFileAsync(
+            entryStream,
+            destinationPath,
+            entry.Key ?? entryFullName,
+            maxEntryBytes,
+            remainingAggregateBytes,
+            overwrite: true,
+            cancellationToken: ct);
+    }
+
     private async Task<int> DownloadAndImportReplayUrlAsync(
         string directUrl,
         string userAgent,
@@ -496,35 +489,91 @@ public sealed class ReplayImportService(
         }
     }
 
-    private static async Task<long> TryExtractEntryWithSharpCompressAsync(
-        string archivePath,
-        string entryFullName,
-        string destinationPath,
-        long maxEntryBytes,
-        long remainingAggregateBytes,
+    private async Task ProcessZipEntryAsync(
+        ZipArchiveEntry entry,
+        string zipPath,
+        string targetDir,
+        long currentExpandedBytes,
+        Action<long> onBytesExpanded,
+        List<string> imported,
+        List<string> errors,
+        Action onEntrySkipped,
         CancellationToken ct)
     {
-        using var archive = ArchiveFactory.OpenArchive(archivePath);
-        var entryName = Path.GetFileName(entryFullName);
-        var entry = archive.Entries.FirstOrDefault(e =>
-            !e.IsDirectory &&
-            (string.Equals(e.Key, entryFullName, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(Path.GetFileName(e.Key), entryName, StringComparison.OrdinalIgnoreCase)));
+        var targetPath = GetUniquePath(Path.Combine(targetDir, Path.GetFileName(entry.Name)));
 
-        if (entry == null)
+        try
         {
-            return 0;
+            await using var stream = entry.Open();
+            var written = await BoundedArchiveExtractor.CopyEntryToFileAsync(
+                stream,
+                targetPath,
+                entry.FullName,
+                ReplayManagerConstants.MaxReplaySizeBytes,
+                ReplayManagerConstants.MaxAggregateUncompressedBytes - currentExpandedBytes,
+                cancellationToken: ct);
+            onBytesExpanded(written);
+            imported.Add(targetPath);
         }
+        catch (InvalidDataException ex)
+        {
+            logger.LogInformation(ex, "Decompression via ZipArchive failed for {Entry}, attempting SharpCompress fallback", entry.FullName);
+            await ProcessZipEntryWithSharpCompressFallbackAsync(
+                entry,
+                zipPath,
+                targetPath,
+                currentExpandedBytes,
+                onBytesExpanded,
+                imported,
+                errors,
+                onEntrySkipped,
+                ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Discarding replay entry {Entry} from {ZipPath}", entry.FullName, zipPath);
+            errors.Add(ex.Message);
+            onEntrySkipped();
+        }
+    }
 
-        using var entryStream = entry.OpenEntryStream();
-        return await BoundedArchiveExtractor.CopyEntryToFileAsync(
-            entryStream,
-            destinationPath,
-            entry.Key ?? entryFullName,
-            maxEntryBytes,
-            remainingAggregateBytes,
-            overwrite: true,
-            cancellationToken: ct);
+    private async Task ProcessZipEntryWithSharpCompressFallbackAsync(
+        ZipArchiveEntry entry,
+        string zipPath,
+        string targetPath,
+        long currentExpandedBytes,
+        Action<long> onBytesExpanded,
+        List<string> imported,
+        List<string> errors,
+        Action onEntrySkipped,
+        CancellationToken ct)
+    {
+        try
+        {
+            var written = await TryExtractEntryWithSharpCompressAsync(
+                zipPath,
+                entry.FullName,
+                targetPath,
+                ReplayManagerConstants.MaxReplaySizeBytes,
+                ReplayManagerConstants.MaxAggregateUncompressedBytes - currentExpandedBytes,
+                ct);
+
+            if (written > 0)
+            {
+                onBytesExpanded(written);
+                imported.Add(targetPath);
+            }
+            else
+            {
+                throw new InvalidDataException($"SharpCompress could not extract entry {entry.FullName}.");
+            }
+        }
+        catch (Exception sharpEx) when (sharpEx is not OperationCanceledException)
+        {
+            logger.LogWarning(sharpEx, "Discarding replay entry {Entry} from {ZipPath}", entry.FullName, zipPath);
+            errors.Add(sharpEx.Message);
+            onEntrySkipped();
+        }
     }
 
     private async Task<ImportResult> ImportWithSharpCompressAsync(
@@ -558,7 +607,7 @@ public sealed class ReplayImportService(
                 count++;
                 progress?.Report((double)count / Math.Max(1, total));
 
-                var fileName = Path.GetFileName(entry.Key);
+                var fileName = Path.GetFileName(entry.Key ?? string.Empty);
                 var targetPath = GetUniquePath(Path.Combine(targetDir, fileName));
 
                 try
@@ -567,7 +616,7 @@ public sealed class ReplayImportService(
                     expandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
                         stream,
                         targetPath,
-                        entry.Key,
+                        entry.Key ?? fileName,
                         ReplayManagerConstants.MaxReplaySizeBytes,
                         ReplayManagerConstants.MaxAggregateUncompressedBytes - expandedBytes,
                         overwrite: true,

@@ -1197,7 +1197,7 @@ public partial class MapManagerViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Clears all upload history and deletes hosted files from cloud storage.\
+    /// Clears all upload history and deletes hosted files from cloud storage.
     /// </summary>
     [RelayCommand]
     private async Task ClearHistoryAsync()
