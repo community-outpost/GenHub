@@ -10,6 +10,22 @@ namespace GenHub.Features.Tools.Interfaces;
 public interface IPublisherStudioDialogService
 {
     /// <summary>
+    /// Shows a confirmation dialog.
+    /// </summary>
+    /// <param name="title">The dialog title.</param>
+    /// <param name="message">The confirmation message.</param>
+    /// <param name="confirmText">The confirm button text.</param>
+    /// <param name="cancelText">The cancel button text.</param>
+    /// <param name="sessionKey">Optional session key for "do not ask again".</param>
+    /// <returns>True if confirmed, false otherwise.</returns>
+    Task<bool> ShowConfirmationAsync(
+        string title,
+        string message,
+        string confirmText = "Confirm",
+        string cancelText = "Cancel",
+        string? sessionKey = null);
+
+    /// <summary>
     /// Shows the setup wizard for initial publisher profile configuration.
     /// </summary>
     /// <param name="project">The project to configure.</param>

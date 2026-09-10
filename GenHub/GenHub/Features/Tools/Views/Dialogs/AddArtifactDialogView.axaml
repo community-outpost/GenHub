@@ -16,13 +16,13 @@
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="12,10"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="SelectionBrush" Value="#D56AFF"/>
+            <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
             <Setter Property="SelectionForegroundBrush" Value="White"/>
             <Setter Property="CaretBrush" Value="White"/>
         </Style>
         <Style Selector="TextBox:focus">
             <Setter Property="Background" Value="#18FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#AA00FF"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
         </Style>
         <Style Selector="CheckBox">
             <Setter Property="Foreground" Value="White"/>
@@ -162,7 +162,7 @@
 
                 <!-- Computing hash indicator -->
                 <StackPanel IsVisible="{Binding IsComputingHash}" Orientation="Horizontal" Spacing="8">
-                    <ProgressBar IsIndeterminate="True" Width="120" Height="4" Foreground="#AA00FF"/>
+                    <ProgressBar IsIndeterminate="True" Width="120" Height="4" Foreground="{DynamicResource AccentColorBrush}"/>
                     <TextBlock Text="Computing hash..." FontSize="12" Foreground="#888888"/>
                 </StackPanel>
 
@@ -206,7 +206,7 @@
                     <TextBlock Text="Auto-computed from selected file"
                                Classes="hint"
                                IsVisible="{Binding UseLocalFile}"/>
-                    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsComputingHash}" Height="2" Foreground="#AA00FF"/>
+                    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsComputingHash}" Height="2" Foreground="{DynamicResource AccentColorBrush}"/>
                 </StackPanel>
 
                 <CheckBox Content="Primary Artifact" IsChecked="{Binding IsPrimary}"
