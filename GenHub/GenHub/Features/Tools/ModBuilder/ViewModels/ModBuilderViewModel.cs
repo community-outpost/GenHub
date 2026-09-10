@@ -37,6 +37,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     private const string ModBuilderLiteral = "ModBuilder";
     private const string BasicModLiteral = "BasicMod";
     private const string BasicModProjectFileLiteral = "BasicMod.mbproj";
+    private const string MbprojFilter = "*.mbproj";
     private const string SampleProjectsDirLiteral = "SampleProjects";
     private const string NoProjectTitle = "No Project";
     private const string NoProjectMessage = "Please load or create a project first";
@@ -421,7 +422,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             {
                 if (value)
                 {
-                    if (pack.Big != false)
+                    if (pack.Big is not false)
                     {
                         pack.Big = true;
                     }
@@ -690,7 +691,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             SuggestedStartLocation = suggestedFolder,
             FileTypeChoices =
             [
-                new FilePickerFileType("ModBuilder Project") { Patterns = ["*.mbproj",], }
+                new FilePickerFileType("ModBuilder Project") { Patterns = [MbprojFilter,], }
             ],
         }).ConfigureAwait(false);
 
@@ -781,7 +782,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             SuggestedStartLocation = suggestedFolder,
             FileTypeFilter =
             [
-                new FilePickerFileType("ModBuilder Project") { Patterns = ["*.mbproj",], }
+                new FilePickerFileType("ModBuilder Project") { Patterns = [MbprojFilter,], }
             ],
         }).ConfigureAwait(false);
 
@@ -936,7 +937,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             SuggestedStartLocation = suggestedFolder,
             FileTypeChoices =
             [
-                new FilePickerFileType("ModBuilder Project") { Patterns = ["*.mbproj"], },
+                new FilePickerFileType("ModBuilder Project") { Patterns = [MbprojFilter], },
             ],
         }).ConfigureAwait(false);
 
@@ -1245,7 +1246,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     {
         try
         {
-            var files = Directory.GetFiles(baseDir, "*.mbproj", SearchOption.AllDirectories);
+            var files = Directory.GetFiles(baseDir, MbprojFilter, SearchOption.AllDirectories);
             foreach (var templateFile in files)
             {
                 await ProvisionSingleSampleTemplateAsync(templateFile, userSamplesDir, userProjectPaths).ConfigureAwait(false);
@@ -2149,7 +2150,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         if (buildConfig.Packs != null && buildConfig.Packs.Count > 0)
         {
             var matchingPacks = buildConfig.Packs
-                .Where(pack => selectedNames.Contains(pack.Name) || pack.ItemNames?.Any(item => selectedNames.Contains(item)) == true)
+                .Where(pack => selectedNames.Contains(pack.Name) || (pack.ItemNames != null && pack.ItemNames.Any(item => selectedNames.Contains(item))))
                 .Select(pack => pack.Name)
                 .Distinct(StringComparer.OrdinalIgnoreCase);
 

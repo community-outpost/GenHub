@@ -144,13 +144,11 @@ public sealed class ArchiveService(
                 return OperationResult<int>.CreateSuccess(0);
             }
 
-            foreach (var path in filesList)
+            var missingArchive = filesList.FirstOrDefault(p => !File.Exists(p));
+            if (missingArchive != null)
             {
-                if (!File.Exists(path))
-                {
-                    logger.LogError("BIG archive not found: {Path}", path);
-                    return OperationResult<int>.CreateFailure($"BIG archive not found: {path}");
-                }
+                logger.LogError("BIG archive not found: {Path}", missingArchive);
+                return OperationResult<int>.CreateFailure($"BIG archive not found: {missingArchive}");
             }
 
             logger.LogInformation("Extracting {Count} BIG archives to {Target}", filesList.Count, targetDirectory);

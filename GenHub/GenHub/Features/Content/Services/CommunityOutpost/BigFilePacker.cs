@@ -132,7 +132,7 @@ public static class BigFilePacker
             throw new InvalidDataException($"Invalid BIG archive signature: '{sig}'. Expected 'BIGF' or 'BIG4'.");
         }
 
-        var totalSize = reader.ReadUInt32();
+        _ = reader.ReadUInt32();
 
         var uintBuffer = new byte[4];
         if (reader.Read(uintBuffer, 0, 4) < 4)
@@ -147,7 +147,7 @@ public static class BigFilePacker
             throw new EndOfStreamException("Unexpected end of file while reading BIG header size.");
         }
 
-        var headerSize = BinaryPrimitives.ReadUInt32BigEndian(uintBuffer);
+        _ = BinaryPrimitives.ReadUInt32BigEndian(uintBuffer);
 
         var entries = new List<(uint Offset, uint Size, string RelativePath)>((int)Math.Min(entryCount, 100000));
         for (var i = 0; i < entryCount; i++)
@@ -336,7 +336,7 @@ public static class BigFilePacker
             throw new InvalidDataException($"Invalid BIG archive signature: '{sig}'. Expected 'BIGF' or 'BIG4'.");
         }
 
-        var totalSize = reader.ReadUInt32();
+        _ = reader.ReadUInt32();
 
         var uintBuffer = new byte[4];
         if (reader.Read(uintBuffer, 0, 4) < 4)
@@ -351,7 +351,7 @@ public static class BigFilePacker
             throw new EndOfStreamException("Unexpected end of file while reading BIG header size.");
         }
 
-        var headerSize = BinaryPrimitives.ReadUInt32BigEndian(uintBuffer);
+        _ = BinaryPrimitives.ReadUInt32BigEndian(uintBuffer);
 
         var entries = new List<BigArchiveEntryInfo>((int)Math.Min(entryCount, 100000));
         for (var i = 0; i < entryCount; i++)
