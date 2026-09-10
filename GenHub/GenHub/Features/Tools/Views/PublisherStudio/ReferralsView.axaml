@@ -61,7 +61,7 @@
 
         <Style Selector="TextBox:focus">
             <Setter Property="Background" Value="#15FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#8B5CF6"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
         </Style>
 
         <Style Selector="TextBox:pointerover">
@@ -162,7 +162,7 @@
                                         <TextBlock Text="{Binding PublisherId, Converter={StaticResource FirstCharConverter}}"
                                                    FontSize="14"
                                                    FontWeight="Bold"
-                                                   Foreground="#AA00FF"
+                                                   Foreground="{DynamicResource AccentColorBrush}"
                                                    HorizontalAlignment="Center"
                                                    VerticalAlignment="Center"/>
                                     </Border>
@@ -237,13 +237,13 @@
         <ScrollViewer Grid.Column="1" Padding="24">
             <StackPanel Spacing="16" MaxWidth="720" HorizontalAlignment="Left">
                 <!-- Explanatory Banner -->
-                <Border Background="#108B5CF6"
-                        BorderBrush="#258B5CF6"
+                <Border Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                        BorderBrush="{DynamicResource AccentBrush}"
                         BorderThickness="1"
                         CornerRadius="8"
                         Padding="14,10">
                     <Grid ColumnDefinitions="Auto,*">
-                        <PathIcon Data="{StaticResource InfoIcon}" Width="16" Height="16" Foreground="#AA00FF" Margin="0,2,12,0" VerticalAlignment="Top"/>
+                        <PathIcon Data="{StaticResource InfoIcon}" Width="16" Height="16" Foreground="{DynamicResource AccentColorBrush}" Margin="0,2,12,0" VerticalAlignment="Top"/>
                         <StackPanel Grid.Column="1" Spacing="2">
                             <TextBlock Text="How Referrals Work" FontWeight="SemiBold" FontSize="12" Foreground="White"/>
                             <TextBlock Text="Referrals allow your catalog to cross-promote other trusted publishers (such as Community-Outpost or GeneralsOnline). When players subscribe to your catalog, they can easily discover and install content from your referred publishers."

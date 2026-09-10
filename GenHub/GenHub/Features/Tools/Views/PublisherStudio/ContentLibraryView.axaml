@@ -26,9 +26,9 @@
         </Style>
         <!-- Selection indicator -->
         <Style Selector="ListBoxItem:selected Border#CardRoot">
-            <Setter Property="BorderBrush" Value="#AA00FF"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Background" Value="#15AA00FF"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
         </Style>
 
         <Style Selector="Button.glass-icon-btn">
@@ -46,15 +46,15 @@
         </Style>
 
         <Style Selector="Button.accent-glass-btn">
-             <Setter Property="Background" Value="#15AA00FF"/>
-             <Setter Property="BorderBrush" Value="#40AA00FF"/>
+             <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
+             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
              <Setter Property="BorderThickness" Value="1"/>
              <Setter Property="CornerRadius" Value="6"/>
              <Setter Property="Padding" Value="12,8"/>
         </Style>
         <Style Selector="Button.accent-glass-btn:pointerover">
-             <Setter Property="Background" Value="#25AA00FF"/>
-             <Setter Property="BorderBrush" Value="#60AA00FF"/>
+             <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
+             <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
         </Style>
     </UserControl.Styles>
 
@@ -66,15 +66,15 @@
             <Grid RowDefinitions="Auto,Auto,*,Auto">
                 <!-- Active Catalog Indicator -->
                 <Border Grid.Row="0"
-                        Background="#10AA00FF"
+                        Background="{DynamicResource AccentBadgeBackgroundBrush}"
                         BorderThickness="0,0,0,1"
-                        BorderBrush="#20AA00FF"
+                        BorderBrush="{DynamicResource AccentBrush}"
                         Padding="16,10">
                     <Grid ColumnDefinitions="Auto,*,Auto">
                         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                             <PathIcon Data="{StaticResource ContentIcon}"
                                       Width="14" Height="14"
-                                      Foreground="#AA00FF"
+                                      Foreground="{DynamicResource AccentColorBrush}"
                                       VerticalAlignment="Center"/>
                             <TextBlock Text="Catalog:"
                                        FontSize="11"
@@ -84,7 +84,7 @@
                             <TextBlock Text="{Binding ActiveCatalogName}"
                                        FontSize="11"
                                        FontWeight="Bold"
-                                       Foreground="#AA00FF"
+                                       Foreground="{DynamicResource AccentColorBrush}"
                                        VerticalAlignment="Center"/>
                         </StackPanel>
                         <Button Grid.Column="2"
@@ -95,7 +95,7 @@
                                 CornerRadius="4"
                                 BorderThickness="0"
                                 VerticalAlignment="Center">
-                            <PathIcon Data="{StaticResource EditIcon}" Width="12" Height="12" Foreground="#AA00FF"/>
+                            <PathIcon Data="{StaticResource EditIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
                         </Button>
                     </Grid>
                 </Border>
@@ -116,8 +116,8 @@
                             Classes="accent-glass-btn"
                             Margin="8,0,0,0">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="#AA00FF"/>
-                            <TextBlock Text="Add" Foreground="#AA00FF" FontWeight="SemiBold" FontSize="12"/>
+                            <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                            <TextBlock Text="Add" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
                         </StackPanel>
                     </Button>
                 </Grid>
@@ -142,12 +142,12 @@
                                     <!-- Type Icon Box -->
                                     <Border Width="40" Height="40"
                                             CornerRadius="8"
-                                            Background="#15AA00FF"
+                                            Background="{DynamicResource AccentBadgeBackgroundBrush}"
                                             Margin="0,0,12,0"
                                             VerticalAlignment="Center">
                                         <PathIcon Data="{StaticResource ContentIcon}"
                                                   Width="18" Height="18"
-                                                  Foreground="#AA00FF"
+                                                  Foreground="{DynamicResource AccentColorBrush}"
                                                   HorizontalAlignment="Center"
                                                   VerticalAlignment="Center"/>
                                     </Border>
@@ -223,14 +223,14 @@
                                                    FontSize="24"
                                                    FontWeight="Bold"
                                                    Foreground="White"/>
-                                        <Border Background="#20AA00FF"
+                                        <Border Background="{DynamicResource AccentBadgeBackgroundBrush}"
                                                 CornerRadius="4"
                                                 Padding="8,2"
                                                 VerticalAlignment="Center">
                                              <TextBlock Text="{Binding ContentType, FallbackValue=''}"
                                                         FontSize="11"
                                                         FontWeight="Bold"
-                                                        Foreground="#AA00FF"/>
+                                                        Foreground="{DynamicResource AccentColorBrush}"/>
                                         </Border>
                                     </StackPanel>
                                     <TextBlock Text="{Binding Id, StringFormat='Manifest ID: {0}'}"
@@ -245,7 +245,7 @@
                                             ToolTip.Tip="Edit Content Details">
                                         <PathIcon Data="{StaticResource EditIcon}"
                                                   Width="20" Height="20"
-                                                  Foreground="#AA00FF"/>
+                                                  Foreground="{DynamicResource AccentColorBrush}"/>
                                     </Button>
                                     <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).DeleteContentCommand}"
                                             CommandParameter="{Binding}"
@@ -285,7 +285,7 @@
                                 </StackPanel>
                                 <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Spacing="4" IsVisible="{Binding ExtendsContentId, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                     <TextBlock Text="Extends Content" Foreground="#888888" FontSize="12"/>
-                                    <TextBlock Text="{Binding ExtendsContentId}" Foreground="#AA00FF" FontWeight="SemiBold" FontSize="13"/>
+                                    <TextBlock Text="{Binding ExtendsContentId}" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="13"/>
                                 </StackPanel>
                             </Grid>
 
@@ -341,8 +341,8 @@
                                                 Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddBundledItemCommand}"
                                                 Classes="accent-glass-btn">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="#AA00FF"/>
-                                                <TextBlock Text="Add Item" Foreground="#AA00FF" FontWeight="SemiBold" FontSize="12"/>
+                                                <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                <TextBlock Text="Add Item" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
                                             </StackPanel>
                                         </Button>
                                     </Grid>
@@ -359,12 +359,12 @@
                                                     <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                                                         <Border Width="32" Height="32"
                                                                 CornerRadius="6"
-                                                                Background="#15AA00FF"
+                                                                Background="{DynamicResource AccentBadgeBackgroundBrush}"
                                                                 Margin="0,0,12,0"
                                                                 VerticalAlignment="Center">
                                                             <PathIcon Data="{StaticResource ContentIcon}"
                                                                       Width="16" Height="16"
-                                                                      Foreground="#AA00FF"
+                                                                      Foreground="{DynamicResource AccentColorBrush}"
                                                                       HorizontalAlignment="Center"
                                                                       VerticalAlignment="Center"/>
                                                         </Border>
@@ -379,7 +379,7 @@
                                                             </TextBlock>
                                                         </StackPanel>
                                                         <Border Grid.Column="2"
-                                                                Background="#15AA00FF"
+                                                                Background="{DynamicResource AccentBadgeBackgroundBrush}"
                                                                 CornerRadius="4"
                                                                 Padding="8,3"
                                                                 Margin="0,0,12,0"
@@ -388,7 +388,7 @@
                                                             <TextBlock Text="{Binding VersionConstraint}"
                                                                        FontSize="11"
                                                                        FontWeight="SemiBold"
-                                                                       Foreground="#AA00FF"/>
+                                                                       Foreground="{DynamicResource AccentColorBrush}"/>
                                                         </Border>
                                                         <Button Grid.Column="3"
                                                                 Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).RemoveBundledItemCommand}"
@@ -427,8 +427,8 @@
                                                 Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddReleaseCommand}"
                                                 Classes="accent-glass-btn">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="#AA00FF"/>
-                                                <TextBlock Text="Add Release" Foreground="#AA00FF" FontWeight="SemiBold" FontSize="12"/>
+                                                <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                <TextBlock Text="Add Release" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
                                             </StackPanel>
                                         </Button>
                                     </Grid>
@@ -451,11 +451,11 @@
                                                                            FontWeight="Bold"
                                                                            FontSize="16"
                                                                            Foreground="White"/>
-                                                                <Border Background="#20AA00FF"
+                                                                <Border Background="{DynamicResource AccentBadgeBackgroundBrush}"
                                                                         CornerRadius="4"
                                                                         Padding="6,2"
                                                                         IsVisible="{Binding IsLatest}">
-                                                                    <TextBlock Text="LATEST" FontSize="10" FontWeight="Bold" Foreground="#AA00FF"/>
+                                                                    <TextBlock Text="LATEST" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentColorBrush}"/>
                                                                 </Border>
                                                                 <Border Background="#20FFB300"
                                                                         CornerRadius="4"
@@ -475,7 +475,7 @@
                                                                         Background="Transparent"
                                                                         Padding="8"
                                                                         CornerRadius="6">
-                                                                    <PathIcon Data="{StaticResource EditIcon}" Width="14" Height="14" Foreground="#AA00FF"/>
+                                                                    <PathIcon Data="{StaticResource EditIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}"/>
                                                                 </Button>
                                                                 <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).DeleteReleaseCommand}"
                                                                         CommandParameter="{Binding}"
@@ -507,8 +507,8 @@
                                                                         Padding="4,2"
                                                                         CornerRadius="4">
                                                                     <StackPanel Orientation="Horizontal" Spacing="4">
-                                                                        <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="#AA00FF"/>
-                                                                        <TextBlock Text="Add" FontSize="11" Foreground="#AA00FF" FontWeight="SemiBold"/>
+                                                                        <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                                        <TextBlock Text="Add" FontSize="11" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold"/>
                                                                     </StackPanel>
                                                                 </Button>
                                                             </Grid>
@@ -517,7 +517,7 @@
                                                                     <DataTemplate>
                                                                         <Border Background="#08FFFFFF" CornerRadius="6" Padding="12,8" Margin="0,0,0,6">
                                                                             <Grid ColumnDefinitions="Auto,*,Auto">
-                                                                                <PathIcon Data="{StaticResource DownloadIcon}" Width="14" Height="14" Foreground="#AA00FF" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                                                                <PathIcon Data="{StaticResource DownloadIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
                                                                                 <StackPanel Grid.Column="1" Spacing="2">
                                                                                     <TextBlock Text="{Binding Filename}" FontWeight="SemiBold" Foreground="White" FontSize="13"/>
                                                                                     <TextBlock Text="{Binding DownloadUrl}" FontSize="11" Foreground="#666666" TextTrimming="CharacterEllipsis"/>
@@ -543,8 +543,8 @@
                                                                         Padding="4,2"
                                                                         CornerRadius="4">
                                                                     <StackPanel Orientation="Horizontal" Spacing="4">
-                                                                        <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="#AA00FF"/>
-                                                                        <TextBlock Text="Add" FontSize="11" Foreground="#AA00FF" FontWeight="SemiBold"/>
+                                                                        <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                                        <TextBlock Text="Add" FontSize="11" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold"/>
                                                                     </StackPanel>
                                                                 </Button>
                                                             </Grid>
@@ -556,7 +556,7 @@
                                                                                 <TextBlock Text="{Binding PublisherId}" Foreground="#888888" FontSize="12"/>
                                                                                 <TextBlock Text="/" Foreground="#444444"/>
                                                                                 <TextBlock Text="{Binding ContentId}" FontWeight="SemiBold" Foreground="White" FontSize="12"/>
-                                                                                <TextBlock Text="{Binding VersionConstraint}" Foreground="#AA00FF" FontSize="12"/>
+                                                                                <TextBlock Text="{Binding VersionConstraint}" Foreground="{DynamicResource AccentColorBrush}" FontSize="12"/>
                                                                             </StackPanel>
                                                                         </Border>
                                                                     </DataTemplate>

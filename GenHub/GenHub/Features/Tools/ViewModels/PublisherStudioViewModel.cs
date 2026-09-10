@@ -441,12 +441,23 @@ public partial class PublisherStudioViewModel : ObservableObject
     /// Removes a catalog from the project.
     /// </summary>
     [RelayCommand]
-    private void RemoveCatalog(NamedCatalog catalog)
+    private async Task RemoveCatalogAsync(NamedCatalog catalog)
     {
         if (CurrentProject == null || catalog == null) return;
         if (CurrentProject.Catalogs.Count <= 1)
         {
             StatusMessage = "Cannot remove the last catalog";
+            return;
+        }
+
+        var confirmed = await _dialogService.ShowConfirmationAsync(
+            "Delete Catalog",
+            $"Are you sure you want to delete the catalog '{catalog.Name}'? This action cannot be undone.",
+            confirmText: "Delete",
+            sessionKey: "DeleteCatalogConfirmation");
+
+        if (!confirmed)
+        {
             return;
         }
 
@@ -600,7 +611,7 @@ public partial class PublisherStudioViewModel : ObservableObject
 
         PublisherProfileViewModel = new GenHub.Features.Tools.ViewModels.PublisherProfileViewModel(CurrentProject, this, _logger);
         ContentLibraryViewModel = new GenHub.Features.Tools.ViewModels.ContentLibraryViewModel(CurrentProject, selectedCatalog, this, _logger, _dialogService);
-        PublishShareViewModel = new GenHub.Features.Tools.ViewModels.PublishShareViewModel(CurrentProject, _publisherStudioService, _logger, _hostingProviderFactory, _hostingStateManager);
+        PublishShareViewModel = new GenHub.Features.Tools.ViewModels.PublishShareViewModel(CurrentProject, _publisherStudioService, _logger, _hostingProviderFactory, _hostingStateManager, _notificationService);
         ReferralsViewModel = new GenHub.Features.Tools.ViewModels.ReferralsViewModel(CurrentProject, this, _logger, _dialogService);
 
         // Check for hosting state recovery

@@ -15,13 +15,13 @@
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="12,10"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="SelectionBrush" Value="#D56AFF"/>
+            <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
             <Setter Property="SelectionForegroundBrush" Value="White"/>
             <Setter Property="CaretBrush" Value="White"/>
         </Style>
         <Style Selector="TextBox:focus">
             <Setter Property="Background" Value="#18FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#AA00FF"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
         </Style>
         <Style Selector="TextBox:pointerover">
             <Setter Property="Background" Value="#25FFFFFF"/>
@@ -80,7 +80,7 @@
                             Command="{Binding ApplySuggestedIdCommand}"
                             Background="Transparent"
                             BorderThickness="0"
-                            Foreground="#AA00FF"
+                            Foreground="{DynamicResource AccentColorBrush}"
                             HorizontalAlignment="Right"
                             FontSize="12"
                             Cursor="Hand"
@@ -205,7 +205,7 @@
                                             Foreground="White"/>
                                 </Grid>
                                 <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0" IsVisible="{Binding LocalFilePath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                    <TextBlock Text="{Binding FileSizeDisplay}" FontSize="12" Foreground="#AA00FF" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding FileSizeDisplay}" FontSize="12" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold"/>
                                     <TextBlock Grid.Column="1" Text="{Binding Sha256Hash, StringFormat='SHA256: {0}'}" FontSize="11" Foreground="#888888" Margin="12,0,0,0" TextTrimming="CharacterEllipsis"/>
                                 </Grid>
                                 <ProgressBar IsIndeterminate="True" Height="2" IsVisible="{Binding IsComputingHash}" Margin="0,4,0,0"/>

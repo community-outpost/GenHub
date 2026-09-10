@@ -16,13 +16,13 @@
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="12,10"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="SelectionBrush" Value="#D56AFF"/>
+            <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
             <Setter Property="SelectionForegroundBrush" Value="White"/>
             <Setter Property="CaretBrush" Value="White"/>
         </Style>
         <Style Selector="TextBox:focus">
             <Setter Property="Background" Value="#18FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#AA00FF"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
         </Style>
 
         <Style Selector="TextBlock.label">

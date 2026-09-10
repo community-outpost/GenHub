@@ -48,7 +48,7 @@
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="12,10"/>
-            <Setter Property="SelectionBrush" Value="#D56AFF"/>
+            <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
         </Style>
         <Style Selector="TextBox:focus">
             <Setter Property="Background" Value="#18FFFFFF"/>
@@ -110,8 +110,8 @@
             <Setter Property="CornerRadius" Value="3"/>
         </Style>
         <Style Selector="Border.tier-badge">
-            <Setter Property="Background" Value="#20D56AFF"/>
-            <Setter Property="BorderBrush" Value="#50D56AFF"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="Padding" Value="8,3"/>
@@ -134,7 +134,7 @@
 
     <ScrollViewer HorizontalScrollBarVisibility="Disabled"
                   VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="32" MaxWidth="860" HorizontalAlignment="Left">
+        <StackPanel Margin="32" MaxWidth="860" HorizontalAlignment="Center">
 
             <!-- Main Header -->
             <StackPanel Margin="0,0,0,24">
@@ -194,20 +194,17 @@
                     </Grid>
 
                     <!-- Google Drive OAuth Section -->
-                    <StackPanel IsVisible="{Binding ShowGoogleOAuthButton}" Spacing="12">
+                    <StackPanel IsVisible="{Binding ShowGoogleOAuthButton}" Spacing="10">
                         <TextBlock Text="Uploads will generate direct download streams for client subscriptions and catalog discovery."
                                    FontSize="12" Foreground="#8888AA" TextWrapping="Wrap"/>
-
-                        <Expander Header="Custom Google OAuth Credentials (Optional)"
-                                  Background="#0AFFFFFF"
-                                  CornerRadius="6">
-                            <StackPanel Spacing="8" Margin="0,8,0,0">
-                                <TextBlock Text="Custom Client ID (optional if using environment variable):" FontSize="11" Foreground="#888888"/>
-                                <TextBox Text="{Binding GoogleClientId}" Watermark="xxxxxx.apps.googleusercontent.com" FontSize="12"/>
-                                <TextBlock Text="Custom Client Secret (optional):" FontSize="11" Foreground="#888888"/>
-                                <TextBox Text="{Binding GoogleClientSecret}" Watermark="GOCSPX-xxxxxx" PasswordChar="●" RevealPassword="True" FontSize="12"/>
-                            </StackPanel>
-                        </Expander>
+                        <TextBlock Text="Google Drive requires OAuth 2.0 Desktop app credentials from Google Cloud Console. Enter your Client ID and Secret below, or configure GENHUB_GOOGLE_CLIENT_ID and GENHUB_GOOGLE_CLIENT_SECRET environment variables:"
+                                   FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap"/>
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Google Client ID:" FontSize="12" Foreground="#AAAAAA"/>
+                            <TextBox Text="{Binding GoogleClientId}" Watermark="xxxxxx.apps.googleusercontent.com" FontSize="12"/>
+                            <TextBlock Text="Google Client Secret:" FontSize="12" Foreground="#AAAAAA"/>
+                            <TextBox Text="{Binding GoogleClientSecret}" Watermark="GOCSPX-xxxxxx" PasswordChar="●" RevealPassword="True" FontSize="12"/>
+                        </StackPanel>
                     </StackPanel>
 
                     <!-- GitHub PAT Input -->
@@ -257,7 +254,7 @@
 
                     <!-- TIER 1: PROVIDER DEFINITION -->
                     <Border Background="#12FFFFFF"
-                            BorderBrush="#40D56AFF"
+                            BorderBrush="{DynamicResource AccentBadgeBackgroundBrush}"
                             BorderThickness="1.5"
                             CornerRadius="10"
                             Padding="20">
@@ -266,7 +263,7 @@
                             <Grid ColumnDefinitions="Auto,*,Auto">
                                 <StackPanel Orientation="Horizontal" Spacing="10">
                                     <Border Classes="tier-badge">
-                                        <TextBlock Text="1. Definition" FontSize="11" FontWeight="Bold" Foreground="#D56AFF"/>
+                                        <TextBlock Text="1. Definition" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentColorBrush}"/>
                                     </Border>
                                     <TextBlock Text="{Binding UploadHierarchy.PublisherName}" FontSize="16" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
                                     <TextBlock Text="{Binding UploadHierarchy.PublisherId, StringFormat='(@{0})'}" FontSize="13" Foreground="#888899" VerticalAlignment="Center"/>
@@ -297,8 +294,8 @@
                                              Classes="readonly"
                                              FontFamily="Consolas, Courier New, monospace"
                                              FontSize="13"
-                                             Background="#15D56AFF"
-                                             BorderBrush="#50D56AFF"
+                                             Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                             BorderBrush="{DynamicResource AccentBrush}"
                                              Watermark="Publish definition to generate link..."/>
                                     <Button Grid.Column="1"
                                             Command="{Binding CopySubscriptionUrlCommand}"
@@ -355,7 +352,7 @@
                     <StackPanel Spacing="14">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Border Classes="tier-badge">
-                                <TextBlock Text="2. Catalogs" FontSize="11" FontWeight="Bold" Foreground="#D56AFF"/>
+                                <TextBlock Text="2. Catalogs" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentColorBrush}"/>
                             </Border>
                             <TextBlock Text="Published Catalogs &amp; Manifests" FontSize="15" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
                         </StackPanel>

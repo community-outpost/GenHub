@@ -258,10 +258,8 @@ public partial class PublishShareViewModel : ObservableObject
         }
         else
         {
-            // Different provider - clear auth state
+            // Different provider - clear auth status
             AuthenticationStatusMessage = string.Empty;
-            GitHubPersonalAccessToken = string.Empty;
-            DropboxAccessToken = string.Empty;
         }
     }
 
@@ -283,6 +281,20 @@ public partial class PublishShareViewModel : ObservableObject
         {
             if (SelectedHostingProvider is GoogleDriveHostingProvider gdrive)
             {
+                var envClientId = Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_ID");
+                var envClientSecret = Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_SECRET");
+                var hasCustom = !string.IsNullOrWhiteSpace(GoogleClientId) && !string.IsNullOrWhiteSpace(GoogleClientSecret);
+                var hasEnv = !string.IsNullOrWhiteSpace(envClientId) && !string.IsNullOrWhiteSpace(envClientSecret);
+
+                if (!hasCustom && !hasEnv)
+                {
+                    AuthenticationStatusMessage = "Google Drive requires client credentials. Enter your Client ID and Secret above, or configure GENHUB_GOOGLE_CLIENT_ID and GENHUB_GOOGLE_CLIENT_SECRET environment variables.";
+                    _notificationService?.ShowWarning(
+                        "Google Drive Credentials Needed",
+                        "Please provide your Google OAuth Client ID and Secret to connect to Google Drive.");
+                    return;
+                }
+
                 if (!string.IsNullOrWhiteSpace(GoogleClientId)) gdrive.CustomClientId = GoogleClientId.Trim();
                 if (!string.IsNullOrWhiteSpace(GoogleClientSecret)) gdrive.CustomClientSecret = GoogleClientSecret.Trim();
             }

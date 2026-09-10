@@ -46,7 +46,7 @@
         <Style Selector="Button.nav-pill.active">
             <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#40AA00FF"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
         <!-- ==================== BUTTON STYLES ==================== -->
@@ -227,7 +227,7 @@
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <PathIcon Data="{StaticResource ContentIcon}"
                                           Width="13" Height="13"
-                                          Foreground="#AA00FF"
+                                          Foreground="{DynamicResource AccentColorBrush}"
                                           VerticalAlignment="Center"/>
                                 <ComboBox SelectedItem="{Binding SelectedCatalog}"
                                           ItemsSource="{Binding Catalogs}"
@@ -252,7 +252,7 @@
                                         Padding="5">
                                     <PathIcon Data="{StaticResource EditIcon}"
                                               Width="12" Height="12"
-                                              Foreground="#AA00FF"/>
+                                              Foreground="{DynamicResource AccentColorBrush}"/>
                                 </Button>
                                 <!-- Add Catalog Button -->
                                 <Button Classes="glass-btn-icon"
@@ -261,7 +261,7 @@
                                         Padding="5">
                                     <PathIcon Data="{StaticResource AddIcon}"
                                               Width="12" Height="12"
-                                              Foreground="#AA00FF"/>
+                                              Foreground="{DynamicResource AccentColorBrush}"/>
                                 </Button>
                                 <!-- Delete Catalog Button -->
                                 <Button Classes="glass-btn-icon"

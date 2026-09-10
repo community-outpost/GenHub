@@ -7,6 +7,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Features.Tools.Interfaces;
@@ -20,8 +21,26 @@ namespace GenHub.Features.Tools.Services;
 /// <summary>
 /// Implementation of IPublisherStudioDialogService.
 /// </summary>
-public class PublisherStudioDialogService : IPublisherStudioDialogService
+public class PublisherStudioDialogService(IDialogService? dialogService = null) : IPublisherStudioDialogService
 {
+    private readonly IDialogService? _dialogService = dialogService;
+
+    /// <inheritdoc/>
+    public async Task<bool> ShowConfirmationAsync(
+        string title,
+        string message,
+        string confirmText = "Confirm",
+        string cancelText = "Cancel",
+        string? sessionKey = null)
+    {
+        if (_dialogService != null)
+        {
+            return await _dialogService.ShowConfirmationAsync(title, message, confirmText, cancelText, sessionKey);
+        }
+
+        return true;
+    }
+
     /// <inheritdoc/>
     public async Task<bool> ShowSetupWizardAsync(PublisherStudioProject project)
     {
