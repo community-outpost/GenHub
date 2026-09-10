@@ -33,12 +33,6 @@ public enum BundleEventType
     OnCreateManifest = 4,
 
     /// <summary>
-    /// Fired during legacy install process.
-    /// </summary>
-    [Obsolete("Use OnCreateManifest instead.")]
-    OnInstall = 4,
-
-    /// <summary>
     /// Fired when the game is run.
     /// </summary>
     OnRun = 5,

@@ -174,10 +174,13 @@
                     <StackPanel Spacing="10">
                       <CheckBox Content="Pack as .BIG Archive" IsChecked="{Binding SelectedBundleItem.IsBig, Mode=TwoWay}"
                                 FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"
-                                ToolTip.Tip="Generates a Command &amp; Conquer .big archive file from these assets"/>
+                                ToolTip.Tip="Packs matched assets into an EA .big archive container. Uncheck to keep files as loose folders."/>
+                      <TextBlock Text="When enabled, files compile into a .big archive. When disabled, files remain loose directories."
+                                 FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
                       <StackPanel Spacing="6" IsVisible="{Binding SelectedBundleItem.IsBig}">
                         <TextBlock Text="Archive Name Suffix (optional)" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
-                        <TextBox Text="{Binding SelectedBundleItem.BigSuffix, Mode=TwoWay}" Watermark="e.g. _01 (generates Name_01.big)" />
+                        <TextBox Text="{Binding SelectedBundleItem.BigSuffix, Mode=TwoWay}" Watermark="e.g. _01 (outputs Name_01.big)"
+                                 ToolTip.Tip="Appends text to the generated .big file name"/>
                       </StackPanel>
                     </StackPanel>
                   </Border>
@@ -302,8 +305,16 @@
                           CornerRadius="8" Padding="14">
                     <StackPanel Spacing="8">
                       <TextBlock Text="Actions &amp; Targets" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
-                      <CheckBox Content="Allow Build (Generates final .BIG and Release archives)" IsChecked="{Binding SelectedBundlePack.AllowBuild, Mode=TwoWay}" Foreground="{DynamicResource TextPrimary}"/>
-                      <CheckBox Content="Allow Install (Copies mod file directly to game folder on Install)" IsChecked="{Binding SelectedBundlePack.AllowInstall, Mode=TwoWay}" Foreground="{DynamicResource TextPrimary}"/>
+                      <CheckBox Content="Allow Build (Include in release packaging)"
+                                IsChecked="{Binding SelectedBundlePack.AllowBuild, Mode=TwoWay}"
+                                Foreground="{DynamicResource TextPrimary}"
+                                ToolTip.Tip="Packages this pack into a .zip archive inside the Releases folder during release builds."/>
+                      <CheckBox Content="Allow Install (Legacy: manual direct folder install)"
+                                IsChecked="{Binding SelectedBundlePack.AllowInstall, Mode=TwoWay}"
+                                Foreground="{DynamicResource TextPrimary}"
+                                ToolTip.Tip="Legacy standalone flag for copying files directly into a game root directory. Redundant in GenHub, which isolates game installs via virtual workspaces and ContentManifests."/>
+                      <TextBlock Text="GenHub uses virtual workspaces and ContentManifests to isolate mods. Manual game directory install is redundant in normal GenHub workflows."
+                                 FontSize="10.5" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
                     </StackPanel>
                   </Border>
                 </StackPanel>

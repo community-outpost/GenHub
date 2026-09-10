@@ -494,7 +494,7 @@ public class CrunchImageConversionService(
         {
             using var ms = new MemoryStream();
             magickImage.Format = MagickFormat.Png;
-            magickImage.Write(ms);
+            await magickImage.WriteAsync(ms, cancellationToken).ConfigureAwait(false);
             ms.Position = 0;
             using var loaded = await Image.LoadAsync(ms, cancellationToken).ConfigureAwait(false);
             var resized = ImageProcessingHelper.ApplyResizeParameters(loaded, parameters);
@@ -517,7 +517,7 @@ public class CrunchImageConversionService(
         using var merged = collection.Combine(ColorSpace.sRGB);
         using var msCombined = new MemoryStream();
         merged.Format = MagickFormat.Png;
-        merged.Write(msCombined);
+        await merged.WriteAsync(msCombined, cancellationToken).ConfigureAwait(false);
         msCombined.Position = 0;
 
         foreach (var ch in channels)

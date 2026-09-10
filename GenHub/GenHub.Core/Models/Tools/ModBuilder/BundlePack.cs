@@ -51,7 +51,7 @@ public class BundlePack
     /// Gets or sets a value indicating whether this pack should be built.
     /// </summary>
     [JsonPropertyName("allowBuild")]
-    public bool AllowBuild { get; set; } = false;
+    public bool AllowBuild { get; set; } = true;
 
     /// <summary>
     /// Gets or sets a value indicating whether this pack can be installed.

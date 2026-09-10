@@ -131,9 +131,9 @@ public sealed class BuildEngineService : IBuildEngineService
                 ? BuildOperationResult.CreateSuccess(_filesProcessed, _filesSkipped, _filesFailed, sw.Elapsed)
                 : BuildOperationResult.CreateFailure(_lastErrorMessage ?? "Build failed", _filesProcessed, _filesSkipped, _filesFailed, sw.Elapsed);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            _logger.LogInformation("ExecuteBuildAsync cancelled");
+            _logger.LogInformation(ex, "ExecuteBuildAsync cancelled");
             sw.Stop();
             throw;
         }
@@ -209,9 +209,8 @@ public sealed class BuildEngineService : IBuildEngineService
             _logger.LogInformation("Build pipeline completed with success={Success}", success);
             return success;
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException)
         {
-            _logger.LogWarning(ex, "Build was cancelled");
             _lastErrorMessage = "Build was cancelled by user";
             throw;
         }
@@ -270,7 +269,7 @@ public sealed class BuildEngineService : IBuildEngineService
             (BuildStep.PreBuild, () => PreBuildAsync(buildStructure, progress, cancellationToken), "PreBuild stage failed"),
             (BuildStep.Clean, () => CleanAsync(setup, progress, cancellationToken), "Clean stage failed"),
             (BuildStep.Build, () => BuildAsync(setup, progress, cancellationToken), "Build stage failed"),
-            (BuildStep.PostBuild, () => PostBuildAsync(setup, progress, cancellationToken), "PostBuild stage failed"),
+            (BuildStep.PostBuild, () => PostBuildAsync(progress, cancellationToken), "PostBuild stage failed"),
             (BuildStep.Release, () => ReleaseAsync(setup, progress, cancellationToken), "Release stage failed"),
             (BuildStep.CreateManifest, () => CreateManifestAsync(buildStructure, progress, cancellationToken), "Create Manifest stage failed"),
         };
@@ -634,8 +633,23 @@ public sealed class BuildEngineService : IBuildEngineService
         var releaseDir = setup.Folders?.AbsReleaseDir ?? ModBuilderConstants.DefaultReleaseDir;
         var buildDir = setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir;
 
-        if (setup.Bundles?.Packs == null)
+        var candidatePacks = setup.Bundles?.Packs?.ToList() ?? new List<BundlePack>();
+
+        if (candidatePacks.Count == 0 && setup.Bundles?.Items != null && setup.Bundles.Items.Count > 0)
         {
+            var defaultPackName = !string.IsNullOrWhiteSpace(setup.ProjectDir) ? Path.GetFileName(setup.ProjectDir) : "Release";
+            candidatePacks.Add(new BundlePack
+            {
+                Name = defaultPackName,
+                AllowBuild = true,
+                ItemNames = setup.Bundles.Items.Select(i => i.Name).ToList(),
+            });
+            _logger.LogInformation("No bundle packs explicitly defined; created default release pack '{PackName}' for {ItemCount} items", defaultPackName, setup.Bundles.Items.Count);
+        }
+
+        if (candidatePacks.Count == 0)
+        {
+            _logger.LogWarning("No bundle packs or items found to release");
             return;
         }
 
@@ -644,16 +658,24 @@ public sealed class BuildEngineService : IBuildEngineService
             Directory.CreateDirectory(releaseDir);
         }
 
-        var packs = setup.Bundles.Packs.Where(p => p.AllowBuild);
+        var packs = candidatePacks.Where(p => p.AllowBuild).ToList();
         if (setup.SelectedPacks != null && setup.SelectedPacks.Count > 0)
         {
-            packs = packs.Where(p => setup.SelectedPacks.Contains(p.Name, StringComparer.OrdinalIgnoreCase));
+            var selectedFiltered = packs.Where(p =>
+                setup.SelectedPacks.Contains(p.Name, StringComparer.OrdinalIgnoreCase) ||
+                p.ItemNames.Any(item => setup.SelectedPacks.Contains(item, StringComparer.OrdinalIgnoreCase))).ToList();
+            if (selectedFiltered.Count > 0)
+            {
+                packs = selectedFiltered;
+            }
         }
+
+        var compressionLevel = System.IO.Compression.CompressionLevel.Optimal;
 
         foreach (var pack in packs)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await BuildSingleReleaseBundlePackAsync(pack, bundlesDir, releaseDir, buildDir, setup.Bundles.Items, progress, cancellationToken)
+            await BuildSingleReleaseBundlePackAsync(pack, bundlesDir, releaseDir, buildDir, setup.Bundles?.Items, compressionLevel, progress, cancellationToken)
                 .ConfigureAwait(false);
         }
     }
@@ -664,6 +686,7 @@ public sealed class BuildEngineService : IBuildEngineService
         string releaseDir,
         string buildDir,
         IReadOnlyList<BundleItem>? items,
+        System.IO.Compression.CompressionLevel compressionLevel,
         IProgress<BuildProgress>? progress,
         CancellationToken cancellationToken)
     {
@@ -682,7 +705,7 @@ public sealed class BuildEngineService : IBuildEngineService
         {
             if (items != null)
             {
-                StagePackBigFiles(pack, items, bundlesDir, packStagingDir);
+                StagePackFiles(pack, items, bundlesDir, packStagingDir);
             }
 
             progress?.Report(new BuildProgress
@@ -692,7 +715,7 @@ public sealed class BuildEngineService : IBuildEngineService
                 ProcessedFiles = Volatile.Read(ref _filesProcessed),
             });
 
-            var archiveResult = await _archiveService.CreateZipArchiveAsync(packStagingDir, zipFilePath, System.IO.Compression.CompressionLevel.Optimal, null, cancellationToken).ConfigureAwait(false);
+            var archiveResult = await _archiveService.CreateZipArchiveAsync(packStagingDir, zipFilePath, compressionLevel, null, cancellationToken).ConfigureAwait(false);
             if (!archiveResult.Success)
             {
                 Interlocked.Increment(ref _filesFailed);
@@ -721,12 +744,17 @@ public sealed class BuildEngineService : IBuildEngineService
         }
     }
 
-    private void StagePackBigFiles(BundlePack pack, IReadOnlyList<BundleItem> items, string bundlesDir, string packStagingDir)
+    private void StagePackFiles(BundlePack pack, IReadOnlyList<BundleItem> items, string bundlesDir, string packStagingDir)
     {
         foreach (var itemName in pack.ItemNames)
         {
             var item = items.FirstOrDefault(i => string.Equals(i.Name, itemName, StringComparison.OrdinalIgnoreCase));
-            if (item != null && item.IsBig)
+            if (item == null)
+            {
+                continue;
+            }
+
+            if (item.IsBig)
             {
                 var bigFileName = GetBigFileName(item);
                 var srcBig = Path.Combine(bundlesDir, bigFileName);
@@ -734,10 +762,39 @@ public sealed class BuildEngineService : IBuildEngineService
                 {
                     var destBig = Path.Combine(packStagingDir, bigFileName);
                     File.Copy(srcBig, destBig, true);
+                    _logger.LogDebug("Staged .BIG archive {BigFileName} for pack {PackName}", bigFileName, pack.Name);
                 }
                 else
                 {
-                    _logger.LogWarning("BIG bundle {BigFileName} missing when packaging pack {PackName}", bigFileName, pack.Name);
+                    _logger.LogWarning("BIG bundle {BigFileName} missing when packaging pack {PackName}. Run the Build step first.", bigFileName, pack.Name);
+                }
+            }
+            else
+            {
+                foreach (var file in item.Files)
+                {
+                    var sourcePath = file.AbsSourceFile;
+                    if (!File.Exists(sourcePath))
+                    {
+                        _logger.LogWarning("Source file {SourceFile} not found for raw bundle item {ItemName}", sourcePath, item.Name);
+                        continue;
+                    }
+
+                    var relPath = !string.IsNullOrEmpty(file.RelTargetFile) ? file.RelTargetFile : file.GetRelSourceFile();
+                    if (string.IsNullOrEmpty(relPath))
+                    {
+                        relPath = Path.GetFileName(sourcePath);
+                    }
+
+                    var destPath = Path.Combine(packStagingDir, relPath);
+                    var destDir = Path.GetDirectoryName(destPath);
+                    if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+                    {
+                        Directory.CreateDirectory(destDir);
+                    }
+
+                    File.Copy(sourcePath, destPath, true);
+                    _logger.LogDebug("Staged loose file {RelPath} for pack {PackName}", relPath, pack.Name);
                 }
             }
         }
@@ -886,7 +943,7 @@ public sealed class BuildEngineService : IBuildEngineService
         return [];
     }
 
-    private async Task<bool> PostBuildAsync(BuildSetup setup, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
+    private async Task<bool> PostBuildAsync(IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         _logger.LogInformation("PostBuild stage started");
@@ -915,22 +972,28 @@ public sealed class BuildEngineService : IBuildEngineService
     private static HashSet<string> ResolveManifestFilesToInclude(BuildSetup setup)
     {
         var filesToInclude = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (setup.SelectedPacks == null || setup.SelectedPacks.Count == 0 || setup.Bundles?.Packs == null || setup.Bundles.Items == null)
+        if (setup.SelectedPacks == null || setup.SelectedPacks.Count == 0 || setup.Bundles?.Items == null)
         {
             return filesToInclude;
         }
 
-        foreach (var packName in setup.SelectedPacks)
+        foreach (var packOrItemName in setup.SelectedPacks)
         {
-            var pack = setup.Bundles.Packs.FirstOrDefault(p => string.Equals(p.Name, packName, StringComparison.OrdinalIgnoreCase));
-            if (pack == null)
+            var pack = setup.Bundles.Packs?.FirstOrDefault(p => string.Equals(p.Name, packOrItemName, StringComparison.OrdinalIgnoreCase));
+            if (pack != null)
             {
-                continue;
+                foreach (var itemName in pack.ItemNames)
+                {
+                    var item = setup.Bundles.Items.FirstOrDefault(i => string.Equals(i.Name, itemName, StringComparison.OrdinalIgnoreCase));
+                    if (item != null && item.IsBig)
+                    {
+                        filesToInclude.Add(GetBigFileName(item));
+                    }
+                }
             }
-
-            foreach (var itemName in pack.ItemNames)
+            else
             {
-                var item = setup.Bundles.Items.FirstOrDefault(i => string.Equals(i.Name, itemName, StringComparison.OrdinalIgnoreCase));
+                var item = setup.Bundles.Items.FirstOrDefault(i => string.Equals(i.Name, packOrItemName, StringComparison.OrdinalIgnoreCase));
                 if (item != null && item.IsBig)
                 {
                     filesToInclude.Add(GetBigFileName(item));
@@ -1033,10 +1096,31 @@ public sealed class BuildEngineService : IBuildEngineService
                 manifest?.Id,
                 projectName);
 
+            if (manifest != null)
+            {
+                var manifestJson = JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true });
+                var buildManifestPath = Path.Combine(buildDir, "manifest.json");
+                await File.WriteAllTextAsync(buildManifestPath, manifestJson, cancellationToken).ConfigureAwait(false);
+                _logger.LogInformation("Saved manifest file to {Path}", buildManifestPath);
+
+                var releaseDir = setup.Folders?.AbsReleaseDir;
+                if (!string.IsNullOrEmpty(releaseDir))
+                {
+                    if (!Directory.Exists(releaseDir))
+                    {
+                        Directory.CreateDirectory(releaseDir);
+                    }
+
+                    var releaseManifestPath = Path.Combine(releaseDir, "manifest.json");
+                    await File.WriteAllTextAsync(releaseManifestPath, manifestJson, cancellationToken).ConfigureAwait(false);
+                    _logger.LogInformation("Saved manifest file to {Path}", releaseManifestPath);
+                }
+            }
+
             progress?.Report(new BuildProgress
             {
                 CurrentIndex = BuildIndex.CreateManifest,
-                CurrentStep = $"Local manifest {manifest?.Id} created successfully",
+                CurrentStep = $"Local manifest {manifest?.Id} created and saved to manifest.json",
             });
 
             return true;
@@ -1149,6 +1233,33 @@ public sealed class BuildEngineService : IBuildEngineService
     {
         var hashParts = new List<string>();
 
+        AddProjectAndConfigFileHashParts(project, configuration, hashParts);
+        AddBundleAndPackHashParts(project, configuration, hashParts);
+        AddSourceFileHashParts(project, hashParts);
+
+        var combinedString = string.Join("|", hashParts);
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, combinedString, cancellationToken)
+                .ConfigureAwait(false);
+            return await _hashProvider.ComputeFileHashAsync(tempFile, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    private static void AddProjectAndConfigFileHashParts(
+        ModBuilderProject project,
+        BuildConfiguration configuration,
+        List<string> hashParts)
+    {
         if (!string.IsNullOrEmpty(project.ProjectDir) && Directory.Exists(project.ProjectDir))
         {
             var projectDirInfo = new DirectoryInfo(project.ProjectDir);
@@ -1160,7 +1271,13 @@ public sealed class BuildEngineService : IBuildEngineService
             var fileInfo = new FileInfo(configFile);
             hashParts.Add($"{configFile}:{fileInfo.LastWriteTimeUtc.Ticks}");
         }
+    }
 
+    private static void AddBundleAndPackHashParts(
+        ModBuilderProject project,
+        BuildConfiguration configuration,
+        List<string> hashParts)
+    {
         foreach (var bundleConfig in project.BundleConfigs)
         {
             var absolutePath = Path.IsPathRooted(bundleConfig)
@@ -1193,7 +1310,10 @@ public sealed class BuildEngineService : IBuildEngineService
                 hashParts.Add($"Pack:{pack.Name}:{string.Join(",", pack.ItemNames)}");
             }
         }
+    }
 
+    private static void AddSourceFileHashParts(ModBuilderProject project, List<string> hashParts)
+    {
         var projectDir = !string.IsNullOrWhiteSpace(project.ProjectDir) ? project.ProjectDir : Directory.GetCurrentDirectory();
         var sourceDir = Path.Combine(projectDir, !string.IsNullOrWhiteSpace(project.Directories?.GameFilesEdited) ? project.Directories.GameFilesEdited : ModBuilderConstants.GameFilesEditedDir);
         if (Directory.Exists(sourceDir))
@@ -1202,23 +1322,6 @@ public sealed class BuildEngineService : IBuildEngineService
             {
                 var fi = new FileInfo(file);
                 hashParts.Add($"{file}:{fi.LastWriteTimeUtc.Ticks}");
-            }
-        }
-
-        var combinedString = string.Join("|", hashParts);
-        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-        try
-        {
-            await File.WriteAllTextAsync(tempFile, combinedString, cancellationToken)
-                .ConfigureAwait(false);
-            return await _hashProvider.ComputeFileHashAsync(tempFile, cancellationToken)
-                .ConfigureAwait(false);
-        }
-        finally
-        {
-            if (File.Exists(tempFile))
-            {
-                File.Delete(tempFile);
             }
         }
     }
@@ -1309,19 +1412,12 @@ public sealed class BuildEngineService : IBuildEngineService
 
     private static List<string> CollectRawBundleItemFiles(BuildConfiguration configuration)
     {
-        var files = new List<string>();
-        foreach (var item in configuration.Items)
-        {
-            foreach (var file in item.Files)
-            {
-                if (File.Exists(file.AbsSourceFile))
-                {
-                    files.Add(file.AbsSourceFile);
-                }
-            }
-        }
-
-        return files.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return configuration.Items
+            .SelectMany(item => item.Files)
+            .Select(file => file.AbsSourceFile)
+            .Where(File.Exists)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private static List<string> CollectBigBundleItemFiles(BuildSetup setup, BuildConfiguration configuration)
