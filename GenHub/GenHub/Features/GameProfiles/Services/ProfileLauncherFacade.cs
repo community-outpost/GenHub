@@ -250,25 +250,8 @@ public class ProfileLauncherFacade(
                 return ProfileOperationResult<WorkspaceInfo>.CreateFailure("Resolved installation data is null");
             }
 
-            if (installationCasPoolService != null)
-            {
-                await installationCasPoolService.EnsurePoolPathAsync([resolvedInstallation], cancellationToken);
-            }
-
-            // Update the profile with the resolved installation if it changed
-            if (resolvedInstallation.Id != profile.GameInstallationId)
-            {
-                var updateRequest = new UpdateProfileRequest
-                {
-                    GameInstallationId = resolvedInstallation.Id,
-                };
-                var updateResult = await profileManager.UpdateProfileAsync(profileId, updateRequest, cancellationToken);
-                if (updateResult.Success)
-                {
-                    profile.GameInstallationId = resolvedInstallation.Id;
-                    logger.LogInformation("Rebound profile {ProfileId} to installation {InstallationId} during workspace preparation", profileId, resolvedInstallation.Id);
-                }
-            }
+            await EnsureCasPoolAsync(resolvedInstallation, cancellationToken);
+            await TryRebindProfileInstallationAsync(profileId, profile, resolvedInstallation, cancellationToken);
 
             // Build list of manifests from enabled content IDs only
             var manifests = new List<ContentManifest>();
@@ -745,25 +728,13 @@ public class ProfileLauncherFacade(
             }
 
             var resolvedInstallation = resolvedInstallationResult.Data!;
-            logger.LogInformation(
+            logger.LogDebug(
                 "[Launch] Bound to game installation: {InstallationId} at {Path}",
                 resolvedInstallation.Id,
                 resolvedInstallation.InstallationPath);
 
             // Update the profile with the resolved installation if it changed
-            if (resolvedInstallation.Id != profile.GameInstallationId)
-            {
-                var updateRequest = new UpdateProfileRequest
-                {
-                    GameInstallationId = resolvedInstallation.Id,
-                };
-                var updateResult = await profileManager.UpdateProfileAsync(profileId, updateRequest, cancellationToken);
-                if (updateResult.Success)
-                {
-                    profile.GameInstallationId = resolvedInstallation.Id;
-                    logger.LogInformation("Rebound profile {ProfileId} to installation {InstallationId}", profileId, resolvedInstallation.Id);
-                }
-            }
+            await TryRebindProfileInstallationAsync(profileId, profile, resolvedInstallation, cancellationToken);
 
             // Step 2.5: Check for game client updates before launching.
             var reconcileResult = await ReconcilePublisherClientAsync(profile, profileId, cancellationToken);
@@ -800,10 +771,7 @@ public class ProfileLauncherFacade(
                 casPoolPath,
                 workspacePath);
 
-            if (installationCasPoolService != null)
-            {
-                await installationCasPoolService.EnsurePoolPathAsync([resolvedInstallation], cancellationToken);
-            }
+            await EnsureCasPoolAsync(resolvedInstallation, cancellationToken);
 
             notificationService.ShowInfo(
                 "Launching Profile",
@@ -1862,5 +1830,34 @@ public class ProfileLauncherFacade(
         }
 
         return null;
+    }
+
+    private async Task EnsureCasPoolAsync(GameInstallation? installation, CancellationToken cancellationToken)
+    {
+        if (installationCasPoolService != null && installation != null)
+        {
+            await installationCasPoolService.EnsurePoolPathAsync([installation], cancellationToken);
+        }
+    }
+
+    private async Task TryRebindProfileInstallationAsync(
+        string profileId,
+        GameProfile profile,
+        GameInstallation resolvedInstallation,
+        CancellationToken cancellationToken)
+    {
+        if (resolvedInstallation.Id != profile.GameInstallationId)
+        {
+            var updateRequest = new UpdateProfileRequest
+            {
+                GameInstallationId = resolvedInstallation.Id,
+            };
+            var updateResult = await profileManager.UpdateProfileAsync(profileId, updateRequest, cancellationToken);
+            if (updateResult.Success)
+            {
+                profile.GameInstallationId = resolvedInstallation.Id;
+                logger.LogInformation("Rebound profile {ProfileId} to installation {InstallationId}", profileId, resolvedInstallation.Id);
+            }
+        }
     }
 }

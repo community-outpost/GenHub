@@ -38,6 +38,9 @@ IContentManifestPool? contentManifestPool = null,
 IInstallationPathResolver? pathResolver = null,
 IUserSettingsService? userSettingsService = null) : IGameInstallationService, IDisposable
 {
+    private const string ZeroHourContentName = "zerohour";
+    private const string GeneralsContentName = "generals";
+
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
     private ReadOnlyCollection<GameInstallation>? _cachedInstallations;
     private bool _disposed = false;
@@ -439,6 +442,9 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
     /// </summary>
     /// <param name="version">The version string to parse.</param>
     /// <returns>The parsed integer version.</returns>
+    private static string GetGameTypeContentName(GameType gameType) =>
+        gameType == GameType.ZeroHour ? ZeroHourContentName : GeneralsContentName;
+
     private static int ParseVersionStringToInt(string? version) => GameVersionHelper.NormalizeVersion(version);
 
     /// <summary>
@@ -772,7 +778,7 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
 
             // Filter results to match the installation type and ensure ID matches version
             var installTypeString = installation.InstallationType.ToIdentifierString();
-            var gameTypeString = gameType == GameType.ZeroHour ? "zerohour" : "generals";
+            var gameTypeString = GetGameTypeContentName(gameType);
 
             var matchingManifest = searchResult.Data
                 .Where(m => m.Id.Value.Contains($".{installTypeString}.gameinstallation.{gameTypeString}"))
@@ -794,7 +800,7 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
                 var clientId = ManifestIdGenerator.GeneratePublisherContentId(
                     installType,
                     ContentType.GameClient,
-                    gameType == GameType.ZeroHour ? "zerohour" : "generals",
+                    GetGameTypeContentName(gameType),
                     normalizedVersion);
 
                 var defaultExe = gameType == GameType.ZeroHour ? GameClientConstants.ZeroHourExecutable : GameClientConstants.GeneralsExecutable;
@@ -947,7 +953,7 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
                 gameClient.Id = ManifestIdGenerator.GeneratePublisherContentId(
                     installType,
                     ContentType.GameClient,
-                    gameType == GameType.ZeroHour ? "zerohour" : "generals",
+                    GetGameTypeContentName(gameType),
                     normalizedVersion);
             }
 
@@ -1001,7 +1007,7 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
         {
             var installType = installation.InstallationType.ToIdentifierString();
             var normalizedVersion = ParseVersionStringToInt(versionForManifest);
-            var contentName = gameType == GameType.ZeroHour ? "zerohour" : "generals";
+            var contentName = GetGameTypeContentName(gameType);
             var clientId = ManifestIdGenerator.GeneratePublisherContentId(
                 installType,
                 ContentType.GameClient,
