@@ -27,6 +27,14 @@ public sealed class MapImportService(
     MapNameParser mapNameParser,
     ILogger<MapImportService> logger) : IMapImportService
 {
+    private sealed record SharpCompressExtractionContext(
+        string ArchivePath,
+        string TargetDir,
+        GameType TargetVersion,
+        ImportResult Result,
+        Action<long> OnBytesExpanded,
+        CancellationToken CancellationToken);
+
     private static readonly char[] PathSeparators = ['/', '\\'];
 
     /// <inheritdoc />
@@ -283,6 +291,14 @@ public sealed class MapImportService(
             {
                 return await ImportWithSharpCompressAsync(zipPath, targetVersion, progress, ct);
             }
+
+            var extractionContext = new SharpCompressExtractionContext(
+                archivePath,
+                targetDir,
+                targetVersion,
+                result,
+                bytes => expandedBytes += bytes,
+                ct);
 
             foreach (var (directoryName, entries) in entriesByDirectory)
             {
@@ -711,12 +727,10 @@ public sealed class MapImportService(
             .Select(e => (e.Key ?? string.Empty).Split(PathSeparators, StringSplitOptions.RemoveEmptyEntries)[0])
             .Distinct(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var dir in allDirectories)
+        var missingDirectory = allDirectories.FirstOrDefault(dir => !directoriesWithMaps.Contains(dir));
+        if (missingDirectory != null)
         {
-            if (!directoriesWithMaps.Contains(dir))
-            {
-                return (false, $"Directory '{dir}' does not contain a .map file. Each directory must have at least one .map file.");
-            }
+            return (false, $"Directory '{missingDirectory}' does not contain a .map file. Each directory must have at least one .map file.");
         }
 
         return (true, null);
@@ -955,6 +969,14 @@ public sealed class MapImportService(
             int processedMaps = 0;
             long expandedBytes = 0;
 
+            var extractionContext = new SharpCompressExtractionContext(
+                archivePath,
+                targetDir,
+                targetVersion,
+                result,
+                bytes => expandedBytes += bytes,
+                ct);
+
             foreach (var (directoryName, entries) in entriesByDirectory)
             {
                 var mapEntries = entries.Where(e => Path.GetFileName(e.Key ?? string.Empty).EndsWith(".map", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -968,16 +990,11 @@ public sealed class MapImportService(
                     ct.ThrowIfCancellationRequested();
 
                     var mapFile = await ExtractSharpCompressMapAsync(
-                        archivePath,
-                        targetDir,
-                        directoryName,
                         mapEntry,
                         entries,
-                        targetVersion,
-                        expandedBytes,
-                        bytes => expandedBytes += bytes,
-                        result,
-                        ct);
+                        directoryName,
+                        extractionContext,
+                        expandedBytes);
 
                     if (mapFile != null)
                     {
@@ -1007,21 +1024,16 @@ public sealed class MapImportService(
     }
 
     private async Task<MapFile?> ExtractSharpCompressMapAsync(
-        string archivePath,
-        string targetDir,
-        string directoryName,
         IArchiveEntry mapEntry,
         List<IArchiveEntry> entries,
-        GameType targetVersion,
-        long currentExpandedBytes,
-        Action<long> onBytesExpanded,
-        ImportResult result,
-        CancellationToken ct)
+        string directoryName,
+        SharpCompressExtractionContext context,
+        long currentExpandedBytes)
     {
         var mapFileName = Path.GetFileName(mapEntry.Key ?? string.Empty);
         if (mapEntry.Size > IMapImportService.MaxMapSizeBytes)
         {
-            result.Errors.Add($"Map too large: {mapFileName}");
+            context.Result.Errors.Add($"Map too large: {mapFileName}");
             return null;
         }
 
@@ -1034,7 +1046,7 @@ public sealed class MapImportService(
             mapDirName = Path.GetFileNameWithoutExtension(mapFileName);
         }
 
-        var mapDirPath = GetUniqueDirectoryPath(Path.Combine(targetDir, mapDirName));
+        var mapDirPath = GetUniqueDirectoryPath(Path.Combine(context.TargetDir, mapDirName));
         var mapDestPath = Path.Combine(mapDirPath, mapFileName);
         var assetFiles = new List<string>();
         string? thumbnailPath = null;
@@ -1052,7 +1064,7 @@ public sealed class MapImportService(
                     mapEntry.Key ?? mapFileName,
                     IMapImportService.MaxMapSizeBytes,
                     MapManagerConstants.MaxAggregateUncompressedBytes - currentExpandedBytes - mapExpandedBytes,
-                    cancellationToken: ct);
+                    cancellationToken: context.CancellationToken);
             }
 
             if (!string.IsNullOrEmpty(directoryName))
@@ -1063,15 +1075,15 @@ public sealed class MapImportService(
                     assetFiles,
                     currentExpandedBytes + mapExpandedBytes,
                     bytes => mapExpandedBytes += bytes,
-                    ct);
+                    context.CancellationToken);
             }
 
-            onBytesExpanded(mapExpandedBytes);
+            context.OnBytesExpanded(mapExpandedBytes);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogWarning(ex, "Discarding map {Entry} from {ArchivePath}: {Reason}", mapEntry.Key, archivePath, ex.Message);
-            result.Errors.Add(ex.Message);
+            logger.LogWarning(ex, "Discarding map {Entry} from {ArchivePath}: {Reason}", mapEntry.Key, context.ArchivePath, ex.Message);
+            context.Result.Errors.Add(ex.Message);
             DeleteDirectoryBestEffort(mapDirPath);
             return null;
         }
@@ -1085,7 +1097,7 @@ public sealed class MapImportService(
             FileName = mapFileName,
             FullPath = mapDestPath,
             SizeBytes = totalSize,
-            GameType = targetVersion,
+            GameType = context.TargetVersion,
             LastModified = File.GetLastWriteTime(mapDestPath),
             DirectoryName = Path.GetFileName(mapDirPath),
             IsDirectory = true,

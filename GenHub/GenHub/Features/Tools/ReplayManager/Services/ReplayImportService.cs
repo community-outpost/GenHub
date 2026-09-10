@@ -29,6 +29,15 @@ public sealed class ReplayImportService(
     IZipValidationService zipValidationService,
     ILogger<ReplayImportService> logger) : IReplayImportService
 {
+    private sealed record ZipEntryImportContext(
+        string ZipPath,
+        string TargetDir,
+        List<string> Imported,
+        List<string> Errors,
+        Action<long> OnBytesExpanded,
+        Action OnEntrySkipped,
+        CancellationToken CancellationToken);
+
     /// <inheritdoc />
     public async Task<ImportResult> ImportFromUrlAsync(
         string url,
@@ -215,6 +224,15 @@ public sealed class ReplayImportService(
             directoryService.EnsureDirectoryExists(targetVersion);
             var targetDir = directoryService.GetReplayDirectory(targetVersion);
 
+            var entryContext = new ZipEntryImportContext(
+                zipPath,
+                targetDir,
+                imported,
+                errors,
+                bytes => expandedBytes += bytes,
+                () => skipped++,
+                ct);
+
             foreach (var entry in entries)
             {
                 ct.ThrowIfCancellationRequested();
@@ -222,16 +240,7 @@ public sealed class ReplayImportService(
                 count++;
                 progress?.Report((double)count / total);
 
-                await ProcessZipEntryAsync(
-                    entry,
-                    zipPath,
-                    targetDir,
-                    expandedBytes,
-                    bytes => expandedBytes += bytes,
-                    imported,
-                    errors,
-                    () => skipped++,
-                    ct);
+                await ProcessZipEntryAsync(entry, entryContext, expandedBytes);
             }
         }
         catch (InvalidDataException ex)
@@ -491,16 +500,10 @@ public sealed class ReplayImportService(
 
     private async Task ProcessZipEntryAsync(
         ZipArchiveEntry entry,
-        string zipPath,
-        string targetDir,
-        long currentExpandedBytes,
-        Action<long> onBytesExpanded,
-        List<string> imported,
-        List<string> errors,
-        Action onEntrySkipped,
-        CancellationToken ct)
+        ZipEntryImportContext context,
+        long currentExpandedBytes)
     {
-        var targetPath = GetUniquePath(Path.Combine(targetDir, Path.GetFileName(entry.Name)));
+        var targetPath = GetUniquePath(Path.Combine(context.TargetDir, Path.GetFileName(entry.Name)));
 
         try
         {
@@ -511,57 +514,47 @@ public sealed class ReplayImportService(
                 entry.FullName,
                 ReplayManagerConstants.MaxReplaySizeBytes,
                 ReplayManagerConstants.MaxAggregateUncompressedBytes - currentExpandedBytes,
-                cancellationToken: ct);
-            onBytesExpanded(written);
-            imported.Add(targetPath);
+                cancellationToken: context.CancellationToken);
+            context.OnBytesExpanded(written);
+            context.Imported.Add(targetPath);
         }
         catch (InvalidDataException ex)
         {
             logger.LogInformation(ex, "Decompression via ZipArchive failed for {Entry}, attempting SharpCompress fallback", entry.FullName);
             await ProcessZipEntryWithSharpCompressFallbackAsync(
                 entry,
-                zipPath,
                 targetPath,
-                currentExpandedBytes,
-                onBytesExpanded,
-                imported,
-                errors,
-                onEntrySkipped,
-                ct);
+                context,
+                currentExpandedBytes);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogWarning(ex, "Discarding replay entry {Entry} from {ZipPath}", entry.FullName, zipPath);
-            errors.Add(ex.Message);
-            onEntrySkipped();
+            logger.LogWarning(ex, "Discarding replay entry {Entry} from {ZipPath}", entry.FullName, context.ZipPath);
+            context.Errors.Add(ex.Message);
+            context.OnEntrySkipped();
         }
     }
 
     private async Task ProcessZipEntryWithSharpCompressFallbackAsync(
         ZipArchiveEntry entry,
-        string zipPath,
         string targetPath,
-        long currentExpandedBytes,
-        Action<long> onBytesExpanded,
-        List<string> imported,
-        List<string> errors,
-        Action onEntrySkipped,
-        CancellationToken ct)
+        ZipEntryImportContext context,
+        long currentExpandedBytes)
     {
         try
         {
             var written = await TryExtractEntryWithSharpCompressAsync(
-                zipPath,
+                context.ZipPath,
                 entry.FullName,
                 targetPath,
                 ReplayManagerConstants.MaxReplaySizeBytes,
                 ReplayManagerConstants.MaxAggregateUncompressedBytes - currentExpandedBytes,
-                ct);
+                context.CancellationToken);
 
             if (written > 0)
             {
-                onBytesExpanded(written);
-                imported.Add(targetPath);
+                context.OnBytesExpanded(written);
+                context.Imported.Add(targetPath);
             }
             else
             {
@@ -570,9 +563,9 @@ public sealed class ReplayImportService(
         }
         catch (Exception sharpEx) when (sharpEx is not OperationCanceledException)
         {
-            logger.LogWarning(sharpEx, "Discarding replay entry {Entry} from {ZipPath}", entry.FullName, zipPath);
-            errors.Add(sharpEx.Message);
-            onEntrySkipped();
+            logger.LogWarning(sharpEx, "Discarding replay entry {Entry} from {ZipPath}", entry.FullName, context.ZipPath);
+            context.Errors.Add(sharpEx.Message);
+            context.OnEntrySkipped();
         }
     }
 
