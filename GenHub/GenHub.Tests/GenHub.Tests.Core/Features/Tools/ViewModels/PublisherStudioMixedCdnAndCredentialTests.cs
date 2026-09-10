@@ -267,7 +267,7 @@ public class PublisherStudioMixedCdnAndCredentialTests
         mockGoogle.Setup(p => p.ProviderId).Returns(HostingConstants.GoogleDrive);
         vm.SelectedHostingProvider = mockGoogle.Object;
         Assert.Contains("Google Drive", vm.TargetDestinationDescription);
-        Assert.Contains("GenHub-Publishing", vm.TargetDestinationDescription);
+        Assert.Contains("GenHub_Publisher", vm.TargetDestinationDescription);
 
         var mockDropbox = new Mock<IHostingProvider>();
         mockDropbox.Setup(p => p.DisplayName).Returns("Dropbox");
