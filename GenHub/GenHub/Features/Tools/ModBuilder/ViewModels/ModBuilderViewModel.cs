@@ -420,7 +420,9 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         foreach (var bundle in Bundles)
         {
-            bundle.IsBig = value;
+            var matchingPack = CurrentProject?.Configuration?.Packs?.FirstOrDefault(p =>
+                string.Equals(p.Name, bundle.Name, StringComparison.OrdinalIgnoreCase));
+            bundle.IsBig = matchingPack?.IsBigPack ?? value;
         }
     }
 
@@ -441,15 +443,19 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     {
         if (singleBigMode)
         {
-            if (pack.Big.GetValueOrDefault(true))
+            if (pack.Big != false)
             {
                 pack.Big = true;
+                pack.OutputFile = ReplaceExtension(pack.OutputFile, ".zip", ".big");
             }
-
-            pack.OutputFile = ReplaceExtension(pack.OutputFile, ".zip", ".big");
         }
         else
         {
+            if (pack.Big == false || (pack.Big == true && (pack.OutputFile == null || pack.OutputFile.EndsWith(".big", StringComparison.OrdinalIgnoreCase))))
+            {
+                return;
+            }
+
             pack.Big = null;
             pack.OutputFile = ReplaceExtension(pack.OutputFile, ".big", ".zip");
         }
@@ -1446,8 +1452,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var subDirName = Path.GetFileName(subDir);
             if (subDirName.Equals(ModBuilderConstants.DefaultBuildDir, StringComparison.OrdinalIgnoreCase) ||
                 subDirName.Equals(ModBuilderConstants.DefaultReleaseDir, StringComparison.OrdinalIgnoreCase) ||
-                subDirName.StartsWith(".staging", StringComparison.OrdinalIgnoreCase) ||
-                subDirName.Equals(".modbuilder_cache", StringComparison.OrdinalIgnoreCase))
+                subDirName.StartsWith(ModBuilderConstants.StagingDirectoryPrefix, StringComparison.OrdinalIgnoreCase) ||
+                subDirName.Equals(ModBuilderConstants.CacheDirectoryName, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -1478,7 +1484,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 Directory.Delete(releaseDir, recursive: true);
             }
 
-            var cacheDir = Path.Combine(dir, ".modbuilder_cache");
+            var cacheDir = Path.Combine(dir, ModBuilderConstants.CacheDirectoryName);
             if (Directory.Exists(cacheDir))
             {
                 Directory.Delete(cacheDir, recursive: true);

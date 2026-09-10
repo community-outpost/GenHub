@@ -376,13 +376,14 @@ public sealed class ProjectConfigService : IProjectConfigService
             return;
         }
 
-        EnsureOutputDirectoriesExist(projectDir, project, errors);
+        EnsureOutputDirectoriesExist(projectDir, project);
         var effectiveConfigs = ResolveAndValidateConfigsDir(projectDir, project.Directories.Configs, errors);
+        project.Directories.Configs = effectiveConfigs;
         ValidateGameFilesEditedDir(projectDir, project.Directories.GameFilesEdited, errors);
         ValidateBundleConfigsExist(projectDir, effectiveConfigs, project.BundleConfigs);
     }
 
-    private void EnsureOutputDirectoriesExist(string projectDir, ModBuilderProject project, List<string> errors)
+    private void EnsureOutputDirectoriesExist(string projectDir, ModBuilderProject project)
     {
         var outputDirs = new[]
         {
@@ -400,27 +401,50 @@ public sealed class ProjectConfigService : IProjectConfigService
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 _logger.LogWarning(ex, "Could not create output directory: {Directory}", dir);
-                errors.Add($"Failed to create required output directory: {dir} ({ex.Message})");
             }
         }
     }
 
+    private static string ResolveConfigsDir(string projectDir, string? configuredConfigs)
+    {
+        if (!string.IsNullOrWhiteSpace(configuredConfigs))
+        {
+            if (Directory.Exists(Path.Combine(projectDir, configuredConfigs)))
+            {
+                return configuredConfigs;
+            }
+
+            var altConfig = configuredConfigs.Equals(ModBuilderConstants.LowercaseConfigDir, StringComparison.OrdinalIgnoreCase)
+                ? ModBuilderConstants.ConfigDir
+                : ModBuilderConstants.LowercaseConfigDir;
+            if (Directory.Exists(Path.Combine(projectDir, altConfig)))
+            {
+                return altConfig;
+            }
+
+            return configuredConfigs;
+        }
+
+        if (Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.ConfigDir)))
+        {
+            return ModBuilderConstants.ConfigDir;
+        }
+
+        if (Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir)))
+        {
+            return ModBuilderConstants.LowercaseConfigDir;
+        }
+
+        return ModBuilderConstants.ConfigDir;
+    }
+
     private static string ResolveAndValidateConfigsDir(string projectDir, string configuredConfigs, List<string> errors)
     {
-        var effectiveConfigs = configuredConfigs;
+        var effectiveConfigs = ResolveConfigsDir(projectDir, configuredConfigs);
         var configsDir = Path.Combine(projectDir, effectiveConfigs);
         if (Directory.Exists(configsDir))
         {
             return effectiveConfigs;
-        }
-
-        var altConfig = effectiveConfigs.Equals(ModBuilderConstants.LowercaseConfigDir, StringComparison.OrdinalIgnoreCase)
-            ? ModBuilderConstants.ConfigDir
-            : ModBuilderConstants.LowercaseConfigDir;
-        var altConfigsDir = Path.Combine(projectDir, altConfig);
-        if (Directory.Exists(altConfigsDir))
-        {
-            return altConfig;
         }
 
         errors.Add($"Required directory does not exist: {configsDir}");
@@ -734,8 +758,9 @@ public sealed class ProjectConfigService : IProjectConfigService
                     sw.Elapsed);
             }
 
+            var effectiveConfigs = ResolveConfigsDir(projectDir, project.Directories.Configs);
             var bundleConfigPaths = project.BundleConfigs
-                .Select(config => ResolveBundleConfigPath(projectDir, project.Directories.Configs, config))
+                .Select(config => ResolveBundleConfigPath(projectDir, effectiveConfigs, config))
                 .Where(File.Exists)
                 .ToList();
 
@@ -954,20 +979,7 @@ public sealed class ProjectConfigService : IProjectConfigService
 
     private static string ResolveConfigsDir(string projectDir, ModBuilderProject? project)
     {
-        string configFolder;
-        if (!string.IsNullOrWhiteSpace(project?.Directories?.Configs))
-        {
-            configFolder = project.Directories.Configs;
-        }
-        else if (Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.ConfigDir)))
-        {
-            configFolder = ModBuilderConstants.ConfigDir;
-        }
-        else
-        {
-            configFolder = ModBuilderConstants.LowercaseConfigDir;
-        }
-
+        var configFolder = ResolveConfigsDir(projectDir, project?.Directories?.Configs);
         return Path.Combine(projectDir, configFolder);
     }
 
@@ -976,10 +988,16 @@ public sealed class ProjectConfigService : IProjectConfigService
         ModBuilderProject? project,
         CancellationToken cancellationToken)
     {
+        if (!File.Exists(itemsPath))
+        {
+            await CreateDefaultImportedBundleItemsFileAsync(itemsPath, project, cancellationToken).ConfigureAwait(false);
+            return new List<string> { "ImportedGameFiles" };
+        }
+
         var itemNames = await ReadExistingBundleItemNamesAsync(itemsPath, cancellationToken).ConfigureAwait(false);
         if (itemNames.Count == 0)
         {
-            await CreateDefaultImportedBundleItemsFileAsync(itemsPath, project, cancellationToken).ConfigureAwait(false);
+            _logger.LogWarning("Existing ModBundleItems.json at {Path} yielded no bundle item names; using fallback item name without overwriting file", itemsPath);
             itemNames.Add("ImportedGameFiles");
         }
 
@@ -1009,7 +1027,7 @@ public sealed class ProjectConfigService : IProjectConfigService
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogWarning(ex, "Could not parse existing ModBundleItems.json at {Path}", itemsPath);
         }
@@ -1088,7 +1106,7 @@ public sealed class ProjectConfigService : IProjectConfigService
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogWarning(ex, "Could not parse existing ModBundlePacks.json at {Path}", packsPath);
         }
@@ -1163,7 +1181,7 @@ public sealed class ProjectConfigService : IProjectConfigService
                 throw new InvalidDataException($"Existing ModBundlePacks.json at '{packsPath}' has an unsupported JSON root type ({node?.GetType().Name ?? "null"}).");
             }
         }
-        catch (Exception ex) when (ex is not InvalidDataException)
+        catch (Exception ex) when (ex is not InvalidDataException and not OperationCanceledException)
         {
             throw new InvalidOperationException($"Failed to append new packs to existing ModBundlePacks.json at '{packsPath}': {ex.Message}", ex);
         }
@@ -1182,11 +1200,33 @@ public sealed class ProjectConfigService : IProjectConfigService
 
     private void AppendPacksToJsonArray(JsonArray targetArray, List<object> packsToAdd)
     {
+        var existingNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var node in targetArray)
+        {
+            if (node is JsonObject obj &&
+                obj.TryGetPropertyValue("name", out var nameProp) &&
+                nameProp != null &&
+                !string.IsNullOrWhiteSpace(nameProp.ToString()))
+            {
+                existingNames.Add(nameProp.ToString()!);
+            }
+        }
+
         foreach (var pack in packsToAdd)
         {
             var packJson = JsonSerializer.Serialize(pack, _jsonOptions);
             var packNode = JsonNode.Parse(packJson);
-            if (packNode != null)
+            if (packNode is JsonObject packObj &&
+                packObj.TryGetPropertyValue("name", out var packNameProp) &&
+                packNameProp != null &&
+                !string.IsNullOrWhiteSpace(packNameProp.ToString()))
+            {
+                if (existingNames.Add(packNameProp.ToString()!))
+                {
+                    targetArray.Add(packNode);
+                }
+            }
+            else if (packNode != null)
             {
                 targetArray.Add(packNode);
             }
@@ -1579,11 +1619,12 @@ public sealed class ProjectConfigService : IProjectConfigService
                 await JsonSerializer.SerializeAsync(stream, value, options, cancellationToken)
                     .ConfigureAwait(false);
                 await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                stream.Flush(true);
             }
 
             File.Move(tempPath, filePath, overwrite: true);
         }
-        catch
+        finally
         {
             if (File.Exists(tempPath))
             {
@@ -1596,8 +1637,6 @@ public sealed class ProjectConfigService : IProjectConfigService
                     // Best-effort cleanup
                 }
             }
-
-            throw;
         }
     }
 }

@@ -43,6 +43,11 @@ public static class ModBuilderConstants
     public const string DefaultReleaseDir = ".Release";
 
     /// <summary>
+    /// Directory prefix for staging directories.
+    /// </summary>
+    public const string StagingDirectoryPrefix = ".staging";
+
+    /// <summary>
     /// Subdirectory name for raw bundle items within build directory.
     /// </summary>
     public const string RawBundleItemsSubdir = "raw_bundle_items";
@@ -168,4 +173,3 @@ public static class ModBuilderConstants
         "-A8R8G8B8"
     ];
 }
-

@@ -356,8 +356,9 @@ public partial class ConfigEditorViewModel(
     /// <summary>
     /// Saves the configuration changes.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     [RelayCommand]
-    private async Task SaveAsync()
+    private async Task SaveAsync(CancellationToken cancellationToken = default)
     {
         if (Configuration == null || CurrentProject == null)
         {
@@ -405,7 +406,7 @@ public partial class ConfigEditorViewModel(
                 });
             }
 
-            await PersistConfigurationToDiskAsync(CurrentProject.ProjectDir).ConfigureAwait(false);
+            await PersistConfigurationToDiskAsync(CurrentProject.ProjectDir, cancellationToken).ConfigureAwait(false);
 
             HasChanges = false;
             notificationService.ShowSuccess("Configuration Saved", "Configuration changes saved successfully");
@@ -420,42 +421,32 @@ public partial class ConfigEditorViewModel(
                 Dispatcher.UIThread.Post(CloseDialog);
             }
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to save configuration");
-            notificationService.ShowError("Save Failed", $"Failed to save configuration: {ex.Message}");
+            notificationService.ShowError("Save Failed", $"Could not save configuration: {ex.Message}");
         }
     }
 
     private static List<BundleFile> ParseItemFiles(BundleItemEditorViewModel itemVm, BundleItem? existingItem)
     {
         var files = new List<BundleFile>();
-        var existingFileMap = existingItem?.Files?
-            .Where(f => !string.IsNullOrEmpty(f.AbsSourceFile))
-            .GroupBy(f => f.AbsSourceFile, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-
         if (!string.IsNullOrWhiteSpace(itemVm.SourcePattern))
         {
             var patterns = itemVm.SourcePattern.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            foreach (var p in patterns)
+            foreach (var pattern in patterns)
             {
-                if (!string.IsNullOrEmpty(p))
+                files.Add(new BundleFile
                 {
-                    if (existingFileMap != null && existingFileMap.TryGetValue(p, out var matched))
-                    {
-                        files.Add(matched);
-                    }
-                    else
-                    {
-                        files.Add(new BundleFile { AbsSourceFile = p });
-                    }
-                }
+                    AbsSourceFile = pattern,
+                    RelTargetFile = existingItem?.Files.FirstOrDefault(f => string.Equals(f.AbsSourceFile, pattern, StringComparison.OrdinalIgnoreCase))?.RelTargetFile ?? string.Empty,
+                    AbsSourceParent = existingItem?.Files.FirstOrDefault(f => string.Equals(f.AbsSourceFile, pattern, StringComparison.OrdinalIgnoreCase))?.AbsSourceParent ?? string.Empty,
+                });
             }
-        }
-        else if (existingItem?.Files != null && existingItem.Files.Count > 0)
-        {
-            files.AddRange(existingItem.Files);
         }
         else
         {
@@ -465,22 +456,26 @@ public partial class ConfigEditorViewModel(
         return files;
     }
 
-    private async Task PersistConfigurationToDiskAsync(string? projectDir)
+    private async Task PersistConfigurationToDiskAsync(string? projectDir, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(projectDir) || Configuration == null)
         {
             return;
         }
 
-        var jsonOptions = new System.Text.Json.JsonSerializerOptions { WriteIndented = true };
+        var jsonOptions = new System.Text.Json.JsonSerializerOptions
+        {
+            WriteIndented = true,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+        };
 
         var (packsPath, itemsPath, configDir) = ResolveConfigPaths(projectDir);
 
         EnsureDirectoryExistsForFile(packsPath);
         EnsureDirectoryExistsForFile(itemsPath);
 
-        await SaveBundlePacksAsync(packsPath, jsonOptions).ConfigureAwait(false);
-        await SaveBundleItemsAsync(itemsPath, jsonOptions).ConfigureAwait(false);
+        await SaveBundlePacksAsync(packsPath, jsonOptions, cancellationToken).ConfigureAwait(false);
+        await SaveBundleItemsAsync(itemsPath, jsonOptions, cancellationToken).ConfigureAwait(false);
 
         SyncAlternateConfigDirectory(projectDir, configDir, packsPath, itemsPath);
     }
@@ -560,14 +555,14 @@ public partial class ConfigEditorViewModel(
         }
     }
 
-    private async Task SaveBundlePacksAsync(string packsPath, System.Text.Json.JsonSerializerOptions jsonOptions)
+    private async Task SaveBundlePacksAsync(string packsPath, System.Text.Json.JsonSerializerOptions jsonOptions, CancellationToken cancellationToken = default)
     {
         if (Configuration == null)
         {
             return;
         }
 
-        var existingPacksText = File.Exists(packsPath) ? await File.ReadAllTextAsync(packsPath).ConfigureAwait(false) : null;
+        var existingPacksText = File.Exists(packsPath) ? await File.ReadAllTextAsync(packsPath, cancellationToken).ConfigureAwait(false) : null;
         if (existingPacksText != null && existingPacksText.Contains("\"BundlePacks\"", StringComparison.OrdinalIgnoreCase))
         {
             var simplifiedPacks = Configuration.Packs.Select(p => new
@@ -583,47 +578,72 @@ public partial class ConfigEditorViewModel(
             {
                 ["BundlePacks"] = simplifiedPacks,
             };
-            await File.WriteAllTextAsync(packsPath, System.Text.Json.JsonSerializer.Serialize(packsData, jsonOptions)).ConfigureAwait(false);
+            await File.WriteAllTextAsync(packsPath, System.Text.Json.JsonSerializer.Serialize(packsData, jsonOptions), cancellationToken).ConfigureAwait(false);
         }
         else
         {
             var packsConfig = new BuildConfiguration { Packs = Configuration.Packs };
-            await File.WriteAllTextAsync(packsPath, System.Text.Json.JsonSerializer.Serialize(packsConfig, jsonOptions)).ConfigureAwait(false);
+            await File.WriteAllTextAsync(packsPath, System.Text.Json.JsonSerializer.Serialize(packsConfig, jsonOptions), cancellationToken).ConfigureAwait(false);
         }
     }
 
-    private async Task SaveBundleItemsAsync(string itemsPath, System.Text.Json.JsonSerializerOptions jsonOptions)
+    private async Task SaveBundleItemsAsync(string itemsPath, System.Text.Json.JsonSerializerOptions jsonOptions, CancellationToken cancellationToken = default)
     {
         if (Configuration == null)
         {
             return;
         }
 
-        var existingItemsText = File.Exists(itemsPath) ? await File.ReadAllTextAsync(itemsPath).ConfigureAwait(false) : null;
+        var existingItemsText = File.Exists(itemsPath) ? await File.ReadAllTextAsync(itemsPath, cancellationToken).ConfigureAwait(false) : null;
         if (existingItemsText != null && existingItemsText.Contains("\"BundleItems\"", StringComparison.OrdinalIgnoreCase))
         {
-            var simplifiedItems = Configuration.Items.Select(i => new SimplifiedBundleItem
+            var existingMap = new Dictionary<string, SimplifiedBundleItem>(StringComparer.OrdinalIgnoreCase);
+            try
             {
-                Name = i.Name,
-                SourceFiles = i.Files.Select(f => f.AbsSourceFile).ToList(),
-                Big = i.IsBig,
+                var existingSimplified = System.Text.Json.JsonSerializer.Deserialize<SimplifiedConfigRoot>(existingItemsText);
+                if (existingSimplified?.BundleItems != null)
+                {
+                    foreach (var item in existingSimplified.BundleItems.Where(i => !string.IsNullOrWhiteSpace(i.Name)))
+                    {
+                        existingMap[item.Name!] = item;
+                    }
+                }
+            }
+            catch
+            {
+                // Best-effort to preserve custom fields from existing file
+            }
+
+            var simplifiedItems = Configuration.Items.Select(i =>
+            {
+                existingMap.TryGetValue(i.Name, out var existing);
+                return new SimplifiedBundleItem
+                {
+                    Name = i.Name,
+                    SourceFiles = i.Files.Select(f => f.AbsSourceFile).ToList(),
+                    Big = i.IsBig,
+                    OutputFormat = existing?.OutputFormat,
+                    Compression = existing?.Compression,
+                    GenerateMipmaps = existing?.GenerateMipmaps ?? false,
+                };
             }).ToList();
             var itemsData = new Dictionary<string, object>
             {
                 ["BundleItems"] = simplifiedItems,
             };
-            await File.WriteAllTextAsync(itemsPath, System.Text.Json.JsonSerializer.Serialize(itemsData, jsonOptions)).ConfigureAwait(false);
+            await File.WriteAllTextAsync(itemsPath, System.Text.Json.JsonSerializer.Serialize(itemsData, jsonOptions), cancellationToken).ConfigureAwait(false);
         }
         else
         {
             var itemsConfig = new BuildConfiguration { Items = Configuration.Items };
-            await File.WriteAllTextAsync(itemsPath, System.Text.Json.JsonSerializer.Serialize(itemsConfig, jsonOptions)).ConfigureAwait(false);
+            await File.WriteAllTextAsync(itemsPath, System.Text.Json.JsonSerializer.Serialize(itemsConfig, jsonOptions), cancellationToken).ConfigureAwait(false);
         }
     }
 
     private static void SyncAlternateConfigDirectory(string projectDir, string configDir, string packsPath, string itemsPath)
     {
-        var altDirName = configDir.EndsWith(ModBuilderConstants.LowercaseConfigDir, StringComparison.OrdinalIgnoreCase)
+        var dirName = Path.GetFileName(configDir);
+        var altDirName = dirName.Equals(ModBuilderConstants.LowercaseConfigDir, StringComparison.OrdinalIgnoreCase)
             ? ModBuilderConstants.ConfigDir
             : ModBuilderConstants.LowercaseConfigDir;
         var altDir = Path.Combine(projectDir, altDirName);
@@ -632,15 +652,18 @@ public partial class ConfigEditorViewModel(
             return;
         }
 
-        SyncFile(packsPath, Path.Combine(altDir, ModBuilderConstants.BundlePacksConfigFileName));
-        SyncFile(itemsPath, Path.Combine(altDir, ModBuilderConstants.BundleItemsConfigFileName));
+        SyncFile(packsPath, Path.Combine(altDir, ModBuilderConstants.BundlePacksConfigFileName), wasSourceJustWritten: true);
+        SyncFile(itemsPath, Path.Combine(altDir, ModBuilderConstants.BundleItemsConfigFileName), wasSourceJustWritten: true);
     }
 
-    private static void SyncFile(string sourceFile, string targetFile)
+    private static void SyncFile(string sourceFile, string targetFile, bool wasSourceJustWritten = false)
     {
-        if (File.Exists(targetFile) && !string.Equals(targetFile, sourceFile, StringComparison.OrdinalIgnoreCase))
+        if (File.Exists(sourceFile) && !string.Equals(targetFile, sourceFile, StringComparison.OrdinalIgnoreCase))
         {
-            File.Copy(sourceFile, targetFile, true);
+            if (File.Exists(targetFile) || wasSourceJustWritten)
+            {
+                File.Copy(sourceFile, targetFile, true);
+            }
         }
     }
 

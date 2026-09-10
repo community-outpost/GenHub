@@ -144,6 +144,12 @@ public sealed class ArchiveService(
                 return OperationResult<int>.CreateSuccess(0);
             }
 
+            if (filesList.Any(p => string.IsNullOrWhiteSpace(p)))
+            {
+                logger.LogError("BIG archive path cannot be null or empty");
+                return OperationResult<int>.CreateFailure("BIG archive path cannot be null or empty");
+            }
+
             var missingArchive = filesList.FirstOrDefault(p => !File.Exists(p));
             if (missingArchive != null)
             {

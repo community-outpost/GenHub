@@ -276,6 +276,11 @@ public static class BigFilePacker
             return false;
         }
 
+        if (Directory.Exists(fullPath))
+        {
+            return false;
+        }
+
         if (File.Exists(fullPath) && !overwrite)
         {
             return false;
@@ -418,13 +423,29 @@ public static class BigFilePacker
             candidateEntries.Add((fullPath, normalizedRelPath, new FileInfo(fullPath).Length));
         }
 
-        // Deterministic ordinal sort by normalized backslash relative path across all platforms
-        candidateEntries.Sort((a, b) => string.Compare(a.NormalizedRelPath, b.NormalizedRelPath, StringComparison.Ordinal));
+        // Deterministic ordinal sort by normalized backslash relative path across all platforms;
+        // break ties with FullPath for total ordering
+        candidateEntries.Sort((a, b) =>
+        {
+            var cmp = string.Compare(a.NormalizedRelPath, b.NormalizedRelPath, StringComparison.Ordinal);
+            return cmp != 0 ? cmp : string.Compare(a.FullPath, b.FullPath, StringComparison.Ordinal);
+        });
 
-        var entries = new List<BigFileEntry>(candidateEntries.Count);
+        // De-duplicate colliding normalized relative paths to guarantee total order and prevent duplicate archive entries
+        var uniqueEntries = new List<(string FullPath, string NormalizedRelPath, long Size)>(candidateEntries.Count);
+        var seenRelPaths = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var entry in candidateEntries)
+        {
+            if (seenRelPaths.Add(entry.NormalizedRelPath))
+            {
+                uniqueEntries.Add(entry);
+            }
+        }
+
+        var entries = new List<BigFileEntry>(uniqueEntries.Count);
         long headerSize = 16;
 
-        foreach (var (fullPath, normalizedRelPath, size) in candidateEntries)
+        foreach (var (fullPath, normalizedRelPath, size) in uniqueEntries)
         {
             var nameBytes = Encoding.ASCII.GetBytes(normalizedRelPath);
             headerSize += 4 + 4 + nameBytes.Length + 1;
