@@ -89,7 +89,7 @@ public sealed partial class ReplayCheckpointService(
         }
 
         var processId = launchResult.Data.ProcessInfo.ProcessId;
-        logger.LogInformation("[ReplayCheckpoint] Monitoring game process PID {Pid} until exit...", processId);
+        logger.LogDebug("[ReplayCheckpoint] Monitoring game process PID {Pid} until exit...", processId);
 
         try
         {
@@ -98,16 +98,16 @@ public sealed partial class ReplayCheckpointService(
                 var processInfo = await processManager.GetProcessInfoAsync(processId, cancellationToken);
                 if (!processInfo.Success || processInfo.Data == null)
                 {
-                    logger.LogInformation("[ReplayCheckpoint] Process {Pid} has exited.", processId);
+                    logger.LogDebug("[ReplayCheckpoint] Process {Pid} has exited.", processId);
                     break;
                 }
 
                 await Task.Delay(500, cancellationToken);
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogWarning("[ReplayCheckpoint] Checkpoint minting wait canceled.");
+            logger.LogWarning(ex, "[ReplayCheckpoint] Checkpoint minting wait canceled.");
             return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure("Checkpoint minting canceled by user.");
         }
 
