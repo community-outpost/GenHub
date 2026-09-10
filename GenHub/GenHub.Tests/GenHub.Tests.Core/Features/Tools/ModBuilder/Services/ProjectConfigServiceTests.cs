@@ -304,4 +304,49 @@ public sealed class ProjectConfigServiceTests : IDisposable
         result.Success.Should().BeFalse();
         result.Errors.Should().Contain(e => e.Contains("Invalid") || e.Contains("parse"));
     }
+
+    [Fact]
+    public async Task CreateProjectAsync_WithContentType_SetsContentType()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "PatchProject.mbproj");
+        var projectName = "PatchProject";
+
+        // Act
+        var result = await _service.CreateProjectAsync(
+            projectPath,
+            projectName,
+            contentType: GenHub.Core.Models.Enums.ContentType.Patch);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.ContentType.Should().Be(GenHub.Core.Models.Enums.ContentType.Patch);
+
+        var loaded = await _service.LoadProjectAsync(projectPath);
+        loaded.Success.Should().BeTrue();
+        loaded.Data!.ContentType.Should().Be(GenHub.Core.Models.Enums.ContentType.Patch);
+    }
+
+    [Fact]
+    public async Task SaveProjectAsync_WithContentType_PersistsAndLoadsContentType()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "AddonProject.mbproj");
+        var projectName = "AddonProject";
+        var createResult = await _service.CreateProjectAsync(projectPath, projectName);
+        createResult.Success.Should().BeTrue();
+
+        var project = createResult.Data!;
+        project.ContentType = GenHub.Core.Models.Enums.ContentType.Addon;
+
+        // Act
+        var saveResult = await _service.SaveProjectAsync(projectPath, project);
+
+        // Assert
+        saveResult.Success.Should().BeTrue();
+        var loaded = await _service.LoadProjectAsync(projectPath);
+        loaded.Success.Should().BeTrue();
+        loaded.Data!.ContentType.Should().Be(GenHub.Core.Models.Enums.ContentType.Addon);
+    }
 }

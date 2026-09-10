@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.Tools.ModBuilder.ViewModels"
              xmlns:models="clr-namespace:GenHub.Features.Tools.ModBuilder.Models"
+             xmlns:conv="using:GenHub.Infrastructure.Converters"
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
              x:Class="GenHub.Features.Tools.ModBuilder.Views.ProjectDashboardView"
              x:DataType="vm:ModBuilderViewModel">
@@ -317,7 +318,7 @@
                                       CornerRadius="6" Padding="8,3">
                                 <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                                   <Path Width="10" Height="10" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconPlay}" Stretch="Uniform" VerticalAlignment="Center"/>
-                                  <TextBlock Text="Mod Project" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                                  <TextBlock Text="{Binding ContentType, Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
                                 </StackPanel>
                               </Border>
                               <Border Background="{DynamicResource SurfaceElevatedBrush}"

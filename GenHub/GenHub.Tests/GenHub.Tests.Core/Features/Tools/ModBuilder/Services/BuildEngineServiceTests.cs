@@ -752,6 +752,75 @@ public sealed class BuildEngineServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ExecuteBuildAsync_WithCustomContentType_PassesContentTypeToManifestCreation()
+    {
+        // Arrange
+        var projectDir = Path.Combine(_tempDirectory, "PatchManifestProject");
+        Directory.CreateDirectory(projectDir);
+        var buildDir = Path.Combine(projectDir, ".Build");
+        var bundlesDir = Path.Combine(buildDir, ModBuilderConstants.BundlesSubdir);
+        Directory.CreateDirectory(bundlesDir);
+
+        var bundleFile = Path.Combine(bundlesDir, "TestBundle.big");
+        await File.WriteAllBytesAsync(bundleFile, [1, 2, 3, 4]);
+
+        var project = new ModBuilderProject
+        {
+            Name = "PatchManifestProject",
+            Version = "2.0.0",
+            Description = "Patch test description",
+            ProjectDir = projectDir,
+            TargetGame = GameType.Generals,
+            ContentType = GenHub.Core.Models.Enums.ContentType.Patch,
+            Directories = new ProjectDirectories
+            {
+                Build = ".Build",
+                Release = ".Release",
+                GameFilesEdited = "GameFilesEdited",
+            },
+            BundleConfigs = [],
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Items = [],
+            Packs =
+            [
+                new()
+                {
+                    Name = "TestBundle",
+                    Items = [],
+                },
+            ],
+            Folders = new FolderConfiguration
+            {
+                AbsBuildDir = buildDir,
+            },
+        };
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(
+            project,
+            configuration,
+            ["TestBundle"],
+            BuildStep.CreateManifest);
+
+        // Assert
+        result.Success.Should().BeTrue(result.FirstError);
+        _mockLocalContentService.Verify(
+            x => x.CreateLocalContentManifestAsync(
+                It.IsAny<string>(),
+                "PatchManifestProject",
+                GenHub.Core.Models.Enums.ContentType.Patch,
+                GameType.Generals,
+                bundlesDir,
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<string?>()),
+            Times.Once);
+    }
+
+    [Fact]
     public async Task ExecuteBuildAsync_WithBigBundlePack_CreatesBigArchiveInsteadOfZip()
     {
         // Arrange

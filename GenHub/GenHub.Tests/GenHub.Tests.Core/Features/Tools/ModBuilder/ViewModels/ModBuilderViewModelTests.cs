@@ -268,4 +268,55 @@ public class ModBuilderViewModelTests : IDisposable
 
         Assert.Equal(GameType.Generals, project.TargetGame);
     }
+
+    /// <summary>
+    /// Verifies that SelectedContentType defaults to ContentType.Mod.
+    /// </summary>
+    [Fact]
+    public void ContentType_DefaultsToMod()
+    {
+        var viewModel = CreateViewModel();
+
+        Assert.Equal(ContentType.Mod, viewModel.SelectedContentType);
+        Assert.Contains(ContentType.Mod, viewModel.AvailableContentTypes);
+        Assert.Contains(ContentType.Patch, viewModel.AvailableContentTypes);
+        Assert.Contains(ContentType.Addon, viewModel.AvailableContentTypes);
+    }
+
+    /// <summary>
+    /// Verifies that SelectedContentType synchronizes when CurrentProject changes.
+    /// </summary>
+    [Fact]
+    public void ContentType_WhenProjectLoaded_SynchronizesWithProject()
+    {
+        var viewModel = CreateViewModel();
+        var project = new ModBuilderProject
+        {
+            Name = "GeneralsPatch",
+            ContentType = ContentType.Patch,
+        };
+
+        viewModel.CurrentProject = project;
+
+        Assert.Equal(ContentType.Patch, viewModel.SelectedContentType);
+    }
+
+    /// <summary>
+    /// Verifies that changing SelectedContentType updates CurrentProject.ContentType.
+    /// </summary>
+    [Fact]
+    public void ContentType_WhenChanged_UpdatesProjectContentType()
+    {
+        var viewModel = CreateViewModel();
+        var project = new ModBuilderProject
+        {
+            Name = "TestMod",
+            ContentType = ContentType.Mod,
+        };
+
+        viewModel.CurrentProject = project;
+        viewModel.SelectedContentType = ContentType.Addon;
+
+        Assert.Equal(ContentType.Addon, project.ContentType);
+    }
 }

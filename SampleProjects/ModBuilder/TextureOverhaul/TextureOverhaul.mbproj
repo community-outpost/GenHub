@@ -1,5 +1,6 @@
 {
   "name": "TextureOverhaul",
+  "contentType": "Addon",
   "version": "1.0.0",
   "author": "Community Artist",
   "targetGame": "ZeroHour",

@@ -42,6 +42,13 @@ public class ModBuilderProject
     public GameType TargetGame { get; set; } = GameType.ZeroHour;
 
     /// <summary>
+    /// Gets or sets the content type (e.g. Mod, Patch, Addon).
+    /// </summary>
+    [JsonPropertyName("contentType")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public ContentType ContentType { get; set; } = ContentType.Mod;
+
+    /// <summary>
     /// Gets or sets the absolute path to the project directory.
     /// </summary>
     [JsonPropertyName("projectDir")]

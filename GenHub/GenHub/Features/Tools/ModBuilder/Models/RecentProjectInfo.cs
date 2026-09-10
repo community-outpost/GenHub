@@ -1,4 +1,5 @@
 using System;
+using GenHub.Core.Models.Enums;
 
 namespace GenHub.Features.Tools.ModBuilder.Models;
 
@@ -16,6 +17,11 @@ public sealed class RecentProjectInfo
     /// Gets the full project path.
     /// </summary>
     public required string Path { get; init; }
+
+    /// <summary>
+    /// Gets the content type of the project.
+    /// </summary>
+    public ContentType ContentType { get; init; } = ContentType.Mod;
 
     /// <summary>
     /// Gets the number of files in the project.

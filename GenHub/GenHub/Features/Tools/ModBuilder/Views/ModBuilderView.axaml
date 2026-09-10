@@ -194,6 +194,23 @@
                 </ComboBox.ItemTemplate>
               </ComboBox>
             </StackPanel>
+
+            <!-- Content Type Selector -->
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="6,0,0,0"
+                        IsVisible="{Binding IsProjectLoaded}">
+              <TextBlock Text="Type:" FontSize="11" Foreground="{DynamicResource TextSecondary}"
+                         VerticalAlignment="Center" FontWeight="SemiBold"/>
+              <ComboBox ItemsSource="{Binding AvailableContentTypes}"
+                        SelectedItem="{Binding SelectedContentType}"
+                        Padding="8,4" CornerRadius="6" FontSize="11.5"
+                        ToolTip.Tip="Content type for this project (Mod, Patch, Addon, etc.)">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" />
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+            </StackPanel>
           </StackPanel>
 
           <!-- Quick Actions -->
@@ -523,6 +540,20 @@
                         <ComboBox.ItemTemplate>
                           <DataTemplate>
                             <TextBlock Text="{Binding Converter={x:Static conv:GameTypeShortDisplayConverter.Instance}}" />
+                          </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                      </ComboBox>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Grid.Column="0" Text="Type:" Foreground="{DynamicResource TextSecondary}" Width="65" VerticalAlignment="Center"/>
+                      <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableContentTypes}"
+                                SelectedItem="{Binding SelectedContentType}"
+                                FontSize="11.5" Padding="6,2" Height="28" CornerRadius="6"
+                                ToolTip.Tip="Content type for this project (Mod, Patch, Addon, etc.)"
+                                HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                          <DataTemplate>
+                            <TextBlock Text="{Binding Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" />
                           </DataTemplate>
                         </ComboBox.ItemTemplate>
                       </ComboBox>

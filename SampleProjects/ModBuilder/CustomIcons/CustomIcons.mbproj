@@ -1,10 +1,10 @@
 {
-  "name": "BalancePatch",
-  "contentType": "Patch",
+  "name": "CustomIcons",
+  "contentType": "Addon",
   "version": "1.0.0",
-  "author": "Community Modder",
+  "author": "GenHub Community",
   "targetGame": "ZeroHour",
-  "description": "Multiplayer balance tuning and unit attribute overhaul",
+  "description": "Custom unit cameo icons, Legionnaire-style QWERTY hotkeys, and indicator overlays for C&C Generals: Zero Hour",
   "directories": {
     "configs": "config",
     "gameFilesEdited": "GameFilesEdited",

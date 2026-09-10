@@ -1,0 +1,15 @@
+{
+  "BundlePacks": [
+    {
+      "Name": "ImprovedMenus",
+      "Items": [
+        "MenuWindows",
+        "MenuMappedImages",
+        "MenuTextures"
+      ],
+      "OutputFile": ".Release/!ImprovedMenus.big",
+      "Description": "Complete 16:9 widescreen menu overhaul package for C&C Generals: Zero Hour",
+      "AllowBuild": true
+    }
+  ]
+}

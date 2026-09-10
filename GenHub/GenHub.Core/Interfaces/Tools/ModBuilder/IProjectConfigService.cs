@@ -1,3 +1,7 @@
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
 
@@ -15,6 +19,7 @@ public interface IProjectConfigService
     /// <param name="projectName">The name of the project.</param>
     /// <param name="gameInstallationId">Optional game installation ID to associate with the project.</param>
     /// <param name="template">Optional project template to use.</param>
+    /// <param name="contentType">The content type (Mod, Patch, Addon, etc.). Defaults to Mod.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A result containing the created project.</returns>
     Task<ProjectOperationResult<ModBuilderProject>> CreateProjectAsync(
@@ -22,6 +27,7 @@ public interface IProjectConfigService
         string projectName,
         string? gameInstallationId = null,
         ProjectTemplate? template = null,
+        ContentType contentType = ContentType.Mod,
         CancellationToken cancellationToken = default);
 
     /// <summary>

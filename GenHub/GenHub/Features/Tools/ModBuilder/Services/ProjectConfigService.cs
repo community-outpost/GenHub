@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
 using Microsoft.Extensions.Logging;
@@ -62,6 +63,7 @@ public sealed class ProjectConfigService : IProjectConfigService
         string projectName,
         string? gameInstallationId = null,
         ProjectTemplate? template = null,
+        ContentType contentType = ContentType.Mod,
         CancellationToken cancellationToken = default)
     {
         var sw = Stopwatch.StartNew();
@@ -105,6 +107,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             {
                 Name = projectName,
                 GameInstallationId = gameInstallationId,
+                ContentType = contentType,
                 Directories = new ProjectDirectories(),
                 BundleConfigs = new List<string>(template.DefaultBundleConfigs),
                 CreatedAt = DateTime.UtcNow,
@@ -145,7 +148,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             // Create sample files if requested
             if (template.CreateSampleFiles)
             {
-                await CreateSampleFilesAsync(projectDir, project.Directories, cancellationToken).ConfigureAwait(false);
+                await CreateSampleFilesAsync(projectDir, project.Directories, template, cancellationToken).ConfigureAwait(false);
             }
 
             // Add to recent projects
@@ -723,15 +726,17 @@ public sealed class ProjectConfigService : IProjectConfigService
     }
 
     /// <summary>
-    /// Creates sample files for a new project.
+    /// Creates sample files for a new project based on the specified template.
     /// </summary>
     /// <param name="projectDir">The project directory path.</param>
     /// <param name="directories">The directory configuration.</param>
+    /// <param name="template">The project template.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     private async Task CreateSampleFilesAsync(
         string projectDir,
         ProjectDirectories directories,
+        ProjectTemplate? template,
         CancellationToken cancellationToken)
     {
         try
@@ -739,80 +744,17 @@ public sealed class ProjectConfigService : IProjectConfigService
             var configsDir = Path.Combine(projectDir, directories.Configs);
             Directory.CreateDirectory(configsDir);
 
-            var itemsPath = Path.Combine(configsDir, ModBuilderConstants.BundleItemsConfigFileName);
-            if (!File.Exists(itemsPath))
+            if (template?.Name == ProjectTemplate.CustomIcons.Name)
             {
-                var bundleItemsConfig = new
-                {
-                    BundleItems = new object[]
-                    {
-                        new
-                        {
-                            Name = "ModifiedINI",
-                            SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/INI/**/*.ini" },
-                            OutputFormat = "INI",
-                            Description = "Custom INI game settings and unit tweaks"
-                        }
-                    }
-                };
-
-                var itemsJson = JsonSerializer.Serialize(bundleItemsConfig, _jsonOptions);
-                await File.WriteAllTextAsync(itemsPath, itemsJson, cancellationToken).ConfigureAwait(false);
-                _logger.LogDebug("Created ModBundleItems.json at {Path}", itemsPath);
+                await CreateCustomIconsSampleFilesAsync(projectDir, directories, configsDir, cancellationToken).ConfigureAwait(false);
             }
-
-            var packsPath = Path.Combine(configsDir, ModBuilderConstants.BundlePacksConfigFileName);
-            if (!File.Exists(packsPath))
+            else if (template?.Name == ProjectTemplate.ImprovedMenus.Name)
             {
-                var bundlePacksConfig = new
-                {
-                    BundlePacks = new[]
-                    {
-                        new
-                        {
-                            Name = Path.GetFileNameWithoutExtension(projectDir) ?? "MyMod",
-                            Items = new[] { "ModifiedINI" },
-                            ItemNames = new[] { "ModifiedINI" },
-                            AllowBuild = true,
-                            AllowInstall = true,
-                            OutputFile = $"{directories.Release}/{Path.GetFileNameWithoutExtension(projectDir) ?? "MyMod"}.big",
-                            Description = "Default mod bundle pack"
-                        }
-                    }
-                };
-
-                var packsJson = JsonSerializer.Serialize(bundlePacksConfig, _jsonOptions);
-                await File.WriteAllTextAsync(packsPath, packsJson, cancellationToken).ConfigureAwait(false);
-                _logger.LogDebug("Created ModBundlePacks.json at {Path}", packsPath);
+                await CreateImprovedMenusSampleFilesAsync(projectDir, directories, configsDir, cancellationToken).ConfigureAwait(false);
             }
-
-            // Create sample INI file
-            var iniDir = Path.Combine(projectDir, directories.GameFilesEdited, "Data", "INI");
-            Directory.CreateDirectory(iniDir);
-            var sampleIniPath = Path.Combine(iniDir, "SampleTank.ini");
-            if (!File.Exists(sampleIniPath))
+            else
             {
-                var sampleIniContent = "; Sample ModBuilder INI file\n" +
-                                       "; Edit unit properties or game settings here\n\n" +
-                                       "Object AmericaTankCrusader\n" +
-                                       "  MaxHealth = 1000.0\n" +
-                                       "  InitialHealth = 1000.0\n" +
-                                       "End\n";
-                await File.WriteAllTextAsync(sampleIniPath, sampleIniContent, cancellationToken).ConfigureAwait(false);
-                _logger.LogDebug("Created sample INI at {Path}", sampleIniPath);
-            }
-
-            // Create a README in GameFilesEdited
-            var gameFilesDir = Path.Combine(projectDir, directories.GameFilesEdited);
-            var readmePath = Path.Combine(gameFilesDir, "README.txt");
-
-            if (!File.Exists(readmePath))
-            {
-                var readmeContent = "Place your modified game files in this directory.\n" +
-                                  "Maintain the same folder structure as the game (e.g. Data/INI/, Art/Textures/).\n" +
-                                  "ModBuilder will automatically pack them into .BIG files when you click Execute Build.\n";
-                await File.WriteAllTextAsync(readmePath, readmeContent, cancellationToken).ConfigureAwait(false);
-                _logger.LogDebug("Created README at {Path}", readmePath);
+                await CreateBasicModSampleFilesAsync(projectDir, directories, configsDir, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
@@ -822,6 +764,270 @@ public sealed class ProjectConfigService : IProjectConfigService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to create sample files");
+        }
+    }
+
+    private async Task CreateBasicModSampleFilesAsync(
+        string projectDir,
+        ProjectDirectories directories,
+        string configsDir,
+        CancellationToken cancellationToken)
+    {
+        var itemsPath = Path.Combine(configsDir, ModBuilderConstants.BundleItemsConfigFileName);
+        if (!File.Exists(itemsPath))
+        {
+            var bundleItemsConfig = new
+            {
+                BundleItems = new object[]
+                {
+                    new
+                    {
+                        Name = "ModifiedINI",
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/INI/**/*.ini" },
+                        OutputFormat = "INI",
+                        Description = "Custom INI game settings and unit tweaks",
+                    },
+                },
+            };
+
+            var itemsJson = JsonSerializer.Serialize(bundleItemsConfig, _jsonOptions);
+            await File.WriteAllTextAsync(itemsPath, itemsJson, cancellationToken).ConfigureAwait(false);
+            _logger.LogDebug("Created ModBundleItems.json at {Path}", itemsPath);
+        }
+
+        var packsPath = Path.Combine(configsDir, ModBuilderConstants.BundlePacksConfigFileName);
+        if (!File.Exists(packsPath))
+        {
+            var bundlePacksConfig = new
+            {
+                BundlePacks = new[]
+                {
+                    new
+                    {
+                        Name = Path.GetFileNameWithoutExtension(projectDir) ?? "MyMod",
+                        Items = new[] { "ModifiedINI" },
+                        ItemNames = new[] { "ModifiedINI" },
+                        AllowBuild = true,
+                        AllowInstall = true,
+                        OutputFile = $"{directories.Release}/{Path.GetFileNameWithoutExtension(projectDir) ?? "MyMod"}.big",
+                        Description = "Default mod bundle pack",
+                    },
+                },
+            };
+
+            var packsJson = JsonSerializer.Serialize(bundlePacksConfig, _jsonOptions);
+            await File.WriteAllTextAsync(packsPath, packsJson, cancellationToken).ConfigureAwait(false);
+            _logger.LogDebug("Created ModBundlePacks.json at {Path}", packsPath);
+        }
+
+        // Create sample INI file
+        var iniDir = Path.Combine(projectDir, directories.GameFilesEdited, "Data", "INI");
+        Directory.CreateDirectory(iniDir);
+        var sampleIniPath = Path.Combine(iniDir, "SampleTank.ini");
+        if (!File.Exists(sampleIniPath))
+        {
+            var sampleIniContent = "; Sample ModBuilder INI file\n" +
+                                   "; Edit unit properties or game settings here\n\n" +
+                                   "Object AmericaTankCrusader\n" +
+                                   "  MaxHealth = 1000.0\n" +
+                                   "  InitialHealth = 1000.0\n" +
+                                   "End\n";
+            await File.WriteAllTextAsync(sampleIniPath, sampleIniContent, cancellationToken).ConfigureAwait(false);
+            _logger.LogDebug("Created sample INI at {Path}", sampleIniPath);
+        }
+
+        // Create a README in GameFilesEdited
+        var gameFilesDir = Path.Combine(projectDir, directories.GameFilesEdited);
+        var readmePath = Path.Combine(gameFilesDir, "README.txt");
+
+        if (!File.Exists(readmePath))
+        {
+            var readmeContent = "Place your modified game files in this directory.\n" +
+                              "Maintain the same folder structure as the game (e.g. Data/INI/, Art/Textures/).\n" +
+                              "ModBuilder will automatically pack them into .BIG files when you click Execute Build.\n";
+            await File.WriteAllTextAsync(readmePath, readmeContent, cancellationToken).ConfigureAwait(false);
+            _logger.LogDebug("Created README at {Path}", readmePath);
+        }
+    }
+
+    private async Task CreateCustomIconsSampleFilesAsync(
+        string projectDir,
+        ProjectDirectories directories,
+        string configsDir,
+        CancellationToken cancellationToken)
+    {
+        var itemsPath = Path.Combine(configsDir, ModBuilderConstants.BundleItemsConfigFileName);
+        if (!File.Exists(itemsPath))
+        {
+            var bundleItemsConfig = new
+            {
+                BundleItems = new object[]
+                {
+                    new
+                    {
+                        Name = "CustomIconTextures",
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Art/Textures/**/*.tga" },
+                        OutputFormat = "DDS",
+                        Compression = "DXT5",
+                        GenerateMipmaps = true,
+                        Description = "Custom unit cameo icons and hotkey overlay textures",
+                    },
+                    new
+                    {
+                        Name = "CustomIconINIs",
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/INI/**/*.ini" },
+                        OutputFormat = "INI",
+                        Description = "Command button assignments, command sets, and mapped image coordinates",
+                    },
+                    new
+                    {
+                        Name = "CustomIconStrings",
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/English/**/*.str" },
+                        OutputFormat = "STR",
+                        Description = "Tooltip string overrides showing hotkey keybindings",
+                    },
+                },
+            };
+
+            var itemsJson = JsonSerializer.Serialize(bundleItemsConfig, _jsonOptions);
+            await File.WriteAllTextAsync(itemsPath, itemsJson, cancellationToken).ConfigureAwait(false);
+        }
+
+        var packsPath = Path.Combine(configsDir, ModBuilderConstants.BundlePacksConfigFileName);
+        if (!File.Exists(packsPath))
+        {
+            var projectName = Path.GetFileNameWithoutExtension(projectDir) ?? "CustomIcons";
+            var bundlePacksConfig = new
+            {
+                BundlePacks = new[]
+                {
+                    new
+                    {
+                        Name = projectName,
+                        Items = new[] { "CustomIconTextures", "CustomIconINIs", "CustomIconStrings" },
+                        ItemNames = new[] { "CustomIconTextures", "CustomIconINIs", "CustomIconStrings" },
+                        AllowBuild = true,
+                        AllowInstall = true,
+                        OutputFile = $"{directories.Release}/!{projectName}.big",
+                        Description = "Addon package containing custom cameo icons and Legionnaire hotkeys",
+                    },
+                },
+            };
+
+            var packsJson = JsonSerializer.Serialize(bundlePacksConfig, _jsonOptions);
+            await File.WriteAllTextAsync(packsPath, packsJson, cancellationToken).ConfigureAwait(false);
+        }
+
+        var mappedDir = Path.Combine(projectDir, directories.GameFilesEdited, "Data", "INI", "MappedImages", "HandMade");
+        Directory.CreateDirectory(mappedDir);
+        var sampleMappedPath = Path.Combine(mappedDir, "CustomIcons.ini");
+        if (!File.Exists(sampleMappedPath))
+        {
+            var content = "; Custom Icons Mapped Image Definition\nMappedImage SACrusaderCustom\n  Texture = CustomUnitIcons.tga\n  TextureWidth = 64\n  TextureHeight = 64\n  Coords = Left:0 Top:0 Right:31 Bottom:31\n  Status = NONE\nEnd\n";
+            await File.WriteAllTextAsync(sampleMappedPath, content, cancellationToken).ConfigureAwait(false);
+        }
+
+        var iniDir = Path.Combine(projectDir, directories.GameFilesEdited, "Data", "INI");
+        Directory.CreateDirectory(iniDir);
+        var sampleBtnPath = Path.Combine(iniDir, "CommandButton.ini");
+        if (!File.Exists(sampleBtnPath))
+        {
+            var content = "; Custom CommandButton with Legionnaire-style hotkey\nCommandButton Command_ConstructAmericaVehicleCrusader\n  Command = UNIT_BUILD\n  Object = AmericaVehicleCrusader\n  TextLabel = CONTROLBAR:ConstructAmericaVehicleCrusader\n  ButtonImage = SACrusaderCustom\n  ButtonBorderType = ACTION\n  DescriptLabel = CONTROLBAR:ToolTipAmericaVehicleCrusaderHotkey\n  KeyBinding = KEY_Q\nEnd\n";
+            await File.WriteAllTextAsync(sampleBtnPath, content, cancellationToken).ConfigureAwait(false);
+        }
+
+        var texDir = Path.Combine(projectDir, directories.GameFilesEdited, "Art", "Textures");
+        Directory.CreateDirectory(texDir);
+        var texReadme = Path.Combine(texDir, "README.txt");
+        if (!File.Exists(texReadme))
+        {
+            await File.WriteAllTextAsync(texReadme, "Place your 32-bit RGBA .tga icon sheets here.\nModBuilder will automatically compress them to DXT5 DDS during build.\n", cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task CreateImprovedMenusSampleFilesAsync(
+        string projectDir,
+        ProjectDirectories directories,
+        string configsDir,
+        CancellationToken cancellationToken)
+    {
+        var itemsPath = Path.Combine(configsDir, ModBuilderConstants.BundleItemsConfigFileName);
+        if (!File.Exists(itemsPath))
+        {
+            var bundleItemsConfig = new
+            {
+                BundleItems = new object[]
+                {
+                    new
+                    {
+                        Name = "MenuWindows",
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/window/Menus/**/*.wnd" },
+                        OutputFormat = "WINDOW",
+                        Description = "Widescreen adapted .wnd menu layout definitions",
+                    },
+                    new
+                    {
+                        Name = "MenuMappedImages",
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/INI/MappedImages/**/*.ini" },
+                        OutputFormat = "INI",
+                        Description = "MappedImage coordinate definitions for widescreen menu textures",
+                    },
+                    new
+                    {
+                        Name = "MenuTextures",
+                        SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/English/Art/Textures/**/*.tga" },
+                        OutputFormat = "DDS",
+                        Compression = "DXT5",
+                        GenerateMipmaps = false,
+                        Description = "High resolution menu backdrops and UI frame textures",
+                    },
+                },
+            };
+
+            var itemsJson = JsonSerializer.Serialize(bundleItemsConfig, _jsonOptions);
+            await File.WriteAllTextAsync(itemsPath, itemsJson, cancellationToken).ConfigureAwait(false);
+        }
+
+        var packsPath = Path.Combine(configsDir, ModBuilderConstants.BundlePacksConfigFileName);
+        if (!File.Exists(packsPath))
+        {
+            var projectName = Path.GetFileNameWithoutExtension(projectDir) ?? "ImprovedMenus";
+            var bundlePacksConfig = new
+            {
+                BundlePacks = new[]
+                {
+                    new
+                    {
+                        Name = projectName,
+                        Items = new[] { "MenuWindows", "MenuMappedImages", "MenuTextures" },
+                        ItemNames = new[] { "MenuWindows", "MenuMappedImages", "MenuTextures" },
+                        AllowBuild = true,
+                        AllowInstall = true,
+                        OutputFile = $"{directories.Release}/!{projectName}.big",
+                        Description = "Widescreen 16:9 menu overhaul package",
+                    },
+                },
+            };
+
+            var packsJson = JsonSerializer.Serialize(bundlePacksConfig, _jsonOptions);
+            await File.WriteAllTextAsync(packsPath, packsJson, cancellationToken).ConfigureAwait(false);
+        }
+
+        var menusDir = Path.Combine(projectDir, directories.GameFilesEdited, "window", "Menus");
+        Directory.CreateDirectory(menusDir);
+        var sampleWndPath = Path.Combine(menusDir, "MainMenu.wnd");
+        if (!File.Exists(sampleWndPath))
+        {
+            var content = "FILE_VERSION = 2;\nSTARTLAYOUTBLOCK\n  LAYOUTINIT = W3DMainMenuInit;\nENDLAYOUTBLOCK\nWINDOW\n  WINDOWTYPE = USER;\n  SCREENRECT = UPPERLEFT: 0 0, BOTTOMRIGHT: 800 600, CREATIONRESOLUTION: 800 600;\n  NAME = \"MainMenu.wnd:MainMenuParent\";\n  STATUS = ENABLED;\nEND\n";
+            await File.WriteAllTextAsync(sampleWndPath, content, cancellationToken).ConfigureAwait(false);
+        }
+
+        var artDir = Path.Combine(projectDir, directories.GameFilesEdited, "Data", "English", "Art", "Textures");
+        Directory.CreateDirectory(artDir);
+        var artReadme = Path.Combine(artDir, "README.txt");
+        if (!File.Exists(artReadme))
+        {
+            await File.WriteAllTextAsync(artReadme, "Place your 16:9 widescreen menu textures here (.tga).\n", cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -850,5 +1056,4 @@ public sealed class ProjectConfigService : IProjectConfigService
             FileOptions.Asynchronous | FileOptions.SequentialScan);
         await JsonSerializer.SerializeAsync(stream, recentProjects, _jsonOptions, cancellationToken).ConfigureAwait(false);
     }
-
 }
