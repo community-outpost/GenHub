@@ -160,66 +160,80 @@ public static class BigFilePacker
             return;
         }
 
-        var dirInfo = new DirectoryInfo(currentDir);
-        FileSystemInfo[] entries;
-        try
-        {
-            entries = dirInfo.GetFileSystemInfos()
-                .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        var entries = GetSortedDirectoryEntries(currentDir);
+        if (entries == null)
         {
             return;
         }
 
         if (depth == 0)
         {
-            // Root depth: files first, then directories
-            foreach (var entry in entries)
-            {
-                if (entry is FileInfo)
-                {
-                    var rel = string.IsNullOrEmpty(relativeDir)
-                        ? entry.Name
-                        : Path.Combine(relativeDir, entry.Name);
-                    results.Add(rel);
-                }
-            }
-
-            foreach (var entry in entries)
-            {
-                if (entry is DirectoryInfo)
-                {
-                    var nextRel = string.IsNullOrEmpty(relativeDir)
-                        ? entry.Name
-                        : Path.Combine(relativeDir, entry.Name);
-                    EnumerateBigFilesCore(rootDirectory, nextRel, depth + 1, results, cancellationToken);
-                }
-            }
+            EnumerateRootEntries(rootDirectory, relativeDir, entries, results, cancellationToken);
         }
         else
         {
-            // Subdirectories (depth > 0): subdirectories are recursed into as encountered in sorted order
-            foreach (var entry in entries)
+            EnumerateSubdirectoryEntries(rootDirectory, relativeDir, depth, entries, results, cancellationToken);
+        }
+    }
+
+    private static FileSystemInfo[]? GetSortedDirectoryEntries(string dirPath)
+    {
+        try
+        {
+            return new DirectoryInfo(dirPath)
+                .GetFileSystemInfos()
+                .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    private static void EnumerateRootEntries(
+        string rootDirectory,
+        string relativeDir,
+        FileSystemInfo[] entries,
+        List<string> results,
+        CancellationToken cancellationToken)
+    {
+        foreach (var file in entries.OfType<FileInfo>())
+        {
+            results.Add(GetRelativeEntryPath(relativeDir, file.Name));
+        }
+
+        foreach (var dir in entries.OfType<DirectoryInfo>())
+        {
+            var nextRel = GetRelativeEntryPath(relativeDir, dir.Name);
+            EnumerateBigFilesCore(rootDirectory, nextRel, 1, results, cancellationToken);
+        }
+    }
+
+    private static void EnumerateSubdirectoryEntries(
+        string rootDirectory,
+        string relativeDir,
+        int depth,
+        FileSystemInfo[] entries,
+        List<string> results,
+        CancellationToken cancellationToken)
+    {
+        foreach (var entry in entries)
+        {
+            var nextRel = GetRelativeEntryPath(relativeDir, entry.Name);
+            if (entry is DirectoryInfo)
             {
-                if (entry is DirectoryInfo)
-                {
-                    var nextRel = string.IsNullOrEmpty(relativeDir)
-                        ? entry.Name
-                        : Path.Combine(relativeDir, entry.Name);
-                    EnumerateBigFilesCore(rootDirectory, nextRel, depth + 1, results, cancellationToken);
-                }
-                else if (entry is FileInfo)
-                {
-                    var rel = string.IsNullOrEmpty(relativeDir)
-                        ? entry.Name
-                        : Path.Combine(relativeDir, entry.Name);
-                    results.Add(rel);
-                }
+                EnumerateBigFilesCore(rootDirectory, nextRel, depth + 1, results, cancellationToken);
+            }
+            else if (entry is FileInfo)
+            {
+                results.Add(nextRel);
             }
         }
     }
+
+    private static string GetRelativeEntryPath(string relativeDir, string name) =>
+        string.IsNullOrEmpty(relativeDir) ? name : Path.Combine(relativeDir, name);
 
     private static bool IsEligibleBigSourceFile(string filePath, string destinationFullPath, string? targetArchiveFullPath)
     {
