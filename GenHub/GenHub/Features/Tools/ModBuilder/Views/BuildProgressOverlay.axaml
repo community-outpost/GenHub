@@ -180,6 +180,7 @@
                   Margin="0,18,0,0"
                   HorizontalAlignment="Center"
                   Command="{Binding CancelCommand}"
+                  ToolTip.Tip="Cancel the active build process"
                   Background="{DynamicResource ErrorBadgeBackgroundBrush}"
                   Foreground="{DynamicResource ErrorBrush}"
                   BorderBrush="{DynamicResource ErrorBrush}"

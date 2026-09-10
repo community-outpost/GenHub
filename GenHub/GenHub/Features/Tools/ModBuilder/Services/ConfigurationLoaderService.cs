@@ -854,6 +854,8 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                     NameSuffix = string.IsNullOrEmpty(pythonPack.NameSuffix) ? pythonConfig.PacksSuffix : pythonPack.NameSuffix,
                     AllowBuild = pythonPack.AllowBuild,
                     AllowInstall = pythonPack.AllowInstall,
+                    Big = pythonPack.Big,
+                    OutputFile = pythonPack.OutputFile,
                     SetGameLanguageOnInstall = pythonPack.SetGameLanguageOnInstall,
                     ItemNames = pythonPack.ItemNames ?? new List<string>(),
                 });
@@ -991,7 +993,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             {
                 var item = new BundleItem
                 {
-                    Name = simpItem.Name,
+                    Name = simpItem.Name!,
                     IsBig = true,
                 };
 
@@ -1018,10 +1020,12 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             {
                 config.Packs.Add(new BundlePack
                 {
-                    Name = simpPack.Name,
+                    Name = simpPack.Name!,
                     ItemNames = simpPack.ItemNames ?? simpPack.Items ?? new List<string>(),
                     AllowBuild = simpPack.AllowBuild ?? true,
                     AllowInstall = simpPack.AllowInstall ?? true,
+                    Big = simpPack.Big ?? false,
+                    OutputFile = simpPack.OutputFile,
                 });
             }
         }

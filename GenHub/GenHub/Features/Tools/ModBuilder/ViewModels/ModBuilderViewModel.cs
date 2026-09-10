@@ -9,6 +9,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.ModBuilder;
 using GenHub.Features.Tools.ModBuilder.Models;
 using Microsoft.Extensions.Logging;
@@ -108,6 +109,26 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// </summary>
     [ObservableProperty]
     private ModBuilderProject? _currentProject;
+
+    /// <summary>
+    /// Gets the available target game options.
+    /// </summary>
+    public IReadOnlyList<GameType> AvailableTargetGames { get; } = [GameType.ZeroHour, GameType.Generals];
+
+    /// <summary>
+    /// Gets or sets the target game for the current project.
+    /// </summary>
+    [ObservableProperty]
+    private GameType _selectedTargetGame = GameType.ZeroHour;
+
+    partial void OnSelectedTargetGameChanged(GameType value)
+    {
+        if (CurrentProject != null && CurrentProject.TargetGame != value)
+        {
+            CurrentProject.TargetGame = value;
+            _logger.LogInformation("Project '{Name}' TargetGame changed to {TargetGame}", CurrentProject.Name, value);
+        }
+    }
 
     /// <summary>
     /// Gets or sets the project name.
@@ -1106,6 +1127,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         try
         {
+            CurrentProject.TargetGame = SelectedTargetGame;
+
             // Update compression level in configuration
             if (CurrentProject.Configuration != null)
             {
@@ -2137,6 +2160,11 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     partial void OnCurrentProjectChanged(ModBuilderProject? value)
     {
         IsProjectLoaded = value != null;
+
+        if (value != null)
+        {
+            SelectedTargetGame = value.TargetGame;
+        }
 
         // Dispatch UI updates to UI thread
         PostToUIThread(() =>

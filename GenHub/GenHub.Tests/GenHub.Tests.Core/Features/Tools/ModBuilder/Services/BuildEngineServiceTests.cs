@@ -737,4 +737,185 @@ public sealed class BuildEngineServiceTests : IDisposable
                 It.IsAny<string?>()),
             Times.Once);
     }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithBigBundlePack_CreatesBigArchiveInsteadOfZip()
+    {
+        // Arrange
+        var patchProjectDir = Path.Combine(_tempDirectory, "GeneralsGamePatch2");
+        var editedDir = Path.Combine(patchProjectDir, "GameFilesEdited");
+        var buildDir = Path.Combine(patchProjectDir, ".Build");
+        var releaseDir = Path.Combine(patchProjectDir, ".Release");
+
+        Directory.CreateDirectory(Path.Combine(editedDir, "Data", "INI"));
+        var iniFile = Path.Combine(editedDir, "Data", "INI", "GameData.ini");
+        await File.WriteAllTextAsync(iniFile, "GameData content");
+
+        var project = new ModBuilderProject
+        {
+            Name = "GeneralsGamePatch2",
+            ProjectDir = patchProjectDir,
+            Directories = new ProjectDirectories
+            {
+                GameFilesEdited = editedDir,
+                Build = buildDir,
+                Release = releaseDir,
+            },
+            BundleConfigs = new List<string>(),
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Folders = new FolderConfiguration
+            {
+                AbsBuildDir = buildDir,
+                AbsReleaseDir = releaseDir,
+            },
+            Items = new List<BundleItem>
+            {
+                new()
+                {
+                    Name = "PatchINI",
+                    IsBig = true,
+                    Files = new List<BundleFile>
+                    {
+                        new() { AbsSourceParent = patchProjectDir, AbsSourceFile = iniFile, RelTargetFile = "Data/INI/GameData.ini" },
+                    },
+                },
+            },
+            Packs = new List<BundlePack>
+            {
+                new()
+                {
+                    Name = "CommunityPatch",
+                    Big = true,
+                    AllowBuild = true,
+                    AllowInstall = true,
+                    ItemNames = new List<string> { "PatchINI" },
+                },
+            },
+        };
+
+        _mockHashProvider.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("patchhash123");
+
+        _mockCacheService.Setup(x => x.DetermineFileStatus(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+            .Returns(BuildFileStatus.Added);
+
+        _mockFileConversionService.Setup(x => x.ConvertFileAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ConversionOperationResult.CreateSuccess());
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(
+            project,
+            configuration,
+            new List<string> { "CommunityPatch" },
+            BuildStep.Build | BuildStep.Release);
+
+        // Assert
+        result.Success.Should().BeTrue(result.FirstError);
+        _mockArchiveService.Verify(
+            x => x.CreateBigArchiveAsync(
+                It.IsAny<string>(),
+                It.Is<string>(p => p.EndsWith("CommunityPatch.big", StringComparison.OrdinalIgnoreCase)),
+                It.IsAny<IProgress<double>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        _mockArchiveService.Verify(
+            x => x.CreateZipArchiveAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<System.IO.Compression.CompressionLevel>(),
+                It.IsAny<IProgress<double>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithBigBundlePackCustomOutputFile_UsesCustomFileName()
+    {
+        // Arrange
+        var patchProjectDir = Path.Combine(_tempDirectory, "GeneralsGamePatch2Custom");
+        var editedDir = Path.Combine(patchProjectDir, "GameFilesEdited");
+        var buildDir = Path.Combine(patchProjectDir, ".Build");
+        var releaseDir = Path.Combine(patchProjectDir, ".Release");
+
+        Directory.CreateDirectory(Path.Combine(editedDir, "Data", "INI"));
+        var iniFile = Path.Combine(editedDir, "Data", "INI", "GameData.ini");
+        await File.WriteAllTextAsync(iniFile, "GameData content");
+
+        var project = new ModBuilderProject
+        {
+            Name = "GeneralsGamePatch2",
+            ProjectDir = patchProjectDir,
+            Directories = new ProjectDirectories
+            {
+                GameFilesEdited = editedDir,
+                Build = buildDir,
+                Release = releaseDir,
+            },
+            BundleConfigs = new List<string>(),
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Folders = new FolderConfiguration
+            {
+                AbsBuildDir = buildDir,
+                AbsReleaseDir = releaseDir,
+            },
+            Items = new List<BundleItem>
+            {
+                new()
+                {
+                    Name = "PatchINI",
+                    IsBig = true,
+                    Files = new List<BundleFile>
+                    {
+                        new() { AbsSourceParent = patchProjectDir, AbsSourceFile = iniFile, RelTargetFile = "Data/INI/GameData.ini" },
+                    },
+                },
+            },
+            Packs = new List<BundlePack>
+            {
+                new()
+                {
+                    Name = "CommunityPatch",
+                    OutputFile = "500_900_CommunityPatch_CoreINI.big",
+                    AllowBuild = true,
+                    AllowInstall = true,
+                    ItemNames = new List<string> { "PatchINI" },
+                },
+            },
+        };
+
+        _mockHashProvider.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("patchhash123");
+
+        _mockCacheService.Setup(x => x.DetermineFileStatus(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+            .Returns(BuildFileStatus.Added);
+
+        _mockFileConversionService.Setup(x => x.ConvertFileAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ConversionOperationResult.CreateSuccess());
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(
+            project,
+            configuration,
+            new List<string> { "CommunityPatch" },
+            BuildStep.Build | BuildStep.Release);
+
+        // Assert
+        result.Success.Should().BeTrue(result.FirstError);
+        _mockArchiveService.Verify(
+            x => x.CreateBigArchiveAsync(
+                It.IsAny<string>(),
+                It.Is<string>(p => p.EndsWith("500_900_CommunityPatch_CoreINI.big", StringComparison.OrdinalIgnoreCase)),
+                It.IsAny<IProgress<double>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
 }

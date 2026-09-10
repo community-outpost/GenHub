@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -240,7 +241,47 @@ public sealed class ArchiveServiceTests : IDisposable
 
         // Assert
         result.Should().NotBeNull();
-        // BIG archive creation may require specific tools, so we just check the result structure
+        result.Success.Should().BeTrue();
+        File.Exists(targetBig).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CreateBigArchiveAsync_WithGeneralsGamePatch2Data_ProducesByteForByteExactMatch()
+    {
+        // Arrange
+        var workspaceExtracted = FindExtractedPatchDir();
+        if (workspaceExtracted == null)
+        {
+            return;
+        }
+
+        var unpackedDir = Path.Combine(workspaceExtracted, "unpacked");
+        var officialBigFile = Path.Combine(workspaceExtracted, "500_900_CommunityPatch_CoreINI.big");
+
+        if (!Directory.Exists(unpackedDir) || !File.Exists(officialBigFile))
+        {
+            return;
+        }
+
+        var targetBig = Path.Combine(_tempDirectory, "repacked.big");
+
+        // Act
+        var result = await _service.CreateBigArchiveAsync(unpackedDir, targetBig);
+
+        // Assert
+        result.Success.Should().BeTrue(result.FirstError);
+        File.Exists(targetBig).Should().BeTrue();
+
+        var expectedBytes = await File.ReadAllBytesAsync(officialBigFile);
+        var actualBytes = await File.ReadAllBytesAsync(targetBig);
+
+        actualBytes.Length.Should().Be(expectedBytes.Length);
+        actualBytes.Should().Equal(expectedBytes);
+
+        using var sha256 = SHA256.Create();
+        var hashBytes = sha256.ComputeHash(actualBytes);
+        var hashString = Convert.ToHexString(hashBytes).ToLowerInvariant();
+        hashString.Should().Be("6a02aca9aebe6602b3e4bb76bf6e2cf35086a33fec7c6f000d8e7a4048629775");
     }
 
     [Fact]
@@ -290,5 +331,28 @@ public sealed class ArchiveServiceTests : IDisposable
         // Assert
         result.Success.Should().BeTrue();
         File.Exists(targetZip).Should().BeTrue();
+    }
+
+    private static string? FindExtractedPatchDir()
+    {
+        var current = AppDomain.CurrentDomain.BaseDirectory;
+        while (!string.IsNullOrEmpty(current))
+        {
+            var candidate = Path.Combine(current, "extracted_patch");
+            if (Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            var parent = Directory.GetParent(current);
+            if (parent == null)
+            {
+                break;
+            }
+
+            current = parent.FullName;
+        }
+
+        return null;
     }
 }

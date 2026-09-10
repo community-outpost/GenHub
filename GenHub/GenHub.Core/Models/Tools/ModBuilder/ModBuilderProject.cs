@@ -39,7 +39,7 @@ public class ModBuilderProject
     /// </summary>
     [JsonPropertyName("targetGame")]
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public GameType TargetGame { get; set; } = GameType.Generals;
+    public GameType TargetGame { get; set; } = GameType.ZeroHour;
 
     /// <summary>
     /// Gets or sets the absolute path to the project directory.

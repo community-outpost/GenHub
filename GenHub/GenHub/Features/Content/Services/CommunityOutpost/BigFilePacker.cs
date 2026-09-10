@@ -93,39 +93,39 @@ public static class BigFilePacker
         string? targetArchiveFullPath,
         CancellationToken cancellationToken)
     {
-        var files = Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories)
-            .Where(f => IsEligibleBigSourceFile(f, destinationFullPath, targetArchiveFullPath))
-            .Select(f => new
-            {
-                FullPath = f,
-                RelativePath = NormalizeBigPath(Path.GetRelativePath(sourceDirectory, f).Replace('/', '\\')),
-            })
-            .OrderBy(f => f.RelativePath, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var relativePaths = EnumerateBigFiles(sourceDirectory, cancellationToken);
 
         var entries = new List<BigFileEntry>();
         long headerSize = 16;
 
-        foreach (var file in files)
+        foreach (var relPath in relativePaths)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var relativePath = file.RelativePath;
-            if (relativePath.Any(c => c > 127))
+            var fullPath = Path.Combine(sourceDirectory, relPath);
+            if (!IsEligibleBigSourceFile(fullPath, destinationFullPath, targetArchiveFullPath))
             {
-                throw new NotSupportedException($"File path contains non-ASCII characters, which are not supported by the .big format: {relativePath}");
+                continue;
             }
 
-            var nameBytes = Encoding.ASCII.GetBytes(relativePath);
+            var normalizedRelPath = NormalizeBigPath(relPath.Replace('/', '\\'));
+            if (normalizedRelPath.Any(c => c > 127))
+            {
+                throw new NotSupportedException($"File path contains non-ASCII characters, which are not supported by the .big format: {normalizedRelPath}");
+            }
+
+            var nameBytes = Encoding.ASCII.GetBytes(normalizedRelPath);
             headerSize += 4 + 4 + nameBytes.Length + 1;
 
             entries.Add(new BigFileEntry
             {
-                FullPath = file.FullPath,
-                RelativePath = relativePath,
-                Size = new FileInfo(file.FullPath).Length,
+                FullPath = fullPath,
+                RelativePath = normalizedRelPath,
+                Size = new FileInfo(fullPath).Length,
             });
         }
+
+        headerSize += 8; // SBigLastHeader (unknown1: uint32 + unknown2: uint32)
 
         long totalSize = headerSize + entries.Sum(e => e.Size);
         if (totalSize > uint.MaxValue)
@@ -134,6 +134,91 @@ public static class BigFilePacker
         }
 
         return (entries, headerSize, totalSize);
+    }
+
+    private static List<string> EnumerateBigFiles(string rootDirectory, CancellationToken cancellationToken)
+    {
+        var results = new List<string>();
+        EnumerateBigFilesCore(rootDirectory, string.Empty, 0, results, cancellationToken);
+        return results;
+    }
+
+    private static void EnumerateBigFilesCore(
+        string rootDirectory,
+        string relativeDir,
+        int depth,
+        List<string> results,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var currentDir = string.IsNullOrEmpty(relativeDir)
+            ? rootDirectory
+            : Path.Combine(rootDirectory, relativeDir);
+
+        if (!Directory.Exists(currentDir))
+        {
+            return;
+        }
+
+        var dirInfo = new DirectoryInfo(currentDir);
+        FileSystemInfo[] entries;
+        try
+        {
+            entries = dirInfo.GetFileSystemInfos()
+                .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return;
+        }
+
+        if (depth == 0)
+        {
+            // Root depth: files first, then directories
+            foreach (var entry in entries)
+            {
+                if (entry is FileInfo)
+                {
+                    var rel = string.IsNullOrEmpty(relativeDir)
+                        ? entry.Name
+                        : Path.Combine(relativeDir, entry.Name);
+                    results.Add(rel);
+                }
+            }
+
+            foreach (var entry in entries)
+            {
+                if (entry is DirectoryInfo)
+                {
+                    var nextRel = string.IsNullOrEmpty(relativeDir)
+                        ? entry.Name
+                        : Path.Combine(relativeDir, entry.Name);
+                    EnumerateBigFilesCore(rootDirectory, nextRel, depth + 1, results, cancellationToken);
+                }
+            }
+        }
+        else
+        {
+            // Subdirectories (depth > 0): subdirectories are recursed into as encountered in sorted order
+            foreach (var entry in entries)
+            {
+                if (entry is DirectoryInfo)
+                {
+                    var nextRel = string.IsNullOrEmpty(relativeDir)
+                        ? entry.Name
+                        : Path.Combine(relativeDir, entry.Name);
+                    EnumerateBigFilesCore(rootDirectory, nextRel, depth + 1, results, cancellationToken);
+                }
+                else if (entry is FileInfo)
+                {
+                    var rel = string.IsNullOrEmpty(relativeDir)
+                        ? entry.Name
+                        : Path.Combine(relativeDir, entry.Name);
+                    results.Add(rel);
+                }
+            }
+        }
     }
 
     private static bool IsEligibleBigSourceFile(string filePath, string destinationFullPath, string? targetArchiveFullPath)
@@ -163,7 +248,7 @@ public static class BigFilePacker
 
         // Write Header
         writer.Write(Encoding.ASCII.GetBytes(Signature));
-        WriteUInt32BigEndian(writer, (uint)totalSize);
+        writer.Write((uint)totalSize); // Little-endian 32-bit total file size
         WriteUInt32BigEndian(writer, (uint)entries.Count);
         WriteUInt32BigEndian(writer, (uint)headerSize);
 
@@ -178,6 +263,10 @@ public static class BigFilePacker
 
             currentOffset += entry.Size;
         }
+
+        // Write SBigLastHeader (8-byte trailer of zeroes)
+        writer.Write(0u);
+        writer.Write(0u);
 
         writer.Flush();
 
@@ -241,7 +330,7 @@ public static class BigFilePacker
         return string.IsNullOrWhiteSpace(result) ? path : result;
     }
 
-    private class BigFileEntry
+    private sealed class BigFileEntry
     {
         public string FullPath { get; set; } = string.Empty;
 

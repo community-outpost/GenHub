@@ -151,19 +151,23 @@
                       <Button Command="{Binding SetSourcePatternCommand}" CommandParameter="GameFilesEdited/**/*.*"
                               Padding="8,4" FontSize="11" CornerRadius="6"
                               Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                              Content="All Files (**/*.*)" Cursor="Hand"/>
+                              Content="All Files (**/*.*)" Cursor="Hand"
+                              ToolTip.Tip="Match all files in GameFilesEdited"/>
                       <Button Command="{Binding SetSourcePatternCommand}" CommandParameter="GameFilesEdited/Data/INI/**/*.ini"
                               Padding="8,4" FontSize="11" CornerRadius="6"
                               Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                              Content="INI Files" Cursor="Hand"/>
+                              Content="INI Files" Cursor="Hand"
+                              ToolTip.Tip="Match all .ini files in GameFilesEdited/Data/INI"/>
                       <Button Command="{Binding SetSourcePatternCommand}" CommandParameter="GameFilesEdited/Art/Textures/**/*.tga"
                               Padding="8,4" FontSize="11" CornerRadius="6"
                               Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                              Content="Textures (.tga)" Cursor="Hand"/>
+                              Content="Textures (.tga)" Cursor="Hand"
+                              ToolTip.Tip="Match all .tga textures in GameFilesEdited/Art/Textures"/>
                       <Button Command="{Binding SetSourcePatternCommand}" CommandParameter="GameFilesEdited/Data/Audio/**/*.*"
                               Padding="8,4" FontSize="11" CornerRadius="6"
                               Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                              Content="Audio" Cursor="Hand"/>
+                              Content="Audio" Cursor="Hand"
+                              ToolTip.Tip="Match all audio files in GameFilesEdited/Data/Audio"/>
                     </StackPanel>
                   </StackPanel>
 
@@ -244,6 +248,11 @@
                         <TextBlock Text="{Binding ItemNames.Count, StringFormat='{}{0} item(s) included'}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
                       </StackPanel>
                       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                        <Border Background="{DynamicResource WarningBadgeBackgroundBrush}"
+                                BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1"
+                                CornerRadius="4" Padding="5,2" IsVisible="{Binding Big}">
+                          <TextBlock Text="BIG" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
+                        </Border>
                         <Border Background="{DynamicResource SuccessBadgeBackgroundBrush}"
                                 BorderBrush="{DynamicResource SuccessBrush}" BorderThickness="1"
                                 CornerRadius="4" Padding="5,2" IsVisible="{Binding AllowBuild}">
@@ -299,6 +308,23 @@
                     </Border>
                   </StackPanel>
 
+                  <!-- Format & Packaging Options -->
+                  <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                          CornerRadius="8" Padding="14">
+                    <StackPanel Spacing="8">
+                      <TextBlock Text="Packaging Format" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
+                      <CheckBox Content="Pack into ONE .big file instead of .zip"
+                                IsChecked="{Binding SelectedBundlePack.Big, Mode=TwoWay}"
+                                Foreground="{DynamicResource TextPrimary}"
+                                ToolTip.Tip="Packs all constituent bundle items into a single EA BIG archive instead of a ZIP file (e.g. for game patches)."/>
+                      <StackPanel Spacing="4">
+                        <TextBlock Text="Custom Output File (optional)" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                        <TextBox Text="{Binding SelectedBundlePack.OutputFile, Mode=TwoWay}" Watermark="e.g. 500_900_CommunityPatch_CoreINI.big (leave empty for default)"/>
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+
                   <!-- Build & Deployment Options -->
                   <Border Background="{DynamicResource SurfaceElevatedBrush}"
                           BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
@@ -308,7 +334,7 @@
                       <CheckBox Content="Allow Build (Include in release packaging)"
                                 IsChecked="{Binding SelectedBundlePack.AllowBuild, Mode=TwoWay}"
                                 Foreground="{DynamicResource TextPrimary}"
-                                ToolTip.Tip="Packages this pack into a .zip archive inside the Releases folder during release builds."/>
+                                ToolTip.Tip="Packages this pack into an archive inside the Releases folder during release builds."/>
                       <CheckBox Content="Allow Install (Legacy: manual direct folder install)"
                                 IsChecked="{Binding SelectedBundlePack.AllowInstall, Mode=TwoWay}"
                                 Foreground="{DynamicResource TextPrimary}"
@@ -354,6 +380,7 @@
 
       <Button Grid.Column="1"
               Command="{Binding SaveCommand}"
+              ToolTip.Tip="Save configuration changes to project files"
               Background="{DynamicResource AccentBrush}"
               Foreground="White" BorderThickness="0"
               Padding="18,8" CornerRadius="8"
@@ -370,6 +397,7 @@
 
       <Button Grid.Column="2"
               Command="{Binding CancelCommand}"
+              ToolTip.Tip="Close configuration editor without saving"
               Background="{DynamicResource SurfaceElevatedBrush}"
               Foreground="{DynamicResource TextPrimary}"
               BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"

@@ -1,5 +1,5 @@
-using CommunityToolkit.Mvvm.ComponentModel;
 using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 
@@ -41,6 +41,18 @@ public partial class BundlePackConfigViewModel : ObservableObject
     /// </summary>
     [ObservableProperty]
     private bool _allowInstall = false;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this pack is packaged as a .big file instead of a zip file.
+    /// </summary>
+    [ObservableProperty]
+    private bool _big = false;
+
+    /// <summary>
+    /// Gets or sets the custom output file name for this bundle pack.
+    /// </summary>
+    [ObservableProperty]
+    private string? _outputFile;
 
     /// <summary>
     /// Gets or sets the game language to set on installation.

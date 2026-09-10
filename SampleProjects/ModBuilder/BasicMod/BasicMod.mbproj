@@ -2,6 +2,7 @@
   "name": "BasicMod",
   "version": "1.0.0",
   "author": "Sample Project",
+  "targetGame": "ZeroHour",
   "description": "A basic sample project demonstrating ModBuilder functionality",
   "directories": {
     "configs": "config",

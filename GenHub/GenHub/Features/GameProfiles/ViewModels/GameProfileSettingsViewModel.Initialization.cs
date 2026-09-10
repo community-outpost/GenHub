@@ -198,7 +198,7 @@ public partial class GameProfileSettingsViewModel
             if (!manifestsResult.Success || manifestsResult.Data == null) return;
 
             var availableTypes = manifestsResult.Data
-                .Where(m => m.TargetGame == GameTypeFilter)
+                .Where(m => m.TargetGame == GameTypeFilter || m.TargetGame == Core.Models.Enums.GameType.Unknown)
                 .Select(m => m.ContentType)
                 .Distinct()
                 .ToHashSet();

@@ -105,7 +105,7 @@ public partial class GameProfileSettingsViewModel
                         continue;
                     }
 
-                    if (coreItem.GameType != GameTypeFilter)
+                    if (coreItem.GameType != GameTypeFilter && coreItem.GameType != Core.Models.Enums.GameType.Unknown)
                     {
                         continue;
                     }
@@ -215,7 +215,7 @@ public partial class GameProfileSettingsViewModel
             itemToRemove.IsEnabled = false;
             EnabledContent.Remove(itemToRemove);
 
-            if (itemToRemove.ContentType == SelectedContentType && itemToRemove.GameType == GameTypeFilter)
+            if (itemToRemove.ContentType == SelectedContentType && (itemToRemove.GameType == GameTypeFilter || itemToRemove.GameType == Core.Models.Enums.GameType.Unknown))
             {
                 var alreadyInAvailable = AvailableContent.FirstOrDefault(a => a.ManifestId.Value == itemToRemove.ManifestId.Value);
                 if (alreadyInAvailable == null)

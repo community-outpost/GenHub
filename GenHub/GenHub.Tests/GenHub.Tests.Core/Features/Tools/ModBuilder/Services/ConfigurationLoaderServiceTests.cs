@@ -436,4 +436,64 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
         iniItem.Should().NotBeNull();
         iniItem!.Files.Should().Contain(f => Path.GetFullPath(f.AbsSourceFile) == Path.GetFullPath(iniFile));
     }
+
+    [Fact]
+    public async Task LoadConfigurationAsync_WithPythonBundlePackBig_MapsBigAndOutputFile()
+    {
+        // Arrange
+        var configPath = Path.Combine(_tempDirectory, "bundle_packs.json");
+        var json = @"{
+            ""bundles"": {
+                ""packs"": [
+                    {
+                        ""name"": ""CommunityPatchCoreINI"",
+                        ""big"": true,
+                        ""outputFile"": ""500_900_CommunityPatch_CoreINI.big"",
+                        ""itemNames"": [""CoreINIPatch""]
+                    }
+                ]
+            }
+        }";
+        await File.WriteAllTextAsync(configPath, json);
+
+        // Act
+        var result = await _service.LoadConfigurationAsync(configPath);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Packs.Should().HaveCount(1);
+        var pack = result.Packs[0];
+        pack.Name.Should().Be("CommunityPatchCoreINI");
+        pack.Big.Should().BeTrue();
+        pack.OutputFile.Should().Be("500_900_CommunityPatch_CoreINI.big");
+        pack.IsBigPack.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task LoadConfigurationAsync_WithSimplifiedBundlePackBig_MapsBig()
+    {
+        // Arrange
+        var configPath = Path.Combine(_tempDirectory, "config.json");
+        var json = @"{
+            ""BundlePacks"": [
+                {
+                    ""Name"": ""SimplifiedPatch"",
+                    ""Big"": true,
+                    ""Items"": [""CoreINIPatch""]
+                }
+            ]
+        }";
+        await File.WriteAllTextAsync(configPath, json);
+
+        // Act
+        var result = await _service.LoadConfigurationAsync(configPath);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Packs.Should().HaveCount(1);
+        var pack = result.Packs[0];
+        pack.Name.Should().Be("SimplifiedPatch");
+        pack.Big.Should().BeTrue();
+        pack.IsBigPack.Should().BeTrue();
+    }
 }

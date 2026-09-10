@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Tools.ModBuilder;
@@ -93,6 +94,12 @@ public sealed class PythonBundlePack
 
     [JsonPropertyName("allowInstall")]
     public bool AllowInstall { get; set; }
+
+    [JsonPropertyName("big")]
+    public bool Big { get; set; }
+
+    [JsonPropertyName("outputFile")]
+    public string? OutputFile { get; set; }
 
     [JsonPropertyName("setGameLanguageOnInstall")]
     public string SetGameLanguageOnInstall { get; set; } = string.Empty;
@@ -261,6 +268,9 @@ public sealed class SimplifiedBundlePack
 
     [JsonPropertyName("OutputFile")]
     public string? OutputFile { get; set; }
+
+    [JsonPropertyName("Big")]
+    public bool? Big { get; set; }
 
     [JsonPropertyName("AllowBuild")]
     public bool? AllowBuild { get; set; }
