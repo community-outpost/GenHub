@@ -39,16 +39,19 @@ public static class ReplayManagerConstants
 
     /// <summary>
     /// Command line argument flag to mint a checkpoint save at a target frame or comma-separated list of frames.
+    /// Used by preview checkpoint-recovery engine builds, gated via GameClientCapabilities.ReplayCheckpoints.
     /// </summary>
     public const string CliSaveAtFrame = "-saveatframe";
 
     /// <summary>
     /// Command line argument flag to specify the output checkpoint save file name.
+    /// Used by preview checkpoint-recovery engine builds, gated via GameClientCapabilities.ReplayCheckpoints.
     /// </summary>
     public const string CliSaveTo = "-saveto";
 
     /// <summary>
     /// Command line argument flag to quit the game cleanly after reaching a target frame.
+    /// Used by preview checkpoint-recovery engine builds, gated via GameClientCapabilities.ReplayCheckpoints.
     /// </summary>
     public const string CliQuitAtFrame = "-quitatframe";
 
@@ -59,11 +62,13 @@ public static class ReplayManagerConstants
 
     /// <summary>
     /// Command line argument flag to resume playback of a replay file deterministically from a checkpoint save.
+    /// Used by preview checkpoint-recovery engine builds, gated via GameClientCapabilities.ReplayCheckpoints.
     /// </summary>
     public const string CliResumeReplay = "-resumereplay";
 
     /// <summary>
     /// Command line argument flag to take over live control of a specified player slot index from a save.
+    /// Used by preview checkpoint-recovery engine builds, gated via GameClientCapabilities.ReplayCheckpoints.
     /// </summary>
     public const string CliResumeAs = "-resumeas";
 
