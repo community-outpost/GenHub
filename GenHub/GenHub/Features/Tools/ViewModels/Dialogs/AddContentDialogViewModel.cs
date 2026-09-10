@@ -122,6 +122,11 @@ public partial class AddContentDialogViewModel : ObservableValidator
     ];
 
     /// <summary>
+    /// Gets a value indicating whether the selected content type is a GameClient.
+    /// </summary>
+    public bool IsGameClientType => SelectedContentType == ContentType.GameClient;
+
+    /// <summary>
     /// Gets the dialog title based on mode.
     /// </summary>
     public string DialogTitle => IsEditMode ? "Edit Content Item" : "Add Content Item";
@@ -258,6 +263,11 @@ public partial class AddContentDialogViewModel : ObservableValidator
     {
         OnPropertyChanged(nameof(CanExtend));
         OnPropertyChanged(nameof(ShowAddonParentSelection));
+        OnPropertyChanged(nameof(IsGameClientType));
+        if (value == ContentType.GameClient && !UseDirectUrl)
+        {
+            UseDirectUrl = true;
+        }
     }
 
     partial void OnDownloadUrlChanged(string? value)

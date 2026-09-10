@@ -169,6 +169,15 @@
                                 </StackPanel>
                             </Grid>
 
+                            <!-- GameClient CDN Recommendation Banner -->
+                            <Border Background="#1A64B5F6" BorderBrush="#3364B5F6" BorderThickness="1" CornerRadius="6" Padding="10,8" IsVisible="{Binding IsGameClientType}">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <PathIcon Data="{StaticResource GamepadIcon}" Width="14" Height="14" Foreground="#64B5F6" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Grid.Column="1" Text="Game clients and standalone base packages are typically large and distributed via external CDNs or high-speed mirrors. Use Direct Download URL to point players to your CDN without re-uploading."
+                                               FontSize="11" Foreground="#90CAF9" TextWrapping="Wrap"/>
+                                </Grid>
+                            </Border>
+
                             <!-- Hosting Mode Radio Buttons -->
                             <TextBlock Text="Download / Distribution Source" Classes="label" Margin="0,4,0,0"/>
                             <StackPanel Orientation="Horizontal" Spacing="24">

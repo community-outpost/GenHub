@@ -32,6 +32,16 @@ public partial class ArtifactUrlStatus : ObservableObject
     private string _localFilePath = string.Empty;
 
     /// <summary>
+    /// Gets a value indicating whether this artifact is an external CDN direct link (not pending upload).
+    /// </summary>
+    public bool IsExternalCdn => !string.IsNullOrWhiteSpace(DownloadUrl) && !HasLocalFile;
+
+    /// <summary>
+    /// Gets a value indicating whether this artifact is a local file pending cloud upload.
+    /// </summary>
+    public bool IsPendingUpload => string.IsNullOrWhiteSpace(DownloadUrl) && HasLocalFile;
+
+    /// <summary>
     /// Gets or sets the download URL. Updates the underlying artifact.
     /// </summary>
     public string DownloadUrl
@@ -43,6 +53,8 @@ public partial class ArtifactUrlStatus : ObservableObject
             {
                 _artifact.DownloadUrl = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(IsExternalCdn));
+                OnPropertyChanged(nameof(IsPendingUpload));
                 Validate();
             }
         }
@@ -79,7 +91,7 @@ public partial class ArtifactUrlStatus : ObservableObject
                 && (uri.Scheme == System.Uri.UriSchemeHttp || uri.Scheme == System.Uri.UriSchemeHttps))
             {
                 IsValid = true;
-                StatusMessage = HasLocalFile ? "Hosted (local file available)" : "Hosted";
+                StatusMessage = HasLocalFile ? "Hosted (local file available)" : "Hosted (External CDN)";
             }
             else
             {
@@ -93,7 +105,7 @@ public partial class ArtifactUrlStatus : ObservableObject
             {
                 // Has local file but no URL - will be uploaded during publish
                 IsValid = true;
-                StatusMessage = "Pending upload";
+                StatusMessage = "Pending cloud upload";
             }
             else
             {
@@ -106,5 +118,8 @@ public partial class ArtifactUrlStatus : ObservableObject
             IsValid = false;
             StatusMessage = "No file or URL configured";
         }
+
+        OnPropertyChanged(nameof(IsExternalCdn));
+        OnPropertyChanged(nameof(IsPendingUpload));
     }
 }
