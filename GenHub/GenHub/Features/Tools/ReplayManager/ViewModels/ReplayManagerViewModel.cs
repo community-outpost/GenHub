@@ -1625,7 +1625,7 @@ public partial class ReplayManagerViewModel(
     /// Cancels an active checkpoint minting operation.
     /// </summary>
     [RelayCommand]
-    private void CancelMintCheckpointAsync()
+    private void CancelMintCheckpoint()
     {
         if (IsMintingCheckpoint)
         {

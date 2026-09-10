@@ -334,4 +334,128 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
         var ex = Record.Exception(() => _service.CancelActiveMint());
         Assert.Null(ex);
     }
+
+    /// <summary>
+    /// Verifies that MintCheckpointAsync fails with a timeout error when the process does not exit in time
+    /// and no save file was produced.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task MintCheckpointAsync_ProcessTimesOut_ReturnsTimeoutFailure()
+    {
+        var serviceWithShortTimeout = new ReplayCheckpointService(
+            _mockLauncherFacade.Object,
+            _mockProcessManager.Object,
+            NullLogger<ReplayCheckpointService>.Instance,
+            customSaveDirectory: _tempSaveDir,
+            mintTimeout: TimeSpan.FromMilliseconds(50));
+
+        var replay = new ReplayFile
+        {
+            FileName = "TimeoutTest.rep",
+            FullPath = @"C:\Games\Replays\TimeoutTest.rep",
+            GameVersion = GameType.ZeroHour,
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+        };
+        var profile = new GameProfile { Id = "profile-timeout", Name = "Timeout Profile" };
+
+        _mockLauncherFacade
+            .Setup(l => l.LaunchProfileAsync(
+                profile.Id,
+                false,
+                It.IsAny<CancellationToken>(),
+                It.IsAny<IReadOnlyDictionary<string, string>>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
+            {
+                LaunchId = "launch-timeout",
+                ProfileId = profile.Id,
+                WorkspaceId = "ws-timeout",
+                ProcessInfo = new GameProcessInfo
+                {
+                    ProcessId = 77777,
+                    ProcessName = "generalszh",
+                    StartTime = DateTime.UtcNow,
+                },
+            }));
+
+        _mockProcessManager
+            .Setup(p => p.GetProcessInfoAsync(77777, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProcessInfo>.CreateSuccess(new GameProcessInfo
+            {
+                ProcessId = 77777,
+                ProcessName = "generalszh",
+                StartTime = DateTime.UtcNow,
+            }));
+
+        var result = await serviceWithShortTimeout.MintCheckpointAsync(replay, profile, 5000);
+
+        Assert.False(result.Success);
+        Assert.Contains("timed out", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that MintCheckpointAsync successfully recovers the save file if it was created
+    /// even if process monitoring times out.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task MintCheckpointAsync_ProcessTimesOut_SaveFileExists_RecoversCheckpoint()
+    {
+        const int targetFrame = 6000;
+        var saveFilePath = Path.Combine(_tempSaveDir, $"cp_RecoverTest_{targetFrame}.sav");
+        await File.WriteAllBytesAsync(saveFilePath, [0x05, 0x06]);
+
+        var serviceWithShortTimeout = new ReplayCheckpointService(
+            _mockLauncherFacade.Object,
+            _mockProcessManager.Object,
+            NullLogger<ReplayCheckpointService>.Instance,
+            customSaveDirectory: _tempSaveDir,
+            mintTimeout: TimeSpan.FromMilliseconds(50));
+
+        var replay = new ReplayFile
+        {
+            FileName = "RecoverTest.rep",
+            FullPath = @"C:\Games\Replays\RecoverTest.rep",
+            GameVersion = GameType.ZeroHour,
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+        };
+        var profile = new GameProfile { Id = "profile-recover", Name = "Recover Profile" };
+
+        _mockLauncherFacade
+            .Setup(l => l.LaunchProfileAsync(
+                profile.Id,
+                false,
+                It.IsAny<CancellationToken>(),
+                It.IsAny<IReadOnlyDictionary<string, string>>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
+            {
+                LaunchId = "launch-recover",
+                ProfileId = profile.Id,
+                WorkspaceId = "ws-recover",
+                ProcessInfo = new GameProcessInfo
+                {
+                    ProcessId = 66666,
+                    ProcessName = "generalszh",
+                    StartTime = DateTime.UtcNow,
+                },
+            }));
+
+        _mockProcessManager
+            .Setup(p => p.GetProcessInfoAsync(66666, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProcessInfo>.CreateSuccess(new GameProcessInfo
+            {
+                ProcessId = 66666,
+                ProcessName = "generalszh",
+                StartTime = DateTime.UtcNow,
+            }));
+
+        var result = await serviceWithShortTimeout.MintCheckpointAsync(replay, profile, targetFrame);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(targetFrame, result.Data.TargetFrame);
+        Assert.Equal($"cp_RecoverTest_{targetFrame}.sav", result.Data.FileName);
+    }
 }
