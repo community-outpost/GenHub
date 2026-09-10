@@ -719,34 +719,37 @@ public abstract class WorkspaceStrategyBase<T>(
         }
 
         // 2. Ensure ZH_Generals base assets are linked if present in the game installation.
-        try
+        var zhGeneralsTargetPath = Path.Combine(workspaceInfo.WorkspacePath, "ZH_Generals");
+        if (!Directory.Exists(zhGeneralsTargetPath))
         {
-            var zhGeneralsTargetPath = Path.Combine(workspaceInfo.WorkspacePath, "ZH_Generals");
-            if (!Directory.Exists(zhGeneralsTargetPath))
-            {
-                var sourceDirWithZhGenerals = configuration.Manifests
-                    .SelectMany(m => m.Files ?? [])
-                    .Select(f => Path.GetDirectoryName(f.SourcePath))
-                    .FirstOrDefault(d => !string.IsNullOrEmpty(d) && Directory.Exists(Path.Combine(d, "ZH_Generals")));
+            var sourceDirWithZhGenerals = configuration.Manifests
+                .SelectMany(m => m.Files ?? [])
+                .Select(f => Path.GetDirectoryName(f.SourcePath))
+                .FirstOrDefault(d => !string.IsNullOrEmpty(d) && Directory.Exists(Path.Combine(d, "ZH_Generals")));
 
-                if (!string.IsNullOrEmpty(sourceDirWithZhGenerals))
+            if (!string.IsNullOrEmpty(sourceDirWithZhGenerals))
+            {
+                var zhGeneralsSource = Path.Combine(sourceDirWithZhGenerals, "ZH_Generals");
+                try
                 {
-                    var zhGeneralsSource = Path.Combine(sourceDirWithZhGenerals, "ZH_Generals");
+                    Directory.CreateSymbolicLink(zhGeneralsTargetPath, zhGeneralsSource);
+                    logger.LogInformation("Linked ZH_Generals directory from {Source} to {Target}", zhGeneralsSource, zhGeneralsTargetPath);
+                }
+                catch (Exception symlinkEx)
+                {
+                    logger.LogWarning(symlinkEx, "Failed to create symbolic link for ZH_Generals directory at {Target}; attempting directory copy fallback", zhGeneralsTargetPath);
                     try
                     {
-                        Directory.CreateSymbolicLink(zhGeneralsTargetPath, zhGeneralsSource);
-                        logger.LogInformation("Linked ZH_Generals directory from {Source} to {Target}", zhGeneralsSource, zhGeneralsTargetPath);
+                        CopyDirectoryRecursive(zhGeneralsSource, zhGeneralsTargetPath);
+                        logger.LogInformation("Copied ZH_Generals directory recursively from {Source} to {Target}", zhGeneralsSource, zhGeneralsTargetPath);
                     }
-                    catch (Exception ex)
+                    catch (Exception copyEx)
                     {
-                        logger.LogWarning(ex, "Failed to create symbolic link for ZH_Generals directory at {Target}", zhGeneralsTargetPath);
+                        logger.LogError(copyEx, "Failed to copy ZH_Generals directory to {Target}", zhGeneralsTargetPath);
+                        throw new InvalidOperationException($"Failed to materialize ZH_Generals directory from '{zhGeneralsSource}' to '{zhGeneralsTargetPath}'.", copyEx);
                     }
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            logger.LogDebug(ex, "Failed to resolve ZH_Generals directory for workspace at {WorkspacePath}", workspaceInfo.WorkspacePath);
         }
 
         // 3. Ensure d3d8.dll is present in workspace (Direct3D 8 wrapper required for modern Windows 10/11)
@@ -772,6 +775,28 @@ public abstract class WorkspaceStrategyBase<T>(
         catch (Exception ex)
         {
             logger.LogDebug(ex, "Failed to copy d3d8.dll to workspace at {WorkspacePath}", workspaceInfo.WorkspacePath);
+        }
+    }
+
+    /// <summary>
+    /// Recursively copies a directory and its contents from source to destination.
+    /// </summary>
+    /// <param name="sourceDir">The source directory path.</param>
+    /// <param name="targetDir">The destination directory path.</param>
+    private void CopyDirectoryRecursive(string sourceDir, string targetDir)
+    {
+        Directory.CreateDirectory(targetDir);
+
+        foreach (var file in Directory.GetFiles(sourceDir))
+        {
+            var destFile = Path.Combine(targetDir, Path.GetFileName(file));
+            File.Copy(file, destFile, overwrite: true);
+        }
+
+        foreach (var subDir in Directory.GetDirectories(sourceDir))
+        {
+            var destSub = Path.Combine(targetDir, Path.GetFileName(subDir));
+            CopyDirectoryRecursive(subDir, destSub);
         }
     }
 }

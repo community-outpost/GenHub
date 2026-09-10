@@ -815,4 +815,47 @@ public class GameProfileSettingsViewModelDependencyTests
         // Assert - SelectedGameInstallation is cleared
         Assert.Null(_viewModel.SelectedGameInstallation);
     }
+
+    /// <summary>
+    /// Verifies that saving a standalone profile (e.g. Executable or ModdingTool) succeeds without SelectedGameInstallation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task Save_WhenStandaloneProfileWithoutGameInstallation_SucceedsAsync()
+    {
+        // Arrange
+        var toolManifestId = new ManifestId("1.0.0.moddingtool.worldbuilder");
+        var toolManifest = new ContentManifest
+        {
+            Id = toolManifestId,
+            Name = "World Builder",
+            ContentType = ContentType.ModdingTool,
+        };
+
+        _mockManifestPool.Setup(x => x.GetManifestAsync(It.Is<ManifestId>(id => id.Value == toolManifestId.Value), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(toolManifest));
+
+        _viewModel.Name = "Standalone Tool Profile";
+        _viewModel.SelectedGameInstallation = null;
+
+        var toolDisplayItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = toolManifestId,
+            DisplayName = "World Builder",
+            ContentType = ContentType.ModdingTool,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Unknown,
+            IsEnabled = true,
+        };
+        _viewModel.EnabledContent.Add(toolDisplayItem);
+
+        _mockGameProfileManager.Setup(x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile()));
+
+        // Act
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockGameProfileManager.Verify(x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

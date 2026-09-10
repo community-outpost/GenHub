@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameProfiles;
@@ -346,7 +347,11 @@ public partial class GameProfileSettingsViewModel
                 return;
             }
 
-            if (SelectedGameInstallation == null)
+            var enabledItems = EnabledContent.Where(c => c.IsEnabled).ToList();
+            var isStandaloneProfile = ToolProfileHelper.IsToolProfile(
+                enabledItems.Select(c => (c.ManifestId.Value, c.ContentType)));
+
+            if (SelectedGameInstallation == null && !isStandaloneProfile)
             {
                 StatusMessage = "Please select a game installation";
                 return;
@@ -358,12 +363,11 @@ public partial class GameProfileSettingsViewModel
                 return;
             }
 
-            var hasLaunchableContent = EnabledContent.Any(c =>
-                c.IsEnabled &&
-                (c.ContentType == ContentType.GameInstallation ||
-                 c.ContentType == ContentType.GameClient ||
-                 c.ContentType == ContentType.Executable ||
-                 c.ContentType == ContentType.ModdingTool));
+            var hasLaunchableContent = enabledItems.Any(c =>
+                c.ContentType == ContentType.GameInstallation ||
+                c.ContentType == ContentType.GameClient ||
+                c.ContentType == ContentType.Executable ||
+                c.ContentType == ContentType.ModdingTool);
 
             if (!hasLaunchableContent)
             {
@@ -375,7 +379,7 @@ public partial class GameProfileSettingsViewModel
                 return;
             }
 
-            var enabledContentIds = EnabledContent.Where(c => c.IsEnabled).Select(c => c.ManifestId.Value).ToList();
+            var enabledContentIds = enabledItems.Select(c => c.ManifestId.Value).ToList();
 
             if (_manifestPool != null)
             {
