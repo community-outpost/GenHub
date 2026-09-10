@@ -78,7 +78,20 @@ public sealed class BuildEngineServiceTests : IDisposable
         _mockConfigurationLoaderService.Setup(x => x.ResolveWildcardsAsync(It.IsAny<BuildConfiguration>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((BuildConfiguration config, CancellationToken ct) => config);
 
-        _mockArchiveService.Setup(x => x.CreateBigArchiveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
+        _mockArchiveService.Setup(x => x.CreateBigArchiveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<double>?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, IProgress<double>?, CancellationToken>((_, target, _, _) =>
+            {
+                var dir = Path.GetDirectoryName(target);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                if (!File.Exists(target))
+                {
+                    File.WriteAllText(target, "dummy big content");
+                }
+            })
             .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
 
         _mockArchiveService.Setup(x => x.CreateZipArchiveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<System.IO.Compression.CompressionLevel>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
