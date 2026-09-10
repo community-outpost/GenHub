@@ -479,7 +479,21 @@ public class GameClientDetector(
         var hashResult = await DetectVersionFromHashAsync(installationPath, gameType, cancellationToken);
         if (hashResult.HasValue)
         {
-            return hashResult.Value;
+            var (version, detectedExecutablePath) = hashResult.Value;
+            var executablePathToUse = detectedExecutablePath;
+
+            if (OperatingSystem.IsWindows() &&
+                (Path.GetFileName(detectedExecutablePath).Equals(GameClientConstants.SteamGameDatExecutable, StringComparison.OrdinalIgnoreCase) ||
+                 detectedExecutablePath.EndsWith(".dat", StringComparison.OrdinalIgnoreCase)))
+            {
+                var generalsExePath = Path.Combine(installationPath, GameClientConstants.GeneralsExecutable);
+                if (File.Exists(generalsExePath))
+                {
+                    executablePathToUse = generalsExePath;
+                }
+            }
+
+            return (version, executablePathToUse);
         }
 
         var defaultExecutableName = gameType == GameType.Generals

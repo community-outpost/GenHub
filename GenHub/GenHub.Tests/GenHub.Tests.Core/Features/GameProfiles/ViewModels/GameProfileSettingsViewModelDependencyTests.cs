@@ -604,4 +604,147 @@ public class GameProfileSettingsViewModelDependencyTests
         Assert.Single(_viewModel.EnabledContent, c => c.ContentType == ContentType.GameInstallation);
         Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == mapPackManifestId.Value);
     }
+
+    /// <summary>
+    /// Verifies that setting SelectedGameInstallation automatically adds it to EnabledContent and removes previous installations.
+    /// </summary>
+    [Fact]
+    public void SelectedGameInstallation_AutoAddsToEnabledContent_AndReplacesPreviousInstallation()
+    {
+        var install1 = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("1.0.0.gameinstallation.steam-zh"),
+            DisplayName = "Zero Hour Steam",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+        };
+        var install2 = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("1.0.0.gameinstallation.ea-zh"),
+            DisplayName = "Zero Hour EA",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.EaApp,
+        };
+
+        _viewModel.AvailableGameInstallations = [install1, install2];
+
+        // Select first
+        _viewModel.SelectedGameInstallation = install1;
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == install1.ManifestId.Value);
+        Assert.Single(_viewModel.EnabledContent, c => c.ContentType == ContentType.GameInstallation);
+
+        // Select second - replaces first
+        _viewModel.SelectedGameInstallation = install2;
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == install2.ManifestId.Value);
+        Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ManifestId.Value == install1.ManifestId.Value);
+        Assert.Single(_viewModel.EnabledContent, c => c.ContentType == ContentType.GameInstallation);
+
+        // Clear selection
+        _viewModel.SelectedGameInstallation = null;
+        Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ContentType == ContentType.GameInstallation);
+    }
+
+    /// <summary>
+    /// Verifies that enabling content requiring a GameInstallation automatically selects and enables the compatible installation when none was selected.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task EnableContent_GameClient_AutoSelectsCompatibleGameInstallation_WhenNoneSelectedAsync()
+    {
+        var clientManifestId = new ManifestId("1.0.0.gameclient.zerohour");
+        var zhInstallId = new ManifestId("1.0.0.gameinstallation.steam-zh");
+
+        var clientManifest = new ContentManifest
+        {
+            Id = clientManifestId,
+            Name = "Zero Hour Client",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Dependencies =
+            [
+                new()
+                {
+                    DependencyType = ContentType.GameInstallation,
+                    CompatibleGameTypes = [GameType.ZeroHour],
+                },
+            ],
+        };
+
+        _mockManifestPool.Setup(x => x.GetManifestAsync(It.Is<ManifestId>(id => id.Value == clientManifestId.Value), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(clientManifest));
+
+        var zhInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = zhInstallId,
+            DisplayName = "Zero Hour Steam",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+            IsEnabled = false,
+        };
+
+        _viewModel.AvailableGameInstallations = [zhInstall];
+        _viewModel.SelectedGameInstallation = null;
+
+        var clientItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = clientManifestId,
+            DisplayName = "Zero Hour Client",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+            IsEnabled = false,
+        };
+        _viewModel.AvailableContent.Add(clientItem);
+
+        // Act
+        await _viewModel.EnableContentCommand.ExecuteAsync(clientItem);
+
+        // Assert
+        Assert.NotNull(_viewModel.SelectedGameInstallation);
+        Assert.Equal(zhInstallId.Value, _viewModel.SelectedGameInstallation.ManifestId.Value);
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == zhInstallId.Value);
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == clientManifestId.Value);
+    }
+
+    /// <summary>
+    /// Verifies that disabling the last GameClient or Mod auto-disables the SelectedGameInstallation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DisableContent_WhenLastClientOrModRemoved_AutoDisablesSelectedGameInstallationAsync()
+    {
+        var zhInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("1.0.0.gameinstallation.steam-zh"),
+            DisplayName = "Zero Hour Steam",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+            IsEnabled = true,
+        };
+
+        var clientItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("1.0.0.gameclient.zerohour"),
+            DisplayName = "Zero Hour Client",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+            IsEnabled = true,
+        };
+
+        _viewModel.AvailableGameInstallations = [zhInstall];
+        _viewModel.SelectedGameInstallation = zhInstall;
+        _viewModel.EnabledContent.Add(clientItem);
+
+        // Act - disable the only client
+        await _viewModel.DisableContentCommand.ExecuteAsync(clientItem);
+
+        // Assert
+        Assert.Null(_viewModel.SelectedGameInstallation);
+        Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ContentType == ContentType.GameInstallation);
+    }
 }

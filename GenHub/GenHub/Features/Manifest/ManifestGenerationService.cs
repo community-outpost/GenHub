@@ -1653,7 +1653,21 @@ public class ManifestGenerationService(
         try
         {
             // Add the game executable first (required for mixed installations)
-            if (File.Exists(executablePath))
+            var generalsExeInInstall = Path.Combine(installationPath, GameClientConstants.GeneralsExecutable);
+            var isDatExecutable = Path.GetFileName(executablePath).Equals(GameClientConstants.SteamGameDatExecutable, StringComparison.OrdinalIgnoreCase) ||
+                                  executablePath.EndsWith(".dat", StringComparison.OrdinalIgnoreCase);
+
+            if (isDatExecutable && File.Exists(generalsExeInInstall))
+            {
+                var generalsFileName = Path.GetFileName(generalsExeInInstall);
+                var generalsSourcePath = ResolveSourcePathWithBackup(generalsExeInInstall, generalsFileName);
+                await builder.AddGameInstallationFileAsync(generalsFileName, generalsSourcePath, isExecutable: true);
+
+                var datFileName = Path.GetFileName(executablePath);
+                var datSourcePath = ResolveSourcePathWithBackup(executablePath, datFileName);
+                await builder.AddGameInstallationFileAsync(datFileName, datSourcePath, isExecutable: false);
+            }
+            else if (File.Exists(executablePath))
             {
                 var executableFileName = Path.GetFileName(executablePath);
 
@@ -1722,7 +1736,9 @@ public class ManifestGenerationService(
             // For Steam/EA installations, also add game.dat and Generals.dat as alternative executables
             // This allows launching without Steam integration or via specific entry points
             var gameDatPath = Path.Combine(installationPath, GameClientConstants.SteamGameDatExecutable);
-            if (File.Exists(gameDatPath) && !executablePath.EndsWith(GameClientConstants.SteamGameDatExecutable, StringComparison.OrdinalIgnoreCase))
+            if (File.Exists(gameDatPath) &&
+                !executablePath.EndsWith(GameClientConstants.SteamGameDatExecutable, StringComparison.OrdinalIgnoreCase) &&
+                !(isDatExecutable && File.Exists(generalsExeInInstall)))
             {
                 await builder.AddGameInstallationFileAsync(GameClientConstants.SteamGameDatExecutable, gameDatPath, isExecutable: false);
                 logger.LogDebug("Added game.dat to GameClient manifest (non-executable, for Steam-free launch)");

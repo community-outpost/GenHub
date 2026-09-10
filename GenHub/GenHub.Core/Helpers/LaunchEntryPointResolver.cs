@@ -31,6 +31,12 @@ public static class LaunchEntryPointResolver
             return Path.GetFileNameWithoutExtension(GameClientConstants.GeneralsOnline60HzExecutable);
         }
 
+        if (fileName.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase) ||
+            fileName.Equals(GameClientConstants.ZeroHourExecutable, StringComparison.OrdinalIgnoreCase))
+        {
+            return "game";
+        }
+
         return null;
     }
 }

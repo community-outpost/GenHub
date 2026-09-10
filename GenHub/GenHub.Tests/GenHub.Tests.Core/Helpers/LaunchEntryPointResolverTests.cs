@@ -50,12 +50,23 @@ public class LaunchEntryPointResolverTests
     }
 
     /// <summary>
+    /// The generals.exe / generalszh.exe launcher spawns game.dat (named "game") and exits.
+    /// </summary>
+    [Fact]
+    public void ResolveExpectedChildProcessName_ForGeneralsExecutable_ReturnsGameChildProcess()
+    {
+        var path = Path.Combine("/workspace", GameClientConstants.GeneralsExecutable);
+
+        Assert.Equal("game", LaunchEntryPointResolver.ResolveExpectedChildProcessName(path));
+    }
+
+    /// <summary>
     /// Every other client launches its own executable and is unaffected.
     /// </summary>
     [Fact]
     public void ResolveExpectedChildProcessName_ForAnOrdinaryExecutable_ReturnsNull()
     {
-        var path = Path.Combine("/workspace", GameClientConstants.GeneralsExecutable);
+        var path = Path.Combine("/workspace", "CustomClient.exe");
 
         Assert.Null(LaunchEntryPointResolver.ResolveExpectedChildProcessName(path));
     }

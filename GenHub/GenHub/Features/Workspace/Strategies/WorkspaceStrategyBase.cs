@@ -271,6 +271,21 @@ public abstract class WorkspaceStrategyBase<T>(
                     workspaceInfo.WorkspacePath,
                     resolution.RelativePath!.Replace('/', Path.DirectorySeparatorChar));
 
+                if (OperatingSystem.IsWindows() &&
+                    (Path.GetFileName(workspaceInfo.ExecutablePath).Equals(GameClientConstants.SteamGameDatExecutable, StringComparison.OrdinalIgnoreCase) ||
+                     workspaceInfo.ExecutablePath.EndsWith(".dat", StringComparison.OrdinalIgnoreCase)))
+                {
+                    var generalsExePath = Path.Combine(workspaceInfo.WorkspacePath, GameClientConstants.GeneralsExecutable);
+                    if (File.Exists(generalsExePath))
+                    {
+                        workspaceInfo.ExecutablePath = generalsExePath;
+                        logger.LogInformation(
+                            "Redirected executable from {Original} to {GeneralsExe}",
+                            resolution.RelativePath,
+                            generalsExePath);
+                    }
+                }
+
                 logger.LogInformation(
                     "Executable resolved from GameClient manifest: {ExecutablePath} ({Reason})",
                     workspaceInfo.ExecutablePath,
