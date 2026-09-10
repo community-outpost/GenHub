@@ -131,9 +131,8 @@ public class GoogleDriveHostingProvider(
             _logger.LogInformation("Successfully authenticated with Google Drive");
             return OperationResult<bool>.CreateSuccess(true);
         }
-        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            _logger.LogInformation(ex, "Google Drive authentication was canceled by user.");
             throw;
         }
         catch (OperationCanceledException ex)
