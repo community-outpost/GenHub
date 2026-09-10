@@ -1479,6 +1479,28 @@ public class GameLauncher(
         }
     }
 
+    private static OperationResult<bool> MergeAdditionalArguments(
+        IReadOnlyDictionary<string, string> additionalArguments,
+        Dictionary<string, string> arguments)
+    {
+        foreach (var kvp in additionalArguments)
+        {
+            if (!IsValidCommandArgument(kvp.Key))
+            {
+                return OperationResult<bool>.CreateFailure($"Invalid additional command argument key: {kvp.Key}");
+            }
+
+            if (!string.IsNullOrEmpty(kvp.Value) && !IsValidCommandArgument(kvp.Value))
+            {
+                return OperationResult<bool>.CreateFailure($"Invalid additional command argument value for '{kvp.Key}': {kvp.Value}");
+            }
+
+            arguments[kvp.Key] = kvp.Value;
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
     private OperationResult<Dictionary<string, string>> BuildCommandLineArguments(
         GameProfile profile,
         IReadOnlyDictionary<string, string>? additionalArguments = null)
@@ -1500,9 +1522,10 @@ public class GameLauncher(
 
         if (additionalArguments != null)
         {
-            foreach (var kvp in additionalArguments)
+            var mergeResult = MergeAdditionalArguments(additionalArguments, arguments);
+            if (!mergeResult.Success)
             {
-                arguments[kvp.Key] = kvp.Value;
+                return OperationResult<Dictionary<string, string>>.CreateFailure(mergeResult.FirstError ?? "Invalid additional arguments");
             }
         }
 

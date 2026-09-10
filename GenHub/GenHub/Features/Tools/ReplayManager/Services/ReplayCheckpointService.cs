@@ -30,7 +30,8 @@ public sealed partial class ReplayCheckpointService(
 {
     private static readonly TimeSpan DefaultMintTimeout = TimeSpan.FromMinutes(2);
     private readonly TimeSpan _mintTimeout = mintTimeout ?? DefaultMintTimeout;
-    private Action? _cancelActiveMint;
+    private readonly object _mintLock = new();
+    private readonly List<CancellationTokenSource> _activeMintSources = [];
 
     /// <inheritdoc/>
     public string GetSaveDirectory(GameType gameType)
@@ -69,8 +70,13 @@ public sealed partial class ReplayCheckpointService(
         var saveFileName = $"cp_{safeReplay}_{targetFrame}.sav";
         var saveFilePath = Path.Combine(saveDirectory, saveFileName);
 
+        var preExistingTime = File.Exists(saveFilePath) ? File.GetLastWriteTimeUtc(saveFilePath) : (DateTime?)null;
+
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _cancelActiveMint = () => linkedCts.Cancel();
+        lock (_mintLock)
+        {
+            _activeMintSources.Add(linkedCts);
+        }
         try
         {
             var launchResult = await LaunchMintingProcessAsync(replay, profile, targetFrame, saveFileName, linkedCts.Token);
@@ -86,7 +92,7 @@ public sealed partial class ReplayCheckpointService(
             if (!waitResult.Success)
             {
                 // If the game client timed out exiting or threw an error, check if the save file was already written
-                var fallbackResult = FinalizeCheckpointSave(saveFilePath, saveDirectory, saveFileName, replay.FileName, targetFrame);
+                var fallbackResult = FinalizeCheckpointSave(saveFilePath, saveDirectory, saveFileName, replay.FileName, targetFrame, preExistingTime);
                 if (fallbackResult.Success)
                 {
                     logger.LogInformation("[ReplayCheckpoint] Checkpoint save file was created on disk despite process monitoring warning.");
@@ -96,11 +102,14 @@ public sealed partial class ReplayCheckpointService(
                 return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure(waitResult.FirstError ?? "Checkpoint minting failed.");
             }
 
-            return FinalizeCheckpointSave(saveFilePath, saveDirectory, saveFileName, replay.FileName, targetFrame);
+            return FinalizeCheckpointSave(saveFilePath, saveDirectory, saveFileName, replay.FileName, targetFrame, preExistingTime);
         }
         finally
         {
-            _cancelActiveMint = null;
+            lock (_mintLock)
+            {
+                _activeMintSources.Remove(linkedCts);
+            }
         }
     }
 
@@ -114,6 +123,18 @@ public sealed partial class ReplayCheckpointService(
         ArgumentNullException.ThrowIfNull(replay);
         ArgumentNullException.ThrowIfNull(profile);
         ArgumentNullException.ThrowIfNull(checkpoint);
+
+        if (!string.IsNullOrEmpty(checkpoint.AssociatedReplayFileName) &&
+            !string.Equals(checkpoint.AssociatedReplayFileName, replay.FileName, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogWarning(
+                "[ReplayCheckpoint] Checkpoint '{Checkpoint}' is associated with replay '{AssociatedReplay}', not '{Replay}'.",
+                checkpoint.FileName,
+                checkpoint.AssociatedReplayFileName,
+                replay.FileName);
+            return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
+                $"Checkpoint '{checkpoint.FileName}' does not belong to replay '{replay.FileName}'.");
+        }
 
         var additionalArgs = new Dictionary<string, string>
         {
@@ -149,6 +170,18 @@ public sealed partial class ReplayCheckpointService(
         ArgumentNullException.ThrowIfNull(replay);
         ArgumentNullException.ThrowIfNull(profile);
         ArgumentNullException.ThrowIfNull(checkpoint);
+
+        if (!string.IsNullOrEmpty(checkpoint.AssociatedReplayFileName) &&
+            !string.Equals(checkpoint.AssociatedReplayFileName, replay.FileName, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogWarning(
+                "[ReplayCheckpoint] Checkpoint '{Checkpoint}' is associated with replay '{AssociatedReplay}', not '{Replay}'.",
+                checkpoint.FileName,
+                checkpoint.AssociatedReplayFileName,
+                replay.FileName);
+            return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
+                $"Checkpoint '{checkpoint.FileName}' does not belong to replay '{replay.FileName}'.");
+        }
 
         var additionalArgs = new Dictionary<string, string>
         {
@@ -261,7 +294,23 @@ public sealed partial class ReplayCheckpointService(
     /// <inheritdoc/>
     public void CancelActiveMint()
     {
-        _cancelActiveMint?.Invoke();
+        List<CancellationTokenSource> sources;
+        lock (_mintLock)
+        {
+            sources = [.. _activeMintSources];
+        }
+
+        foreach (var source in sources)
+        {
+            try
+            {
+                source.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Source was already disposed
+            }
+        }
     }
 
     private static string GetSafeReplayName(string replayFileName)
@@ -318,12 +367,13 @@ public sealed partial class ReplayCheckpointService(
 
         try
         {
+            var consecutiveErrors = 0;
             while (!linkedCts.IsCancellationRequested)
             {
-                var processInfo = await processManager.GetProcessInfoAsync(processId, linkedCts.Token);
-                if (!processInfo.Success || processInfo.Data == null)
+                var (stillRunning, newErrorCount) = await CheckProcessRunningStatusAsync(processId, consecutiveErrors, linkedCts.Token);
+                consecutiveErrors = newErrorCount;
+                if (!stillRunning)
                 {
-                    logger.LogDebug("[ReplayCheckpoint] Process {Pid} has exited.", processId);
                     break;
                 }
 
@@ -332,6 +382,8 @@ public sealed partial class ReplayCheckpointService(
         }
         catch (OperationCanceledException ex)
         {
+            await TerminateMintingProcessSafeAsync(processId);
+
             if (cancellationToken.IsCancellationRequested)
             {
                 logger.LogWarning(ex, "[ReplayCheckpoint] Checkpoint minting canceled by user.");
@@ -344,6 +396,7 @@ public sealed partial class ReplayCheckpointService(
 
         if (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
+            await TerminateMintingProcessSafeAsync(processId);
             logger.LogWarning("[ReplayCheckpoint] Checkpoint minting timed out after {Minutes} minutes for process {Pid}.", _mintTimeout.TotalMinutes, processId);
             return ProfileOperationResult<bool>.CreateFailure($"Checkpoint minting timed out waiting for game client to reach frame {targetFrame}.");
         }
@@ -351,12 +404,52 @@ public sealed partial class ReplayCheckpointService(
         return ProfileOperationResult<bool>.CreateSuccess(true);
     }
 
+    private async Task<(bool StillRunning, int ConsecutiveErrors)> CheckProcessRunningStatusAsync(
+        int processId,
+        int consecutiveErrors,
+        CancellationToken cancellationToken)
+    {
+        var processInfo = await processManager.GetProcessInfoAsync(processId, cancellationToken);
+        if (processInfo.Success && processInfo.Data != null)
+        {
+            return (processInfo.Data.IsRunning, 0);
+        }
+
+        var errorMsg = processInfo.FirstError ?? string.Empty;
+        var isNotFound = errorMsg.Contains("not found", StringComparison.OrdinalIgnoreCase) ||
+                         errorMsg.Contains("exited", StringComparison.OrdinalIgnoreCase);
+
+        if (isNotFound)
+        {
+            logger.LogDebug("[ReplayCheckpoint] Process {Pid} is no longer running ({Reason}).", processId, errorMsg);
+            return (false, 0);
+        }
+
+        var newErrorCount = consecutiveErrors + 1;
+        logger.LogWarning("[ReplayCheckpoint] Transient failure polling process {Pid} ({Count}/3): {Error}", processId, newErrorCount, errorMsg);
+        return (newErrorCount < 3, newErrorCount);
+    }
+
+    private async Task TerminateMintingProcessSafeAsync(int processId)
+    {
+        try
+        {
+            logger.LogInformation("[ReplayCheckpoint] Terminating minting game process {Pid} due to timeout or cancellation...", processId);
+            await processManager.TerminateProcessAsync(processId, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "[ReplayCheckpoint] Failed to terminate minting game process {Pid}.", processId);
+        }
+    }
+
     private ProfileOperationResult<ReplayCheckpointInfo> FinalizeCheckpointSave(
         string saveFilePath,
         string saveDirectory,
         string saveFileName,
         string replayFileName,
-        int targetFrame)
+        int targetFrame,
+        DateTime? preExistingTime)
     {
         if (!File.Exists(saveFilePath))
         {
@@ -385,6 +478,15 @@ public sealed partial class ReplayCheckpointService(
         }
 
         var fileInfo = new FileInfo(saveFilePath);
+        if (preExistingTime.HasValue && fileInfo.LastWriteTimeUtc <= preExistingTime.Value)
+        {
+            logger.LogError(
+                "[ReplayCheckpoint] Save file '{Path}' was not updated by this mint run (stale file from previous session detected).",
+                saveFilePath);
+            return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure(
+                $"Save file '{saveFileName}' was not updated by the game client (stale file detected).");
+        }
+
         var checkpoint = new ReplayCheckpointInfo
         {
             FilePath = saveFilePath,

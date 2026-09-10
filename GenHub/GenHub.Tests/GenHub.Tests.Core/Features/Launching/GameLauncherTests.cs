@@ -1233,4 +1233,36 @@ public class GameLauncherTests : IDisposable
         _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
     }
+
+    /// <summary>
+    /// Verifies that LaunchProfileAsync rejects invalid additional arguments containing injection characters.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithInvalidAdditionalArguments_ShouldFailLaunchAsync()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        ArrangeSuccessfulLaunch(profile);
+
+        var badArgs = new Dictionary<string, string>
+        {
+            ["-replay"] = "malicious;payload",
+        };
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(
+            profile.Id,
+            progress: null,
+            skipUserDataCleanup: false,
+            cancellationToken: CancellationToken.None,
+            additionalArguments: badArgs);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Invalid additional command argument value", result.FirstError);
+        _processManagerMock.Verify(
+            x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
 }
