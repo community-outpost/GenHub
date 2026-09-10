@@ -502,7 +502,7 @@
               <TextBlock Text="Fast-forward the replay to a specific frame number and snapshot game state."
                          FontSize="11"
                          Foreground="{DynamicResource TextSecondary}"/>
-              <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+              <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,4,0,0">
                 <TextBox Grid.Column="0"
                          Text="{Binding TargetCheckpointFrame}"
                          Watermark="Target Frame (e.g. 12000)"
@@ -512,10 +512,21 @@
                         Classes="Secondary"
                         Command="{Binding MintCheckpointCommand}"
                         IsEnabled="{Binding !IsMintingCheckpoint}"
+                        IsVisible="{Binding !IsMintingCheckpoint}"
                         Padding="12,6">
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <PathIcon Data="{StaticResource ToolIcon.Restore}" Width="14" Height="14" VerticalAlignment="Center"/>
                     <TextBlock Text="Mint Checkpoint" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"/>
+                  </StackPanel>
+                </Button>
+                <Button Grid.Column="2"
+                        Classes="Secondary"
+                        Command="{Binding CancelMintCheckpointCommand}"
+                        IsVisible="{Binding IsMintingCheckpoint}"
+                        Padding="12,6">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <PathIcon Data="{StaticResource ToolIcon.Close}" Width="14" Height="14" VerticalAlignment="Center"/>
+                    <TextBlock Text="Cancel Minting" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"/>
                   </StackPanel>
                 </Button>
               </Grid>

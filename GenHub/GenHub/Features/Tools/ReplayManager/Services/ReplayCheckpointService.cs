@@ -25,9 +25,11 @@ public sealed partial class ReplayCheckpointService(
     IProfileLauncherFacade launcherFacade,
     IGameProcessManager processManager,
     ILogger<ReplayCheckpointService> logger,
-    string? customSaveDirectory = null) : IReplayCheckpointService
+    string? customSaveDirectory = null,
+    TimeSpan? mintTimeout = null) : IReplayCheckpointService
 {
     private static readonly TimeSpan DefaultMintTimeout = TimeSpan.FromMinutes(2);
+    private readonly TimeSpan _mintTimeout = mintTimeout ?? DefaultMintTimeout;
     private Action? _cancelActiveMint;
 
     /// <inheritdoc/>
@@ -83,7 +85,15 @@ public sealed partial class ReplayCheckpointService(
             var waitResult = await WaitForMintingProcessExitAsync(processId, targetFrame, linkedCts.Token);
             if (!waitResult.Success)
             {
-                return waitResult;
+                // If the game client timed out exiting or threw an error, check if the save file was already written
+                var fallbackResult = FinalizeCheckpointSave(saveFilePath, saveDirectory, saveFileName, replay.FileName, targetFrame);
+                if (fallbackResult.Success)
+                {
+                    logger.LogInformation("[ReplayCheckpoint] Checkpoint save file was created on disk despite process monitoring warning.");
+                    return fallbackResult;
+                }
+
+                return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure(waitResult.FirstError ?? "Checkpoint minting failed.");
             }
 
             return FinalizeCheckpointSave(saveFilePath, saveDirectory, saveFileName, replay.FileName, targetFrame);
@@ -297,13 +307,13 @@ public sealed partial class ReplayCheckpointService(
             additionalArguments: additionalArgs);
     }
 
-    private async Task<ProfileOperationResult<ReplayCheckpointInfo>> WaitForMintingProcessExitAsync(
+    private async Task<ProfileOperationResult<bool>> WaitForMintingProcessExitAsync(
         int processId,
         int targetFrame,
         CancellationToken cancellationToken)
     {
         logger.LogDebug("[ReplayCheckpoint] Monitoring game process PID {Pid} until exit...", processId);
-        using var timeoutCts = new CancellationTokenSource(DefaultMintTimeout);
+        using var timeoutCts = new CancellationTokenSource(_mintTimeout);
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
         try
@@ -325,20 +335,20 @@ public sealed partial class ReplayCheckpointService(
             if (cancellationToken.IsCancellationRequested)
             {
                 logger.LogWarning(ex, "[ReplayCheckpoint] Checkpoint minting canceled by user.");
-                return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure("Checkpoint minting canceled by user.");
+                return ProfileOperationResult<bool>.CreateFailure("Checkpoint minting canceled by user.");
             }
 
             logger.LogWarning(ex, "[ReplayCheckpoint] Checkpoint minting timed out waiting for process {Pid} to reach target frame {Frame}.", processId, targetFrame);
-            return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure($"Checkpoint minting timed out waiting for game client to reach frame {targetFrame}.");
+            return ProfileOperationResult<bool>.CreateFailure($"Checkpoint minting timed out waiting for game client to reach frame {targetFrame}.");
         }
 
         if (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
-            logger.LogWarning("[ReplayCheckpoint] Checkpoint minting timed out after {Minutes} minutes for process {Pid}.", DefaultMintTimeout.TotalMinutes, processId);
-            return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure($"Checkpoint minting timed out waiting for game client to reach frame {targetFrame}.");
+            logger.LogWarning("[ReplayCheckpoint] Checkpoint minting timed out after {Minutes} minutes for process {Pid}.", _mintTimeout.TotalMinutes, processId);
+            return ProfileOperationResult<bool>.CreateFailure($"Checkpoint minting timed out waiting for game client to reach frame {targetFrame}.");
         }
 
-        return ProfileOperationResult<ReplayCheckpointInfo>.CreateSuccess(null!);
+        return ProfileOperationResult<bool>.CreateSuccess(true);
     }
 
     private ProfileOperationResult<ReplayCheckpointInfo> FinalizeCheckpointSave(
