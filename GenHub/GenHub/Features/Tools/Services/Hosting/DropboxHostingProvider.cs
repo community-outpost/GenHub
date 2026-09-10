@@ -213,7 +213,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
                 return OperationResult<HostingUploadResult>.CreateFailure(linkResult);
             }
 
-            var shareUrl = linkResult.Data!;
+            var shareUrl = linkResult.Data;
             var directDownloadUrl = ConvertToDirectDownloadUrl(shareUrl);
 
             progress?.Report(100);
@@ -221,7 +221,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             return OperationResult<HostingUploadResult>.CreateSuccess(new HostingUploadResult
             {
                 FileId = fileId,
-                PublicUrl = shareUrl,
+                PublicUrl = shareUrl ?? string.Empty,
                 DirectDownloadUrl = directDownloadUrl,
                 FileSize = fileSize,
             });
@@ -389,8 +389,12 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         }
     }
 
-    private static string ConvertToDirectDownloadUrl(string shareUrl)
+    private static string ConvertToDirectDownloadUrl(string? shareUrl)
     {
+        if (string.IsNullOrEmpty(shareUrl))
+        {
+            return string.Empty;
+        }
         // Convert Dropbox share URL to direct download URL
         // From: https://www.dropbox.com/s/xxxxx/filename?dl=0
         // To: https://dl.dropboxusercontent.com/s/xxxxx/filename
@@ -436,7 +440,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 
         // Get or create shared link for this file
         var linkResult = await CreateSharedLinkAsync(pathLower, cancellationToken).ConfigureAwait(false);
-        var directUrl = linkResult.Success ? ConvertToDirectDownloadUrl(linkResult.Data!) : string.Empty;
+        var directUrl = linkResult.Success ? ConvertToDirectDownloadUrl(linkResult.Data) : string.Empty;
 
         if (fileName.Equals("publisher.json", StringComparison.OrdinalIgnoreCase))
         {
