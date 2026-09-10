@@ -1652,41 +1652,58 @@ public sealed class BuildEngineService : IBuildEngineService
 
     private static void AddSourceFileHashParts(ModBuilderProject project, List<string> hashParts)
     {
-        var projectDir = !string.IsNullOrWhiteSpace(project.ProjectDir) ? project.ProjectDir : Directory.GetCurrentDirectory();
-        var sourceDir = Path.Combine(projectDir, !string.IsNullOrWhiteSpace(project.Directories?.GameFilesEdited) ? project.Directories.GameFilesEdited : ModBuilderConstants.GameFilesEditedDir);
-        if (Directory.Exists(sourceDir))
+        var sourceDir = ResolveSourceDir(project);
+        if (!Directory.Exists(sourceDir))
         {
-            var dirStack = new Stack<string>();
-            dirStack.Push(sourceDir);
+            return;
+        }
 
-            while (dirStack.Count > 0)
+        var dirStack = new Stack<string>();
+        dirStack.Push(sourceDir);
+
+        while (dirStack.Count > 0)
+        {
+            var current = dirStack.Pop();
+            try
             {
-                var current = dirStack.Pop();
-                try
-                {
-                    foreach (var file in Directory.EnumerateFiles(current))
-                    {
-                        try
-                        {
-                            var fi = new FileInfo(file);
-                            hashParts.Add($"{file}:{fi.LastWriteTimeUtc.Ticks}");
-                        }
-                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                        {
-                            // Skip locked/unreadable file for hash
-                        }
-                    }
-
-                    foreach (var subDir in Directory.EnumerateDirectories(current))
-                    {
-                        dirStack.Push(subDir);
-                    }
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    // Skip inaccessible folder
-                }
+                ProcessDirectoryFilesForHash(current, hashParts);
+                EnqueueSubdirectories(current, dirStack);
             }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Skip inaccessible folder
+            }
+        }
+    }
+
+    private static string ResolveSourceDir(ModBuilderProject project)
+    {
+        var projectDir = !string.IsNullOrWhiteSpace(project.ProjectDir) ? project.ProjectDir : Directory.GetCurrentDirectory();
+        var gameFilesEdited = !string.IsNullOrWhiteSpace(project.Directories?.GameFilesEdited) ? project.Directories.GameFilesEdited : ModBuilderConstants.GameFilesEditedDir;
+        return Path.Combine(projectDir, gameFilesEdited);
+    }
+
+    private static void ProcessDirectoryFilesForHash(string current, List<string> hashParts)
+    {
+        foreach (var file in Directory.EnumerateFiles(current))
+        {
+            try
+            {
+                var fi = new FileInfo(file);
+                hashParts.Add($"{file}:{fi.LastWriteTimeUtc.Ticks}");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Skip locked/unreadable file for hash
+            }
+        }
+    }
+
+    private static void EnqueueSubdirectories(string current, Stack<string> dirStack)
+    {
+        foreach (var subDir in Directory.EnumerateDirectories(current))
+        {
+            dirStack.Push(subDir);
         }
     }
 

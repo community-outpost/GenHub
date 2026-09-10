@@ -551,52 +551,13 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
-            string configsDirName = ModBuilderConstants.LowercaseConfigDir;
-            if (root.ValueKind == JsonValueKind.Object &&
-                root.TryGetProperty("directories", out var dirsEl) &&
-                dirsEl.ValueKind == JsonValueKind.Object &&
-                dirsEl.TryGetProperty("configs", out var cfgEl) &&
-                cfgEl.GetString() is { Length: > 0 } cDir)
-            {
-                configsDirName = cDir;
-            }
+            string configsDirName = ExtractConfigsDirName(root);
 
-            if (root.TryGetProperty("bundleConfigs", out var bundleConfigsEl) &&
-                bundleConfigsEl.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var item in bundleConfigsEl.EnumerateArray())
-                {
-                    var pathStr = item.GetString();
-                    if (!string.IsNullOrWhiteSpace(pathStr))
-                    {
-                        var resolved = Path.IsPathRooted(pathStr)
-                            ? pathStr
-                            : Path.Combine(projectDir, pathStr);
-                        if (File.Exists(resolved) && !result.Contains(resolved, StringComparer.OrdinalIgnoreCase))
-                        {
-                            result.Add(resolved);
-                        }
-                    }
-                }
-            }
+            ExtractBundleConfigFiles(root, projectDir, result);
 
             if (result.Count == 0)
             {
-                var candidateDir = Path.Combine(projectDir, configsDirName);
-                if (Directory.Exists(candidateDir))
-                {
-                    var itemsPath = Path.Combine(candidateDir, ModBuilderConstants.BundleItemsConfigFileName);
-                    var packsPath = Path.Combine(candidateDir, ModBuilderConstants.BundlePacksConfigFileName);
-                    if (File.Exists(itemsPath))
-                    {
-                        result.Add(itemsPath);
-                    }
-
-                    if (File.Exists(packsPath))
-                    {
-                        result.Add(packsPath);
-                    }
-                }
+                DiscoverCandidateConfigFiles(projectDir, configsDirName, result);
             }
         }
         catch (OperationCanceledException)
@@ -609,6 +570,67 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         }
 
         return result;
+    }
+
+    private static string ExtractConfigsDirName(JsonElement root)
+    {
+        if (root.ValueKind == JsonValueKind.Object &&
+            root.TryGetProperty("directories", out var dirsEl) &&
+            dirsEl.ValueKind == JsonValueKind.Object &&
+            dirsEl.TryGetProperty("configs", out var cfgEl) &&
+            cfgEl.GetString() is { Length: > 0 } cDir)
+        {
+            return cDir;
+        }
+
+        return ModBuilderConstants.LowercaseConfigDir;
+    }
+
+    private static void ExtractBundleConfigFiles(JsonElement root, string projectDir, List<string> result)
+    {
+        if (!root.TryGetProperty("bundleConfigs", out var bundleConfigsEl) ||
+            bundleConfigsEl.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (var item in bundleConfigsEl.EnumerateArray())
+        {
+            var pathStr = item.GetString();
+            if (string.IsNullOrWhiteSpace(pathStr))
+            {
+                continue;
+            }
+
+            var resolved = Path.IsPathRooted(pathStr)
+                ? pathStr
+                : Path.Combine(projectDir, pathStr);
+
+            if (File.Exists(resolved) && !result.Contains(resolved, StringComparer.OrdinalIgnoreCase))
+            {
+                result.Add(resolved);
+            }
+        }
+    }
+
+    private static void DiscoverCandidateConfigFiles(string projectDir, string configsDirName, List<string> result)
+    {
+        var candidateDir = Path.Combine(projectDir, configsDirName);
+        if (!Directory.Exists(candidateDir))
+        {
+            return;
+        }
+
+        AddFileIfExists(Path.Combine(candidateDir, ModBuilderConstants.BundleItemsConfigFileName), result);
+        AddFileIfExists(Path.Combine(candidateDir, ModBuilderConstants.BundlePacksConfigFileName), result);
+    }
+
+    private static void AddFileIfExists(string filePath, List<string> result)
+    {
+        if (File.Exists(filePath))
+        {
+            result.Add(filePath);
+        }
     }
 
     private async Task<List<string>> DiscoverProjectConfigFilesAsync(string projectDir, CancellationToken cancellationToken)

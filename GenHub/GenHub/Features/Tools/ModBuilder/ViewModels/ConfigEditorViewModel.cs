@@ -127,30 +127,44 @@ public partial class ConfigEditorViewModel(
             var selectionVm = new BundleItemSelectionItemViewModel(
                 itemName,
                 isSelected,
-                selected =>
-                {
-                    if (SelectedBundlePack != null)
-                    {
-                        if (selected)
-                        {
-                            if (!SelectedBundlePack.ItemNames.Contains(itemName, StringComparer.OrdinalIgnoreCase))
-                            {
-                                SelectedBundlePack.ItemNames.Add(itemName);
-                            }
-                        }
-                        else
-                        {
-                            var existing = SelectedBundlePack.ItemNames.FirstOrDefault(n => string.Equals(n, itemName, StringComparison.OrdinalIgnoreCase));
-                            if (existing != null)
-                            {
-                                SelectedBundlePack.ItemNames.Remove(existing);
-                            }
-                        }
-
-                        HasChanges = true;
-                    }
-                });
+                selected => OnPackItemSelectedChanged(itemName, selected));
             PackItemSelections.Add(selectionVm);
+        }
+    }
+
+    private void OnPackItemSelectedChanged(string itemName, bool selected)
+    {
+        if (SelectedBundlePack == null)
+        {
+            return;
+        }
+
+        if (selected)
+        {
+            AddPackItem(SelectedBundlePack.ItemNames, itemName);
+        }
+        else
+        {
+            RemovePackItem(SelectedBundlePack.ItemNames, itemName);
+        }
+
+        HasChanges = true;
+    }
+
+    private static void AddPackItem(IList<string> itemNames, string itemName)
+    {
+        if (!itemNames.Contains(itemName, StringComparer.OrdinalIgnoreCase))
+        {
+            itemNames.Add(itemName);
+        }
+    }
+
+    private static void RemovePackItem(IList<string> itemNames, string itemName)
+    {
+        var existing = itemNames.FirstOrDefault(n => string.Equals(n, itemName, StringComparison.OrdinalIgnoreCase));
+        if (existing != null)
+        {
+            itemNames.Remove(existing);
         }
     }
 
@@ -460,67 +474,99 @@ public partial class ConfigEditorViewModel(
 
         var jsonOptions = new System.Text.Json.JsonSerializerOptions { WriteIndented = true };
 
-        // 1. Determine target paths, prioritizing files from which configurations were actually loaded
-        string? packsPath = Configuration.LoadedConfigFiles.FirstOrDefault(f =>
+        var (packsPath, itemsPath, configDir) = ResolveConfigPaths(projectDir);
+
+        EnsureDirectoryExistsForFile(packsPath);
+        EnsureDirectoryExistsForFile(itemsPath);
+
+        await SaveBundlePacksAsync(packsPath, jsonOptions).ConfigureAwait(false);
+        await SaveBundleItemsAsync(itemsPath, jsonOptions).ConfigureAwait(false);
+
+        SyncAlternateConfigDirectory(projectDir, configDir, packsPath, itemsPath);
+    }
+
+    private (string PacksPath, string ItemsPath, string ConfigDir) ResolveConfigPaths(string projectDir)
+    {
+        string? packsPath = Configuration?.LoadedConfigFiles.FirstOrDefault(f =>
             string.Equals(Path.GetFileName(f), ModBuilderConstants.BundlePacksConfigFileName, StringComparison.OrdinalIgnoreCase));
-        string? itemsPath = Configuration.LoadedConfigFiles.FirstOrDefault(f =>
+        string? itemsPath = Configuration?.LoadedConfigFiles.FirstOrDefault(f =>
             string.Equals(Path.GetFileName(f), ModBuilderConstants.BundleItemsConfigFileName, StringComparison.OrdinalIgnoreCase));
 
-        // 2. If not loaded previously, check CurrentProject.BundleConfigs
         if (CurrentProject?.BundleConfigs != null)
         {
-            foreach (var cfgRel in CurrentProject.BundleConfigs)
-            {
-                var candidate = Path.IsPathRooted(cfgRel) ? cfgRel : Path.Combine(projectDir, cfgRel);
-                var fileName = Path.GetFileName(candidate);
-                if (packsPath == null && string.Equals(fileName, ModBuilderConstants.BundlePacksConfigFileName, StringComparison.OrdinalIgnoreCase))
-                {
-                    packsPath = candidate;
-                }
-                else if (itemsPath == null && string.Equals(fileName, ModBuilderConstants.BundleItemsConfigFileName, StringComparison.OrdinalIgnoreCase))
-                {
-                    itemsPath = candidate;
-                }
-            }
+            (packsPath, itemsPath) = ResolveFromBundleConfigs(projectDir, packsPath, itemsPath);
         }
 
-        // 3. Fallback to candidate directories based on project directories definition or existing folders
-        var configDirName = CurrentProject?.Directories?.Configs;
-        string configDir;
-        if (!string.IsNullOrWhiteSpace(configDirName) && Directory.Exists(Path.Combine(projectDir, configDirName)))
-        {
-            configDir = Path.Combine(projectDir, configDirName);
-        }
-        else if (Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir)))
-        {
-            configDir = Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir);
-        }
-        else if (Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.ConfigDir)))
-        {
-            configDir = Path.Combine(projectDir, ModBuilderConstants.ConfigDir);
-        }
-        else
-        {
-            configDir = Path.Combine(projectDir, !string.IsNullOrWhiteSpace(configDirName) ? configDirName : ModBuilderConstants.ConfigDir);
-            Directory.CreateDirectory(configDir);
-        }
-
+        var configDir = DetermineConfigDirectory(projectDir);
         packsPath ??= Path.Combine(configDir, ModBuilderConstants.BundlePacksConfigFileName);
         itemsPath ??= Path.Combine(configDir, ModBuilderConstants.BundleItemsConfigFileName);
 
-        var packsDir = Path.GetDirectoryName(packsPath);
-        if (!string.IsNullOrEmpty(packsDir) && !Directory.Exists(packsDir))
+        return (packsPath, itemsPath, configDir);
+    }
+
+    private (string? PacksPath, string? ItemsPath) ResolveFromBundleConfigs(string projectDir, string? packsPath, string? itemsPath)
+    {
+        if (CurrentProject?.BundleConfigs == null)
         {
-            Directory.CreateDirectory(packsDir);
+            return (packsPath, itemsPath);
         }
 
-        var itemsDir = Path.GetDirectoryName(itemsPath);
-        if (!string.IsNullOrEmpty(itemsDir) && !Directory.Exists(itemsDir))
+        foreach (var cfgRel in CurrentProject.BundleConfigs)
         {
-            Directory.CreateDirectory(itemsDir);
+            var candidate = Path.IsPathRooted(cfgRel) ? cfgRel : Path.Combine(projectDir, cfgRel);
+            var fileName = Path.GetFileName(candidate);
+            if (packsPath == null && string.Equals(fileName, ModBuilderConstants.BundlePacksConfigFileName, StringComparison.OrdinalIgnoreCase))
+            {
+                packsPath = candidate;
+            }
+            else if (itemsPath == null && string.Equals(fileName, ModBuilderConstants.BundleItemsConfigFileName, StringComparison.OrdinalIgnoreCase))
+            {
+                itemsPath = candidate;
+            }
         }
 
-        // Save bundle packs
+        return (packsPath, itemsPath);
+    }
+
+    private string DetermineConfigDirectory(string projectDir)
+    {
+        var configDirName = CurrentProject?.Directories?.Configs;
+        if (!string.IsNullOrWhiteSpace(configDirName) && Directory.Exists(Path.Combine(projectDir, configDirName)))
+        {
+            return Path.Combine(projectDir, configDirName);
+        }
+
+        if (Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir)))
+        {
+            return Path.Combine(projectDir, ModBuilderConstants.LowercaseConfigDir);
+        }
+
+        if (Directory.Exists(Path.Combine(projectDir, ModBuilderConstants.ConfigDir)))
+        {
+            return Path.Combine(projectDir, ModBuilderConstants.ConfigDir);
+        }
+
+        var fallbackDir = Path.Combine(projectDir, !string.IsNullOrWhiteSpace(configDirName) ? configDirName : ModBuilderConstants.ConfigDir);
+        Directory.CreateDirectory(fallbackDir);
+        return fallbackDir;
+    }
+
+    private static void EnsureDirectoryExistsForFile(string filePath)
+    {
+        var dir = Path.GetDirectoryName(filePath);
+        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+    }
+
+    private async Task SaveBundlePacksAsync(string packsPath, System.Text.Json.JsonSerializerOptions jsonOptions)
+    {
+        if (Configuration == null)
+        {
+            return;
+        }
+
         var existingPacksText = File.Exists(packsPath) ? await File.ReadAllTextAsync(packsPath).ConfigureAwait(false) : null;
         if (existingPacksText != null && existingPacksText.Contains("\"BundlePacks\"", StringComparison.OrdinalIgnoreCase))
         {
@@ -544,8 +590,15 @@ public partial class ConfigEditorViewModel(
             var packsConfig = new BuildConfiguration { Packs = Configuration.Packs };
             await File.WriteAllTextAsync(packsPath, System.Text.Json.JsonSerializer.Serialize(packsConfig, jsonOptions)).ConfigureAwait(false);
         }
+    }
 
-        // Save bundle items
+    private async Task SaveBundleItemsAsync(string itemsPath, System.Text.Json.JsonSerializerOptions jsonOptions)
+    {
+        if (Configuration == null)
+        {
+            return;
+        }
+
         var existingItemsText = File.Exists(itemsPath) ? await File.ReadAllTextAsync(itemsPath).ConfigureAwait(false) : null;
         if (existingItemsText != null && existingItemsText.Contains("\"BundleItems\"", StringComparison.OrdinalIgnoreCase))
         {
@@ -566,23 +619,28 @@ public partial class ConfigEditorViewModel(
             var itemsConfig = new BuildConfiguration { Items = Configuration.Items };
             await File.WriteAllTextAsync(itemsPath, System.Text.Json.JsonSerializer.Serialize(itemsConfig, jsonOptions)).ConfigureAwait(false);
         }
+    }
 
-        // Keep alternate directory in sync if both config and Configs exist
-        var altDirName = configDir.EndsWith(ModBuilderConstants.LowercaseConfigDir, StringComparison.OrdinalIgnoreCase) ? ModBuilderConstants.ConfigDir : ModBuilderConstants.LowercaseConfigDir;
+    private static void SyncAlternateConfigDirectory(string projectDir, string configDir, string packsPath, string itemsPath)
+    {
+        var altDirName = configDir.EndsWith(ModBuilderConstants.LowercaseConfigDir, StringComparison.OrdinalIgnoreCase)
+            ? ModBuilderConstants.ConfigDir
+            : ModBuilderConstants.LowercaseConfigDir;
         var altDir = Path.Combine(projectDir, altDirName);
-        if (Directory.Exists(altDir))
+        if (!Directory.Exists(altDir))
         {
-            var altPacks = Path.Combine(altDir, ModBuilderConstants.BundlePacksConfigFileName);
-            if (File.Exists(altPacks) && !string.Equals(altPacks, packsPath, StringComparison.OrdinalIgnoreCase))
-            {
-                File.Copy(packsPath, altPacks, true);
-            }
+            return;
+        }
 
-            var altItems = Path.Combine(altDir, ModBuilderConstants.BundleItemsConfigFileName);
-            if (File.Exists(altItems) && !string.Equals(altItems, itemsPath, StringComparison.OrdinalIgnoreCase))
-            {
-                File.Copy(itemsPath, altItems, true);
-            }
+        SyncFile(packsPath, Path.Combine(altDir, ModBuilderConstants.BundlePacksConfigFileName));
+        SyncFile(itemsPath, Path.Combine(altDir, ModBuilderConstants.BundleItemsConfigFileName));
+    }
+
+    private static void SyncFile(string sourceFile, string targetFile)
+    {
+        if (File.Exists(targetFile) && !string.Equals(targetFile, sourceFile, StringComparison.OrdinalIgnoreCase))
+        {
+            File.Copy(sourceFile, targetFile, true);
         }
     }
 

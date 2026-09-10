@@ -416,39 +416,53 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        if (CurrentProject?.Configuration?.Packs != null)
-        {
-            foreach (var pack in CurrentProject.Configuration.Packs)
-            {
-                if (value)
-                {
-                    if (pack.Big is not false)
-                    {
-                        pack.Big = true;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(pack.OutputFile) &&
-                        pack.OutputFile.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-                    {
-                        pack.OutputFile = Path.ChangeExtension(pack.OutputFile, ".big").Replace('\\', '/');
-                    }
-                }
-                else
-                {
-                    pack.Big = null;
-                    if (!string.IsNullOrWhiteSpace(pack.OutputFile) &&
-                        pack.OutputFile.EndsWith(".big", StringComparison.OrdinalIgnoreCase))
-                    {
-                        pack.OutputFile = Path.ChangeExtension(pack.OutputFile, ".zip").Replace('\\', '/');
-                    }
-                }
-            }
-        }
+        UpdatePacksForSingleBigMode(CurrentProject?.Configuration?.Packs, value);
 
         foreach (var bundle in Bundles)
         {
             bundle.IsBig = value;
         }
+    }
+
+    private static void UpdatePacksForSingleBigMode(IEnumerable<BundlePack>? packs, bool singleBigMode)
+    {
+        if (packs == null)
+        {
+            return;
+        }
+
+        foreach (var pack in packs)
+        {
+            ApplyPackSingleBigMode(pack, singleBigMode);
+        }
+    }
+
+    private static void ApplyPackSingleBigMode(BundlePack pack, bool singleBigMode)
+    {
+        if (singleBigMode)
+        {
+            if (pack.Big.GetValueOrDefault(true))
+            {
+                pack.Big = true;
+            }
+
+            pack.OutputFile = ReplaceExtension(pack.OutputFile, ".zip", ".big");
+        }
+        else
+        {
+            pack.Big = null;
+            pack.OutputFile = ReplaceExtension(pack.OutputFile, ".big", ".zip");
+        }
+    }
+
+    private static string? ReplaceExtension(string? filePath, string oldExt, string newExt)
+    {
+        if (!string.IsNullOrWhiteSpace(filePath) && filePath.EndsWith(oldExt, StringComparison.OrdinalIgnoreCase))
+        {
+            return Path.ChangeExtension(filePath, newExt).Replace('\\', '/');
+        }
+
+        return filePath;
     }
 
     /// <summary>
@@ -466,7 +480,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Default status color value for the status bar.
     /// </summary>
-    private const string DefaultStatusColor = "#10FFFFFF";
+    private const string DefaultStatusColor = UiConstants.DefaultStatusBackgroundColor;
 
     /// <summary>
     /// Gets or sets the status color for the status bar.
@@ -478,7 +492,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// Gets or sets the status text color for the status bar.
     /// </summary>
     [ObservableProperty]
-    private string _statusTextColor = "White";
+    private string _statusTextColor = UiConstants.DefaultStatusTextColor;
 
     /// <summary>
     /// Gets or sets the file count.

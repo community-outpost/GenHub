@@ -943,49 +943,76 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             var sampleProjectsDir = Path.Combine(baseDir, "SampleProjects");
             if (Directory.Exists(sampleProjectsDir))
             {
-                foreach (var dir in Directory.GetDirectories(sampleProjectsDir, "*", SearchOption.AllDirectories))
-                {
-                    var dirName = Path.GetFileName(dir);
-                    if (dirName.Equals(ModBuilderConstants.DefaultBuildDir, StringComparison.OrdinalIgnoreCase) ||
-                        dirName.Equals(ModBuilderConstants.DefaultReleaseDir, StringComparison.OrdinalIgnoreCase) ||
-                        dirName.StartsWith(".staging", StringComparison.OrdinalIgnoreCase) ||
-                        dirName.Equals(ModBuilderConstants.CacheDirectoryName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        try
-                        {
-                            var parentDir = Path.GetDirectoryName(dir);
-                            if (parentDir != null && (Directory.GetFiles(parentDir, ModBuilderConstants.ProjectFilePattern).Length > 0 ||
-                                Directory.Exists(Path.Combine(parentDir, ModBuilderConstants.LowercaseConfigDir)) ||
-                                Directory.Exists(Path.Combine(parentDir, ModBuilderConstants.ConfigDir))))
-                            {
-                                Directory.Delete(dir, recursive: true);
-                                _logger.LogInformation("Pre-update cleanup removed stray directory: {Dir}", dir);
-                            }
-                        }
-                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                        {
-                            _logger.LogWarning(ex, "Pre-update cleanup could not delete directory: {Dir}", dir);
-                        }
-                    }
-                }
+                CleanSampleProjectArtifacts(sampleProjectsDir);
             }
 
-            foreach (var file in Directory.GetFiles(baseDir, "*.msgpack", SearchOption.TopDirectoryOnly))
-            {
-                try
-                {
-                    File.Delete(file);
-                    _logger.LogInformation("Pre-update cleanup removed stray file: {File}", file);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Pre-update cleanup could not delete file: {File}", file);
-                }
-            }
+            CleanStrayMsgpackFiles(baseDir);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Error during pre-update app directory cleanup");
+        }
+    }
+
+    private void CleanSampleProjectArtifacts(string sampleProjectsDir)
+    {
+        foreach (var dir in Directory.GetDirectories(sampleProjectsDir, "*", SearchOption.AllDirectories))
+        {
+            if (IsStrayArtifactDirectory(Path.GetFileName(dir)))
+            {
+                TryDeleteStrayDirectory(dir);
+            }
+        }
+    }
+
+    private static bool IsStrayArtifactDirectory(string dirName) =>
+        dirName.Equals(ModBuilderConstants.DefaultBuildDir, StringComparison.OrdinalIgnoreCase) ||
+        dirName.Equals(ModBuilderConstants.DefaultReleaseDir, StringComparison.OrdinalIgnoreCase) ||
+        dirName.StartsWith(".staging", StringComparison.OrdinalIgnoreCase) ||
+        dirName.Equals(ModBuilderConstants.CacheDirectoryName, StringComparison.OrdinalIgnoreCase);
+
+    private void TryDeleteStrayDirectory(string dir)
+    {
+        try
+        {
+            var parentDir = Path.GetDirectoryName(dir);
+            if (IsProjectDirectory(parentDir))
+            {
+                Directory.Delete(dir, recursive: true);
+                _logger.LogInformation("Pre-update cleanup removed stray directory: {Dir}", dir);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "Pre-update cleanup could not delete directory: {Dir}", dir);
+        }
+    }
+
+    private static bool IsProjectDirectory(string? parentDir)
+    {
+        if (parentDir == null)
+        {
+            return false;
+        }
+
+        return Directory.GetFiles(parentDir, ModBuilderConstants.ProjectFilePattern).Length > 0 ||
+               Directory.Exists(Path.Combine(parentDir, ModBuilderConstants.LowercaseConfigDir)) ||
+               Directory.Exists(Path.Combine(parentDir, ModBuilderConstants.ConfigDir));
+    }
+
+    private void CleanStrayMsgpackFiles(string baseDir)
+    {
+        foreach (var file in Directory.GetFiles(baseDir, "*.msgpack", SearchOption.TopDirectoryOnly))
+        {
+            try
+            {
+                File.Delete(file);
+                _logger.LogInformation("Pre-update cleanup removed stray file: {File}", file);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Pre-update cleanup could not delete file: {File}", file);
+            }
         }
     }
 

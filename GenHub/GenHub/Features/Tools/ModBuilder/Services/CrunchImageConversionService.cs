@@ -265,12 +265,37 @@ public class CrunchImageConversionService(
             return "\"\"";
         }
 
-        if (!arg.Contains(' ') && !arg.Contains('\t') && !arg.Contains('"') && !arg.Contains('\\'))
+        if (!arg.Contains(' ') && !arg.Contains('\t') && !arg.Contains('"'))
         {
             return arg;
         }
 
-        return "\"" + arg.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
+        var sb = new System.Text.StringBuilder();
+        sb.Append('"');
+        var backslashCount = 0;
+        foreach (var c in arg)
+        {
+            if (c == '\\')
+            {
+                backslashCount++;
+            }
+            else if (c == '"')
+            {
+                sb.Append('\\', (backslashCount * 2) + 1);
+                sb.Append('"');
+                backslashCount = 0;
+            }
+            else
+            {
+                sb.Append('\\', backslashCount);
+                sb.Append(c);
+                backslashCount = 0;
+            }
+        }
+
+        sb.Append('\\', backslashCount * 2);
+        sb.Append('"');
+        return sb.ToString();
     }
 
     /// <summary>

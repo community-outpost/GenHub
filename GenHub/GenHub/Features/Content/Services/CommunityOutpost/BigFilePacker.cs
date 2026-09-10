@@ -117,18 +117,31 @@ public static class BigFilePacker
 
         await using var fs = new FileStream(bigPath, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, useAsync: true);
 
+        List<BigArchiveEntryInfo> entries;
+        var (reader, entryCount) = ReadAndValidateBigHeader(fs);
+        using (reader)
+        {
+            entries = ReadBigArchiveEntries(fs, reader, entryCount, validateOffsets: true, cancellationToken);
+        }
+
+        return await ExtractEntriesAsync(fs, entries, destFullPath, destFullPathWithSep, overwrite, progress, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static (BinaryReader Reader, uint EntryCount) ReadAndValidateBigHeader(FileStream fs)
+    {
         if (fs.Length < 16)
         {
             throw new InvalidDataException($"BIG archive is too small to contain a valid header: {fs.Length} bytes.");
         }
 
-        using var reader = new BinaryReader(fs, Encoding.ASCII, leaveOpen: true);
+        var reader = new BinaryReader(fs, Encoding.ASCII, leaveOpen: true);
 
         var sigBytes = reader.ReadBytes(4);
         var sig = Encoding.ASCII.GetString(sigBytes);
         if (!string.Equals(sig, "BIGF", StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(sig, "BIG4", StringComparison.OrdinalIgnoreCase))
         {
+            reader.Dispose();
             throw new InvalidDataException($"Invalid BIG archive signature: '{sig}'. Expected 'BIGF' or 'BIG4'.");
         }
 
@@ -137,6 +150,7 @@ public static class BigFilePacker
         var uintBuffer = new byte[4];
         if (reader.Read(uintBuffer, 0, 4) < 4)
         {
+            reader.Dispose();
             throw new EndOfStreamException("Unexpected end of file while reading BIG entry count.");
         }
 
@@ -144,12 +158,25 @@ public static class BigFilePacker
 
         if (reader.Read(uintBuffer, 0, 4) < 4)
         {
+            reader.Dispose();
             throw new EndOfStreamException("Unexpected end of file while reading BIG header size.");
         }
 
         _ = BinaryPrimitives.ReadUInt32BigEndian(uintBuffer);
 
-        var entries = new List<(uint Offset, uint Size, string RelativePath)>((int)Math.Min(entryCount, 100000));
+        return (reader, entryCount);
+    }
+
+    private static List<BigArchiveEntryInfo> ReadBigArchiveEntries(
+        FileStream fs,
+        BinaryReader reader,
+        uint entryCount,
+        bool validateOffsets,
+        CancellationToken cancellationToken)
+    {
+        var uintBuffer = new byte[4];
+        var entries = new List<BigArchiveEntryInfo>((int)Math.Min(entryCount, 100000));
+
         for (var i = 0; i < entryCount; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -168,7 +195,7 @@ public static class BigFilePacker
 
             var size = BinaryPrimitives.ReadUInt32BigEndian(uintBuffer);
 
-            if ((ulong)offset + size > (ulong)fs.Length)
+            if (validateOffsets && (ulong)offset + size > (ulong)fs.Length)
             {
                 throw new InvalidDataException($"Entry {i} has offset ({offset}) and size ({size}) exceeding archive length ({fs.Length}).");
             }
@@ -186,78 +213,113 @@ public static class BigFilePacker
             }
 
             var relPath = Encoding.ASCII.GetString(pathBytes.ToArray());
-            entries.Add((offset, size, relPath));
+            entries.Add(new BigArchiveEntryInfo(relPath, offset, size));
         }
 
+        return entries;
+    }
+
+    private static async Task<int> ExtractEntriesAsync(
+        FileStream fs,
+        List<BigArchiveEntryInfo> entries,
+        string destFullPath,
+        string destFullPathWithSep,
+        bool overwrite,
+        IProgress<double>? progress,
+        CancellationToken cancellationToken)
+    {
         var extractedCount = 0;
         var buffer = new byte[64 * 1024];
 
         for (var i = 0; i < entries.Count; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var (offset, size, relPath) = entries[i];
+            var entry = entries[i];
 
-            var normalizedRel = relPath.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar).TrimStart(Path.DirectorySeparatorChar);
-            if (Path.IsPathRooted(normalizedRel))
+            if (TryGetValidTargetPath(entry.RelativePath, destFullPath, destFullPathWithSep, overwrite, out var targetPath))
             {
-                normalizedRel = normalizedRel.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                await ExtractSingleEntryAsync(fs, entry, targetPath!, buffer, cancellationToken).ConfigureAwait(false);
+                extractedCount++;
             }
 
-            var targetPath = Path.GetFullPath(Path.Combine(destFullPath, normalizedRel));
-            var relCheck = Path.GetRelativePath(destFullPath, targetPath);
-
-            if (!targetPath.StartsWith(destFullPathWithSep, StringComparison.OrdinalIgnoreCase) ||
-                relCheck == "." ||
-                relCheck == ".." ||
-                relCheck.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
-                relCheck.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal) ||
-                Path.IsPathRooted(relCheck))
-            {
-                // Path traversal protection
-                continue;
-            }
-
-            if (File.Exists(targetPath) && !overwrite)
-            {
-                continue;
-            }
-
-            var targetDir = Path.GetDirectoryName(targetPath);
-            if (!string.IsNullOrEmpty(targetDir))
-            {
-                Directory.CreateDirectory(targetDir);
-            }
-
-            fs.Seek(offset, SeekOrigin.Begin);
-
-            await using (var outFs = new FileStream(targetPath, FileMode.Create, FileAccess.Write, FileShare.None, 64 * 1024, useAsync: true))
-            {
-                long remaining = size;
-                while (remaining > 0)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var toRead = (int)Math.Min(buffer.Length, remaining);
-                    var read = await fs.ReadAsync(buffer.AsMemory(0, toRead), cancellationToken).ConfigureAwait(false);
-                    if (read == 0)
-                    {
-                        break;
-                    }
-
-                    await outFs.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
-                    remaining -= read;
-                }
-
-                if (remaining > 0)
-                {
-                    throw new EndOfStreamException($"Archive truncated while extracting entry '{relPath}'. Expected {size} bytes, read {size - remaining} bytes.");
-                }
-            }
-
-            extractedCount++;
             progress?.Report((double)(i + 1) / entries.Count);
         }
 
         return extractedCount;
+    }
+
+    private static bool TryGetValidTargetPath(
+        string relPath,
+        string destFullPath,
+        string destFullPathWithSep,
+        bool overwrite,
+        out string? targetPath)
+    {
+        targetPath = null;
+        var normalizedRel = relPath.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar).TrimStart(Path.DirectorySeparatorChar);
+        if (Path.IsPathRooted(normalizedRel))
+        {
+            normalizedRel = normalizedRel.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        }
+
+        var fullPath = Path.GetFullPath(Path.Combine(destFullPath, normalizedRel));
+        var relCheck = Path.GetRelativePath(destFullPath, fullPath);
+
+        if (!fullPath.StartsWith(destFullPathWithSep, StringComparison.OrdinalIgnoreCase) ||
+            relCheck == "." ||
+            relCheck == ".." ||
+            relCheck.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+            relCheck.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal) ||
+            Path.IsPathRooted(relCheck))
+        {
+            // Path traversal protection
+            return false;
+        }
+
+        if (File.Exists(fullPath) && !overwrite)
+        {
+            return false;
+        }
+
+        targetPath = fullPath;
+        return true;
+    }
+
+    private static async Task ExtractSingleEntryAsync(
+        FileStream fs,
+        BigArchiveEntryInfo entry,
+        string targetPath,
+        byte[] buffer,
+        CancellationToken cancellationToken)
+    {
+        var targetDir = Path.GetDirectoryName(targetPath);
+        if (!string.IsNullOrEmpty(targetDir))
+        {
+            Directory.CreateDirectory(targetDir);
+        }
+
+        fs.Seek(entry.Offset, SeekOrigin.Begin);
+
+        await using var outFs = new FileStream(targetPath, FileMode.Create, FileAccess.Write, FileShare.None, 64 * 1024, useAsync: true);
+        long remaining = entry.Size;
+        while (remaining > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var toRead = (int)Math.Min(buffer.Length, remaining);
+            var read = await fs.ReadAsync(buffer.AsMemory(0, toRead), cancellationToken).ConfigureAwait(false);
+            if (read == 0)
+            {
+                break;
+            }
+
+            await outFs.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+            remaining -= read;
+        }
+
+        if (remaining > 0)
+        {
+            throw new EndOfStreamException($"Archive truncated while extracting entry '{entry.RelativePath}'. Expected {entry.Size} bytes, read {entry.Size - remaining} bytes.");
+        }
     }
 
     /// <summary>
@@ -320,75 +382,11 @@ public static class BigFilePacker
         }
 
         await using var fs = new FileStream(bigPath, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, useAsync: true);
-
-        if (fs.Length < 16)
+        var (reader, entryCount) = ReadAndValidateBigHeader(fs);
+        using (reader)
         {
-            throw new InvalidDataException($"BIG archive is too small to contain a valid header: {fs.Length} bytes.");
+            return ReadBigArchiveEntries(fs, reader, entryCount, validateOffsets: false, cancellationToken);
         }
-
-        using var reader = new BinaryReader(fs, Encoding.ASCII, leaveOpen: true);
-
-        var sigBytes = reader.ReadBytes(4);
-        var sig = Encoding.ASCII.GetString(sigBytes);
-        if (!string.Equals(sig, "BIGF", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(sig, "BIG4", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidDataException($"Invalid BIG archive signature: '{sig}'. Expected 'BIGF' or 'BIG4'.");
-        }
-
-        _ = reader.ReadUInt32();
-
-        var uintBuffer = new byte[4];
-        if (reader.Read(uintBuffer, 0, 4) < 4)
-        {
-            throw new EndOfStreamException("Unexpected end of file while reading BIG entry count.");
-        }
-
-        var entryCount = BinaryPrimitives.ReadUInt32BigEndian(uintBuffer);
-
-        if (reader.Read(uintBuffer, 0, 4) < 4)
-        {
-            throw new EndOfStreamException("Unexpected end of file while reading BIG header size.");
-        }
-
-        _ = BinaryPrimitives.ReadUInt32BigEndian(uintBuffer);
-
-        var entries = new List<BigArchiveEntryInfo>((int)Math.Min(entryCount, 100000));
-        for (var i = 0; i < entryCount; i++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (reader.Read(uintBuffer, 0, 4) < 4)
-            {
-                throw new EndOfStreamException($"Unexpected end of stream while reading offset for BIG entry {i}.");
-            }
-
-            var offset = BinaryPrimitives.ReadUInt32BigEndian(uintBuffer);
-
-            if (reader.Read(uintBuffer, 0, 4) < 4)
-            {
-                throw new EndOfStreamException($"Unexpected end of stream while reading size for BIG entry {i}.");
-            }
-
-            var size = BinaryPrimitives.ReadUInt32BigEndian(uintBuffer);
-
-            var pathBytes = new List<byte>(64);
-            int b;
-            while ((b = fs.ReadByte()) > 0)
-            {
-                pathBytes.Add((byte)b);
-            }
-
-            if (b < 0 && pathBytes.Count == 0)
-            {
-                throw new EndOfStreamException($"Unexpected end of stream while reading name for BIG entry {i}.");
-            }
-
-            var relPath = Encoding.ASCII.GetString(pathBytes.ToArray());
-            entries.Add(new BigArchiveEntryInfo(relPath, offset, size));
-        }
-
-        return entries;
     }
 
     private static (List<BigFileEntry> Entries, long HeaderSize, long TotalSize) CollectBigEntries(
