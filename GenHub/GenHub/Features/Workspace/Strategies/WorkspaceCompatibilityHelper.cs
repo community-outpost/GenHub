@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using GenHub.Core.Constants;
@@ -55,7 +56,7 @@ public static class WorkspaceCompatibilityHelper
 
         // 2. Ensure ZH_Generals base assets are linked if present in the game installation.
         var zhGeneralsTargetPath = Path.Combine(workspaceInfo.WorkspacePath, GameClientConstants.ZhGeneralsDirectory);
-        if (!Directory.Exists(zhGeneralsTargetPath))
+        if (!Directory.Exists(zhGeneralsTargetPath) && !Path.Exists(zhGeneralsTargetPath))
         {
             var sourceDirWithZhGenerals = configuration.Manifests
                 .Where(m => m.ContentType is ContentType.GameClient or ContentType.GameInstallation)
@@ -68,20 +69,18 @@ public static class WorkspaceCompatibilityHelper
                 try
                 {
                     Directory.CreateSymbolicLink(zhGeneralsTargetPath, zhGeneralsSource);
-                    logger.LogInformation("Linked ZH_Generals directory from {Source} to {Target}", zhGeneralsSource, zhGeneralsTargetPath);
+                    logger.LogInformation("Linked ZH_Generals directory via symlink from {Source} to {Target}", zhGeneralsSource, zhGeneralsTargetPath);
                 }
                 catch (Exception symlinkEx)
                 {
-                    logger.LogWarning(symlinkEx, "Failed to create symbolic link for ZH_Generals directory at {Target}; attempting directory copy fallback", zhGeneralsTargetPath);
-                    try
+                    logger.LogDebug(symlinkEx, "Failed to create symbolic link for ZH_Generals directory at {Target}; attempting junction fallback", zhGeneralsTargetPath);
+                    if (OperatingSystem.IsWindows() && TryCreateDirectoryJunction(zhGeneralsTargetPath, zhGeneralsSource, logger))
                     {
-                        CopyDirectoryRecursive(zhGeneralsSource, zhGeneralsTargetPath, logger);
-                        logger.LogInformation("Copied ZH_Generals directory recursively from {Source} to {Target}", zhGeneralsSource, zhGeneralsTargetPath);
+                        logger.LogInformation("Linked ZH_Generals directory via junction from {Source} to {Target}", zhGeneralsSource, zhGeneralsTargetPath);
                     }
-                    catch (Exception copyEx)
+                    else
                     {
-                        logger.LogError(copyEx, "Failed to copy ZH_Generals directory to {Target}", zhGeneralsTargetPath);
-                        throw new InvalidOperationException($"Failed to materialize ZH_Generals directory from '{zhGeneralsSource}' to '{zhGeneralsTargetPath}'.", copyEx);
+                        logger.LogWarning("Failed to create symbolic link or junction for ZH_Generals directory at {Target}; skipping materialization to avoid freezing UI with large directory copy", zhGeneralsTargetPath);
                     }
                 }
             }
@@ -179,32 +178,43 @@ public static class WorkspaceCompatibilityHelper
     }
 
     /// <summary>
-    /// Recursively copies a directory and its contents from source to destination, skipping reparse points.
+    /// Attempts to create an NTFS directory junction targeting the source path without requiring admin elevation.
     /// </summary>
-    /// <param name="sourceDir">The source directory path.</param>
-    /// <param name="targetDir">The destination directory path.</param>
+    /// <param name="linkPath">The junction path to create.</param>
+    /// <param name="targetPath">The target directory path.</param>
     /// <param name="logger">Optional logger instance.</param>
-    private static void CopyDirectoryRecursive(string sourceDir, string targetDir, ILogger? logger = null)
+    /// <returns><c>true</c> if junction creation succeeded; otherwise, <c>false</c>.</returns>
+    private static bool TryCreateDirectoryJunction(string linkPath, string targetPath, ILogger? logger = null)
     {
-        Directory.CreateDirectory(targetDir);
-
-        foreach (var file in Directory.GetFiles(sourceDir))
+        if (!OperatingSystem.IsWindows())
         {
-            var destFile = Path.Combine(targetDir, Path.GetFileName(file));
-            File.Copy(file, destFile, overwrite: true);
+            return false;
         }
 
-        foreach (var subDir in Directory.GetDirectories(sourceDir))
+        try
         {
-            var dirInfo = new DirectoryInfo(subDir);
-            if (dirInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+            var psi = new ProcessStartInfo
             {
-                logger?.LogDebug("Skipping reparse point directory during copy: {SubDir}", subDir);
-                continue;
+                FileName = Path.Combine(Environment.SystemDirectory, "cmd.exe"),
+                Arguments = $"/c mklink /J \"{linkPath}\" \"{targetPath}\"",
+                CreateNoWindow = true,
+                UseShellExecute = false,
+            };
+            using var process = Process.Start(psi);
+            if (process != null)
+            {
+                process.WaitForExit(5000);
+                if (process.ExitCode == ProcessConstants.ExitCodeSuccess && Path.Exists(linkPath))
+                {
+                    return true;
+                }
             }
-
-            var destSub = Path.Combine(targetDir, Path.GetFileName(subDir));
-            CopyDirectoryRecursive(subDir, destSub, logger);
         }
+        catch (Exception ex)
+        {
+            logger?.LogWarning(ex, "Failed to create directory junction for {LinkPath} targeting {TargetPath}", linkPath, targetPath);
+        }
+
+        return false;
     }
 }
