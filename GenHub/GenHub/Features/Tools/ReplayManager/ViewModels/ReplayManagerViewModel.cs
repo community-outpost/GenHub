@@ -71,6 +71,7 @@ public partial class ReplayManagerViewModel(
     private readonly SemaphoreSlim _reloadLock = new(1, 1);
     private int _pendingReloadRequests;
     private bool _messengerRegistered;
+    private CancellationTokenSource? _mintCts;
 
     private IDialogService? DialogService => serviceProvider?.GetService<IDialogService>();
 
@@ -395,6 +396,8 @@ public partial class ReplayManagerViewModel(
     {
         if (disposing)
         {
+            _mintCts?.Cancel();
+            _mintCts?.Dispose();
             WeakReferenceMessenger.Default.UnregisterAll(this);
             _reloadLock.Dispose();
         }
@@ -1615,8 +1618,22 @@ public partial class ReplayManagerViewModel(
     [RelayCommand]
     private void CloseCheckpointDrawer()
     {
+        _mintCts?.Cancel();
         IsCheckpointDrawerOpen = false;
         ActiveCheckpointReplay = null;
+    }
+
+    /// <summary>
+    /// Cancels an active checkpoint minting operation.
+    /// </summary>
+    [RelayCommand]
+    private void CancelMintCheckpoint()
+    {
+        if (IsMintingCheckpoint && _mintCts != null)
+        {
+            _mintCts.Cancel();
+            StatusMessage = "Canceling checkpoint minting...";
+        }
     }
 
     /// <summary>
@@ -1640,12 +1657,17 @@ public partial class ReplayManagerViewModel(
         IsMintingCheckpoint = true;
         StatusMessage = $"Minting checkpoint at frame {TargetCheckpointFrame}...";
 
+        _mintCts?.Cancel();
+        _mintCts?.Dispose();
+        _mintCts = new CancellationTokenSource();
+
         try
         {
             var result = await checkpointService.MintCheckpointAsync(
                 ActiveCheckpointReplay,
                 SelectedCompatibleProfile,
-                TargetCheckpointFrame);
+                TargetCheckpointFrame,
+                _mintCts.Token);
 
             if (result.Success && result.Data != null)
             {
@@ -1672,6 +1694,8 @@ public partial class ReplayManagerViewModel(
         finally
         {
             IsMintingCheckpoint = false;
+            _mintCts?.Dispose();
+            _mintCts = null;
         }
     }
 

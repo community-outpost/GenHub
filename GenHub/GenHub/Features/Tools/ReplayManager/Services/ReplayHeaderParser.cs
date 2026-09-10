@@ -343,8 +343,22 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         if (isSlotDefinition)
         {
             var isHuman = !rawMarkerAndName.StartsWith('C') && !rawMarkerAndName.StartsWith('c');
-            int? factionIndex = parts.Length > 2 && int.TryParse(parts[2], out var f) ? f : null;
-            int? colorIndex = parts.Length > 3 && int.TryParse(parts[3], out var c) ? c : null;
+            int? factionIndex;
+            int? colorIndex;
+
+            // Wire format per GameInfo.cpp (GameInfoToAsciiString):
+            // Human: H<name>,IP,port,flags,color,template,...
+            // AI:    C<difficulty>,color,template,startPos,team
+            if (isHuman)
+            {
+                colorIndex = parts.Length > 4 && int.TryParse(parts[4], out var c) ? c : null;
+                factionIndex = parts.Length > 5 && int.TryParse(parts[5], out var f) ? f : null;
+            }
+            else
+            {
+                colorIndex = parts.Length > 1 && int.TryParse(parts[1], out var c) ? c : null;
+                factionIndex = parts.Length > 2 && int.TryParse(parts[2], out var f) ? f : null;
+            }
 
             slotInfo = new ReplaySlotInfo(
                 slotIndex,
@@ -386,10 +400,21 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         }
 
         // In C&C Generals wire format, slot entries in S= prepend uppercase 'H' (Human) or 'C' (Computer) to the player name.
-        // We only strip the slot marker when it is uppercase 'H' or 'C', preserving genuine names starting with lowercase letters (e.g. 'captain').
-        if (trimmed[0] is 'H' or 'C')
+        if (trimmed[0] is 'H' or 'h')
         {
             return trimmed[1..].Trim();
+        }
+
+        if (trimmed[0] is 'C' or 'c')
+        {
+            var diff = trimmed[1..].Trim();
+            return diff switch
+            {
+                "E" or "e" => "AI (Easy)",
+                "M" or "m" => "AI (Medium)",
+                "H" or "h" => "AI (Hard)",
+                _ => diff,
+            };
         }
 
         return trimmed;

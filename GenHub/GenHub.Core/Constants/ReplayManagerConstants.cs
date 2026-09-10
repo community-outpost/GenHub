@@ -28,6 +28,11 @@ public static class ReplayManagerConstants
     public const string SaveFolderName = "Save";
 
     /// <summary>
+    /// Command line argument flag to skip intro cinematic sequences and menus.
+    /// </summary>
+    public const string CliQuickStart = "-quickstart";
+
+    /// <summary>
     /// Command line argument flag to specify the replay file to play or scrub through.
     /// </summary>
     public const string CliReplay = "-replay";
