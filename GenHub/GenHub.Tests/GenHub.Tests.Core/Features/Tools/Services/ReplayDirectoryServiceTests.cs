@@ -9,6 +9,7 @@ using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -42,6 +43,7 @@ public sealed class ReplayDirectoryServiceTests
     private readonly Mock<IServiceProvider> _mockServiceProvider = new();
     private readonly Mock<IDependencyResolver> _mockDependencyResolver = new();
     private readonly Mock<IConfigurationProviderService> _mockConfigurationProvider = new();
+    private readonly Mock<IInstallationCasPoolService> _mockCasPoolService = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ReplayDirectoryServiceTests"/> class.
@@ -63,6 +65,8 @@ public sealed class ReplayDirectoryServiceTests
             .Returns(_mockDependencyResolver.Object);
         _mockServiceProvider.Setup(sp => sp.GetService(typeof(IConfigurationProviderService)))
             .Returns(_mockConfigurationProvider.Object);
+        _mockServiceProvider.Setup(sp => sp.GetService(typeof(IInstallationCasPoolService)))
+            .Returns(_mockCasPoolService.Object);
 
         _mockInstallationService
             .Setup(s => s.CreateAndRegisterInstallationManifestsAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
@@ -2377,4 +2381,66 @@ public sealed class ReplayDirectoryServiceTests
             Publisher = publisher,
         },
     };
+    /// <summary>
+    /// Verifies that profile creation initializes the dynamic installation CAS pool path for cross-drive compatibility.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateProfileForReplayAsync_InitializesDynamicCasPoolPathAsync()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "PoolTest.rep",
+            FullPath = "/replays/PoolTest.rep",
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0x12345678,
+                IniCrc = 0x87654321,
+            },
+            MatchedClient = null,
+        };
+
+        CrcMappingEntry? nullEntry = null;
+        _mockCrcRegistry
+            .Setup(r => r.TryGetEntry("0x12345678", "0x87654321", out nullEntry))
+            .Returns(false);
+
+        var installation = new GameInstallation("/games/ZeroHour", GameInstallationType.Retail)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = "/games/ZeroHour",
+        };
+
+        _mockInstallationService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+
+        _mockProfileManager
+            .Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        _mockProfileManager
+            .Setup(p => p.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "test-profile-id", Name = "Test Profile" }));
+
+        _mockCasPoolService
+            .Setup(c => c.EnsurePoolPathAsync(It.IsAny<IReadOnlyList<GameInstallation>>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var result = await service.CreateProfileForReplayAsync(replay);
+
+        Assert.True(result.Success);
+        _mockCasPoolService.Verify(
+            c => c.EnsurePoolPathAsync(It.Is<IReadOnlyList<GameInstallation>>(list => list.Contains(installation)), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
 }

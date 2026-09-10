@@ -54,7 +54,8 @@ public class ProfileLauncherFacade(
     IConfigurationProviderService configurationProvider,
     IGameProcessManager gameProcessManager,
     ISymlinkCapabilityProvider symlinkCapability,
-    ILogger<ProfileLauncherFacade> logger) : IProfileLauncherFacade
+    ILogger<ProfileLauncherFacade> logger,
+    IInstallationCasPoolService? installationCasPoolService = null) : IProfileLauncherFacade
 {
     /// <inheritdoc/>
     public async Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(string profileId, bool skipUserDataCleanup = false, CancellationToken cancellationToken = default)
@@ -116,7 +117,7 @@ public class ProfileLauncherFacade(
         }
     }
 
-/// <inheritdoc/>
+    /// <inheritdoc/>
     public async Task<ProfileOperationResult<bool>> ValidateLaunchAsync(string profileId, CancellationToken cancellationToken = default)
     {
         try
@@ -153,7 +154,7 @@ public class ProfileLauncherFacade(
         }
     }
 
-/// <inheritdoc/>
+    /// <inheritdoc/>
     public async Task<ProfileOperationResult<GameProcessInfo>> GetLaunchStatusAsync(string profileId, CancellationToken cancellationToken = default)
     {
         try
@@ -247,6 +248,11 @@ public class ProfileLauncherFacade(
             if (resolvedInstallation == null)
             {
                 return ProfileOperationResult<WorkspaceInfo>.CreateFailure("Resolved installation data is null");
+            }
+
+            if (installationCasPoolService != null)
+            {
+                await installationCasPoolService.EnsurePoolPathAsync([resolvedInstallation], cancellationToken);
             }
 
             // Update the profile with the resolved installation if it changed
@@ -355,7 +361,7 @@ public class ProfileLauncherFacade(
         }
     }
 
-/// <inheritdoc/>
+    /// <inheritdoc/>
     public async Task<ProfileOperationResult<bool>> DeleteProfileAsync(string profileId, CancellationToken cancellationToken = default)
     {
         try
@@ -738,14 +744,9 @@ public class ProfileLauncherFacade(
                 return ProfileOperationResult<GameLaunchInfo>.CreateFailure(resolvedInstallationResult.FirstError ?? "Could not resolve game installation for profile");
             }
 
-            var resolvedInstallation = resolvedInstallationResult.Data;
-            if (resolvedInstallation == null)
-            {
-                return ProfileOperationResult<GameLaunchInfo>.CreateFailure("Resolved installation data is null");
-            }
-
-            logger.LogDebug(
-                "[Launch] Installation resolved - ID: {InstallationId}, Path: {Path}",
+            var resolvedInstallation = resolvedInstallationResult.Data!;
+            logger.LogInformation(
+                "[Launch] Bound to game installation: {InstallationId} at {Path}",
                 resolvedInstallation.Id,
                 resolvedInstallation.InstallationPath);
 
@@ -798,6 +799,11 @@ public class ProfileLauncherFacade(
                 resolvedInstallation.InstallationPath,
                 casPoolPath,
                 workspacePath);
+
+            if (installationCasPoolService != null)
+            {
+                await installationCasPoolService.EnsurePoolPathAsync([resolvedInstallation], cancellationToken);
+            }
 
             notificationService.ShowInfo(
                 "Launching Profile",
@@ -1201,7 +1207,7 @@ public class ProfileLauncherFacade(
         return manifestSourcePaths;
     }
 
-/// <summary>
+    /// <summary>
     /// Checks if a version string is compatible with dependency requirements.
     /// </summary>
     /// <param name="version">The version to check.</param>

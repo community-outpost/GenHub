@@ -16,6 +16,7 @@ using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -643,6 +644,12 @@ public sealed class ReplayDirectoryService(
         }
 
         await installationService.CreateAndRegisterInstallationManifestsAsync(installation, ct);
+
+        var installationCasPoolService = sp.GetService<IInstallationCasPoolService>();
+        if (installationCasPoolService != null)
+        {
+            await installationCasPoolService.EnsurePoolPathAsync([installation], ct);
+        }
 
         return (installation, null);
     }

@@ -797,6 +797,19 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
                     gameType == GameType.ZeroHour ? "zerohour" : "generals",
                     normalizedVersion);
 
+                if (ManifestId.TryCreate(clientId, out var clientManifestId))
+                {
+                    var clientManifestCheck = await contentManifestPool.GetManifestAsync(clientManifestId, cancellationToken);
+                    if (clientManifestCheck == null || !clientManifestCheck.Success || clientManifestCheck.Data == null)
+                    {
+                        logger.LogWarning(
+                            "GameInstallation manifest {ManifestId} exists but corresponding GameClient manifest {ClientId} is missing from pool. Triggering full client detection.",
+                            matchingManifest.Id,
+                            clientId);
+                        return null;
+                    }
+                }
+
                 var defaultExe = gameType == GameType.ZeroHour ? GameClientConstants.ZeroHourExecutable : GameClientConstants.GeneralsExecutable;
                 var exePath = Path.Combine(gamePath, defaultExe);
 
@@ -894,6 +907,13 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
             logger.LogDebug(
                 "Manifest {Id} already exists in pool, skipping generation",
                 manifestId);
+            await EnsureGameClientManifestAsync(
+                installation,
+                gameType,
+                gamePath,
+                gameClient,
+                versionForManifest,
+                cancellationToken);
             return;
         }
 
@@ -920,7 +940,7 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
         var addResult = await contentManifestPool.AddManifestAsync(
             manifest, gamePath, null, cancellationToken);
 
-        if (addResult.Success)
+        if (addResult?.Success == true)
         {
             if (gameClient != null)
             {
@@ -940,6 +960,14 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
                 manifestId,
                 installation.Id,
                 gameType);
+
+            await EnsureGameClientManifestAsync(
+                installation,
+                gameType,
+                gamePath,
+                gameClient,
+                versionForManifest,
+                cancellationToken);
         }
         else
         {
@@ -947,7 +975,115 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
                 "Failed to pool {GameType} GameInstallation manifest for {InstallationId}: {Errors}",
                 gameType,
                 installation.Id,
-                string.Join(", ", addResult.Errors));
+                string.Join(", ", addResult?.Errors ?? []));
+        }
+    }
+
+    /// <summary>
+    /// Ensures that a GameClient manifest exists in the pool for the specified game installation.
+    /// </summary>
+    /// <param name="installation">The game installation.</param>
+    /// <param name="gameType">The type of game (Generals or ZeroHour).</param>
+    /// <param name="gamePath">The path to the game directory.</param>
+    /// <param name="gameClient">The detected game client, if available.</param>
+    /// <param name="versionForManifest">The manifest version string.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    private async Task EnsureGameClientManifestAsync(
+        GameInstallation installation,
+        GameType gameType,
+        string gamePath,
+        GameClient? gameClient,
+        string versionForManifest,
+        CancellationToken cancellationToken)
+    {
+        if (contentManifestPool is null || manifestGenerationService is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var installType = installation.InstallationType.ToIdentifierString();
+            var normalizedVersion = ParseVersionStringToInt(versionForManifest);
+            var contentName = gameType == GameType.ZeroHour ? "zerohour" : "generals";
+            var clientId = ManifestIdGenerator.GeneratePublisherContentId(
+                installType,
+                ContentType.GameClient,
+                contentName,
+                normalizedVersion);
+
+            if (!ManifestId.TryCreate(clientId, out var clientManifestId))
+            {
+                return;
+            }
+
+            var existing = await contentManifestPool.GetManifestAsync(clientManifestId, cancellationToken);
+            if (existing?.Success == true && existing.Data != null)
+            {
+                return;
+            }
+
+            var defaultExe = gameType == GameType.ZeroHour ? GameClientConstants.ZeroHourExecutable : GameClientConstants.GeneralsExecutable;
+            var exePath = gameClient?.ExecutablePath ?? Path.Combine(gamePath, defaultExe);
+            if (!File.Exists(exePath))
+            {
+                logger.LogWarning(
+                    "Cannot generate GameClient manifest {ClientId}: executable not found at {ExePath}",
+                    clientId,
+                    exePath);
+                return;
+            }
+
+            var (publisherName, website, supportUrl) = PublisherInfoConstants.GetPublisherInfo(installation.InstallationType);
+            var publisherInfo = new PublisherInfo
+            {
+                Name = publisherName,
+                Website = website,
+                SupportUrl = supportUrl,
+                PublisherType = PublisherTypeConstants.FromInstallationType(installation.InstallationType),
+            };
+
+            var clientName = gameClient?.Name ?? $"{installation.InstallationType} {gameType} {versionForManifest}";
+
+            var builder = await manifestGenerationService.CreateGameClientManifestAsync(
+                gamePath,
+                gameType,
+                clientName,
+                versionForManifest,
+                exePath,
+                publisherInfo);
+
+            var manifest = builder.Build();
+            manifest.ContentType = ContentType.GameClient;
+            manifest.Id = clientManifestId;
+
+            var dependencyName = gameType == GameType.ZeroHour
+                ? GameClientConstants.ZeroHourInstallationDependencyName
+                : GameClientConstants.GeneralsInstallationDependencyName;
+
+            manifest.Dependencies.Add(new ContentDependency
+            {
+                Id = ManifestId.Create(ManifestConstants.DefaultContentDependencyId),
+                Name = dependencyName,
+                DependencyType = ContentType.GameInstallation,
+                InstallBehavior = DependencyInstallBehavior.RequireExisting,
+                CompatibleGameTypes = [gameType],
+                IsOptional = false,
+            });
+
+            var addResult = await contentManifestPool.AddManifestAsync(manifest, gamePath, null, cancellationToken);
+            if (addResult?.Success == true)
+            {
+                logger.LogInformation("Generated and pooled GameClient manifest {Id} for {InstallationId}", clientManifestId, installation.Id);
+            }
+            else
+            {
+                logger.LogWarning("Failed to pool GameClient manifest {Id}: {Error}", clientManifestId, string.Join(", ", addResult?.Errors ?? []));
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Error ensuring GameClient manifest for {GameType} in {InstallationId}", gameType, installation.Id);
         }
     }
 
@@ -1341,13 +1477,21 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
             // Register the manifest to the pool
             var addResult = await contentManifestPool.AddManifestAsync(manifest, installationPath, null, cancellationToken);
 
-            if (addResult.Success)
+            if (addResult?.Success == true)
             {
                 logger.LogInformation(
                     "Registered GameInstallation manifest {ManifestId} for {GameType} in installation {InstallationId}",
                     manifest.Id,
                     gameType,
                     installation.Id);
+
+                await EnsureGameClientManifestAsync(
+                    installation,
+                    gameType,
+                    installationPath,
+                    baseGameClient,
+                    version,
+                    cancellationToken);
             }
             else
             {
@@ -1355,7 +1499,7 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
                     "Failed to register GameInstallation manifest for {GameType} in installation {InstallationId}: {Errors}",
                     gameType,
                     installation.Id,
-                    string.Join(", ", addResult.Errors));
+                    string.Join(", ", addResult?.Errors ?? []));
             }
         }
         catch (Exception ex)

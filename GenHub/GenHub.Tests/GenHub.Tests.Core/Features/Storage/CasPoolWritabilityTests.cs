@@ -83,6 +83,10 @@ public sealed class CasPoolWritabilityTests : IDisposable
     [InlineData(ContentType.Addon)]
     [InlineData(ContentType.Patch)]
     [InlineData(ContentType.Map)]
+    [InlineData(ContentType.MapPack)]
+    [InlineData(ContentType.LanguagePack)]
+    [InlineData(ContentType.Mission)]
+    [InlineData(ContentType.Skin)]
     [InlineData(ContentType.Mod)]
     public void ResolvePool_WhenInstallationPoolIsNotWritable_UsesPrimaryPool(ContentType contentType)
     {

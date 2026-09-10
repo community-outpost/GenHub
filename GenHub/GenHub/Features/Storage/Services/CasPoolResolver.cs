@@ -31,6 +31,10 @@ public class CasPoolResolver(
         ContentType.Addon,
         ContentType.Patch,
         ContentType.Map,
+        ContentType.MapPack,
+        ContentType.LanguagePack,
+        ContentType.Mission,
+        ContentType.Skin,
         ContentType.Mod,
     ];
 
