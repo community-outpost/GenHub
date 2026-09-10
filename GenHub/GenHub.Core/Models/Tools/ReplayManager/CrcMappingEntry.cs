@@ -1,3 +1,5 @@
+using GenHub.Core.Models.GameClients;
+
 namespace GenHub.Core.Models.Tools.ReplayManager;
 
 /// <summary>
@@ -69,4 +71,14 @@ public sealed record CrcMappingEntry
     /// Gets the direct CDN or patch download URL for the data patch BIG/INI if available.
     /// </summary>
     public string? DataPatchCdnUrl { get; init; }
+
+    /// <summary>
+    /// Gets the capability flags supported by this game client.
+    /// </summary>
+    public GameClientCapabilities Capabilities { get; init; } = GameClientCapabilities.None;
+
+    /// <summary>
+    /// Gets a value indicating whether this client supports replay checkpoint generation, replay resumption, and live player takeover.
+    /// </summary>
+    public bool SupportsCheckpoints => (Capabilities & GameClientCapabilities.CheckpointSaves) != 0;
 }

@@ -79,6 +79,13 @@ public sealed class ReplayHeaderParserTests
         Assert.Contains("PlayerOne", result.Data.Players);
         Assert.Contains("PlayerTwo", result.Data.Players);
         Assert.Contains("AI_Easy", result.Data.Players);
+
+        Assert.NotNull(result.Data.Slots);
+        Assert.Equal(3, result.Data.Slots.Count);
+        Assert.Equal("PlayerOne", result.Data.Slots[0].PlayerName);
+        Assert.True(result.Data.Slots[0].IsHuman);
+        Assert.Equal("AI_Easy", result.Data.Slots[2].PlayerName);
+        Assert.False(result.Data.Slots[2].IsHuman);
     }
 
     /// <summary>

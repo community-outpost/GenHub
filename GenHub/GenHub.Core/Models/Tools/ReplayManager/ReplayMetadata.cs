@@ -24,6 +24,11 @@ public sealed class ReplayMetadata
     public IReadOnlyList<string>? Players { get; init; }
 
     /// <summary>
+    /// Gets the structured player slot definitions parsed from the match setup string.
+    /// </summary>
+    public IReadOnlyList<ReplaySlotInfo>? Slots { get; init; }
+
+    /// <summary>
     /// Gets the game duration.
     /// </summary>
     public TimeSpan? Duration { get; init; }

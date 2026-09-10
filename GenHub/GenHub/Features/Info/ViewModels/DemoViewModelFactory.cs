@@ -228,8 +228,13 @@ public static class DemoViewModelFactory
             var mockNotify = notificationService ?? new MockNotificationService();
             var mockLogger = new MockLogger<ReplayManagerViewModel>();
 
+            var mockCheckpoint = new MockReplayCheckpointService();
+            var mockProfileManager = new MockGameProfileManager();
+
             var vm = new ReplayManagerViewModel(
                 mockDir,
+                mockCheckpoint,
+                mockProfileManager,
                 mockImport,
                 mockExport,
                 mockHistory,
@@ -246,6 +251,8 @@ public static class DemoViewModelFactory
             // Fail safe with minimal mocks
             return new ReplayManagerViewModel(
                 new MockReplayDirectoryService(),
+                new MockReplayCheckpointService(),
+                new MockGameProfileManager(),
                 new MockReplayImportService(),
                 new MockReplayExportService(),
                 new MockUploadHistoryService(),

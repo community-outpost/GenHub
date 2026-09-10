@@ -1,3 +1,4 @@
+using System;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Models.Enums;
@@ -75,6 +76,11 @@ public class GameClient
 
     /// <summary>Gets or sets additional command line arguments.</summary>
     public string CommandLineArgs { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the capability flags supported by this game client.
+    /// </summary>
+    public GameClientCapabilities Capabilities { get; set; } = GameClientCapabilities.None;
 
     /// <summary>Gets or sets a value indicating whether this version is enabled.</summary>
     public bool IsEnabled { get; set; } = true;

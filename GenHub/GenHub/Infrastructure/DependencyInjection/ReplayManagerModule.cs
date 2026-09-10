@@ -66,6 +66,7 @@ public static class ReplayManagerModule
 
         // Services
         services.AddSingleton<IReplayDirectoryService, ReplayDirectoryService>();
+        services.AddSingleton<IReplayCheckpointService, ReplayCheckpointService>();
         services.AddSingleton<IReplayImportService, ReplayImportService>();
         services.AddSingleton<IReplayExportService, ReplayExportService>();
         services.AddSingleton<IZipValidationService, ZipValidationService>();

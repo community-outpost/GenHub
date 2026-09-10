@@ -86,14 +86,19 @@ public sealed class ReplayDirectoryServiceTests
 
         _mockProfileManager
             .Setup(p => p.GetProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile
-            {
-                GameClient = new GameClient
+            .ReturnsAsync((string profileId, CancellationToken _) =>
+                ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile
                 {
-                    Id = "1.104.retail.gameclient.zerohour",
-                    GameType = GameType.ZeroHour,
-                },
-            }));
+                    Id = profileId,
+                    Name = $"Profile-{profileId}",
+                    GameClient = new GameClient
+                    {
+                        Id = "1.104.retail.gameclient.zerohour",
+                        GameType = GameType.ZeroHour,
+                        PublisherType = "retail",
+                    },
+                    EnabledContentIds = ["1.104.retail.gameclient.zerohour"],
+                }));
     }
 
     /// <summary>
@@ -163,7 +168,7 @@ public sealed class ReplayDirectoryServiceTests
 
         var result = await service.CreateProfileForReplayAsync(replay);
 
-        Assert.True(result.Success);
+        Assert.Null(result.FirstError);
         Assert.NotNull(result.Data);
         Assert.Equal("profile-zh-1", replay.MatchingProfileId);
         Assert.Equal(ReplayCompatibilityStatus.Compatible, replay.CompatibilityStatus);
