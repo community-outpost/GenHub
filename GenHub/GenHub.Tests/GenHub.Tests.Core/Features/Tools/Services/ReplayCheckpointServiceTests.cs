@@ -390,6 +390,7 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
                 ProcessId = 77777,
                 ProcessName = "generalszh",
                 StartTime = DateTime.UtcNow,
+                IsRunning = true,
             }));
 
         var result = await serviceWithShortTimeout.MintCheckpointAsync(replay, profile, 5000);
@@ -453,6 +454,7 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
                 ProcessId = 66666,
                 ProcessName = "generalszh",
                 StartTime = DateTime.UtcNow,
+                IsRunning = true,
             }));
 
         var result = await serviceWithShortTimeout.MintCheckpointAsync(replay, profile, targetFrame);
@@ -628,6 +630,7 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
                 ProcessId = 88881,
                 ProcessName = "generalszh",
                 StartTime = DateTime.UtcNow,
+                IsRunning = true,
             }));
 
         var result = await serviceWithShortTimeout.MintCheckpointAsync(replay, profile, 5000);

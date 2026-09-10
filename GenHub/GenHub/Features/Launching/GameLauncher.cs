@@ -1479,7 +1479,7 @@ public class GameLauncher(
         }
     }
 
-    private static OperationResult<bool> MergeAdditionalArguments(
+    private OperationResult<bool> MergeAdditionalArguments(
         IReadOnlyDictionary<string, string> additionalArguments,
         Dictionary<string, string> arguments)
     {

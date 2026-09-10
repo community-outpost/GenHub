@@ -77,6 +77,7 @@ public sealed partial class ReplayCheckpointService(
         {
             _activeMintSources.Add(linkedCts);
         }
+
         try
         {
             var launchResult = await LaunchMintingProcessAsync(replay, profile, targetFrame, saveFileName, linkedCts.Token);
