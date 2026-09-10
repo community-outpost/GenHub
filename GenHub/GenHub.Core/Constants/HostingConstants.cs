@@ -48,6 +48,12 @@ public static class HostingConstants
     public const string DefaultMirrorUrlPrefix = "https://";
 
     /// <summary>
+    /// URL to Google Auth Platform Overview / Branding page for setting up Project Configuration and consent screen.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official Google Auth Platform console URL")]
+    public const string GoogleAuthPlatformUrl = "https://console.cloud.google.com/auth/overview";
+
+    /// <summary>
     /// URL to Google Cloud Console Credentials page for creating OAuth 2.0 Client IDs.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official Google Cloud developer console URL")]
