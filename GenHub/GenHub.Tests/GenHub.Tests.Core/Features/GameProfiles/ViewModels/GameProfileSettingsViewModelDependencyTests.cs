@@ -747,4 +747,72 @@ public class GameProfileSettingsViewModelDependencyTests
         Assert.Null(_viewModel.SelectedGameInstallation);
         Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ContentType == ContentType.GameInstallation);
     }
+
+    /// <summary>
+    /// Verifies that disabling non-client/non-mod content like Addon or Map does not clear SelectedGameInstallation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DisableContent_WhenRemovingAddonOrMap_DoesNotAutoDisableSelectedGameInstallationAsync()
+    {
+        var zhInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("1.0.0.gameinstallation.steam-zh"),
+            DisplayName = "Zero Hour Steam",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+            IsEnabled = true,
+        };
+
+        var addonItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("1.0.0.addon.test"),
+            DisplayName = "Test Addon",
+            ContentType = ContentType.Addon,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+            IsEnabled = true,
+        };
+
+        _viewModel.AvailableGameInstallations = [zhInstall];
+        _viewModel.SelectedGameInstallation = zhInstall;
+        _viewModel.EnabledContent.Add(addonItem);
+
+        // Act - disable the addon
+        await _viewModel.DisableContentCommand.ExecuteAsync(addonItem);
+
+        // Assert - installation remains selected
+        Assert.NotNull(_viewModel.SelectedGameInstallation);
+        Assert.Equal(zhInstall.ManifestId.Value, _viewModel.SelectedGameInstallation.ManifestId.Value);
+    }
+
+    /// <summary>
+    /// Verifies that clearing EnabledContent resets SelectedGameInstallation via collection changed reset action.
+    /// </summary>
+    [Fact]
+    public void EnabledContent_WhenCleared_ResetsSelectedGameInstallation()
+    {
+        var zhInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("1.0.0.gameinstallation.steam-zh"),
+            DisplayName = "Zero Hour Steam",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+            IsEnabled = true,
+        };
+
+        _viewModel.AvailableGameInstallations = [zhInstall];
+        _viewModel.SelectedGameInstallation = zhInstall;
+
+        Assert.NotNull(_viewModel.SelectedGameInstallation);
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == zhInstall.ManifestId.Value);
+
+        // Act - clear EnabledContent raising NotifyCollectionChangedAction.Reset
+        _viewModel.EnabledContent.Clear();
+
+        // Assert - SelectedGameInstallation is cleared
+        Assert.Null(_viewModel.SelectedGameInstallation);
+    }
 }

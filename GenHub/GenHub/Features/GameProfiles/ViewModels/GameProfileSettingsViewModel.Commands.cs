@@ -234,7 +234,8 @@ public partial class GameProfileSettingsViewModel
                 SelectedGameInstallation = null;
                 _logger?.LogInformation("Cleared SelectedGameInstallation");
             }
-            else if (SelectedGameInstallation != null &&
+            else if ((itemToRemove.ContentType == ContentType.GameClient || itemToRemove.ContentType == ContentType.Mod) &&
+                     SelectedGameInstallation != null &&
                      !EnabledContent.Any(e => e.ContentType == ContentType.GameClient || e.ContentType == ContentType.Mod))
             {
                 SelectedGameInstallation = null;

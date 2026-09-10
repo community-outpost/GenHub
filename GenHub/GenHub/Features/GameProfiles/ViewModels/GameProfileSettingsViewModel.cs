@@ -534,6 +534,29 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                 _isSynchronizingEnabledContent = false;
             }
         }
+        else if (e.Action == NotifyCollectionChangedAction.Reset)
+        {
+            try
+            {
+                _isSynchronizingEnabledContent = true;
+                var currentInstallation = EnabledContent.FirstOrDefault(c => c.ContentType == ContentType.GameInstallation);
+                if (currentInstallation != null)
+                {
+                    if (SelectedGameInstallation?.ManifestId.Value != currentInstallation.ManifestId.Value)
+                    {
+                        SelectedGameInstallation = AvailableGameInstallations.FirstOrDefault(i => i.ManifestId.Value == currentInstallation.ManifestId.Value) ?? currentInstallation;
+                    }
+                }
+                else
+                {
+                    SelectedGameInstallation = null;
+                }
+            }
+            finally
+            {
+                _isSynchronizingEnabledContent = false;
+            }
+        }
         else if (e.Action == NotifyCollectionChangedAction.Remove && e.OldItems != null)
         {
             try
