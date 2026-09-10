@@ -63,9 +63,9 @@ public partial class ReplayManagerViewModel(
 {
     private readonly HashSet<string> _runningProfileIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _reloadLock = new(1, 1);
+    private readonly CheckpointCancellationScope _mintCancellation = new();
     private int _pendingReloadRequests;
     private bool _messengerRegistered;
-    private CancellationTokenSource? _mintCts;
 
     [ObservableProperty]
     private GameType selectedTab = GameType.ZeroHour;
@@ -395,8 +395,7 @@ public partial class ReplayManagerViewModel(
     {
         if (disposing)
         {
-            _mintCts?.Cancel();
-            _mintCts?.Dispose();
+            _mintCancellation.Dispose();
             WeakReferenceMessenger.Default.UnregisterAll(this);
             _reloadLock.Dispose();
         }
@@ -1356,7 +1355,7 @@ public partial class ReplayManagerViewModel(
     [RelayCommand]
     private void CloseCheckpointDrawer()
     {
-        _mintCts?.Cancel();
+        _mintCancellation.Cancel();
         IsCheckpointDrawerOpen = false;
         ActiveCheckpointReplay = null;
     }
@@ -1367,9 +1366,9 @@ public partial class ReplayManagerViewModel(
     [RelayCommand]
     private async Task CancelMintCheckpointAsync()
     {
-        if (IsMintingCheckpoint && _mintCts != null)
+        if (IsMintingCheckpoint)
         {
-            await _mintCts.CancelAsync();
+            await _mintCancellation.CancelAsync();
             StatusMessage = "Canceling checkpoint minting...";
         }
     }
@@ -1395,13 +1394,7 @@ public partial class ReplayManagerViewModel(
         IsMintingCheckpoint = true;
         StatusMessage = $"Minting checkpoint at frame {TargetCheckpointFrame}...";
 
-        if (_mintCts != null)
-        {
-            await _mintCts.CancelAsync();
-            _mintCts.Dispose();
-        }
-
-        _mintCts = new CancellationTokenSource();
+        var token = _mintCancellation.Reset();
 
         try
         {
@@ -1409,7 +1402,7 @@ public partial class ReplayManagerViewModel(
                 ActiveCheckpointReplay,
                 SelectedCompatibleProfile,
                 TargetCheckpointFrame,
-                _mintCts.Token);
+                token);
 
             if (result.Success && result.Data != null)
             {
@@ -1436,8 +1429,6 @@ public partial class ReplayManagerViewModel(
         finally
         {
             IsMintingCheckpoint = false;
-            _mintCts?.Dispose();
-            _mintCts = null;
         }
     }
 
@@ -1468,7 +1459,8 @@ public partial class ReplayManagerViewModel(
             var result = await checkpointService.ResumeReplayAsync(
                 ActiveCheckpointReplay,
                 SelectedCompatibleProfile,
-                SelectedCheckpoint);
+                SelectedCheckpoint,
+                CancellationToken.None);
 
             if (result.Success)
             {
@@ -1524,7 +1516,8 @@ public partial class ReplayManagerViewModel(
                 ActiveCheckpointReplay,
                 SelectedCompatibleProfile,
                 SelectedCheckpoint,
-                slotIndex);
+                slotIndex,
+                CancellationToken.None);
 
             if (result.Success)
             {
@@ -1567,7 +1560,7 @@ public partial class ReplayManagerViewModel(
 
         try
         {
-            var deleted = await checkpointService.DeleteCheckpointAsync(checkpoint);
+            var deleted = await checkpointService.DeleteCheckpointAsync(checkpoint, CancellationToken.None);
             if (deleted)
             {
                 AvailableCheckpoints.Remove(checkpoint);
@@ -1583,6 +1576,40 @@ public partial class ReplayManagerViewModel(
         {
             logger.LogError(ex, "Failed to delete checkpoint {File}", checkpoint.FileName);
             notificationService.ShowError("Delete Error", ex.Message);
+        }
+    }
+
+    private sealed class CheckpointCancellationScope : IDisposable
+    {
+        private CancellationTokenSource? _cts;
+
+        public CancellationToken Token => _cts?.Token ?? CancellationToken.None;
+
+        public CancellationToken Reset()
+        {
+            _cts?.Cancel();
+            _cts?.Dispose();
+            _cts = new CancellationTokenSource();
+            return _cts.Token;
+        }
+
+        public async Task CancelAsync()
+        {
+            if (_cts != null)
+            {
+                await _cts.CancelAsync();
+            }
+        }
+
+        public void Cancel()
+        {
+            _cts?.Cancel();
+        }
+
+        public void Dispose()
+        {
+            _cts?.Dispose();
+            _cts = null;
         }
     }
 }
