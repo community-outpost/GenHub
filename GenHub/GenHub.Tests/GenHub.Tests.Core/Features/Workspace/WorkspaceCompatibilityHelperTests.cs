@@ -187,6 +187,54 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that Core directory source does not crash, throw InvalidOperationException, or hang.
+    /// </summary>
+    [Fact]
+    public void EnsureDrmAndAssetCompatibility_WithCoreDirectorySource_DoesNotThrowAndMaterializesOrGracefullySkips()
+    {
+        // Arrange
+        var coreSource = Path.Combine(_gameInstallDir, GameClientConstants.CoreDirectory);
+        Directory.CreateDirectory(coreSource);
+        File.WriteAllText(Path.Combine(coreSource, "Activation.dll"), "mock dll");
+
+        var manifest = new ContentManifest
+        {
+            Id = "1.104.ea.gameinstallation.zerohour",
+            ContentType = ContentType.GameInstallation,
+            Files =
+            [
+                new ManifestFile
+                {
+                    RelativePath = "generals.exe",
+                    SourcePath = Path.Combine(_gameInstallDir, "generals.exe"),
+                    InstallTarget = ContentInstallTarget.Workspace,
+                },
+            ],
+        };
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+        };
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace",
+            BaseInstallationPath = _gameInstallDir,
+            Manifests = [manifest],
+        };
+
+        // Act & Assert - must not throw InvalidOperationException or hang
+        var act = () => WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(
+            workspaceInfo,
+            config,
+            NullLogger.Instance);
+
+        act.Should().NotThrow();
+    }
+
+    /// <summary>
     /// Verifies that ResolveSourcePath returns absolute SourcePath directly.
     /// </summary>
     [Fact]

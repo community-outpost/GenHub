@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -16,7 +17,7 @@ namespace GenHub.Features.Workspace.Strategies;
 public static class WorkspaceCompatibilityHelper
 {
     /// <summary>
-    /// Ensures DRM marker directory and compatibility assets (ZH_Generals base assets, d3d8 wrapper)
+    /// Ensures DRM marker directory and compatibility assets (ZH_Generals base assets, Core directory, d3d8 wrapper)
     /// exist so the game engine binary can run reliably without crashing.
     /// </summary>
     /// <param name="workspaceInfo">The workspace info.</param>
@@ -33,104 +34,16 @@ public static class WorkspaceCompatibilityHelper
         }
 
         // 1. Ensure __Installer exists in the parent directory of the workspace.
-        // Modern game.dat (EA 2024 update) checks for '..\__Installer' relative to the executing process;
-        // finding it skips Steam DRM checks. This shared marker at the workspace parent root is intentionally
-        // preserved across per-workspace lifecycles to allow sibling workspaces to bypass DRM.
-        try
-        {
-            var parentDir = Path.GetDirectoryName(workspaceInfo.WorkspacePath);
-            if (!string.IsNullOrEmpty(parentDir) && Directory.Exists(parentDir))
-            {
-                var installerDir = Path.Combine(parentDir, GameClientConstants.SteamDrmMarkerDirectory);
-                if (!Directory.Exists(installerDir))
-                {
-                    Directory.CreateDirectory(installerDir);
-                    logger.LogDebug("Ensured DRM marker directory at {InstallerDir}", installerDir);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to ensure DRM marker directory for workspace at {WorkspacePath}", workspaceInfo.WorkspacePath);
-        }
+        // The 2024 updated game executable inspects parent directories for the __Installer folder.
+        // When present, Steam DRM verification is bypassed.
+        EnsureDrmMarkerDirectory(workspaceInfo.WorkspacePath, logger);
 
-        // 2. Ensure ZH_Generals base assets are linked if present in the game installation.
-        var zhGeneralsTargetPath = Path.Combine(workspaceInfo.WorkspacePath, GameClientConstants.ZhGeneralsDirectory);
-        if (!Directory.Exists(zhGeneralsTargetPath) && !Path.Exists(zhGeneralsTargetPath))
-        {
-            var sourceDirWithZhGenerals = configuration.Manifests
-                .Where(m => m.ContentType is ContentType.GameClient or ContentType.GameInstallation)
-                .SelectMany(m => (m.Files ?? []).Select(f => Path.GetDirectoryName(ResolveSourcePath(f, m, configuration))))
-                .FirstOrDefault(d => !string.IsNullOrEmpty(d) && Directory.Exists(Path.Combine(d, GameClientConstants.ZhGeneralsDirectory)));
+        // 2. Ensure ZH_Generals base assets and Core runtime are linked if present in the game installation.
+        EnsureDirectoryLink(workspaceInfo.WorkspacePath, configuration, GameClientConstants.ZhGeneralsDirectory, logger);
+        EnsureDirectoryLink(workspaceInfo.WorkspacePath, configuration, GameClientConstants.CoreDirectory, logger);
 
-            if (!string.IsNullOrEmpty(sourceDirWithZhGenerals))
-            {
-                var zhGeneralsSource = Path.Combine(sourceDirWithZhGenerals, GameClientConstants.ZhGeneralsDirectory);
-                try
-                {
-                    Directory.CreateSymbolicLink(zhGeneralsTargetPath, zhGeneralsSource);
-                    logger.LogInformation("Linked ZH_Generals directory via symlink from {Source} to {Target}", zhGeneralsSource, zhGeneralsTargetPath);
-                }
-                catch (Exception symlinkEx)
-                {
-                    logger.LogDebug(symlinkEx, "Failed to create symbolic link for ZH_Generals directory at {Target}; attempting junction fallback", zhGeneralsTargetPath);
-                    if (OperatingSystem.IsWindows() && TryCreateDirectoryJunction(zhGeneralsTargetPath, zhGeneralsSource, logger))
-                    {
-                        logger.LogInformation("Linked ZH_Generals directory via junction from {Source} to {Target}", zhGeneralsSource, zhGeneralsTargetPath);
-                    }
-                    else
-                    {
-                        logger.LogWarning("Failed to create symbolic link or junction for ZH_Generals directory at {Target}; skipping materialization to avoid freezing UI with large directory copy", zhGeneralsTargetPath);
-                    }
-                }
-            }
-        }
-
-        // 3. Ensure d3d8.dll is present in workspace (Direct3D 8 wrapper required for modern Windows 10/11)
-        try
-        {
-            var d3d8TargetPath = Path.Combine(workspaceInfo.WorkspacePath, GameClientConstants.Direct3D8WrapperDll);
-            if (!File.Exists(d3d8TargetPath))
-            {
-                var d3d8Source = configuration.Manifests
-                    .Where(m => m.ContentType is ContentType.GameClient or ContentType.GameInstallation)
-                    .SelectMany(m => (m.Files ?? []).Select(f => Path.GetDirectoryName(ResolveSourcePath(f, m, configuration))))
-                    .Where(d => !string.IsNullOrEmpty(d))
-                    .Select(d => Path.Combine(d!, GameClientConstants.Direct3D8WrapperDll))
-                    .FirstOrDefault(File.Exists);
-
-                if (!string.IsNullOrEmpty(d3d8Source))
-                {
-                    try
-                    {
-                        File.CreateSymbolicLink(d3d8TargetPath, d3d8Source);
-                        logger.LogInformation("Linked {Dll} from {Source} to {Target}", GameClientConstants.Direct3D8WrapperDll, d3d8Source, d3d8TargetPath);
-                    }
-                    catch (Exception symlinkEx)
-                    {
-                        logger.LogWarning(symlinkEx, "Failed to create symlink for {Dll}, falling back to copy: {Target}", GameClientConstants.Direct3D8WrapperDll, d3d8TargetPath);
-                        if (File.Exists(d3d8TargetPath))
-                        {
-                            try
-                            {
-                                File.Delete(d3d8TargetPath);
-                            }
-                            catch
-                            {
-                                // Best effort delete
-                            }
-                        }
-
-                        File.Copy(d3d8Source, d3d8TargetPath, overwrite: true);
-                        logger.LogInformation("Copied {Dll} from {Source} to {Target}", GameClientConstants.Direct3D8WrapperDll, d3d8Source, d3d8TargetPath);
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to materialize {Dll} to workspace at {WorkspacePath}", GameClientConstants.Direct3D8WrapperDll, workspaceInfo.WorkspacePath);
-        }
+        // 3. Ensure d3d8.dll is present in workspace (Direct3D 8 wrapper required for modern Windows 10/11).
+        EnsureDirect3DWrapper(workspaceInfo.WorkspacePath, configuration, logger);
     }
 
     /// <summary>
@@ -177,6 +90,141 @@ public static class WorkspaceCompatibilityHelper
         return Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
     }
 
+    private static void EnsureDrmMarkerDirectory(string workspacePath, ILogger logger)
+    {
+        try
+        {
+            var parentDir = Path.GetDirectoryName(workspacePath);
+            if (!string.IsNullOrEmpty(parentDir) && Directory.Exists(parentDir))
+            {
+                var installerDir = Path.Combine(parentDir, GameClientConstants.SteamDrmMarkerDirectory);
+                if (!Directory.Exists(installerDir))
+                {
+                    Directory.CreateDirectory(installerDir);
+                    logger.LogDebug("Ensured DRM marker directory at {InstallerDir}", installerDir);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to ensure DRM marker directory for workspace at {WorkspacePath}", workspacePath);
+        }
+    }
+
+    private static void EnsureDirectoryLink(
+        string workspacePath,
+        WorkspaceConfiguration configuration,
+        string directoryName,
+        ILogger logger)
+    {
+        var targetPath = Path.Combine(workspacePath, directoryName);
+        if (Directory.Exists(targetPath))
+        {
+            return;
+        }
+
+        if (Path.Exists(targetPath) || File.Exists(targetPath))
+        {
+            try
+            {
+                Directory.Delete(targetPath);
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Failed to clean up dangling reparse point at {Target}", targetPath);
+            }
+        }
+
+        var sourceDir = configuration.Manifests
+            .Where(m => m.ContentType is ContentType.GameClient or ContentType.GameInstallation)
+            .SelectMany(m => (m.Files ?? []).Select(f => Path.GetDirectoryName(ResolveSourcePath(f, m, configuration))))
+            .FirstOrDefault(d => !string.IsNullOrEmpty(d) && Directory.Exists(Path.Combine(d, directoryName)));
+
+        if (string.IsNullOrEmpty(sourceDir))
+        {
+            return;
+        }
+
+        var sourcePath = Path.Combine(sourceDir, directoryName);
+        try
+        {
+            Directory.CreateSymbolicLink(targetPath, sourcePath);
+            logger.LogInformation("Linked {Directory} directory via symlink from {Source} to {Target}", directoryName, sourcePath, targetPath);
+        }
+        catch (Exception symlinkEx)
+        {
+            logger.LogDebug(symlinkEx, "Failed to create symbolic link for {Directory} directory at {Target}; attempting junction fallback", directoryName, targetPath);
+            if (TryCreateDirectoryJunction(targetPath, sourcePath, logger))
+            {
+                logger.LogInformation("Linked {Directory} directory via junction from {Source} to {Target}", directoryName, sourcePath, targetPath);
+            }
+            else
+            {
+                logger.LogWarning("Failed to create symbolic link or junction for {Directory} directory at {Target}; skipping materialization to avoid freezing UI with large directory copy", directoryName, targetPath);
+            }
+        }
+    }
+
+    private static void EnsureDirect3DWrapper(
+        string workspacePath,
+        WorkspaceConfiguration configuration,
+        ILogger logger)
+    {
+        try
+        {
+            var d3d8TargetPath = Path.Combine(workspacePath, GameClientConstants.Direct3D8WrapperDll);
+            if (File.Exists(d3d8TargetPath))
+            {
+                return;
+            }
+
+            var d3d8Source = configuration.Manifests
+                .Where(m => m.ContentType is ContentType.GameClient or ContentType.GameInstallation)
+                .SelectMany(m => (m.Files ?? []).Select(f => Path.GetDirectoryName(ResolveSourcePath(f, m, configuration))))
+                .Where(d => !string.IsNullOrEmpty(d))
+                .Select(d => Path.Combine(d!, GameClientConstants.Direct3D8WrapperDll))
+                .FirstOrDefault(File.Exists);
+
+            if (string.IsNullOrEmpty(d3d8Source))
+            {
+                return;
+            }
+
+            MaterializeDirect3DWrapperFile(d3d8Source, d3d8TargetPath, logger);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to materialize {Dll} to workspace at {WorkspacePath}", GameClientConstants.Direct3D8WrapperDll, workspacePath);
+        }
+    }
+
+    private static void MaterializeDirect3DWrapperFile(string sourcePath, string targetPath, ILogger logger)
+    {
+        try
+        {
+            File.CreateSymbolicLink(targetPath, sourcePath);
+            logger.LogInformation("Linked {Dll} from {Source} to {Target}", GameClientConstants.Direct3D8WrapperDll, sourcePath, targetPath);
+        }
+        catch (Exception symlinkEx)
+        {
+            logger.LogWarning(symlinkEx, "Failed to create symlink for {Dll}, falling back to copy: {Target}", GameClientConstants.Direct3D8WrapperDll, targetPath);
+            if (File.Exists(targetPath))
+            {
+                try
+                {
+                    File.Delete(targetPath);
+                }
+                catch
+                {
+                    // Best effort delete
+                }
+            }
+
+            File.Copy(sourcePath, targetPath, overwrite: true);
+            logger.LogInformation("Copied {Dll} from {Source} to {Target}", GameClientConstants.Direct3D8WrapperDll, sourcePath, targetPath);
+        }
+    }
+
     /// <summary>
     /// Attempts to create an NTFS directory junction targeting the source path without requiring admin elevation.
     /// </summary>
@@ -203,7 +251,7 @@ public static class WorkspaceCompatibilityHelper
             using var process = Process.Start(psi);
             if (process != null)
             {
-                if (!process.WaitForExit(5000))
+                if (!process.WaitForExit(ProcessConstants.HelperProcessTimeoutMs))
                 {
                     try
                     {
@@ -223,7 +271,7 @@ public static class WorkspaceCompatibilityHelper
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is Win32Exception or FileNotFoundException or InvalidOperationException)
         {
             logger?.LogWarning(ex, "Failed to create directory junction for {LinkPath} targeting {TargetPath}", linkPath, targetPath);
         }

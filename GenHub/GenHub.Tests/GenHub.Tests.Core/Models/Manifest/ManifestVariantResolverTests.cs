@@ -233,6 +233,23 @@ public class ManifestVariantResolverTests
         Assert.Contains("no launchable file", resolution.Reason);
     }
 
+    /// <summary>
+    /// Verifies that game.dat is resolved when marked as executable even without a declared entry point.
+    /// </summary>
+    [Fact]
+    public void ExecutableDatFile_ResolvesAsLaunchCandidate()
+    {
+        var manifest = new ContentManifest
+        {
+            Files = [File("game.dat", true)],
+        };
+
+        var resolution = ManifestVariantResolver.ResolveEntryPoint(manifest);
+
+        Assert.True(resolution.Success);
+        Assert.Equal("game.dat", resolution.RelativePath);
+    }
+
     private static ManifestFile File(string path, bool isExecutable = false) =>
         new() { RelativePath = path, IsExecutable = isExecutable };
 }

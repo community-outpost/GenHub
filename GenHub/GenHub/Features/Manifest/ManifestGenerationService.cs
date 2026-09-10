@@ -17,6 +17,7 @@ using GenHub.Features.Content.Services.ContentResolvers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -543,7 +544,8 @@ public class ManifestGenerationService(
             var contentName = gameType.ToString().ToLowerInvariant();
             var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, downloadService, configurationProvider)
                 .WithBasicInfo(publisher, contentName, clientVersion)
-                .WithContentType(ContentType.GameClient, gameType);
+                .WithContentType(ContentType.GameClient, gameType)
+                .WithEntryPoint(Path.GetFileName(executablePath));
 
             await AddClientFilesToManifest(builder, installationPath, gameType, executablePath, publisher.Name);
 
@@ -608,7 +610,8 @@ public class ManifestGenerationService(
                 .WithContentType(ContentType.GameClient, gameType)
                 .WithMetadata(
                     "GeneralsOnline community client with auto-updates and enhanced compatibility",
-                    tags: ["community", "enhanced", "multiplayer", "auto-update"]);
+                    tags: ["community", "enhanced", "multiplayer", "auto-update"])
+                .WithEntryPoint(Path.GetFileName(executablePath));
 
             // GeneralsOnline only supports Zero Hour, not vanilla Generals
             // Add dependency constraints to enforce this at manifest build time
@@ -833,7 +836,10 @@ public class ManifestGenerationService(
     /// Finds a file in the installation directory using case-insensitive path resolution.
     /// Rejects paths containing symbolic links or reparse points to prevent path traversal.
     /// </summary>
-    private static string? FindFileCaseInsensitive(string installationPath, string relativePath)
+    private static string? FindFileCaseInsensitive(
+        string installationPath,
+        string relativePath,
+        ConcurrentDictionary<string, bool>? reparseCache = null)
     {
         var exactPath = GetSafeExactPath(installationPath, relativePath);
         if (exactPath == null)
@@ -844,7 +850,7 @@ public class ManifestGenerationService(
         var fullInstallationPath = Path.GetFullPath(installationPath);
         if (File.Exists(exactPath))
         {
-            return HasReparsePointInPath(fullInstallationPath, exactPath) ? null : exactPath;
+            return HasReparsePointInPath(fullInstallationPath, exactPath, reparseCache) ? null : exactPath;
         }
 
         var segments = relativePath.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries);
@@ -884,7 +890,10 @@ public class ManifestGenerationService(
     /// <summary>
     /// Checks whether the target path or any intermediate directory beneath the base path is a reparse point or symlink.
     /// </summary>
-    private static bool HasReparsePointInPath(string basePath, string targetPath)
+    private static bool HasReparsePointInPath(
+        string basePath,
+        string targetPath,
+        ConcurrentDictionary<string, bool>? cache = null)
     {
         try
         {
@@ -893,9 +902,21 @@ public class ManifestGenerationService(
 
             while (!string.IsNullOrEmpty(currentPath) && !string.Equals(currentPath, normalizedBase, StringComparison.OrdinalIgnoreCase))
             {
-                if ((File.Exists(currentPath) || Directory.Exists(currentPath)) && IsReparsePoint(currentPath))
+                if (cache != null && cache.TryGetValue(currentPath, out var cachedIsReparse))
                 {
-                    return true;
+                    if (cachedIsReparse)
+                    {
+                        return true;
+                    }
+                }
+                else
+                {
+                    var isReparsePoint = (File.Exists(currentPath) || Directory.Exists(currentPath)) && IsReparsePoint(currentPath);
+                    cache?.TryAdd(currentPath, isReparsePoint);
+                    if (isReparsePoint)
+                    {
+                        return true;
+                    }
                 }
 
                 currentPath = Path.GetDirectoryName(currentPath);
@@ -978,6 +999,14 @@ public class ManifestGenerationService(
                string.Equals(computedHash, entry.Sha256, StringComparison.OrdinalIgnoreCase);
     }
 
+    private sealed record ProcessedAuthoritativeEntry(
+        AuthoritativeFileStatus Status,
+        CsvCatalogEntry Entry,
+        string? SourcePath,
+        long FileLength,
+        string? ComputedHash,
+        bool IsExecutable);
+
     /// <summary>
     /// Adds authoritative vanilla game files to a manifest builder using the CSV catalog authority.
     /// </summary>
@@ -1051,47 +1080,88 @@ public class ManifestGenerationService(
         var lastLogTimestamp = Stopwatch.GetTimestamp();
         var lastNotificationTimestamp = Stopwatch.GetTimestamp();
 
+        var processedEntries = new ProcessedAuthoritativeEntry[totalEntries];
+        var processedCount = 0;
+        var maxParallelism = Math.Clamp(Environment.ProcessorCount, 2, 8);
+        var parallelOptions = new ParallelOptions
+        {
+            MaxDegreeOfParallelism = maxParallelism,
+            CancellationToken = cancellationToken,
+        };
+
+        var reparseCache = new ConcurrentDictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        var progressLock = new object();
+
         try
         {
+            await Parallel.ForEachAsync(
+                Enumerable.Range(0, totalEntries),
+                parallelOptions,
+                async (i, ct) =>
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var entry = authoritativeEntries[i];
+                    var processed = await ProcessAuthoritativeEntryAsync(
+                        installationPath,
+                        entry,
+                        i + 1,
+                        totalEntries,
+                        progressNotificationId,
+                        reparseCache,
+                        ct);
+
+                    processedEntries[i] = processed;
+
+                    var completed = Interlocked.Increment(ref processedCount);
+
+                    lock (progressLock)
+                    {
+                        UpdateVerificationNotification(
+                            progressNotificationId,
+                            gameType,
+                            completed,
+                            totalEntries,
+                            entry.RelativePath,
+                            ref lastNotificationTimestamp);
+
+                        progress?.Report(new ValidationProgress(completed, totalEntries, entry.RelativePath));
+
+                        LogVerificationProgress(
+                            gameType,
+                            completed,
+                            totalEntries,
+                            entry.RelativePath,
+                            ref lastLogTimestamp);
+                    }
+                });
+
             for (var i = 0; i < totalEntries; i++)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var entry = authoritativeEntries[i];
-                var currentIndex = i + 1;
-
-                UpdateVerificationNotification(
-                    progressNotificationId,
-                    gameType,
-                    currentIndex,
-                    totalEntries,
-                    entry.RelativePath,
-                    ref lastNotificationTimestamp);
-
-                var result = await TryAddAuthoritativeEntryAsync(
-                    builder,
-                    installationPath,
-                    entry,
-                    currentIndex,
-                    totalEntries,
-                    progressNotificationId,
-                    cancellationToken);
+                var processed = processedEntries[i];
+                if (processed == null)
+                {
+                    continue;
+                }
 
                 RecordAuthoritativeStatus(
-                    result,
-                    entry,
+                    processed.Status,
+                    processed.Entry,
                     ref fileCount,
                     differingFiles,
                     missingRequiredFiles,
                     skippedRequiredFiles);
 
-                progress?.Report(new ValidationProgress(currentIndex, totalEntries, entry.RelativePath));
-
-                LogVerificationProgress(
-                    gameType,
-                    currentIndex,
-                    totalEntries,
-                    entry.RelativePath,
-                    ref lastLogTimestamp);
+                if (processed.Status is AuthoritativeFileStatus.AddedMatching or AuthoritativeFileStatus.AddedDiffering)
+                {
+                    await builder.AddGameInstallationFileAsync(
+                        processed.Entry.RelativePath,
+                        processed.SourcePath!,
+                        processed.IsExecutable,
+                        permissions: null,
+                        hash: processed.ComputedHash,
+                        size: processed.FileLength,
+                        isRequired: processed.Entry.IsRequired);
+                }
             }
         }
         finally
@@ -1395,25 +1465,25 @@ public class ManifestGenerationService(
         }
     }
 
-    private async Task<AuthoritativeFileStatus> TryAddAuthoritativeEntryAsync(
-        IContentManifestBuilder builder,
+    private async Task<ProcessedAuthoritativeEntry> ProcessAuthoritativeEntryAsync(
         string installationPath,
         CsvCatalogEntry entry,
         int currentIndex,
         int totalEntries,
         Guid? progressNotificationId,
+        ConcurrentDictionary<string, bool> reparseCache,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(entry.RelativePath))
         {
-            return AuthoritativeFileStatus.Skipped;
+            return new ProcessedAuthoritativeEntry(AuthoritativeFileStatus.Skipped, entry, null, 0, null, false);
         }
 
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var resolvedFilePath = FindFileCaseInsensitive(installationPath, entry.RelativePath);
+            var resolvedFilePath = FindFileCaseInsensitive(installationPath, entry.RelativePath, reparseCache);
             if (resolvedFilePath == null || !File.Exists(resolvedFilePath))
             {
                 if (entry.IsRequired)
@@ -1421,10 +1491,10 @@ public class ManifestGenerationService(
                     logger.LogWarning(
                         "Required vanilla file missing from installation: {RelativePath}",
                         entry.RelativePath);
-                    return AuthoritativeFileStatus.MissingRequired;
+                    return new ProcessedAuthoritativeEntry(AuthoritativeFileStatus.MissingRequired, entry, null, 0, null, false);
                 }
 
-                return AuthoritativeFileStatus.MissingOptional;
+                return new ProcessedAuthoritativeEntry(AuthoritativeFileStatus.MissingOptional, entry, null, 0, null, false);
             }
 
             var sourcePath = ResolveSourcePathWithBackup(resolvedFilePath, entry.RelativePath);
@@ -1434,7 +1504,7 @@ public class ManifestGenerationService(
                     "Source path {SourcePath} for {RelativePath} is a reparse point or symbolic link and will be skipped",
                     sourcePath,
                     entry.RelativePath);
-                return AuthoritativeFileStatus.Skipped;
+                return new ProcessedAuthoritativeEntry(AuthoritativeFileStatus.Skipped, entry, null, 0, null, false);
             }
 
             var fileInfo = new FileInfo(sourcePath);
@@ -1465,16 +1535,14 @@ public class ManifestGenerationService(
 
             var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(entry.RelativePath, sourcePath);
 
-            await builder.AddGameInstallationFileAsync(
-                entry.RelativePath,
+            var status = isAuthoritativeMatch ? AuthoritativeFileStatus.AddedMatching : AuthoritativeFileStatus.AddedDiffering;
+            return new ProcessedAuthoritativeEntry(
+                status,
+                entry,
                 sourcePath,
-                isExecutable,
-                permissions: null,
-                hash: computedHash,
-                size: fileInfo.Length,
-                isRequired: entry.IsRequired);
-
-            return isAuthoritativeMatch ? AuthoritativeFileStatus.AddedMatching : AuthoritativeFileStatus.AddedDiffering;
+                fileInfo.Length,
+                computedHash,
+                isExecutable);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -1486,7 +1554,7 @@ public class ManifestGenerationService(
                 ex,
                 "Failed to add authoritative vanilla file {RelativePath} to manifest",
                 entry.RelativePath);
-            return AuthoritativeFileStatus.Skipped;
+            return new ProcessedAuthoritativeEntry(AuthoritativeFileStatus.Skipped, entry, null, 0, null, false);
         }
     }
 

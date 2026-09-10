@@ -135,7 +135,8 @@ public static class ManifestVariantResolver
         var executable = files
             .Where(f =>
                 f.IsExecutable
-                && ExecutableFileClassifier.IsLegacyLaunchCandidateFromName(f.RelativePath))
+                && (ExecutableFileClassifier.IsLegacyLaunchCandidateFromName(f.RelativePath)
+                    || f.RelativePath.EndsWith(".dat", StringComparison.OrdinalIgnoreCase)))
             .ToList();
         if (executable.Count == 1)
         {

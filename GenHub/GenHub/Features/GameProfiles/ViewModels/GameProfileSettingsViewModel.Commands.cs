@@ -216,32 +216,8 @@ public partial class GameProfileSettingsViewModel
             itemToRemove.IsEnabled = false;
             EnabledContent.Remove(itemToRemove);
 
-            if (itemToRemove.ContentType == SelectedContentType && itemToRemove.GameType == GameTypeFilter)
-            {
-                var alreadyInAvailable = AvailableContent.FirstOrDefault(a => a.ManifestId.Value == itemToRemove.ManifestId.Value);
-                if (alreadyInAvailable == null)
-                {
-                    AvailableContent.Add(itemToRemove);
-                }
-                else
-                {
-                    alreadyInAvailable.IsEnabled = false;
-                }
-            }
-
-            if (itemToRemove.ContentType == ContentType.GameInstallation &&
-                SelectedGameInstallation?.ManifestId.Value == itemToRemove.ManifestId.Value)
-            {
-                SelectedGameInstallation = null;
-                _logger?.LogInformation("Cleared SelectedGameInstallation");
-            }
-            else if (itemToRemove.ContentType is ContentType.GameClient or ContentType.Mod &&
-                     SelectedGameInstallation != null &&
-                     !EnabledContent.Any(e => e.ContentType is ContentType.GameClient or ContentType.Mod))
-            {
-                SelectedGameInstallation = null;
-                _logger?.LogInformation("Auto-disabled SelectedGameInstallation as no GameClient or Mod remains enabled");
-            }
+            UpdateAvailableContentOnDisable(itemToRemove);
+            UpdateSelectedInstallationOnDisable(itemToRemove);
 
             StatusMessage = $"Disabled {itemToRemove.DisplayName}";
             _logger?.LogInformation("Disabled content {ContentName} from profile", itemToRemove.DisplayName);
@@ -253,6 +229,41 @@ public partial class GameProfileSettingsViewModel
         }
 
         await Task.CompletedTask;
+    }
+
+    private void UpdateAvailableContentOnDisable(ContentDisplayItem itemToRemove)
+    {
+        if (itemToRemove.ContentType != SelectedContentType || itemToRemove.GameType != GameTypeFilter)
+        {
+            return;
+        }
+
+        var alreadyInAvailable = AvailableContent.FirstOrDefault(a => a.ManifestId.Value == itemToRemove.ManifestId.Value);
+        if (alreadyInAvailable == null)
+        {
+            AvailableContent.Add(itemToRemove);
+        }
+        else
+        {
+            alreadyInAvailable.IsEnabled = false;
+        }
+    }
+
+    private void UpdateSelectedInstallationOnDisable(ContentDisplayItem itemToRemove)
+    {
+        if (itemToRemove.ContentType == ContentType.GameInstallation &&
+            SelectedGameInstallation?.ManifestId.Value == itemToRemove.ManifestId.Value)
+        {
+            SelectedGameInstallation = null;
+            _logger?.LogInformation("Cleared SelectedGameInstallation");
+        }
+        else if (itemToRemove.ContentType is ContentType.GameClient or ContentType.Mod &&
+                 SelectedGameInstallation != null &&
+                 !EnabledContent.Any(e => e.ContentType is ContentType.GameClient or ContentType.Mod))
+        {
+            SelectedGameInstallation = null;
+            _logger?.LogInformation("Auto-disabled SelectedGameInstallation as no GameClient or Mod remains enabled");
+        }
     }
 
     [RelayCommand]

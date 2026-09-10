@@ -70,6 +70,9 @@ public static class GameClientConstants
     /// <summary>Directory marker for Zero Hour's Generals installation link.</summary>
     public const string ZhGeneralsDirectory = "ZH_Generals";
 
+    /// <summary>Directory containing activation DLLs for modern Steam and EA App releases.</summary>
+    public const string CoreDirectory = "Core";
+
     /// <summary>Directory marker used by Steam DRM wrapper installations.</summary>
     public const string SteamDrmMarkerDirectory = "__Installer";
 
@@ -219,9 +222,7 @@ public static class GameClientConstants
 
     // ===== Configuration Files =====
 
-    /// <summary>
-    /// Configuration files used by game installations.
-    /// </summary>
+    /// <summary>Configuration files used by game installations.</summary>
     public static readonly string[] ConfigFiles =
     [
         "options.ini",     // Legacy game options

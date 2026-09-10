@@ -272,11 +272,20 @@ public class CsvGenerator(ILogger logger)
     [SuppressMessage("Security", "S4790:Make sure this weak hash algorithm is not used in a sensitive cryptographic context", Justification = "MD5 hash is required for legacy game file checksum comparison.")]
     private static async Task<(string Md5, string Sha256)> CalculateHashesAsync(string filePath, CancellationToken cancellationToken)
     {
-        await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, IoConstants.DefaultFileBufferSize, useAsync: true);
+        var options = new FileStreamOptions
+        {
+            Mode = FileMode.Open,
+            Access = FileAccess.Read,
+            Share = FileShare.Read,
+            BufferSize = IoConstants.FileHashBufferSize,
+            Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
+        };
+
+        await using var stream = new FileStream(filePath, options);
         using var md5 = MD5.Create();
         using var sha256 = SHA256.Create();
 
-        var buffer = new byte[IoConstants.DefaultFileBufferSize];
+        var buffer = new byte[IoConstants.FileHashBufferSize];
         var bytesRead = 0;
 
         while ((bytesRead = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)

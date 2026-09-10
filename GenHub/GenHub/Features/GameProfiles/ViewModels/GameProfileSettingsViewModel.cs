@@ -492,76 +492,70 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             return;
         }
 
-        if (e.Action == NotifyCollectionChangedAction.Add && e.NewItems != null)
+        try
         {
-            try
+            _isSynchronizingEnabledContent = true;
+            if (e.Action == NotifyCollectionChangedAction.Add && e.NewItems != null)
             {
-                _isSynchronizingEnabledContent = true;
-                foreach (ContentDisplayItem newItem in e.NewItems)
-                {
-                    var duplicates = EnabledContent
-                        .Where(x => x.ManifestId.Value == newItem.ManifestId.Value)
-                        .Skip(1)
-                        .ToList();
-
-                    foreach (var dup in duplicates)
-                    {
-                        EnabledContent.Remove(dup);
-                    }
-
-                    if (newItem.ContentType == ContentType.GameInstallation)
-                    {
-                        var otherInstallations = EnabledContent
-                            .Where(x => x.ContentType == ContentType.GameInstallation && x.ManifestId.Value != newItem.ManifestId.Value)
-                            .ToList();
-
-                        foreach (var other in otherInstallations)
-                        {
-                            other.IsEnabled = false;
-                            EnabledContent.Remove(other);
-                        }
-
-                        if (SelectedGameInstallation?.ManifestId.Value != newItem.ManifestId.Value)
-                        {
-                            SelectedGameInstallation = newItem;
-                        }
-                    }
-                }
+                HandleContentAdded(e.NewItems);
             }
-            finally
+            else if (e.Action == NotifyCollectionChangedAction.Reset)
             {
-                _isSynchronizingEnabledContent = false;
-            }
-        }
-        else if (e.Action == NotifyCollectionChangedAction.Reset)
-        {
-            try
-            {
-                _isSynchronizingEnabledContent = true;
                 SelectedGameInstallation = null;
             }
-            finally
+            else if (e.Action == NotifyCollectionChangedAction.Remove && e.OldItems != null)
             {
-                _isSynchronizingEnabledContent = false;
+                HandleContentRemoved(e.OldItems);
             }
         }
-        else if (e.Action == NotifyCollectionChangedAction.Remove && e.OldItems != null)
+        finally
         {
-            try
+            _isSynchronizingEnabledContent = false;
+        }
+    }
+
+    private void HandleContentAdded(System.Collections.IList newItems)
+    {
+        foreach (ContentDisplayItem newItem in newItems)
+        {
+            var duplicates = EnabledContent
+                .Where(x => x.ManifestId.Value == newItem.ManifestId.Value)
+                .Skip(1)
+                .ToList();
+
+            foreach (var dup in duplicates)
             {
-                _isSynchronizingEnabledContent = true;
-                foreach (ContentDisplayItem oldItem in e.OldItems)
+                EnabledContent.Remove(dup);
+            }
+
+            if (newItem.ContentType == ContentType.GameInstallation)
+            {
+                var otherInstallations = EnabledContent
+                    .Where(x => x.ContentType == ContentType.GameInstallation && x.ManifestId.Value != newItem.ManifestId.Value)
+                    .ToList();
+
+                foreach (var other in otherInstallations)
                 {
-                    if (oldItem.ContentType == ContentType.GameInstallation &&
-                        SelectedGameInstallation?.ManifestId.Value == oldItem.ManifestId.Value)
-                    {
-                        SelectedGameInstallation = null;
-                    }
+                    other.IsEnabled = false;
+                    EnabledContent.Remove(other);
+                }
+
+                if (SelectedGameInstallation?.ManifestId.Value != newItem.ManifestId.Value)
+                {
+                    SelectedGameInstallation = newItem;
                 }
             }
-            finally
+        }
+    }
+
+    private void HandleContentRemoved(System.Collections.IList oldItems)
+    {
+        foreach (ContentDisplayItem oldItem in oldItems)
+        {
+            if (oldItem.ContentType == ContentType.GameInstallation &&
+                SelectedGameInstallation?.ManifestId.Value == oldItem.ManifestId.Value)
             {
-                _isSynchronizingEnabledContent = false;
+                SelectedGameInstallation = null;
             }
         }
     }
@@ -573,47 +567,57 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     {
         if (value != null)
         {
-            value.IsEnabled = true;
-            foreach (var item in AvailableGameInstallations)
-            {
-                item.IsEnabled = item.ManifestId.Value == value.ManifestId.Value;
-            }
-
-            var existingInstallations = EnabledContent.Where(i => i.ContentType == ContentType.GameInstallation).ToList();
-            foreach (var existing in existingInstallations)
-            {
-                if (existing.ManifestId.Value != value.ManifestId.Value)
-                {
-                    existing.IsEnabled = false;
-                    EnabledContent.Remove(existing);
-                }
-            }
-
-            var isToolProfile = ToolProfileHelper.IsToolProfile(EnabledContent.Where(i => i.ContentType != ContentType.GameInstallation).Select(i => (i.ManifestId.Value, i.ContentType)));
-            if (!isToolProfile && !EnabledContent.Any(i => i.ManifestId.Value == value.ManifestId.Value))
-            {
-                EnabledContent.Add(value);
-            }
-
-            if (value.GameType != GameTypeFilter)
-            {
-                GameTypeFilter = value.GameType;
-                _logger?.LogInformation("Auto-synced GameTypeFilter to {GameType} based on SelectedGameInstallation", value.GameType);
-            }
+            SyncInstallationSelection(value);
         }
         else
         {
-            foreach (var item in AvailableGameInstallations)
-            {
-                item.IsEnabled = false;
-            }
+            ClearInstallationSelection();
+        }
+    }
 
-            var existingInstallations = EnabledContent.Where(i => i.ContentType == ContentType.GameInstallation).ToList();
-            foreach (var existing in existingInstallations)
+    private void SyncInstallationSelection(ContentDisplayItem value)
+    {
+        value.IsEnabled = true;
+        foreach (var item in AvailableGameInstallations)
+        {
+            item.IsEnabled = item.ManifestId.Value == value.ManifestId.Value;
+        }
+
+        var existingInstallations = EnabledContent.Where(i => i.ContentType == ContentType.GameInstallation).ToList();
+        foreach (var existing in existingInstallations)
+        {
+            if (existing.ManifestId.Value != value.ManifestId.Value)
             {
                 existing.IsEnabled = false;
                 EnabledContent.Remove(existing);
             }
+        }
+
+        var isToolProfile = ToolProfileHelper.IsToolProfile(EnabledContent.Where(i => i.ContentType != ContentType.GameInstallation).Select(i => (i.ManifestId.Value, i.ContentType)));
+        if (!isToolProfile && !EnabledContent.Any(i => i.ManifestId.Value == value.ManifestId.Value))
+        {
+            EnabledContent.Add(value);
+        }
+
+        if (value.GameType != GameTypeFilter)
+        {
+            GameTypeFilter = value.GameType;
+            _logger?.LogInformation("Auto-synced GameTypeFilter to {GameType} based on SelectedGameInstallation", value.GameType);
+        }
+    }
+
+    private void ClearInstallationSelection()
+    {
+        foreach (var item in AvailableGameInstallations)
+        {
+            item.IsEnabled = false;
+        }
+
+        var existingInstallations = EnabledContent.Where(i => i.ContentType == ContentType.GameInstallation).ToList();
+        foreach (var existing in existingInstallations)
+        {
+            existing.IsEnabled = false;
+            EnabledContent.Remove(existing);
         }
     }
 
@@ -787,7 +791,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             {
                 if (dependency.DependencyType == ContentType.GameInstallation)
                 {
-                    await ResolveGameInstallationDependencyAsync(contentItem, dependency, autoEnabledNames, warnedLockedNames, cancellationToken);
+                    ResolveGameInstallationDependency(contentItem, dependency, autoEnabledNames, warnedLockedNames);
                 }
                 else
                 {
@@ -839,12 +843,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         return null;
     }
 
-    private async Task ResolveGameInstallationDependencyAsync(
+    private void ResolveGameInstallationDependency(
         ContentDisplayItem contentItem,
         ContentDependency dependency,
         List<string> autoEnabledNames,
-        HashSet<string> warnedLockedNames,
-        CancellationToken cancellationToken = default)
+        HashSet<string> warnedLockedNames)
     {
         bool isSatisfied = false;
         var isDefaultDep = dependency.Id.ToString() == ManifestConstants.DefaultContentDependencyId;
