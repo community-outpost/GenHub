@@ -13,7 +13,7 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
 public partial class RenameCatalogDialogViewModel : ObservableValidator
 {
-    private readonly Action<string?> _onComplete;
+    private readonly Action<string> _onComplete;
 
     [ObservableProperty]
     [NotifyDataErrorInfo]
@@ -32,7 +32,7 @@ public partial class RenameCatalogDialogViewModel : ObservableValidator
     /// </summary>
     /// <param name="currentName">The current name of the catalog.</param>
     /// <param name="onComplete">Callback invoked with the new name or null if canceled.</param>
-    public RenameCatalogDialogViewModel(string currentName, Action<string?> onComplete)
+    public RenameCatalogDialogViewModel(string currentName, Action<string> onComplete)
     {
         _onComplete = onComplete ?? throw new ArgumentNullException(nameof(onComplete));
         _catalogName = currentName ?? string.Empty;
@@ -68,6 +68,6 @@ public partial class RenameCatalogDialogViewModel : ObservableValidator
     [RelayCommand]
     private void Cancel()
     {
-        _onComplete(null);
+        _onComplete(null!);
     }
 }

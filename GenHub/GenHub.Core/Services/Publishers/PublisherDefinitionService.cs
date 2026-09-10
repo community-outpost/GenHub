@@ -186,8 +186,16 @@ public class PublisherDefinitionService(
             }
 
             // Check if definition URL migrated
-            if (remoteDef.PreviousDefinitionUrls.Contains(subscription.DefinitionUrl))
+            if (remoteDef.PreviousDefinitionUrls.Contains(subscription.DefinitionUrl) &&
+                !string.IsNullOrWhiteSpace(remoteDef.DefinitionUrl))
             {
+                logger.LogInformation(
+                    "Publisher {PublisherId} definition URL migrated from {OldUrl} to {NewUrl}",
+                    subscription.PublisherId,
+                    subscription.DefinitionUrl,
+                    remoteDef.DefinitionUrl);
+
+                subscription.DefinitionUrl = remoteDef.DefinitionUrl;
                 hasUpdate = true;
             }
 

@@ -13,7 +13,9 @@ using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
+using GenHub.Core.Models.Publishers;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Services.Publishers;
 using GenHub.Features.Content.Services.Catalog;
 using Microsoft.Extensions.Logging;
 
@@ -197,6 +199,164 @@ public partial class SubscriptionConfirmationViewModel(
         }
     }
 
+    /// <summary>
+    /// Selects a category filter and updates the filtered items collection.
+    /// </summary>
+    /// <param name="categoryKey">The category key to filter by.</param>
+    [RelayCommand]
+    public void SelectCategory(string? categoryKey)
+    {
+        var key = string.IsNullOrWhiteSpace(categoryKey) ? DefaultCategoryKey : categoryKey;
+        SelectedCategoryKey = key;
+        BuildCategoryFilters(key);
+    }
+
+    /// <summary>
+    /// Opens the specified web URL or email link safely in the default system browser or handler.
+    /// </summary>
+    /// <param name="url">The URL or email address to open.</param>
+    [RelayCommand]
+    public void OpenUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return;
+        }
+
+        try
+        {
+            if (Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+                uri.Scheme == Uri.UriSchemeHttps)
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = uri.AbsoluteUri,
+                    UseShellExecute = true,
+                });
+            }
+            else if (url.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase))
+            {
+                var rawAddress = url["mailto:".Length..].Split('?')[0];
+                if (MailAddress.TryCreate(rawAddress, out var mailAddress))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = $"mailto:{mailAddress.Address}",
+                        UseShellExecute = true,
+                    });
+                }
+                else
+                {
+                    logger.LogWarning("Rejected invalid mailto address");
+                }
+            }
+            else if (MailAddress.TryCreate(url, out var mailAddress))
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = $"mailto:{mailAddress.Address}",
+                    UseShellExecute = true,
+                });
+            }
+            else
+            {
+                logger.LogWarning("Rejected opening unsafe or invalid URL: scheme must be HTTPS or valid email");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to open URL in browser");
+        }
+    }
+
+    /// <summary>
+    /// Dismisses the active error message banner.
+    /// </summary>
+    [RelayCommand]
+    public void DismissError()
+    {
+        ErrorMessage = null;
+    }
+
+    private static string FormatContentTypeLabel(ContentType contentType) => contentType switch
+    {
+        ContentType.Mod => "Mods",
+        ContentType.Map => "Maps",
+        ContentType.Mission => "Missions",
+        ContentType.ModdingTool => "Tools",
+        ContentType.Patch => "Patches",
+        ContentType.Addon => "Addons",
+        _ => contentType.ToString(),
+    };
+
+    [RelayCommand]
+    private async Task ConfirmAsync(CancellationToken cancellationToken = default)
+    {
+        if (_parsedCatalog == null) return;
+
+        try
+        {
+            ErrorMessage = null;
+            logger.LogInformation("Confirming subscription for {Publisher}", _parsedCatalog.Publisher.Id);
+
+            var existingResult = await subscriptionStore.GetSubscriptionAsync(_parsedCatalog.Publisher.Id, cancellationToken);
+            if (!existingResult.Success)
+            {
+                ErrorTitle = "Subscription Error";
+                ErrorMessage = string.Join(Environment.NewLine, existingResult.Errors);
+                return;
+            }
+
+            var existingSub = existingResult.Data;
+
+            var subscription = new PublisherSubscription
+            {
+                PublisherId = _parsedCatalog.Publisher.Id,
+                PublisherName = _parsedCatalog.Publisher.Name,
+                CatalogUrl = _resolvedCatalogUrl ?? catalogUrl,
+                DefinitionUrl = _resolvedDefinitionUrl ?? existingSub?.DefinitionUrl, // preserve definition URL if already set
+                Added = existingSub?.Added ?? DateTime.UtcNow,
+                TrustLevel = existingSub?.TrustLevel ?? TrustLevel.Untrusted, // community sources start untrusted
+                AvatarUrl = _parsedCatalog.Publisher.AvatarUrl,
+                AutoUpdate = existingSub?.AutoUpdate == true,
+                NotifyNewReleases = existingSub?.NotifyNewReleases ?? true,
+                CachedCatalogHash = existingSub?.CachedCatalogHash,
+                LastFetched = existingSub?.LastFetched,
+            };
+
+            var result = (IsAlreadySubscribed || existingSub != null)
+                ? await subscriptionStore.UpdateSubscriptionAsync(subscription, cancellationToken)
+                : await subscriptionStore.AddSubscriptionAsync(subscription, cancellationToken);
+
+            if (result.Success)
+            {
+                logger.LogInformation("Subscription saved successfully for publisher {PublisherId}", subscription.PublisherId);
+                RequestClose?.Invoke(true);
+            }
+            else
+            {
+                ErrorTitle = IsAlreadySubscribed ? "Failed to Update Subscription" : "Failed to Subscribe";
+                ErrorMessage = string.Join(Environment.NewLine, result.Errors);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error confirming subscription");
+            ErrorTitle = "Subscription Error";
+            ErrorMessage = $"Failed to save subscription: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void Cancel()
+    {
+        RequestClose?.Invoke(false);
+    }
+
     private async Task<(PublisherCatalog? Catalog, string? DefinitionUrl, string? CatalogUrl)> ResolveCatalogDataAsync(
         string response,
         CancellationToken cancellationToken)
@@ -370,153 +530,6 @@ public partial class SubscriptionConfirmationViewModel(
         logger.LogInformation("Successfully loaded catalog for {Publisher} with {Count} items (alreadySubscribed={IsAlreadySubscribed})", PublisherName, ContentCount, IsAlreadySubscribed);
     }
 
-    /// <summary>
-    /// Selects a category filter and updates the filtered items collection.
-    /// </summary>
-    /// <param name="categoryKey">The category key to filter by.</param>
-    [RelayCommand]
-    public void SelectCategory(string? categoryKey)
-    {
-        var key = string.IsNullOrWhiteSpace(categoryKey) ? DefaultCategoryKey : categoryKey;
-        SelectedCategoryKey = key;
-        BuildCategoryFilters(key);
-    }
-
-    /// <summary>
-    /// Opens the specified web URL or email link safely in the default system browser or handler.
-    /// </summary>
-    /// <param name="url">The URL or email address to open.</param>
-    [RelayCommand]
-    public void OpenUrl(string? url)
-    {
-        if (string.IsNullOrWhiteSpace(url))
-        {
-            return;
-        }
-
-        try
-        {
-            if (Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
-                uri.Scheme == Uri.UriSchemeHttps)
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = uri.AbsoluteUri,
-                    UseShellExecute = true,
-                });
-            }
-            else if (url.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase))
-            {
-                var rawAddress = url["mailto:".Length..].Split('?')[0];
-                if (MailAddress.TryCreate(rawAddress, out var mailAddress))
-                {
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = $"mailto:{mailAddress.Address}",
-                        UseShellExecute = true,
-                    });
-                }
-                else
-                {
-                    logger.LogWarning("Rejected invalid mailto address");
-                }
-            }
-            else if (MailAddress.TryCreate(url, out var mailAddress))
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = $"mailto:{mailAddress.Address}",
-                    UseShellExecute = true,
-                });
-            }
-            else
-            {
-                logger.LogWarning("Rejected opening unsafe or invalid URL: scheme must be HTTPS or valid email");
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to open URL in browser");
-        }
-    }
-
-    /// <summary>
-    /// Dismisses the active error message banner.
-    /// </summary>
-    [RelayCommand]
-    public void DismissError()
-    {
-        ErrorMessage = null;
-    }
-
-    [RelayCommand]
-    private async Task ConfirmAsync(CancellationToken cancellationToken = default)
-    {
-        if (_parsedCatalog == null) return;
-
-        try
-        {
-            ErrorMessage = null;
-            logger.LogInformation("Confirming subscription for {Publisher}", _parsedCatalog.Publisher.Id);
-
-            var existingResult = await subscriptionStore.GetSubscriptionAsync(_parsedCatalog.Publisher.Id, cancellationToken);
-            if (!existingResult.Success)
-            {
-                ErrorTitle = "Subscription Error";
-                ErrorMessage = string.Join(Environment.NewLine, existingResult.Errors);
-                return;
-            }
-
-            var existingSub = existingResult.Data;
-
-            var subscription = new PublisherSubscription
-            {
-                PublisherId = _parsedCatalog.Publisher.Id,
-                PublisherName = _parsedCatalog.Publisher.Name,
-                CatalogUrl = _resolvedCatalogUrl ?? catalogUrl,
-                DefinitionUrl = _resolvedDefinitionUrl ?? existingSub?.DefinitionUrl, // preserve definition URL if already set
-                Added = existingSub?.Added ?? DateTime.UtcNow,
-                TrustLevel = existingSub?.TrustLevel ?? TrustLevel.Untrusted, // community sources start untrusted
-                AvatarUrl = _parsedCatalog.Publisher.AvatarUrl,
-                AutoUpdate = existingSub?.AutoUpdate == true,
-                NotifyNewReleases = existingSub?.NotifyNewReleases ?? true,
-                CachedCatalogHash = existingSub?.CachedCatalogHash,
-                LastFetched = existingSub?.LastFetched,
-            };
-
-            var result = (IsAlreadySubscribed || existingSub != null)
-                ? await subscriptionStore.UpdateSubscriptionAsync(subscription, cancellationToken)
-                : await subscriptionStore.AddSubscriptionAsync(subscription, cancellationToken);
-
-            if (result.Success)
-            {
-                logger.LogInformation("Subscription saved successfully for publisher {PublisherId}", subscription.PublisherId);
-                RequestClose?.Invoke(true);
-            }
-            else
-            {
-                ErrorTitle = IsAlreadySubscribed ? "Failed to Update Subscription" : "Failed to Subscribe";
-                ErrorMessage = string.Join(Environment.NewLine, result.Errors);
-            }
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error confirming subscription");
-            ErrorTitle = "Subscription Error";
-            ErrorMessage = $"Failed to save subscription: {ex.Message}";
-        }
-    }
-
-    [RelayCommand]
-    private void Cancel()
-    {
-        RequestClose?.Invoke(false);
-    }
-
     private void BuildCategoryFilters(string activeKey)
     {
         if (_parsedCatalog?.Content == null || _parsedCatalog.Content.Count == 0)
@@ -562,15 +575,4 @@ public partial class SubscriptionConfirmationViewModel(
             FilteredContentItems = _parsedCatalog.Content.AsReadOnly();
         }
     }
-
-    private static string FormatContentTypeLabel(ContentType contentType) => contentType switch
-    {
-        ContentType.Mod => "Mods",
-        ContentType.Map => "Maps",
-        ContentType.Mission => "Missions",
-        ContentType.ModdingTool => "Tools",
-        ContentType.Patch => "Patches",
-        ContentType.Addon => "Addons",
-        _ => contentType.ToString(),
-    };
 }

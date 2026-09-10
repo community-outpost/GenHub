@@ -181,12 +181,13 @@ public class PublisherStudioDialogService(IDialogService? dialogService = null) 
     public async Task<string?> ShowRenameCatalogDialogAsync(string currentName)
     {
         return await ShowDialogAsync<RenameCatalogDialogViewModel, RenameCatalogDialogView, string>(
-            callback => new RenameCatalogDialogViewModel(currentName, callback!));
+            callback => new RenameCatalogDialogViewModel(currentName, callback));
     }
 
     /// <summary>
     /// Gets a list of known/static publishers for quick selection in referrals.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Known default publisher catalog URIs for discovery.")]
     private static List<PublisherReferralOption> GetKnownPublishers()
     {
         return

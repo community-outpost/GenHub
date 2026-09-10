@@ -61,7 +61,7 @@ public partial class ImportSubscriptionViewModel : ObservableObject
         targetUrl = CloudUrlHelper.NormalizeDirectDownloadUrl(targetUrl);
 
         if (!Uri.TryCreate(targetUrl, UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeFile))
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
             ErrorMessage = "Invalid URL format. Please provide a valid HTTP, HTTPS, or genhub:// link.";
             return;
@@ -79,7 +79,7 @@ public partial class ImportSubscriptionViewModel : ObservableObject
                 DataContext = confirmVm,
             };
 
-            RequestClose?.Invoke(true);
+            confirmDialog.Opened += (_, _) => RequestClose?.Invoke(true);
 
             if (parent != null)
             {

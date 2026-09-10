@@ -47,8 +47,13 @@ public partial class SubscriptionConfirmationDialog : Window
 
         if (DataContext is SubscriptionConfirmationViewModel vm)
         {
-            // set up a way to close the window from the view model
-            vm.RequestClose = (result) => Close(result);
+            // set up a way to close the window from the view model while preserving external handlers
+            var externalRequestClose = vm.RequestClose;
+            vm.RequestClose = (result) =>
+            {
+                Close(result);
+                externalRequestClose?.Invoke(result);
+            };
 
             // start initialization
             try

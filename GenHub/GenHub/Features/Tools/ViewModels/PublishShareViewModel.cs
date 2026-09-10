@@ -28,6 +28,7 @@ namespace GenHub.Features.Tools.ViewModels;
 /// 3. Upload to integrated hosting providers (GitHub, etc.)
 /// 4. Generate subscription links for users.
 /// </remarks>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI and CommunityToolkit ObservableProperty generated properties.")]
 public partial class PublishShareViewModel : ObservableObject
 {
     private readonly PublisherStudioProject _project;
@@ -166,6 +167,16 @@ public partial class PublishShareViewModel : ObservableObject
     public ObservableCollection<ArtifactUploadTask> UploadQueue { get; } = new();
 
     /// <summary>
+    /// Gets the content item count in the active catalog.
+    /// </summary>
+    public int ContentItemCount => ActiveCatalog?.Catalog.Content.Count ?? 0;
+
+    /// <summary>
+    /// Gets the total release count across all content items in the active catalog.
+    /// </summary>
+    public int TotalReleaseCount => ActiveCatalog?.Catalog.Content.Sum(c => c.Releases.Count) ?? 0;
+
+    /// <summary>
     /// Gets the available hosting providers.
     /// </summary>
     public ObservableCollection<IHostingProvider> HostingProviders { get; } = new();
@@ -227,6 +238,38 @@ public partial class PublishShareViewModel : ObservableObject
         _ = ValidateCatalogAsync();
     }
 
+    /// <summary>
+    /// Refreshes the three-tier upload hierarchy (1. Definition / 2. Catalogs / 3. Content items and releases).
+    /// </summary>
+    public void RefreshUploadHierarchy()
+    {
+        try
+        {
+            PopulateUploadHierarchyHeader();
+            UploadHierarchy.Catalogs.Clear();
+            foreach (var namedCat in _project.Catalogs)
+            {
+                UploadHierarchy.Catalogs.Add(BuildCatalogNode(namedCat));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to refresh upload hierarchy");
+        }
+    }
+
+    private static string BuildPublishSummary(string catalogUrl, string providerDefinitionUrl, string subscriptionUrl)
+    {
+        var sb = new System.Text.StringBuilder();
+        if (!string.IsNullOrEmpty(catalogUrl))
+            sb.AppendLine($"Catalog URL: {catalogUrl}");
+        if (!string.IsNullOrEmpty(providerDefinitionUrl))
+            sb.AppendLine($"Definition URL: {providerDefinitionUrl}");
+        if (!string.IsNullOrEmpty(subscriptionUrl))
+            sb.AppendLine($"Subscription URL: {subscriptionUrl}");
+        return sb.ToString();
+    }
+
     partial void OnActiveCatalogChanged(NamedCatalog? value)
     {
         if (value == null) return;
@@ -279,85 +322,22 @@ public partial class PublishShareViewModel : ObservableObject
 
         try
         {
-            if (SelectedHostingProvider is GoogleDriveHostingProvider gdrive)
+            var result = await ExecuteAuthenticationByProviderTypeAsync();
+            if (result == null)
             {
-                var envClientId = Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_ID");
-                var envClientSecret = Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_SECRET");
-                var hasCustom = !string.IsNullOrWhiteSpace(GoogleClientId) && !string.IsNullOrWhiteSpace(GoogleClientSecret);
-                var hasEnv = !string.IsNullOrWhiteSpace(envClientId) && !string.IsNullOrWhiteSpace(envClientSecret);
-
-                if (!hasCustom && !hasEnv)
-                {
-                    AuthenticationStatusMessage = "Google Drive requires client credentials. Enter your Client ID and Secret above, or configure GENHUB_GOOGLE_CLIENT_ID and GENHUB_GOOGLE_CLIENT_SECRET environment variables.";
-                    _notificationService?.ShowWarning(
-                        "Google Drive Credentials Needed",
-                        "Please provide your Google OAuth Client ID and Secret to connect to Google Drive.");
-                    return;
-                }
-
-                if (!string.IsNullOrWhiteSpace(GoogleClientId)) gdrive.CustomClientId = GoogleClientId.Trim();
-                if (!string.IsNullOrWhiteSpace(GoogleClientSecret)) gdrive.CustomClientSecret = GoogleClientSecret.Trim();
-            }
-
-            OperationResult<bool> result;
-
-            // Handle GitHub PAT authentication
-            if (SelectedHostingProvider.ProviderId == HostingConstants.GitHub && SelectedHostingProvider is GitHubHostingProvider githubProvider)
-            {
-                if (string.IsNullOrWhiteSpace(GitHubPersonalAccessToken))
-                {
-                    AuthenticationStatusMessage = "Please enter your GitHub Personal Access Token";
-                    return;
-                }
-
-                result = await githubProvider.AuthenticateWithTokenAsync(GitHubPersonalAccessToken);
-            }
-
-            // Handle Dropbox token authentication
-            else if (SelectedHostingProvider.ProviderId == HostingConstants.Dropbox && SelectedHostingProvider is DropboxHostingProvider dropboxProvider)
-            {
-                if (string.IsNullOrWhiteSpace(DropboxAccessToken))
-                {
-                    AuthenticationStatusMessage = "Please enter your Dropbox Access Token";
-                    return;
-                }
-
-                result = await dropboxProvider.AuthenticateWithTokenAsync(DropboxAccessToken);
-            }
-            else
-            {
-                result = await SelectedHostingProvider.AuthenticateAsync();
+                return;
             }
 
             if (result.Success)
             {
-                AuthenticationStatusMessage = "Authenticated successfully";
-                _logger.LogInformation("Authenticated with {Provider}", SelectedHostingProvider.DisplayName);
-
-                // Save token to hosting state for persistence
-                await SaveAuthTokenAsync();
-
-                _notificationService?.ShowSuccess(
-                    "Connected",
-                    $"Successfully connected to {SelectedHostingProvider.DisplayName}. You can now publish your catalog.",
-                    autoDismissMs: 4000);
+                await HandleAuthenticationSuccessAsync();
             }
             else
             {
-                AuthenticationStatusMessage = $"Authentication failed: {result.FirstError}";
-                _logger.LogWarning("Authentication failed for {Provider}: {Error}", SelectedHostingProvider.DisplayName, result.FirstError);
-
-                _notificationService?.ShowError(
-                    "Connection Failed",
-                    result.FirstError ?? "Failed to authenticate with the hosting provider.");
+                HandleAuthenticationFailure(result);
             }
 
-            // Notify computed properties
-            OnPropertyChanged(nameof(IsProviderAuthenticated));
-            OnPropertyChanged(nameof(NeedsAuthentication));
-            OnPropertyChanged(nameof(ShowGitHubPatInput));
-            OnPropertyChanged(nameof(ShowGoogleOAuthButton));
-            OnPropertyChanged(nameof(ShowDropboxTokenInput));
+            NotifyAuthenticationStateChanged();
         }
         catch (Exception ex)
         {
@@ -368,6 +348,86 @@ public partial class PublishShareViewModel : ObservableObject
         {
             IsAuthenticating = false;
         }
+    }
+
+    private async Task<OperationResult<bool>?> ExecuteAuthenticationByProviderTypeAsync()
+    {
+        if (SelectedHostingProvider is GoogleDriveHostingProvider gdrive)
+        {
+            var envClientId = Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_ID");
+            var envClientSecret = Environment.GetEnvironmentVariable("GENHUB_GOOGLE_CLIENT_SECRET");
+            var hasCustom = !string.IsNullOrWhiteSpace(GoogleClientId) && !string.IsNullOrWhiteSpace(GoogleClientSecret);
+            var hasEnv = !string.IsNullOrWhiteSpace(envClientId) && !string.IsNullOrWhiteSpace(envClientSecret);
+
+            if (!hasCustom && !hasEnv)
+            {
+                AuthenticationStatusMessage = "Google Drive requires client credentials. Enter your Client ID and Secret above, or configure GENHUB_GOOGLE_CLIENT_ID and GENHUB_GOOGLE_CLIENT_SECRET environment variables.";
+                _notificationService?.ShowWarning(
+                    "Google Drive Credentials Needed",
+                    "Please provide your Google OAuth Client ID and Secret to connect to Google Drive.");
+                return null;
+            }
+
+            if (!string.IsNullOrWhiteSpace(GoogleClientId)) gdrive.CustomClientId = GoogleClientId.Trim();
+            if (!string.IsNullOrWhiteSpace(GoogleClientSecret)) gdrive.CustomClientSecret = GoogleClientSecret.Trim();
+        }
+
+        if (SelectedHostingProvider?.ProviderId == HostingConstants.GitHub && SelectedHostingProvider is GitHubHostingProvider githubProvider)
+        {
+            if (string.IsNullOrWhiteSpace(GitHubPersonalAccessToken))
+            {
+                AuthenticationStatusMessage = "Please enter your GitHub Personal Access Token";
+                return null;
+            }
+
+            return await githubProvider.AuthenticateWithTokenAsync(GitHubPersonalAccessToken);
+        }
+
+        if (SelectedHostingProvider?.ProviderId == HostingConstants.Dropbox && SelectedHostingProvider is DropboxHostingProvider dropboxProvider)
+        {
+            if (string.IsNullOrWhiteSpace(DropboxAccessToken))
+            {
+                AuthenticationStatusMessage = "Please enter your Dropbox Access Token";
+                return null;
+            }
+
+            return await dropboxProvider.AuthenticateWithTokenAsync(DropboxAccessToken);
+        }
+
+        return await SelectedHostingProvider!.AuthenticateAsync();
+    }
+
+    private async Task HandleAuthenticationSuccessAsync()
+    {
+        AuthenticationStatusMessage = "Authenticated successfully";
+        _logger.LogInformation("Authenticated with {Provider}", SelectedHostingProvider!.DisplayName);
+
+        // Save token to hosting state for persistence
+        await SaveAuthTokenAsync();
+
+        _notificationService?.ShowSuccess(
+            "Connected",
+            $"Successfully connected to {SelectedHostingProvider.DisplayName}. You can now publish your catalog.",
+            autoDismissMs: 4000);
+    }
+
+    private void HandleAuthenticationFailure(OperationResult<bool> result)
+    {
+        AuthenticationStatusMessage = $"Authentication failed: {result.FirstError}";
+        _logger.LogWarning("Authentication failed for {Provider}: {Error}", SelectedHostingProvider!.DisplayName, result.FirstError);
+
+        _notificationService?.ShowError(
+            "Connection Failed",
+            result.FirstError ?? "Failed to authenticate with the hosting provider.");
+    }
+
+    private void NotifyAuthenticationStateChanged()
+    {
+        OnPropertyChanged(nameof(IsProviderAuthenticated));
+        OnPropertyChanged(nameof(NeedsAuthentication));
+        OnPropertyChanged(nameof(ShowGitHubPatInput));
+        OnPropertyChanged(nameof(ShowGoogleOAuthButton));
+        OnPropertyChanged(nameof(ShowDropboxTokenInput));
     }
 
     /// <summary>
@@ -472,117 +532,108 @@ public partial class PublishShareViewModel : ObservableObject
         }
     }
 
-    /// <summary>
-    /// Gets the content item count in the active catalog.
-    /// </summary>
-    public int ContentItemCount => ActiveCatalog?.Catalog.Content.Count ?? 0;
-
-    /// <summary>
-    /// Gets the total release count across all content items in the active catalog.
-    /// </summary>
-    public int TotalReleaseCount => ActiveCatalog?.Catalog.Content.Sum(c => c.Releases.Count) ?? 0;
-
-    /// <summary>
-    /// Refreshes the three-tier upload hierarchy (1. Definition / 2. Catalogs / 3. Content items and releases).
-    /// </summary>
-    public void RefreshUploadHierarchy()
+    private void PopulateUploadHierarchyHeader()
     {
-        try
+        UploadHierarchy.PublisherName = _project.Catalog.Publisher?.Name ?? "Publisher";
+        UploadHierarchy.PublisherId = _project.Catalog.Publisher?.Id ?? "publisher";
+        UploadHierarchy.AvatarUrl = _project.Catalog.Publisher?.AvatarUrl;
+        UploadHierarchy.Website = _project.Catalog.Publisher?.Website;
+        UploadHierarchy.DefinitionUrl = ProviderDefinitionUrl;
+        UploadHierarchy.SubscriptionUrl = SubscriptionUrl;
+        UploadHierarchy.IsUploaded = !string.IsNullOrWhiteSpace(ProviderDefinitionUrl);
+        UploadHierarchy.LastUpdated = _currentHostingState?.Definition?.LastUpdated;
+    }
+
+    private UploadArtifactNodeViewModel BuildArtifactNode(ReleaseArtifact art)
+    {
+        var artNode = new UploadArtifactNodeViewModel
         {
-            // Tier 1: Provider Definition
-            UploadHierarchy.PublisherName = _project.Catalog.Publisher?.Name ?? "Publisher";
-            UploadHierarchy.PublisherId = _project.Catalog.Publisher?.Id ?? "publisher";
-            UploadHierarchy.AvatarUrl = _project.Catalog.Publisher?.AvatarUrl;
-            UploadHierarchy.Website = _project.Catalog.Publisher?.Website;
-            UploadHierarchy.DefinitionUrl = ProviderDefinitionUrl;
-            UploadHierarchy.SubscriptionUrl = SubscriptionUrl;
-            UploadHierarchy.IsUploaded = !string.IsNullOrWhiteSpace(ProviderDefinitionUrl);
-            UploadHierarchy.LastUpdated = _currentHostingState?.Definition?.LastUpdated;
+            FileName = art.Filename,
+            DownloadUrl = art.DownloadUrl,
+            FileSizeFormatted = GenHub.Core.Helpers.FileSizeFormatter.Format(art.Size),
+            Sha256 = art.Sha256 ?? string.Empty,
+            IsHosted = !string.IsNullOrEmpty(art.DownloadUrl),
+        };
 
-            // Tier 2: Catalogs
-            UploadHierarchy.Catalogs.Clear();
-            foreach (var namedCat in _project.Catalogs)
+        var localArtifact = ArtifactStatuses.FirstOrDefault(a => a.ArtifactName == art.Filename);
+        if (localArtifact != null)
+        {
+            artNode.HasLocalFile = localArtifact.HasLocalFile;
+            artNode.LocalFilePath = localArtifact.LocalFilePath ?? string.Empty;
+        }
+
+        return artNode;
+    }
+
+    private UploadReleaseNodeViewModel BuildReleaseNode(ContentRelease rel)
+    {
+        var relNode = new UploadReleaseNodeViewModel
+        {
+            Version = rel.Version,
+            ReleaseDate = rel.ReleaseDate?.ToString("yyyy-MM-dd") ?? string.Empty,
+            ReleaseNotes = rel.Changelog ?? string.Empty,
+            IsLatest = rel.IsLatest,
+        };
+
+        if (rel.Artifacts != null)
+        {
+            foreach (var art in rel.Artifacts)
             {
-                var catNode = new UploadCatalogNodeViewModel
-                {
-                    Id = namedCat.Id,
-                    Name = namedCat.Name,
-                    Description = namedCat.Description ?? string.Empty,
-                };
-
-                var hostedInfo = _currentHostingState?.Catalogs?.FirstOrDefault(c => c.CatalogId == namedCat.Id);
-                if (hostedInfo != null)
-                {
-                    catNode.DirectDownloadUrl = hostedInfo.Url;
-                    catNode.IsPublished = true;
-                    catNode.LastUpdated = hostedInfo.LastUpdated;
-                }
-
-                // Tier 3: Content Items and Releases
-                if (namedCat.Catalog?.Content != null)
-                {
-                    foreach (var contentItem in namedCat.Catalog.Content)
-                    {
-                        var contentNode = new UploadContentNodeViewModel
-                        {
-                            Id = contentItem.Id,
-                            Name = contentItem.Name,
-                            ContentType = contentItem.ContentType.ToString(),
-                            TargetGame = contentItem.TargetGame.ToString(),
-                            Description = contentItem.Description ?? string.Empty,
-                        };
-
-                        if (contentItem.Releases != null)
-                        {
-                            foreach (var rel in contentItem.Releases)
-                            {
-                                var relNode = new UploadReleaseNodeViewModel
-                                {
-                                    Version = rel.Version,
-                                    ReleaseDate = rel.ReleaseDate?.ToString("yyyy-MM-dd") ?? string.Empty,
-                                    ReleaseNotes = rel.Changelog ?? string.Empty,
-                                    IsLatest = rel.IsLatest,
-                                };
-
-                                if (rel.Artifacts != null)
-                                {
-                                    foreach (var art in rel.Artifacts)
-                                    {
-                                        var artNode = new UploadArtifactNodeViewModel
-                                        {
-                                            FileName = art.Filename,
-                                            DownloadUrl = art.DownloadUrl,
-                                            FileSizeFormatted = GenHub.Core.Helpers.FileSizeFormatter.Format(art.Size),
-                                            Sha256 = art.Sha256 ?? string.Empty,
-                                            IsHosted = !string.IsNullOrEmpty(art.DownloadUrl),
-                                        };
-
-                                        var localArtifact = ArtifactStatuses.FirstOrDefault(a => a.ArtifactName == art.Filename);
-                                        if (localArtifact != null)
-                                        {
-                                            artNode.HasLocalFile = localArtifact.HasLocalFile;
-                                            artNode.LocalFilePath = localArtifact.LocalFilePath ?? string.Empty;
-                                        }
-
-                                        relNode.Artifacts.Add(artNode);
-                                    }
-                                }
-
-                                contentNode.Releases.Add(relNode);
-                            }
-                        }
-
-                        catNode.ContentItems.Add(contentNode);
-                    }
-                }
-
-                UploadHierarchy.Catalogs.Add(catNode);
+                relNode.Artifacts.Add(BuildArtifactNode(art));
             }
         }
-        catch (Exception ex)
+
+        return relNode;
+    }
+
+    private UploadContentNodeViewModel BuildContentNode(CatalogContentItem contentItem)
+    {
+        var contentNode = new UploadContentNodeViewModel
         {
-            _logger.LogWarning(ex, "Failed to refresh upload hierarchy");
+            Id = contentItem.Id,
+            Name = contentItem.Name,
+            ContentType = contentItem.ContentType.ToString(),
+            TargetGame = contentItem.TargetGame.ToString(),
+            Description = contentItem.Description ?? string.Empty,
+        };
+
+        if (contentItem.Releases != null)
+        {
+            foreach (var rel in contentItem.Releases)
+            {
+                contentNode.Releases.Add(BuildReleaseNode(rel));
+            }
         }
+
+        return contentNode;
+    }
+
+    private UploadCatalogNodeViewModel BuildCatalogNode(NamedCatalog namedCat)
+    {
+        var catNode = new UploadCatalogNodeViewModel
+        {
+            Id = namedCat.Id,
+            Name = namedCat.Name,
+            Description = namedCat.Description ?? string.Empty,
+        };
+
+        var hostedInfo = _currentHostingState?.Catalogs?.FirstOrDefault(c => c.CatalogId == namedCat.Id);
+        if (hostedInfo != null)
+        {
+            catNode.DirectDownloadUrl = hostedInfo.Url;
+            catNode.IsPublished = true;
+            catNode.LastUpdated = hostedInfo.LastUpdated;
+        }
+
+        if (namedCat.Catalog?.Content != null)
+        {
+            foreach (var contentItem in namedCat.Catalog.Content)
+            {
+                catNode.ContentItems.Add(BuildContentNode(contentItem));
+            }
+        }
+
+        return catNode;
     }
 
     /// <summary>
@@ -1348,18 +1399,6 @@ public partial class PublishShareViewModel : ObservableObject
         {
             _logger.LogError(ex, "Failed to copy catalog URL to clipboard");
         }
-    }
-
-    private string BuildPublishSummary(string catalogUrl, string providerDefinitionUrl, string subscriptionUrl)
-    {
-        var sb = new System.Text.StringBuilder();
-        if (!string.IsNullOrEmpty(catalogUrl))
-            sb.AppendLine($"Catalog URL: {catalogUrl}");
-        if (!string.IsNullOrEmpty(providerDefinitionUrl))
-            sb.AppendLine($"Definition URL: {providerDefinitionUrl}");
-        if (!string.IsNullOrEmpty(subscriptionUrl))
-            sb.AppendLine($"Subscription URL: {subscriptionUrl}");
-        return sb.ToString();
     }
 
     /// <summary>

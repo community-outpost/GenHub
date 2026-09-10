@@ -18,8 +18,8 @@
             <Setter Property="Padding" Value="12,10"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
-            <Setter Property="SelectionForegroundBrush" Value="White"/>
-            <Setter Property="CaretBrush" Value="White"/>
+            <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
         </Style>
         <Style Selector="TextBox:focus">
             <Setter Property="Background" Value="#18FFFFFF"/>
@@ -66,7 +66,7 @@
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,24">
             <TextBlock Text="{Binding DialogTitle}"
                        FontSize="22" FontWeight="Bold"
-                       Foreground="White"/>
+                       Foreground="{DynamicResource TextPrimary}"/>
             <Button Grid.Column="1"
                     Command="{Binding CloseCommand}"
                     Background="Transparent"
@@ -76,7 +76,7 @@
                     VerticalAlignment="Top">
                 <PathIcon Data="{StaticResource CloseIcon}"
                           Width="12" Height="12"
-                          Foreground="#888888"/>
+                          Foreground="{DynamicResource TextMuted}"/>
                 <Button.Styles>
                     <Style Selector="Button:pointerover /template/ ContentPresenter">
                         <Setter Property="Background" Value="#15FFFFFF"/>
@@ -92,7 +92,7 @@
         <ScrollViewer Grid.Row="1" Margin="0,0,0,24">
             <StackPanel Spacing="20">
                 <!-- Info -->
-                <TextBlock Text="{Binding ContentName}" FontWeight="Bold" Opacity="0.5" Foreground="White"/>
+                <TextBlock Text="{Binding ContentName}" FontWeight="Bold" Opacity="0.5" Foreground="{DynamicResource TextPrimary}"/>
 
                 <!-- Version -->
                 <StackPanel Spacing="8">
@@ -110,7 +110,7 @@
 
                 <!-- Date & Options -->
                 <Grid ColumnDefinitions="*,Auto,Auto,Auto">
-                    <DatePicker Grid.Column="0" SelectedDate="{Binding ReleaseDate}" Foreground="White" Background="#15FFFFFF" BorderBrush="#25FFFFFF" CornerRadius="6"/>
+                    <DatePicker Grid.Column="0" SelectedDate="{Binding ReleaseDate}" Foreground="{DynamicResource TextPrimary}" Background="#15FFFFFF" BorderBrush="#25FFFFFF" CornerRadius="6"/>
                     <CheckBox Grid.Column="1" Content="Latest" IsChecked="{Binding IsLatest}" Margin="8,0"/>
                     <CheckBox Grid.Column="2" Content="Pre-release" IsChecked="{Binding IsPrerelease}" Margin="8,0"/>
                     <CheckBox Grid.Column="3" Content="Featured" IsChecked="{Binding IsFeatured}" Margin="8,0"/>
@@ -136,8 +136,8 @@
                                 Command="{Binding AddArtifactCommand}"
                                 Classes="small-glass-btn">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="White"/>
-                                <TextBlock Text="Add Artifact" FontSize="11" Foreground="White"/>
+                                <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="{DynamicResource TextPrimary}"/>
+                                <TextBlock Text="Add Artifact" FontSize="11" Foreground="{DynamicResource TextPrimary}"/>
                             </StackPanel>
                         </Button>
                     </Grid>
@@ -147,7 +147,7 @@
                              <DataTemplate>
                                  <Grid ColumnDefinitions="*,Auto">
                                      <StackPanel>
-                                         <TextBlock Text="{Binding Filename}" FontWeight="SemiBold" Foreground="White"/>
+                                         <TextBlock Text="{Binding Filename}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                                          <TextBlock Text="{Binding Size}" FontSize="11" Foreground="#AAAAAA"/>
                                      </StackPanel>
                                      <Button Grid.Column="1"
@@ -173,8 +173,8 @@
                                 Command="{Binding AddDependencyCommand}"
                                 Classes="small-glass-btn">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="White"/>
-                                <TextBlock Text="Add Dependency" FontSize="11" Foreground="White"/>
+                                <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="{DynamicResource TextPrimary}"/>
+                                <TextBlock Text="Add Dependency" FontSize="11" Foreground="{DynamicResource TextPrimary}"/>
                             </StackPanel>
                         </Button>
                     </Grid>
@@ -184,7 +184,7 @@
                              <DataTemplate>
                                  <Grid ColumnDefinitions="*,Auto">
                                      <StackPanel>
-                                         <TextBlock Text="{Binding ContentId}" FontWeight="SemiBold" Foreground="White"/>
+                                         <TextBlock Text="{Binding ContentId}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                                          <TextBlock Text="{Binding VersionConstraint, StringFormat='v{0}'}" FontSize="11" Foreground="#AAAAAA"/>
                                      </StackPanel>
                                       <Button Grid.Column="1"
@@ -214,7 +214,7 @@
              <Button Content="{Binding SubmitButtonText}"
                      Command="{Binding CreateReleaseCommand}"
                      Background="{DynamicResource PrimaryGradientBrush}"
-                     Foreground="White"
+                     Foreground="{DynamicResource TextPrimary}"
                      CornerRadius="8"
                      Padding="40,14"
                      FontWeight="Bold"
