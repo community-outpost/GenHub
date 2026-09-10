@@ -301,37 +301,60 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         var slots = slotData.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         for (var i = 0; i < slots.Length; i++)
         {
-            var slot = slots[i];
-            var parts = slot.Split(',', StringSplitOptions.TrimEntries);
-            if (parts.Length == 0)
+            if (TryParseSlot(i, slots[i], isSlotDefinition, out var playerName, out var slotInfo))
             {
-                continue;
-            }
-
-            var rawMarkerAndName = parts[0];
-            var playerName = CleanPlayerName(rawMarkerAndName, isSlotDefinition);
-            if (!string.IsNullOrWhiteSpace(playerName))
-            {
-                if (players.All(p => !string.Equals(p, playerName, StringComparison.OrdinalIgnoreCase)))
+                if (playerName != null && !players.Contains(playerName, StringComparer.OrdinalIgnoreCase))
                 {
                     players.Add(playerName);
                 }
 
-                if (isSlotDefinition)
+                if (slotInfo != null)
                 {
-                    var isHuman = !rawMarkerAndName.StartsWith('C') && !rawMarkerAndName.StartsWith('c');
-                    int? factionIndex = parts.Length > 2 && int.TryParse(parts[2], out var f) ? f : null;
-                    int? colorIndex = parts.Length > 3 && int.TryParse(parts[3], out var c) ? c : null;
-
-                    structuredSlots.Add(new ReplaySlotInfo(
-                        i,
-                        playerName,
-                        isHuman,
-                        factionIndex,
-                        colorIndex));
+                    structuredSlots.Add(slotInfo);
                 }
             }
         }
+    }
+
+    private static bool TryParseSlot(
+        int slotIndex,
+        string slot,
+        bool isSlotDefinition,
+        out string? playerName,
+        out ReplaySlotInfo? slotInfo)
+    {
+        playerName = null;
+        slotInfo = null;
+
+        var parts = slot.Split(',', StringSplitOptions.TrimEntries);
+        if (parts.Length == 0)
+        {
+            return false;
+        }
+
+        var rawMarkerAndName = parts[0];
+        var cleaned = CleanPlayerName(rawMarkerAndName, isSlotDefinition);
+        if (string.IsNullOrWhiteSpace(cleaned))
+        {
+            return false;
+        }
+
+        playerName = cleaned;
+        if (isSlotDefinition)
+        {
+            var isHuman = !rawMarkerAndName.StartsWith('C') && !rawMarkerAndName.StartsWith('c');
+            int? factionIndex = parts.Length > 2 && int.TryParse(parts[2], out var f) ? f : null;
+            int? colorIndex = parts.Length > 3 && int.TryParse(parts[3], out var c) ? c : null;
+
+            slotInfo = new ReplaySlotInfo(
+                slotIndex,
+                playerName,
+                isHuman,
+                factionIndex,
+                colorIndex);
+        }
+
+        return true;
     }
 
     /// <summary>

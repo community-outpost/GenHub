@@ -50,6 +50,7 @@ namespace GenHub.Features.Tools.ReplayManager.ViewModels;
 /// <param name="notificationService">The notification service.</param>
 /// <param name="logger">The logger instance.</param>
 /// <param name="serviceProvider">Optional service provider for resolving dialog viewmodels dynamically.</param>
+[SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ReplayManagerViewModel coordinates replay listing, metadata parsing, profile compatibility, import/export, and checkpoint recovery services.")]
 public partial class ReplayManagerViewModel(
     IReplayDirectoryService directoryService,
     IReplayCheckpointService checkpointService,

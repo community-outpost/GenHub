@@ -26,9 +26,8 @@ public sealed partial class ReplayCheckpointService(
     IGameProcessManager processManager,
     ILogger<ReplayCheckpointService> logger) : IReplayCheckpointService
 {
-    private static readonly Regex CheckpointPattern = new(
-        @"^cp_(\d+)$",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+    [GeneratedRegex(@"^cp_(\d+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex CheckpointPattern();
 
     /// <inheritdoc/>
     public string GetSaveDirectory(GameType gameType)
@@ -38,44 +37,6 @@ public sealed partial class ReplayCheckpointService(
             ? GameSettingsConstants.FolderNames.ZeroHour
             : GameSettingsConstants.FolderNames.Generals;
         return Path.Combine(docs, dataFolder, ReplayManagerConstants.SaveFolderName);
-    }
-
-    /// <inheritdoc/>
-    public Task<IReadOnlyList<ReplayCheckpointInfo>> GetCheckpointsForReplayAsync(
-        ReplayFile replay,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(replay);
-        var saveDir = GetSaveDirectory(replay.GameVersion);
-        if (!Directory.Exists(saveDir))
-        {
-            return Task.FromResult<IReadOnlyList<ReplayCheckpointInfo>>(Array.Empty<ReplayCheckpointInfo>());
-        }
-
-        var dirInfo = new DirectoryInfo(saveDir);
-        var files = dirInfo.GetFiles($"*{ReplayManagerConstants.SaveFileExtension}");
-
-        var list = new List<ReplayCheckpointInfo>();
-        foreach (var file in files)
-        {
-            var nameWithoutExt = Path.GetFileNameWithoutExtension(file.Name);
-            var frame = ExtractFrameFromName(nameWithoutExt);
-            if (frame.HasValue)
-            {
-                list.Add(new ReplayCheckpointInfo
-                {
-                    FilePath = file.FullName,
-                    FileName = file.Name,
-                    TargetFrame = frame.Value,
-                    CreatedAt = file.LastWriteTimeUtc,
-                    FileSizeBytes = file.Length,
-                    AssociatedReplayFileName = replay.FileName,
-                });
-            }
-        }
-
-        var ordered = list.OrderBy(x => x.TargetFrame).ToList();
-        return Task.FromResult<IReadOnlyList<ReplayCheckpointInfo>>(ordered);
     }
 
     /// <inheritdoc/>
@@ -93,83 +54,81 @@ public sealed partial class ReplayCheckpointService(
             return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure("Target frame must be greater than zero.");
         }
 
-        var saveDir = GetSaveDirectory(replay.GameVersion);
-        Directory.CreateDirectory(saveDir);
+        var saveDirectory = GetSaveDirectory(replay.GameVersion);
+        Directory.CreateDirectory(saveDirectory);
 
         var saveFileName = $"cp_{targetFrame}.sav";
-        var saveFilePath = Path.Combine(saveDir, saveFileName);
+        var saveFilePath = Path.Combine(saveDirectory, saveFileName);
 
+        var quitFrame = targetFrame + 1;
         var additionalArgs = new Dictionary<string, string>
         {
             [ReplayManagerConstants.CliReplay] = replay.FileName,
             [ReplayManagerConstants.CliSaveAtFrame] = targetFrame.ToString(),
             [ReplayManagerConstants.CliSaveTo] = saveFileName,
-            [ReplayManagerConstants.CliQuitAtFrame] = (targetFrame + 1).ToString(),
-            ["-quickstart"] = string.Empty,
+            [ReplayManagerConstants.CliQuitAtFrame] = quitFrame.ToString(),
         };
 
         logger.LogInformation(
-            "[ReplayCheckpoint] Minting checkpoint at frame {Frame} for replay '{Replay}' using profile '{ProfileId}'",
+            "[ReplayCheckpoint] Minting checkpoint at frame {Frame} for replay '{Replay}' using profile '{Profile}'",
             targetFrame,
             replay.FileName,
-            profile.Id);
+            profile.Name);
 
         var launchResult = await launcherFacade.LaunchProfileAsync(
             profile.Id,
             skipUserDataCleanup: false,
-            additionalArguments: additionalArgs,
-            cancellationToken: cancellationToken);
+            cancellationToken: cancellationToken,
+            additionalArguments: additionalArgs);
 
-        if (!launchResult.Success || launchResult.Data == null)
+        if (!launchResult.Success || launchResult.Data?.ProcessInfo == null)
         {
-            return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure(
-                launchResult.FirstError ?? "Failed to launch game client to mint checkpoint.");
+            var error = launchResult.FirstError ?? "Failed to launch game client for checkpoint minting.";
+            logger.LogError("[ReplayCheckpoint] Mint launch failed: {Error}", error);
+            return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure(error);
         }
 
-        var launchInfo = launchResult.Data;
-        var pid = launchInfo.ProcessInfo.ProcessId;
+        var processId = launchResult.Data.ProcessInfo.ProcessId;
+        logger.LogInformation("[ReplayCheckpoint] Monitoring game process PID {Pid} until exit...", processId);
 
-        // Wait for process to exit cleanly after reaching quitatframe
-        if (pid > 0)
+        try
         {
-            var waitStart = DateTime.UtcNow;
-            var maxWait = TimeSpan.FromMinutes(2);
-            while (DateTime.UtcNow - waitStart < maxWait)
+            while (!cancellationToken.IsCancellationRequested)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var procInfo = await processManager.GetProcessInfoAsync(pid, cancellationToken);
-                if (!procInfo.Success || procInfo.Data == null)
+                var processInfo = await processManager.GetProcessInfoAsync(processId, cancellationToken);
+                if (!processInfo.Success || processInfo.Data == null)
                 {
+                    logger.LogInformation("[ReplayCheckpoint] Process {Pid} has exited.", processId);
                     break;
                 }
 
                 await Task.Delay(500, cancellationToken);
             }
         }
-
-        // Check if the save file was generated
-        if (!File.Exists(saveFilePath))
+        catch (OperationCanceledException)
         {
-            await Task.Delay(1000, cancellationToken);
+            logger.LogWarning("[ReplayCheckpoint] Checkpoint minting wait canceled.");
+            return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure("Checkpoint minting canceled by user.");
         }
 
         if (!File.Exists(saveFilePath))
         {
-            return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure(
-                $"Game client exited but checkpoint save '{saveFileName}' was not found in '{saveDir}'.");
+            logger.LogError("[ReplayCheckpoint] Save file '{Path}' was not created by the game client.", saveFilePath);
+            return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure($"Save file '{saveFileName}' was not created by the game client.");
         }
 
-        var fi = new FileInfo(saveFilePath);
+        var fileInfo = new FileInfo(saveFilePath);
         var checkpoint = new ReplayCheckpointInfo
         {
-            FilePath = fi.FullName,
-            FileName = fi.Name,
+            FilePath = saveFilePath,
+            FileName = saveFileName,
             TargetFrame = targetFrame,
-            CreatedAt = fi.LastWriteTimeUtc,
-            FileSizeBytes = fi.Length,
+            CreatedAt = fileInfo.CreationTimeUtc,
+            FileSizeBytes = fileInfo.Length,
             AssociatedReplayFileName = replay.FileName,
         };
 
+        logger.LogInformation("[ReplayCheckpoint] Successfully minted checkpoint {FileName} ({Size} bytes)", saveFileName, fileInfo.Length);
         return ProfileOperationResult<ReplayCheckpointInfo>.CreateSuccess(checkpoint);
     }
 
@@ -191,16 +150,19 @@ public sealed partial class ReplayCheckpointService(
         };
 
         logger.LogInformation(
-            "[ReplayCheckpoint] Resuming replay '{Replay}' from checkpoint '{Save}' using profile '{ProfileId}'",
+            "[ReplayCheckpoint] Resuming replay '{Replay}' from checkpoint '{Checkpoint}' (Frame {Frame}) using profile '{Profile}'",
             replay.FileName,
             checkpoint.FileName,
-            profile.Id);
+            checkpoint.TargetFrame,
+            profile.Name);
 
-        return await launcherFacade.LaunchProfileAsync(
+        var result = await launcherFacade.LaunchProfileAsync(
             profile.Id,
             skipUserDataCleanup: false,
-            additionalArguments: additionalArgs,
-            cancellationToken: cancellationToken);
+            cancellationToken: cancellationToken,
+            additionalArguments: additionalArgs);
+
+        return result;
     }
 
     /// <inheritdoc/>
@@ -222,17 +184,65 @@ public sealed partial class ReplayCheckpointService(
         };
 
         logger.LogInformation(
-            "[ReplayCheckpoint] Taking over replay '{Replay}' from checkpoint '{Save}' as slot {Slot} using profile '{ProfileId}'",
-            replay.FileName,
+            "[ReplayCheckpoint] Taking over match from checkpoint '{Checkpoint}' as slot {Slot} using profile '{Profile}'",
             checkpoint.FileName,
             slotIndex,
-            profile.Id);
+            profile.Name);
 
-        return await launcherFacade.LaunchProfileAsync(
+        var result = await launcherFacade.LaunchProfileAsync(
             profile.Id,
             skipUserDataCleanup: false,
-            additionalArguments: additionalArgs,
-            cancellationToken: cancellationToken);
+            cancellationToken: cancellationToken,
+            additionalArguments: additionalArgs);
+
+        return result;
+    }
+
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<ReplayCheckpointInfo>> GetCheckpointsForReplayAsync(
+        ReplayFile replay,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(replay);
+
+        var saveDirectory = GetSaveDirectory(replay.GameVersion);
+        if (!Directory.Exists(saveDirectory))
+        {
+            return Task.FromResult<IReadOnlyList<ReplayCheckpointInfo>>([]);
+        }
+
+        try
+        {
+            var files = Directory.GetFiles(saveDirectory, "*.sav");
+            var list = new List<ReplayCheckpointInfo>();
+
+            foreach (var file in files)
+            {
+                var fileName = Path.GetFileName(file);
+                var frame = ExtractFrameFromName(Path.GetFileNameWithoutExtension(fileName));
+                if (frame.HasValue)
+                {
+                    var fileInfo = new FileInfo(file);
+                    list.Add(new ReplayCheckpointInfo
+                    {
+                        FilePath = file,
+                        FileName = fileName,
+                        TargetFrame = frame.Value,
+                        CreatedAt = fileInfo.CreationTimeUtc,
+                        FileSizeBytes = fileInfo.Length,
+                        AssociatedReplayFileName = replay.FileName,
+                    });
+                }
+            }
+
+            var ordered = list.OrderBy(c => c.TargetFrame).ToList();
+            return Task.FromResult<IReadOnlyList<ReplayCheckpointInfo>>(ordered);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[ReplayCheckpoint] Failed to enumerate checkpoints in '{Directory}'", saveDirectory);
+            return Task.FromResult<IReadOnlyList<ReplayCheckpointInfo>>([]);
+        }
     }
 
     /// <inheritdoc/>
@@ -241,11 +251,13 @@ public sealed partial class ReplayCheckpointService(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(checkpoint);
+
         try
         {
             if (File.Exists(checkpoint.FilePath))
             {
                 File.Delete(checkpoint.FilePath);
+                logger.LogInformation("[ReplayCheckpoint] Deleted checkpoint file '{Path}'", checkpoint.FilePath);
                 return Task.FromResult(true);
             }
         }
@@ -259,7 +271,7 @@ public sealed partial class ReplayCheckpointService(
 
     private static int? ExtractFrameFromName(string name)
     {
-        var match = CheckpointPattern.Match(name);
+        var match = CheckpointPattern().Match(name);
         if (match.Success && int.TryParse(match.Groups[1].Value, out var frame))
         {
             return frame;
