@@ -1,3 +1,4 @@
+using GenHub.Core.Interfaces.Common;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -29,6 +30,7 @@ public class GoogleDriveHostingProvider : IHostingProvider
     private static readonly string[] Scopes = [DriveService.Scope.DriveFile];
 
     private readonly ILogger<GoogleDriveHostingProvider> _logger;
+    private readonly IConfigurationProviderService? _configurationProvider;
     private DriveService? _driveService;
 
     /// <summary>
@@ -77,9 +79,13 @@ public class GoogleDriveHostingProvider : IHostingProvider
     /// Initializes a new instance of the <see cref="GoogleDriveHostingProvider"/> class.
     /// </summary>
     /// <param name="logger">The logger instance.</param>
-    public GoogleDriveHostingProvider(ILogger<GoogleDriveHostingProvider> logger)
+    /// <param name="configurationProvider">Optional configuration provider service for application data path resolution.</param>
+    public GoogleDriveHostingProvider(
+        ILogger<GoogleDriveHostingProvider> logger,
+        IConfigurationProviderService? configurationProvider = null)
     {
         _logger = logger;
+        _configurationProvider = configurationProvider;
     }
 
     /// <summary>
@@ -123,10 +129,9 @@ public class GoogleDriveHostingProvider : IHostingProvider
             };
 
             // Store credentials in the GenHub app data directory
-            var credPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "GenHub",
-                "google-drive-tokens");
+            var baseDataPath = _configurationProvider?.GetApplicationDataPath()
+                ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".genhub");
+            var credPath = Path.Combine(baseDataPath, "google-drive-tokens");
 
             var dataStore = new FileDataStore(credPath, true);
 
