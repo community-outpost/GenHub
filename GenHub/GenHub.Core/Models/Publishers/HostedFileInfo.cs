@@ -18,6 +18,11 @@ public class HostedFileInfo
     public string Url { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets or sets the file size in bytes.
+    /// </summary>
+    public long FileSize { get; set; }
+
+    /// <summary>
     /// Gets or sets when this file was last updated.
     /// </summary>
     public DateTime LastUpdated { get; set; }

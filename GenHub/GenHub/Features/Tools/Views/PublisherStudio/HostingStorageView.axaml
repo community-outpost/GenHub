@@ -1,0 +1,572 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels"
+             mc:Ignorable="d"
+             d:DesignWidth="960" d:DesignHeight="1300"
+             x:Class="GenHub.Features.Tools.Views.PublisherStudio.HostingStorageView"
+             x:DataType="vm:PublishShareViewModel"
+             x:Name="RootView">
+
+    <UserControl.Resources>
+        <StreamGeometry x:Key="CloudStorageIcon">M19.35,10.04C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.04C2.34,8.36 0,10.91 0,14C0,17.31 2.69,20 6,20H19C21.76,20 24,17.76 24,15C24,12.36 21.95,10.22 19.35,10.04Z</StreamGeometry>
+        <StreamGeometry x:Key="ServerDriveIcon">M4,1H20A1,1 0 0,1 21,2V6A1,1 0 0,1 20,7H4A1,1 0 0,1 3,6V2A1,1 0 0,1 4,1M4,9H20A1,1 0 0,1 21,10V14A1,1 0 0,1 20,15H4A1,1 0 0,1 3,14V10A1,1 0 0,1 4,9M4,17H20A1,1 0 0,1 21,18V22A1,1 0 0,1 20,23H4A1,1 0 0,1 3,22V18A1,1 0 0,1 4,17M9,5H10V3H9V5M9,13H10V11H9V13M9,21H10V19H9V21M5,3V5H7V3H5M5,11V13H7V11H5M5,19V21H7V19H5Z</StreamGeometry>
+        <StreamGeometry x:Key="FolderCloudIcon">M19.35,10.04C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.04C2.34,8.36 0,10.91 0,14C0,17.31 2.69,20 6,20H19C21.76,20 24,17.76 24,15C24,12.36 21.95,10.22 19.35,10.04M10,17L15,12L13.59,10.59L11,13.17V8H9V13.17L6.41,10.59L5,12L10,17Z</StreamGeometry>
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="Button.glass-btn">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.glass-btn:pointerover">
+            <Setter Property="Background" Value="#25FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
+        </Style>
+        <Style Selector="Button.primary-btn">
+            <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="18,10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.primary-btn:pointerover">
+            <Setter Property="Opacity" Value="0.85"/>
+        </Style>
+        <Style Selector="Button.small-glass-btn">
+            <Setter Property="Background" Value="#10FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.small-glass-btn:pointerover">
+            <Setter Property="Background" Value="#20FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="Background" Value="#18FFFFFF"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
+        </Style>
+        <Style Selector="Border.glass-card">
+            <Setter Property="Background" Value="#10FFFFFF"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="BorderBrush" Value="#15FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="24"/>
+            <Setter Property="Margin" Value="0,0,0,20"/>
+        </Style>
+        <Style Selector="Border.metric-box">
+            <Setter Property="Background" Value="#12FFFFFF"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="BorderBrush" Value="#1AFFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="16,14"/>
+        </Style>
+        <Style Selector="Border.status-badge-active">
+            <Setter Property="Background" Value="#2040FF40"/>
+            <Setter Property="BorderBrush" Value="#4040FF40"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,3"/>
+        </Style>
+        <Style Selector="Border.status-badge-warning">
+            <Setter Property="Background" Value="#20FFBB00"/>
+            <Setter Property="BorderBrush" Value="#40FFBB00"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,3"/>
+        </Style>
+        <Style Selector="Border.status-badge-inactive">
+            <Setter Property="Background" Value="#20888888"/>
+            <Setter Property="BorderBrush" Value="#40888888"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,3"/>
+        </Style>
+        <Style Selector="Border.status-badge-info">
+            <Setter Property="Background" Value="#2040A0FF"/>
+            <Setter Property="BorderBrush" Value="#4040A0FF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,3"/>
+        </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,10"/>
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="32,24,32,40" Spacing="0">
+
+            <!-- Section 1: Header Bar & Quick Actions -->
+            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,24">
+                <StackPanel Grid.Column="0" Spacing="6" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Border Width="36" Height="36" CornerRadius="8" Background="{DynamicResource PrimaryGradientBrush}" VerticalAlignment="Center">
+                            <PathIcon Data="{StaticResource CloudStorageIcon}" Width="18" Height="18" Foreground="White"/>
+                        </Border>
+                        <TextBlock Text="Hosting &amp; Cloud Storage" FontSize="24" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock Text="Manage cloud storage distribution, monitor space consumed, inspect live file URLs, and sync existing assets."
+                               FontSize="13" Foreground="#94A3B8"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Button Classes="glass-btn"
+                            Command="{Binding OpenCloudFolderCommand}"
+                            ToolTip.Tip="Open the provider's /GenHub_Publisher storage folder in browser">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource FolderOpenIcon}" Width="14" Height="14" Foreground="White"/>
+                            <TextBlock Text="Open Cloud Folder" Foreground="White" FontSize="12"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button Classes="primary-btn"
+                            Command="{Binding ScanCloudStorageCommand}"
+                            IsEnabled="{Binding !IsScanningStorage}"
+                            ToolTip.Tip="Scan cloud storage for already-uploaded publisher files and synchronize state">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource RefreshIcon}" Width="14" Height="14" Foreground="White"/>
+                            <TextBlock Text="{Binding IsScanningStorage, Converter={x:Static ObjectConverters.IsNull}, ConverterParameter='Scan / Sync Storage'}" Foreground="White" FontSize="12"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- Scanning Status Notification Banner -->
+            <Border IsVisible="{Binding StorageScanStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                    Background="#18FFFFFF" BorderBrush="#30FFFFFF" BorderThickness="1" CornerRadius="8"
+                    Padding="14,10" Margin="0,0,0,20">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <PathIcon Grid.Column="0" Data="{StaticResource RefreshIcon}" Width="14" Height="14" Foreground="#80D8FF" Margin="0,0,10,0"/>
+                    <TextBlock Grid.Column="1" Text="{Binding StorageScanStatusMessage}" FontSize="12" Foreground="#D0D0E0" VerticalAlignment="Center"/>
+                    <ProgressBar Grid.Column="2" IsIndeterminate="True" Width="100" Height="4" IsVisible="{Binding IsScanningStorage}"/>
+                </Grid>
+            </Border>
+
+            <!-- Section 2: Storage Quota & Metrics Overview (4 Metric Boxes) -->
+            <Grid ColumnDefinitions="*,*,*,*" Margin="0,0,0,24">
+                <!-- Card 1: Cloud Storage Used -->
+                <Border Grid.Column="0" Classes="metric-box" Margin="0,0,10,0">
+                    <StackPanel Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource CloudStorageIcon}" Width="13" Height="13" Foreground="#80D8FF"/>
+                            <TextBlock Text="STORAGE CONSUMED" FontSize="10" FontWeight="Bold" Foreground="#80D8FF"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding TotalStorageUsedFormatted}" FontSize="22" FontWeight="Bold" Foreground="White"/>
+                        <TextBlock Text="Cloud files (Definition, Catalogs, Releases)" FontSize="11" Foreground="#8888AA"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Card 2: Total Files -->
+                <Border Grid.Column="1" Classes="metric-box" Margin="5,0,5,0">
+                    <StackPanel Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource PackageIcon}" Width="13" Height="13" Foreground="#B388FF"/>
+                            <TextBlock Text="HOSTED ASSETS" FontSize="10" FontWeight="Bold" Foreground="#B388FF"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding TotalHostedFilesCount}" FontSize="22" FontWeight="Bold" Foreground="White"/>
+                        <TextBlock Text="Files hosted on cloud storage" FontSize="11" Foreground="#8888AA"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Card 3: Categorized Breakdown -->
+                <Border Grid.Column="2" Classes="metric-box" Margin="5,0,5,0">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="ASSET BREAKDOWN" FontSize="10" FontWeight="Bold" Foreground="#69F0AE"/>
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,2,0,0">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Catalogs: " FontSize="11" Foreground="#AAAAAA"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding HostedCatalogsCount}" FontSize="11" FontWeight="Bold" Foreground="White"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Release Binaries: " FontSize="11" Foreground="#AAAAAA"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding HostedArtifactsCount}" FontSize="11" FontWeight="Bold" Foreground="White"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="External CDN: " FontSize="11" Foreground="#AAAAAA"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ExternalCdnCount}" FontSize="11" FontWeight="Bold" Foreground="#80D8FF"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Card 4: Connected Provider & Folder -->
+                <Border Grid.Column="3" Classes="metric-box" Margin="10,0,0,0">
+                    <StackPanel Spacing="6">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
+                            <TextBlock Text="STORAGE LOCATION" FontSize="10" FontWeight="Bold" Foreground="#FFD54F"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding SelectedHostingProvider.DisplayName, FallbackValue='Not Connected'}" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                        <TextBlock Text="{Binding HostingFolderPath}" FontSize="11" Foreground="#8888AA" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding HostingFolderPath}"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Section 3: Provider Connection & Step-by-Step Setup Guides -->
+            <Border Classes="glass-card">
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="4">
+                            <TextBlock Text="Cloud Storage Provider Setup" FontSize="17" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="Select a hosting service to upload catalogs and releases. Step-by-step setup instructions are provided below."
+                                       FontSize="12" Foreground="#8888AA"/>
+                        </StackPanel>
+
+                        <!-- Connection Badge -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Border Classes="status-badge-active" IsVisible="{Binding IsProviderAuthenticated}">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <Ellipse Width="6" Height="6" Fill="#40FF40"/>
+                                    <TextBlock Text="Connected" Foreground="#40FF40" FontSize="11" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Classes="status-badge-inactive" IsVisible="{Binding !IsProviderAuthenticated}">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <Ellipse Width="6" Height="6" Fill="#888888"/>
+                                    <TextBlock Text="Not Connected" Foreground="#AAAAAA" FontSize="11"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Provider Selector Dropdown -->
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Select Provider:" FontSize="12" FontWeight="SemiBold" Foreground="#D0D0E0"/>
+                        <ComboBox ItemsSource="{Binding HostingProviders}"
+                                  SelectedItem="{Binding SelectedHostingProvider}"
+                                  HorizontalAlignment="Stretch">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                        <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding Description}" Foreground="#888888" FontSize="12"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <!-- GOOGLE DRIVE SETUP GUIDE -->
+                    <StackPanel IsVisible="{Binding ShowGoogleOAuthButton}" Spacing="12">
+                        <Border Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
+                            <StackPanel Spacing="10">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Border Width="20" Height="20" CornerRadius="4" Background="#4285F4" VerticalAlignment="Center">
+                                        <TextBlock Text="G" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
+                                    </Border>
+                                    <TextBlock Text="Google Drive OAuth 2.0 Setup Guide" FontWeight="Bold" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Text="Google Drive provides 15 GB of free cloud storage for your catalogs and large binary game releases. Follow these steps in your Google Cloud Console:"
+                                           FontSize="11" Foreground="#AAAAAA" TextWrapping="Wrap"/>
+
+                                <Border Height="1" Background="#20FFFFFF"/>
+
+                                <!-- Steps -->
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="Step 1: Create a Google Cloud Project" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF"/>
+                                    <TextBlock Text="Open the Google Cloud Console, click the top project selector dropdown, and click 'NEW PROJECT'. Name it 'GenHub Publisher' and create it." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+
+                                    <TextBlock Text="Step 2: Configure App under 'Google Auth Platform' (Project Configuration)" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF"/>
+                                    <TextBlock Text="Click button #1 below. On 'Project configuration': Set App name ('GenHub'), choose your email for 'User support email', select 'External' audience, enter your email for 'Developer contact', and click 'Create'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+
+                                    <TextBlock Text="Step 3: Enable the Google Drive API" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF"/>
+                                    <TextBlock Text="In Google Cloud Console, search for 'Google Drive API' in the top bar and click 'ENABLE'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+
+                                    <TextBlock Text="Step 4: Create OAuth Client ID  [CRITICAL: Must choose 'Desktop app']" FontWeight="SemiBold" FontSize="12" Foreground="#FF5252"/>
+                                    <TextBlock Text="Click button #2 below (Credentials) -> '+ CREATE CREDENTIALS' -> 'OAuth client ID'. Set Application type to 'Desktop app' (DO NOT select 'Web application' — web apps do not permit desktop loopback and will fail with Error 400: redirect_uri_mismatch). Name it 'GenHub Desktop' and create." FontSize="11" Foreground="#FFCC80" TextWrapping="Wrap"/>
+
+                                    <TextBlock Text="Step 5: Add your account to Test Users" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF"/>
+                                    <TextBlock Text="Under Google Auth Platform -> 'Audience' -> 'Test users', click '+ ADD USERS' and add your Google account email address. Click Save." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+
+                                    <TextBlock Text="Step 6: Paste Client ID and Secret below and Connect" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF"/>
+                                    <TextBlock Text="Copy your Client ID (.apps.googleusercontent.com) and Client Secret (GOCSPX-...) into the input fields below and click Connect." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                </StackPanel>
+
+                                <!-- Action buttons to consoles -->
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Command="{Binding OpenGoogleAuthPlatformConsoleCommand}" Classes="small-glass-btn" Margin="0,0,10,6">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                            <TextBlock Text="1. Open Google Auth Platform (Project Configuration)" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Command="{Binding OpenGoogleCredentialsConsoleCommand}" Classes="small-glass-btn" Margin="0,0,0,6">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                            <TextBlock Text="2. Open Credentials Console (Create Desktop Client ID)" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                        </StackPanel>
+                                    </Button>
+                                </WrapPanel>
+
+                                <!-- Inputs -->
+                                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" Margin="0,6,0,0">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Google Client ID:" FontSize="12" Foreground="#AAAAAA" Margin="0,0,6,4"/>
+                                    <TextBox Grid.Row="1" Grid.Column="0" Text="{Binding GoogleClientId}" Watermark="xxxxxx.apps.googleusercontent.com" FontSize="12" Margin="0,0,6,0"/>
+
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="Google Client Secret:" FontSize="12" Foreground="#AAAAAA" Margin="6,0,0,4"/>
+                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding GoogleClientSecret}" Watermark="GOCSPX-xxxxxx" PasswordChar="●" RevealPassword="True" FontSize="12" Margin="6,0,0,0"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- DROPBOX SETUP GUIDE -->
+                    <StackPanel IsVisible="{Binding ShowDropboxTokenInput}" Spacing="12">
+                        <Border Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
+                            <StackPanel Spacing="10">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Border Width="20" Height="20" CornerRadius="4" Background="#0061FF" VerticalAlignment="Center">
+                                        <TextBlock Text="D" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
+                                    </Border>
+                                    <TextBlock Text="Dropbox Setup &amp; Token Guide (No Cloud Project Needed)" FontWeight="Bold" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Text="Dropbox offers 2 GB free storage with instant direct download links. Setup takes under 1 minute:"
+                                           FontSize="11" Foreground="#AAAAAA" TextWrapping="Wrap"/>
+
+                                <Border Height="1" Background="#20FFFFFF"/>
+
+                                <!-- Steps -->
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="Step 1: Create a Scoped App" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF"/>
+                                    <TextBlock Text="Click button #1 below ('1. Create Dropbox App'). Select 'Scoped access', choose 'Full Dropbox' (or 'App folder'), enter an App name (e.g. 'GenHubPublisher'), and click 'Create app'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+
+                                    <TextBlock Text="Step 2: Enable Permissions in Dropbox Console  [CRITICAL: Prevents 400 Bad Request]" FontWeight="SemiBold" FontSize="12" Foreground="#FF5252"/>
+                                    <TextBlock Text="Switch to the 'Permissions' tab at the top of your Dropbox app page. Enable ALL of the following permissions:&#x0a;• files.content.write&#x0a;• files.content.read&#x0a;• sharing.write&#x0a;• sharing.read&#x0a;• account_info.read&#x0a;Then click the 'Submit' button at the bottom of the page! (If permissions are not saved, link creation will fail with HTTP 400)." FontSize="11" Foreground="#FFCC80" TextWrapping="Wrap"/>
+
+                                    <TextBlock Text="Step 3: Generate Access Token" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF"/>
+                                    <TextBlock Text="Switch to the 'Settings' tab at the top. Scroll down to the 'OAuth 2' section. Under 'Generated access token', click the 'Generate' button. Dropbox displays your token (starts with 'sl.')." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+
+                                    <TextBlock Text="Step 4: Paste Token into GenHub and Connect" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF"/>
+                                    <TextBlock Text="Copy that access token, paste it in the box below, and click 'Connect to Dropbox'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                </StackPanel>
+
+                                <!-- Direct Action Buttons -->
+                                <WrapPanel Margin="0,4,0,0">
+                                    <Button Command="{Binding OpenDropboxCreateAppCommand}" Classes="small-glass-btn" Margin="0,0,10,6">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                            <TextBlock Text="1. Create Dropbox App" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Command="{Binding OpenDropboxAppConsoleCommand}" Classes="small-glass-btn" Margin="0,0,0,6">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                            <TextBlock Text="2. Open Dropbox App Console (Permissions &amp; Token)" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                        </StackPanel>
+                                    </Button>
+                                </WrapPanel>
+
+                                <!-- Token Input -->
+                                <StackPanel Spacing="6" Margin="0,6,0,0">
+                                    <TextBlock Text="Dropbox Access Token (starts with sl.):" FontSize="12" Foreground="#AAAAAA"/>
+                                    <TextBox Text="{Binding DropboxAccessToken}" Watermark="sl.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" PasswordChar="●" RevealPassword="True"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- GITHUB GISTS SETUP GUIDE -->
+                    <StackPanel IsVisible="{Binding ShowGitHubPatInput}" Spacing="12">
+                        <Border Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
+                            <StackPanel Spacing="10">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Border Width="20" Height="20" CornerRadius="4" Background="#333333" VerticalAlignment="Center">
+                                        <TextBlock Text="GH" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10"/>
+                                    </Border>
+                                    <TextBlock Text="GitHub Gists Setup (Manifest Only)" FontWeight="Bold" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Text="GitHub Gists publishes catalog.json and publisher.json directly to your GitHub profile as public gists. Binary releases (.zip/.exe) must be hosted on an external CDN."
+                                           FontSize="11" Foreground="#AAAAAA" TextWrapping="Wrap"/>
+
+                                <Border Height="1" Background="#20FFFFFF"/>
+
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="1. Click 'Generate GitHub Token' below. GitHub will open with the 'gist' scope pre-selected." FontSize="11" Foreground="#CCCCCC"/>
+                                    <TextBlock Text="2. Scroll to the bottom and click 'Generate token'." FontSize="11" Foreground="#CCCCCC"/>
+                                    <TextBlock Text="3. Copy the token (starts with 'ghp_'), paste it below, and click Connect." FontSize="11" Foreground="#CCCCCC"/>
+                                </StackPanel>
+
+                                <Button Command="{Binding OpenGitHubTokensPageCommand}" Classes="small-glass-btn" HorizontalAlignment="Left">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                        <TextBlock Text="Generate GitHub Token with Gist Scope" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <StackPanel Spacing="6" Margin="0,6,0,0">
+                                    <TextBlock Text="GitHub Personal Access Token:" FontSize="12" Foreground="#AAAAAA"/>
+                                    <TextBox Text="{Binding GitHubPersonalAccessToken}" Watermark="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" PasswordChar="●" RevealPassword="True"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Auth Status Message -->
+                    <TextBlock Text="{Binding AuthenticationStatusMessage}"
+                               FontSize="12" Foreground="#F59E0B"
+                               IsVisible="{Binding AuthenticationStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                    <!-- Action Buttons: Connect / Cancel / Disconnect -->
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Button Command="{Binding AuthenticateCommand}"
+                                IsVisible="{Binding NeedsAuthentication}"
+                                Classes="primary-btn"
+                                IsEnabled="{Binding !IsAuthenticating}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <PathIcon Data="{StaticResource LinkIcon}" Width="14" Height="14" Foreground="White"/>
+                                <TextBlock Text="{Binding ConnectButtonText}" Foreground="White" FontWeight="Bold"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Cancel Authentication Button (Shown when Authenticating hangs or takes time) -->
+                        <Button Command="{Binding CancelAuthenticationCommand}"
+                                IsVisible="{Binding IsAuthenticating}"
+                                Classes="glass-btn">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <PathIcon Data="{StaticResource CloseIcon}" Width="12" Height="12" Foreground="#FF6B6B"/>
+                                <TextBlock Text="Cancel Authentication" Foreground="#FF6B6B"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Command="{Binding SignOutCommand}"
+                                IsVisible="{Binding IsProviderAuthenticated}"
+                                Classes="glass-btn">
+                            <TextBlock Text="Disconnect Provider" Foreground="#AAAAAA"/>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Section 4: Hosted Asset Inventory Table -->
+            <Border Classes="glass-card">
+                <StackPanel Spacing="16">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="4">
+                            <TextBlock Text="Hosted Asset Inventory" FontSize="17" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="Inventory of publisher definition, catalog manifests, and release binaries stored in cloud storage or external CDNs."
+                                       FontSize="12" Foreground="#8888AA"/>
+                        </StackPanel>
+
+                        <Border Grid.Column="1" Classes="status-badge-info" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding HostedAssets.Count, StringFormat='{}{0} Assets Tracked'}" FontSize="11" FontWeight="SemiBold" Foreground="#80D8FF"/>
+                        </Border>
+                    </Grid>
+
+                    <!-- Table Header -->
+                    <Border Background="#15FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="6" Padding="12,8">
+                        <Grid ColumnDefinitions="2*,1.5*,1*,1*,1.5*,Auto">
+                            <TextBlock Grid.Column="0" Text="FILE NAME" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA"/>
+                            <TextBlock Grid.Column="1" Text="CATEGORY" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA"/>
+                            <TextBlock Grid.Column="2" Text="SIZE" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA"/>
+                            <TextBlock Grid.Column="3" Text="STATUS" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA"/>
+                            <TextBlock Grid.Column="4" Text="LOCATION" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA"/>
+                            <TextBlock Grid.Column="5" Text="ACTIONS" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA" Width="140" TextAlignment="Right"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Items List -->
+                    <ItemsControl ItemsSource="{Binding HostedAssets}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="vm:HostedAssetItemViewModel">
+                                <Border Background="#0CFFFFFF"
+                                        BorderBrush="#15FFFFFF"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="12,12">
+                                    <Grid ColumnDefinitions="2*,1.5*,1*,1*,1.5*,Auto">
+                                        <!-- Column 0: File Name & SHA256 -->
+                                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,8,0">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Url}" FontSize="10" Foreground="#666688" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Url}"
+                                                       IsVisible="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                        </StackPanel>
+
+                                        <!-- Column 1: Category -->
+                                        <TextBlock Grid.Column="1" Text="{Binding Category}" FontSize="12" Foreground="#CCCCCC" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+
+                                        <!-- Column 2: File Size -->
+                                        <TextBlock Grid.Column="2" Text="{Binding FileSizeFormatted}" FontSize="12" FontWeight="SemiBold" Foreground="#E2E8F0" VerticalAlignment="Center"/>
+
+                                        <!-- Column 3: Status Badge -->
+                                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Border Classes="status-badge-active" IsVisible="{Binding IsOnline}">
+                                                <TextBlock Text="Live Online" FontSize="10" Foreground="#40FF40" FontWeight="SemiBold"/>
+                                            </Border>
+                                            <Border Classes="status-badge-info" IsVisible="{Binding IsExternalCdn}">
+                                                <TextBlock Text="External CDN" FontSize="10" Foreground="#80D8FF" FontWeight="SemiBold"/>
+                                            </Border>
+                                            <Border Classes="status-badge-warning" IsVisible="{Binding !IsOnline}">
+                                                <TextBlock Text="Pending" FontSize="10" Foreground="#FFCC80"/>
+                                            </Border>
+                                        </StackPanel>
+
+                                        <!-- Column 4: Location -->
+                                        <TextBlock Grid.Column="4" Text="{Binding Location}" FontSize="11" Foreground="#8888AA" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+
+                                        <!-- Column 5: Action Buttons -->
+                                        <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center" Width="140">
+                                            <Button Classes="small-glass-btn"
+                                                    Command="{Binding ((vm:PublishShareViewModel)DataContext).CopyAssetUrlCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding Url}"
+                                                    IsEnabled="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                    ToolTip.Tip="Copy direct download link">
+                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                    <PathIcon Data="{StaticResource CopyIcon}" Width="10" Height="10" Foreground="White"/>
+                                                    <TextBlock Text="Copy" FontSize="10" Foreground="White"/>
+                                                </StackPanel>
+                                            </Button>
+
+                                            <Button Classes="small-glass-btn"
+                                                    Command="{Binding ((vm:PublishShareViewModel)DataContext).OpenUrlInBrowserCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding Url}"
+                                                    IsEnabled="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                    ToolTip.Tip="Open download URL in browser">
+                                                <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="10" Height="10" Foreground="{DynamicResource AccentColorBrush}"/>
+                                            </Button>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Empty State -->
+                    <Border IsVisible="{Binding !HostedAssets.Count}"
+                            Background="#08FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" CornerRadius="8"
+                            Padding="32" Margin="0,10,0,0">
+                        <StackPanel Spacing="10" HorizontalAlignment="Center">
+                            <PathIcon Data="{StaticResource CloudStorageIcon}" Width="32" Height="32" Foreground="#555577" HorizontalAlignment="Center"/>
+                            <TextBlock Text="No Hosted Assets Recorded" FontSize="14" FontWeight="Bold" Foreground="#AAAAAA" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Upload your catalog or click 'Scan / Sync Storage' to discover existing files on your cloud provider."
+                                       FontSize="12" Foreground="#666688" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="400" TextAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

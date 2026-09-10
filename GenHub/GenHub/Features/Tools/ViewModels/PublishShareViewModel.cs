@@ -94,6 +94,40 @@ public partial class PublishShareViewModel : ObservableObject
     [ObservableProperty]
     private string _googleClientSecret = string.Empty;
 
+    private System.Threading.CancellationTokenSource? _authCts;
+
+    /// <summary>
+    /// Gets the collection of hosted assets across definition, catalogs, and releases.
+    /// </summary>
+    public ObservableCollection<HostedAssetItemViewModel> HostedAssets { get; } = new();
+
+    [ObservableProperty]
+    private string _totalStorageUsedFormatted = "0 B";
+
+    [ObservableProperty]
+    private int _totalHostedFilesCount;
+
+    [ObservableProperty]
+    private int _hostedDefinitionCount;
+
+    [ObservableProperty]
+    private int _hostedCatalogsCount;
+
+    [ObservableProperty]
+    private int _hostedArtifactsCount;
+
+    [ObservableProperty]
+    private int _externalCdnCount;
+
+    [ObservableProperty]
+    private bool _isScanningStorage;
+
+    [ObservableProperty]
+    private string _storageScanStatusMessage = string.Empty;
+
+    [ObservableProperty]
+    private string _hostingFolderPath = HostingConstants.DropboxDefaultPublisherFolder;
+
     /// <summary>
     /// Gets the three-tier upload hierarchy (1. Definition / 2. Catalogs / 3. Content items and releases).
     /// </summary>
@@ -177,7 +211,7 @@ public partial class PublishShareViewModel : ObservableObject
 
             return SelectedHostingProvider.ProviderId switch
             {
-                HostingConstants.GoogleDrive => "Your Google Drive (inside 'GenHub-Publishing' folder)",
+                HostingConstants.GoogleDrive => "Your Google Drive (inside 'GenHub_Publisher' folder)",
                 HostingConstants.Dropbox => "Your Dropbox account (inside '/Apps/GenHub/' app folder)",
                 HostingConstants.GitHub => "Your GitHub Gists (manifests & definitions only; binaries require CDN URLs)",
                 _ => SelectedHostingProvider.DisplayName,
@@ -298,6 +332,7 @@ public partial class PublishShareViewModel : ObservableObject
         // Initialize catalog statuses
         InitializeCatalogStatuses();
         RefreshUploadHierarchy();
+        RefreshHostedAssets();
 
         // Load existing hosting state if available
         _ = LoadHostingStateAsync();
@@ -325,6 +360,177 @@ public partial class PublishShareViewModel : ObservableObject
         {
             _logger.LogWarning(ex, "Failed to refresh upload hierarchy");
         }
+    }
+
+    /// <summary>
+    /// Rebuilds the hosted assets inventory list and recalculates storage metrics.
+    /// </summary>
+    public void RefreshHostedAssets()
+    {
+        HostedAssets.Clear();
+        long totalBytes = 0;
+        var defCount = 0;
+        var catCount = 0;
+        var artCount = 0;
+        var cdnCount = 0;
+
+        var providerName = SelectedHostingProvider?.DisplayName ?? "Cloud Storage";
+
+        // 1. Publisher Definition
+        var defUrl = ProviderDefinitionUrl;
+        if (string.IsNullOrWhiteSpace(defUrl))
+        {
+            defUrl = _currentHostingState?.Definition?.Url;
+        }
+
+        var defSize = _currentHostingState?.Definition?.FileSize ?? 0;
+        var defUpdated = _currentHostingState?.Definition?.LastUpdated ?? DateTime.MinValue;
+        var isDefHosted = !string.IsNullOrWhiteSpace(defUrl);
+
+        if (isDefHosted)
+        {
+            defCount = 1;
+            totalBytes += defSize;
+        }
+
+        HostedAssets.Add(new HostedAssetItemViewModel
+        {
+            Name = _project.ProviderDefinitionFileName ?? HostingConstants.DefaultDefinitionFileName,
+            Category = "Publisher Definition",
+            Location = isDefHosted ? $"{providerName} (/GenHub_Publisher)" : "Local only",
+            FileSize = defSize,
+            Url = defUrl ?? string.Empty,
+            Status = isDefHosted ? "Live Online" : "Pending Upload",
+            IsOnline = isDefHosted,
+            IsExternalCdn = false,
+            LastUpdated = defUpdated,
+        });
+
+        // 2. Catalogs in current project
+        foreach (var catalog in _project.Catalogs)
+        {
+            var catHosting = _currentHostingState?.Catalogs.FirstOrDefault(c => c.CatalogId == catalog.Id || c.FileName == catalog.FileName);
+            var isCatHosted = catHosting != null && !string.IsNullOrWhiteSpace(catHosting.Url);
+            var catSize = catHosting?.FileSize ?? 0;
+            var catUrl = catHosting?.Url ?? string.Empty;
+            var catUpdated = catHosting?.LastUpdated ?? DateTime.MinValue;
+
+            if (isCatHosted)
+            {
+                catCount++;
+                totalBytes += catSize;
+            }
+
+            HostedAssets.Add(new HostedAssetItemViewModel
+            {
+                Name = catalog.FileName,
+                Category = $"Catalog Manifest ({catalog.Name})",
+                Location = isCatHosted ? $"{providerName} (/GenHub_Publisher)" : "Local only",
+                FileSize = catSize,
+                Url = catUrl,
+                Status = isCatHosted ? "Live Online" : "Pending Upload",
+                IsOnline = isCatHosted,
+                IsExternalCdn = false,
+                LastUpdated = catUpdated,
+            });
+        }
+
+        // 3. Artifacts in current project
+        foreach (var catalog in _project.Catalogs)
+        {
+            foreach (var content in catalog.Catalog.Content)
+            {
+                foreach (var release in content.Releases)
+                {
+                    foreach (var artifact in release.Artifacts)
+                    {
+                        var isExternal = !string.IsNullOrEmpty(artifact.DownloadUrl) && !IsCloudProviderUrl(artifact.DownloadUrl);
+                        var isCloud = !string.IsNullOrEmpty(artifact.DownloadUrl) && IsCloudProviderUrl(artifact.DownloadUrl);
+                        var artHosting = _currentHostingState?.Artifacts.FirstOrDefault(a => a.FileName == artifact.Filename || a.Url == artifact.DownloadUrl);
+                        var artSize = artifact.Size > 0 ? artifact.Size : (artHosting?.FileSize ?? 0);
+                        var artUpdated = artHosting?.LastUpdated ?? DateTime.MinValue;
+
+                        if (isCloud)
+                        {
+                            artCount++;
+                            totalBytes += artSize;
+                        }
+                        else if (isExternal)
+                        {
+                            cdnCount++;
+                        }
+
+                        HostedAssets.Add(new HostedAssetItemViewModel
+                        {
+                            Name = artifact.Filename,
+                            Category = $"Release Binary ({content.Name} v{release.Version})",
+                            Location = isCloud ? $"{providerName} (/GenHub_Publisher)" : (isExternal ? "External CDN" : "Local file"),
+                            FileSize = artSize,
+                            Url = artifact.DownloadUrl ?? string.Empty,
+                            Status = isCloud ? "Live Online" : (isExternal ? "External CDN" : "Pending Upload"),
+                            IsOnline = isCloud,
+                            IsExternalCdn = isExternal,
+                            LastUpdated = artUpdated,
+                            Sha256 = artifact.Sha256,
+                        });
+                    }
+                }
+            }
+        }
+
+        // 4. Any discovered files from cloud scan not currently in the project
+        if (_currentHostingState != null)
+        {
+            foreach (var cloudCat in _currentHostingState.Catalogs)
+            {
+                if (!HostedAssets.Any(a => a.Name == cloudCat.FileName || a.Url == cloudCat.Url))
+                {
+                    catCount++;
+                    totalBytes += cloudCat.FileSize;
+                    HostedAssets.Add(new HostedAssetItemViewModel
+                    {
+                        Name = string.IsNullOrEmpty(cloudCat.FileName) ? $"catalog-{cloudCat.CatalogId}.json" : cloudCat.FileName,
+                        Category = $"Cloud Catalog ({cloudCat.CatalogId})",
+                        Location = $"{providerName} (/GenHub_Publisher)",
+                        FileSize = cloudCat.FileSize,
+                        Url = cloudCat.Url,
+                        Status = "Live Online",
+                        IsOnline = true,
+                        IsExternalCdn = false,
+                        LastUpdated = cloudCat.LastUpdated,
+                    });
+                }
+            }
+
+            foreach (var cloudArt in _currentHostingState.Artifacts)
+            {
+                if (!HostedAssets.Any(a => a.Name == cloudArt.FileName || a.Url == cloudArt.Url))
+                {
+                    artCount++;
+                    totalBytes += cloudArt.FileSize;
+                    HostedAssets.Add(new HostedAssetItemViewModel
+                    {
+                        Name = cloudArt.FileName,
+                        Category = "Cloud Artifact",
+                        Location = $"{providerName} (/GenHub_Publisher)",
+                        FileSize = cloudArt.FileSize,
+                        Url = cloudArt.Url,
+                        Status = "Live Online",
+                        IsOnline = true,
+                        IsExternalCdn = false,
+                        LastUpdated = cloudArt.LastUpdated,
+                        Sha256 = cloudArt.Sha256,
+                    });
+                }
+            }
+        }
+
+        TotalStorageUsedFormatted = GenHub.Core.Helpers.FileSizeFormatter.Format(totalBytes);
+        TotalHostedFilesCount = defCount + catCount + artCount;
+        HostedDefinitionCount = defCount;
+        HostedCatalogsCount = catCount;
+        HostedArtifactsCount = artCount;
+        ExternalCdnCount = cdnCount;
     }
 
     private static string BuildPublishSummary(string catalogUrl, string providerDefinitionUrl, string subscriptionUrl)
@@ -363,6 +569,15 @@ public partial class PublishShareViewModel : ObservableObject
         OnPropertyChanged(nameof(HasIncompatibleArtifactsForProvider));
         OnPropertyChanged(nameof(IncompatibleArtifactsWarningMessage));
 
+        HostingFolderPath = value?.ProviderId switch
+        {
+            HostingConstants.Dropbox => HostingConstants.DropboxDefaultPublisherFolder,
+            HostingConstants.GoogleDrive => "GenHub_Publisher",
+            HostingConstants.GitHub => "Public Gists",
+            _ => "Remote Cloud",
+        };
+        RefreshHostedAssets();
+
         if (value == null) return;
 
         // Check if hosting state has saved credentials for this provider
@@ -391,12 +606,16 @@ public partial class PublishShareViewModel : ObservableObject
             return;
         }
 
+        _authCts?.Cancel();
+        _authCts?.Dispose();
+        _authCts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(120));
+
         IsAuthenticating = true;
         AuthenticationStatusMessage = "Authenticating...";
 
         try
         {
-            var result = await ExecuteAuthenticationByProviderTypeAsync();
+            var result = await ExecuteAuthenticationByProviderTypeAsync(_authCts.Token);
             if (result == null)
             {
                 return;
@@ -405,6 +624,10 @@ public partial class PublishShareViewModel : ObservableObject
             if (result.Success)
             {
                 await HandleAuthenticationSuccessAsync();
+                if (SelectedHostingProvider.SupportsCatalogHosting)
+                {
+                    _ = ScanCloudStorageSilentlyAsync();
+                }
             }
             else
             {
@@ -412,6 +635,12 @@ public partial class PublishShareViewModel : ObservableObject
             }
 
             NotifyAuthenticationStateChanged();
+        }
+        catch (OperationCanceledException)
+        {
+            AuthenticationStatusMessage = "Authentication was canceled or timed out. For Google Drive, ensure you selected 'Desktop app' (not 'Web application') in Google Cloud Console.";
+            _logger.LogInformation("Authentication canceled or timed out for {Provider}", SelectedHostingProvider.DisplayName);
+            _notificationService?.ShowWarning("Authentication Canceled", "Authentication timed out or was canceled.");
         }
         catch (Exception ex)
         {
@@ -424,7 +653,23 @@ public partial class PublishShareViewModel : ObservableObject
         }
     }
 
-    private async Task<OperationResult<bool>?> ExecuteAuthenticationByProviderTypeAsync()
+    /// <summary>
+    /// Cancels an in-progress authentication attempt.
+    /// </summary>
+    [RelayCommand]
+    private void CancelAuthentication()
+    {
+        if (IsAuthenticating)
+        {
+            _authCts?.Cancel();
+            IsAuthenticating = false;
+            AuthenticationStatusMessage = "Authentication canceled.";
+            NotifyAuthenticationStateChanged();
+            _notificationService?.ShowInfo("Authentication Canceled", "Hosting provider connection was aborted.");
+        }
+    }
+
+    private async Task<OperationResult<bool>?> ExecuteAuthenticationByProviderTypeAsync(System.Threading.CancellationToken cancellationToken = default)
     {
         if (SelectedHostingProvider is GoogleDriveHostingProvider gdrive && !ConfigureGoogleDrive(gdrive))
         {
@@ -439,7 +684,7 @@ public partial class PublishShareViewModel : ObservableObject
                 return null;
             }
 
-            return await githubProvider.AuthenticateWithTokenAsync(GitHubPersonalAccessToken);
+            return await githubProvider.AuthenticateWithTokenAsync(GitHubPersonalAccessToken, cancellationToken);
         }
 
         if (SelectedHostingProvider is DropboxHostingProvider dropboxProvider)
@@ -450,11 +695,11 @@ public partial class PublishShareViewModel : ObservableObject
                 return null;
             }
 
-            return await dropboxProvider.AuthenticateWithTokenAsync(DropboxAccessToken);
+            return await dropboxProvider.AuthenticateWithTokenAsync(DropboxAccessToken, cancellationToken);
         }
 
         return SelectedHostingProvider != null
-            ? await SelectedHostingProvider.AuthenticateAsync()
+            ? await SelectedHostingProvider.AuthenticateAsync(cancellationToken)
             : null;
     }
 
@@ -611,6 +856,7 @@ public partial class PublishShareViewModel : ObservableObject
                 GenerateSubscriptionUrl();
                 InitializeCatalogStatuses();
                 RefreshUploadHierarchy();
+                RefreshHostedAssets();
                 _logger.LogInformation("Loaded hosting state with {CatalogCount} catalogs", _currentHostingState.Catalogs.Count);
 
                 // After loading state, try to restore authentication
@@ -961,7 +1207,7 @@ public partial class PublishShareViewModel : ObservableObject
         UploadStatusMessage = "Published successfully!";
         _logger.LogInformation("Catalog and artifacts uploaded to {Provider}: {Url}", SelectedHostingProvider.ProviderId, CatalogUrl);
 
-        await SaveHostingStateAsync(data.FileId, data.DirectDownloadUrl);
+        await SaveHostingStateAsync(data.FileId, data.DirectDownloadUrl, data.FileSize);
 
         // 4. Generate and upload provider definition
         CurrentPublishStep = 4;
@@ -1005,10 +1251,13 @@ public partial class PublishShareViewModel : ObservableObject
                 {
                     FileId = defUploadResult.Data.FileId,
                     Url = defUploadResult.Data.DirectDownloadUrl,
+                    FileSize = defUploadResult.Data.FileSize,
                     LastUpdated = DateTime.UtcNow,
                 };
                 await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState);
             }
+
+            RefreshHostedAssets();
         }
     }
 
@@ -1107,6 +1356,36 @@ public partial class PublishShareViewModel : ObservableObject
                 task.Status = UploadStatus.Uploaded;
                 task.Progress = 100;
                 _logger.LogInformation("Uploaded artifact {File} to {Url}", task.Artifact.Filename, task.Artifact.DownloadUrl);
+
+                if (_currentHostingState != null)
+                {
+                    var existingArt = _currentHostingState.Artifacts.FirstOrDefault(a => a.FileName == task.Artifact.Filename);
+                    if (existingArt != null)
+                    {
+                        existingArt.FileId = result.Data.FileId;
+                        existingArt.Url = result.Data.DirectDownloadUrl;
+                        existingArt.FileSize = result.Data.FileSize;
+                        existingArt.LastUpdated = DateTime.UtcNow;
+                    }
+                    else
+                    {
+                        _currentHostingState.Artifacts.Add(new ArtifactHostingInfo
+                        {
+                            FileName = task.Artifact.Filename,
+                            FileId = result.Data.FileId,
+                            Url = result.Data.DirectDownloadUrl,
+                            FileSize = result.Data.FileSize,
+                            ContentId = task.ContentId,
+                            Version = task.Version,
+                            Sha256 = task.Artifact.Sha256,
+                            LastUpdated = DateTime.UtcNow,
+                            IsExternalCdn = false,
+                        });
+                    }
+
+                    RefreshHostedAssets();
+                }
+
                 return true;
             }
 
@@ -1125,7 +1404,7 @@ public partial class PublishShareViewModel : ObservableObject
         }
     }
 
-    private async Task SaveHostingStateAsync(string catalogFileId, string catalogUrl)
+    private async Task SaveHostingStateAsync(string catalogFileId, string catalogUrl, long catalogFileSize = 0)
     {
         if (string.IsNullOrEmpty(_project.ProjectPath))
             return;
@@ -1146,6 +1425,9 @@ public partial class PublishShareViewModel : ObservableObject
 
         catalogEntry.FileId = catalogFileId;
         catalogEntry.Url = catalogUrl;
+        catalogEntry.FileSize = catalogFileSize;
+        catalogEntry.FileName = ActiveCatalog?.FileName ?? $"catalog-{catalogId}.json";
+        catalogEntry.CatalogName = ActiveCatalog?.Name ?? catalogId;
         catalogEntry.LastUpdated = DateTime.UtcNow;
 
         _currentHostingState.LastPublished = DateTime.UtcNow;
@@ -1156,6 +1438,8 @@ public partial class PublishShareViewModel : ObservableObject
             HasPreviouslyPublished = true;
             _logger.LogInformation("Saved hosting state");
         }
+
+        RefreshHostedAssets();
     }
 
     private async Task SaveAuthTokenAsync()
@@ -1641,6 +1925,7 @@ public partial class PublishShareViewModel : ObservableObject
 
             GenerateSubscriptionUrl();
             RefreshUploadHierarchy();
+            RefreshHostedAssets();
             PublishCompleted = true;
             UploadStatusMessage = $"Successfully published {totalCatalogs} catalogs!";
         }
@@ -1741,5 +2026,225 @@ public partial class PublishShareViewModel : ObservableObject
             || url.Contains("github.com", StringComparison.OrdinalIgnoreCase)
             || url.Contains("dropbox.com", StringComparison.OrdinalIgnoreCase)
             || url.Contains("dropboxusercontent.com", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Opens the Dropbox Developer App Creation page in the default web browser.
+    /// </summary>
+    [RelayCommand]
+    private void OpenDropboxCreateApp()
+    {
+        OpenExternalBrowserUrl(HostingConstants.DropboxCreateAppUrl);
+    }
+
+    /// <summary>
+    /// Opens the GitHub Personal Access Token creation page in the default web browser.
+    /// </summary>
+    [RelayCommand]
+    private void OpenGitHubTokensPage()
+    {
+        OpenExternalBrowserUrl(HostingConstants.GitHubPersonalAccessTokensUrl);
+    }
+
+    /// <summary>
+    /// Opens the connected provider storage folder in the web browser.
+    /// </summary>
+    [RelayCommand]
+    private void OpenCloudFolder()
+    {
+        if (SelectedHostingProvider?.ProviderId == HostingConstants.Dropbox)
+        {
+            OpenExternalBrowserUrl("https://www.dropbox.com/home/GenHub_Publisher");
+        }
+        else if (SelectedHostingProvider?.ProviderId == HostingConstants.GoogleDrive && !string.IsNullOrEmpty(_currentHostingState?.FolderUrl))
+        {
+            OpenExternalBrowserUrl(_currentHostingState.FolderUrl);
+        }
+        else if (SelectedHostingProvider?.ProviderId == HostingConstants.GoogleDrive)
+        {
+            OpenExternalBrowserUrl("https://drive.google.com/drive/my-drive");
+        }
+        else if (SelectedHostingProvider?.ProviderId == HostingConstants.GitHub)
+        {
+            OpenExternalBrowserUrl("https://gist.github.com");
+        }
+    }
+
+    /// <summary>
+    /// Scans the connected hosting provider for uploaded files and syncs hosting state.
+    /// </summary>
+    [RelayCommand]
+    private async Task ScanCloudStorageAsync()
+    {
+        if (SelectedHostingProvider == null)
+        {
+            return;
+        }
+
+        if (!IsProviderAuthenticated)
+        {
+            StorageScanStatusMessage = "Please connect to your hosting provider first.";
+            _notificationService?.ShowWarning("Provider Not Connected", "Connect to your hosting provider before scanning storage.");
+            return;
+        }
+
+        IsScanningStorage = true;
+        StorageScanStatusMessage = $"Scanning {SelectedHostingProvider.DisplayName} folder for hosted files...";
+
+        try
+        {
+            var result = await SelectedHostingProvider.RecoverHostingStateAsync();
+            if (result.Success && result.Data != null)
+            {
+                MergeCloudHostingState(result.Data);
+
+                if (!string.IsNullOrEmpty(_project.ProjectPath) && _currentHostingState != null)
+                {
+                    await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState);
+                }
+
+                InitializeCatalogStatuses();
+                RefreshUploadHierarchy();
+                RefreshHostedAssets();
+                GenerateSubscriptionUrl();
+
+                var foundCount = (_currentHostingState?.Catalogs.Count ?? 0) + (_currentHostingState?.Artifacts.Count ?? 0) + (_currentHostingState?.Definition != null ? 1 : 0);
+                StorageScanStatusMessage = $"Sync complete! Discovered {foundCount} file(s) in {SelectedHostingProvider.DisplayName}.";
+                _notificationService?.ShowSuccess("Storage Synced", StorageScanStatusMessage, autoDismissMs: 4000);
+            }
+            else
+            {
+                StorageScanStatusMessage = result.FirstError ?? "No hosted files discovered in cloud storage folder.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to scan cloud storage");
+            StorageScanStatusMessage = $"Scan error: {ex.Message}";
+            _notificationService?.ShowError("Scan Error", ex.Message);
+        }
+        finally
+        {
+            IsScanningStorage = false;
+        }
+    }
+
+    private async Task ScanCloudStorageSilentlyAsync()
+    {
+        try
+        {
+            if (SelectedHostingProvider == null || !IsProviderAuthenticated)
+            {
+                return;
+            }
+
+            var result = await SelectedHostingProvider.RecoverHostingStateAsync();
+            if (result.Success && result.Data != null)
+            {
+                MergeCloudHostingState(result.Data);
+                if (!string.IsNullOrEmpty(_project.ProjectPath) && _currentHostingState != null)
+                {
+                    await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState);
+                }
+
+                InitializeCatalogStatuses();
+                RefreshUploadHierarchy();
+                RefreshHostedAssets();
+                GenerateSubscriptionUrl();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Silent cloud state recovery encountered an issue");
+        }
+    }
+
+    private void MergeCloudHostingState(HostingState cloudState)
+    {
+        _currentHostingState ??= new HostingState { ProviderId = SelectedHostingProvider?.ProviderId ?? string.Empty };
+
+        if (cloudState.Definition != null)
+        {
+            _currentHostingState.Definition = cloudState.Definition;
+            ProviderDefinitionUrl = cloudState.Definition.Url;
+        }
+
+        if (!string.IsNullOrEmpty(cloudState.FolderUrl))
+        {
+            _currentHostingState.FolderUrl = cloudState.FolderUrl;
+        }
+
+        foreach (var cloudCat in cloudState.Catalogs)
+        {
+            var existing = _currentHostingState.Catalogs.FirstOrDefault(c => c.CatalogId == cloudCat.CatalogId || (!string.IsNullOrEmpty(cloudCat.FileName) && c.FileName == cloudCat.FileName));
+            if (existing != null)
+            {
+                existing.Url = cloudCat.Url;
+                existing.FileSize = cloudCat.FileSize;
+                existing.LastUpdated = cloudCat.LastUpdated;
+                if (!string.IsNullOrEmpty(cloudCat.FileName))
+                {
+                    existing.FileName = cloudCat.FileName;
+                }
+            }
+            else
+            {
+                _currentHostingState.Catalogs.Add(cloudCat);
+            }
+        }
+
+        foreach (var cloudArt in cloudState.Artifacts)
+        {
+            var existing = _currentHostingState.Artifacts.FirstOrDefault(a => a.FileName == cloudArt.FileName);
+            if (existing != null)
+            {
+                existing.Url = cloudArt.Url;
+                existing.FileSize = cloudArt.FileSize;
+                existing.LastUpdated = cloudArt.LastUpdated;
+            }
+            else
+            {
+                _currentHostingState.Artifacts.Add(cloudArt);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Copies an asset download URL to the clipboard.
+    /// </summary>
+    [RelayCommand]
+    private async Task CopyAssetUrlAsync(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return;
+        }
+
+        try
+        {
+            var lifetime = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var clipboard = lifetime?.MainWindow?.Clipboard;
+            if (clipboard != null)
+            {
+                await clipboard.SetTextAsync(url);
+                _notificationService?.ShowSuccess("Copied to Clipboard", "Direct download URL copied.", autoDismissMs: 2500);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to copy URL to clipboard");
+        }
+    }
+
+    /// <summary>
+    /// Opens an asset URL in the user's default browser.
+    /// </summary>
+    [RelayCommand]
+    private void OpenUrlInBrowser(string? url)
+    {
+        if (!string.IsNullOrWhiteSpace(url))
+        {
+            OpenExternalBrowserUrl(url);
+        }
     }
 }

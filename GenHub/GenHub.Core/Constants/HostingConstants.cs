@@ -60,10 +60,27 @@ public static class HostingConstants
     public const string GoogleCloudConsoleCredentialsUrl = "https://console.cloud.google.com/apis/credentials";
 
     /// <summary>
-    /// URL to Dropbox Developer App Console for creating apps and access tokens.
+    /// URL to Dropbox Developer App Console for managing apps.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official Dropbox developer console URL")]
     public const string DropboxAppConsoleUrl = "https://www.dropbox.com/developers/apps";
+
+    /// <summary>
+    /// URL to Dropbox Developer Create App page.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official Dropbox create app URL")]
+    public const string DropboxCreateAppUrl = "https://www.dropbox.com/developers/apps/create";
+
+    /// <summary>
+    /// URL to GitHub Personal Access Token creation page pre-filled for Gists.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official GitHub token generator URL")]
+    public const string GitHubPersonalAccessTokensUrl = "https://github.com/settings/tokens/new?scopes=gist&description=GenHub+Publisher";
+
+    /// <summary>
+    /// Default publisher folder path on Dropbox.
+    /// </summary>
+    public const string DropboxDefaultPublisherFolder = "/GenHub_Publisher";
 
     /// <summary>
     /// Standard JSON MIME content type.

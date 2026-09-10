@@ -11,6 +11,11 @@ public class ArtifactHostingInfo : HostedFileInfo
     public string ContentId { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets or sets the content name.
+    /// </summary>
+    public string ContentName { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets or sets the version of the content.
     /// </summary>
     public string Version { get; set; } = string.Empty;
@@ -19,4 +24,14 @@ public class ArtifactHostingInfo : HostedFileInfo
     /// Gets or sets the filename of the artifact.
     /// </summary>
     public string FileName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the SHA256 checksum of the artifact.
+    /// </summary>
+    public string? Sha256 { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this artifact is hosted on an external CDN.
+    /// </summary>
+    public bool IsExternalCdn { get; set; }
 }
