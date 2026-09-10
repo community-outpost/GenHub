@@ -378,7 +378,8 @@ public sealed class ProjectConfigServiceTests : IDisposable
         File.Exists(extractedFile).Should().BeTrue();
         (await File.ReadAllTextAsync(extractedFile)).Should().Be("Weapon StandardGun");
 
-        var packsConfigPath = Path.Combine(_tempDirectory, "config", "ModBundlePacks.json");
+        var configFolder = createResult.Data?.Directories.Configs ?? (Directory.Exists(Path.Combine(_tempDirectory, "Configs")) ? "Configs" : "config");
+        var packsConfigPath = Path.Combine(_tempDirectory, configFolder, "ModBundlePacks.json");
         File.Exists(packsConfigPath).Should().BeTrue();
         var packsContent = await File.ReadAllTextAsync(packsConfigPath);
         packsContent.Should().Contain("WeaponPatch.big");
@@ -417,5 +418,91 @@ public sealed class ProjectConfigServiceTests : IDisposable
 
         var extractedFile = Path.Combine(projectDir, "GameFilesEdited", "Art", "Textures", "Icon.dds");
         File.Exists(extractedFile).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateProjectAsync_WhenBuildAndReleaseDirectoriesMissing_AutoCreatesAndReturnsSuccess()
+    {
+        // Arrange
+        var projectDir = Path.Combine(_tempDirectory, "UnbuiltProject");
+        Directory.CreateDirectory(projectDir);
+        var projectPath = Path.Combine(projectDir, "UnbuiltProject.mbproj");
+        var createResult = await _service.CreateProjectAsync(projectPath, "UnbuiltProject");
+        createResult.Success.Should().BeTrue();
+        var project = createResult.Data!;
+
+        var buildDir = Path.Combine(projectDir, project.Directories.Build);
+        var releaseDir = Path.Combine(projectDir, project.Directories.Release);
+        if (Directory.Exists(buildDir)) Directory.Delete(buildDir, true);
+        if (Directory.Exists(releaseDir)) Directory.Delete(releaseDir, true);
+
+        Directory.Exists(buildDir).Should().BeFalse();
+        Directory.Exists(releaseDir).Should().BeFalse();
+
+        // Act
+        var result = await _service.ValidateProjectAsync(projectPath, project);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Errors.Should().BeEmpty();
+        Directory.Exists(buildDir).Should().BeTrue();
+        Directory.Exists(releaseDir).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetBundleConfigsAsync_WithConfigPrefix_ResolvesCorrectPaths()
+    {
+        // Arrange
+        var projectDir = Path.Combine(_tempDirectory, "SampleIconsProject");
+        Directory.CreateDirectory(projectDir);
+        var projectPath = Path.Combine(projectDir, "SampleIconsProject.mbproj");
+        var createResult = await _service.CreateProjectAsync(projectPath, "SampleIconsProject", template: ProjectTemplate.CustomIcons);
+        createResult.Success.Should().BeTrue();
+        var project = createResult.Data!;
+
+        // mbproj sample projects have "config/ModBundleItems.json"
+        project.BundleConfigs = new List<string>
+        {
+            "config/ModBundleItems.json",
+            "config/ModBundlePacks.json"
+        };
+
+        // Act
+        var result = await _service.GetBundleConfigsAsync(projectPath, project);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Count.Should().Be(2);
+        result.Data.Should().AllSatisfy(p =>
+        {
+            File.Exists(p).Should().BeTrue();
+            p.Should().NotContain("config" + Path.DirectorySeparatorChar + "config");
+        });
+    }
+
+    [Fact]
+    public void ResolveBundleConfigPath_HandlesBothRelativeFormats()
+    {
+        // Arrange
+        var projectDir = Path.Combine(_tempDirectory, "ResolveTest");
+        var configsDir = Path.Combine(projectDir, "config");
+        Directory.CreateDirectory(configsDir);
+        var itemFile = Path.Combine(configsDir, "ModBundleItems.json");
+        File.WriteAllText(itemFile, "{}");
+
+        // Act & Assert
+        // 1. With "config/ModBundleItems.json"
+        var resolvedWithPrefix = ProjectConfigService.ResolveBundleConfigPath(projectDir, "config", "config/ModBundleItems.json");
+        resolvedWithPrefix.Should().Be(itemFile);
+
+        // 2. With "ModBundleItems.json"
+        var resolvedWithoutPrefix = ProjectConfigService.ResolveBundleConfigPath(projectDir, "config", "ModBundleItems.json");
+        resolvedWithoutPrefix.Should().Be(itemFile);
+
+        // 3. Rooted path
+        var rooted = Path.GetFullPath(itemFile);
+        var resolvedRooted = ProjectConfigService.ResolveBundleConfigPath(projectDir, "config", rooted);
+        resolvedRooted.Should().Be(rooted);
     }
 }

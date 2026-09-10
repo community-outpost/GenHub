@@ -496,4 +496,33 @@ public sealed class ConfigurationLoaderServiceTests : IDisposable
         pack.Big.Should().BeTrue();
         pack.IsBigPack.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task LoadConfigurationAsync_WithSimplifiedBundlePackBigFalseAndBigOutputFile_MapsBigFalse()
+    {
+        // Arrange
+        var configPath = Path.Combine(_tempDirectory, "config.json");
+        var json = @"{
+            ""BundlePacks"": [
+                {
+                    ""Name"": ""SimplifiedPatch"",
+                    ""Big"": false,
+                    ""OutputFile"": ""500_900_CommunityPatch_CoreINI.big"",
+                    ""Items"": [""CoreINIPatch""]
+                }
+            ]
+        }";
+        await File.WriteAllTextAsync(configPath, json);
+
+        // Act
+        var result = await _service.LoadConfigurationAsync(configPath);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Packs.Should().HaveCount(1);
+        var pack = result.Packs[0];
+        pack.Name.Should().Be("SimplifiedPatch");
+        pack.Big.Should().BeFalse();
+        pack.IsBigPack.Should().BeFalse();
+    }
 }

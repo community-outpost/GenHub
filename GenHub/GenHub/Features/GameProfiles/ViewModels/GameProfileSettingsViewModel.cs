@@ -1269,7 +1269,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             existing.IsEnabled = false;
             EnabledContent.Remove(existing);
 
-            if (existing.ContentType == SelectedContentType && existing.GameType == GameTypeFilter)
+            if (existing.ContentType == SelectedContentType &&
+                (existing.GameType == GameTypeFilter || existing.GameType == Core.Models.Enums.GameType.Unknown))
             {
                 var alreadyInAvailable = AvailableContent.FirstOrDefault(a => a.ManifestId.Value == existing.ManifestId.Value);
                 if (alreadyInAvailable == null)

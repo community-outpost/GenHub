@@ -98,7 +98,7 @@
 
       <!-- Size (for files) -->
       <TextBlock Grid.Column="5"
-                 Text="{Binding SizeText}"
+                 Text="{Binding FormattedSize}"
                  VerticalAlignment="Center"
                  FontSize="11"
                  Foreground="{DynamicResource TextSecondary}"
