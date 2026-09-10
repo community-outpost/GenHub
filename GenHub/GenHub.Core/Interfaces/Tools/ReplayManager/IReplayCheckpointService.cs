@@ -76,6 +76,11 @@ public interface IReplayCheckpointService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Cancels any in-progress checkpoint minting operation.
+    /// </summary>
+    void CancelActiveMint();
+
+    /// <summary>
     /// Deletes a checkpoint save file.
     /// </summary>
     /// <param name="checkpoint">The checkpoint to delete.</param>
