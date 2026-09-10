@@ -28,6 +28,7 @@ public sealed partial class ReplayCheckpointService(
     string? customSaveDirectory = null) : IReplayCheckpointService
 {
     private static readonly TimeSpan DefaultMintTimeout = TimeSpan.FromMinutes(2);
+    private Action? _cancelActiveMint;
 
     /// <inheritdoc/>
     public string GetSaveDirectory(GameType gameType)
@@ -66,22 +67,31 @@ public sealed partial class ReplayCheckpointService(
         var saveFileName = $"cp_{safeReplay}_{targetFrame}.sav";
         var saveFilePath = Path.Combine(saveDirectory, saveFileName);
 
-        var launchResult = await LaunchMintingProcessAsync(replay, profile, targetFrame, saveFileName, cancellationToken);
-        if (!launchResult.Success || launchResult.Data?.ProcessInfo == null)
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _cancelActiveMint = () => linkedCts.Cancel();
+        try
         {
-            var error = launchResult.FirstError ?? "Failed to launch game client for checkpoint minting.";
-            logger.LogError("[ReplayCheckpoint] Mint launch failed: {Error}", error);
-            return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure(error);
-        }
+            var launchResult = await LaunchMintingProcessAsync(replay, profile, targetFrame, saveFileName, linkedCts.Token);
+            if (!launchResult.Success || launchResult.Data?.ProcessInfo == null)
+            {
+                var error = launchResult.FirstError ?? "Failed to launch game client for checkpoint minting.";
+                logger.LogError("[ReplayCheckpoint] Mint launch failed: {Error}", error);
+                return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure(error);
+            }
 
-        var processId = launchResult.Data.ProcessInfo.ProcessId;
-        var waitResult = await WaitForMintingProcessExitAsync(processId, targetFrame, cancellationToken);
-        if (!waitResult.Success)
+            var processId = launchResult.Data.ProcessInfo.ProcessId;
+            var waitResult = await WaitForMintingProcessExitAsync(processId, targetFrame, linkedCts.Token);
+            if (!waitResult.Success)
+            {
+                return waitResult;
+            }
+
+            return FinalizeCheckpointSave(saveFilePath, saveDirectory, saveFileName, replay.FileName, targetFrame);
+        }
+        finally
         {
-            return waitResult;
+            _cancelActiveMint = null;
         }
-
-        return FinalizeCheckpointSave(saveFilePath, saveDirectory, saveFileName, replay.FileName, targetFrame);
     }
 
     /// <inheritdoc/>
@@ -236,6 +246,12 @@ public sealed partial class ReplayCheckpointService(
         }
 
         return Task.FromResult(false);
+    }
+
+    /// <inheritdoc/>
+    public void CancelActiveMint()
+    {
+        _cancelActiveMint?.Invoke();
     }
 
     private static string GetSafeReplayName(string replayFileName)

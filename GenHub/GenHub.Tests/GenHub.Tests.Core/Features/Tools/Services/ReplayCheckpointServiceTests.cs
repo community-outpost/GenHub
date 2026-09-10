@@ -324,4 +324,14 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
         Assert.True(deleted);
         Assert.False(File.Exists(tempFile));
     }
+
+    /// <summary>
+    /// Verifies that CancelActiveMint can be safely called when no minting is active.
+    /// </summary>
+    [Fact]
+    public void CancelActiveMint_WhenNoActiveMint_DoesNotThrow()
+    {
+        var ex = Record.Exception(() => _service.CancelActiveMint());
+        Assert.Null(ex);
+    }
 }

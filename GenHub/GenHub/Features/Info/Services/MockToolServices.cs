@@ -361,6 +361,11 @@ public class MockReplayCheckpointService : IReplayCheckpointService
     {
         return Task.FromResult(true);
     }
+
+    /// <inheritdoc/>
+    public void CancelActiveMint()
+    {
+    }
 }
 
 /// <summary>

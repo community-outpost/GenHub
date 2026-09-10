@@ -63,7 +63,6 @@ public partial class ReplayManagerViewModel(
 {
     private readonly HashSet<string> _runningProfileIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _reloadLock = new(1, 1);
-    private readonly CheckpointCancellationScope _mintCancellation = new();
     private int _pendingReloadRequests;
     private bool _messengerRegistered;
 
@@ -395,7 +394,7 @@ public partial class ReplayManagerViewModel(
     {
         if (disposing)
         {
-            _mintCancellation.Dispose();
+            checkpointService.CancelActiveMint();
             WeakReferenceMessenger.Default.UnregisterAll(this);
             _reloadLock.Dispose();
         }
@@ -1355,7 +1354,7 @@ public partial class ReplayManagerViewModel(
     [RelayCommand]
     private void CloseCheckpointDrawer()
     {
-        _mintCancellation.Cancel();
+        checkpointService.CancelActiveMint();
         IsCheckpointDrawerOpen = false;
         ActiveCheckpointReplay = null;
     }
@@ -1364,11 +1363,11 @@ public partial class ReplayManagerViewModel(
     /// Cancels an active checkpoint minting operation.
     /// </summary>
     [RelayCommand]
-    private async Task CancelMintCheckpointAsync()
+    private void CancelMintCheckpointAsync()
     {
         if (IsMintingCheckpoint)
         {
-            await _mintCancellation.CancelAsync();
+            checkpointService.CancelActiveMint();
             StatusMessage = "Canceling checkpoint minting...";
         }
     }
@@ -1394,15 +1393,12 @@ public partial class ReplayManagerViewModel(
         IsMintingCheckpoint = true;
         StatusMessage = $"Minting checkpoint at frame {TargetCheckpointFrame}...";
 
-        var token = _mintCancellation.Reset();
-
         try
         {
             var result = await checkpointService.MintCheckpointAsync(
                 ActiveCheckpointReplay,
                 SelectedCompatibleProfile,
-                TargetCheckpointFrame,
-                token);
+                TargetCheckpointFrame);
 
             if (result.Success && result.Data != null)
             {
@@ -1576,40 +1572,6 @@ public partial class ReplayManagerViewModel(
         {
             logger.LogError(ex, "Failed to delete checkpoint {File}", checkpoint.FileName);
             notificationService.ShowError("Delete Error", ex.Message);
-        }
-    }
-
-    private sealed class CheckpointCancellationScope : IDisposable
-    {
-        private CancellationTokenSource? _cts;
-
-        public CancellationToken Token => _cts?.Token ?? CancellationToken.None;
-
-        public CancellationToken Reset()
-        {
-            _cts?.Cancel();
-            _cts?.Dispose();
-            _cts = new CancellationTokenSource();
-            return _cts.Token;
-        }
-
-        public async Task CancelAsync()
-        {
-            if (_cts != null)
-            {
-                await _cts.CancelAsync();
-            }
-        }
-
-        public void Cancel()
-        {
-            _cts?.Cancel();
-        }
-
-        public void Dispose()
-        {
-            _cts?.Dispose();
-            _cts = null;
         }
     }
 }
