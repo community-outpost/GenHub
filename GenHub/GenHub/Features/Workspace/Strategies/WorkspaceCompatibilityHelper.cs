@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -135,38 +136,8 @@ public static class WorkspaceCompatibilityHelper
             }
         }
 
-        // Candidate 1: Check configuration.BaseInstallationPath directly
-        var sourceDir = !string.IsNullOrEmpty(configuration.BaseInstallationPath) &&
-                        Directory.Exists(Path.Combine(configuration.BaseInstallationPath, directoryName))
-            ? configuration.BaseInstallationPath
-            : null;
-
-        // Candidate 2: Check GameClient executable or working directory
-        if (string.IsNullOrEmpty(sourceDir) && configuration.GameClient != null)
-        {
-            if (!string.IsNullOrEmpty(configuration.GameClient.WorkingDirectory) &&
-                Directory.Exists(Path.Combine(configuration.GameClient.WorkingDirectory, directoryName)))
-            {
-                sourceDir = configuration.GameClient.WorkingDirectory;
-            }
-            else if (!string.IsNullOrEmpty(configuration.GameClient.ExecutablePath))
-            {
-                var exeDir = Path.GetDirectoryName(configuration.GameClient.ExecutablePath);
-                if (!string.IsNullOrEmpty(exeDir) && Directory.Exists(Path.Combine(exeDir, directoryName)))
-                {
-                    sourceDir = exeDir;
-                }
-            }
-        }
-
-        // Candidate 3: Manifest files
-        if (string.IsNullOrEmpty(sourceDir))
-        {
-            sourceDir = configuration.Manifests
-                .Where(m => m.ContentType is ContentType.GameClient or ContentType.GameInstallation)
-                .SelectMany(m => (m.Files ?? []).Select(f => Path.GetDirectoryName(ResolveSourcePath(f, m, configuration))))
-                .FirstOrDefault(d => !string.IsNullOrEmpty(d) && Directory.Exists(Path.Combine(d, directoryName)));
-        }
+        var sourceDir = EnumerateCandidateDirectories(configuration)
+            .FirstOrDefault(d => Directory.Exists(Path.Combine(d, directoryName)));
 
         if (string.IsNullOrEmpty(sourceDir))
         {
@@ -226,37 +197,9 @@ public static class WorkspaceCompatibilityHelper
                 return;
             }
 
-            var d3d8Source = !string.IsNullOrEmpty(configuration.BaseInstallationPath) &&
-                             File.Exists(Path.Combine(configuration.BaseInstallationPath, GameClientConstants.Direct3D8WrapperDll))
-                ? Path.Combine(configuration.BaseInstallationPath, GameClientConstants.Direct3D8WrapperDll)
-                : null;
-
-            if (string.IsNullOrEmpty(d3d8Source) && configuration.GameClient != null)
-            {
-                if (!string.IsNullOrEmpty(configuration.GameClient.WorkingDirectory) &&
-                    File.Exists(Path.Combine(configuration.GameClient.WorkingDirectory, GameClientConstants.Direct3D8WrapperDll)))
-                {
-                    d3d8Source = Path.Combine(configuration.GameClient.WorkingDirectory, GameClientConstants.Direct3D8WrapperDll);
-                }
-                else if (!string.IsNullOrEmpty(configuration.GameClient.ExecutablePath))
-                {
-                    var exeDir = Path.GetDirectoryName(configuration.GameClient.ExecutablePath);
-                    if (!string.IsNullOrEmpty(exeDir) && File.Exists(Path.Combine(exeDir, GameClientConstants.Direct3D8WrapperDll)))
-                    {
-                        d3d8Source = Path.Combine(exeDir, GameClientConstants.Direct3D8WrapperDll);
-                    }
-                }
-            }
-
-            if (string.IsNullOrEmpty(d3d8Source))
-            {
-                d3d8Source = configuration.Manifests
-                    .Where(m => m.ContentType is ContentType.GameClient or ContentType.GameInstallation)
-                    .SelectMany(m => (m.Files ?? []).Select(f => Path.GetDirectoryName(ResolveSourcePath(f, m, configuration))))
-                    .Where(d => !string.IsNullOrEmpty(d))
-                    .Select(d => Path.Combine(d!, GameClientConstants.Direct3D8WrapperDll))
-                    .FirstOrDefault(File.Exists);
-            }
+            var d3d8Source = EnumerateCandidateDirectories(configuration)
+                .Select(d => Path.Combine(d, GameClientConstants.Direct3D8WrapperDll))
+                .FirstOrDefault(File.Exists);
 
             if (string.IsNullOrEmpty(d3d8Source))
             {
@@ -295,6 +238,48 @@ public static class WorkspaceCompatibilityHelper
 
             File.Copy(sourcePath, targetPath, overwrite: true);
             logger.LogInformation("Copied {Dll} from {Source} to {Target}", GameClientConstants.Direct3D8WrapperDll, sourcePath, targetPath);
+        }
+    }
+
+    /// <summary>
+    /// Enumerates candidate directories where game files or compatibility assets might be found,
+    /// prioritized by BaseInstallationPath, GameClient working directory, GameClient executable directory,
+    /// and manifest source paths.
+    /// </summary>
+    /// <param name="configuration">The workspace configuration.</param>
+    /// <returns>An enumeration of candidate directory paths.</returns>
+    private static IEnumerable<string> EnumerateCandidateDirectories(WorkspaceConfiguration configuration)
+    {
+        if (!string.IsNullOrEmpty(configuration.BaseInstallationPath))
+        {
+            yield return configuration.BaseInstallationPath;
+        }
+
+        if (configuration.GameClient != null)
+        {
+            if (!string.IsNullOrEmpty(configuration.GameClient.WorkingDirectory))
+            {
+                yield return configuration.GameClient.WorkingDirectory;
+            }
+
+            if (!string.IsNullOrEmpty(configuration.GameClient.ExecutablePath))
+            {
+                var exeDir = Path.GetDirectoryName(configuration.GameClient.ExecutablePath);
+                if (!string.IsNullOrEmpty(exeDir))
+                {
+                    yield return exeDir;
+                }
+            }
+        }
+
+        var manifestDirs = configuration.Manifests
+            .Where(m => m.ContentType is ContentType.GameClient or ContentType.GameInstallation)
+            .SelectMany(m => (m.Files ?? []).Select(f => Path.GetDirectoryName(ResolveSourcePath(f, m, configuration))))
+            .Where(d => !string.IsNullOrEmpty(d));
+
+        foreach (var dir in manifestDirs)
+        {
+            yield return dir!;
         }
     }
 

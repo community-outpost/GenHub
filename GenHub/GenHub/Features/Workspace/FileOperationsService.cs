@@ -106,11 +106,11 @@ public class FileOperationsService(
 
     /// <summary>
     /// Deletes the specified directory and all its contents if it exists.
-    /// Handles NTFS directory junctions, directory symlinks, and read-only attributes
-    /// without throwing <see cref="UnauthorizedAccessException"/>.
+    /// Safely unlinks NTFS directory junctions and symlinks, clears read-only attributes,
+    /// and deletes the target if it points to a regular file.
     /// </summary>
     /// <param name="directoryPath">The path of the directory to delete.</param>
-    /// <returns>True if the directory was deleted; otherwise, false.</returns>
+    /// <returns>True if the directory or file was deleted; otherwise, false.</returns>
     /// <exception cref="IOException">Thrown when files are locked by another process.</exception>
     public static bool DeleteDirectoryIfExists(string directoryPath)
     {
@@ -119,24 +119,48 @@ public class FileOperationsService(
             return false;
         }
 
-        if (Directory.Exists(directoryPath) || Path.Exists(directoryPath))
+        FileAttributes attributes;
+        try
         {
-            try
+            attributes = File.GetAttributes(directoryPath);
+        }
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return false;
+        }
+        catch (Exception)
+        {
+            if (!Path.Exists(directoryPath))
             {
-                DeleteDirectoryInternal(new DirectoryInfo(directoryPath));
-                return true;
+                return false;
             }
-            catch (IOException ex) when (ex.Message.Contains("being used by another process", StringComparison.OrdinalIgnoreCase))
-            {
-                // Re-throw with a more helpful message
-                throw new IOException(
-                    $"Cannot delete directory '{directoryPath}' because files are being used by another process. " +
-                    "Please ensure all applications using files in this directory are closed before deleting.",
-                    ex);
-            }
+
+            attributes = 0;
         }
 
-        return false;
+        if (attributes != 0 && (attributes & FileAttributes.Directory) == 0)
+        {
+            return DeleteFileIfExists(directoryPath);
+        }
+
+        var dirInfo = new DirectoryInfo(directoryPath);
+        try
+        {
+            DeleteDirectoryInternal(dirInfo);
+            return true;
+        }
+        catch (IOException ex) when (ex.Message.Contains("being used by another process", StringComparison.OrdinalIgnoreCase))
+        {
+            // Re-throw with a more helpful message
+            throw new IOException(
+                $"Cannot delete directory '{directoryPath}' because files are being used by another process. " +
+                "Please ensure all applications using files in this directory are closed before deleting.",
+                ex);
+        }
     }
 
     /// <summary>
@@ -860,6 +884,11 @@ public class FileOperationsService(
         // Process subdirectories: delete junctions/reparse points non-recursively, recurse into regular dirs.
         foreach (var subDir in directory.EnumerateDirectories())
         {
+            if ((subDir.Attributes & FileAttributes.ReadOnly) != 0)
+            {
+                subDir.Attributes &= ~FileAttributes.ReadOnly;
+            }
+
             if ((subDir.Attributes & FileAttributes.ReparsePoint) != 0 || subDir.LinkTarget != null)
             {
                 subDir.Delete(false);

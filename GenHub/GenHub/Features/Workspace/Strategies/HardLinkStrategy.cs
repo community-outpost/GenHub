@@ -71,7 +71,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             cancellationToken.ThrowIfCancellationRequested();
 
             // Clean existing workspace if force recreate is requested
-            if ((Directory.Exists(workspacePath) || Path.Exists(workspacePath)) && configuration.ForceRecreate)
+            if (configuration.ForceRecreate)
             {
                 Logger.LogDebug("Removing existing workspace directory: {WorkspacePath}", workspacePath);
                 FileOperationsService.DeleteDirectoryIfExists(workspacePath);

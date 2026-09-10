@@ -109,6 +109,50 @@ public class WindowsFileOperationsServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that DeleteDirectoryIfExists unlinks an NTFS directory junction without deleting the target directory or its contents.
+    /// </summary>
+    [Fact]
+    public void DeleteDirectoryIfExists_UnlinksNtfsJunctionWithoutDeletingTarget()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var targetDir = Path.Combine(_tempDir, "junction_target");
+        Directory.CreateDirectory(targetDir);
+        var targetFile = Path.Combine(targetDir, "important.txt");
+        File.WriteAllText(targetFile, "critical game data");
+
+        var parentDir = Path.Combine(_tempDir, "workspace");
+        Directory.CreateDirectory(parentDir);
+        var junctionPath = Path.Combine(parentDir, "Core");
+
+        var psi = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = Path.Combine(Environment.SystemDirectory, "cmd.exe"),
+            Arguments = $"/c mklink /J \"{junctionPath}\" \"{targetDir}\"",
+            CreateNoWindow = true,
+            UseShellExecute = false,
+        };
+        using var process = System.Diagnostics.Process.Start(psi);
+        process?.WaitForExit(5000);
+
+        if (!Directory.Exists(junctionPath))
+        {
+            // Skip if environment does not allow junction creation
+            return;
+        }
+
+        var result = FileOperationsService.DeleteDirectoryIfExists(parentDir);
+
+        Assert.True(result);
+        Assert.False(Directory.Exists(parentDir));
+        Assert.True(Directory.Exists(targetDir), "Target directory of junction must remain intact!");
+        Assert.True(File.Exists(targetFile), "Files in target directory must remain intact!");
+    }
+
+    /// <summary>
     /// Cleans up the temporary directory after each test.
     /// </summary>
     public void Dispose()
