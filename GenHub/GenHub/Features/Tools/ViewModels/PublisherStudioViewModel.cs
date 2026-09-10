@@ -210,6 +210,11 @@ public partial class PublisherStudioViewModel : ObservableObject
     partial void OnSelectedTabIndexChanged(int value)
     {
         OnPropertyChanged(nameof(ShouldShowSetupOverlay));
+        if (value is 2 or 4 && PublishShareViewModel != null)
+        {
+            PublishShareViewModel.RefreshUploadHierarchy();
+            PublishShareViewModel.RefreshHostedAssets();
+        }
     }
 
     partial void OnSelectedCatalogChanged(NamedCatalog? value)

@@ -10,6 +10,10 @@
              x:DataType="vm:PublisherStudioViewModel"
              x:Name="RootView">
 
+    <UserControl.Resources>
+        <StreamGeometry x:Key="CloudStorageIcon">M19.35,10.04C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.04C2.34,8.36 0,10.91 0,14C0,17.31 2.69,20 6,20H19C21.76,20 24,17.76 24,15C24,12.36 21.95,10.22 19.35,10.04Z</StreamGeometry>
+    </UserControl.Resources>
+
     <UserControl.Styles>
         <!-- ==================== SURFACE & PANEL STYLES ==================== -->
         <Style Selector="Border.studio-header-panel">
@@ -174,11 +178,24 @@
                                 </StackPanel>
                             </Button>
 
-                            <!-- Referrals -->
+                            <!-- Hosting & Storage -->
                             <Button Classes="nav-pill"
                                     Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=2}"
                                     Command="{Binding SelectTabCommand}"
                                     CommandParameter="2"
+                                    IsEnabled="{Binding IsSetupComplete}"
+                                    ToolTip.Tip="Configure cloud hosting providers and inspect storage usage">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource CloudStorageIcon}" Width="13" Height="13"/>
+                                    <TextBlock Text="Hosting &amp; Storage"/>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Referrals -->
+                            <Button Classes="nav-pill"
+                                    Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=3}"
+                                    Command="{Binding SelectTabCommand}"
+                                    CommandParameter="3"
                                     IsEnabled="{Binding IsSetupComplete}"
                                     ToolTip.Tip="Recommend other community publishers">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
@@ -189,9 +206,9 @@
 
                             <!-- Publish & Share -->
                             <Button Classes="nav-pill"
-                                    Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=3}"
+                                    Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=4}"
                                     Command="{Binding SelectTabCommand}"
-                                    CommandParameter="3"
+                                    CommandParameter="4"
                                     IsEnabled="{Binding IsSetupComplete}"
                                     ToolTip.Tip="Export, host, and publish your catalog">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
@@ -329,11 +346,15 @@
                     <TabItem IsEnabled="{Binding IsSetupComplete}">
                         <views:ContentLibraryView DataContext="{Binding ContentLibraryViewModel}"/>
                     </TabItem>
-                    <!-- Tab 2: Referrals -->
+                    <!-- Tab 2: Hosting & Storage -->
+                    <TabItem IsEnabled="{Binding IsSetupComplete}">
+                        <views:HostingStorageView DataContext="{Binding PublishShareViewModel}"/>
+                    </TabItem>
+                    <!-- Tab 3: Referrals -->
                     <TabItem IsEnabled="{Binding IsSetupComplete}">
                         <views:ReferralsView DataContext="{Binding ReferralsViewModel}"/>
                     </TabItem>
-                    <!-- Tab 3: Publish & Share -->
+                    <!-- Tab 4: Publish & Share -->
                     <TabItem IsEnabled="{Binding IsSetupComplete}">
                         <views:PublishShareView DataContext="{Binding PublishShareViewModel}"/>
                     </TabItem>

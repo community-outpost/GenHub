@@ -31,7 +31,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
 {
     private const string DropboxApiUrl = "https://api.dropboxapi.com/2";
     private const string DropboxContentUrl = "https://content.dropboxapi.com/2";
-    private const string PublisherFolderPath = "/GenHub_Publisher";
+    private const string PublisherFolderPath = HostingConstants.DropboxDefaultPublisherFolder;
 
     private readonly HttpClient _httpClient = httpClientFactory.CreateClient();
     private string? _accessToken;
@@ -64,16 +64,28 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     /// <inheritdoc/>
     public bool SupportsUpdate => true;
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Gets the maximum file size supported by Dropbox.
+    /// </summary>
+    public long MaxFileSizeBytes => 2L * 1024 * 1024 * 1024; // 2GB free tier limit
+
+    /// <summary>
+    /// Authenticates with Dropbox using the stored access token.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Operation result indicating success.</returns>
     public Task<OperationResult<bool>> AuthenticateAsync(CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Dropbox authentication requires an access token.");
-        return Task.FromResult(OperationResult<bool>.CreateFailure(
-            "Please use the access token authentication. Get a token from the Dropbox App Console."));
+        if (string.IsNullOrWhiteSpace(_accessToken))
+        {
+            return Task.FromResult(OperationResult<bool>.CreateFailure("Dropbox access token is required. Generate a token from the Dropbox Developer App Console."));
+        }
+
+        return AuthenticateWithTokenAsync(_accessToken, cancellationToken);
     }
 
     /// <summary>
-    /// Authenticates using a Dropbox access token.
+    /// Authenticates with Dropbox using a personal access token.
     /// </summary>
     /// <param name="accessToken">The Dropbox access token.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -250,13 +262,15 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             if (!response.IsSuccessStatusCode)
             {
                 var error = await response.Content.ReadAsStringAsync(cancellationToken);
+                logger.LogWarning("Dropbox files/upload failed ({StatusCode}): {Error}", response.StatusCode, error);
                 return OperationResult<HostingUploadResult>.CreateFailure($"Upload failed: {error}");
             }
 
-            // Create shared link
+            // Create or fetch shared link
             var shareResult = await CreateSharedLinkAsync(filePath, cancellationToken);
             if (!shareResult.Success || string.IsNullOrEmpty(shareResult.Data))
             {
+                logger.LogError("Failed to get shared link for {Path}: {Error}", filePath, shareResult.FirstError);
                 return OperationResult<HostingUploadResult>.CreateFailure(shareResult);
             }
 
@@ -270,7 +284,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
                 FileSize = fileBytes.Length,
             };
 
-            logger.LogInformation("Uploaded file to Dropbox: {Path}", filePath);
+            logger.LogInformation("Uploaded file to Dropbox: {Path} ({Size} bytes) -> {Url}", filePath, fileBytes.Length, result.DirectDownloadUrl);
             return OperationResult<HostingUploadResult>.CreateSuccess(result);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -303,16 +317,124 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         IProgress<int>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        var stream = new MemoryStream(Encoding.UTF8.GetBytes(catalogJson));
+        var bytes = Encoding.UTF8.GetBytes(catalogJson);
+        using var stream = new MemoryStream(bytes);
         var fileName = $"catalog-{publisherId}.json";
         return await UploadFileAsync(stream, fileName, null, progress, cancellationToken);
     }
 
     /// <inheritdoc/>
-    public Task<OperationResult<HostingState?>> RecoverHostingStateAsync(CancellationToken cancellationToken = default)
+    public async Task<OperationResult<HostingState?>> RecoverHostingStateAsync(CancellationToken cancellationToken = default)
     {
-        // Recovery will scan files in the publisher folder once cloud sync is supported.
-        return Task.FromResult(OperationResult<HostingState?>.CreateSuccess(null));
+        if (!IsAuthenticated)
+        {
+            return OperationResult<HostingState?>.CreateFailure("Not authenticated with Dropbox");
+        }
+
+        try
+        {
+            logger.LogInformation("Scanning Dropbox folder {Folder} for hosted files...", PublisherFolderPath);
+            var listFolderRequest = new { path = PublisherFolderPath, recursive = false };
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{DropboxApiUrl}/files/list_folder")
+            {
+                Content = new StringContent(JsonSerializer.Serialize(listFolderRequest), Encoding.UTF8, HostingConstants.JsonContentType),
+            };
+
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                logger.LogWarning("Dropbox list_folder failed ({StatusCode}): {Error}", response.StatusCode, errorContent);
+                return OperationResult<HostingState?>.CreateSuccess(null);
+            }
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            using var doc = JsonDocument.Parse(content);
+            if (!doc.RootElement.TryGetProperty("entries", out var entries) || entries.ValueKind != JsonValueKind.Array)
+            {
+                return OperationResult<HostingState?>.CreateSuccess(null);
+            }
+
+            var state = new HostingState
+            {
+                ProviderId = HostingConstants.Dropbox,
+                FolderUrl = $"https://www.dropbox.com/home{PublisherFolderPath}",
+                LastPublished = DateTime.UtcNow,
+            };
+
+            foreach (var entry in entries.EnumerateArray())
+            {
+                if (entry.TryGetProperty(".tag", out var tag) && tag.GetString() != "file")
+                {
+                    continue;
+                }
+
+                var name = entry.GetProperty("name").GetString() ?? string.Empty;
+                var pathDisplay = entry.GetProperty("path_display").GetString() ?? $"{PublisherFolderPath}/{name}";
+                var id = entry.GetProperty("id").GetString() ?? pathDisplay;
+                var size = entry.TryGetProperty("size", out var sizeProp) ? sizeProp.GetInt64() : 0L;
+                var lastModified = entry.TryGetProperty("server_modified", out var modProp) && modProp.TryGetDateTime(out var dt)
+                    ? dt
+                    : DateTime.UtcNow;
+
+                var shareResult = await CreateSharedLinkAsync(pathDisplay, cancellationToken);
+                var directUrl = shareResult.Success && !string.IsNullOrEmpty(shareResult.Data)
+                    ? ConvertToDirectDownloadUrl(shareResult.Data)
+                    : string.Empty;
+
+                if (name.Equals(HostingConstants.DefaultDefinitionFileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    state.Definition = new HostedFileInfo
+                    {
+                        FileId = id,
+                        Url = directUrl,
+                        FileSize = size,
+                        LastUpdated = lastModified,
+                    };
+                }
+                else if (name.StartsWith("catalog-", StringComparison.OrdinalIgnoreCase) && name.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                {
+                    var catalogId = name["catalog-".Length..^".json".Length];
+                    state.Catalogs.Add(new CatalogHostingInfo
+                    {
+                        CatalogId = catalogId,
+                        CatalogName = catalogId,
+                        FileName = name,
+                        FileId = id,
+                        Url = directUrl,
+                        FileSize = size,
+                        LastUpdated = lastModified,
+                    });
+                }
+                else
+                {
+                    state.Artifacts.Add(new ArtifactHostingInfo
+                    {
+                        FileName = name,
+                        FileId = id,
+                        Url = directUrl,
+                        FileSize = size,
+                        LastUpdated = lastModified,
+                    });
+                }
+            }
+
+            logger.LogInformation(
+                "Dropbox scan completed. Found {Catalogs} catalogs, {Artifacts} artifacts, Definition={HasDef}",
+                state.Catalogs.Count,
+                state.Artifacts.Count,
+                state.Definition != null);
+            return OperationResult<HostingState?>.CreateSuccess(state);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to scan Dropbox folder for hosted state");
+            return OperationResult<HostingState?>.CreateFailure($"Failed to scan Dropbox: {ex.Message}");
+        }
     }
 
     /// <inheritdoc/>
@@ -385,8 +507,8 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     {
         try
         {
-            // First try to get existing shared link
-            var listRequest = new { path, };
+            // 1. Check existing shared link
+            var listRequest = new { path, direct_only = true };
             var listResponse = await _httpClient.PostAsync(
                 $"{DropboxApiUrl}/sharing/list_shared_links",
                 new StringContent(JsonSerializer.Serialize(listRequest), Encoding.UTF8, HostingConstants.JsonContentType),
@@ -395,47 +517,82 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             if (listResponse.IsSuccessStatusCode)
             {
                 var listContent = await listResponse.Content.ReadAsStringAsync(cancellationToken);
-                var listResult = JsonSerializer.Deserialize<JsonElement>(listContent);
-                if (listResult.TryGetProperty("links", out var links) && links.GetArrayLength() > 0)
+                using var listDoc = JsonDocument.Parse(listContent);
+                if (listDoc.RootElement.TryGetProperty("links", out var links) && links.GetArrayLength() > 0)
                 {
-                    var url = links[0].GetProperty("url").GetString();
-                    if (!string.IsNullOrEmpty(url))
+                    var existingUrl = links[0].GetProperty("url").GetString();
+                    if (!string.IsNullOrEmpty(existingUrl))
                     {
-                        return OperationResult<string>.CreateSuccess(url);
+                        logger.LogInformation("Found existing Dropbox shared link: {Url}", existingUrl);
+                        return OperationResult<string>.CreateSuccess(existingUrl);
                     }
                 }
             }
-
-            // Create new shared link
-            var createRequest = new
+            else
             {
-                path,
-                settings = new
-                {
-                    requested_visibility = "public",
-                    audience = "public",
-                    access = "viewer",
-                },
-            };
+                var listError = await listResponse.Content.ReadAsStringAsync(cancellationToken);
+                logger.LogWarning("Dropbox list_shared_links returned {Status}: {Error}", listResponse.StatusCode, listError);
+            }
 
+            // 2. Create new shared link sending minimal { path }
+            var createRequest = new { path };
             var response = await _httpClient.PostAsync(
                 $"{DropboxApiUrl}/sharing/create_shared_link_with_settings",
                 new StringContent(JsonSerializer.Serialize(createRequest), Encoding.UTF8, HostingConstants.JsonContentType),
                 cancellationToken);
 
+            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
             if (response.IsSuccessStatusCode)
             {
-                var content = await response.Content.ReadAsStringAsync(cancellationToken);
-                var result = JsonSerializer.Deserialize<JsonElement>(content);
-                var url = result.GetProperty("url").GetString();
+                using var resultDoc = JsonDocument.Parse(errorContent);
+                var url = resultDoc.RootElement.GetProperty("url").GetString();
                 if (!string.IsNullOrEmpty(url))
                 {
+                    logger.LogInformation("Created new Dropbox shared link: {Url}", url);
                     return OperationResult<string>.CreateSuccess(url);
                 }
             }
 
-            var error = await response.Content.ReadAsStringAsync(cancellationToken);
-            return OperationResult<string>.CreateFailure($"Failed to create shared link: {error}");
+            logger.LogWarning("Dropbox create_shared_link_with_settings returned {Status}: {Error}", response.StatusCode, errorContent);
+
+            // 3. Inspect error for recovery (e.g. shared_link_already_exists or missing_scope)
+            try
+            {
+                using var doc = JsonDocument.Parse(errorContent);
+                var root = doc.RootElement;
+                if (root.TryGetProperty("error", out var errObj))
+                {
+                    // Check if link already exists
+                    if (errObj.TryGetProperty(".tag", out var tag) && tag.GetString() == "shared_link_already_exists")
+                    {
+                        if (errObj.TryGetProperty("metadata", out var meta) && meta.TryGetProperty("url", out var existingUrlProp))
+                        {
+                            var recoveredUrl = existingUrlProp.GetString();
+                            if (!string.IsNullOrEmpty(recoveredUrl))
+                            {
+                                logger.LogInformation("Extracted existing link from shared_link_already_exists error: {Url}", recoveredUrl);
+                                return OperationResult<string>.CreateSuccess(recoveredUrl);
+                            }
+                        }
+                    }
+
+                    // Check for missing permissions
+                    if (errObj.TryGetProperty(".tag", out var tagScope) && tagScope.GetString() == "missing_scope")
+                    {
+                        var reqScope = errObj.TryGetProperty("required_scope", out var rs) ? rs.GetString() : "sharing.write";
+                        return OperationResult<string>.CreateFailure(
+                            $"Dropbox access token is missing the '{reqScope}' permission. " +
+                            "In your Dropbox App Console, navigate to the 'Permissions' tab, check 'account_info.read', 'files.content.write', 'files.content.read', 'sharing.write', and 'sharing.read', click 'Submit', and regenerate your token under the 'Settings' tab.");
+                    }
+                }
+            }
+            catch (JsonException)
+            {
+                // Fall back to returning standard error below
+            }
+
+            return OperationResult<string>.CreateFailure($"Failed to create shared link: {errorContent}");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -443,6 +600,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
         }
         catch (Exception ex)
         {
+            logger.LogError(ex, "Exception creating shared link for {Path}", path);
             return OperationResult<string>.CreateFailure($"Shared link error: {ex.Message}");
         }
     }
