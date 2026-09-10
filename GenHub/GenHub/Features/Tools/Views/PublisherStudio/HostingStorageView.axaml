@@ -9,12 +9,6 @@
              x:DataType="vm:PublishShareViewModel"
              x:Name="RootView">
 
-    <UserControl.Resources>
-        <StreamGeometry x:Key="CloudStorageIcon">M19.35,10.04C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.04C2.34,8.36 0,10.91 0,14C0,17.31 2.69,20 6,20H19C21.76,20 24,17.76 24,15C24,12.36 21.95,10.22 19.35,10.04Z</StreamGeometry>
-        <StreamGeometry x:Key="ServerDriveIcon">M4,1H20A1,1 0 0,1 21,2V6A1,1 0 0,1 20,7H4A1,1 0 0,1 3,6V2A1,1 0 0,1 4,1M4,9H20A1,1 0 0,1 21,10V14A1,1 0 0,1 20,15H4A1,1 0 0,1 3,14V10A1,1 0 0,1 4,9M4,17H20A1,1 0 0,1 21,18V22A1,1 0 0,1 20,23H4A1,1 0 0,1 3,22V18A1,1 0 0,1 4,17M9,5H10V3H9V5M9,13H10V11H9V13M9,21H10V19H9V21M5,3V5H7V3H5M5,11V13H7V11H5M5,19V21H7V19H5Z</StreamGeometry>
-        <StreamGeometry x:Key="FolderCloudIcon">M19.35,10.04C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.04C2.34,8.36 0,10.91 0,14C0,17.31 2.69,20 6,20H19C21.76,20 24,17.76 24,15C24,12.36 21.95,10.22 19.35,10.04M10,17L15,12L13.59,10.59L11,13.17V8H9V13.17L6.41,10.59L5,12L10,17Z</StreamGeometry>
-    </UserControl.Resources>
-
     <UserControl.Styles>
         <Style Selector="Button.glass-btn">
             <Setter Property="Background" Value="#15FFFFFF"/>
@@ -85,29 +79,29 @@
             <Setter Property="Padding" Value="16,14"/>
         </Style>
         <Style Selector="Border.status-badge-active">
-            <Setter Property="Background" Value="#2040FF40"/>
-            <Setter Property="BorderBrush" Value="#4040FF40"/>
+            <Setter Property="Background" Value="{DynamicResource StatusSuccessBadgeBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource StatusSuccessBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="Padding" Value="8,3"/>
         </Style>
         <Style Selector="Border.status-badge-warning">
-            <Setter Property="Background" Value="#20FFBB00"/>
-            <Setter Property="BorderBrush" Value="#40FFBB00"/>
+            <Setter Property="Background" Value="{DynamicResource StatusWarningBadgeBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource WarningHighlightBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="Padding" Value="8,3"/>
         </Style>
         <Style Selector="Border.status-badge-inactive">
-            <Setter Property="Background" Value="#20888888"/>
-            <Setter Property="BorderBrush" Value="#40888888"/>
+            <Setter Property="Background" Value="{DynamicResource BorderSubtleBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="Padding" Value="8,3"/>
         </Style>
         <Style Selector="Border.status-badge-info">
-            <Setter Property="Background" Value="#2040A0FF"/>
-            <Setter Property="BorderBrush" Value="#4040A0FF"/>
+            <Setter Property="Background" Value="{DynamicResource StatusInfoBadgeBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource StatusInfoBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="Padding" Value="8,3"/>
@@ -124,9 +118,9 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="32,24,32,40" Spacing="0">
 
-            <!-- Section 1: Header Bar & Quick Actions -->
+            <!-- Section 1: Header Banner -->
             <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,24">
-                <StackPanel Grid.Column="0" Spacing="6" VerticalAlignment="Center">
+                <StackPanel Spacing="6">
                     <StackPanel Orientation="Horizontal" Spacing="10">
                         <Border Width="36" Height="36" CornerRadius="8" Background="{DynamicResource PrimaryGradientBrush}" VerticalAlignment="Center">
                             <PathIcon Data="{StaticResource CloudStorageIcon}" Width="18" Height="18" Foreground="White"/>
@@ -134,7 +128,7 @@
                         <TextBlock Text="Hosting &amp; Cloud Storage" FontSize="24" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
                     </StackPanel>
                     <TextBlock Text="Manage cloud storage distribution, monitor space consumed, inspect live file URLs, and sync existing assets."
-                               FontSize="13" Foreground="#94A3B8"/>
+                               FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
@@ -153,7 +147,8 @@
                             ToolTip.Tip="Scan cloud storage for already-uploaded publisher files and synchronize state">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <PathIcon Data="{StaticResource RefreshIcon}" Width="14" Height="14" Foreground="White"/>
-                            <TextBlock Text="{Binding IsScanningStorage, Converter={x:Static ObjectConverters.IsNull}, ConverterParameter='Scan / Sync Storage'}" Foreground="White" FontSize="12"/>
+                            <TextBlock Text="Scanning..." IsVisible="{Binding IsScanningStorage}" Foreground="White" FontSize="12"/>
+                            <TextBlock Text="Scan / Sync Storage" IsVisible="{Binding !IsScanningStorage}" Foreground="White" FontSize="12"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -164,8 +159,8 @@
                     Background="#18FFFFFF" BorderBrush="#30FFFFFF" BorderThickness="1" CornerRadius="8"
                     Padding="14,10" Margin="0,0,0,20">
                 <Grid ColumnDefinitions="Auto,*,Auto">
-                    <PathIcon Grid.Column="0" Data="{StaticResource RefreshIcon}" Width="14" Height="14" Foreground="#80D8FF" Margin="0,0,10,0"/>
-                    <TextBlock Grid.Column="1" Text="{Binding StorageScanStatusMessage}" FontSize="12" Foreground="#D0D0E0" VerticalAlignment="Center"/>
+                    <PathIcon Grid.Column="0" Data="{StaticResource RefreshIcon}" Width="14" Height="14" Foreground="{DynamicResource StatusInfoBrush}" Margin="0,0,10,0"/>
+                    <TextBlock Grid.Column="1" Text="{Binding StorageScanStatusMessage}" FontSize="12" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                     <ProgressBar Grid.Column="2" IsIndeterminate="True" Width="100" Height="4" IsVisible="{Binding IsScanningStorage}"/>
                 </Grid>
             </Border>
@@ -176,8 +171,8 @@
                 <Border Grid.Column="0" Classes="metric-box" Margin="0,0,10,0">
                     <StackPanel Spacing="6">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <PathIcon Data="{StaticResource CloudStorageIcon}" Width="13" Height="13" Foreground="#80D8FF"/>
-                            <TextBlock Text="STORAGE CONSUMED" FontSize="10" FontWeight="Bold" Foreground="#80D8FF"/>
+                            <PathIcon Data="{StaticResource CloudStorageIcon}" Width="13" Height="13" Foreground="{DynamicResource StatusInfoBrush}"/>
+                            <TextBlock Text="STORAGE CONSUMED" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource StatusInfoBrush}"/>
                         </StackPanel>
                         <TextBlock Text="{Binding TotalStorageUsedFormatted}" FontSize="22" FontWeight="Bold" Foreground="White"/>
                         <TextBlock Text="Cloud files (Definition, Catalogs, Releases)" FontSize="11" Foreground="#8888AA"/>
@@ -208,7 +203,7 @@
                             <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding HostedArtifactsCount}" FontSize="11" FontWeight="Bold" Foreground="White"/>
 
                             <TextBlock Grid.Row="2" Grid.Column="0" Text="External CDN: " FontSize="11" Foreground="#AAAAAA"/>
-                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ExternalCdnCount}" FontSize="11" FontWeight="Bold" Foreground="#80D8FF"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ExternalCdnCount}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource StatusInfoBrush}"/>
                         </Grid>
                     </StackPanel>
                 </Border>
@@ -239,15 +234,15 @@
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <Border Classes="status-badge-active" IsVisible="{Binding IsProviderAuthenticated}">
                                 <StackPanel Orientation="Horizontal" Spacing="5">
-                                    <Ellipse Width="6" Height="6" Fill="#40FF40"/>
-                                    <TextBlock Text="Connected" Foreground="#40FF40" FontSize="11" FontWeight="SemiBold"/>
+                                    <Ellipse Width="6" Height="6" Fill="{DynamicResource StatusSuccessBrush}"/>
+                                    <TextBlock Text="Connected" Foreground="{DynamicResource StatusSuccessBrush}" FontSize="11" FontWeight="SemiBold"/>
                                 </StackPanel>
                             </Border>
 
                             <Border Classes="status-badge-inactive" IsVisible="{Binding !IsProviderAuthenticated}">
                                 <StackPanel Orientation="Horizontal" Spacing="5">
-                                    <Ellipse Width="6" Height="6" Fill="#888888"/>
-                                    <TextBlock Text="Not Connected" Foreground="#AAAAAA" FontSize="11"/>
+                                    <Ellipse Width="6" Height="6" Fill="{DynamicResource TextMuted}"/>
+                                    <TextBlock Text="Not Connected" Foreground="{DynamicResource TextMuted}" FontSize="11"/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -255,7 +250,7 @@
 
                     <!-- Provider Selector Dropdown -->
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Select Provider:" FontSize="12" FontWeight="SemiBold" Foreground="#D0D0E0"/>
+                        <TextBlock Text="Select Provider:" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                         <ComboBox ItemsSource="{Binding HostingProviders}"
                                   SelectedItem="{Binding SelectedHostingProvider}"
                                   HorizontalAlignment="Stretch">
@@ -287,22 +282,22 @@
 
                                 <!-- Steps -->
                                 <StackPanel Spacing="8">
-                                    <TextBlock Text="Step 1: Create a Google Cloud Project" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF"/>
+                                    <TextBlock Text="Step 1: Create a Google Cloud Project" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
                                     <TextBlock Text="Open the Google Cloud Console, click the top project selector dropdown, and click 'NEW PROJECT'. Name it 'GenHub Publisher' and create it." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
 
-                                    <TextBlock Text="Step 2: Configure App under 'Google Auth Platform' (Project Configuration)" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF"/>
+                                    <TextBlock Text="Step 2: Configure App under 'Google Auth Platform' (Project Configuration)" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
                                     <TextBlock Text="Click button #1 below. On 'Project configuration': Set App name ('GenHub'), choose your email for 'User support email', select 'External' audience, enter your email for 'Developer contact', and click 'Create'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
 
-                                    <TextBlock Text="Step 3: Enable the Google Drive API" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF"/>
+                                    <TextBlock Text="Step 3: Enable the Google Drive API" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
                                     <TextBlock Text="In Google Cloud Console, search for 'Google Drive API' in the top bar and click 'ENABLE'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
 
                                     <TextBlock Text="Step 4: Create OAuth Client ID  [CRITICAL: Must choose 'Desktop app']" FontWeight="SemiBold" FontSize="12" Foreground="#FF5252"/>
                                     <TextBlock Text="Click button #2 below (Credentials) -> '+ CREATE CREDENTIALS' -> 'OAuth client ID'. Set Application type to 'Desktop app' (DO NOT select 'Web application' — web apps do not permit desktop loopback and will fail with Error 400: redirect_uri_mismatch). Name it 'GenHub Desktop' and create." FontSize="11" Foreground="#FFCC80" TextWrapping="Wrap"/>
 
-                                    <TextBlock Text="Step 5: Add your account to Test Users" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF"/>
+                                    <TextBlock Text="Step 5: Add your account to Test Users" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
                                     <TextBlock Text="Under Google Auth Platform -> 'Audience' -> 'Test users', click '+ ADD USERS' and add your Google account email address. Click Save." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
 
-                                    <TextBlock Text="Step 6: Paste Client ID and Secret below and Connect" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF"/>
+                                    <TextBlock Text="Step 6: Paste Client ID and Secret below and Connect" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
                                     <TextBlock Text="Copy your Client ID (.apps.googleusercontent.com) and Client Secret (GOCSPX-...) into the input fields below and click Connect." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
                                 </StackPanel>
 
@@ -351,112 +346,66 @@
 
                                 <!-- Steps -->
                                 <StackPanel Spacing="8">
-                                    <TextBlock Text="Step 1: Create a Scoped App" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF"/>
+                                    <TextBlock Text="Step 1: Create a Scoped App" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
                                     <TextBlock Text="Click button #1 below ('1. Create Dropbox App'). Select 'Scoped access', choose 'Full Dropbox' (or 'App folder'), enter an App name (e.g. 'GenHubPublisher'), and click 'Create app'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
 
                                     <TextBlock Text="Step 2: Enable Permissions in Dropbox Console  [CRITICAL: Prevents 400 Bad Request]" FontWeight="SemiBold" FontSize="12" Foreground="#FF5252"/>
                                     <TextBlock Text="Switch to the 'Permissions' tab at the top of your Dropbox app page. Enable ALL of the following permissions:&#x0a;• files.content.write&#x0a;• files.content.read&#x0a;• sharing.write&#x0a;• sharing.read&#x0a;• account_info.read&#x0a;Then click the 'Submit' button at the bottom of the page! (If permissions are not saved, link creation will fail with HTTP 400)." FontSize="11" Foreground="#FFCC80" TextWrapping="Wrap"/>
 
-                                    <TextBlock Text="Step 3: Generate Access Token" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF"/>
-                                    <TextBlock Text="Switch to the 'Settings' tab at the top. Scroll down to the 'OAuth 2' section. Under 'Generated access token', click the 'Generate' button. Dropbox displays your token (starts with 'sl.')." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
-
-                                    <TextBlock Text="Step 4: Paste Token into GenHub and Connect" FontWeight="SemiBold" FontSize="12" Foreground="#80D8FF"/>
-                                    <TextBlock Text="Copy that access token, paste it in the box below, and click 'Connect to Dropbox'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Step 3: Generate Access Token" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
+                                    <TextBlock Text="Click the 'Settings' tab on your Dropbox app page. Scroll down to 'Generated access token' and click 'Generate'. Copy the token and paste it below." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
                                 </StackPanel>
 
-                                <!-- Direct Action Buttons -->
+                                <!-- Action button to Dropbox console -->
                                 <WrapPanel Margin="0,4,0,0">
-                                    <Button Command="{Binding OpenDropboxCreateAppCommand}" Classes="small-glass-btn" Margin="0,0,10,6">
+                                    <Button Command="{Binding OpenDropboxAppConsoleCommand}" Classes="small-glass-btn" Margin="0,0,10,0">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
                                             <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                            <TextBlock Text="1. Create Dropbox App" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                            <TextBlock Text="1. Create Dropbox App (App Console)" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
                                         </StackPanel>
                                     </Button>
-                                    <Button Command="{Binding OpenDropboxAppConsoleCommand}" Classes="small-glass-btn" Margin="0,0,0,6">
+                                    <Button Command="{Binding OpenDropboxCreateAppCommand}" Classes="small-glass-btn">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
                                             <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                            <TextBlock Text="2. Open Dropbox App Console (Permissions &amp; Token)" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                            <TextBlock Text="2. Dropbox Developer Settings" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
                                         </StackPanel>
                                     </Button>
                                 </WrapPanel>
 
-                                <!-- Token Input -->
-                                <StackPanel Spacing="6" Margin="0,6,0,0">
-                                    <TextBlock Text="Dropbox Access Token (starts with sl.):" FontSize="12" Foreground="#AAAAAA"/>
-                                    <TextBox Text="{Binding DropboxAccessToken}" Watermark="sl.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" PasswordChar="●" RevealPassword="True"/>
+                                <!-- Dropbox Token Input -->
+                                <StackPanel Spacing="4" Margin="0,6,0,0">
+                                    <TextBlock Text="Dropbox Access Token (sl.u.xxxxxx...):" FontSize="12" Foreground="#AAAAAA"/>
+                                    <TextBox Text="{Binding DropboxAccessToken}" Watermark="sl.u.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" PasswordChar="●" RevealPassword="True" FontSize="12"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
                     </StackPanel>
 
-                    <!-- GITHUB GISTS SETUP GUIDE -->
-                    <StackPanel IsVisible="{Binding ShowGitHubPatInput}" Spacing="12">
-                        <Border Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
-                            <StackPanel Spacing="10">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Border Width="20" Height="20" CornerRadius="4" Background="#333333" VerticalAlignment="Center">
-                                        <TextBlock Text="GH" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10"/>
-                                    </Border>
-                                    <TextBlock Text="GitHub Gists Setup (Manifest Only)" FontWeight="Bold" FontSize="13" Foreground="White" VerticalAlignment="Center"/>
-                                </StackPanel>
-                                <TextBlock Text="GitHub Gists publishes catalog.json and publisher.json directly to your GitHub profile as public gists. Binary releases (.zip/.exe) must be hosted on an external CDN."
-                                           FontSize="11" Foreground="#AAAAAA" TextWrapping="Wrap"/>
-
-                                <Border Height="1" Background="#20FFFFFF"/>
-
-                                <StackPanel Spacing="8">
-                                    <TextBlock Text="1. Click 'Generate GitHub Token' below. GitHub will open with the 'gist' scope pre-selected." FontSize="11" Foreground="#CCCCCC"/>
-                                    <TextBlock Text="2. Scroll to the bottom and click 'Generate token'." FontSize="11" Foreground="#CCCCCC"/>
-                                    <TextBlock Text="3. Copy the token (starts with 'ghp_'), paste it below, and click Connect." FontSize="11" Foreground="#CCCCCC"/>
-                                </StackPanel>
-
-                                <Button Command="{Binding OpenGitHubTokensPageCommand}" Classes="small-glass-btn" HorizontalAlignment="Left">
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                        <TextBlock Text="Generate GitHub Token with Gist Scope" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
-                                    </StackPanel>
-                                </Button>
-
-                                <StackPanel Spacing="6" Margin="0,6,0,0">
-                                    <TextBlock Text="GitHub Personal Access Token:" FontSize="12" Foreground="#AAAAAA"/>
-                                    <TextBox Text="{Binding GitHubPersonalAccessToken}" Watermark="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" PasswordChar="●" RevealPassword="True"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-
-                    <!-- Auth Status Message -->
-                    <TextBlock Text="{Binding AuthenticationStatusMessage}"
-                               FontSize="12" Foreground="#F59E0B"
-                               IsVisible="{Binding AuthenticationStatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-
-                    <!-- Action Buttons: Connect / Cancel / Disconnect -->
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Button Command="{Binding AuthenticateCommand}"
-                                IsVisible="{Binding NeedsAuthentication}"
-                                Classes="primary-btn"
-                                IsEnabled="{Binding !IsAuthenticating}">
+                    <!-- Connection Action Buttons -->
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Classes="primary-btn"
+                                Command="{Binding AuthenticateCommand}"
+                                IsEnabled="{Binding !IsAuthenticating}"
+                                ToolTip.Tip="Connect and authenticate with the selected provider">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <PathIcon Data="{StaticResource LinkIcon}" Width="14" Height="14" Foreground="White"/>
-                                <TextBlock Text="{Binding ConnectButtonText}" Foreground="White" FontWeight="Bold"/>
+                                <PathIcon Data="{StaticResource ConfirmationCheckIcon}" Width="14" Height="14" Foreground="White"/>
+                                <TextBlock Text="Connect Provider" FontSize="12" Foreground="White"/>
                             </StackPanel>
                         </Button>
 
-                        <!-- Cancel Authentication Button (Shown when Authenticating hangs or takes time) -->
-                        <Button Command="{Binding CancelAuthenticationCommand}"
+                        <Button Classes="glass-btn"
+                                Command="{Binding CancelAuthenticationCommand}"
                                 IsVisible="{Binding IsAuthenticating}"
-                                Classes="glass-btn">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <PathIcon Data="{StaticResource CloseIcon}" Width="12" Height="12" Foreground="#FF6B6B"/>
-                                <TextBlock Text="Cancel Authentication" Foreground="#FF6B6B"/>
-                            </StackPanel>
+                                ToolTip.Tip="Cancel the ongoing authentication">
+                            <TextBlock Text="Cancel" FontSize="12" Foreground="#FF8888"/>
                         </Button>
 
-                        <Button Command="{Binding SignOutCommand}"
-                                IsVisible="{Binding IsProviderAuthenticated}"
-                                Classes="glass-btn">
-                            <TextBlock Text="Disconnect Provider" Foreground="#AAAAAA"/>
-                        </Button>
+                        <ProgressBar IsIndeterminate="True" Width="100" Height="4"
+                                     VerticalAlignment="Center" IsVisible="{Binding IsAuthenticating}"/>
+
+                        <TextBlock Text="{Binding AuthenticationStatusMessage}"
+                                   FontSize="12" Foreground="{DynamicResource TextPrimary}"
+                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -472,7 +421,7 @@
                         </StackPanel>
 
                         <Border Grid.Column="1" Classes="status-badge-info" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding HostedAssets.Count, StringFormat='{}{0} Assets Tracked'}" FontSize="11" FontWeight="SemiBold" Foreground="#80D8FF"/>
+                            <TextBlock Text="{Binding HostedAssets.Count, StringFormat='{}{0} Assets Tracked'}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource StatusInfoBrush}"/>
                         </Border>
                     </Grid>
 
@@ -513,13 +462,13 @@
                                         <!-- Column 3: Status Badge -->
                                         <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
                                             <Border Classes="status-badge-active" IsVisible="{Binding IsOnline}">
-                                                <TextBlock Text="Live Online" FontSize="10" Foreground="#40FF40" FontWeight="SemiBold"/>
+                                                <TextBlock Text="Live Online" FontSize="10" Foreground="{DynamicResource StatusSuccessBrush}" FontWeight="SemiBold"/>
                                             </Border>
                                             <Border Classes="status-badge-info" IsVisible="{Binding IsExternalCdn}">
-                                                <TextBlock Text="External CDN" FontSize="10" Foreground="#80D8FF" FontWeight="SemiBold"/>
+                                                <TextBlock Text="External CDN" FontSize="10" Foreground="{DynamicResource StatusInfoBrush}" FontWeight="SemiBold"/>
                                             </Border>
                                             <Border Classes="status-badge-warning" IsVisible="{Binding !IsOnline}">
-                                                <TextBlock Text="Pending" FontSize="10" Foreground="#FFCC80"/>
+                                                <TextBlock Text="Pending" FontSize="10" Foreground="{DynamicResource WarningHighlightBrush}"/>
                                             </Border>
                                         </StackPanel>
 
@@ -532,6 +481,7 @@
                                                     Command="{Binding ((vm:PublishShareViewModel)DataContext).CopyAssetUrlCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding Url}"
                                                     IsEnabled="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                    AutomationProperties.Name="Copy direct download link"
                                                     ToolTip.Tip="Copy direct download link">
                                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                                     <PathIcon Data="{StaticResource CopyIcon}" Width="10" Height="10" Foreground="White"/>
@@ -543,6 +493,7 @@
                                                     Command="{Binding ((vm:PublishShareViewModel)DataContext).OpenUrlInBrowserCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding Url}"
                                                     IsEnabled="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                    AutomationProperties.Name="Open download URL in browser"
                                                     ToolTip.Tip="Open download URL in browser">
                                                 <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="10" Height="10" Foreground="{DynamicResource AccentColorBrush}"/>
                                             </Button>

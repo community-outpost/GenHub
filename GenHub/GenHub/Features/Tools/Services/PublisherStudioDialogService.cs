@@ -21,9 +21,9 @@ namespace GenHub.Features.Tools.Services;
 /// <summary>
 /// Implementation of IPublisherStudioDialogService.
 /// </summary>
-public class PublisherStudioDialogService(IDialogService? dialogService = null) : IPublisherStudioDialogService
+public class PublisherStudioDialogService(IDialogService dialogService) : IPublisherStudioDialogService
 {
-    private readonly IDialogService? _dialogService = dialogService;
+    private readonly IDialogService _dialogService = dialogService;
 
     /// <inheritdoc/>
     public async Task<bool> ShowConfirmationAsync(
@@ -38,7 +38,7 @@ public class PublisherStudioDialogService(IDialogService? dialogService = null) 
             return await _dialogService.ShowConfirmationAsync(title, message, confirmText, cancelText, sessionKey);
         }
 
-        return true;
+        return false;
     }
 
     /// <inheritdoc/>
@@ -181,7 +181,7 @@ public class PublisherStudioDialogService(IDialogService? dialogService = null) 
     public async Task<string?> ShowRenameCatalogDialogAsync(string currentName)
     {
         return await ShowDialogAsync<RenameCatalogDialogViewModel, RenameCatalogDialogView, string>(
-            callback => new RenameCatalogDialogViewModel(currentName, callback));
+            callback => new RenameCatalogDialogViewModel(currentName, res => callback(res!)));
     }
 
     /// <summary>

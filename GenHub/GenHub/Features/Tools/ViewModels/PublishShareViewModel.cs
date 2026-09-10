@@ -250,6 +250,44 @@ public partial class PublishShareViewModel : ObservableObject
         PendingArtifactsCount > 0;
 
     /// <summary>
+    /// Gets the count of pending local artifacts awaiting upload in the active catalog.
+    /// </summary>
+    public int ActiveCatalogPendingArtifactsCount => ActiveCatalog?.Catalog.Content
+        .SelectMany(c => c.Releases)
+        .SelectMany(r => r.Artifacts)
+        .Count(a => !string.IsNullOrEmpty(a.LocalFilePath) && string.IsNullOrEmpty(a.DownloadUrl)) ?? 0;
+
+    /// <summary>
+    /// Gets a value indicating whether the selected provider cannot host binary artifacts but the active catalog has pending local artifacts.
+    /// </summary>
+    public bool HasIncompatibleArtifactsForActiveCatalog =>
+        SelectedHostingProvider != null &&
+        !SelectedHostingProvider.SupportsArtifactHosting &&
+        ActiveCatalogPendingArtifactsCount > 0;
+
+    /// <summary>
+    /// Synchronizes available catalogs and refreshes state when catalogs are added, removed, or renamed.
+    /// </summary>
+    public void SyncAvailableCatalogs()
+    {
+        AvailableCatalogs.Clear();
+        foreach (var catalog in _project.Catalogs)
+        {
+            AvailableCatalogs.Add(catalog);
+        }
+
+        if (ActiveCatalog == null || !_project.Catalogs.Contains(ActiveCatalog))
+        {
+            ActiveCatalog = AvailableCatalogs.FirstOrDefault();
+        }
+
+        InitializeCatalogStatuses();
+        RefreshUploadHierarchy();
+        RefreshHostedAssets();
+        RefreshArtifactStatuses();
+    }
+
+    /// <summary>
     /// Gets an explanatory warning message when the provider cannot host the pending local files.
     /// </summary>
     public string IncompatibleArtifactsWarningMessage =>
@@ -538,7 +576,9 @@ public partial class PublishShareViewModel : ObservableObject
             return;
         }
 
-        foreach (var cloudCat in _currentHostingState.Catalogs.Where(cloudCat => !HostedAssets.Any(a => a.Name == cloudCat.FileName || a.Url == cloudCat.Url)))
+        foreach (var cloudCat in _currentHostingState.Catalogs.Where(cloudCat => !HostedAssets.Any(a =>
+            (!string.IsNullOrEmpty(a.Url) && !string.IsNullOrEmpty(cloudCat.Url) && string.Equals(a.Url, cloudCat.Url, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(a.Name) && !string.IsNullOrEmpty(cloudCat.FileName) && string.Equals(a.Name, cloudCat.FileName, StringComparison.OrdinalIgnoreCase)))))
         {
             catCount++;
             totalBytes += cloudCat.FileSize;
@@ -556,7 +596,9 @@ public partial class PublishShareViewModel : ObservableObject
             });
         }
 
-        foreach (var cloudArt in _currentHostingState.Artifacts.Where(cloudArt => !HostedAssets.Any(a => a.Name == cloudArt.FileName || a.Url == cloudArt.Url)))
+        foreach (var cloudArt in _currentHostingState.Artifacts.Where(cloudArt => !HostedAssets.Any(a =>
+            (!string.IsNullOrEmpty(a.Url) && !string.IsNullOrEmpty(cloudArt.Url) && string.Equals(a.Url, cloudArt.Url, StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(a.Name) && !string.IsNullOrEmpty(cloudArt.FileName) && string.Equals(a.Name, cloudArt.FileName, StringComparison.OrdinalIgnoreCase)))))
         {
             artCount++;
             totalBytes += cloudArt.FileSize;
@@ -583,6 +625,8 @@ public partial class PublishShareViewModel : ObservableObject
         _ = ValidateCatalogAsync();
         OnPropertyChanged(nameof(ContentItemCount));
         OnPropertyChanged(nameof(TotalReleaseCount));
+        OnPropertyChanged(nameof(ActiveCatalogPendingArtifactsCount));
+        OnPropertyChanged(nameof(HasIncompatibleArtifactsForActiveCatalog));
     }
 
     partial void OnSelectedHostingProviderChanged(IHostingProvider? value)
@@ -621,7 +665,7 @@ public partial class PublishShareViewModel : ObservableObject
         }
         else
         {
-            // Different provider - clear auth status
+            // Different provider - clear auth status but preserve entered credentials across UI switches
             AuthenticationStatusMessage = string.Empty;
         }
     }
@@ -639,11 +683,11 @@ public partial class PublishShareViewModel : ObservableObject
 
         if (_authCts != null)
         {
-            await _authCts.CancelAsync().ConfigureAwait(false);
+            await _authCts.CancelAsync();
             _authCts.Dispose();
         }
 
-        _authCts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(120));
+        _authCts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(HostingConstants.BrowserAuthTimeoutSeconds));
 
         IsAuthenticating = true;
         AuthenticationStatusMessage = "Authenticating...";
@@ -696,7 +740,16 @@ public partial class PublishShareViewModel : ObservableObject
     {
         if (IsAuthenticating)
         {
-            _authCts?.Cancel();
+            var cts = _authCts;
+            try
+            {
+                cts?.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Ignore if already disposed
+            }
+
             IsAuthenticating = false;
             AuthenticationStatusMessage = "Authentication canceled.";
             NotifyAuthenticationStateChanged();
@@ -1103,10 +1156,11 @@ public partial class PublishShareViewModel : ObservableObject
             return;
         }
 
-        if (HasIncompatibleArtifactsForProvider)
+        if (HasIncompatibleArtifactsForActiveCatalog)
         {
-            UploadStatusMessage = IncompatibleArtifactsWarningMessage;
-            _notificationService?.ShowError("Incompatible Provider", IncompatibleArtifactsWarningMessage);
+            var warningMsg = $"{SelectedHostingProvider?.DisplayName ?? "This provider"} only hosts catalog metadata (JSON). The active catalog '{ActiveCatalog?.Name}' has {ActiveCatalogPendingArtifactsCount} local file(s) pending upload. Either provide direct CDN URLs for those files, or switch to Google Drive or Dropbox to host binary archives.";
+            UploadStatusMessage = warningMsg;
+            _notificationService?.ShowError("Incompatible Provider", warningMsg);
             return;
         }
 
@@ -1419,6 +1473,11 @@ public partial class PublishShareViewModel : ObservableObject
                     }
 
                     RefreshHostedAssets();
+
+                    if (!string.IsNullOrEmpty(_project.ProjectPath))
+                    {
+                        await _hostingStateManager.SaveStateAsync(_project.ProjectPath, _currentHostingState, CancellationToken.None);
+                    }
                 }
 
                 return true;
@@ -1922,10 +1981,11 @@ public partial class PublishShareViewModel : ObservableObject
             return;
         }
 
-        if (HasIncompatibleArtifactsForProvider)
+        if (HasIncompatibleArtifactsForActiveCatalog)
         {
-            UploadStatusMessage = IncompatibleArtifactsWarningMessage;
-            _notificationService?.ShowError("Incompatible Provider", IncompatibleArtifactsWarningMessage);
+            var warningMsg = $"{SelectedHostingProvider?.DisplayName ?? "This provider"} only hosts catalog metadata (JSON). The active catalog '{ActiveCatalog?.Name}' has {ActiveCatalogPendingArtifactsCount} local file(s) pending upload. Either provide direct CDN URLs for those files, or switch to Google Drive or Dropbox to host binary archives.";
+            UploadStatusMessage = warningMsg;
+            _notificationService?.ShowError("Incompatible Provider", warningMsg);
             return;
         }
 
@@ -2058,10 +2118,8 @@ public partial class PublishShareViewModel : ObservableObject
             return false;
         }
 
-        return url.Contains("drive.google.com", StringComparison.OrdinalIgnoreCase)
-            || url.Contains("github.com", StringComparison.OrdinalIgnoreCase)
-            || url.Contains("dropbox.com", StringComparison.OrdinalIgnoreCase)
-            || url.Contains("dropboxusercontent.com", StringComparison.OrdinalIgnoreCase);
+        return HostingConstants.CloudProviderHostPatterns.Any(pattern =>
+            url.Contains(pattern, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
@@ -2169,7 +2227,7 @@ public partial class PublishShareViewModel : ObservableObject
     {
         try
         {
-            if (SelectedHostingProvider == null || !IsProviderAuthenticated)
+            if (IsScanningStorage || IsUploading || SelectedHostingProvider == null || !IsProviderAuthenticated)
             {
                 return;
             }

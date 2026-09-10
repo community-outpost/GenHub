@@ -10,10 +10,6 @@
              x:DataType="vm:PublisherStudioViewModel"
              x:Name="RootView">
 
-    <UserControl.Resources>
-        <StreamGeometry x:Key="CloudStorageIcon">M19.35,10.04C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.04C2.34,8.36 0,10.91 0,14C0,17.31 2.69,20 6,20H19C21.76,20 24,17.76 24,15C24,12.36 21.95,10.22 19.35,10.04Z</StreamGeometry>
-    </UserControl.Resources>
-
     <UserControl.Styles>
         <!-- ==================== SURFACE & PANEL STYLES ==================== -->
         <Style Selector="Border.studio-header-panel">
@@ -48,117 +44,121 @@
         </Style>
 
         <Style Selector="Button.nav-pill.active">
-            <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundColor}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentLightColor}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
-        <!-- ==================== BUTTON STYLES ==================== -->
+        <!-- Glass Action Button (Header Top Right) -->
         <Style Selector="Button.glass-btn-icon">
-            <Setter Property="Background" Value="#12FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#20FFFFFF"/>
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="8"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="6"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
         </Style>
 
         <Style Selector="Button.glass-btn-icon:pointerover">
             <Setter Property="Background" Value="#25FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
         </Style>
 
+        <!-- Primary Gradient Button -->
         <Style Selector="Button.primary-btn">
-            <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
-            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="{DynamicResource PSPrimaryGradient}"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="20,10"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16,8"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
         </Style>
 
-        <!-- ==================== STATUS BADGE STYLES ==================== -->
+        <Style Selector="Button.primary-btn:pointerover">
+            <Setter Property="Opacity" Value="0.9"/>
+        </Style>
+
+        <Style Selector="Button.primary-btn:disabled">
+            <Setter Property="Opacity" Value="0.4"/>
+        </Style>
+
+        <!-- Status Badges -->
         <Style Selector="Border.status-badge-warning">
             <Setter Property="Background" Value="#20F59E0B"/>
             <Setter Property="BorderBrush" Value="#40F59E0B"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Padding" Value="8,3"/>
         </Style>
 
-        <!-- ==================== UNSAVED PULSE ANIMATION ==================== -->
-        <Style Selector="Border.unsaved-pulse">
-            <Style.Animations>
-                <Animation Duration="0:0:1.5" IterationCount="INFINITE">
-                    <KeyFrame Cue="0%">
-                        <Setter Property="Opacity" Value="1"/>
-                    </KeyFrame>
-                    <KeyFrame Cue="50%">
-                        <Setter Property="Opacity" Value="0.3"/>
-                    </KeyFrame>
-                    <KeyFrame Cue="100%">
-                        <Setter Property="Opacity" Value="1"/>
-                    </KeyFrame>
-                </Animation>
-            </Style.Animations>
+        <Style Selector="Border.status-badge-saved">
+            <Setter Property="Background" Value="#1522C55E"/>
+            <Setter Property="BorderBrush" Value="#3022C55E"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="8,3"/>
         </Style>
     </UserControl.Styles>
 
-    <!-- Main Container using clean standard surface background -->
-    <Grid Background="{DynamicResource SurfaceBackgroundDarkBrush}">
-        <!-- Main Content Grid -->
-        <Grid RowDefinitions="Auto,*,Auto" Margin="16,14,16,0">
+    <Grid>
+        <!-- Background radial glow overlay -->
+        <Canvas IsHitTestVisible="False">
+            <Ellipse Width="600" Height="600" Canvas.Left="-100" Canvas.Top="-100" Opacity="0.04"
+                     Fill="{DynamicResource AccentBrush}"/>
+        </Canvas>
 
-            <!-- ==================== UNIFIED TOP HEADER BAR ==================== -->
-            <Border Grid.Row="0" Classes="studio-header-panel" Padding="14,10" Margin="0,0,0,12">
+        <!-- Main Studio Shell: 3-row layout (Header, Content View Host, Status Bar) -->
+        <Grid RowDefinitions="Auto,*,Auto" Margin="24,16,24,16">
+
+            <!-- ==================== TOP NAVIGATION HEADER ==================== -->
+            <Border Grid.Row="0" Classes="studio-header-panel" Padding="14,10" Margin="0,0,0,16">
                 <Grid ColumnDefinitions="Auto,*,Auto">
-
-                    <!-- Left: Studio Branding & Project Name -->
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                        <Border Width="38" Height="38"
-                                CornerRadius="10"
-                                Background="{DynamicResource PrimaryGradientBrush}"
-                                VerticalAlignment="Center">
-                            <PathIcon Data="{StaticResource PublishIcon}"
-                                      Width="18" Height="18"
-                                      Foreground="White"
-                                      HorizontalAlignment="Center"
-                                      VerticalAlignment="Center"/>
+                    <!-- Left: Studio Branding & Title -->
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <Border Width="34" Height="34" CornerRadius="8"
+                                Background="{DynamicResource PSPrimaryGradient}">
+                            <PathIcon Data="{StaticResource PublishIcon}" Width="16" Height="16" Foreground="White"/>
                         </Border>
-                        <StackPanel Spacing="1" VerticalAlignment="Center">
-                            <TextBlock Text="Publisher Studio"
-                                       FontSize="15"
-                                       FontWeight="Bold"
-                                       Foreground="White"/>
-                            <StackPanel Orientation="Horizontal" Spacing="4">
-                                <TextBlock Text="{Binding CurrentProject.ProjectName, FallbackValue='Publisher Project'}"
-                                           FontSize="11"
-                                           Foreground="#9CA3AF"/>
-                                <TextBlock Text="*"
-                                           FontSize="12"
-                                           FontWeight="Bold"
-                                           Foreground="#F59E0B"
-                                           IsVisible="{Binding HasUnsavedChanges}"/>
+                        <StackPanel VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="Publisher Studio" FontWeight="Bold" FontSize="15" Foreground="White"/>
+                                <Border Background="{DynamicResource AccentBadgeBackgroundColor}"
+                                        CornerRadius="4" Padding="5,1">
+                                    <TextBlock Text="CREATOR" FontSize="9" FontWeight="Bold"
+                                               Foreground="{DynamicResource AccentLightColor}"/>
+                                </Border>
                             </StackPanel>
+                            <TextBlock Text="Create, package, and distribute your mods" FontSize="11" Foreground="#6B7280"/>
                         </StackPanel>
                     </StackPanel>
 
-                    <!-- Center: Navigation Pill Tabs -->
+                    <!-- Center: Navigation Pills -->
                     <Border Grid.Column="1"
-                            Background="#10FFFFFF"
-                            BorderBrush="#18FFFFFF"
+                            HorizontalAlignment="Center"
+                            Background="#0DFFFFFF"
+                            BorderBrush="#1AFFFFFF"
                             BorderThickness="1"
                             CornerRadius="10"
-                            Padding="4"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            Padding="4">
+                        <StackPanel Orientation="Horizontal" Spacing="2">
                             <!-- Publisher Profile -->
                             <Button Classes="nav-pill"
                                     Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=0}"
                                     Command="{Binding SelectTabCommand}"
                                     CommandParameter="0"
-                                    ToolTip.Tip="Configure publisher identity and branding">
+                                    ToolTip.Tip="Configure your publisher identity, branding, and contact links">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <PathIcon Data="{StaticResource PersonIcon}" Width="13" Height="13"/>
                                     <TextBlock Text="Profile"/>
@@ -171,7 +171,7 @@
                                     Command="{Binding SelectTabCommand}"
                                     CommandParameter="1"
                                     IsEnabled="{Binding IsSetupComplete}"
-                                    ToolTip.Tip="Manage content items, releases, and files">
+                                    ToolTip.Tip="Manage mods, patches, maps, and downloadable content items">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <PathIcon Data="{StaticResource ContentIcon}" Width="13" Height="13"/>
                                     <TextBlock Text="Content Library"/>

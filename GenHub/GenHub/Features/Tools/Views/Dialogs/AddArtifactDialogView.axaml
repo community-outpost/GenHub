@@ -130,12 +130,14 @@
                         <StackPanel Spacing="4">
                             <TextBlock Text="Direct Download URL *" Classes="label"/>
                             <TextBox Text="{Binding DownloadUrl}"
+                                     AutomationProperties.Name="Direct Download URL"
                                      Watermark="https://cdn.example.com/downloads/gameclient-v1.0.zip"/>
                         </StackPanel>
 
                         <StackPanel Spacing="4">
                             <TextBlock Text="File Size (e.g. 500 MB, 1.2 GB, or bytes)" Classes="label"/>
                             <TextBox Text="{Binding FileSizeInput}"
+                                     AutomationProperties.Name="File Size"
                                      Watermark="e.g. 750 MB"/>
                             <TextBlock Text="{Binding FileSizeDisplay, StringFormat='Parsed: {0}'}" Classes="hint"
                                        IsVisible="{Binding FileSizeDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
@@ -144,10 +146,10 @@
                 </StackPanel>
 
                 <!-- Status Banner -->
-                <Border Background="#10FFFFFF" CornerRadius="6" Padding="12,8" Margin="0,4">
+                <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" CornerRadius="6" Padding="12,8" Margin="0,4">
                     <Grid ColumnDefinitions="Auto,*">
                         <PathIcon Data="{StaticResource PackageIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1" Text="{Binding ArtifactStatus}" FontSize="12" Foreground="#C0C0D0" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding ArtifactStatus}" FontSize="12" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                     </Grid>
                 </Border>
 
@@ -167,7 +169,7 @@
                 <StackPanel Spacing="8">
                     <StackPanel Orientation="Horizontal" Spacing="4">
                         <TextBlock Text="Filename" Classes="label"/>
-                        <TextBlock Text="*" Foreground="#FF5555"/>
+                        <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                     </StackPanel>
                     <TextBox Text="{Binding Filename}"
                              Watermark="e.g. GeneralsOnline-Client-v1.0.zip"
@@ -203,7 +205,7 @@
         <!-- Footer -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="16" HorizontalAlignment="Right">
              <TextBlock Text="{Binding ValidationError}"
-                        Foreground="#FF5555"
+                        Foreground="{DynamicResource StatusErrorBrush}"
                         VerticalAlignment="Center"
                         TextWrapping="Wrap"
                         MaxWidth="300"

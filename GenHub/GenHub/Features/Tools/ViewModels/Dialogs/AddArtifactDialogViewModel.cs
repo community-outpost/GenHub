@@ -221,9 +221,9 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
                     }
                 }
             }
-            catch
+            catch (Exception ex) when (ex is UriFormatException or ArgumentException)
             {
-                // Ignore parse errors while typing
+                // Ignore format errors while typing
             }
         }
 
@@ -234,10 +234,25 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
 
     partial void OnFileSizeInputChanged(string value)
     {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            FileSize = 0;
+            FileSizeDisplay = string.Empty;
+            ValidationError = null;
+            return;
+        }
+
         if (TryParseFileSize(value, out var bytes))
         {
             FileSize = bytes;
             FileSizeDisplay = FormatFileSize(bytes);
+            ValidationError = null;
+        }
+        else
+        {
+            FileSize = 0;
+            FileSizeDisplay = "Invalid size";
+            ValidationError = "Invalid file size format (e.g., 10 MB, 500 KB, 1.5 GB)";
         }
     }
 
@@ -298,6 +313,7 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
                     var fileInfo = new FileInfo(path);
                     FileSize = fileInfo.Length;
                     FileSizeDisplay = FormatFileSize(FileSize);
+                    FileSizeInput = FileSizeDisplay;
 
                     // Compute SHA256 in background
                     IsComputingHash = true;

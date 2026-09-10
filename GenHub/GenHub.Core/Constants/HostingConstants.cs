@@ -72,10 +72,15 @@ public static class HostingConstants
     public const string DropboxCreateAppUrl = "https://www.dropbox.com/developers/apps/create";
 
     /// <summary>
+    /// Default publisher folder path on Dropbox.
+    /// </summary>
+    public const string DropboxDefaultPublisherFolder = "/GenHub_Publisher";
+
+    /// <summary>
     /// URL to Dropbox web folder for publisher assets.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official Dropbox web home URL")]
-    public const string DropboxWebFolderUrl = "https://www.dropbox.com/home/GenHub_Publisher";
+    public const string DropboxWebFolderUrl = $"https://www.dropbox.com/home{DropboxDefaultPublisherFolder}";
 
     /// <summary>
     /// URL to Google Drive web home.
@@ -96,11 +101,6 @@ public static class HostingConstants
     public const string GitHubPersonalAccessTokensUrl = "https://github.com/settings/tokens/new?scopes=gist&description=GenHub+Publisher";
 
     /// <summary>
-    /// Default publisher folder path on Dropbox.
-    /// </summary>
-    public const string DropboxDefaultPublisherFolder = "/GenHub_Publisher";
-
-    /// <summary>
     /// Standard JSON MIME content type.
     /// </summary>
     public const string JsonContentType = "application/json";
@@ -117,6 +117,11 @@ public static class HostingConstants
     public const string GoogleDriveDownloadUrlTemplate = "https://drive.google.com/uc?export=download&id={0}";
 
     /// <summary>
+    /// Name of the directory for storing Google Drive OAuth tokens.
+    /// </summary>
+    public const string GoogleDriveTokenDirectoryName = "google-drive-tokens";
+
+    /// <summary>
     /// Buffer size for stream copy operations in bytes.
     /// </summary>
     public const int StreamCopyBufferSize = 8192;
@@ -130,4 +135,48 @@ public static class HostingConstants
     /// Default timeout in seconds for external catalog fetch operations.
     /// </summary>
     public const int CatalogFetchTimeoutSeconds = 30;
+
+    /// <summary>
+    /// Timeout in seconds for interactive browser-based OAuth authentication flows.
+    /// </summary>
+    public const int BrowserAuthTimeoutSeconds = 300;
+
+    /// <summary>
+    /// Storage badge/status string for external CDN assets.
+    /// </summary>
+    public const string StatusExternalCdn = "External CDN";
+
+    /// <summary>
+    /// Storage badge/status string for cloud hosted assets.
+    /// </summary>
+    public const string StatusCloudHosted = "Cloud Hosted";
+
+    /// <summary>
+    /// Storage badge/status string for assets pending upload.
+    /// </summary>
+    public const string StatusPendingUpload = "Pending Upload";
+
+    /// <summary>
+    /// Storage badge/status string for assets with no file or URL.
+    /// </summary>
+    public const string StatusNoFileOrUrl = "No File / URL";
+
+    /// <summary>
+    /// Storage badge/status string for live/online assets.
+    /// </summary>
+    public const string StatusLiveOnline = "Live / Online";
+
+    /// <summary>
+    /// Host patterns considered first-party cloud provider hosts.
+    /// </summary>
+    public static readonly string[] CloudProviderHostPatterns =
+    [
+        "drive.google.com",
+        "docs.google.com",
+        "googleusercontent.com",
+        "github.com",
+        "githubusercontent.com",
+        "dropbox.com",
+        "dropboxusercontent.com",
+    ];
 }

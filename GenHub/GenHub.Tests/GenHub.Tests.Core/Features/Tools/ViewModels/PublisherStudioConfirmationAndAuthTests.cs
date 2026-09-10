@@ -46,7 +46,8 @@ public class PublisherStudioConfirmationAndAuthTests
         var vm = new PublisherStudioViewModel(
             _mockStudioLogger.Object,
             _mockStudioService.Object,
-            _mockDialogService.Object);
+            _mockDialogService.Object,
+            autoInitialize: false);
 
         var project = new PublisherStudioProject { ProjectPath = "test/project.json" };
         var cat1 = new NamedCatalog { Id = "cat1", Name = "Catalog 1" };
@@ -66,6 +67,7 @@ public class PublisherStudioConfirmationAndAuthTests
         // Assert
         Assert.Single(vm.Catalogs);
         Assert.DoesNotContain(cat2, vm.Catalogs);
+        Assert.DoesNotContain(cat2, project.Catalogs);
         _mockDialogService.Verify(
             d => d.ShowConfirmationAsync(
                 "Delete Catalog",
@@ -96,7 +98,8 @@ public class PublisherStudioConfirmationAndAuthTests
         var vm = new PublisherStudioViewModel(
             _mockStudioLogger.Object,
             _mockStudioService.Object,
-            _mockDialogService.Object);
+            _mockDialogService.Object,
+            autoInitialize: false);
 
         var project = new PublisherStudioProject { ProjectPath = "test/project.json" };
         var cat1 = new NamedCatalog { Id = "cat1", Name = "Catalog 1" };
