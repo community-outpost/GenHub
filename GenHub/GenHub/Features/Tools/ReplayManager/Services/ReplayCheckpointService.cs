@@ -66,28 +66,7 @@ public sealed partial class ReplayCheckpointService(
         var saveFileName = $"cp_{safeReplay}_{targetFrame}.sav";
         var saveFilePath = Path.Combine(saveDirectory, saveFileName);
 
-        var quitFrame = targetFrame + 1;
-        var additionalArgs = new Dictionary<string, string>
-        {
-            [ReplayManagerConstants.CliQuickStart] = string.Empty,
-            [ReplayManagerConstants.CliReplay] = replay.FileName,
-            [ReplayManagerConstants.CliSaveAtFrame] = targetFrame.ToString(),
-            [ReplayManagerConstants.CliSaveTo] = saveFileName,
-            [ReplayManagerConstants.CliQuitAtFrame] = quitFrame.ToString(),
-        };
-
-        logger.LogInformation(
-            "[ReplayCheckpoint] Minting checkpoint at frame {Frame} for replay '{Replay}' using profile '{Profile}'",
-            targetFrame,
-            replay.FileName,
-            profile.Name);
-
-        var launchResult = await launcherFacade.LaunchProfileAsync(
-            profile.Id,
-            skipUserDataCleanup: false,
-            cancellationToken: cancellationToken,
-            additionalArguments: additionalArgs);
-
+        var launchResult = await LaunchMintingProcessAsync(replay, profile, targetFrame, saveFileName, cancellationToken);
         if (!launchResult.Success || launchResult.Data?.ProcessInfo == null)
         {
             var error = launchResult.FirstError ?? "Failed to launch game client for checkpoint minting.";
@@ -96,82 +75,13 @@ public sealed partial class ReplayCheckpointService(
         }
 
         var processId = launchResult.Data.ProcessInfo.ProcessId;
-        logger.LogDebug("[ReplayCheckpoint] Monitoring game process PID {Pid} until exit...", processId);
-
-        using var timeoutCts = new CancellationTokenSource(DefaultMintTimeout);
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
-
-        try
+        var waitResult = await WaitForMintingProcessExitAsync(processId, targetFrame, cancellationToken);
+        if (!waitResult.Success)
         {
-            while (!linkedCts.IsCancellationRequested)
-            {
-                var processInfo = await processManager.GetProcessInfoAsync(processId, linkedCts.Token);
-                if (!processInfo.Success || processInfo.Data == null)
-                {
-                    logger.LogDebug("[ReplayCheckpoint] Process {Pid} has exited.", processId);
-                    break;
-                }
-
-                await Task.Delay(500, linkedCts.Token);
-            }
-        }
-        catch (OperationCanceledException ex)
-        {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                logger.LogWarning(ex, "[ReplayCheckpoint] Checkpoint minting canceled by user.");
-                return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure("Checkpoint minting canceled by user.");
-            }
-
-            logger.LogWarning(ex, "[ReplayCheckpoint] Checkpoint minting timed out waiting for process {Pid} to reach target frame {Frame}.", processId, targetFrame);
-            return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure($"Checkpoint minting timed out waiting for game client to reach frame {targetFrame}.");
+            return waitResult;
         }
 
-        if (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
-        {
-            logger.LogWarning("[ReplayCheckpoint] Checkpoint minting timed out after {Minutes} minutes for process {Pid}.", DefaultMintTimeout.TotalMinutes, processId);
-            return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure($"Checkpoint minting timed out waiting for game client to reach frame {targetFrame}.");
-        }
-
-        if (!File.Exists(saveFilePath))
-        {
-            // Defensive check: if engine wrote bare cp_<frame>.sav without replay prefix, rename it
-            var legacyFileName = $"cp_{targetFrame}.sav";
-            var legacyFilePath = Path.Combine(saveDirectory, legacyFileName);
-            if (File.Exists(legacyFilePath))
-            {
-                try
-                {
-                    File.Move(legacyFilePath, saveFilePath, overwrite: true);
-                }
-                catch (IOException ioEx)
-                {
-                    logger.LogWarning(ioEx, "[ReplayCheckpoint] Could not rename {Legacy} to {Target}", legacyFilePath, saveFilePath);
-                    saveFilePath = legacyFilePath;
-                    saveFileName = legacyFileName;
-                }
-            }
-        }
-
-        if (!File.Exists(saveFilePath))
-        {
-            logger.LogError("[ReplayCheckpoint] Save file '{Path}' was not created by the game client.", saveFilePath);
-            return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure($"Save file '{saveFileName}' was not created by the game client.");
-        }
-
-        var fileInfo = new FileInfo(saveFilePath);
-        var checkpoint = new ReplayCheckpointInfo
-        {
-            FilePath = saveFilePath,
-            FileName = saveFileName,
-            TargetFrame = targetFrame,
-            CreatedAt = fileInfo.CreationTimeUtc,
-            FileSizeBytes = fileInfo.Length,
-            AssociatedReplayFileName = replay.FileName,
-        };
-
-        logger.LogInformation("[ReplayCheckpoint] Successfully minted checkpoint {FileName} ({Size} bytes)", saveFileName, fileInfo.Length);
-        return ProfileOperationResult<ReplayCheckpointInfo>.CreateSuccess(checkpoint);
+        return FinalizeCheckpointSave(saveFilePath, saveDirectory, saveFileName, replay.FileName, targetFrame);
     }
 
     /// <inheritdoc/>
@@ -340,4 +250,126 @@ public sealed partial class ReplayCheckpointService(
 
     [GeneratedRegex(@"[^a-zA-Z0-9_\-]", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex SanitizePattern();
+
+    private async Task<ProfileOperationResult<GameLaunchInfo>> LaunchMintingProcessAsync(
+        ReplayFile replay,
+        GameProfile profile,
+        int targetFrame,
+        string saveFileName,
+        CancellationToken cancellationToken)
+    {
+        var quitFrame = targetFrame + 1;
+        var additionalArgs = new Dictionary<string, string>
+        {
+            [ReplayManagerConstants.CliQuickStart] = string.Empty,
+            [ReplayManagerConstants.CliReplay] = replay.FileName,
+            [ReplayManagerConstants.CliSaveAtFrame] = targetFrame.ToString(),
+            [ReplayManagerConstants.CliSaveTo] = saveFileName,
+            [ReplayManagerConstants.CliQuitAtFrame] = quitFrame.ToString(),
+        };
+
+        logger.LogInformation(
+            "[ReplayCheckpoint] Minting checkpoint at frame {Frame} for replay '{Replay}' using profile '{Profile}'",
+            targetFrame,
+            replay.FileName,
+            profile.Name);
+
+        return await launcherFacade.LaunchProfileAsync(
+            profile.Id,
+            skipUserDataCleanup: false,
+            cancellationToken: cancellationToken,
+            additionalArguments: additionalArgs);
+    }
+
+    private async Task<ProfileOperationResult<ReplayCheckpointInfo>> WaitForMintingProcessExitAsync(
+        int processId,
+        int targetFrame,
+        CancellationToken cancellationToken)
+    {
+        logger.LogDebug("[ReplayCheckpoint] Monitoring game process PID {Pid} until exit...", processId);
+        using var timeoutCts = new CancellationTokenSource(DefaultMintTimeout);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+
+        try
+        {
+            while (!linkedCts.IsCancellationRequested)
+            {
+                var processInfo = await processManager.GetProcessInfoAsync(processId, linkedCts.Token);
+                if (!processInfo.Success || processInfo.Data == null)
+                {
+                    logger.LogDebug("[ReplayCheckpoint] Process {Pid} has exited.", processId);
+                    break;
+                }
+
+                await Task.Delay(500, linkedCts.Token);
+            }
+        }
+        catch (OperationCanceledException ex)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                logger.LogWarning(ex, "[ReplayCheckpoint] Checkpoint minting canceled by user.");
+                return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure("Checkpoint minting canceled by user.");
+            }
+
+            logger.LogWarning(ex, "[ReplayCheckpoint] Checkpoint minting timed out waiting for process {Pid} to reach target frame {Frame}.", processId, targetFrame);
+            return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure($"Checkpoint minting timed out waiting for game client to reach frame {targetFrame}.");
+        }
+
+        if (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            logger.LogWarning("[ReplayCheckpoint] Checkpoint minting timed out after {Minutes} minutes for process {Pid}.", DefaultMintTimeout.TotalMinutes, processId);
+            return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure($"Checkpoint minting timed out waiting for game client to reach frame {targetFrame}.");
+        }
+
+        return ProfileOperationResult<ReplayCheckpointInfo>.CreateSuccess(null!);
+    }
+
+    private ProfileOperationResult<ReplayCheckpointInfo> FinalizeCheckpointSave(
+        string saveFilePath,
+        string saveDirectory,
+        string saveFileName,
+        string replayFileName,
+        int targetFrame)
+    {
+        if (!File.Exists(saveFilePath))
+        {
+            // Defensive check: if engine wrote bare cp_<frame>.sav without replay prefix, rename it
+            var legacyFileName = $"cp_{targetFrame}.sav";
+            var legacyFilePath = Path.Combine(saveDirectory, legacyFileName);
+            if (File.Exists(legacyFilePath))
+            {
+                try
+                {
+                    File.Move(legacyFilePath, saveFilePath, overwrite: true);
+                }
+                catch (IOException ioEx)
+                {
+                    logger.LogWarning(ioEx, "[ReplayCheckpoint] Could not rename {Legacy} to {Target}", legacyFilePath, saveFilePath);
+                    saveFilePath = legacyFilePath;
+                    saveFileName = legacyFileName;
+                }
+            }
+        }
+
+        if (!File.Exists(saveFilePath))
+        {
+            logger.LogError("[ReplayCheckpoint] Save file '{Path}' was not created by the game client.", saveFilePath);
+            return ProfileOperationResult<ReplayCheckpointInfo>.CreateFailure($"Save file '{saveFileName}' was not created by the game client.");
+        }
+
+        var fileInfo = new FileInfo(saveFilePath);
+        var checkpoint = new ReplayCheckpointInfo
+        {
+            FilePath = saveFilePath,
+            FileName = saveFileName,
+            TargetFrame = targetFrame,
+            CreatedAt = fileInfo.CreationTimeUtc,
+            FileSizeBytes = fileInfo.Length,
+            AssociatedReplayFileName = replayFileName,
+        };
+
+        logger.LogInformation("[ReplayCheckpoint] Successfully minted checkpoint {FileName} ({Size} bytes)", saveFileName, fileInfo.Length);
+        return ProfileOperationResult<ReplayCheckpointInfo>.CreateSuccess(checkpoint);
+    }
 }
