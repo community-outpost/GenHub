@@ -35,8 +35,12 @@
         gap: 0.75rem;
     }
 
+    .mobile-menu-btn {
+        display: flex;
+    }
+
     .nav-links {
-        display: none; /* Hide non-essential links or rely on compact menu */
+        display: none; /* Toggled via .mobile-open */
     }
 
     .nav-links.mobile-open {

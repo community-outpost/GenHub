@@ -128,9 +128,9 @@ nav {
 }
 
 .nav-btn-discord {
-    background: rgba(88, 101, 242, 0.15);
-    border: 1px solid rgba(88, 101, 242, 0.35);
-    color: #a5b4fc;
+    background: rgba(88, 101, 242, 0.18);
+    border: 1px solid rgba(88, 101, 242, 0.45);
+    color: #e0e7ff;
 }
 
 .nav-btn-discord:hover {
@@ -150,4 +150,23 @@ nav {
     transform: translateY(-1px);
     box-shadow: 0 4px 18px rgba(139, 92, 246, 0.55);
     color: #ffffff;
+}
+
+.mobile-menu-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--glass-border);
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.mobile-menu-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: var(--primary-light);
 }
