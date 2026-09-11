@@ -1936,4 +1936,244 @@ public sealed class ReplayDirectoryServiceTests
         Assert.Equal(ReplayCompatibilityStatus.Compatible, replay.CompatibilityStatus);
         Assert.Equal("launch-retail-100", result.Data.LaunchId);
     }
+
+    /// <summary>
+    /// Verifies that FindRecoveryProfiles matches a recovery-capable profile for a retail 1.04 replay.
+    /// </summary>
+    [Fact]
+    public void FindRecoveryProfiles_WhenRetailReplay_MatchesRecoveryCapableProfile()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "RECOVER.rep",
+            FullPath = "/replays/RECOVER.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            MatchedClient = new CrcMappingEntry
+            {
+                ExeCrc = "0xDA2B4B18",
+                IniCrc = "0xFEAAE3F3",
+                Description = "Zero Hour 1.04 Retail",
+                Version = "1.04",
+                GameType = "ZeroHour",
+                Publisher = "ea",
+                ManifestId = "1.104.retail.gameclient.zerohour",
+            },
+        };
+
+        var vanillaProfile = new GameProfile
+        {
+            Id = "vanilla-profile",
+            Name = "Vanilla 1.04",
+            GameClient = new GameClient
+            {
+                Id = "1.104.retail.gameclient.zerohour",
+                Name = "Vanilla Retail Client",
+                GameType = GameType.ZeroHour,
+                PublisherType = "ea",
+            },
+        };
+
+        var recoveryProfile = new GameProfile
+        {
+            Id = "recovery-profile-1",
+            Name = "Zero Hour 1.04 (MP-Recovery)",
+            GameClient = new GameClient
+            {
+                Id = "1.0.local.gameclient.generalszh-mp-recovery-c2a5e77d70-f643cae1",
+                Name = "generalszh_mp-recovery_c2a5e77d70_F643CAE1",
+                GameType = GameType.ZeroHour,
+                PublisherType = "thesuperhackers",
+                Capabilities = GameClientCapabilities.AllRecoveryFeatures,
+            },
+            EnabledContentIds = ["1.0.local.gameclient.generalszh-mp-recovery-c2a5e77d70-f643cae1"],
+        };
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var matches = service.FindRecoveryProfiles(replay, [vanillaProfile, recoveryProfile]);
+
+        Assert.Single(matches);
+        Assert.Equal("recovery-profile-1", matches[0].Id);
+    }
+
+    /// <summary>
+    /// Verifies that FindRecoveryProfiles isolates GeneralsOnline replays to GeneralsOnline recovery profiles.
+    /// </summary>
+    [Fact]
+    public void FindRecoveryProfiles_WhenGeneralsOnlineReplay_IsolatesToGeneralsOnlineRecoveryProfiles()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "MatchGO.rep",
+            FullPath = "/replays/MatchGO.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            MatchedClient = new CrcMappingEntry
+            {
+                ExeCrc = "0x6DBF4405",
+                IniCrc = "0x51ACED23",
+                Description = "GeneralsOnline 60Hz",
+                Version = "082826",
+                GameType = "ZeroHour",
+                Publisher = "generalsonline",
+                ManifestId = "1.828261.generalsonline.gameclient.60hz",
+            },
+        };
+
+        var retailRecoveryProfile = new GameProfile
+        {
+            Id = "retail-recovery",
+            Name = "ZH 1.04 Recovery",
+            GameClient = new GameClient
+            {
+                Id = "1.0.local.gameclient.generalszh-mp-recovery",
+                GameType = GameType.ZeroHour,
+                PublisherType = "thesuperhackers",
+                Capabilities = GameClientCapabilities.AllRecoveryFeatures,
+            },
+        };
+
+        var goRecoveryProfile = new GameProfile
+        {
+            Id = "go-recovery",
+            Name = "GeneralsOnline Checkpoint Build",
+            GameClient = new GameClient
+            {
+                Id = "1.828261.generalsonline.gameclient.checkpoint",
+                GameType = GameType.ZeroHour,
+                PublisherType = "generalsonline",
+                Capabilities = GameClientCapabilities.AllRecoveryFeatures,
+            },
+        };
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var matches = service.FindRecoveryProfiles(replay, [retailRecoveryProfile, goRecoveryProfile]);
+
+        Assert.Single(matches);
+        Assert.Equal("go-recovery", matches[0].Id);
+    }
+
+    /// <summary>
+    /// Verifies that FindRecoveryProfiles excludes GeneralsOnline profiles for retail 1.04 replays to prevent engine drift desync.
+    /// </summary>
+    [Fact]
+    public void FindRecoveryProfiles_WhenRetailReplay_ExcludesGeneralsOnlineRecoveryProfiles()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "Classic.rep",
+            FullPath = "/replays/Classic.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            MatchedClient = new CrcMappingEntry
+            {
+                ExeCrc = "0xDA2B4B18",
+                IniCrc = "0xFEAAE3F3",
+                Description = "Zero Hour 1.04 Retail",
+                Version = "1.04",
+                GameType = "ZeroHour",
+                Publisher = "ea",
+                ManifestId = "1.104.retail.gameclient.zerohour",
+            },
+        };
+
+        var goRecoveryProfile = new GameProfile
+        {
+            Id = "go-recovery",
+            Name = "GeneralsOnline Checkpoint Build",
+            GameClient = new GameClient
+            {
+                Id = "1.828261.generalsonline.gameclient.checkpoint",
+                GameType = GameType.ZeroHour,
+                PublisherType = "generalsonline",
+                Capabilities = GameClientCapabilities.AllRecoveryFeatures,
+            },
+        };
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var matches = service.FindRecoveryProfiles(replay, [goRecoveryProfile]);
+
+        Assert.Empty(matches);
+    }
+
+    /// <summary>
+    /// Verifies that ResolveCompatibility sets SupportsCheckpoints and RecoveryProfile properties on retail 1.04 replay.
+    /// </summary>
+    [Fact]
+    public void ResolveCompatibility_WhenRetailReplayAndRecoveryProfileExists_SetsSupportsCheckpointsAndRecoveryProfile()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "RECOVER.rep",
+            FullPath = "/replays/RECOVER.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0xDA2B4B18,
+                IniCrc = 0xFEAAE3F3,
+            },
+        };
+
+        var entry = new CrcMappingEntry
+        {
+            ExeCrc = "0xDA2B4B18",
+            IniCrc = "0xFEAAE3F3",
+            Description = "Zero Hour 1.04 Retail",
+            Version = "1.04",
+            GameType = "ZeroHour",
+            Publisher = "ea",
+            ManifestId = "1.104.retail.gameclient.zerohour",
+        };
+
+        CrcMappingEntry? outEntry = entry;
+        _mockCrcRegistry
+            .Setup(r => r.TryGetEntry("0xDA2B4B18", "0xFEAAE3F3", out outEntry))
+            .Returns(true);
+
+        var recoveryProfile = new GameProfile
+        {
+            Id = "fd09bf9b12bc41e294c051028b5085f9",
+            Name = "Zero Hour 1.04 (Recovery)",
+            GameClient = new GameClient
+            {
+                Id = "1.0.local.gameclient.generalszh-mp-recovery-c2a5e77d70-f643cae1",
+                Name = "generalszh_mp-recovery_c2a5e77d70_F643CAE1",
+                GameType = GameType.ZeroHour,
+                PublisherType = "thesuperhackers",
+                Capabilities = GameClientCapabilities.AllRecoveryFeatures,
+            },
+        };
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        service.ResolveCompatibility(replay, new HashSet<string>(), [recoveryProfile]);
+
+        Assert.True(replay.SupportsCheckpoints);
+        Assert.Equal("fd09bf9b12bc41e294c051028b5085f9", replay.RecoveryProfileId);
+        Assert.Equal("Zero Hour 1.04 (Recovery)", replay.RecoveryProfileName);
+    }
 }

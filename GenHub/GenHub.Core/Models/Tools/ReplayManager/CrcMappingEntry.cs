@@ -91,7 +91,7 @@ public sealed record CrcMappingEntry
 
             if (string.Equals(Publisher, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
             {
-                return GameClientCapabilities.ReplayCliLaunch | GameClientCapabilities.CheckpointSaves;
+                return GameClientCapabilities.AllRecoveryFeatures;
             }
 
             return GameClientCapabilities.None;

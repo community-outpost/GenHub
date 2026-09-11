@@ -10,6 +10,8 @@ namespace GenHub.Core.Models.GameClients;
 /// </summary>
 public class GameClient
 {
+    private GameClientCapabilities _capabilities = GameClientCapabilities.None;
+
     /// <summary>Gets or sets the display name for this game client.</summary>
     public string Name { get; set; } = string.Empty;
 
@@ -29,48 +31,33 @@ public class GameClient
     public string? InstallationId { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the creation timestamp for this game client (for test compatibility).
+    /// Gets or sets the executable name (e.g., "generals.exe", "game.dat").
     /// </summary>
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public string ExecutableName { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Gets a value indicating whether the game client is valid (for test compatibility).
-    /// </summary>
-    public bool IsValid
-    {
-        get
-        {
-            // If ExecutablePath is not set, not valid
-            if (string.IsNullOrEmpty(ExecutablePath))
-            {
-                return false;
-            }
-
-            // If file does not exist, not valid
-            return System.IO.File.Exists(ExecutablePath);
-        }
-    }
-
-    /// <summary>
-    /// Gets or sets the version string (e.g. "1.04").
-    /// </summary>
+    /// <summary>Gets or sets the version string for this game client.</summary>
     public string Version { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Gets or sets the game type.
-    /// </summary>
+    /// <summary>Gets or sets the game type (Generals or Zero Hour).</summary>
     public GameType GameType { get; set; }
 
-    /// <summary>Gets or sets the content source type (GameInstallation or StandaloneVersion).</summary>
-    public ContentType SourceType { get; set; }
+    /// <summary>Gets or sets the publisher type (e.g., "EA", "Steam", "TheSuperHackers", "GeneralsOnline").</summary>
+    public string PublisherType { get; set; } = string.Empty;
 
-    /// <summary>Gets or sets the publisher type (e.g. "generalsonline", "thesuperhackers").</summary>
-    public string? PublisherType { get; set; }
+    /// <summary>Gets or sets the unique hash of the executable file.</summary>
+    public string ExecutableHash { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the file size in bytes of the executable.</summary>
+    public long FileSizeBytes { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether this is an official game version.</summary>
+    public bool IsOfficial { get; set; }
 
     /// <summary>
-    /// Gets a value indicating whether this is a publisher-based client.
+    /// Gets a value indicating whether this game client is a custom installation.
+    /// Returns true if PublisherType is not null/empty and not an official installation identifier.
     /// </summary>
-    public bool IsPublisherClient =>
+    public bool IsCustom =>
         !string.IsNullOrEmpty(PublisherType) &&
         !InstallationExtensions.IsInstallationIdentifier(PublisherType);
 
@@ -79,8 +66,31 @@ public class GameClient
 
     /// <summary>
     /// Gets or sets the capability flags supported by this game client.
+    /// Infers capabilities if not explicitly configured (e.g. for modern recovery clients or TheSuperHackers).
     /// </summary>
-    public GameClientCapabilities Capabilities { get; set; } = GameClientCapabilities.None;
+    public GameClientCapabilities Capabilities
+    {
+        get
+        {
+            if (_capabilities != GameClientCapabilities.None)
+            {
+                return _capabilities;
+            }
+
+            if (string.Equals(PublisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                (Id != null && (Id.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                                Id.Contains("recovery", StringComparison.OrdinalIgnoreCase) ||
+                                Id.Contains("checkpoint", StringComparison.OrdinalIgnoreCase))) ||
+                (Name != null && (Name.Contains("recovery", StringComparison.OrdinalIgnoreCase) ||
+                                  Name.Contains("checkpoint", StringComparison.OrdinalIgnoreCase))))
+            {
+                return GameClientCapabilities.AllRecoveryFeatures;
+            }
+
+            return GameClientCapabilities.None;
+        }
+        set => _capabilities = value;
+    }
 
     /// <summary>Gets or sets a value indicating whether this version is enabled.</summary>
     public bool IsEnabled { get; set; } = true;
@@ -108,8 +118,6 @@ public class GameClient
     }
 
     /// <inheritdoc/>
-    public override int GetHashCode()
-    {
-        return Id?.GetHashCode() ?? 0;
-    }
+    public override int GetHashCode() =>
+        string.IsNullOrEmpty(Id) ? 0 : StringComparer.OrdinalIgnoreCase.GetHashCode(Id);
 }

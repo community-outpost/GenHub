@@ -1312,13 +1312,27 @@ public partial class ReplayManagerViewModel(
             var allProfilesResult = await profileManager.GetAllProfilesAsync();
             if (allProfilesResult.Success && allProfilesResult.Data != null)
             {
-                var compatible = directoryService.FindCompatibleProfiles(replay, allProfilesResult.Data);
-                foreach (var p in compatible)
+                var recoveryProfiles = directoryService.FindRecoveryProfiles(replay, allProfilesResult.Data);
+                if (recoveryProfiles.Count > 0)
                 {
-                    CompatibleProfiles.Add(p);
+                    foreach (var p in recoveryProfiles)
+                    {
+                        CompatibleProfiles.Add(p);
+                    }
+                }
+                else
+                {
+                    var compatible = directoryService.FindCompatibleProfiles(replay, allProfilesResult.Data);
+                    foreach (var p in compatible)
+                    {
+                        CompatibleProfiles.Add(p);
+                    }
                 }
 
-                SelectedCompatibleProfile = CompatibleProfiles.FirstOrDefault(p => p.Id == replay.MatchingProfileId)
+                SelectedCompatibleProfile = (!string.IsNullOrEmpty(replay.RecoveryProfileId)
+                    ? CompatibleProfiles.FirstOrDefault(p => p.Id == replay.RecoveryProfileId)
+                    : null)
+                    ?? CompatibleProfiles.FirstOrDefault(p => p.Id == replay.MatchingProfileId)
                     ?? CompatibleProfiles.FirstOrDefault();
             }
 
