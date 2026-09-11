@@ -185,16 +185,19 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         var (mapName, players, slots) = ParseMatchMetadata(initString);
 
         // 9. Determine tick rate (FPS), total frames, duration, and match date
-        var (totalFrames, fps, duration, gameDate) = ResolveTimingAndDuration(
-            buffer,
-            offset,
-            bytesRead,
+        var timingContext = new ReplayTimingContext(
             startTime,
             endTime,
             headerFrameCount,
             versionString,
             buildTimeString,
             titleString);
+
+        var (totalFrames, fps, duration, gameDate) = ResolveTimingAndDuration(
+            buffer,
+            offset,
+            bytesRead,
+            timingContext);
 
         var metadata = new ReplayMetadata
         {
@@ -220,20 +223,15 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         byte[] buffer,
         int offsetAfterInitString,
         int bytesRead,
-        uint startTime,
-        uint endTime,
-        uint headerFrameCount,
-        string? versionString,
-        string? buildTimeString,
-        string? titleString)
+        in ReplayTimingContext ctx)
     {
-        var is60Hz = (versionString?.Contains("60", StringComparison.OrdinalIgnoreCase) == true) ||
-                     (buildTimeString?.Contains("60", StringComparison.OrdinalIgnoreCase) == true) ||
-                     (titleString?.Contains("60Hz", StringComparison.OrdinalIgnoreCase) == true) ||
-                     (versionString?.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase) == true);
+        var is60Hz = (ctx.VersionString?.Contains("60", StringComparison.OrdinalIgnoreCase) == true) ||
+                     (ctx.BuildTimeString?.Contains("60", StringComparison.OrdinalIgnoreCase) == true) ||
+                     (ctx.TitleString?.Contains("60Hz", StringComparison.OrdinalIgnoreCase) == true) ||
+                     (ctx.VersionString?.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase) == true);
         var fps = is60Hz ? 60 : 30;
 
-        uint? totalFrames = headerFrameCount > 0 ? headerFrameCount : null;
+        uint? totalFrames = ctx.HeaderFrameCount > 0 ? ctx.HeaderFrameCount : null;
         if (!totalFrames.HasValue && offsetAfterInitString + ReplayPostHeaderTrailerSizeBytes < bytesRead)
         {
             totalFrames = TryScanMaxChunkTimecode(buffer, offsetAfterInitString + ReplayPostHeaderTrailerSizeBytes, bytesRead);
@@ -244,19 +242,19 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         {
             duration = TimeSpan.FromSeconds((double)totalFrames.Value / fps);
         }
-        else if (endTime > startTime && startTime > 0)
+        else if (ctx.EndTime > ctx.StartTime && ctx.StartTime > 0)
         {
-            var seconds = endTime - startTime;
+            var seconds = ctx.EndTime - ctx.StartTime;
             duration = TimeSpan.FromSeconds(seconds);
             totalFrames = (uint)Math.Round(seconds * (double)fps);
         }
 
         DateTime? gameDate = null;
-        if (startTime > 0)
+        if (ctx.StartTime > 0)
         {
             try
             {
-                gameDate = DateTimeOffset.FromUnixTimeSeconds(startTime).UtcDateTime;
+                gameDate = DateTimeOffset.FromUnixTimeSeconds(ctx.StartTime).UtcDateTime;
             }
             catch (ArgumentOutOfRangeException)
             {
@@ -293,37 +291,41 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
                 continue;
             }
 
-            var descriptorBytes = ncomms * 2;
-            if (cur + descriptorBytes > bytesRead)
+            var nextOffset = TryAdvanceChunkCommands(buffer, cur, ncomms, bytesRead);
+            if (!nextOffset.HasValue)
             {
                 break;
             }
 
-            var payloadBytes = 0;
-            var canProceed = true;
-            for (var i = 0; i < ncomms; i++)
-            {
-                var type = buffer[cur + (i * 2)];
-                var nargs = buffer[cur + (i * 2) + 1];
-                var argSize = GetCommandArgSize(type);
-                if (argSize < 0)
-                {
-                    canProceed = false;
-                    break;
-                }
-
-                payloadBytes += nargs * argSize;
-            }
-
-            if (!canProceed)
-            {
-                break;
-            }
-
-            cur += descriptorBytes + payloadBytes;
+            cur = nextOffset.Value;
         }
 
         return maxTimecode > 0 ? maxTimecode : null;
+    }
+
+    private static int? TryAdvanceChunkCommands(byte[] buffer, int cur, byte ncomms, int bytesRead)
+    {
+        var descriptorBytes = ncomms * 2;
+        if (cur + descriptorBytes > bytesRead)
+        {
+            return null;
+        }
+
+        var payloadBytes = 0;
+        for (var i = 0; i < ncomms; i++)
+        {
+            var type = buffer[cur + (i * 2)];
+            var nargs = buffer[cur + (i * 2) + 1];
+            var argSize = GetCommandArgSize(type);
+            if (argSize < 0)
+            {
+                return null;
+            }
+
+            payloadBytes += nargs * argSize;
+        }
+
+        return cur + descriptorBytes + payloadBytes;
     }
 
     private static int GetCommandArgSize(byte cmdType) => cmdType switch
@@ -542,4 +544,12 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
 
         return trimmed;
     }
+
+    private readonly record struct ReplayTimingContext(
+        uint StartTime,
+        uint EndTime,
+        uint HeaderFrameCount,
+        string? VersionString,
+        string? BuildTimeString,
+        string? TitleString);
 }
