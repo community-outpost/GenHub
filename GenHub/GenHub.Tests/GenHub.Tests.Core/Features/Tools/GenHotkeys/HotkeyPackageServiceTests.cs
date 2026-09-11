@@ -12,6 +12,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.GenHotkeys;
+using GenHub.Core.Services.Tools.GenHotkeys;
 using GenHub.Features.Tools.GenHotkeys.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -383,5 +384,111 @@ public class HotkeyPackageServiceTests
         Assert.Contains("MappedImage USAColdFusionReactor", bigFileText);
         Assert.Contains(@"Data\INI\MappedImages\HandCreated\Hotkeys.ini", bigFileText);
         Assert.Contains(@"Data\INI\MappedImages\TextureSize_512\zzHotkeys.ini", bigFileText);
+    }
+
+    /// <summary>
+    /// Verifies that custom hotkeys on special powers (e.g. Spy Drone) are synchronized
+    /// to both the Command Center label (CONTROLBAR:SpyDrone) and the sidebar shortcut label (OBJECT:SpyDrone).
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateHotkeysAddonAsync_WithSpecialPowerHotkeys_SynchronizesSidebarShortcutAliasesAsync()
+    {
+        var profile = new HotkeyProfile
+        {
+            Name = "Sidebar Shortcuts Profile",
+            TargetGame = GameType.ZeroHour,
+            OverlayEnabled = false,
+        };
+
+        // Explicitly map Spy Drone to 'Y'
+        profile.KeyMappings["CONTROLBAR:SpyDrone"] = 'Y';
+
+        // Explicitly clear Cash Hack
+        profile.ClearedKeys.Add("CONTROLBAR:CashHack");
+
+        byte[]? csfBytes = null;
+
+        _mockLocalContent.Setup(l => l.CreateLocalContentManifestAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                ContentType.Addon,
+                GameType.ZeroHour,
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<string?>()))
+            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?>((packageDir, _, _, _, _, _, _, _) =>
+            {
+                var bigFiles = Directory.GetFiles(packageDir, "*.big");
+                if (bigFiles.Length > 0)
+                {
+                    using var fs = File.OpenRead(bigFiles[0]);
+                    using var br = new BinaryReader(fs);
+                    br.ReadBytes(8); // Signature + TotalSize
+                    var numFiles = (br.ReadByte() << 24) | (br.ReadByte() << 16) | (br.ReadByte() << 8) | br.ReadByte();
+                    br.ReadBytes(4); // HeaderSize
+
+                    for (int i = 0; i < numFiles; i++)
+                    {
+                        var offset = (br.ReadByte() << 24) | (br.ReadByte() << 16) | (br.ReadByte() << 8) | br.ReadByte();
+                        var size = (br.ReadByte() << 24) | (br.ReadByte() << 16) | (br.ReadByte() << 8) | br.ReadByte();
+                        var nameBytes = new List<byte>();
+                        byte b;
+                        while ((b = br.ReadByte()) != 0)
+                        {
+                            nameBytes.Add(b);
+                        }
+
+                        var name = System.Text.Encoding.ASCII.GetString(nameBytes.ToArray());
+                        if (name.EndsWith("generals.csf", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var pos = fs.Position;
+                            fs.Seek(offset, SeekOrigin.Begin);
+                            csfBytes = br.ReadBytes(size);
+                            fs.Seek(pos, SeekOrigin.Begin);
+                            break;
+                        }
+                    }
+                }
+            })
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.local.addon.hotkeys-sidebar"),
+                Name = "Custom Hotkeys: Sidebar",
+                ContentType = ContentType.Addon,
+                TargetGame = GameType.ZeroHour,
+            }));
+
+        var result = await _service.CreateHotkeysAddonAsync(profile);
+
+        Assert.True(result.Success);
+        Assert.NotNull(csfBytes);
+
+        using var ms = new MemoryStream(csfBytes);
+        var csf = CsfFile.Load(ms);
+
+        // 1. Verify explicitly customized hotkey propagated to both primary and sidebar alias
+        var primarySpyDrone = csf.GetString("CONTROLBAR:SpyDrone");
+        var aliasSpyDrone = csf.GetString("OBJECT:SpyDrone");
+        Assert.NotNull(primarySpyDrone);
+        Assert.NotNull(aliasSpyDrone);
+        Assert.Equal('Y', CsfFile.ExtractHotkey(primarySpyDrone));
+        Assert.Equal('Y', CsfFile.ExtractHotkey(aliasSpyDrone));
+
+        // 2. Verify base preset hotkey (A10 Thunderbolt) synchronized to sidebar shortcut label
+        var primaryA10 = csf.GetString("CONTROLBAR:A10ThunderboltMissileStrike");
+        var aliasA10 = csf.GetString("GUI:SuperweaponA10ThunderboltMissileStrike");
+        Assert.NotNull(primaryA10);
+        Assert.NotNull(aliasA10);
+        var expectedA10Key = CsfFile.ExtractHotkey(primaryA10);
+        Assert.NotNull(expectedA10Key);
+        Assert.Equal(expectedA10Key, CsfFile.ExtractHotkey(aliasA10));
+
+        // 3. Verify cleared key stripped from both primary and sidebar alias
+        var primaryCashHack = csf.GetString("CONTROLBAR:CashHack");
+        var aliasCashHack = csf.GetString("GUI:SuperweaponCashHack");
+        Assert.Null(CsfFile.ExtractHotkey(primaryCashHack));
+        Assert.Null(CsfFile.ExtractHotkey(aliasCashHack));
     }
 }
