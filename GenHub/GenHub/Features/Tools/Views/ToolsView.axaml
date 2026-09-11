@@ -133,14 +133,22 @@
       <controls:SidebarLayout.Resources>
         <DataTemplate x:Key="ToolItemTemplate" DataType="interfaces:IToolPlugin">
             <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center" Margin="0,4">
-             <material:MaterialIcon Grid.Column="0"
-                                  Kind="Tools"
-                                  Width="20"
-                                  Height="20"
-                                  Foreground="{DynamicResource AccentBrush}"
-                                  HorizontalAlignment="Center"
-                                  VerticalAlignment="Center"
-                                  Margin="4,0,12,0"/>
+             <Panel Grid.Column="0" Width="24" Height="24" Margin="4,0,12,0" VerticalAlignment="Center" HorizontalAlignment="Center">
+                 <material:MaterialIcon Kind="Tools"
+                                      Width="20"
+                                      Height="20"
+                                      Foreground="{DynamicResource AccentBrush}"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"
+                                      IsVisible="{Binding Metadata.IconPath, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                 <Image Source="{Binding Metadata.IconPath, Converter={StaticResource StringToImageConverter}}"
+                        Width="24"
+                        Height="24"
+                        Stretch="Uniform"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        IsVisible="{Binding Metadata.IconPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+             </Panel>
 
              <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
               <TextBlock Text="{Binding Metadata.Name}" FontWeight="SemiBold" FontSize="13.5" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}"/>
@@ -226,14 +234,30 @@
             <StackPanel Spacing="16">
                 <TextBlock Text="Tool Details" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
                 <StackPanel Spacing="12" DataContext="{Binding ToolForDetails}" x:DataType="interfaces:IToolPlugin">
-                    <StackPanel Spacing="2">
-                        <TextBlock Text="Name" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
-                        <TextBlock Text="{Binding Metadata.Name}" FontSize="15" Foreground="{DynamicResource TextPrimary}"/>
-                    </StackPanel>
-                    <StackPanel Spacing="2" IsVisible="{Binding Metadata.Version, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                        <TextBlock Text="Version" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
-                        <TextBlock Text="{Binding Metadata.Version}" FontSize="14" Foreground="{DynamicResource TextPrimary}"/>
-                    </StackPanel>
+                    <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,4" VerticalAlignment="Center">
+                        <Panel Grid.Column="0" Width="40" Height="40" Margin="0,0,12,0" VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <material:MaterialIcon Kind="Tools"
+                                                  Width="32"
+                                                  Height="32"
+                                                  Foreground="{DynamicResource AccentBrush}"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  IsVisible="{Binding Metadata.IconPath, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                            <Image Source="{Binding Metadata.IconPath, Converter={StaticResource StringToImageConverter}}"
+                                   Width="40"
+                                   Height="40"
+                                   Stretch="Uniform"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   IsVisible="{Binding Metadata.IconPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        </Panel>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                            <TextBlock Text="{Binding Metadata.Name}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock Text="{Binding Metadata.Version, StringFormat='v{0}'}"
+                                       FontSize="12" Foreground="{DynamicResource TextSecondary}"
+                                       IsVisible="{Binding Metadata.Version, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        </StackPanel>
+                    </Grid>
                     <StackPanel Spacing="2">
                         <TextBlock Text="Author" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
                         <TextBlock Text="{Binding Metadata.Author}" FontSize="14" Foreground="{DynamicResource TextPrimary}"/>

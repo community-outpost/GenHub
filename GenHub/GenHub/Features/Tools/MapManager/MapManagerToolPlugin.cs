@@ -1,3 +1,4 @@
+using System;
 using Avalonia.Controls;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools;
@@ -5,7 +6,6 @@ using GenHub.Core.Models.Tools;
 using GenHub.Features.Tools.MapManager.ViewModels;
 using GenHub.Features.Tools.MapManager.Views;
 using Microsoft.Extensions.DependencyInjection;
-using System;
 
 namespace GenHub.Features.Tools.MapManager;
 
@@ -25,7 +25,7 @@ public sealed class MapManagerToolPlugin : IToolPlugin
         Version = "1.0.0",
         Author = AppConstants.AppName,
         Description = MapManagerConstants.ToolDescription,
-        IconPath = "🗺️",
+        IconPath = MapManagerConstants.IconPath,
         IsBundled = true,
         Tags = ["Content Management"],
     };

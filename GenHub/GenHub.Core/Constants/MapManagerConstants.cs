@@ -111,6 +111,11 @@ public static class MapManagerConstants
     public const string ToolDescription = "Manage, import, and share custom maps. Create MapPacks for easy profile switching.";
 
     /// <summary>
+    /// Icon URI for Map Manager tool.
+    /// </summary>
+    public const string IconPath = UriConstants.MapManagerIconUri;
+
+    /// <summary>
     /// Prefix for temporary share archives created for uploads.
     /// </summary>
     public const string TempShareFilePrefix = "genhub_maps_";
