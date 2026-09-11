@@ -72,6 +72,27 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         return true;
     }
 
+    private static bool TryGetCaseInsensitive(Dictionary<string, string> dict, string key, out string value)
+    {
+        if (dict.TryGetValue(key, out var val))
+        {
+            value = val;
+            return true;
+        }
+
+        foreach (var kvp in dict)
+        {
+            if (string.Equals(kvp.Key, key, StringComparison.OrdinalIgnoreCase))
+            {
+                value = kvp.Value;
+                return true;
+            }
+        }
+
+        value = string.Empty;
+        return false;
+    }
+
     private readonly IGameSettingsService? _gameSettingsService = gameSettingsService;
     private readonly ILogger<GameSettingsViewModel> _logger = logger;
 
@@ -1203,32 +1224,34 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
     private void ApplyTshAdditionalProperties(IniOptions options)
     {
-        if (!options.AdditionalSections.TryGetValue("TheSuperHackers", out var tsh))
+        var tshKvp = options.AdditionalSections.FirstOrDefault(s =>
+            string.Equals(s.Key, "TheSuperHackers", StringComparison.OrdinalIgnoreCase));
+        if (tshKvp.Value == null)
         {
             return;
         }
 
-        ApplyTshGameplayProperties(tsh);
-        ApplyTshUiCursorProperties(tsh);
+        ApplyTshGameplayProperties(tshKvp.Value);
+        ApplyTshUiCursorProperties(tshKvp.Value);
     }
 
     private void ApplyTshGameplayProperties(Dictionary<string, string> tsh)
     {
-        if (tsh.TryGetValue("UseDoubleClickAttackMove", out var doubleClick))
+        if (TryGetCaseInsensitive(tsh, "UseDoubleClickAttackMove", out var doubleClick))
             UseDoubleClickAttackMove = ParseBool(doubleClick);
-        if (tsh.TryGetValue("ScrollFactor", out var scroll) && int.TryParse(scroll, out var scrollVal))
+        if (TryGetCaseInsensitive(tsh, "ScrollFactor", out var scroll) && int.TryParse(scroll, NumberStyles.Integer, CultureInfo.InvariantCulture, out var scrollVal))
             ScrollFactor = scrollVal;
-        if (tsh.TryGetValue("Retaliation", out var retaliation))
+        if (TryGetCaseInsensitive(tsh, "Retaliation", out var retaliation))
             Retaliation = ParseBool(retaliation);
-        if (tsh.TryGetValue("DynamicLOD", out var dynLOD))
+        if (TryGetCaseInsensitive(tsh, "DynamicLOD", out var dynLOD))
             DynamicLOD = ParseBool(dynLOD);
-        if (tsh.TryGetValue("MaxParticleCount", out var particles) && int.TryParse(particles, out var particleVal))
+        if (TryGetCaseInsensitive(tsh, "MaxParticleCount", out var particles) && int.TryParse(particles, NumberStyles.Integer, CultureInfo.InvariantCulture, out var particleVal))
             MaxParticleCount = particleVal;
-        if (tsh.TryGetValue("ArchiveReplays", out var ar)) TshArchiveReplays = ParseBool(ar);
-        if (tsh.TryGetValue("ShowMoneyPerMinute", out var smpm)) TshShowMoneyPerMinute = ParseBool(smpm);
-        if (tsh.TryGetValue("PlayerObserverEnabled", out var poe)) TshPlayerObserverEnabled = ParseBool(poe);
-        if (tsh.TryGetValue("MoneyTransactionVolume", out var mtv) && int.TryParse(mtv, out var mtvVal)) TshMoneyTransactionVolume = mtvVal;
-        if (tsh.TryGetValue(GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var gwt))
+        if (TryGetCaseInsensitive(tsh, "ArchiveReplays", out var ar)) TshArchiveReplays = ParseBool(ar);
+        if (TryGetCaseInsensitive(tsh, "ShowMoneyPerMinute", out var smpm)) TshShowMoneyPerMinute = ParseBool(smpm);
+        if (TryGetCaseInsensitive(tsh, "PlayerObserverEnabled", out var poe)) TshPlayerObserverEnabled = ParseBool(poe);
+        if (TryGetCaseInsensitive(tsh, "MoneyTransactionVolume", out var mtv) && int.TryParse(mtv, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mtvVal)) TshMoneyTransactionVolume = mtvVal;
+        if (TryGetCaseInsensitive(tsh, GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var gwt))
         {
             var parsed = GameSettingsMapper.ParseTransitionSpeedMultiplier(gwt);
             if (parsed.HasValue)
@@ -1240,16 +1263,16 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
     private void ApplyTshUiCursorProperties(Dictionary<string, string> tsh)
     {
-        if (tsh.TryGetValue("SystemTimeFontSize", out var stfs) && int.TryParse(stfs, out var stfsVal)) TshSystemTimeFontSize = stfsVal;
-        if (tsh.TryGetValue("NetworkLatencyFontSize", out var nlfs) && int.TryParse(nlfs, out var nlfsVal)) TshNetworkLatencyFontSize = nlfsVal;
-        if (tsh.TryGetValue("RenderFpsFontSize", out var rffs) && int.TryParse(rffs, out var rffsVal)) TshRenderFpsFontSize = rffsVal;
-        if (tsh.TryGetValue("ResolutionFontAdjustment", out var rfa) && int.TryParse(rfa, out var rfaVal)) TshResolutionFontAdjustment = rfaVal;
-        if (tsh.TryGetValue("CursorCaptureEnabledInFullscreenGame", out var ccefg)) TshCursorCaptureEnabledInFullscreenGame = ParseBool(ccefg);
-        if (tsh.TryGetValue("CursorCaptureEnabledInFullscreenMenu", out var ccefm)) TshCursorCaptureEnabledInFullscreenMenu = ParseBool(ccefm);
-        if (tsh.TryGetValue("CursorCaptureEnabledInWindowedGame", out var ccewg)) TshCursorCaptureEnabledInWindowedGame = ParseBool(ccewg);
-        if (tsh.TryGetValue("CursorCaptureEnabledInWindowedMenu", out var ccewm)) TshCursorCaptureEnabledInWindowedMenu = ParseBool(ccewm);
-        if (tsh.TryGetValue("ScreenEdgeScrollEnabledInFullscreenApp", out var sesefa)) TshScreenEdgeScrollEnabledInFullscreenApp = ParseBool(sesefa);
-        if (tsh.TryGetValue("ScreenEdgeScrollEnabledInWindowedApp", out var sesewa)) TshScreenEdgeScrollEnabledInWindowedApp = ParseBool(sesewa);
+        if (TryGetCaseInsensitive(tsh, "SystemTimeFontSize", out var stfs) && int.TryParse(stfs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var stfsVal)) TshSystemTimeFontSize = stfsVal;
+        if (TryGetCaseInsensitive(tsh, "NetworkLatencyFontSize", out var nlfs) && int.TryParse(nlfs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var nlfsVal)) TshNetworkLatencyFontSize = nlfsVal;
+        if (TryGetCaseInsensitive(tsh, "RenderFpsFontSize", out var rffs) && int.TryParse(rffs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rffsVal)) TshRenderFpsFontSize = rffsVal;
+        if (TryGetCaseInsensitive(tsh, "ResolutionFontAdjustment", out var rfa) && int.TryParse(rfa, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rfaVal)) TshResolutionFontAdjustment = rfaVal;
+        if (TryGetCaseInsensitive(tsh, "CursorCaptureEnabledInFullscreenGame", out var ccefg)) TshCursorCaptureEnabledInFullscreenGame = ParseBool(ccefg);
+        if (TryGetCaseInsensitive(tsh, "CursorCaptureEnabledInFullscreenMenu", out var ccefm)) TshCursorCaptureEnabledInFullscreenMenu = ParseBool(ccefm);
+        if (TryGetCaseInsensitive(tsh, "CursorCaptureEnabledInWindowedGame", out var ccewg)) TshCursorCaptureEnabledInWindowedGame = ParseBool(ccewg);
+        if (TryGetCaseInsensitive(tsh, "CursorCaptureEnabledInWindowedMenu", out var ccewm)) TshCursorCaptureEnabledInWindowedMenu = ParseBool(ccewm);
+        if (TryGetCaseInsensitive(tsh, "ScreenEdgeScrollEnabledInFullscreenApp", out var sesefa)) TshScreenEdgeScrollEnabledInFullscreenApp = ParseBool(sesefa);
+        if (TryGetCaseInsensitive(tsh, "ScreenEdgeScrollEnabledInWindowedApp", out var sesewa)) TshScreenEdgeScrollEnabledInWindowedApp = ParseBool(sesewa);
     }
 
     private IniOptions CreateOptionsFromViewModel()
@@ -1314,10 +1337,13 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         options.Network.GameSpyIPAddress = GameSpyIPAddress;
 
         // TheSuperHackers settings - preserve existing settings, only update the ones we manage
-        if (!options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshDict))
+        var tshKey = options.AdditionalSections.Keys.FirstOrDefault(k =>
+            string.Equals(k, "TheSuperHackers", StringComparison.OrdinalIgnoreCase)) ?? "TheSuperHackers";
+
+        if (!options.AdditionalSections.TryGetValue(tshKey, out var tshDict) || tshDict == null)
         {
-            tshDict = [];
-            options.AdditionalSections["TheSuperHackers"] = tshDict;
+            tshDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            options.AdditionalSections[tshKey] = tshDict;
         }
 
         // Update only the remaining settings we know about in the ViewModel, preserve all others

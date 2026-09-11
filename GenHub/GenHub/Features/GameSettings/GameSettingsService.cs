@@ -178,9 +178,10 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 var settings = new TheSuperHackersSettings();
                 var options = optionsResult.Data;
 
-                if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshSection))
+                var tshKvp = options.AdditionalSections.FirstOrDefault(s => string.Equals(s.Key, "TheSuperHackers", StringComparison.OrdinalIgnoreCase));
+                if (tshKvp.Value != null)
                 {
-                    ParseTheSuperHackersSection(settings, tshSection);
+                    ParseTheSuperHackersSection(settings, tshKvp.Value);
                 }
 
                 _logger.LogInformation("Loaded TheSuperHackers settings for {GameType}", gameType);
@@ -208,8 +209,9 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 }
 
                 var options = optionsResult.Data;
+                var tshKey = options.AdditionalSections.Keys.FirstOrDefault(k => string.Equals(k, "TheSuperHackers", StringComparison.OrdinalIgnoreCase)) ?? "TheSuperHackers";
                 Dictionary<string, string> tshSection = [];
-                if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var existingTsh) && existingTsh != null)
+                if (options.AdditionalSections.TryGetValue(tshKey, out var existingTsh) && existingTsh != null)
                 {
                     tshSection = new Dictionary<string, string>(existingTsh, StringComparer.OrdinalIgnoreCase);
                 }
@@ -220,7 +222,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                     tshSection[kvp.Key] = kvp.Value;
                 }
 
-                options.AdditionalSections["TheSuperHackers"] = tshSection;
+                options.AdditionalSections[tshKey] = tshSection;
 
                 var saveResult = await SaveOptionsAsync(gameType, options);
                 return saveResult;
@@ -360,8 +362,8 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     {
         var options = new IniOptions();
         var currentSection = string.Empty;
-        Dictionary<string, string> currentDict = [];
-        Dictionary<string, string> rootDict = []; // For flat format
+        Dictionary<string, string> currentDict = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, string> rootDict = new(StringComparer.OrdinalIgnoreCase); // For flat format
 
         foreach (var rawLine in lines)
         {
@@ -378,7 +380,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 if (!string.IsNullOrEmpty(currentSection))
                 {
                     ProcessSection(options, currentSection, currentDict);
-                    currentDict = [];
+                    currentDict = new(StringComparer.OrdinalIgnoreCase);
                 }
 
                 currentSection = line[1..^1].Trim();
@@ -461,10 +463,10 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             "UseCloudMap", "UseDoubleClickAttackMove", "UseLightMap",
         };
 
-        Dictionary<string, string> audioDict = [];
-        Dictionary<string, string> videoDict = [];
-        Dictionary<string, string> networkDict = [];
-        Dictionary<string, string> theSuperHackersDict = [];
+        Dictionary<string, string> audioDict = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, string> videoDict = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, string> networkDict = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, string> theSuperHackersDict = new(StringComparer.OrdinalIgnoreCase);
 
         foreach (var kvp in rootDict)
         {
@@ -518,7 +520,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
 
         // Store TheSuperHackers settings in AdditionalSections to preserve them
         if (theSuperHackersDict.Count > 0)
-            options.AdditionalSections["TheSuperHackers"] = theSuperHackersDict;
+            options.AdditionalSections["TheSuperHackers"] = new Dictionary<string, string>(theSuperHackersDict, StringComparer.OrdinalIgnoreCase);
     }
 
     private static void ProcessSection(IniOptions options, string sectionName, Dictionary<string, string> values)
@@ -535,7 +537,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 ParseNetworkSection(options.Network, values);
                 break;
             default:
-                options.AdditionalSections[sectionName] = new Dictionary<string, string>(values);
+                options.AdditionalSections[sectionName] = new Dictionary<string, string>(values, StringComparer.OrdinalIgnoreCase);
                 break;
         }
     }
@@ -718,11 +720,12 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         }
 
         // TheSuperHackers settings
-        if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshSettings) && tshSettings.Count > 0)
+        var tshKvp = options.AdditionalSections.FirstOrDefault(s => string.Equals(s.Key, "TheSuperHackers", StringComparison.OrdinalIgnoreCase));
+        if (tshKvp.Value != null && tshKvp.Value.Count > 0)
         {
             lines.Add(string.Empty);
             lines.Add("[TheSuperHackers]");
-            foreach (var kvp in tshSettings)
+            foreach (var kvp in tshKvp.Value)
             {
                 lines.Add($"{kvp.Key} = {kvp.Value}");
             }
@@ -741,7 +744,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         }
 
         // Add any other additional sections with section headers (for future extensibility)
-        foreach (var section in options.AdditionalSections.Where(s => s.Key != "TheSuperHackers"))
+        foreach (var section in options.AdditionalSections.Where(s => !string.Equals(s.Key, "TheSuperHackers", StringComparison.OrdinalIgnoreCase)))
         {
             lines.Add(string.Empty);
             lines.Add($"[{section.Key}]");
@@ -756,51 +759,72 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
 
     private static string BoolToString(bool value) => value ? "yes" : "no";
 
+    private static bool TryGetCaseInsensitive(Dictionary<string, string> values, string key, out string value)
+    {
+        if (values.TryGetValue(key, out var val))
+        {
+            value = val;
+            return true;
+        }
+
+        foreach (var kvp in values)
+        {
+            if (string.Equals(kvp.Key, key, StringComparison.OrdinalIgnoreCase))
+            {
+                value = kvp.Value;
+                return true;
+            }
+        }
+
+        value = string.Empty;
+        return false;
+    }
+
     private static void ParseTheSuperHackersSection(TheSuperHackersSettings settings, Dictionary<string, string> values)
     {
-        if (values.TryGetValue("ArchiveReplays", out var archiveReplays))
+        if (TryGetCaseInsensitive(values, "ArchiveReplays", out var archiveReplays))
             settings.ArchiveReplays = ParseBool(archiveReplays);
 
-        if (values.TryGetValue("CursorCaptureEnabledInFullscreenGame", out var cursorFullscreenGame))
+        if (TryGetCaseInsensitive(values, "CursorCaptureEnabledInFullscreenGame", out var cursorFullscreenGame))
             settings.CursorCaptureEnabledInFullscreenGame = ParseBool(cursorFullscreenGame);
 
-        if (values.TryGetValue("CursorCaptureEnabledInFullscreenMenu", out var cursorFullscreenMenu))
+        if (TryGetCaseInsensitive(values, "CursorCaptureEnabledInFullscreenMenu", out var cursorFullscreenMenu))
             settings.CursorCaptureEnabledInFullscreenMenu = ParseBool(cursorFullscreenMenu);
 
-        if (values.TryGetValue("CursorCaptureEnabledInWindowedGame", out var cursorWindowedGame))
+        if (TryGetCaseInsensitive(values, "CursorCaptureEnabledInWindowedGame", out var cursorWindowedGame))
             settings.CursorCaptureEnabledInWindowedGame = ParseBool(cursorWindowedGame);
 
-        if (values.TryGetValue("CursorCaptureEnabledInWindowedMenu", out var cursorWindowedMenu))
+        if (TryGetCaseInsensitive(values, "CursorCaptureEnabledInWindowedMenu", out var cursorWindowedMenu))
             settings.CursorCaptureEnabledInWindowedMenu = ParseBool(cursorWindowedMenu);
 
-        if (values.TryGetValue("MoneyTransactionVolume", out var moneyVolume) && int.TryParse(moneyVolume, out var mv))
+        if (TryGetCaseInsensitive(values, "MoneyTransactionVolume", out var moneyVolume) && int.TryParse(moneyVolume, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mv))
             settings.MoneyTransactionVolume = mv;
 
-        if (values.TryGetValue("NetworkLatencyFontSize", out var netLatencyFont) && int.TryParse(netLatencyFont, out var nlf))
+        if (TryGetCaseInsensitive(values, "NetworkLatencyFontSize", out var netLatencyFont) && int.TryParse(netLatencyFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var nlf))
             settings.NetworkLatencyFontSize = nlf;
 
-        if (values.TryGetValue("PlayerObserverEnabled", out var playerObserver))
+        if (TryGetCaseInsensitive(values, "PlayerObserverEnabled", out var playerObserver))
             settings.PlayerObserverEnabled = ParseBool(playerObserver);
 
-        if (values.TryGetValue("RenderFpsFontSize", out var fpsFont) && int.TryParse(fpsFont, out var ff))
+        if (TryGetCaseInsensitive(values, "RenderFpsFontSize", out var fpsFont) && int.TryParse(fpsFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var ff))
             settings.RenderFpsFontSize = ff;
 
-        if (values.TryGetValue("ResolutionFontAdjustment", out var resFontAdj) && int.TryParse(resFontAdj, out var rfa))
+        if (TryGetCaseInsensitive(values, "ResolutionFontAdjustment", out var resFontAdj) && int.TryParse(resFontAdj, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rfa))
             settings.ResolutionFontAdjustment = rfa;
 
-        if (values.TryGetValue("ScreenEdgeScrollEnabledInFullscreenApp", out var scrollFullscreen))
+        if (TryGetCaseInsensitive(values, "ScreenEdgeScrollEnabledInFullscreenApp", out var scrollFullscreen))
             settings.ScreenEdgeScrollEnabledInFullscreenApp = ParseBool(scrollFullscreen);
 
-        if (values.TryGetValue("ScreenEdgeScrollEnabledInWindowedApp", out var scrollWindowed))
+        if (TryGetCaseInsensitive(values, "ScreenEdgeScrollEnabledInWindowedApp", out var scrollWindowed))
             settings.ScreenEdgeScrollEnabledInWindowedApp = ParseBool(scrollWindowed);
 
-        if (values.TryGetValue("ShowMoneyPerMinute", out var showMoney))
+        if (TryGetCaseInsensitive(values, "ShowMoneyPerMinute", out var showMoney))
             settings.ShowMoneyPerMinute = ParseBool(showMoney);
 
-        if (values.TryGetValue("SystemTimeFontSize", out var sysTimeFont) && int.TryParse(sysTimeFont, out var stf))
+        if (TryGetCaseInsensitive(values, "SystemTimeFontSize", out var sysTimeFont) && int.TryParse(sysTimeFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var stf))
             settings.SystemTimeFontSize = stf;
 
-        if (values.TryGetValue(GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var speedMult))
+        if (TryGetCaseInsensitive(values, GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var speedMult))
         {
             var parsed = GameSettingsMapper.ParseTransitionSpeedMultiplier(speedMult);
             if (parsed.HasValue)
@@ -812,7 +836,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
 
     private static Dictionary<string, string> SerializeTheSuperHackersSettings(TheSuperHackersSettings settings)
     {
-        return new Dictionary<string, string>
+        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["ArchiveReplays"] = BoolToString(settings.ArchiveReplays),
             ["CursorCaptureEnabledInFullscreenGame"] = BoolToString(settings.CursorCaptureEnabledInFullscreenGame),

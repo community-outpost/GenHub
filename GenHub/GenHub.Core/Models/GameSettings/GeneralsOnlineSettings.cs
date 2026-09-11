@@ -5,8 +5,8 @@ using GenHub.Core.Constants;
 
 namespace GenHub.Core.Models.GameSettings;
 
-/// <summary>GeneralsOnline game client settings (inherits TheSuperHackers settings plus GeneralsOnline-specific options).</summary>
-public class GeneralsOnlineSettings : TheSuperHackersSettings
+/// <summary>GeneralsOnline game client settings (manages GeneralsOnline settings.json configuration).</summary>
+public class GeneralsOnlineSettings
 {
     /// <summary>Gets or sets a value indicating whether to show FPS counter.</summary>
     public bool ShowFps { get; set; }

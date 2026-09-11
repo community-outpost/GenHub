@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Messaging;
+using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -431,6 +432,25 @@ public class GameProfileManager(
             else
             {
                 logger.LogDebug("No existing Options.ini found for {GameType}, profile {ProfileName} will use defaults", gameType, profile.Name);
+            }
+
+            // If this is a GeneralsOnline profile, also inherit existing settings.json settings
+            if (profile.IsGeneralsOnlineProfile())
+            {
+                try
+                {
+                    logger.LogDebug("Loading existing GeneralsOnline settings.json to populate new profile {ProfileName}", profile.Name);
+                    var goLoadResult = await gameSettingsService.LoadGeneralsOnlineSettingsAsync();
+                    if (goLoadResult.Success && goLoadResult.Data != null)
+                    {
+                        GameSettingsMapper.ApplyFromGeneralsOnlineSettings(goLoadResult.Data, profile);
+                        logger.LogInformation("Populated profile {ProfileName} with existing GeneralsOnline settings", profile.Name);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to load existing GeneralsOnline settings for profile {ProfileName}", profile.Name);
+                }
             }
         }
         catch (Exception ex)
