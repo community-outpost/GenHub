@@ -88,13 +88,13 @@ public class HotkeyPackageService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Exception while generating hotkeys addon for {Profile}", profile.Name);
-            return OperationResult<ContentManifest>.CreateFailure($"Exception while creating hotkeys addon: {ex.Message}");
+            logger.LogError(ex, "Failed to create hotkey addon for profile '{Name}'", profile.Name);
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Failed to build hotkeys addon: {ex.Message}");
         }
         finally
         {
             TryDeleteDirectory(stagingDir);
-            TryDeleteDirectory(packageDir);
         }
     }
 
@@ -169,7 +169,6 @@ public class HotkeyPackageService(
 
     private static CsfFile LoadBaseCsf(HotkeyProfile profile)
     {
-        var isVanilla = string.Equals(profile.BasePreset, GenHotkeysConstants.PresetVanilla, StringComparison.OrdinalIgnoreCase);
         var presetFile = profile.BasePreset?.Contains(GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase) == true
             ? GenHotkeysConstants.PresetsLegionnaireRu
             : GenHotkeysConstants.PresetsLeikezeEn;
@@ -179,21 +178,7 @@ public class HotkeyPackageService(
         {
             using (stream)
             {
-                var csf = CsfFile.Load(stream);
-                if (isVanilla)
-                {
-                    foreach (var (label, value) in csf.Strings.ToList())
-                    {
-                        if (label.StartsWith(GenHotkeysConstants.CsfControlBarPrefix, StringComparison.OrdinalIgnoreCase) ||
-                            label.StartsWith(GenHotkeysConstants.CsfCommandPrefix, StringComparison.OrdinalIgnoreCase))
-                        {
-                            var stripped = CsfFile.StripHotkey(value);
-                            csf.SetString(label, stripped);
-                        }
-                    }
-                }
-
-                return csf;
+                return CsfFile.Load(stream);
             }
         }
 

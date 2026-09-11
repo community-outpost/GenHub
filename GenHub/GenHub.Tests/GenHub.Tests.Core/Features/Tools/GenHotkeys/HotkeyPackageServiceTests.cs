@@ -231,7 +231,7 @@ public class HotkeyPackageServiceTests
     }
 
     /// <summary>
-    /// Verifies that key mappings for labels missing from the base CSF do not inject malformed badges.
+    /// Verifies that key mappings for labels missing from the base CSF do not inject malformed badges or corrupt the CSF string table.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
@@ -245,6 +245,7 @@ public class HotkeyPackageServiceTests
         };
         profile.KeyMappings["UNKNOWN:NonExistentLabel"] = 'X';
 
+        string? bigFileText = null;
         _mockLocalContent.Setup(l => l.CreateLocalContentManifestAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
@@ -254,6 +255,14 @@ public class HotkeyPackageServiceTests
                 It.IsAny<IProgress<ContentStorageProgress>?>(),
                 It.IsAny<CancellationToken>(),
                 It.IsAny<string?>()))
+            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?>((packageDir, _, _, _, _, _, _, _) =>
+            {
+                var bigFiles = Directory.GetFiles(packageDir, "*.big");
+                if (bigFiles.Length > 0)
+                {
+                    bigFileText = File.ReadAllText(bigFiles[0]);
+                }
+            })
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
             {
                 Id = ManifestId.Create("1.0.local.addon.hotkeys-unknown"),
@@ -265,9 +274,11 @@ public class HotkeyPackageServiceTests
         var result = await _service.CreateHotkeysAddonAsync(profile);
 
         Assert.True(result.Success);
+        Assert.NotNull(bigFileText);
+        Assert.DoesNotContain("UNKNOWN:NonExistentLabel", bigFileText);
     }
 
-        /// <summary>
+    /// <summary>
     /// Verifies that when overlays are enabled, the generated .big archive includes
     /// retail SAGE ButtonImage aliases (e.g. SAPowerPlant, SASupplyCntr) and both MappedImages INI files.
     /// </summary>

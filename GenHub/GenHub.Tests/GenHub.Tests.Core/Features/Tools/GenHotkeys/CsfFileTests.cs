@@ -27,14 +27,14 @@ public class CsfFileTests
     }
 
     /// <summary>
-    /// Verifies that SetHotkey inserts or updates hotkey brackets and ampersands.
+    /// Verifies that SetHotkey inserts or updates hotkey brackets and ampersands without mutating inline words.
     /// </summary>
     /// <param name="input">Original string.</param>
     /// <param name="hotkey">New hotkey to set.</param>
     /// <param name="expected">Expected modified string.</param>
     [Theory]
     [InlineData("[&D] Build Dozer", 'R', "[&R] Build Dozer")]
-    [InlineData("&Dozer", 'R', "&Rozer")]
+    [InlineData("&Dozer", 'R', "[&R] Dozer")]
     [InlineData("Laser Crusader (&L)", 'A', "Laser Crusader (&A)")]
     [InlineData("Build Dozer", 'D', "[&D] Build Dozer")]
     [InlineData("", 'X', "[&X]")]

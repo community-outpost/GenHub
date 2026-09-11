@@ -16,7 +16,7 @@ public class CsfFile
     private static readonly byte[] MagicRts = [(byte)' ', (byte)'R', (byte)'T', (byte)'S'];
 
     private static readonly Regex HotkeyBracketRegex = new(
-        @"\[&?[A-Za-z]\]|\(&?[A-Za-z]\)",
+        @"\[&?[A-Za-z0-9]\]|\(&?[A-Za-z0-9]\)",
         RegexOptions.Compiled,
         TimeSpan.FromSeconds(1));
 
@@ -144,7 +144,7 @@ public class CsfFile
     }
 
     /// <summary>
-    /// Sets or updates the hotkey in the CSF text.
+    /// Sets or updates the hotkey in the CSF text without mutating inline words.
     /// </summary>
     /// <param name="text">Existing CSF text.</param>
     /// <param name="hotkey">New hotkey character.</param>
@@ -157,23 +157,30 @@ public class CsfFile
             return $"[&{letter}]";
         }
 
-        var idx = text.IndexOf('&');
-        if (idx >= 0 && idx + 1 < text.Length)
+        // 1. If text already has a bracketed indicator like [&X] or (&X), update that indicator
+        var bracketMatch = HotkeyBracketRegex.Match(text);
+        if (bracketMatch.Success)
         {
-            // Replace existing hotkey character
-            var sb = new StringBuilder(text);
-            sb[idx + 1] = letter;
-            return sb.ToString();
+            var matchValue = bracketMatch.Value;
+            var ampIndex = matchValue.IndexOf('&');
+            if (ampIndex >= 0 && ampIndex + 1 < matchValue.Length)
+            {
+                var replaced = matchValue[..(ampIndex + 1)] + letter + matchValue[(ampIndex + 2)..];
+                return text.Remove(bracketMatch.Index, bracketMatch.Length).Insert(bracketMatch.Index, replaced);
+            }
+
+            if (matchValue.Length >= 3)
+            {
+                var replaced = matchValue[0] + $"&{letter}" + matchValue[^1];
+                return text.Remove(bracketMatch.Index, bracketMatch.Length).Insert(bracketMatch.Index, replaced);
+            }
         }
 
-        // If string already has "[X]" without "&", replace it
-        if (text.StartsWith('[') && text.Length >= 3 && text[2] == ']')
-        {
-            return $"[&{letter}]" + text[3..];
-        }
-
-        // Prefix with standard hotkey indicator
-        return $"[&{letter}] {text}";
+        // 2. If text had an inline unbracketed '&' (e.g. "&Dozer") or no hotkey,
+        // strip any existing accelerator marker to avoid word mutation (e.g. "&Dozer" -> "Dozer"),
+        // then prefix with the standard bracketed indicator.
+        var clean = StripHotkey(text);
+        return $"[&{letter}] {clean}";
     }
 
     /// <summary>
