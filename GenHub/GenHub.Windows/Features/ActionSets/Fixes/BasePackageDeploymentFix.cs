@@ -249,7 +249,23 @@ public abstract class BasePackageDeploymentFix(
                 Directory.Move(roamingDir, localDir);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        catch (IOException ex)
+        {
+            Logger.LogWarning(ex, "Failed to migrate backup directory from {RoamingDir} to {LocalDir}", roamingDir, localDir);
+            if (Directory.Exists(roamingDir) && !Directory.Exists(localDir))
+            {
+                return roamingDir;
+            }
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Logger.LogWarning(ex, "Failed to migrate backup directory from {RoamingDir} to {LocalDir}", roamingDir, localDir);
+            if (Directory.Exists(roamingDir) && !Directory.Exists(localDir))
+            {
+                return roamingDir;
+            }
+        }
+        catch (System.Security.SecurityException ex)
         {
             Logger.LogWarning(ex, "Failed to migrate backup directory from {RoamingDir} to {LocalDir}", roamingDir, localDir);
             if (Directory.Exists(roamingDir) && !Directory.Exists(localDir))

@@ -39,7 +39,22 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
 
             return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
         }
-        catch (Exception ex)
+        catch (IOException ex)
+        {
+            _logger?.LogWarning(ex, "Failed to get configured AppDataPath, using default");
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger?.LogWarning(ex, "Failed to get configured AppDataPath, using default");
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
+        }
+        catch (System.Security.SecurityException ex)
+        {
+            _logger?.LogWarning(ex, "Failed to get configured AppDataPath, using default");
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
+        }
+        catch (ArgumentException ex)
         {
             _logger?.LogWarning(ex, "Failed to get configured AppDataPath, using default");
             return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
@@ -242,7 +257,19 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
                 return StorageMigrationService.GetSourceRootDirectory();
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or ArgumentException)
+        catch (IOException ex)
+        {
+            _logger?.LogWarning(ex, "Failed to resolve custom install root for configured data path, falling back to default");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger?.LogWarning(ex, "Failed to resolve custom install root for configured data path, falling back to default");
+        }
+        catch (System.Security.SecurityException ex)
+        {
+            _logger?.LogWarning(ex, "Failed to resolve custom install root for configured data path, falling back to default");
+        }
+        catch (ArgumentException ex)
         {
             _logger?.LogWarning(ex, "Failed to resolve custom install root for configured data path, falling back to default");
         }
