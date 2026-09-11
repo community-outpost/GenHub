@@ -277,6 +277,7 @@ public partial class GenHotkeysViewModel(
                 return;
             }
 
+            SelectedProfile.BasePreset = preset.BasePreset ?? presetName;
             SelectedProfile.ClearedKeys.Clear();
             foreach (var k in preset.ClearedKeys)
             {

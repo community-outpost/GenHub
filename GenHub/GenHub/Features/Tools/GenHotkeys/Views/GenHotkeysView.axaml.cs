@@ -29,6 +29,13 @@ public partial class GenHotkeysView : UserControl
 
     private void OnRootKeyDown(object? sender, KeyEventArgs e)
     {
+        // Do not intercept keystrokes when the user is typing in a text input field (e.g. naming/renaming a profile)
+        if (e.Source is TextBox or AutoCompleteBox ||
+            TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() is TextBox or AutoCompleteBox)
+        {
+            return;
+        }
+
         if (DataContext is not GenHotkeysViewModel vm || vm.SelectedAction == null)
         {
             return;
