@@ -13,6 +13,7 @@ using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Tools.GenHotkeys;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.GenHotkeys;
@@ -245,26 +246,7 @@ public class HotkeyPackageService(
 
         foreach (var icon in processedIcons)
         {
-            AppendMappedImageEntry(sb, icon, $"{icon}.tga");
-
-            if (icon.StartsWith("USA", StringComparison.OrdinalIgnoreCase))
-            {
-                var baseName = icon[3..];
-                AppendMappedImageEntry(sb, $"SAC{baseName}", $"{icon}.tga");
-                AppendMappedImageEntry(sb, $"SA{baseName}", $"{icon}.tga");
-            }
-            else if (icon.StartsWith("PRC", StringComparison.OrdinalIgnoreCase))
-            {
-                var baseName = icon[3..];
-                AppendMappedImageEntry(sb, $"SN{baseName}", $"{icon}.tga");
-                AppendMappedImageEntry(sb, $"SNC{baseName}", $"{icon}.tga");
-            }
-            else if (icon.StartsWith("GLA", StringComparison.OrdinalIgnoreCase))
-            {
-                var baseName = icon[3..];
-                AppendMappedImageEntry(sb, $"SU{baseName}", $"{icon}.tga");
-                AppendMappedImageEntry(sb, $"SUC{baseName}", $"{icon}.tga");
-            }
+            AppendIconMappedImages(sb, icon);
         }
 
         var iniContent = sb.ToString();
@@ -280,6 +262,30 @@ public class HotkeyPackageService(
         await File.WriteAllTextAsync(Path.Combine(mappedDir2, "Hotkeys.ini"), iniContent, cancellationToken);
     }
 
+    private static void AppendIconMappedImages(StringBuilder sb, string icon)
+    {
+        AppendMappedImageEntry(sb, icon, $"{icon}.tga");
+
+        if (icon.Length <= 3)
+        {
+            return;
+        }
+
+        var baseName = icon[3..];
+        var prefixes = icon[..3].ToUpperInvariant() switch
+        {
+            "USA" => new[] { "SAC", "SA" },
+            "PRC" => new[] { "SN", "SNC" },
+            "GLA" => new[] { "SU", "SUC" },
+            _ => Array.Empty<string>(),
+        };
+
+        foreach (var prefix in prefixes)
+        {
+            AppendMappedImageEntry(sb, $"{prefix}{baseName}", $"{icon}.tga");
+        }
+    }
+
     private static void AppendMappedImageEntry(StringBuilder sb, string mappedName, string textureFileName)
     {
         sb.AppendLine($"MappedImage {mappedName}");
@@ -290,6 +296,16 @@ public class HotkeyPackageService(
         sb.AppendLine("  Status = NONE");
         sb.AppendLine("End");
         sb.AppendLine();
+    }
+
+    private static string? ResolveTargetInstallationPath(HotkeyProfile profile, GameInstallation install)
+    {
+        if (profile.TargetGame == GameType.Generals)
+        {
+            return install.HasGenerals ? install.GeneralsPath : null;
+        }
+
+        return install.HasZeroHour ? install.ZeroHourPath : null;
     }
 
     private async Task TryCopyToGameInstallationAsync(
@@ -314,9 +330,7 @@ public class HotkeyPackageService(
 
             foreach (var install in installResult.Data)
             {
-                var targetPath = profile.TargetGame == GameType.Generals
-                    ? (install.HasGenerals ? install.GeneralsPath : null)
-                    : (install.HasZeroHour ? install.ZeroHourPath : null);
+                var targetPath = ResolveTargetInstallationPath(profile, install);
 
                 if (!string.IsNullOrWhiteSpace(targetPath) && Directory.Exists(targetPath))
                 {
