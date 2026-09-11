@@ -230,7 +230,7 @@
                                 <TextBlock Text="2. Click '+ Create client' (or '+ CREATE CREDENTIALS' &gt; 'OAuth client ID')." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
                                 <TextBlock Text="3. Application type: You MUST choose 'Desktop app' (DO NOT leave it as 'Web application' — Google defaults to Web application, which will FAIL with redirect URI errors in desktop apps!)." FontSize="11" Foreground="{DynamicResource StatusErrorBrush}" FontWeight="Bold" TextWrapping="Wrap"/>
                                 <TextBlock Text="4. Enter a name (e.g. 'GenHub Desktop') and click 'CREATE'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
-                                <TextBlock Text="5. An 'OAuth client created' popup will appear showing your 'Client ID' (ending in .apps.googleusercontent.com) and 'Client secret' (starting with GOCSPX-)." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                <TextBlock Text="5. An 'OAuth client created' popup will appear showing your 'Client ID' and 'Client secret'." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
                                 <TextBlock Text="6. Important: Copy both now! Google warns you will not be able to view the secret again once the dialog is closed." FontSize="11" Foreground="{DynamicResource WarningHighlightBrush}" TextWrapping="Wrap"/>
 
                                 <TextBlock Text="Step 5: Add your Google Account to Test Users" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}" Margin="0,4,0,0"/>
@@ -271,9 +271,11 @@
 
                         <StackPanel Spacing="8">
                             <TextBlock Text="Google Client ID:" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
-                            <TextBox Text="{Binding GoogleClientId}" Watermark="xxxxxx.apps.googleusercontent.com" FontSize="12"/>
+                            <TextBox Text="{Binding GoogleClientId}" Watermark="Enter client ID" FontSize="12"/>
+                            <!-- skipcq: SCT-A000 -->
                             <TextBlock Text="Google Client Secret:" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
-                            <TextBox Text="{Binding GoogleClientSecret}" Watermark="GOCSPX-xxxxxx" PasswordChar="●" RevealPassword="True" FontSize="12"/>
+                            <!-- skipcq: SCT-A000 -->
+                            <TextBox Text="{Binding GoogleClientSecret}" PasswordChar="●" RevealPassword="True" FontSize="12"/>
                         </StackPanel>
                     </StackPanel>
 

@@ -44,7 +44,7 @@ public class PublisherStudioServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateProjectAsync_ValidName_ReturnsProject()
+    public async Task CreateProjectAsync_ValidName_ReturnsProjectAsync()
     {
         // Arrange
         var projectName = "Test Publisher";
@@ -71,7 +71,7 @@ public class PublisherStudioServiceTests
     [InlineData("")]
     [InlineData("   ")]
     [InlineData(null)]
-    public async Task CreateProjectAsync_InvalidName_ReturnsFailure(string? projectName)
+    public async Task CreateProjectAsync_InvalidName_ReturnsFailureAsync(string? projectName)
     {
         // Act
 #pragma warning disable CS8604
@@ -88,7 +88,7 @@ public class PublisherStudioServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task SaveProjectAsync_ValidPath_SavesSuccessfully()
+    public async Task SaveProjectAsync_ValidPath_SavesSuccessfullyAsync()
     {
         // Arrange
         var projectPath = GetTempFilePath();
@@ -129,7 +129,7 @@ public class PublisherStudioServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task SaveProjectAsync_NullPath_ReturnsFailure()
+    public async Task SaveProjectAsync_NullPath_ReturnsFailureAsync()
     {
         // Arrange
         var project = new PublisherStudioProject
@@ -152,7 +152,7 @@ public class PublisherStudioServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task LoadProjectAsync_ValidFile_LoadsSuccessfully()
+    public async Task LoadProjectAsync_ValidFile_LoadsSuccessfullyAsync()
     {
         // Arrange
         var projectPath = GetTempFilePath();
@@ -198,7 +198,7 @@ public class PublisherStudioServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task LoadProjectAsync_FileNotFound_ReturnsFailure()
+    public async Task LoadProjectAsync_FileNotFound_ReturnsFailureAsync()
     {
         // Arrange
         var nonExistentPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json");
@@ -216,7 +216,7 @@ public class PublisherStudioServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ExportCatalogAsync_ValidProject_ReturnsJson()
+    public async Task ExportCatalogAsync_ValidProject_ReturnsJsonAsync()
     {
         // Arrange
         var project = new PublisherStudioProject
@@ -274,7 +274,7 @@ public class PublisherStudioServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidateCatalogAsync_MissingPublisherId_ReturnsFailure()
+    public async Task ValidateCatalogAsync_MissingPublisherId_ReturnsFailureAsync()
     {
         // Arrange
         var catalog = new PublisherCatalog
@@ -331,7 +331,7 @@ public class PublisherStudioServiceTests
     [InlineData("invalid_with_underscores")]
     [InlineData("invalid.with.dots")]
     [InlineData("invalid with spaces")]
-    public async Task ValidateCatalogAsync_InvalidPublisherIdFormat_ReturnsFailure(string publisherId)
+    public async Task ValidateCatalogAsync_InvalidPublisherIdFormat_ReturnsFailureAsync(string publisherId)
     {
         // Arrange
         var catalog = new PublisherCatalog
@@ -360,7 +360,7 @@ public class PublisherStudioServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidateCatalogAsync_ContentWithoutReleases_ReturnsFailure()
+    public async Task ValidateCatalogAsync_ContentWithoutReleases_ReturnsFailureAsync()
     {
         // Arrange
         var catalog = new PublisherCatalog
@@ -397,7 +397,7 @@ public class PublisherStudioServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidateCatalogAsync_ReleaseWithoutArtifacts_ReturnsFailure()
+    public async Task ValidateCatalogAsync_ReleaseWithoutArtifacts_ReturnsFailureAsync()
     {
         // Arrange
         var catalog = new PublisherCatalog
@@ -441,7 +441,7 @@ public class PublisherStudioServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidateCatalogAsync_ValidCatalog_ReturnsSuccess()
+    public async Task ValidateCatalogAsync_ValidCatalog_ReturnsSuccessAsync()
     {
         // Arrange
         var catalog = new PublisherCatalog
@@ -543,7 +543,7 @@ public class PublisherStudioServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidateCatalogAsync_AllowPendingArtifacts_WithExistingLocalFile_Succeeds()
+    public async Task ValidateCatalogAsync_AllowPendingArtifacts_WithExistingLocalFile_SucceedsAsync()
     {
         // Arrange
         var tempFile = Path.GetTempFileName();
@@ -614,7 +614,7 @@ public class PublisherStudioServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidateCatalogAsync_AllowPendingArtifacts_WithMissingLocalFile_Fails()
+    public async Task ValidateCatalogAsync_AllowPendingArtifacts_WithMissingLocalFile_FailsAsync()
     {
         // Arrange
         var missingFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".zip");

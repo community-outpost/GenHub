@@ -53,9 +53,9 @@ public partial class ContentLibraryViewModel : ObservableObject
             var query = SearchText.Trim();
             return new ObservableCollection<CatalogContentItem>(
                 ContentItems.Where(item =>
-                    (item.Name != null && item.Name.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
-                    (item.Id != null && item.Id.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
-                    (item.Description != null && item.Description.Contains(query, StringComparison.OrdinalIgnoreCase))));
+                    (item.Name?.Contains(query, StringComparison.OrdinalIgnoreCase) == true) ||
+                    (item.Id?.Contains(query, StringComparison.OrdinalIgnoreCase) == true) ||
+                    (item.Description?.Contains(query, StringComparison.OrdinalIgnoreCase) == true)));
         }
     }
 
@@ -168,9 +168,7 @@ public partial class ContentLibraryViewModel : ObservableObject
             SelectedContent.Tags = edited.Tags;
 
             // Force UI refresh
-            var current = SelectedContent;
-            SelectedContent = null;
-            SelectedContent = current;
+            OnPropertyChanged(nameof(SelectedContent));
 
             _parentViewModel.MarkDirty();
             await _parentViewModel.SaveProjectAsync();
@@ -279,9 +277,7 @@ public partial class ContentLibraryViewModel : ObservableObject
         _logger.LogInformation("Deleted release v{Version} from {ContentId}", release.Version, SelectedContent.Id);
 
         // Force UI refresh by re-selecting
-        var current = SelectedContent;
-        SelectedContent = null;
-        SelectedContent = current;
+        OnPropertyChanged(nameof(SelectedContent));
     }
 
     /// <summary>
@@ -305,9 +301,7 @@ public partial class ContentLibraryViewModel : ObservableObject
             release.Dependencies = edited.Dependencies;
 
             // Force UI refresh
-            var current = SelectedContent;
-            SelectedContent = null;
-            SelectedContent = current;
+            OnPropertyChanged(nameof(SelectedContent));
 
             _parentViewModel.MarkDirty();
             await _parentViewModel.SaveProjectAsync();
@@ -331,9 +325,7 @@ public partial class ContentLibraryViewModel : ObservableObject
             await _parentViewModel.SaveProjectAsync();
 
             // Force UI refresh
-            var current = SelectedContent;
-            SelectedContent = null;
-            SelectedContent = current;
+            OnPropertyChanged(nameof(SelectedContent));
 
             _logger.LogInformation("Added artifact to release v{Version}", release.Version);
         }
@@ -351,9 +343,7 @@ public partial class ContentLibraryViewModel : ObservableObject
         _parentViewModel.MarkDirty();
         await _parentViewModel.SaveProjectAsync();
 
-        var current = SelectedContent;
-        SelectedContent = null;
-        SelectedContent = current;
+        OnPropertyChanged(nameof(SelectedContent));
 
         _logger.LogInformation("Removed artifact from release v{Version}", args.Release.Version);
     }
@@ -373,9 +363,7 @@ public partial class ContentLibraryViewModel : ObservableObject
             _parentViewModel.MarkDirty();
             await _parentViewModel.SaveProjectAsync();
 
-            var current = SelectedContent;
-            SelectedContent = null;
-            SelectedContent = current;
+            OnPropertyChanged(nameof(SelectedContent));
 
             _logger.LogInformation("Added dependency to release v{Version}", release.Version);
         }

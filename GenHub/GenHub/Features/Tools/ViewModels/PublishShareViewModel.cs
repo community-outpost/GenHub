@@ -160,12 +160,12 @@ public partial class PublishShareViewModel : ObservableObject
     /// <summary>
     /// Gets a value indicating whether the selected provider requires authentication.
     /// </summary>
-    public bool RequiresAuthentication => SelectedHostingProvider?.RequiresAuthentication ?? false;
+    public bool RequiresAuthentication => SelectedHostingProvider?.RequiresAuthentication == true;
 
     /// <summary>
     /// Gets a value indicating whether the selected provider is authenticated.
     /// </summary>
-    public bool IsProviderAuthenticated => SelectedHostingProvider?.IsAuthenticated ?? false;
+    public bool IsProviderAuthenticated => SelectedHostingProvider?.IsAuthenticated == true;
 
     /// <summary>
     /// Gets a value indicating whether authentication is needed (provider requires it but is not authenticated).
@@ -533,8 +533,8 @@ public partial class PublishShareViewModel : ObservableObject
         var artSize = artifact.Size > 0 ? artifact.Size : (artHosting?.FileSize ?? 0);
         var artUpdated = artHosting?.LastUpdated ?? DateTime.MinValue;
 
-        string location;
-        string status;
+        string location = string.Empty;
+        string status = string.Empty;
         if (isCloud)
         {
             artCount++;
@@ -576,6 +576,7 @@ public partial class PublishShareViewModel : ObservableObject
             return;
         }
 
+        // skipcq: CS-R1033
         foreach (var cloudCat in _currentHostingState.Catalogs.Where(cloudCat => !HostedAssets.Any(a =>
             (!string.IsNullOrEmpty(a.Url) && !string.IsNullOrEmpty(cloudCat.Url) && string.Equals(a.Url, cloudCat.Url, StringComparison.OrdinalIgnoreCase)) ||
             (!string.IsNullOrEmpty(a.Name) && !string.IsNullOrEmpty(cloudCat.FileName) && string.Equals(a.Name, cloudCat.FileName, StringComparison.OrdinalIgnoreCase)))))
@@ -596,6 +597,7 @@ public partial class PublishShareViewModel : ObservableObject
             });
         }
 
+        // skipcq: CS-R1033
         foreach (var cloudArt in _currentHostingState.Artifacts.Where(cloudArt => !HostedAssets.Any(a =>
             (!string.IsNullOrEmpty(a.Url) && !string.IsNullOrEmpty(cloudArt.Url) && string.Equals(a.Url, cloudArt.Url, StringComparison.OrdinalIgnoreCase)) ||
             (!string.IsNullOrEmpty(a.Name) && !string.IsNullOrEmpty(cloudArt.FileName) && string.Equals(a.Name, cloudArt.FileName, StringComparison.OrdinalIgnoreCase)))))
@@ -656,9 +658,9 @@ public partial class PublishShareViewModel : ObservableObject
         if (value == null) return;
 
         // Check if hosting state has saved credentials for this provider
-        if (_currentHostingState != null
-            && _currentHostingState.ProviderId == value.ProviderId
-            && !string.IsNullOrEmpty(_currentHostingState.AuthToken))
+        if (_currentHostingState is { } hostingState
+            && hostingState.ProviderId == value.ProviderId
+            && !string.IsNullOrEmpty(hostingState.AuthToken))
         {
             // Restore saved authentication
             _ = RestoreAuthenticationAsync();
@@ -980,7 +982,7 @@ public partial class PublishShareViewModel : ObservableObject
     {
         var hasUrl = !string.IsNullOrWhiteSpace(art.DownloadUrl);
         var localArtifact = ArtifactStatuses.FirstOrDefault(a => a.ArtifactName == art.Filename);
-        var hasLocal = (localArtifact?.HasLocalFile ?? false) || !string.IsNullOrWhiteSpace(art.LocalFilePath);
+        var hasLocal = localArtifact?.HasLocalFile == true || !string.IsNullOrWhiteSpace(art.LocalFilePath);
         var localPath = localArtifact?.LocalFilePath ?? art.LocalFilePath ?? string.Empty;
         var isExternalCdn = hasUrl && (!hasLocal || !IsCloudProviderUrl(art.DownloadUrl));
 

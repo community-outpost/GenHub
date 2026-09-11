@@ -31,7 +31,7 @@ public class PublisherStudioConfirmationAndAuthTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the test operation.</returns>
     [Fact]
-    public async Task RemoveCatalogCommand_WhenConfirmed_RemovesCatalog()
+    public async Task RemoveCatalogCommand_WhenConfirmed_RemovesCatalogAsync()
     {
         // Arrange
         _mockDialogService
@@ -83,7 +83,7 @@ public class PublisherStudioConfirmationAndAuthTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the test operation.</returns>
     [Fact]
-    public async Task RemoveCatalogCommand_WhenCancelled_PreservesCatalog()
+    public async Task RemoveCatalogCommand_WhenCancelled_PreservesCatalogAsync()
     {
         // Arrange
         _mockDialogService
@@ -147,6 +147,7 @@ public class PublisherStudioConfirmationAndAuthTests
 
         // Act - switch to Dropbox then GitHub
         vm.SelectedHostingProvider = dropboxMock.Object;
+        Assert.NotNull(vm.SelectedHostingProvider);
         vm.SelectedHostingProvider = githubMock.Object;
 
         // Assert - tokens remain intact and are not cleared on switch
@@ -159,7 +160,7 @@ public class PublisherStudioConfirmationAndAuthTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the test operation.</returns>
     [Fact]
-    public async Task AuthenticateAsync_GoogleDriveWithNoCredentials_SetsFriendlyMessageAndWarns()
+    public async Task AuthenticateAsync_GoogleDriveWithNoCredentials_SetsFriendlyMessageAndWarnsAsync()
     {
         var project = new PublisherStudioProject();
         var vm = new PublishShareViewModel(
@@ -191,7 +192,7 @@ public class PublisherStudioConfirmationAndAuthTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the test operation.</returns>
     [Fact]
-    public async Task PublisherStudioDialogService_ShowConfirmationAsync_DelegatesToIDialogService()
+    public async Task PublisherStudioDialogService_ShowConfirmationAsync_DelegatesToIDialogServiceAsync()
     {
         // Arrange
         var mockAppDialogService = new Mock<IDialogService>();

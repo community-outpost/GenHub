@@ -19,7 +19,7 @@ public partial class RenameCatalogDialogViewModel : ObservableValidator
     [NotifyDataErrorInfo]
     [Required(ErrorMessage = "Catalog name is required")]
     [MinLength(1, ErrorMessage = "Catalog name cannot be empty")]
-    private string _catalogName = string.Empty;
+    private string _catalogName;
 
     [ObservableProperty]
     private string? _validationError;

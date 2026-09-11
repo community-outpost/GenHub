@@ -146,6 +146,7 @@ public class ManualHostingProvider : IHostingProvider
     }
 
     /// <inheritdoc/>
+    // skipcq: CS-A1000
     public string GetDirectDownloadUrl(string shareUrl)
     {
         // For manual hosting, we assume the URL is already a direct download URL

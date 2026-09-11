@@ -65,7 +65,7 @@ public class PublisherStudioIntegrationTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task EndToEnd_CreateProject_ExportCatalog_Subscribe()
+    public async Task EndToEnd_CreateProject_ExportCatalog_SubscribeAsync()
     {
         // 1. Create a Project
         var createResult = await _publisherService.CreateProjectAsync("Test Project");

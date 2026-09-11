@@ -288,11 +288,13 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
                 include_deleted = false,
             };
 
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"{DropboxApiUrl}/files/list_folder");
-            request.Content = new StringContent(
-                JsonSerializer.Serialize(listArgs),
-                Encoding.UTF8,
-                HostingConstants.JsonContentType);
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{DropboxApiUrl}/files/list_folder")
+            {
+                Content = new StringContent(
+                    JsonSerializer.Serialize(listArgs),
+                    Encoding.UTF8,
+                    HostingConstants.JsonContentType),
+            };
 
             var response = await _httpClient.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
@@ -366,6 +368,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     }
 
     /// <inheritdoc/>
+    // skipcq: CS-A1000
     public string GetDirectDownloadUrl(string shareUrl)
     {
         return ConvertToDirectDownloadUrl(shareUrl);
@@ -444,11 +447,13 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
             cancellationToken.ThrowIfCancellationRequested();
 
             var continueArgs = new { cursor };
-            using var continueRequest = new HttpRequestMessage(HttpMethod.Post, $"{DropboxApiUrl}/files/list_folder/continue");
-            continueRequest.Content = new StringContent(
-                JsonSerializer.Serialize(continueArgs),
-                Encoding.UTF8,
-                HostingConstants.JsonContentType);
+            using var continueRequest = new HttpRequestMessage(HttpMethod.Post, $"{DropboxApiUrl}/files/list_folder/continue")
+            {
+                Content = new StringContent(
+                    JsonSerializer.Serialize(continueArgs),
+                    Encoding.UTF8,
+                    HostingConstants.JsonContentType),
+            };
 
             using var continueResponse = await _httpClient.SendAsync(continueRequest, cancellationToken);
             if (!continueResponse.IsSuccessStatusCode)

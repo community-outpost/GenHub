@@ -130,8 +130,10 @@ public partial class AddReferralDialogViewModel : ObservableValidator
 
         try
         {
-            using var client = new System.Net.Http.HttpClient();
-            client.Timeout = TimeSpan.FromSeconds(30);
+            using var client = new System.Net.Http.HttpClient
+            {
+                Timeout = TimeSpan.FromSeconds(30),
+            };
 
             var json = await client.GetStringAsync(CatalogUrl);
 
@@ -139,7 +141,7 @@ public partial class AddReferralDialogViewModel : ObservableValidator
             try
             {
                 var definition = System.Text.Json.JsonSerializer.Deserialize<PublisherDefinition>(json);
-                if (definition != null && definition.Publisher != null)
+                if (definition?.Publisher != null)
                 {
                     DiscoveredPublisher = definition.Publisher;
                     PublisherId = definition.Publisher.Id;
@@ -162,7 +164,7 @@ public partial class AddReferralDialogViewModel : ObservableValidator
             try
             {
                 var catalog = System.Text.Json.JsonSerializer.Deserialize<PublisherCatalog>(json);
-                if (catalog != null && catalog.Publisher != null)
+                if (catalog?.Publisher != null)
                 {
                     DiscoveredPublisher = catalog.Publisher;
                     PublisherId = catalog.Publisher.Id;
