@@ -603,7 +603,7 @@ public class CommunityOutpostManifestFactory(
             return false;
         }
 
-        if (context.IsControlBarVariant && context.HasVariantBigFiles && !fileName.EndsWith(".big", StringComparison.OrdinalIgnoreCase))
+        if (context.IsControlBarVariant && context.ContainsVariantBigFiles && !fileName.EndsWith(".big", StringComparison.OrdinalIgnoreCase))
         {
             logger.LogDebug("Skipping non-BIG file {File} for control bar variant {Variant}", relativePath, context.Variant?.Name);
             return false;
@@ -658,7 +658,7 @@ public class CommunityOutpostManifestFactory(
     private sealed record ManifestInclusionContext(
         ContentVariant? Variant,
         bool IsControlBarVariant,
-        bool HasVariantBigFiles,
+        bool ContainsVariantBigFiles,
         HashSet<string> DependencyBigFiles,
         HashSet<string> AlwaysIncludeFiles,
         HashSet<string> ControlBarRepackedOutputs);
