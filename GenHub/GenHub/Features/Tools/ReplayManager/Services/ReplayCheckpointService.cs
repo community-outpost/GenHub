@@ -298,7 +298,7 @@ public sealed partial class ReplayCheckpointService(
     /// <inheritdoc/>
     public void CancelActiveMint()
     {
-        List<CancellationTokenSource> sources;
+        List<CancellationTokenSource> sources = [];
         lock (_mintLock)
         {
             sources = [.. _activeMintSources];
