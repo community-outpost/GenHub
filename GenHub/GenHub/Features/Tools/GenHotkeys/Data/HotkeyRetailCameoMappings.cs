@@ -5,7 +5,9 @@ using System.Collections.Generic;
 namespace GenHub.Features.Tools.GenHotkeys.Data;
 
 /// <summary>
-/// Mapping of TechTree IconNames to the exact retail SAGE ButtonImage names defined in CommandButton.ini.
+/// Mapping of TechTree IconNames to the retail SAGE ButtonImage names defined in CommandButton.ini.
+/// Extracted from CommandButton.ini across retail C&C Generals (v1.08) and Zero Hour (v1.04) INI.big archives,
+/// correlating CommandButton ButtonImage declarations with TechTree action icon identifiers.
 /// This allows HotkeyPackageService to generate MappedImage entries that SAGE accurately maps to button cameos.
 /// </summary>
 internal static class HotkeyRetailCameoMappings
