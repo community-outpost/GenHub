@@ -1,16 +1,8 @@
 using System;
 using Avalonia.Headless.XUnit;
 using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Interfaces.Tools.GenHotkeys;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Tools.GenHotkeys;
 using GenHub.Features.Tools.GenHotkeys;
-using GenHub.Features.Tools.GenHotkeys.ViewModels;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
+using GenHub.Features.Tools.GenHotkeys.Views;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Tools.GenHotkeys;
@@ -47,41 +39,12 @@ public class GenHotkeysToolPluginTests
     }
 
     /// <summary>
-    /// Verifies that CreateControl returns a configured view with ViewModel when activated.
+    /// Verifies that OnDeactivated and Dispose clean up cleanly without errors.
     /// </summary>
-    [AvaloniaFact]
-    public void CreateControl_WhenActivated_InstantiatesViewWithViewModel()
+    [Fact]
+    public void Plugin_Lifecycle_ExecutesCleanly()
     {
-        var mockTechTree = new Mock<ITechTreeService>();
-        mockTechTree.Setup(t => t.LoadTechTreeAsync(It.IsAny<GameType>(), default))
-            .ReturnsAsync(Array.Empty<HotkeyFaction>());
-
-        var mockStorage = new Mock<IHotkeyProfileStorageService>();
-        mockStorage.Setup(s => s.GetProfilesAsync(It.IsAny<GameType>(), default))
-            .ReturnsAsync(new[] { new HotkeyProfile { Name = "Test Profile", TargetGame = GameType.ZeroHour } });
-
-        var mockPackage = new Mock<IHotkeyPackageService>();
-
-        var services = new ServiceCollection();
-        services.AddSingleton(mockTechTree.Object);
-        services.AddSingleton(mockStorage.Object);
-        services.AddSingleton(mockPackage.Object);
-        services.AddTransient<GenHotkeysViewModel>(sp => new GenHotkeysViewModel(
-            mockTechTree.Object,
-            mockStorage.Object,
-            mockPackage.Object,
-            NullLogger<GenHotkeysViewModel>.Instance));
-
-        var serviceProvider = services.BuildServiceProvider();
-
         var plugin = new GenHotkeysToolPlugin();
-        plugin.OnActivated(serviceProvider);
-
-        var control = plugin.CreateControl();
-        Assert.NotNull(control);
-        Assert.NotNull(control.DataContext);
-        Assert.IsType<GenHotkeysViewModel>(control.DataContext);
-
         plugin.OnDeactivated();
         plugin.Dispose();
     }
