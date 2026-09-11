@@ -381,7 +381,6 @@ public sealed class PlaywrightService(
         }
 
         await DisposeCoreAsync().ConfigureAwait(false);
-        GC.SuppressFinalize(this);
     }
 
     /// <inheritdoc />
@@ -1176,26 +1175,23 @@ public sealed class PlaywrightService(
                 });
 
             var ctx = context;
-            context.Close += (_, _) =>
-            {
-                Task.Run(
-                    async () =>
+            context.Close += (_, _) => Task.Run(
+                async () =>
+                {
+                    await _persistentLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                    try
                     {
-                        await _persistentLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-                        try
+                        if (ReferenceEquals(_persistentContext, ctx))
                         {
-                            if (ReferenceEquals(_persistentContext, ctx))
-                            {
-                                ResetPersistentContextState();
-                            }
+                            ResetPersistentContextState();
                         }
-                        finally
-                        {
-                            _persistentLock.Release();
-                        }
-                    },
-                    CancellationToken.None);
-            };
+                    }
+                    finally
+                    {
+                        _persistentLock.Release();
+                    }
+                },
+                CancellationToken.None);
 
             _persistentContext = context;
             _persistentProfileName = profileDir;
@@ -1286,7 +1282,7 @@ public sealed class PlaywrightService(
             return;
         }
 
-        List<IPage> pages;
+        List<IPage> pages = [];
         try
         {
             pages = [.. _persistentContext.Pages];
@@ -1346,7 +1342,7 @@ public sealed class PlaywrightService(
         var runtime = GetOrCreateManagedChromiumRuntime();
         runtime.ConfigureEnvironment();
 
-        IPlaywright playwright;
+        IPlaywright playwright = null!;
         await _playwrightLock.WaitAsync(cancellationToken);
         try
         {
@@ -1684,10 +1680,13 @@ public sealed class PlaywrightService(
         }
 
         var cancelTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var registration = linkedCts.Token.Register(() => cancelTcs.TrySetResult(true));
-
-        var saveTask = download.SaveAsAsync(configuration.DestinationPath);
-        var completedTask = await Task.WhenAny(saveTask, cancelTcs.Task);
+        Task completedTask;
+        Task saveTask;
+        using (linkedCts.Token.Register(() => cancelTcs.TrySetResult(true)))
+        {
+            saveTask = download.SaveAsAsync(configuration.DestinationPath);
+            completedTask = await Task.WhenAny(saveTask, cancelTcs.Task);
+        }
 
         if (completedTask != saveTask)
         {

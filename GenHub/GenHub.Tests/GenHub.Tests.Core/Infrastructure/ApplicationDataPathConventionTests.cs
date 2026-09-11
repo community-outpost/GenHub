@@ -86,7 +86,7 @@ public class ApplicationDataPathConventionTests
         }
 
         var message =
-            $"The following files read Environment.SpecialFolder.ApplicationData directly instead of " +
+            "The following files read Environment.SpecialFolder.ApplicationData directly instead of " +
             $"using IConfigurationProviderService.GetApplicationDataPath():\n{string.Join('\n', violations)}\n\n" +
             "If this is intentional (e.g. bootstrapping, or defining the default for the UI), " +
             "add the file to the allowlist in ApplicationDataPathConventionTests with an explanation.";

@@ -49,9 +49,9 @@ public class BackgroundUpdateCoordinator(
         RegisterMessages();
 
         var settings = userSettingsService.Get();
-        if (settings.AutoCheckForUpdatesOnStartup && TryGetLifetimeToken(out var lifetimeToken))
+        if (settings.AutoCheckForUpdatesOnStartup && TryGetLifetimeToken(out _))
         {
-            _ = CheckForUpdatesOnStartupAsync(lifetimeToken, cancellationToken);
+            _ = CheckForUpdatesOnStartupAsync(cancellationToken);
         }
 
         RestartPeriodicUpdateTimer(settings.AutoCheckForUpdatesPeriodically, settings.PeriodicUpdateCheckIntervalMinutes);
@@ -857,10 +857,9 @@ public class BackgroundUpdateCoordinator(
         });
     }
 
-    private async Task CheckForUpdatesOnStartupAsync(CancellationToken lifetimeToken, CancellationToken cancellationToken)
+    private async Task CheckForUpdatesOnStartupAsync(CancellationToken cancellationToken)
     {
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(lifetimeToken, cancellationToken);
-        await CheckForUpdatesInBackgroundAsync(linkedCts.Token);
+        await CheckForUpdatesInBackgroundAsync(cancellationToken);
     }
 
     private async Task CheckForUpdatesInBackgroundAsync(CancellationToken ct)
