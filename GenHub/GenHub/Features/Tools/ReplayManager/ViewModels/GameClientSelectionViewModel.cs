@@ -242,12 +242,7 @@ public sealed partial class GameClientSelectionViewModel(
             var gameSegment = targetGame.ToString().ToLowerInvariant();
             foreach (var manifest in manifestsResult.Data.Where(m => m.ContentType == ContentType.GameClient))
             {
-                var matchesGame = manifest.TargetGame == targetGame ||
-                                  (manifest.TargetGame == GameType.Unknown &&
-                                   (manifest.Id.Value.Contains($".gameclient.{gameSegment}", StringComparison.OrdinalIgnoreCase) ||
-                                    manifest.Id.Value.Contains($".{gameSegment}.", StringComparison.OrdinalIgnoreCase)));
-
-                if (!matchesGame)
+                if (!MatchesGame(manifest))
                 {
                     continue;
                 }
@@ -258,43 +253,65 @@ public sealed partial class GameClientSelectionViewModel(
                     continue;
                 }
 
-                var entryResolution = ManifestVariantResolver.ResolveEntryPoint(manifest);
-                var relExePath = entryResolution.Success && !string.IsNullOrWhiteSpace(entryResolution.RelativePath)
-                    ? entryResolution.RelativePath
-                    : string.Empty;
+                _allClients.Add(CreateManifestGameClientCard(manifest, targetGame));
+            }
 
-                var publisherName = GetPublisherDisplayName(manifest.Publisher);
-                var resolvedGameType = manifest.TargetGame != GameType.Unknown ? manifest.TargetGame : targetGame;
-                var client = new GameClient
+            bool MatchesGame(IContentManifest manifest)
+            {
+                if (manifest.TargetGame == targetGame)
                 {
-                    Id = manifest.Id.Value,
-                    Name = manifest.Name,
-                    Version = manifest.Version,
-                    PublisherType = publisherName,
-                    GameType = resolvedGameType,
-                    ExecutablePath = relExePath,
-                };
+                    return true;
+                }
 
-                var description = !string.IsNullOrWhiteSpace(manifest.Metadata?.Description)
-                    ? manifest.Metadata.Description
-                    : $"Manifest {manifest.Id.Value}";
+                if (manifest.TargetGame != GameType.Unknown)
+                {
+                    return false;
+                }
 
-                _allClients.Add(new GameClientCardViewModel(new GameClientCardParameters(
-                    Client: client,
-                    ManifestId: manifest.Id.Value,
-                    Name: manifest.Name,
-                    Version: manifest.Version,
-                    Publisher: publisherName,
-                    Category: "Catalog Manifest",
-                    ExecutablePath: relExePath,
-                    Description: description,
-                    OnSelect: OnClientSelected)));
+                var id = manifest.Id.Value;
+                return id.Contains($".gameclient.{gameSegment}", StringComparison.OrdinalIgnoreCase) ||
+                       id.Contains($".{gameSegment}.", StringComparison.OrdinalIgnoreCase);
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "[ReplayManager] Error querying manifests for game clients");
         }
+    }
+
+    private GameClientCardViewModel CreateManifestGameClientCard(IContentManifest manifest, GameType targetGame)
+    {
+        var entryResolution = ManifestVariantResolver.ResolveEntryPoint(manifest);
+        var relExePath = entryResolution.Success && !string.IsNullOrWhiteSpace(entryResolution.RelativePath)
+            ? entryResolution.RelativePath
+            : string.Empty;
+
+        var publisherName = GetPublisherDisplayName(manifest.Publisher);
+        var resolvedGameType = manifest.TargetGame != GameType.Unknown ? manifest.TargetGame : targetGame;
+        var client = new GameClient
+        {
+            Id = manifest.Id.Value,
+            Name = manifest.Name,
+            Version = manifest.Version,
+            PublisherType = publisherName,
+            GameType = resolvedGameType,
+            ExecutablePath = relExePath,
+        };
+
+        var description = !string.IsNullOrWhiteSpace(manifest.Metadata?.Description)
+            ? manifest.Metadata.Description
+            : $"Manifest {manifest.Id.Value}";
+
+        return new GameClientCardViewModel(new GameClientCardParameters(
+            Client: client,
+            ManifestId: manifest.Id.Value,
+            Name: manifest.Name,
+            Version: manifest.Version,
+            Publisher: publisherName,
+            Category: "Catalog Manifest",
+            ExecutablePath: relExePath,
+            Description: description,
+            OnSelect: OnClientSelected));
     }
 
     private void ApplyFilter()
