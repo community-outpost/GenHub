@@ -808,7 +808,11 @@ public class ManifestGenerationService(
 
             return (match != null && !IsReparsePoint(match)) ? match : null;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
         {
             return null;
         }
@@ -826,7 +830,11 @@ public class ManifestGenerationService(
 
             return (match != null && !IsReparsePoint(match)) ? match : null;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
         {
             return null;
         }
@@ -921,7 +929,11 @@ public class ManifestGenerationService(
 
             return false;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            return true;
+        }
+        catch (UnauthorizedAccessException)
         {
             return true;
         }
@@ -965,7 +977,11 @@ public class ManifestGenerationService(
         {
             return File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            return true;
+        }
+        catch (UnauthorizedAccessException)
         {
             return true;
         }
@@ -992,6 +1008,7 @@ public class ManifestGenerationService(
                 missingRequiredFiles.Add(entry.RelativePath);
                 break;
             case AuthoritativeFileStatus.MissingOptional:
+                // Optional missing files do not affect manifest generation status
                 break;
             case AuthoritativeFileStatus.Skipped:
                 if (entry.IsRequired)
@@ -1001,6 +1018,7 @@ public class ManifestGenerationService(
 
                 break;
             default:
+                // No action required for unrecognized or default statuses
                 break;
         }
     }
@@ -1167,7 +1185,14 @@ public class ManifestGenerationService(
                             size: processed.FileLength,
                             isRequired: processed.Entry.IsRequired);
                     }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    catch (IOException ex)
+                    {
+                        logger.LogWarning(
+                            ex,
+                            "Failed to add authoritative vanilla file {RelativePath} to manifest",
+                            processed.Entry.RelativePath);
+                    }
+                    catch (UnauthorizedAccessException ex)
                     {
                         logger.LogWarning(
                             ex,
@@ -1208,7 +1233,7 @@ public class ManifestGenerationService(
         ref long lastNotificationTimestamp)
     {
         if (currentIndex != 1 &&
-            !(Stopwatch.GetElapsedTime(lastNotificationTimestamp).TotalMilliseconds >= ManifestConstants.NotificationUpdateThrottleMs))
+            Stopwatch.GetElapsedTime(lastNotificationTimestamp).TotalMilliseconds < ManifestConstants.NotificationUpdateThrottleMs)
         {
             return;
         }
@@ -1231,7 +1256,7 @@ public class ManifestGenerationService(
         var isThrottled = currentIndex != 1 &&
             currentIndex % ManifestConstants.ProgressLoggingThrottleInterval != 0 &&
             currentIndex != totalEntries &&
-            !(Stopwatch.GetElapsedTime(lastLogTimestamp).TotalSeconds >= ManifestConstants.ProgressLogThrottleSeconds);
+            Stopwatch.GetElapsedTime(lastLogTimestamp).TotalSeconds < ManifestConstants.ProgressLogThrottleSeconds;
 
         if (isThrottled)
         {
@@ -1366,7 +1391,15 @@ public class ManifestGenerationService(
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to enumerate files during directory scan at {InstallationPath}", installationPath);
+            notificationService?.ShowWarning(
+                ManifestConstants.DirectoryScanWarningNotificationTitle,
+                $"Failed to complete directory scan for {gameType}.",
+                autoDismissMs: ManifestConstants.WarningNotificationAutoDismissMs);
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Failed to enumerate files during directory scan at {InstallationPath}", installationPath);
             notificationService?.ShowWarning(
@@ -1406,7 +1439,12 @@ public class ManifestGenerationService(
                 return;
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to read attributes for primary executable {ExecutableName} at {ExecutablePath}", executableName, executablePath);
+            return;
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Failed to read attributes for primary executable {ExecutableName} at {ExecutablePath}", executableName, executablePath);
             return;
@@ -1416,7 +1454,11 @@ public class ManifestGenerationService(
         {
             await builder.AddGameInstallationFileAsync(executableName, sourcePath, isExecutable: true);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to add primary executable {ExecutableName} to manifest from {SourcePath}", executableName, sourcePath);
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Failed to add primary executable {ExecutableName} to manifest from {SourcePath}", executableName, sourcePath);
         }
@@ -1472,7 +1514,11 @@ public class ManifestGenerationService(
 
             await builder.AddGameInstallationFileAsync(relativePath, sourcePath, isExecutable);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to add fallback file {RelativePath} to manifest", relativePath);
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Failed to add fallback file {RelativePath} to manifest", relativePath);
         }
@@ -1557,7 +1603,15 @@ public class ManifestGenerationService(
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Failed to inspect authoritative vanilla file {RelativePath}",
+                entry.RelativePath);
+            return new ProcessedAuthoritativeEntry(AuthoritativeFileStatus.Skipped, entry, null, 0, null, false);
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(
                 ex,

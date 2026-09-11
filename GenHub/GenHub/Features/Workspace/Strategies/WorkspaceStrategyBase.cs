@@ -150,13 +150,13 @@ public abstract class WorkspaceStrategyBase<T>(
         }
 
         // Essential directories - always copy content from these
-        if (EssentialDirectories.Any(dir => directory.Contains(dir)))
+        if (EssentialDirectories.Any(directory.Contains))
         {
             return true;
         }
 
         // Essential file patterns
-        if (EssentialPatterns.Any(pattern => fileName.Contains(pattern)))
+        if (EssentialPatterns.Any(fileName.Contains))
         {
             return true;
         }
@@ -528,10 +528,11 @@ public abstract class WorkspaceStrategyBase<T>(
     /// <param name="configuration">The workspace configuration.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
+    /// <exception cref="NotSupportedException">Thrown when the strategy does not support processing game installation files.</exception>
     protected virtual Task ProcessGameInstallationFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
-        // Default: throw if not implemented
-        throw new NotImplementedException("ProcessGameInstallationFileAsync must be implemented in the strategy if used.");
+        // Default: throw if not supported by strategy
+        throw new NotSupportedException("ProcessGameInstallationFileAsync must be implemented in the strategy if used.");
     }
 
     /// <summary>
@@ -543,10 +544,11 @@ public abstract class WorkspaceStrategyBase<T>(
     /// <param name="configuration">The workspace configuration.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
+    /// <exception cref="NotSupportedException">Thrown when the strategy does not support processing local files.</exception>
     protected virtual Task ProcessLocalFileAsync(ManifestFile file, ContentManifest manifest, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
-        // Default: throw if not implemented
-        throw new NotImplementedException("ProcessLocalFileAsync must be implemented in the strategy if used.");
+        // Default: throw if not supported by strategy
+        throw new NotSupportedException("ProcessLocalFileAsync must be implemented in the strategy if used.");
     }
 
     /// <summary>

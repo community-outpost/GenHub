@@ -37,34 +37,7 @@ public class SteamManifestPatcher(
                 return;
             }
 
-            // Scan for the manifest file (naive scan since we don't know the exact filename)
-            // Optimization: Assuming file extension is .json
-            var manifestFiles = Directory.EnumerateFiles(manifestsDir, "*.json", SearchOption.AllDirectories);
-            string? targetFile = null;
-            ContentManifest? manifest = null;
-
-            foreach (var file in manifestFiles)
-            {
-                try
-                {
-                    // Quick check: does filename contain ID? (Optimization if naming convention holds)
-                    // If not, we have to read it.
-                    // To be safe and fast, we read all small JSONs. Manifests are small.
-                    await using var stream = File.OpenRead(file);
-                    var candidate = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, JsonOptions);
-
-                    if (candidate != null && candidate.Id == manifestId)
-                    {
-                        targetFile = file;
-                        manifest = candidate;
-                        break;
-                    }
-                }
-                catch
-                {
-                    // Ignore read errors
-                }
-            }
+            var (targetFile, manifest) = await FindManifestAsync(manifestsDir, manifestId);
 
             if (targetFile == null || manifest == null)
             {
@@ -72,75 +45,7 @@ public class SteamManifestPatcher(
                 return;
             }
 
-            // Apply changes
-            var generalsExe = manifest.Files.FirstOrDefault(f => f.RelativePath.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase));
-            var gameDat = manifest.Files.FirstOrDefault(f => f.RelativePath.Equals(GameClientConstants.SteamGameDatExecutable, StringComparison.OrdinalIgnoreCase));
-
-            if (generalsExe == null && gameDat == null)
-            {
-                logger.LogDebug("Manifest {ManifestId} does not contain generals.exe or game.dat, skipping patch", manifestId);
-                return;
-            }
-
-            bool changed = false;
-
-            if (useSteamLaunch)
-            {
-                // Steam Mode: generals.exe = true, game.dat = false (if it exists)
-                if (generalsExe != null && !generalsExe.IsExecutable)
-                {
-                    generalsExe.IsExecutable = true;
-                    changed = true;
-                }
-
-                if (gameDat != null && gameDat.IsExecutable)
-                {
-                    gameDat.IsExecutable = false;
-                    changed = true;
-                }
-
-                if (manifest.EntryPoint != null && generalsExe != null && !string.Equals(manifest.EntryPoint, generalsExe.RelativePath, StringComparison.OrdinalIgnoreCase))
-                {
-                    manifest.EntryPoint = generalsExe.RelativePath;
-                    changed = true;
-                }
-            }
-            else
-            {
-                // Standalone Mode: generals.exe = false (if game.dat exists), game.dat = true
-                if (gameDat != null)
-                {
-                    if (!gameDat.IsExecutable)
-                    {
-                        gameDat.IsExecutable = true;
-                        changed = true;
-                    }
-
-                    if (generalsExe != null && generalsExe.IsExecutable)
-                    {
-                        generalsExe.IsExecutable = false;
-                        changed = true;
-                    }
-
-                    if (manifest.EntryPoint != null && !string.Equals(manifest.EntryPoint, gameDat.RelativePath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        manifest.EntryPoint = gameDat.RelativePath;
-                        changed = true;
-                    }
-                }
-                else if (generalsExe != null && !generalsExe.IsExecutable)
-                {
-                    // If no game.dat, generals.exe must be the executable
-                    generalsExe.IsExecutable = true;
-                    changed = true;
-
-                    if (manifest.EntryPoint != null && !string.Equals(manifest.EntryPoint, generalsExe.RelativePath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        manifest.EntryPoint = generalsExe.RelativePath;
-                        changed = true;
-                    }
-                }
-            }
+            var changed = ApplyLaunchMode(manifest, useSteamLaunch, manifestId);
 
             if (changed)
             {
@@ -159,5 +64,122 @@ public class SteamManifestPatcher(
             logger.LogError(ex, "Error patching manifest {ManifestId}", manifestId);
             throw;
         }
+    }
+
+    private static async Task<(string? TargetFile, ContentManifest? Manifest)> FindManifestAsync(string manifestsDir, string manifestId)
+    {
+        var manifestFiles = Directory.EnumerateFiles(manifestsDir, "*.json", SearchOption.AllDirectories);
+
+        foreach (var file in manifestFiles)
+        {
+            try
+            {
+                // Read small JSON manifests safely
+                await using var stream = File.OpenRead(file);
+                var candidate = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, JsonOptions);
+
+                if (candidate?.Id == manifestId)
+                {
+                    return (file, candidate);
+                }
+            }
+            catch (IOException)
+            {
+                // Ignore read errors for invalid or inaccessible files
+            }
+            catch (JsonException)
+            {
+                // Ignore JSON deserialization errors for non-manifest files
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Ignore access permission errors
+            }
+        }
+
+        return (null, null);
+    }
+
+    private bool ApplyLaunchMode(ContentManifest manifest, bool useSteamLaunch, string manifestId)
+    {
+        var generalsExe = manifest.Files.FirstOrDefault(f => f.RelativePath.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase));
+        var gameDat = manifest.Files.FirstOrDefault(f => f.RelativePath.Equals(GameClientConstants.SteamGameDatExecutable, StringComparison.OrdinalIgnoreCase));
+
+        if (generalsExe == null && gameDat == null)
+        {
+            logger.LogDebug("Manifest {ManifestId} does not contain generals.exe or game.dat, skipping patch", manifestId);
+            return false;
+        }
+
+        return useSteamLaunch
+            ? ApplySteamMode(manifest, generalsExe, gameDat)
+            : ApplyStandaloneMode(manifest, generalsExe, gameDat);
+    }
+
+    private static bool ApplySteamMode(ContentManifest manifest, ManifestFile? generalsExe, ManifestFile? gameDat)
+    {
+        var changed = false;
+
+        // Steam Mode: generals.exe = true, game.dat = false (if it exists)
+        if (generalsExe is { IsExecutable: false })
+        {
+            generalsExe.IsExecutable = true;
+            changed = true;
+        }
+
+        if (gameDat is { IsExecutable: true })
+        {
+            gameDat.IsExecutable = false;
+            changed = true;
+        }
+
+        if (manifest.EntryPoint != null && generalsExe != null && !string.Equals(manifest.EntryPoint, generalsExe.RelativePath, StringComparison.OrdinalIgnoreCase))
+        {
+            manifest.EntryPoint = generalsExe.RelativePath;
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    private static bool ApplyStandaloneMode(ContentManifest manifest, ManifestFile? generalsExe, ManifestFile? gameDat)
+    {
+        var changed = false;
+
+        // Standalone Mode: generals.exe = false (if game.dat exists), game.dat = true
+        if (gameDat != null)
+        {
+            if (!gameDat.IsExecutable)
+            {
+                gameDat.IsExecutable = true;
+                changed = true;
+            }
+
+            if (generalsExe is { IsExecutable: true })
+            {
+                generalsExe.IsExecutable = false;
+                changed = true;
+            }
+
+            if (manifest.EntryPoint != null && !string.Equals(manifest.EntryPoint, gameDat.RelativePath, StringComparison.OrdinalIgnoreCase))
+            {
+                manifest.EntryPoint = gameDat.RelativePath;
+                changed = true;
+            }
+        }
+        else if (generalsExe is { IsExecutable: false })
+        {
+            // If no game.dat, generals.exe must be the executable
+            generalsExe.IsExecutable = true;
+            changed = true;
+
+            if (manifest.EntryPoint != null && !string.Equals(manifest.EntryPoint, generalsExe.RelativePath, StringComparison.OrdinalIgnoreCase))
+            {
+                manifest.EntryPoint = generalsExe.RelativePath;
+                changed = true;
+            }
+        }
+
+        return changed;
     }
 }
