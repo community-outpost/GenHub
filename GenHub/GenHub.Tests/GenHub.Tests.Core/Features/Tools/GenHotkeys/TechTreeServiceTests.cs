@@ -37,7 +37,7 @@ public class TechTreeServiceTests
     [InlineData("INF", "PRCWarFactory")]
     [InlineData("NUK", "PRCAdvancedNuclearReactor")]
     [InlineData("TNK", "PRCNuclearReactor")]
-    public async Task LoadTechTreeAsync_ChineseBuildings_ConsolidatedIntoSingleLayout(string factionShortName, string buildingName)
+    public async Task ChineseBuildings_ConsolidatedIntoSingleLayoutAsync(string factionShortName, string buildingName)
     {
         var factions = await _service.LoadTechTreeAsync(GameType.ZeroHour);
         var faction = factions.FirstOrDefault(f => f.ShortName == factionShortName);
@@ -70,7 +70,7 @@ public class TechTreeServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task LoadTechTreeAsync_GLAWorker_RetainsTwoDistinctLayouts()
+    public async Task GlaWorker_RetainsTwoDistinctLayoutsAsync()
     {
         var factions = await _service.LoadTechTreeAsync(GameType.ZeroHour);
         var gla = factions.FirstOrDefault(f => f.ShortName == "GLA");
