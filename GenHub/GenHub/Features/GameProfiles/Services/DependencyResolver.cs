@@ -318,7 +318,7 @@ public class DependencyResolver(
             return true;
         }
 
-        var tokens = name.Split(['.', '-', '_', '/', '\\', ManifestConstants.VariantSeparator], StringSplitOptions.RemoveEmptyEntries);
+        var tokens = name.Split(['.', '-', '_', '/', '\\'], StringSplitOptions.RemoveEmptyEntries);
         return tokens.Any(t => string.Equals(t, ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase));
     }
 

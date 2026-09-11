@@ -619,58 +619,6 @@ public sealed class MapImportService(
         }
     }
 
-    private bool IsArchiveFile(string filePath)
-    {
-        try
-        {
-            var ext = Path.GetExtension(filePath);
-            if (ext.Equals(FileTypes.ZipFileExtension, StringComparison.OrdinalIgnoreCase) ||
-                ext.Equals(FileTypes.SevenZipFileExtension, StringComparison.OrdinalIgnoreCase) ||
-                ext.Equals(FileTypes.RarFileExtension, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            using var stream = File.OpenRead(filePath);
-            if (stream.Length < 4)
-            {
-                return false;
-            }
-
-            var buffer = new byte[6];
-            var read = stream.Read(buffer, 0, 6);
-            if (read >= 4)
-            {
-                // ZIP magic bytes: 50 4B 03 04, 50 4B 05 06, 50 4B 07 08
-                if (buffer[0] == 0x50 && buffer[1] == 0x4B &&
-                    (buffer[2] == 0x03 || buffer[2] == 0x05 || buffer[2] == 0x07))
-                {
-                    return true;
-                }
-
-                // 7-Zip magic bytes: 37 7A BC AF 27 1C
-                if (read >= 6 && buffer[0] == 0x37 && buffer[1] == 0x7A && buffer[2] == 0xBC &&
-                    buffer[3] == 0xAF && buffer[4] == 0x27 && buffer[5] == 0x1C)
-                {
-                    return true;
-                }
-
-                // RAR magic bytes: 52 61 72 21
-                if (buffer[0] == 0x52 && buffer[1] == 0x61 && buffer[2] == 0x72 && buffer[3] == 0x21)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            logger.LogWarning(ex, "Failed to read file header to determine archive type: {Path}", filePath);
-            return false;
-        }
-    }
-
     private static (bool IsValid, string? ErrorMessage) ValidateSharpCompressEntry(
         IArchiveEntry entry,
         ref long totalUncompressedBytes,
@@ -903,6 +851,58 @@ public sealed class MapImportService(
         }
 
         return path;
+    }
+
+    private bool IsArchiveFile(string filePath)
+    {
+        try
+        {
+            var ext = Path.GetExtension(filePath);
+            if (ext.Equals(FileTypes.ZipFileExtension, StringComparison.OrdinalIgnoreCase) ||
+                ext.Equals(FileTypes.SevenZipFileExtension, StringComparison.OrdinalIgnoreCase) ||
+                ext.Equals(FileTypes.RarFileExtension, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            using var stream = File.OpenRead(filePath);
+            if (stream.Length < 4)
+            {
+                return false;
+            }
+
+            var buffer = new byte[6];
+            var read = stream.Read(buffer, 0, 6);
+            if (read >= 4)
+            {
+                // ZIP magic bytes: 50 4B 03 04, 50 4B 05 06, 50 4B 07 08
+                if (buffer[0] == 0x50 && buffer[1] == 0x4B &&
+                    (buffer[2] == 0x03 || buffer[2] == 0x05 || buffer[2] == 0x07))
+                {
+                    return true;
+                }
+
+                // 7-Zip magic bytes: 37 7A BC AF 27 1C
+                if (read >= 6 && buffer[0] == 0x37 && buffer[1] == 0x7A && buffer[2] == 0xBC &&
+                    buffer[3] == 0xAF && buffer[4] == 0x27 && buffer[5] == 0x1C)
+                {
+                    return true;
+                }
+
+                // RAR magic bytes: 52 61 72 21
+                if (buffer[0] == 0x52 && buffer[1] == 0x61 && buffer[2] == 0x72 && buffer[3] == 0x21)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to read file header to determine archive type: {Path}", filePath);
+            return false;
+        }
     }
 
     private (bool IsValid, string? ErrorMessage) ValidateWithSharpCompress(string archivePath)

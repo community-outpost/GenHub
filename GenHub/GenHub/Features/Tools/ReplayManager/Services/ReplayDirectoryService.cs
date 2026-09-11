@@ -485,43 +485,6 @@ public sealed class ReplayDirectoryService(
     /// <param name="clientManifest">The client content manifest, if available.</param>
     /// <param name="replay">The replay file context.</param>
     /// <returns>The resolved relative executable path, or default executable name if uncontained.</returns>
-    private static bool TryGetContainedRelativePath(string workingDir, string candidatePath, out string relativePath)
-    {
-        relativePath = string.Empty;
-        if (string.IsNullOrWhiteSpace(workingDir) || string.IsNullOrWhiteSpace(candidatePath))
-        {
-            return false;
-        }
-
-        try
-        {
-            var fullWorkingDir = Path.GetFullPath(workingDir);
-            var fullCandidatePath = Path.IsPathRooted(candidatePath)
-                ? Path.GetFullPath(candidatePath)
-                : Path.GetFullPath(Path.Combine(fullWorkingDir, candidatePath));
-
-            var rel = Path.GetRelativePath(fullWorkingDir, fullCandidatePath);
-            var isContained = !string.IsNullOrWhiteSpace(rel) &&
-                              rel != "." &&
-                              !string.Equals(rel, "..", StringComparison.Ordinal) &&
-                              !rel.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) &&
-                              !rel.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal) &&
-                              !Path.IsPathRooted(rel);
-
-            if (isContained)
-            {
-                relativePath = rel;
-                return true;
-            }
-        }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
-        {
-            // Invalid or unparseable path
-        }
-
-        return false;
-    }
-
     internal static string ResolveThirdPartyRelativeExePath(
         GameClient? targetClient,
         string workingDir,
@@ -548,6 +511,78 @@ public sealed class ReplayDirectoryService(
         }
 
         return GetDefaultExecutableName(replay.GameVersion, replay.MatchedClient?.Publisher);
+    }
+
+    internal static bool IsClientManifestInstalled(CrcMappingEntry match, GameType gameVersion, HashSet<string> acquiredIds)
+    {
+        if (!string.IsNullOrEmpty(match.ManifestId) && acquiredIds.Contains(match.ManifestId))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrEmpty(match.ManifestId) &&
+            acquiredIds.Any(id =>
+                string.Equals(match.ManifestId, id, StringComparison.OrdinalIgnoreCase) ||
+                (DependencyResolver.HasCompatibleCatalogIdentity(match.ManifestId, id) &&
+                 HasMatchingClientVersion(match.ManifestId, id, match.Version, null))))
+        {
+            return true;
+        }
+
+        var publisher = !string.IsNullOrWhiteSpace(match.Publisher)
+            ? match.Publisher
+            : ExtractPublisherFromManifestId(match.ManifestId);
+
+        var isRetail = IsRetailClient(publisher, match.ManifestId);
+
+        if (isRetail)
+        {
+            var gameTypeSuffix = gameVersion == GameType.ZeroHour ? ManifestConstants.ZeroHourContentName : ManifestConstants.GeneralsContentName;
+            return acquiredIds.Any(id => id.Contains(ManifestConstants.GameInstallationManifestSegment, StringComparison.OrdinalIgnoreCase) && id.EndsWith(gameTypeSuffix, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return false;
+    }
+
+    internal static ReplayCompatibilityStatus DetermineUnconfiguredStatus(CrcMappingEntry match, bool isInstalled)
+    {
+        if (isInstalled)
+        {
+            return ReplayCompatibilityStatus.RequiresProfile;
+        }
+
+        var isRetail = IsRetailClient(match.Publisher, match.ManifestId);
+
+        if (!string.IsNullOrWhiteSpace(match.CdnUrl) || (!isRetail && !string.IsNullOrWhiteSpace(match.ManifestId)))
+        {
+            return ReplayCompatibilityStatus.Downloadable;
+        }
+
+        return ReplayCompatibilityStatus.Orphaned;
+    }
+
+    internal static void ResolveMatchedClientCompatibility(
+        ReplayFile replay,
+        CrcMappingEntry match,
+        HashSet<string> acquiredIds,
+        IReadOnlyList<GameProfile> profiles,
+        ILogger? logger = null)
+    {
+        replay.MatchedClient = match;
+
+        var matchingProfile = FindMatchingProfile(profiles, replay.GameVersion, match.ManifestId, match.DataPatchManifestId, replay, logger);
+        if (matchingProfile != null)
+        {
+            replay.MatchingProfileId = matchingProfile.Id;
+            replay.MatchingProfileName = matchingProfile.Name;
+            replay.CompatibilityStatus = ReplayCompatibilityStatus.Compatible;
+            return;
+        }
+
+        replay.MatchingProfileId = null;
+        replay.MatchingProfileName = null;
+        var isInstalled = IsClientManifestInstalled(match, replay.GameVersion, acquiredIds);
+        replay.CompatibilityStatus = DetermineUnconfiguredStatus(match, isInstalled);
     }
 
     /// <summary>
@@ -619,6 +654,50 @@ public sealed class ReplayDirectoryService(
         }
 
         ResolveUnmappedClientCompatibility(replay, profiles);
+    }
+
+    /// <summary>
+    /// Attempts to compute and validate a contained relative path within the specified working directory.
+    /// </summary>
+    /// <param name="workingDir">The working directory root.</param>
+    /// <param name="candidatePath">The candidate path to check and make relative.</param>
+    /// <param name="relativePath">When this method returns, contains the valid contained relative path if true; otherwise, empty.</param>
+    /// <returns><c>true</c> if the candidate path is strictly contained within the working directory; otherwise, <c>false</c>.</returns>
+    private static bool TryGetContainedRelativePath(string workingDir, string candidatePath, out string relativePath)
+    {
+        relativePath = string.Empty;
+        if (string.IsNullOrWhiteSpace(workingDir) || string.IsNullOrWhiteSpace(candidatePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            var fullWorkingDir = Path.GetFullPath(workingDir);
+            var fullCandidatePath = Path.IsPathRooted(candidatePath)
+                ? Path.GetFullPath(candidatePath)
+                : Path.GetFullPath(Path.Combine(fullWorkingDir, candidatePath));
+
+            var rel = Path.GetRelativePath(fullWorkingDir, fullCandidatePath);
+            var isContained = !string.IsNullOrWhiteSpace(rel) &&
+                              rel != "." &&
+                              !string.Equals(rel, "..", StringComparison.Ordinal) &&
+                              !rel.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) &&
+                              !rel.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal) &&
+                              !Path.IsPathRooted(rel);
+
+            if (isContained)
+            {
+                relativePath = rel;
+                return true;
+            }
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            // Invalid or unparseable path
+        }
+
+        return false;
     }
 
     private static int ScoreCandidateProfile(
@@ -1187,54 +1266,6 @@ public sealed class ReplayDirectoryService(
         return GameClientConstants.ZeroHourExecutable;
     }
 
-    internal static bool IsClientManifestInstalled(CrcMappingEntry match, GameType gameVersion, HashSet<string> acquiredIds)
-    {
-        if (!string.IsNullOrEmpty(match.ManifestId) && acquiredIds.Contains(match.ManifestId))
-        {
-            return true;
-        }
-
-        if (!string.IsNullOrEmpty(match.ManifestId) &&
-            acquiredIds.Any(id =>
-                string.Equals(match.ManifestId, id, StringComparison.OrdinalIgnoreCase) ||
-                (DependencyResolver.HasCompatibleCatalogIdentity(match.ManifestId, id) &&
-                 HasMatchingClientVersion(match.ManifestId, id, match.Version, null))))
-        {
-            return true;
-        }
-
-        var publisher = !string.IsNullOrWhiteSpace(match.Publisher)
-            ? match.Publisher
-            : ExtractPublisherFromManifestId(match.ManifestId);
-
-        var isRetail = IsRetailClient(publisher, match.ManifestId);
-
-        if (isRetail)
-        {
-            var gameTypeSuffix = gameVersion == GameType.ZeroHour ? ManifestConstants.ZeroHourContentName : ManifestConstants.GeneralsContentName;
-            return acquiredIds.Any(id => id.Contains(ManifestConstants.GameInstallationManifestSegment, StringComparison.OrdinalIgnoreCase) && id.EndsWith(gameTypeSuffix, StringComparison.OrdinalIgnoreCase));
-        }
-
-        return false;
-    }
-
-    internal static ReplayCompatibilityStatus DetermineUnconfiguredStatus(CrcMappingEntry match, bool isInstalled)
-    {
-        if (isInstalled)
-        {
-            return ReplayCompatibilityStatus.RequiresProfile;
-        }
-
-        var isRetail = IsRetailClient(match.Publisher, match.ManifestId);
-
-        if (!string.IsNullOrWhiteSpace(match.CdnUrl) || (!isRetail && !string.IsNullOrWhiteSpace(match.ManifestId)))
-        {
-            return ReplayCompatibilityStatus.Downloadable;
-        }
-
-        return ReplayCompatibilityStatus.Orphaned;
-    }
-
     private static bool MatchesReplayFileName(string? description, string fileName, ILogger? logger = null)
     {
         if (string.IsNullOrWhiteSpace(description) || string.IsNullOrWhiteSpace(fileName))
@@ -1260,30 +1291,6 @@ public sealed class ReplayDirectoryService(
             logger?.LogDebug(ex, "Regex matching timed out for replay file '{FileName}' against profile description", fileName);
             return false;
         }
-    }
-
-    internal static void ResolveMatchedClientCompatibility(
-        ReplayFile replay,
-        CrcMappingEntry match,
-        HashSet<string> acquiredIds,
-        IReadOnlyList<GameProfile> profiles,
-        ILogger? logger = null)
-    {
-        replay.MatchedClient = match;
-
-        var matchingProfile = FindMatchingProfile(profiles, replay.GameVersion, match.ManifestId, match.DataPatchManifestId, replay, logger);
-        if (matchingProfile != null)
-        {
-            replay.MatchingProfileId = matchingProfile.Id;
-            replay.MatchingProfileName = matchingProfile.Name;
-            replay.CompatibilityStatus = ReplayCompatibilityStatus.Compatible;
-            return;
-        }
-
-        replay.MatchingProfileId = null;
-        replay.MatchingProfileName = null;
-        var isInstalled = IsClientManifestInstalled(match, replay.GameVersion, acquiredIds);
-        replay.CompatibilityStatus = DetermineUnconfiguredStatus(match, isInstalled);
     }
 
     private static async Task<string> ResolveThirdPartyClientManifestIdAsync(
@@ -1413,7 +1420,7 @@ public sealed class ReplayDirectoryService(
         var allManifests = await manifestPool.GetAllManifestsAsync(ct);
         if (allManifests.Success && allManifests.Data != null &&
             allManifests.Data.Any(m => m.ContentType == ContentType.MapPack &&
-                                       (m.GameType == targetGame || m.GameType == null) &&
+                                       (m.TargetGame == targetGame || m.TargetGame == GameType.Unknown) &&
                                        (string.Equals(m.Publisher?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
                                         m.Id.Value.Contains("." + GeneralsOnlineConstants.PublisherType + ".", StringComparison.OrdinalIgnoreCase))))
         {
@@ -1653,8 +1660,9 @@ public sealed class ReplayDirectoryService(
 
         return itemList.FirstOrDefault(c =>
             string.Equals(c.Version, matchedClient.Version, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(c.Publisher, matchedClient.Publisher, StringComparison.OrdinalIgnoreCase) &&
-            c.Type is ContentType.GameClient or ContentType.Mod);
+            (string.Equals(c.ProviderName, matchedClient.Publisher, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(c.AuthorName, matchedClient.Publisher, StringComparison.OrdinalIgnoreCase)) &&
+            c.ContentType is ContentType.GameClient or ContentType.Mod);
     }
 
     private static (GameClient? TargetClient, string WorkingDir) ResolveGameInstallationContext(

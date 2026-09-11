@@ -391,8 +391,11 @@ public partial class GameProfileLauncherViewModel(
                 {
                     if (message.ProcessId > 0 && profile.ProcessId > 0 && message.ProcessId != profile.ProcessId)
                     {
-                        logger.LogDebug("Ignoring stale stop message for {ProfileId} (Msg PID: {MsgPid}, Current PID: {CurrentPid})",
-                            message.ProfileId, message.ProcessId, profile.ProcessId);
+                        logger.LogDebug(
+                            "Ignoring stale stop message for {ProfileId} (Msg PID: {MsgPid}, Current PID: {CurrentPid})",
+                            message.ProfileId,
+                            message.ProcessId,
+                            profile.ProcessId);
                         return;
                     }
 
