@@ -310,15 +310,27 @@ public partial class FileManagerViewModel(
         }, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Gets the absolute path to the game files edited directory for the current project.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Thrown when project path is not set and the directory name is relative.</exception>
     private string GetGameFilesEditedPath()
     {
         var dirName = !string.IsNullOrWhiteSpace(_gameFilesEditedDir)
             ? _gameFilesEditedDir
             : ModBuilderConstants.GameFilesEditedDir;
 
-        return Path.IsPathRooted(dirName)
-            ? dirName
-            : Path.Combine(_projectPath ?? string.Empty, dirName);
+        if (Path.IsPathRooted(dirName))
+        {
+            return dirName;
+        }
+
+        if (string.IsNullOrEmpty(_projectPath))
+        {
+            throw new InvalidOperationException("Project path must be set before resolving relative GameFilesEdited directory.");
+        }
+
+        return Path.Combine(_projectPath, dirName);
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Results.ModBuilder;
 using Microsoft.Extensions.Logging;
@@ -102,7 +103,7 @@ public sealed class ExternalToolService(ILogger<ExternalToolService> logger) : I
             try
             {
                 using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                timeoutCts.CancelAfter(TimeSpan.FromSeconds(120));
+                timeoutCts.CancelAfter(TimeSpan.FromSeconds(ModBuilderConstants.ExternalToolTimeoutSeconds));
                 await process.WaitForExitAsync(timeoutCts.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
@@ -124,8 +125,8 @@ public sealed class ExternalToolService(ILogger<ExternalToolService> logger) : I
                     throw;
                 }
 
-                logger.LogError("Tool execution timed out after 120 seconds: {ToolPath}", toolPath);
-                return ToolOperationResult.CreateFailure($"Tool execution timed out after 120 seconds: {toolPath}");
+                logger.LogError("Tool execution timed out after {Timeout} seconds: {ToolPath}", ModBuilderConstants.ExternalToolTimeoutSeconds, toolPath);
+                return ToolOperationResult.CreateFailure($"Tool execution timed out after {ModBuilderConstants.ExternalToolTimeoutSeconds} seconds: {toolPath}");
             }
 
             var exitCode = process.ExitCode;

@@ -113,6 +113,11 @@ public static class ModBuilderConstants
     public const long DefaultStreamingThresholdBytes = 10 * 1024 * 1024;
 
     /// <summary>
+    /// Default timeout for external tool execution in seconds.
+    /// </summary>
+    public const int ExternalToolTimeoutSeconds = 120;
+
+    /// <summary>
     /// Name of the primary crunch tool executable.
     /// </summary>
     public const string CrunchExecutable = "crunch_x64.exe";

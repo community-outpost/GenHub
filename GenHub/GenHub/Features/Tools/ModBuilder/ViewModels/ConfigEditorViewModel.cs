@@ -580,6 +580,7 @@ public partial class ConfigEditorViewModel(
                 await writer.WriteAsync(content.AsMemory(), cancellationToken).ConfigureAwait(false);
                 await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
                 await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                stream.Flush(true);
             }
 
             File.Move(tempFile, filePath, overwrite: true);
@@ -666,6 +667,7 @@ public partial class ConfigEditorViewModel(
             {
                 if (!existingMap.TryGetValue(item.Name, out var existing) && canFallbackByIndex)
                 {
+                    logger.LogInformation("Falling back to index matching for bundle item {Name} at index {Index}", item.Name, index);
                     existing = existingList![index];
                 }
 
