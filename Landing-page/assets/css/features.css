@@ -55,25 +55,49 @@
 .col-span-12 { grid-column: span 12; }
 
 /* Card Spotlight Visual Variations */
+.spotlight-steam {
+    background: radial-gradient(circle at 90% 10%, rgba(14, 165, 233, 0.16) 0%, rgba(22, 14, 44, 0.8) 60%);
+    border-color: rgba(56, 189, 248, 0.35);
+}
+
+.spotlight-steam:hover {
+    border-color: rgba(56, 189, 248, 0.65);
+    box-shadow: 
+        0 20px 45px rgba(0, 0, 0, 0.4),
+        0 0 35px rgba(14, 165, 233, 0.25);
+}
+
+.spotlight-local {
+    background: radial-gradient(circle at 90% 10%, rgba(168, 85, 247, 0.16) 0%, rgba(22, 14, 44, 0.8) 60%);
+    border-color: rgba(168, 85, 247, 0.35);
+}
+
+.spotlight-local:hover {
+    border-color: rgba(168, 85, 247, 0.65);
+    box-shadow: 
+        0 20px 45px rgba(0, 0, 0, 0.4),
+        0 0 35px rgba(168, 85, 247, 0.25);
+}
+
 .spotlight-genpatcher {
-    background: radial-gradient(circle at 90% 10%, rgba(16, 185, 129, 0.12) 0%, rgba(22, 14, 44, 0.75) 60%);
-    border-color: rgba(16, 185, 129, 0.3);
+    background: radial-gradient(circle at 90% 10%, rgba(16, 185, 129, 0.14) 0%, rgba(22, 14, 44, 0.8) 60%);
+    border-color: rgba(16, 185, 129, 0.35);
 }
 
 .spotlight-genpatcher:hover {
-    border-color: rgba(16, 185, 129, 0.6);
+    border-color: rgba(16, 185, 129, 0.65);
     box-shadow: 
         0 20px 45px rgba(0, 0, 0, 0.4),
         0 0 35px rgba(16, 185, 129, 0.25);
 }
 
 .spotlight-updates {
-    background: radial-gradient(circle at 90% 10%, rgba(56, 189, 248, 0.12) 0%, rgba(22, 14, 44, 0.75) 60%);
-    border-color: rgba(56, 189, 248, 0.3);
+    background: radial-gradient(circle at 90% 10%, rgba(56, 189, 248, 0.14) 0%, rgba(22, 14, 44, 0.8) 60%);
+    border-color: rgba(56, 189, 248, 0.35);
 }
 
 .spotlight-updates:hover {
-    border-color: rgba(56, 189, 248, 0.6);
+    border-color: rgba(56, 189, 248, 0.65);
     box-shadow: 
         0 20px 45px rgba(0, 0, 0, 0.4),
         0 0 35px rgba(56, 189, 248, 0.25);
@@ -101,13 +125,14 @@
 }
 
 .card-icon-wrap svg,
+.card-icon-wrap img,
 .card-icon-wrap i {
     width: 24px;
     height: 24px;
 }
 
 .bento-card:hover .card-icon-wrap {
-    transform: scale(1.08);
+    transform: scale(1.06);
     background: var(--gradient-primary);
     color: #ffffff;
     box-shadow: 0 0 20px var(--primary-glow);
@@ -133,6 +158,18 @@
 
 .bento-card:hover .icon-cyan {
     background: var(--gradient-cyan);
+    color: #ffffff;
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+}
+
+.icon-steam {
+    background: rgba(14, 165, 233, 0.15);
+    border-color: rgba(56, 189, 248, 0.35);
+    color: #38bdf8;
+}
+
+.bento-card:hover .icon-steam {
+    background: linear-gradient(135deg, #0284c7, #38bdf8);
     color: #ffffff;
     box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
 }
@@ -180,6 +217,15 @@
     margin-bottom: 1.5rem;
 }
 
+.bento-desc code {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.1);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-family: var(--font-mono);
+}
+
 /* Feature Bullet Points */
 .feature-points {
     list-style: none;
@@ -204,6 +250,14 @@
     height: 14px;
     color: var(--primary-light);
     flex-shrink: 0;
+}
+
+.spotlight-steam .feature-points li svg {
+    color: #38bdf8;
+}
+
+.spotlight-local .feature-points li svg {
+    color: #c084fc;
 }
 
 .spotlight-genpatcher .feature-points li svg {
