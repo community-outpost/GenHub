@@ -921,6 +921,7 @@ public class SettingsViewModelTests
             _mockNotificationService.Verify(
                 x => x.ShowSuccess("Logs Cleared", It.Is<string>(s => s.Contains("1 log file(s)") && s.Contains("1 file(s) skipped")), It.IsAny<int?>(), It.IsAny<bool>()),
                 Times.Once);
+            GC.KeepAlive(lockStream);
         }
         finally
         {

@@ -464,7 +464,7 @@ public class StorageMigrationService(
 
             return IsVelopackRoot(sourceRoot);
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException)
         {
             return false;
         }

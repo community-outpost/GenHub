@@ -242,7 +242,7 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
                 return StorageMigrationService.GetSourceRootDirectory();
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or ArgumentException)
         {
             _logger?.LogWarning(ex, "Failed to resolve custom install root for configured data path, falling back to default");
         }

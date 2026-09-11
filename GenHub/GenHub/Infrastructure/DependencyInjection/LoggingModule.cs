@@ -115,7 +115,7 @@ public static class LoggingModule
                 {
                     StorageMigrationService.CleanOrphanedDefaultAppDataIfCustom();
                 }
-                catch
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or ArgumentException)
                 {
                     // Non-fatal cleanup
                 }
@@ -132,7 +132,7 @@ public static class LoggingModule
             var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             return Path.Combine(logDir, $"{AppConstants.AppName.ToLowerInvariant()}-{timestamp}.log");
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or ArgumentException)
         {
             try
             {
@@ -144,7 +144,7 @@ public static class LoggingModule
                 var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
                 return Path.Combine(fallbackDir, $"{AppConstants.AppName.ToLowerInvariant()}-{timestamp}.log");
             }
-            catch
+            catch (Exception fallbackEx) when (fallbackEx is IOException or UnauthorizedAccessException or System.Security.SecurityException or ArgumentException)
             {
                 var tempLogDir = Path.Combine(Path.GetTempPath(), AppConstants.AppName, DirectoryNames.Logs);
                 Directory.CreateDirectory(tempLogDir);
@@ -192,7 +192,7 @@ public static class LoggingModule
 
             return Path.Combine(rootDir, FileTypes.SettingsFileName);
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or ArgumentException)
         {
             return Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
