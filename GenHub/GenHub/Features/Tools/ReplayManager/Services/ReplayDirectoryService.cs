@@ -183,9 +183,16 @@ public sealed class ReplayDirectoryService(
     }
 
     /// <inheritdoc />
+    /// <inheritdoc/>
+    public Task<ProfileOperationResult<GameProfile>> CreateProfileForReplayAsync(
+        ReplayFile replay,
+        CancellationToken ct = default)
+        => CreateProfileForReplayAsync(replay, customGameClient: null, customClientManifestId: null, ct);
+
+    /// <inheritdoc/>
     public async Task<ProfileOperationResult<GameProfile>> CreateProfileForReplayAsync(
         ReplayFile replay,
-        GameClient? customGameClient = null,
+        GameClient? customGameClient,
         string? customClientManifestId = null,
         CancellationToken ct = default)
     {
@@ -322,9 +329,16 @@ public sealed class ReplayDirectoryService(
     }
 
     /// <inheritdoc />
+    /// <inheritdoc/>
+    public Task<ProfileOperationResult<GameLaunchInfo>> LaunchReplayAsync(
+        ReplayFile replay,
+        CancellationToken ct = default)
+        => LaunchReplayAsync(replay, profileId: null, ct);
+
+    /// <inheritdoc/>
     public async Task<ProfileOperationResult<GameLaunchInfo>> LaunchReplayAsync(
         ReplayFile replay,
-        string? profileId = null,
+        string? profileId,
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(replay);
@@ -717,48 +731,6 @@ public sealed class ReplayDirectoryService(
         ResolveUnmappedClientCompatibility(replay, profiles);
     }
 
-    private CrcMappingEntry ResolveSecondaryBaseClientEntry(CrcMappingEntry baseClient, string iniCrcStr, HashSet<string> acquiredIds)
-    {
-        var normalizedIni = NormalizeCrcHex(iniCrcStr);
-
-        // Step 1: Check if user has a corresponding local ContentManifest matching the INI CRC (e.g. 1.828261.generalsonline.patch.gamedata)
-        var localMatchingManifestId = FindLocalMatchingManifestId(acquiredIds, iniCrcStr, normalizedIni);
-        if (!string.IsNullOrEmpty(localMatchingManifestId))
-        {
-            crcMappingRegistry.TryGetEntryByIniCrc(iniCrcStr, out var knownEntry);
-            return baseClient with
-            {
-                IniCrc = iniCrcStr,
-                DataPatchManifestId = localMatchingManifestId,
-                DataPatchName = knownEntry?.DataPatchName ?? $"Local Game Data ({normalizedIni})",
-                DataPatchCdnUrl = knownEntry?.DataPatchCdnUrl,
-            };
-        }
-
-        // Step 2: Check if catalog has a known data patch mapping for this INI CRC (e.g. TheSuperHackers 1.0.0/1.0.1 or GeneralsOnline)
-        if (crcMappingRegistry.TryGetEntryByIniCrc(iniCrcStr, out var catalogEntry) &&
-            !string.IsNullOrEmpty(catalogEntry?.DataPatchManifestId))
-        {
-            return baseClient with
-            {
-                IniCrc = iniCrcStr,
-                DataPatchManifestId = catalogEntry.DataPatchManifestId,
-                DataPatchName = catalogEntry.DataPatchName,
-                DataPatchCdnUrl = catalogEntry.DataPatchCdnUrl,
-            };
-        }
-
-        // Step 3 & 4: Check if INI is vanilla Zero Hour/Generals or custom
-        var isVanilla = IsVanillaIni(normalizedIni, baseClient.IniCrc);
-        return baseClient with
-        {
-            IniCrc = iniCrcStr,
-            DataPatchManifestId = null,
-            DataPatchName = isVanilla ? ReplayManagerConstants.Vanilla104IniName : $"Custom INI ({normalizedIni})",
-            DataPatchCdnUrl = null,
-        };
-    }
-
     private static CrcMappingEntry ResolveSecondaryHeuristicEntry(CrcMappingEntry heuristicClient, string exeCrcStr, string iniCrcStr)
     {
         var normalizedIni = NormalizeCrcHex(iniCrcStr);
@@ -771,16 +743,6 @@ public sealed class ReplayDirectoryService(
             DataPatchManifestId = isVanillaIni ? null : heuristicClient.DataPatchManifestId,
             DataPatchName = isVanillaIni ? ReplayManagerConstants.Vanilla104IniName : (heuristicClient.DataPatchName ?? $"Custom INI ({normalizedIni})"),
         };
-    }
-
-    private string? FindLocalMatchingManifestId(HashSet<string> acquiredIds, string iniCrcStr, string normalizedIni)
-    {
-        return acquiredIds.FirstOrDefault(id =>
-            id.Contains(normalizedIni, StringComparison.OrdinalIgnoreCase) ||
-            (crcMappingRegistry.TryGetEntryByIniCrc(iniCrcStr, out var knownEntry) &&
-             !string.IsNullOrEmpty(knownEntry?.DataPatchManifestId) &&
-             (string.Equals(id, knownEntry.DataPatchManifestId, StringComparison.OrdinalIgnoreCase) ||
-              HasMatchingDataPatchId(knownEntry.DataPatchManifestId, id))));
     }
 
     /// <summary>
@@ -1875,6 +1837,51 @@ public sealed class ReplayDirectoryService(
             ReplayFileNameRegexTimeout);
     }
 
+    private static CrcMappingEntry ResolveHeuristicClientEntry(CrcMappingEntry heuristicClient, string exeCrc, string? iniCrc)
+    {
+        var normalizedIni = !string.IsNullOrEmpty(iniCrc) ? NormalizeCrcHex(iniCrc) : string.Empty;
+        var isVanillaIni = string.IsNullOrEmpty(normalizedIni) || IsVanillaZeroHourIni(normalizedIni);
+
+        return heuristicClient with
+        {
+            ExeCrc = exeCrc,
+            IniCrc = iniCrc ?? heuristicClient.IniCrc,
+            DataPatchManifestId = isVanillaIni ? null : heuristicClient.DataPatchManifestId,
+            DataPatchName = isVanillaIni ? ReplayManagerConstants.Vanilla104IniName : (heuristicClient.DataPatchName ?? $"Custom INI ({normalizedIni})"),
+        };
+    }
+
+    private static bool IsVanillaZeroHourIni(string normalizedIni)
+    {
+        return string.Equals(normalizedIni, ReplayManagerConstants.VanillaZeroHourIniCrcEnglish, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalizedIni, ReplayManagerConstants.VanillaZeroHourIniCrcGerman, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsVanillaIni(string normalizedIni, string? baseClientIniCrc = null)
+    {
+        return IsVanillaZeroHourIni(normalizedIni) ||
+               (baseClientIniCrc != null && string.Equals(normalizedIni, NormalizeCrcHex(baseClientIniCrc), StringComparison.OrdinalIgnoreCase)) ||
+               string.Equals(normalizedIni, ReplayManagerConstants.VanillaGeneralsIniCrcGerman, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsGeneralsOnlinePattern(string? fileName, string? versionStr)
+    {
+        if (!string.IsNullOrEmpty(fileName) &&
+            (GeneralsOnlineFileNameRegex.IsMatch(fileName) || fileName.Contains("generalsonline", StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        return !string.IsNullOrEmpty(versionStr) && versionStr.Contains("generalsonline", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static CrcMappingEntry? TryMatchGeneralsOnlineByBuildDate(List<CrcMappingEntry> entries, string buildTime)
+    {
+        return entries.FirstOrDefault(e =>
+            (!string.IsNullOrEmpty(e.BuildDate) && IsBuildDateMatching(e.BuildDate, buildTime)) ||
+            (!string.IsNullOrEmpty(e.Version) && buildTime.Contains(e.Version, StringComparison.OrdinalIgnoreCase)));
+    }
+
     private async Task<(string ClientManifestId, GameClient? GameClient)> ResolveReplayGameClientAsync(
         GameInstallation installation,
         ReplayFile replay,
@@ -2173,32 +2180,58 @@ public sealed class ReplayDirectoryService(
         };
     }
 
-    private static CrcMappingEntry ResolveHeuristicClientEntry(CrcMappingEntry heuristicClient, string exeCrc, string? iniCrc)
+    private CrcMappingEntry ResolveSecondaryBaseClientEntry(CrcMappingEntry baseClient, string iniCrcStr, HashSet<string> acquiredIds)
     {
-        var normalizedIni = !string.IsNullOrEmpty(iniCrc) ? NormalizeCrcHex(iniCrc) : string.Empty;
-        var isVanillaIni = string.IsNullOrEmpty(normalizedIni) || IsVanillaZeroHourIni(normalizedIni);
+        var normalizedIni = NormalizeCrcHex(iniCrcStr);
 
-        return heuristicClient with
+        // Step 1: Check if user has a corresponding local ContentManifest matching the INI CRC (e.g. 1.828261.generalsonline.patch.gamedata)
+        var localMatchingManifestId = FindLocalMatchingManifestId(acquiredIds, iniCrcStr, normalizedIni);
+        if (!string.IsNullOrEmpty(localMatchingManifestId))
         {
-            ExeCrc = exeCrc,
-            IniCrc = iniCrc ?? heuristicClient.IniCrc,
-            DataPatchManifestId = isVanillaIni ? null : heuristicClient.DataPatchManifestId,
-            DataPatchName = isVanillaIni ? ReplayManagerConstants.Vanilla104IniName : (heuristicClient.DataPatchName ?? $"Custom INI ({normalizedIni})"),
+            crcMappingRegistry.TryGetEntryByIniCrc(iniCrcStr, out var knownEntry);
+            return baseClient with
+            {
+                IniCrc = iniCrcStr,
+                DataPatchManifestId = localMatchingManifestId,
+                DataPatchName = knownEntry?.DataPatchName ?? $"Local Game Data ({normalizedIni})",
+                DataPatchCdnUrl = knownEntry?.DataPatchCdnUrl,
+            };
+        }
+
+        // Step 2: Check if catalog has a known data patch mapping for this INI CRC (e.g. TheSuperHackers 1.0.0/1.0.1 or GeneralsOnline)
+        if (crcMappingRegistry.TryGetEntryByIniCrc(iniCrcStr, out var catalogEntry) &&
+            !string.IsNullOrEmpty(catalogEntry?.DataPatchManifestId))
+        {
+            return baseClient with
+            {
+                IniCrc = iniCrcStr,
+                DataPatchManifestId = catalogEntry.DataPatchManifestId,
+                DataPatchName = catalogEntry.DataPatchName,
+                DataPatchCdnUrl = catalogEntry.DataPatchCdnUrl,
+            };
+        }
+
+        // Step 3 & 4: Check if INI is vanilla Zero Hour/Generals or custom
+        var isVanilla = IsVanillaIni(normalizedIni, baseClient.IniCrc);
+        return baseClient with
+        {
+            IniCrc = iniCrcStr,
+            DataPatchManifestId = null,
+            DataPatchName = isVanilla ? ReplayManagerConstants.Vanilla104IniName : $"Custom INI ({normalizedIni})",
+            DataPatchCdnUrl = null,
         };
     }
 
-    private static bool IsVanillaZeroHourIni(string normalizedIni)
+    private string? FindLocalMatchingManifestId(HashSet<string> acquiredIds, string iniCrcStr, string normalizedIni)
     {
-        return string.Equals(normalizedIni, ReplayManagerConstants.VanillaZeroHourIniCrcEnglish, StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(normalizedIni, ReplayManagerConstants.VanillaZeroHourIniCrcGerman, StringComparison.OrdinalIgnoreCase);
+        return acquiredIds.FirstOrDefault(id =>
+            id.Contains(normalizedIni, StringComparison.OrdinalIgnoreCase) ||
+            (crcMappingRegistry.TryGetEntryByIniCrc(iniCrcStr, out var knownEntry) &&
+             !string.IsNullOrEmpty(knownEntry?.DataPatchManifestId) &&
+             (string.Equals(id, knownEntry.DataPatchManifestId, StringComparison.OrdinalIgnoreCase) ||
+              HasMatchingDataPatchId(knownEntry.DataPatchManifestId, id))));
     }
 
-    private static bool IsVanillaIni(string normalizedIni, string? baseClientIniCrc = null)
-    {
-        return IsVanillaZeroHourIni(normalizedIni) ||
-               (baseClientIniCrc != null && string.Equals(normalizedIni, NormalizeCrcHex(baseClientIniCrc), StringComparison.OrdinalIgnoreCase)) ||
-               string.Equals(normalizedIni, ReplayManagerConstants.VanillaGeneralsIniCrcGerman, StringComparison.OrdinalIgnoreCase);
-    }
 
     private bool TryResolveGeneralsOnlineHeuristic(ReplayFile replay, out CrcMappingEntry? matchedEntry)
     {
@@ -2244,24 +2277,6 @@ public sealed class ReplayDirectoryService(
         }
 
         return false;
-    }
-
-    private static bool IsGeneralsOnlinePattern(string? fileName, string? versionStr)
-    {
-        if (!string.IsNullOrEmpty(fileName) &&
-            (GeneralsOnlineFileNameRegex.IsMatch(fileName) || fileName.Contains("generalsonline", StringComparison.OrdinalIgnoreCase)))
-        {
-            return true;
-        }
-
-        return !string.IsNullOrEmpty(versionStr) && versionStr.Contains("generalsonline", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static CrcMappingEntry? TryMatchGeneralsOnlineByBuildDate(List<CrcMappingEntry> entries, string buildTime)
-    {
-        return entries.FirstOrDefault(e =>
-            (!string.IsNullOrEmpty(e.BuildDate) && IsBuildDateMatching(e.BuildDate, buildTime)) ||
-            (!string.IsNullOrEmpty(e.Version) && buildTime.Contains(e.Version, StringComparison.OrdinalIgnoreCase)));
     }
 
     private async Task EnsureValidProfileReferenceAsync(ReplayFile replay, CancellationToken ct)

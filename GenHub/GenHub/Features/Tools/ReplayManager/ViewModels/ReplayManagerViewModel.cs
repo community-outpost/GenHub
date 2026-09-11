@@ -28,10 +28,10 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Tools.ReplayManager;
 using GenHub.Core.Models.Tools.UploadThing;
-using GenHub.Features.Tools.ViewModels;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.Downloads.Views;
 using GenHub.Features.Tools.ReplayManager.Views;
+using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -1151,6 +1151,7 @@ public partial class ReplayManagerViewModel(
                         IsBusy = false;
                         IsIndeterminate = false;
                     }
+
                     return;
                 }
             }

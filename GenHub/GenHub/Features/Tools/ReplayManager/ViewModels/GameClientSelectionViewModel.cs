@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,82 +15,6 @@ using GenHub.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Tools.ReplayManager.ViewModels;
-
-/// <summary>
-/// ViewModel representing an available game client option card.
-/// </summary>
-public sealed partial class GameClientCardViewModel : ObservableObject
-{
-    /// <summary>
-    /// Gets the game client definition.
-    /// </summary>
-    public GameClient Client { get; }
-
-    /// <summary>
-    /// Gets the optional manifest ID if backed by a catalog manifest.
-    /// </summary>
-    public string? ManifestId { get; }
-
-    /// <summary>
-    /// Gets the display name.
-    /// </summary>
-    public string Name { get; }
-
-    /// <summary>
-    /// Gets the client version.
-    /// </summary>
-    public string Version { get; }
-
-    /// <summary>
-    /// Gets the publisher or source.
-    /// </summary>
-    public string Publisher { get; }
-
-    /// <summary>
-    /// Gets the source category tag.
-    /// </summary>
-    public string Category { get; }
-
-    /// <summary>
-    /// Gets the executable path or relative binary name.
-    /// </summary>
-    public string ExecutablePath { get; }
-
-    /// <summary>
-    /// Gets the description text.
-    /// </summary>
-    public string Description { get; }
-
-    /// <summary>
-    /// Gets the command executed to select this client.
-    /// </summary>
-    public IRelayCommand SelectCommand { get; }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GameClientCardViewModel"/> class.
-    /// </summary>
-    public GameClientCardViewModel(
-        GameClient client,
-        string? manifestId,
-        string name,
-        string version,
-        string publisher,
-        string category,
-        string executablePath,
-        string description,
-        Action<GameClientCardViewModel> onSelect)
-    {
-        Client = client;
-        ManifestId = manifestId;
-        Name = name;
-        Version = version;
-        Publisher = publisher;
-        Category = category;
-        ExecutablePath = executablePath;
-        Description = description;
-        SelectCommand = new RelayCommand(() => onSelect(this));
-    }
-}
 
 /// <summary>
 /// ViewModel for selecting an available game client to create a dedicated profile for a replay.
@@ -133,11 +56,6 @@ public sealed partial class GameClientSelectionViewModel(
     /// Event raised when the dialog window should be closed.
     /// </summary>
     public event EventHandler? RequestClose;
-
-    partial void OnSearchTextChanged(string value)
-    {
-        ApplyFilter();
-    }
 
     /// <summary>
     /// Loads all available game clients for the specified game type and replay.
@@ -214,13 +132,8 @@ public sealed partial class GameClientSelectionViewModel(
                 {
                     foreach (var install in installationsResult.Data)
                     {
-                        var isSupported = targetGame == GameType.ZeroHour ? install.HasZeroHour : install.HasGenerals;
-                        if (!isSupported)
-                        {
-                            continue;
-                        }
-
-                        foreach (var client in install.AvailableGameClients.Where(c => c.GameType == targetGame))
+                        var clients = install.AvailableGameClients.Where(c => c.GameType == targetGame);
+                        foreach (var client in clients)
                         {
                             var clientName = !string.IsNullOrWhiteSpace(client.Name)
                                 ? client.Name
@@ -256,7 +169,7 @@ public sealed partial class GameClientSelectionViewModel(
             // 3. Discover clients from Content Manifest Pool (TheSuperHackers, GeneralsOnline, Community Outpost, etc.)
             try
             {
-                var manifestsResult = await manifestPool.GetAllManifestsAsync(ct);
+                var manifestsResult = await manifestPool.GetAllAsync(ct);
                 if (manifestsResult.Success && manifestsResult.Data != null)
                 {
                     foreach (var manifest in manifestsResult.Data.Where(m => m.ContentType == ContentType.GameClient))
@@ -281,25 +194,28 @@ public sealed partial class GameClientSelectionViewModel(
                             ? entryResolution.RelativePath
                             : string.Empty;
 
+                        var publisherName = manifest.Publisher?.Name ?? manifest.Publisher?.Id ?? "Catalog";
                         var client = new GameClient
                         {
                             Id = manifest.Id.Value,
                             Name = manifest.Name,
-                            Version = manifest.Version.ToString(),
-                            PublisherType = manifest.Publisher,
+                            Version = manifest.Version,
+                            PublisherType = publisherName,
                             GameType = targetGame,
                             ExecutablePath = relExePath,
                         };
+
+                        var description = manifest.Metadata?.Description ?? manifest.Metadata?.Summary ?? $"Manifest {manifest.Id.Value}";
 
                         _allClients.Add(new GameClientCardViewModel(
                             client: client,
                             manifestId: manifest.Id.Value,
                             name: manifest.Name,
-                            version: manifest.Version.ToString(),
-                            publisher: manifest.Publisher,
+                            version: manifest.Version,
+                            publisher: publisherName,
                             category: "Catalog Manifest",
                             executablePath: relExePath,
-                            description: manifest.Description ?? $"Manifest {manifest.Id.Value}",
+                            description: description,
                             onSelect: OnClientSelected));
                     }
                 }
@@ -320,6 +236,18 @@ public sealed partial class GameClientSelectionViewModel(
         {
             IsLoading = false;
         }
+    }
+
+    [RelayCommand]
+    private void Cancel()
+    {
+        WasSuccessful = false;
+        RequestClose?.Invoke(this, EventArgs.Empty);
+    }
+
+    partial void OnSearchTextChanged(string value)
+    {
+        ApplyFilter();
     }
 
     private void ApplyFilter()
@@ -352,13 +280,6 @@ public sealed partial class GameClientSelectionViewModel(
         SelectedClient = card.Client;
         SelectedManifestId = card.ManifestId;
         WasSuccessful = true;
-        RequestClose?.Invoke(this, EventArgs.Empty);
-    }
-
-    [RelayCommand]
-    private void Cancel()
-    {
-        WasSuccessful = false;
         RequestClose?.Invoke(this, EventArgs.Empty);
     }
 }

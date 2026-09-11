@@ -228,7 +228,13 @@ public class MockReplayDirectoryService : IReplayDirectoryService
     /// <inheritdoc/>
     public Task<ProfileOperationResult<GameProfile>> CreateProfileForReplayAsync(
         ReplayFile replay,
-        GameClient? customGameClient = null,
+        CancellationToken ct = default)
+        => CreateProfileForReplayAsync(replay, customGameClient: null, customClientManifestId: null, ct);
+
+    /// <inheritdoc/>
+    public Task<ProfileOperationResult<GameProfile>> CreateProfileForReplayAsync(
+        ReplayFile replay,
+        GameClient? customGameClient,
         string? customClientManifestId = null,
         CancellationToken ct = default)
     {
@@ -243,7 +249,13 @@ public class MockReplayDirectoryService : IReplayDirectoryService
     /// <inheritdoc/>
     public Task<ProfileOperationResult<GameLaunchInfo>> LaunchReplayAsync(
         ReplayFile replay,
-        string? profileId = null,
+        CancellationToken ct = default)
+        => LaunchReplayAsync(replay, profileId: null, ct);
+
+    /// <inheritdoc/>
+    public Task<ProfileOperationResult<GameLaunchInfo>> LaunchReplayAsync(
+        ReplayFile replay,
+        string? profileId,
         CancellationToken ct = default)
     {
         var mockLaunchInfo = new GameLaunchInfo

@@ -57,17 +57,37 @@ public interface IReplayDirectoryService
     void RevealInExplorer(ReplayFile replay);
 
     /// <summary>
+    /// Creates a dedicated game profile configured with the exact game client and INI settings matching the replay.
+    /// </summary>
+    /// <param name="replay">The replay file to create a profile for.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The operation result containing the created profile.</returns>
+    Task<ProfileOperationResult<GameProfile>> CreateProfileForReplayAsync(
+        ReplayFile replay,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Creates a dedicated game profile configured with the exact game client (or custom selected client) and INI settings matching the replay.
     /// </summary>
     /// <param name="replay">The replay file to create a profile for.</param>
-    /// <param name="customGameClient">Optional custom game client selected by the user.</param>
+    /// <param name="customGameClient">Custom game client selected by the user.</param>
     /// <param name="customClientManifestId">Optional custom client manifest ID if catalog-backed.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The operation result containing the created profile.</returns>
     Task<ProfileOperationResult<GameProfile>> CreateProfileForReplayAsync(
         ReplayFile replay,
-        GameClient? customGameClient = null,
+        GameClient? customGameClient,
         string? customClientManifestId = null,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Launches the game with the profile matching the specified replay.
+    /// </summary>
+    /// <param name="replay">The replay file to launch.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The operation result containing the launch information.</returns>
+    Task<ProfileOperationResult<GameLaunchInfo>> LaunchReplayAsync(
+        ReplayFile replay,
         CancellationToken ct = default);
 
     /// <summary>
@@ -79,7 +99,7 @@ public interface IReplayDirectoryService
     /// <returns>The operation result containing the launch information.</returns>
     Task<ProfileOperationResult<GameLaunchInfo>> LaunchReplayAsync(
         ReplayFile replay,
-        string? profileId = null,
+        string? profileId,
         CancellationToken ct = default);
 
     /// <summary>
