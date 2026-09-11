@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Content;
@@ -15,8 +16,11 @@ using GenHub.Features.Tools.GenHotkeys.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
+using RegexMatch = System.Text.RegularExpressions.Match;
 
 namespace GenHub.Tests.Core.Features.Tools.GenHotkeys;
 
@@ -261,5 +265,112 @@ public class HotkeyPackageServiceTests
         var result = await _service.CreateHotkeysAddonAsync(profile);
 
         Assert.True(result.Success);
+    }
+
+        /// <summary>
+    /// Verifies that when overlays are enabled, the generated .big archive includes
+    /// retail SAGE ButtonImage aliases (e.g. SAPowerPlant, SASupplyCntr) and both MappedImages INI files.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateHotkeysAddonAsync_WithOverlayEnabled_EmitsRetailButtonImageAliasesAsync()
+    {
+        var profile = new HotkeyProfile
+        {
+            Name = "Retail Aliases Profile",
+            TargetGame = GameType.ZeroHour,
+            OverlayEnabled = true,
+        };
+
+        var factions = new List<HotkeyFaction>
+        {
+            new()
+            {
+                ShortName = "USA",
+                DisplayName = "America",
+                GameObjects =
+                {
+                    new HotkeyGameObject
+                    {
+                        Name = "Dozer",
+                        KeyboardLayouts =
+                        {
+                            new List<HotkeyAction>
+                            {
+                                new()
+                                {
+                                    IconName = "USAColdFusionReactor",
+                                    HotkeyString = "CONTROLBAR:ConstructAmericaPowerPlant",
+                                    DefaultHotkey = 'P',
+                                },
+                                new()
+                                {
+                                    IconName = "USASupplyCenter",
+                                    HotkeyString = "CONTROLBAR:ConstructAmericaSupplyCenter",
+                                    DefaultHotkey = 'S',
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        _mockTechTree.Setup(t => t.LoadTechTreeAsync(GameType.ZeroHour, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(factions);
+
+        using var testImg = new Image<Rgba32>(60, 48);
+        using var ms = new MemoryStream();
+        await testImg.SaveAsPngAsync(ms);
+        var iconBytes = ms.ToArray();
+
+        _mockTechTree.Setup(t => t.GetIconBytesAsync(It.IsAny<string>(), GameType.ZeroHour, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(iconBytes);
+
+        _mockOverlay.Setup(o => o.GenerateOverlayTgaAsync(
+                It.IsAny<byte[]>(),
+                It.IsAny<char>(),
+                It.IsAny<OverlayCorner>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new byte[32]);
+
+        string? bigFileText = null;
+
+        _mockLocalContent.Setup(l => l.CreateLocalContentManifestAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                ContentType.Addon,
+                GameType.ZeroHour,
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<string?>()))
+            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?>((packageDir, _, _, _, _, _, _, _) =>
+            {
+                var bigFiles = Directory.GetFiles(packageDir, "*.big");
+                if (bigFiles.Length > 0)
+                {
+                    bigFileText = File.ReadAllText(bigFiles[0]);
+                }
+            })
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.local.addon.hotkeys-retail"),
+                Name = "Custom Hotkeys: Retail",
+                ContentType = ContentType.Addon,
+                TargetGame = GameType.ZeroHour,
+            }));
+
+        var result = await _service.CreateHotkeysAddonAsync(profile);
+
+        Assert.True(result.Success);
+        Assert.NotNull(bigFileText);
+
+        // Verify retail SAGE ButtonImage names are present in the packed archive
+        Assert.Contains("MappedImage SAPowerPlant", bigFileText);
+        Assert.Contains("MappedImage SASupplyCntr", bigFileText);
+        Assert.Contains("MappedImage USAColdFusionReactor", bigFileText);
+        Assert.Contains(@"Data\INI\MappedImages\HandCreated\Hotkeys.ini", bigFileText);
+        Assert.Contains(@"Data\INI\MappedImages\TextureSize_512\zzHotkeys.ini", bigFileText);
     }
 }
