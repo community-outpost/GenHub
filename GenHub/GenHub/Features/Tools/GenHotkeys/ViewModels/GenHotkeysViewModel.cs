@@ -10,6 +10,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools.GenHotkeys;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.GenHotkeys;
@@ -105,90 +106,36 @@ public partial class GenHotkeysViewModel(
         OverlayCorner.BottomRight,
     ];
 
-    /// <summary>
-    /// Initializes the ViewModel, loading profiles and tech tree.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public async Task InitializeAsync()
-    {
-        if (_isInitializing)
-        {
-            return;
-        }
+    /// <summary>Gets the available preset templates list.</summary>
+    public IReadOnlyList<string> AvailablePresets { get; } =
+    [
+        GenHotkeysConstants.PresetVanilla,
+        GenHotkeysConstants.PresetLegionnaire,
+        GenHotkeysConstants.PresetLeikeze,
+    ];
 
+    /// <summary>
+    /// Initializes the tool by loading available profiles and tech tree models.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    {
         _isInitializing = true;
         try
         {
-            IsBusy = true;
-            BusyMessage = "Loading hotkey profiles and tech tree...";
-
-            await ReloadAllAsync(CancellationToken.None);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to initialize GenHotkeysViewModel");
-            StatusMessage = $"Error: {ex.Message}";
+            await SafeReloadAllAsync(cancellationToken);
         }
         finally
         {
-            IsBusy = false;
             _isInitializing = false;
         }
     }
 
     /// <summary>
-    /// Assigns a hotkey character to the currently selected action.
+    /// Selects an action and initiates editing its assigned hotkey.
     /// </summary>
-    /// <param name="key">The hotkey character to assign.</param>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    [RelayCommand]
-    public async Task AssignHotkeyAsync(char key)
-    {
-        if (SelectedAction == null || SelectedProfile == null)
-        {
-            return;
-        }
-
-        var upper = char.ToUpperInvariant(key);
-        SelectedAction.Hotkey = upper;
-
-        if (!string.IsNullOrEmpty(SelectedAction.HotkeyString))
-        {
-            SelectedProfile.ClearedKeys.Remove(SelectedAction.HotkeyString);
-            SelectedProfile.KeyMappings[SelectedAction.HotkeyString] = upper;
-        }
-
-        ValidateConflicts();
-        await SaveCurrentProfileAsync();
-    }
-
-    /// <summary>
-    /// Clears the hotkey for the selected action.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    [RelayCommand]
-    public async Task ClearHotkeyAsync()
-    {
-        if (SelectedAction == null || SelectedProfile == null)
-        {
-            return;
-        }
-
-        SelectedAction.Hotkey = null;
-        if (!string.IsNullOrEmpty(SelectedAction.HotkeyString))
-        {
-            SelectedProfile.KeyMappings.Remove(SelectedAction.HotkeyString);
-            SelectedProfile.ClearedKeys.Add(SelectedAction.HotkeyString);
-        }
-
-        ValidateConflicts();
-        await SaveCurrentProfileAsync();
-    }
-
-    /// <summary>
-    /// Selects an action button for editing.
-    /// </summary>
-    /// <param name="action">The action view model to select.</param>
+    /// <param name="action">The action view model.</param>
     [RelayCommand]
     public void SelectAction(HotkeyActionViewModel? action)
     {
@@ -203,6 +150,101 @@ public partial class GenHotkeysViewModel(
             SelectedAction.IsSelected = true;
         }
     }
+
+    /// <summary>
+    /// Assigns a new hotkey character to the currently selected action.
+    /// </summary>
+    /// <param name="key">The new key character.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task AssignHotkeyAsync(char key, CancellationToken cancellationToken = default)
+    {
+        if (SelectedAction == null || SelectedProfile == null)
+        {
+            return;
+        }
+
+        var upper = char.ToUpperInvariant(key);
+        SelectedAction.Hotkey = upper;
+
+        if (!string.IsNullOrEmpty(SelectedAction.HotkeyString))
+        {
+            SelectedProfile.ClearedKeys.Remove(SelectedAction.HotkeyString);
+            SelectedProfile.KeyMappings[SelectedAction.HotkeyString] = upper;
+            await SaveCurrentProfileAsync(cancellationToken);
+        }
+
+        ValidateConflicts();
+        StatusMessage = $"Assigned hotkey '{upper}' to '{SelectedAction.DisplayName}'.";
+    }
+
+    /// <summary>
+    /// Synchronously assigns a new hotkey character to the currently selected action.
+    /// </summary>
+    /// <param name="key">The new key character.</param>
+    public void AssignHotkey(char key) => _ = AssignHotkeyAsync(key, CancellationToken.None);
+
+    /// <summary>
+    /// Clears the hotkey from the currently selected action.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    public async Task ClearHotkeyAsync(CancellationToken cancellationToken = default)
+    {
+        if (SelectedAction == null || SelectedProfile == null)
+        {
+            return;
+        }
+
+        SelectedAction.Hotkey = null;
+
+        if (!string.IsNullOrEmpty(SelectedAction.HotkeyString))
+        {
+            SelectedProfile.KeyMappings.Remove(SelectedAction.HotkeyString);
+            SelectedProfile.ClearedKeys.Add(SelectedAction.HotkeyString);
+            await SaveCurrentProfileAsync(cancellationToken);
+        }
+
+        ValidateConflicts();
+        StatusMessage = $"Cleared hotkey from '{SelectedAction.DisplayName}'.";
+    }
+
+    /// <summary>
+    /// Synchronously clears the hotkey from the currently selected action.
+    /// </summary>
+    public void ClearHotkey() => _ = ClearHotkeyAsync(CancellationToken.None);
+
+    /// <summary>
+    /// Resets the currently selected action to its vanilla default hotkey.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    public async Task ResetToDefaultAsync(CancellationToken cancellationToken = default)
+    {
+        if (SelectedAction == null || SelectedProfile == null)
+        {
+            return;
+        }
+
+        SelectedAction.Hotkey = SelectedAction.DefaultHotkey;
+
+        if (!string.IsNullOrEmpty(SelectedAction.HotkeyString))
+        {
+            SelectedProfile.KeyMappings.Remove(SelectedAction.HotkeyString);
+            SelectedProfile.ClearedKeys.Remove(SelectedAction.HotkeyString);
+            await SaveCurrentProfileAsync(cancellationToken);
+        }
+
+        ValidateConflicts();
+        StatusMessage = $"Reset '{SelectedAction.DisplayName}' to default hotkey.";
+    }
+
+    /// <summary>
+    /// Synchronously resets the currently selected action to its vanilla default hotkey.
+    /// </summary>
+    public void ResetToDefault() => _ = ResetToDefaultAsync(CancellationToken.None);
 
     /// <summary>
     /// Applies a preset configuration (e.g. Legionnaire, Leikeze, or Vanilla).
@@ -222,7 +264,7 @@ public partial class GenHotkeysViewModel(
             IsBusy = true;
             BusyMessage = $"Applying preset '{presetName}'...";
 
-            var preset = await profileStorageService.LoadPresetAsync(presetName, SelectedGame);
+            var preset = await profileStorageService.LoadPresetAsync(presetName, SelectedGame, CancellationToken.None);
             SelectedProfile.BasePreset = presetName;
             SelectedProfile.ClearedKeys.Clear();
             SelectedProfile.KeyMappings.Clear();
@@ -233,7 +275,7 @@ public partial class GenHotkeysViewModel(
 
             ApplyProfileMappingsToViewModels();
             ValidateConflicts();
-            await SaveCurrentProfileAsync();
+            await SaveCurrentProfileAsync(CancellationToken.None);
 
             StatusMessage = $"Applied '{presetName}' preset successfully.";
         }
@@ -264,7 +306,7 @@ public partial class GenHotkeysViewModel(
             OverlayCorner = SelectedCorner,
         };
 
-        await profileStorageService.SaveProfileAsync(profile);
+        await profileStorageService.SaveProfileAsync(profile, CancellationToken.None);
         Profiles.Add(profile);
         SelectedProfile = profile;
         NewProfileName = string.Empty;
@@ -286,7 +328,7 @@ public partial class GenHotkeysViewModel(
         }
 
         var toDelete = SelectedProfile;
-        await profileStorageService.DeleteProfileAsync(toDelete.Id);
+        await profileStorageService.DeleteProfileAsync(toDelete.Id, CancellationToken.None);
         Profiles.Remove(toDelete);
         SelectedProfile = Profiles.FirstOrDefault();
 
@@ -312,16 +354,11 @@ public partial class GenHotkeysViewModel(
             BusyMessage = "Building .big archive and registering GenHub Addon...";
 
             var progress = new Progress<string>(msg => BusyMessage = msg);
-            var result = await packageService.CreateHotkeysAddonAsync(SelectedProfile, progress);
+            var result = await packageService.CreateHotkeysAddonAsync(SelectedProfile, progress, CancellationToken.None);
 
-            if (result.Success && result.Data != null)
-            {
-                StatusMessage = $"Success! Addon '{result.Data.Name}' ({result.Data.Id}) registered in GenHub!";
-            }
-            else
-            {
-                StatusMessage = $"Export failed: {string.Join(", ", result.Errors)}";
-            }
+            StatusMessage = result is { Success: true, Data: not null }
+                ? $"Success! Addon '{result.Data.Name}' ({result.Data.Id}) registered in GenHub!"
+                : $"Export failed: {string.Join(", ", result.Errors)}";
         }
         catch (Exception ex)
         {
@@ -337,8 +374,9 @@ public partial class GenHotkeysViewModel(
     /// <summary>
     /// Persists the currently selected profile.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public async Task SaveCurrentProfileAsync()
+    public async Task SaveCurrentProfileAsync(CancellationToken cancellationToken = default)
     {
         if (SelectedProfile == null)
         {
@@ -347,7 +385,7 @@ public partial class GenHotkeysViewModel(
 
         SelectedProfile.OverlayEnabled = OverlayEnabled;
         SelectedProfile.OverlayCorner = SelectedCorner;
-        await profileStorageService.SaveProfileAsync(SelectedProfile);
+        await profileStorageService.SaveProfileAsync(SelectedProfile, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -443,12 +481,12 @@ public partial class GenHotkeysViewModel(
 
     partial void OnSelectedFactionChanged(HotkeyFaction? value)
     {
-        FilterGameObjects();
+        FilterGameObjects(CancellationToken.None);
     }
 
     partial void OnSelectedCategoryChanged(HotkeyCategory value)
     {
-        FilterGameObjects();
+        FilterGameObjects(CancellationToken.None);
     }
 
     partial void OnOverlayEnabledChanged(bool value)
@@ -456,7 +494,7 @@ public partial class GenHotkeysViewModel(
         if (SelectedProfile != null)
         {
             SelectedProfile.OverlayEnabled = value;
-            _ = SaveCurrentProfileAsync();
+            _ = SaveCurrentProfileAsync(CancellationToken.None);
         }
     }
 
@@ -465,7 +503,7 @@ public partial class GenHotkeysViewModel(
         if (SelectedProfile != null)
         {
             SelectedProfile.OverlayCorner = value;
-            _ = SaveCurrentProfileAsync();
+            _ = SaveCurrentProfileAsync(CancellationToken.None);
         }
     }
 
@@ -536,55 +574,76 @@ public partial class GenHotkeysViewModel(
 
         foreach (var obj in source)
         {
-            var vm = new HotkeyGameObjectViewModel
-            {
-                Name = obj.Name,
-                DisplayName = obj.DisplayName,
-                Category = obj.Category,
-                IconName = obj.IconName,
-            };
-
-            LoadBitmapForObject(vm, obj.IconName, cancellationToken);
-
-            foreach (var layout in obj.KeyboardLayouts)
-            {
-                var layoutVm = new ObservableCollection<HotkeyActionViewModel>();
-                foreach (var action in layout)
-                {
-                    char? currentHk = action.DefaultHotkey;
-                    if (SelectedProfile != null && !string.IsNullOrEmpty(action.HotkeyString))
-                    {
-                        if (SelectedProfile.ClearedKeys.Contains(action.HotkeyString))
-                        {
-                            currentHk = null;
-                        }
-                        else if (SelectedProfile.KeyMappings.TryGetValue(action.HotkeyString, out var mappedKey))
-                        {
-                            currentHk = mappedKey;
-                        }
-                    }
-
-                    var actionVm = new HotkeyActionViewModel
-                    {
-                        IconName = action.IconName,
-                        HotkeyString = action.HotkeyString,
-                        DisplayName = action.DisplayName,
-                        DefaultHotkey = action.DefaultHotkey,
-                        Hotkey = currentHk,
-                    };
-
-                    LoadBitmapForAction(actionVm, action.IconName, cancellationToken);
-                    layoutVm.Add(actionVm);
-                }
-
-                vm.Layouts.Add(layoutVm);
-            }
-
-            FilteredGameObjects.Add(vm);
+            FilteredGameObjects.Add(CreateGameObjectViewModel(obj, cancellationToken));
         }
 
         SelectedGameObject = FilteredGameObjects.FirstOrDefault();
         ValidateConflicts();
+    }
+
+    private HotkeyGameObjectViewModel CreateGameObjectViewModel(
+        HotkeyGameObject obj,
+        CancellationToken cancellationToken)
+    {
+        var vm = new HotkeyGameObjectViewModel
+        {
+            Name = obj.Name,
+            DisplayName = obj.DisplayName,
+            Category = obj.Category,
+            IconName = obj.IconName,
+        };
+
+        LoadBitmapForObject(vm, obj.IconName, cancellationToken);
+
+        foreach (var layout in obj.KeyboardLayouts)
+        {
+            var layoutVm = new ObservableCollection<HotkeyActionViewModel>();
+            foreach (var action in layout)
+            {
+                layoutVm.Add(CreateActionViewModel(action, cancellationToken));
+            }
+
+            vm.Layouts.Add(layoutVm);
+        }
+
+        return vm;
+    }
+
+    private HotkeyActionViewModel CreateActionViewModel(
+        HotkeyAction action,
+        CancellationToken cancellationToken)
+    {
+        var actionVm = new HotkeyActionViewModel
+        {
+            IconName = action.IconName,
+            HotkeyString = action.HotkeyString,
+            DisplayName = action.DisplayName,
+            DefaultHotkey = action.DefaultHotkey,
+            Hotkey = ResolveCurrentActionHotkey(action),
+        };
+
+        LoadBitmapForAction(actionVm, action.IconName, cancellationToken);
+        return actionVm;
+    }
+
+    private char? ResolveCurrentActionHotkey(HotkeyAction action)
+    {
+        if (SelectedProfile == null || string.IsNullOrEmpty(action.HotkeyString))
+        {
+            return action.DefaultHotkey;
+        }
+
+        if (SelectedProfile.ClearedKeys.Contains(action.HotkeyString))
+        {
+            return null;
+        }
+
+        if (SelectedProfile.KeyMappings.TryGetValue(action.HotkeyString, out var mappedKey))
+        {
+            return mappedKey;
+        }
+
+        return action.DefaultHotkey;
     }
 
     private void LoadBitmapForObject(
@@ -643,7 +702,7 @@ public partial class GenHotkeysViewModel(
             }
 
             var bytes = await techTreeService.GetIconBytesAsync(iconName, gameType, cancellationToken).ConfigureAwait(false);
-            if (bytes != null && bytes.Length > 0)
+            if (bytes is { Length: > 0 })
             {
                 using var ms = new MemoryStream(bytes);
                 var bmp = new Bitmap(ms);
