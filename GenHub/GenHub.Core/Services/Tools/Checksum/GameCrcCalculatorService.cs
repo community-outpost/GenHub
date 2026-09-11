@@ -92,7 +92,7 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
             {
                 ct.ThrowIfCancellationRequested();
 
-                byte[] exeBytes;
+                byte[] exeBytes = [];
                 try
                 {
                     exeBytes = File.ReadAllBytes(executablePath);
@@ -279,7 +279,7 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
             byte[]? data = vfs.Read(file);
             if (data != null)
             {
-                IniNormalizer.ProcessLines(data, line => crc.Add(line));
+                IniNormalizer.ProcessLines(data, crc.Add);
             }
         }
 
