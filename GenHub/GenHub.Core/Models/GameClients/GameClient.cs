@@ -31,33 +31,48 @@ public class GameClient
     public string? InstallationId { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the executable name (e.g., "generals.exe", "game.dat").
+    /// Gets or sets the creation timestamp for this game client (for test compatibility).
     /// </summary>
-    public string ExecutableName { get; set; } = string.Empty;
-
-    /// <summary>Gets or sets the version string for this game client.</summary>
-    public string Version { get; set; } = string.Empty;
-
-    /// <summary>Gets or sets the game type (Generals or Zero Hour).</summary>
-    public GameType GameType { get; set; }
-
-    /// <summary>Gets or sets the publisher type (e.g., "EA", "Steam", "TheSuperHackers", "GeneralsOnline").</summary>
-    public string PublisherType { get; set; } = string.Empty;
-
-    /// <summary>Gets or sets the unique hash of the executable file.</summary>
-    public string ExecutableHash { get; set; } = string.Empty;
-
-    /// <summary>Gets or sets the file size in bytes of the executable.</summary>
-    public long FileSizeBytes { get; set; }
-
-    /// <summary>Gets or sets a value indicating whether this is an official game version.</summary>
-    public bool IsOfficial { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     /// <summary>
-    /// Gets a value indicating whether this game client is a custom installation.
-    /// Returns true if PublisherType is not null/empty and not an official installation identifier.
+    /// Gets a value indicating whether the game client is valid (for test compatibility).
     /// </summary>
-    public bool IsCustom =>
+    public bool IsValid
+    {
+        get
+        {
+            // If ExecutablePath is not set, not valid
+            if (string.IsNullOrEmpty(ExecutablePath))
+            {
+                return false;
+            }
+
+            // If file does not exist, not valid
+            return System.IO.File.Exists(ExecutablePath);
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the version string (e.g. "1.04").
+    /// </summary>
+    public string Version { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the game type.
+    /// </summary>
+    public GameType GameType { get; set; }
+
+    /// <summary>Gets or sets the content source type (GameInstallation or StandaloneVersion).</summary>
+    public ContentType SourceType { get; set; }
+
+    /// <summary>Gets or sets the publisher type (e.g. "generalsonline", "thesuperhackers").</summary>
+    public string? PublisherType { get; set; }
+
+    /// <summary>
+    /// Gets a value indicating whether this is a publisher-based client.
+    /// </summary>
+    public bool IsPublisherClient =>
         !string.IsNullOrEmpty(PublisherType) &&
         !InstallationExtensions.IsInstallationIdentifier(PublisherType);
 
@@ -118,6 +133,8 @@ public class GameClient
     }
 
     /// <inheritdoc/>
-    public override int GetHashCode() =>
-        string.IsNullOrEmpty(Id) ? 0 : StringComparer.OrdinalIgnoreCase.GetHashCode(Id);
+    public override int GetHashCode()
+    {
+        return Id?.GetHashCode() ?? 0;
+    }
 }
