@@ -16,7 +16,7 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActionSet(logger)
 {
-    private readonly string _markerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", ActionSetConstants.Paths.SubActionSetMarkers, "DisableOriginInGame.done");
+    private readonly string _markerPath = GetMarkerPath("DisableOriginInGame.done");
 
     /// <inheritdoc/>
     public override string Id => "DisableOriginInGame";

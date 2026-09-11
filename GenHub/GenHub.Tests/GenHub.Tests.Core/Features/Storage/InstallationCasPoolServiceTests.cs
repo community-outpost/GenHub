@@ -112,6 +112,34 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Derives an ancestor pool path on the same volume when the immediate installation directory is unwritable.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsurePoolPathAsync_WhenImmediatePathIsUnwritable_FallsBackToSameVolumeAncestorAsync()
+    {
+        var installation = CreateInstallation();
+        var poolPath = Path.Combine(installation.InstallationPath, DirectoryNames.GenHubCasPool);
+        var parentDir = Directory.GetParent(installation.InstallationPath)?.FullName!;
+        var ancestorPool = Path.Combine(parentDir, DirectoryNames.GenHubCasPool);
+
+        var settings = new UserSettings();
+        ConfigureMutableSettings(settings);
+
+        _writabilityProbe.Setup(probe => probe.CanCreateStorageAt(poolPath)).Returns(false);
+        _writabilityProbe.Setup(probe => probe.CanCreateStorageAt(ancestorPool)).Returns(true);
+
+        var service = CreateService();
+
+        var result = await service.EnsurePoolPathAsync([installation]);
+
+        Assert.True(result);
+        Assert.Equal(ancestorPool, settings.CasConfiguration.InstallationPoolRootPath);
+        Assert.True(settings.CasConfiguration.IsInstallationPoolRootPathAutoDerived);
+        _poolManager.Verify(manager => manager.ReinitializeInstallationPool(), Times.Once);
+    }
+
+    /// <summary>
     /// Continues with primary storage when no installation is available.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>

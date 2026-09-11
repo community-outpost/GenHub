@@ -9,6 +9,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.SuperHackers;
@@ -286,5 +287,73 @@ public class SuperHackersProfileReconcilerTests
         _notificationServiceMock.Verify(
             x => x.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that progress notifications are shown, updated, and dismissed during update.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckAndReconcileIfNeededAsync_ReportsProgressNotificationsAndDismissesAsync()
+    {
+        const string latestVersion = "2.0.0";
+        const string manifestId = "1.0.thesuperhackers.gameclient.generalszh";
+
+        _updateServiceMock
+            .Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentUpdateCheckResult.CreateUpdateAvailable(latestVersion, "1.0.0"));
+
+        var settings = new UserSettings();
+        settings.SetAutoUpdatePreference(PublisherTypeConstants.TheSuperHackers, true);
+        _userSettingsServiceMock.Setup(x => x.Get()).Returns(settings);
+
+        _manifestPoolMock
+            .SetupSequence(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(
+            [
+                new ContentManifest
+                {
+                    Id = manifestId,
+                    Version = latestVersion,
+                    ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+                    Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.TheSuperHackers },
+                },
+            ]));
+
+        _contentOrchestratorMock
+            .Setup(x => x.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+            [
+                new ContentSearchResult { Name = "SuperHackers ZH", Version = latestVersion },
+            ]));
+
+        _contentOrchestratorMock
+            .Setup(x => x.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken>((_, progress, _) =>
+                progress?.Report(new ContentAcquisitionProgress
+                {
+                    Phase = GenHub.Core.Models.Content.ContentAcquisitionPhase.Downloading,
+                    ProgressPercentage = 100,
+                    CurrentOperation = "generalszh.zip (1/1) - 100%",
+                }))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(
+                new ContentManifest { Id = manifestId, Version = latestVersion, ContentType = GenHub.Core.Models.Enums.ContentType.GameClient }));
+
+        var result = await _reconciler.CheckAndReconcileIfNeededAsync("profile1");
+
+        Assert.True(result.Success);
+        _notificationServiceMock.Verify(
+            x => x.Show(It.Is<NotificationMessage>(n => n.Title == "SuperHackers Update" && n.IsPersistent)),
+            Times.Once);
+        _notificationServiceMock.Verify(
+            x => x.Update(It.IsAny<Guid>(), It.IsAny<string>(), "SuperHackers Update"),
+            Times.AtLeastOnce);
+        _notificationServiceMock.Verify(
+            x => x.Dismiss(It.IsAny<Guid>()),
+            Times.Once);
+        _notificationServiceMock.Verify(
+            x => x.ShowSuccess("SuperHackers Updated", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
     }
 }

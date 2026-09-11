@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -15,6 +17,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
@@ -92,73 +95,91 @@ public class SuperHackersProfileReconciler(
             var strategy = promptResult.Strategy;
             var shouldDeleteOldVersions = promptResult.ShouldDeleteOldVersions;
 
-            // Notify user that update is being installed
-            notificationService.ShowInfo(
-                "SuperHackers Update Found",
+            var progressNotificationId = Guid.NewGuid();
+            var progressNotification = new NotificationMessage(
+                NotificationType.Info,
+                "SuperHackers Update",
                 $"Installing SuperHackers {updateResult.LatestVersion}. Please wait...",
-                NotificationDurations.VeryLong);
-
-            // Find existing installed manifests
-            var oldManifests = await FindSuperHackersManifestsAsync(cancellationToken);
-
-            logger.LogInformation(
-                "[SH Reconciler] Found {Count} existing SuperHackers manifests to replace",
-                oldManifests.Count);
-
-            // Acquire new content
-            var acquireResult = await AcquireLatestVersionAsync(oldManifests, cancellationToken);
-            if (!acquireResult.Success)
+                autoDismissMilliseconds: null,
+                isPersistent: true)
             {
-                notificationService.ShowError(
-                    "SuperHackers Update Failed",
-                    $"Failed to download update: {acquireResult.FirstError}",
-                    NotificationDurations.Critical);
+                Id = progressNotificationId,
+            };
+            notificationService.Show(progressNotification);
 
-                return OperationResult<bool>.CreateFailure(
-                    $"Failed to acquire new SuperHackers version: {acquireResult.FirstError}");
-            }
-
-            var newManifests = acquireResult.Data!;
-
-            // Update profiles based on strategy
-            var updateOutcome = await ApplyUpdateStrategyAsync(
-                strategy,
-                oldManifests,
-                newManifests,
-                updateResult.LatestVersion ?? "Unknown",
-                shouldDeleteOldVersions,
-                cancellationToken);
-
-            if (!updateOutcome.Success)
+            try
             {
-                return OperationResult<bool>.CreateFailure(updateOutcome.FirstError ?? "Update strategy execution failed");
+                // Find existing installed manifests
+                var oldManifests = await FindSuperHackersManifestsAsync(cancellationToken);
+
+                logger.LogInformation(
+                    "[SH Reconciler] Found {Count} existing SuperHackers manifests to replace",
+                    oldManifests.Count);
+
+                // Acquire new content
+                var acquireResult = await AcquireLatestVersionAsync(oldManifests, progressNotificationId, cancellationToken);
+                if (!acquireResult.Success)
+                {
+                    notificationService.ShowError(
+                        "SuperHackers Update Failed",
+                        $"Failed to download update: {acquireResult.FirstError}",
+                        NotificationDurations.Critical);
+
+                    return OperationResult<bool>.CreateFailure(
+                        $"Failed to acquire new SuperHackers version: {acquireResult.FirstError}");
+                }
+
+                var newManifests = acquireResult.Data!;
+
+                notificationService.Update(
+                    progressNotificationId,
+                    "Applying update to profiles...",
+                    "SuperHackers Update");
+
+                // Update profiles based on strategy
+                var updateOutcome = await ApplyUpdateStrategyAsync(
+                    strategy,
+                    oldManifests,
+                    newManifests,
+                    updateResult.LatestVersion ?? "Unknown",
+                    shouldDeleteOldVersions,
+                    cancellationToken);
+
+                if (!updateOutcome.Success)
+                {
+                    return OperationResult<bool>.CreateFailure(updateOutcome.FirstError ?? "Update strategy execution failed");
+                }
+
+                var profilesUpdated = updateOutcome.ProfilesUpdated;
+                var anyFailure = updateOutcome.AnyFailure;
+                shouldDeleteOldVersions = updateOutcome.ShouldDeleteOldVersions;
+
+                // Run garbage collection only if old versions were deleted AND no failures occurred
+                if (shouldDeleteOldVersions && !anyFailure)
+                {
+                    await reconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
+                }
+                else if (shouldDeleteOldVersions && anyFailure)
+                {
+                    logger.LogWarning("[SH Reconciler] Skipping scheduled GC due to partial update failure to avoid deleting referenced content.");
+                }
+
+                notificationService.ShowSuccess(
+                    "SuperHackers Updated",
+                    $"Successfully updated to version {updateResult.LatestVersion}. {profilesUpdated} profiles {(strategy == UpdateStrategy.CreateNewProfile ? "created" : "updated")}.",
+                    NotificationDurations.Long);
+
+                logger.LogInformation(
+                    "[SH Reconciler] Reconciliation complete. Processed {ProfileCount} profiles with strategy {Strategy}",
+                    profilesUpdated,
+                    strategy);
+
+                return OperationResult<bool>.CreateSuccess(true);
             }
-
-            var profilesUpdated = updateOutcome.ProfilesUpdated;
-            var anyFailure = updateOutcome.AnyFailure;
-            shouldDeleteOldVersions = updateOutcome.ShouldDeleteOldVersions;
-
-            // Run garbage collection only if old versions were deleted AND no failures occurred
-            if (shouldDeleteOldVersions && !anyFailure)
+            finally
             {
-                await reconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
+                notificationService.Dismiss(progressNotificationId);
             }
-            else if (shouldDeleteOldVersions && anyFailure)
-            {
-                logger.LogWarning("[SH Reconciler] Skipping scheduled GC due to partial update failure to avoid deleting referenced content.");
-            }
-
-            notificationService.ShowSuccess(
-                "SuperHackers Updated",
-                $"Successfully updated to version {updateResult.LatestVersion}. {profilesUpdated} profiles {(strategy == UpdateStrategy.CreateNewProfile ? "created" : "updated")}.",
-                NotificationDurations.Long);
-
-            logger.LogInformation(
-                "[SH Reconciler] Reconciliation complete. Processed {ProfileCount} profiles with strategy {Strategy}",
-                profilesUpdated,
-                strategy);
-
-            return OperationResult<bool>.CreateSuccess(true);
         }
         catch (OperationCanceledException)
         {
@@ -240,8 +261,78 @@ public class SuperHackersProfileReconciler(
                 m.Publisher?.PublisherType?.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true)];
     }
 
+    private IProgress<ContentAcquisitionProgress>? CreateAcquisitionProgress(
+        Guid? progressNotificationId,
+        string itemName,
+        int currentItemIndex,
+        int totalItems)
+    {
+        if (!progressNotificationId.HasValue)
+        {
+            return null;
+        }
+
+        var notificationId = progressNotificationId.Value;
+        var lastNotificationTimestamp = Stopwatch.GetTimestamp();
+
+        return new Progress<ContentAcquisitionProgress>(p =>
+        {
+            var elapsedMs = Stopwatch.GetElapsedTime(lastNotificationTimestamp).TotalMilliseconds;
+            if (elapsedMs < ManifestConstants.NotificationUpdateThrottleMs && p.ProgressPercentage < 100)
+            {
+                return;
+            }
+
+            lastNotificationTimestamp = Stopwatch.GetTimestamp();
+            var status = p.FormatProgressStatus();
+            var message = totalItems > 1
+                ? $"[{currentItemIndex}/{totalItems}] {itemName}: {status}"
+                : $"{itemName}: {status}";
+
+            notificationService.Update(
+                notificationId,
+                message,
+                "SuperHackers Update");
+        });
+    }
+
+    private async Task<OperationResult<bool>> AcquireItemsAsync(
+        IReadOnlyList<ContentSearchResult> items,
+        Guid? progressNotificationId,
+        CancellationToken cancellationToken)
+    {
+        int totalItems = items.Count;
+        int currentItemIndex = 0;
+
+        foreach (var result in items)
+        {
+            currentItemIndex++;
+            var progress = CreateAcquisitionProgress(
+                progressNotificationId,
+                result.Name,
+                currentItemIndex,
+                totalItems);
+
+            var acquireOp = await contentOrchestrator.AcquireContentAsync(result, progress, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!acquireOp.Success)
+            {
+                logger.LogError(
+                    "[SH:Reconciler] Failed to acquire content {ContentId}: {Error}",
+                    result.Id,
+                    acquireOp.FirstError);
+
+                return OperationResult<bool>.CreateFailure(
+                    $"Failed to acquire SuperHackers content {result.Id}: {acquireOp.FirstError}");
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
     private async Task<OperationResult<List<ContentManifest>>> AcquireLatestVersionAsync(
         IReadOnlyList<ContentManifest> oldManifests,
+        Guid? progressNotificationId,
         CancellationToken cancellationToken)
     {
         try
@@ -264,20 +355,11 @@ public class SuperHackersProfileReconciler(
                     "No SuperHackers content found from provider");
             }
 
-            foreach (var result in searchResult.Data)
+            var items = searchResult.Data.ToList();
+            var acquireResult = await AcquireItemsAsync(items, progressNotificationId, cancellationToken);
+            if (!acquireResult.Success)
             {
-                var acquireOp = await contentOrchestrator.AcquireContentAsync(result, progress: null, cancellationToken);
-                cancellationToken.ThrowIfCancellationRequested();
-                if (!acquireOp.Success)
-                {
-                    logger.LogError(
-                        "[SH:Reconciler] Failed to acquire content {ContentId}: {Error}",
-                        result.Id,
-                        acquireOp.FirstError);
-
-                    return OperationResult<List<ContentManifest>>.CreateFailure(
-                        $"Failed to acquire SuperHackers content {result.Id}: {acquireOp.FirstError}");
-                }
+                return OperationResult<List<ContentManifest>>.CreateFailure(acquireResult.FirstError ?? "Failed to acquire content");
             }
 
             var allManifests = await FindSuperHackersManifestsAsync(cancellationToken);

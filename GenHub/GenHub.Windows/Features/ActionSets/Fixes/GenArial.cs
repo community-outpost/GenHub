@@ -27,7 +27,7 @@ public class GenArial(ILogger<GenArial> logger) : BaseActionSet(logger)
         "ARIAL.TTF",
     ];
 
-    private readonly string _markerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", ActionSetConstants.Paths.SubActionSetMarkers, "GenArial.done");
+    private readonly string _markerPath = GetMarkerPath("GenArial.done");
 
     /// <inheritdoc/>
     public override string Id => "GenArial";

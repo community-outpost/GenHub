@@ -23,7 +23,7 @@ public static class GeneralsOnlineConstants
     public const string ShortDescription = "Community-driven multiplayer service for C&C Generals Zero Hour";
 
     /// <summary>Content icon URL.</summary>
-    public const string IconUrl = "https://www.playgenerals.online/logo.png";
+    public const string IconUrl = UriConstants.GeneralsOnlineLogoUri;
 
     /// <summary>Website URL for Generals Online.</summary>
     public const string WebsiteUrl = "https://www.playgenerals.online";
@@ -33,6 +33,12 @@ public static class GeneralsOnlineConstants
 
     /// <summary>Download page URL for Generals Online.</summary>
     public const string DownloadPageUrl = "https://www.playgenerals.online/download";
+
+    /// <summary>Patch notes URL for Generals Online.</summary>
+    public const string PatchNotesUrl = "https://www.playgenerals.online/patchnotes";
+
+    /// <summary>Default releases endpoint URL for Generals Online portable downloads.</summary>
+    public const string ReleasesUrl = "https://cdn.playgenerals.online/releases";
 
     /// <summary>
     /// Cover image source path for UI display.

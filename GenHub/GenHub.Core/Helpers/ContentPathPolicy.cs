@@ -143,11 +143,6 @@ public static class ContentPathPolicy
                     return resolvedPath;
                 }
 
-                if (File.Exists(current))
-                {
-                    break;
-                }
-
                 current = Path.GetDirectoryName(current);
             }
         }

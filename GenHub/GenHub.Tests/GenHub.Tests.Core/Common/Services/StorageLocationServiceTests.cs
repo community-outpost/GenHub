@@ -125,10 +125,31 @@ public sealed class StorageLocationServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Falls back to user storage when the installation parent cannot contain a workspace.
+    /// Falls back to user storage when no ancestor on the installation volume can contain a workspace.
     /// </summary>
     [Fact]
     public void GetWorkspacePath_WhenInstallationParentIsUnavailable_UsesCentralPath()
+    {
+        var settings = new UserSettings { UseInstallationAdjacentStorage = true };
+        _userSettingsService.Setup(service => service.Get()).Returns(settings);
+        var probe = new Mock<IStorageWritabilityProbe>();
+        probe.Setup(s => s.CanCreateStorageAt(It.IsAny<string>())).Returns(false);
+        var service = CreateService(probe.Object);
+        var unavailableRoot = Path.Combine(_tempPath, "protected-root");
+        var installation = new GameInstallation(
+            Path.Combine(unavailableRoot, "Command and Conquer Generals Zero Hour"),
+            GameInstallationType.EaApp);
+
+        var workspacePath = service.GetWorkspacePath(installation);
+
+        Assert.Equal(Path.Combine(_applicationDataPath, DirectoryNames.Workspaces), workspacePath);
+    }
+
+    /// <summary>
+    /// Walks up to a writable ancestor when the immediate installation parent cannot contain a workspace.
+    /// </summary>
+    [Fact]
+    public void GetWorkspacePath_WhenImmediateParentIsUnavailable_UsesWritableAncestorPath()
     {
         var settings = new UserSettings { UseInstallationAdjacentStorage = true };
         _userSettingsService.Setup(service => service.Get()).Returns(settings);
@@ -141,7 +162,7 @@ public sealed class StorageLocationServiceTests : IDisposable
 
         var workspacePath = service.GetWorkspacePath(installation);
 
-        Assert.Equal(Path.Combine(_applicationDataPath, DirectoryNames.Workspaces), workspacePath);
+        Assert.Equal(Path.Combine(_tempPath, DirectoryNames.GenHubWorkspace), workspacePath);
     }
 
     /// <summary>

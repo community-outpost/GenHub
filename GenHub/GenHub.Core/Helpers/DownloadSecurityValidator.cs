@@ -312,7 +312,7 @@ public static class DownloadSecurityValidator
         if (hasHashCheck)
         {
             var allowedHashes = allowedSha256Hashes!;
-            if (!allowedHashes.Any(h => string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase)))
+            if (allowedHashes.All(h => !string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase)))
             {
                 return OperationResult<bool>.CreateFailure(
                     $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedHashes)}].");

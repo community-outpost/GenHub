@@ -3,25 +3,33 @@ title: Downloads Browser
 description: Comprehensive documentation for the GenHub Downloads browser feature
 ---
 
-## Downloads Browser
+# Downloads Browser
 
-The Downloads browser is GenHub's unified content discovery and acquisition interface. It provides a user-friendly way to browse, discover, download, and install game content from multiple publishers through a single, cohesive interface.
+The Downloads browser is GenHub's unified content discovery and acquisition interface. It provides a modern, desktop-optimized way to browse, discover, download, and install game content from multiple publishers through a single, cohesive interface.
 
 > [!NOTE]
-> This document details the **Unified Downloads Browser and Acquisition Architecture** introduced in PR #265 (`feat/ui-downloads`) and its feature carves (such as PR #443 `feat/downloads-browser`). It describes the MVVM browser interface, multi-publisher discovery model, filter panels, content detail presentation, and the centralized `ContentStateService` lifecycle.
+> This document details the **Unified Downloads Browser and Acquisition Architecture** introduced in PR #443 (`feat/downloads-browser`, carved from PR #265 `feat/ui-downloads`). It describes the MVVM browser interface, active publishers, filter panels, content detail presentation, dynamic catalog tabs, security-hardened markdown rendering, and the centralized `ContentDownloadCoordinator` and `ContentStateService` lifecycle.
+
+---
 
 ## Overview
 
-The Downloads browser serves as the primary entry point for users to discover and acquire game content including mods, maps, patches, tools, and more. It integrates with GenHub's content pipeline to provide seamless access to content from various publishers.
+The Downloads browser replaces the legacy publisher card view with a master-detail browsing experience. It serves as the primary entry point for users to discover and acquire game content including mods, maps, patches, game clients, and tools. It integrates directly with GenHub's content pipeline to provide seamless access to content across built-in publishers and community creator catalogs.
 
 ### Key Features
 
-- **Multi-publisher support**: Browse content from multiple sources in one interface
-- **Publisher-specific filters**: Each publisher provides customized filtering options
-- **Smart content state management**: Tracks download status and update availability
-- **Profile integration**: Add downloaded content directly to game profiles
-- **Detailed content view**: Rich content information with screenshots, videos, and reviews
-- **Lazy loading**: Optimized performance through on-demand content loading
+- **Unified Master-Detail Browser**: Browse all content sources from a clean sidebar layout with an adaptive card grid and modal detail views.
+- **Active Built-In Publishers**: Out-of-the-box support for Generals Online, TheSuperHackers, Community Outpost, and GitHub.
+- **Creator Subscriptions**: Dynamic discovery and resolution for third-party creator catalogs published via standard `catalog.json` and subscribed through `genhub://subscribe?url=...`.
+- **Deduplicated Background Downloads**: Coordinated by `ContentDownloadCoordinator`, supporting multiplexed progress reporting and avoiding concurrent duplicate downloads.
+- **Centralized State Detection**: Powered by `ContentStateService` and `IContentManifestPool` to detect whether items are `NotDownloaded`, `UpdateAvailable`, or `Downloaded`.
+- **Multi-Release Update Reconciliation**: Intelligently matches releases within a content family to highlight update availability.
+- **Variant & Bundle Support**: First-class handling of game-client variants (Generals vs Zero Hour), resolution variants, and composite bundle components.
+- **Dynamic Catalog Tabs**: Extensible tab system (`ITabProviderRegistry` / `CatalogTabProvider`) that renders custom documentation or addon tabs specified in publisher catalogs.
+- **Safe Markdown Rendering**: Displays rich release notes with `SafeMarkdownHyperlinkCommand` and `SafeMarkdownPathResolver`, mitigating URI scheme and path traversal vulnerabilities.
+- **Seamless Profile Integration**: One-click "Add to Profile" modal workflow (`ProfileSelectionViewModel`) with game compatibility verification.
+
+---
 
 ## Architecture
 
@@ -30,992 +38,201 @@ The Downloads browser follows the Model-View-ViewModel (MVVM) pattern and integr
 ```mermaid
 graph TB
     subgraph UI["UI Layer"]
-        DBV[DownloadsBrowserView]
-        PSV[PublisherSidebarView]
-        FPV[FilterPanelView]
-        CGV[ContentCardView]
-        CDV[ContentDetailView]
+        DBV["DownloadsBrowserView (SidebarLayout)"]
+        CCV["ContentCardView"]
+        CDV["ContentDetailView"]
+        FPV["FilterPanelView"]
+        PSV["ProfileSelectionView"]
+        DPV["DependencyPreviewView"]
+        SCD["SubscriptionConfirmationDialog"]
     end
 
     subgraph ViewModels["ViewModels Layer"]
-        DBVM[DownloadsBrowserViewModel]
-        PVM[PublisherItemViewModel]
-        FVM[FilterPanelViewModel]
-        CGVM[ContentGridItemViewModel]
-        CDVM[ContentDetailViewModel]
-        PSVM[ProfileSelectionViewModel]
+        DBVM["DownloadsBrowserViewModel"]
+        PVM["PublisherItemViewModel"]
+        FVM["IFilterPanelViewModel"]
+        CGVM["ContentGridItemViewModel"]
+        CDVM["ContentDetailViewModel"]
+        PSVM["ProfileSelectionViewModel"]
+        DPVM["DependencyPreviewViewModel"]
     end
 
     subgraph Services["Services Layer"]
-        CSS[ContentStateService]
-        DS[DownloadService]
-        PCS[ProfileContentService]
-        GPM[GameProfileManager]
+        CDC["ContentDownloadCoordinator"]
+        CSS["ContentStateService"]
+        CO["ContentOrchestrator"]
+        PCS["ProfileContentService"]
+        GPM["GameProfileManager"]
+        PSS["PublisherSubscriptionStore"]
+        PCRS["PublisherCatalogRefreshService"]
+        TPR["TabProviderRegistry"]
     end
 
     subgraph Pipeline["Content Pipeline"]
-        CD[IContentDiscoverer]
-        CR[IContentResolver]
-        CMP[ContentManifestPool]
+        CD["IContentDiscoverer"]
+        CR["IContentResolver"]
+        CMP["IContentManifestPool"]
+        CAS["ICasService / CasService"]
     end
 
     DBV --> DBVM
-    PSV --> PVM
-    FPV --> FVM
-    CGV --> CGVM
+    CCV --> CGVM
     CDV --> CDVM
+    FPV --> FVM
+    PSV --> PSVM
+    DPV --> DPVM
 
+    DBVM --> CDC
     DBVM --> CSS
-    DBVM --> DS
+    DBVM --> CO
     DBVM --> PCS
+    DBVM --> PSS
     DBVM --> CD
     DBVM --> CR
 
-    CGVM --> CSS
-    CDVM --> DS
-    CDVM --> PCS
+    CDC --> CO
+    CDC --> CSS
+    CO --> CMP
+    CO --> CAS
+    CDVM --> CDC
+    CDVM --> TPR
     PSVM --> PCS
     PSVM --> GPM
-
-    CD --> CMP
-    CR --> CMP
 ```
 
 ### Component Responsibilities
 
 | Component | Responsibility |
 | :--- | :--- |
-| `DownloadsBrowserViewModel` | Main coordinator for the browser, handles publisher selection, content discovery, and navigation |
-| `ContentGridItemViewModel` | Represents individual content items in the grid, manages display state |
-| `ContentDetailViewModel` | Displays detailed content information with rich media, handles downloads |
-| `ProfileSelectionViewModel` | Manages profile selection with smart compatibility filtering |
-| `ContentStateService` | Determines if content is downloaded, update available, or not downloaded |
-| `IContentDiscoverer` | Discovers content from publisher sources |
-| `IContentResolver` | Resolves content into manifests for storage |
+| `DownloadsBrowserViewModel` | Main coordinator for the browser; manages publisher selection, catalog caching, filter routing, content grid population, variant swapping, and bundle downloads. |
+| `ContentCardView` / `ContentGridItemViewModel` | Represents individual content cards in the grid; manages action buttons (Download, Update, Add to Profile), variant selection, and progress reporting. |
+| `ContentDetailView` / `ContentDetailViewModel` | Full-screen detail overlay featuring media carousels, release notes, addons, and dynamic custom tabs. |
+| `FilterPanelView` / `IFilterPanelViewModel` | Provides publisher-tailored filtering options (e.g. `GitHubFilterViewModel`, `CommunityOutpostFilterViewModel`, `SuperHackersFilterViewModel`). |
+| `ProfileSelectionView` / `ProfileSelectionViewModel` | Manages adding acquired content to compatible game profiles with validation warnings for mismatched game types. |
+| `DependencyPreviewView` / `DependencyPreviewViewModel` | Displays prerequisite and conflicting dependencies prior to installation. |
+| `ContentDownloadCoordinator` | In-flight download multiplexer; coordinates `AcquireContentAsync`, deduplicates concurrent requests, tracks progress, and updates `ContentStateService`. |
+| `ContentStateService` | Inspects local manifests in `IContentManifestPool` to evaluate whether content is `Downloaded`, `UpdateAvailable`, or `NotDownloaded`. |
+| `CatalogTabProvider` / `TabProviderRegistry` | Dynamically loads and injects custom tabs into `ContentDetailViewModel` from catalog metadata. |
 
-## UI Components
+---
 
-### Publisher Sidebar
+## Supported Publishers
 
-The left sidebar displays content publishers, categorized into **Built-in Publishers** (Static partners & Dynamic scraping discoverers compiled into GenHub) and **Subscribed Publishers** (Dynamic creator catalog subscriptions added by users).
+### Active Publishers (PR #443)
+
+The Downloads browser activates four built-in publishers plus dynamic user-subscribed creator catalogs:
 
 ```mermaid
 flowchart LR
-    subgraph Sidebar["Publisher Sidebar"]
-        P1["All Publishers"]
-        P2["Built-in (CategoryStatic / CategoryDynamic)"]
-        P3["Generals Online"]
-        P4["TheSuperHackers"]
-        P5["CommunityOutpost"]
-        P7["ModDB"]
-        P8["CNC Labs"]
-        P9["GitHub"]
-        P10["AOD Maps"]
-        P11["Subscribed Publishers (SubscribedPublisherCategory)"]
-        P12["User Subscribed Catalog 1"]
-        P13["User Subscribed Catalog N..."]
+    subgraph Sidebar["Downloads Browser Sidebar"]
+        direction TB
+        B1["Generals Online (Static)"]
+        B2["TheSuperHackers (Static)"]
+        B3["Community Outpost (Static)"]
+        B4["GitHub (Dynamic / Topics)"]
+        S1["User Subscribed Catalogs (Dynamic)"]
     end
 
-    P1 --> P2
-    P1 --> P11
-    P2 --> P3
-    P2 --> P4
-    P2 --> P5
-    P2 --> P7
-    P2 --> P8
-    P2 --> P9
-    P2 --> P10
-    P11 --> P12
-    P11 --> P13
+    Sidebar --> Filter["Filter Panel / Search Box"]
+    Filter --> Grid["Content Grid Items"]
 ```
 
-#### Built-in Publishers
+| Publisher | Type | Discoverer | Resolver / Manifest Strategy | Primary Content |
+| :--- | :--- | :--- | :--- | :--- |
+| **Generals Online** | Built-in Static | `GeneralsOnlineDiscoverer` | `GeneralsOnlineResolver` | Community multiplayer game client & tools |
+| **TheSuperHackers** | Built-in Static | `GitHubReleasesDiscoverer` | `GitHubResolver` + `SuperHackersManifestFactory` | Game patches, utility tools, client binaries |
+| **Community Outpost** | Built-in Static | `CommunityOutpostDiscoverer` | `CommunityOutpostResolver` | GenPatcher, community fixes, and patches |
+| **GitHub** | Built-in Dynamic | `GitHubTopicsDiscoverer` | `GitHubResolver` | Open-source community projects & mods |
+| **Subscribed Creators** | Subscribed Dynamic | `GenericCatalogDiscoverer` | `GenericCatalogResolver` + `GenericCatalogManifestFactory` | Community mods, map packs, and total conversions |
 
-Built-in publishers have dedicated discoverer and resolver classes compiled directly into GenHub:
+#### Game-Client Variants (TheSuperHackers)
 
-| Publisher | Category | Discovery Mechanism | Content Focus |
-| :--- | :--- | :--- | :--- |
-| **Generals Online** | CategoryStatic | Custom Discoverer | Community game client |
-| **TheSuperHackers** | CategoryStatic | GitHub Releases API | Game patches and utilities |
-| **CommunityOutpost** | CategoryStatic | Custom Discoverer | GenPatcher and community tools |
-| **ModDB** | CategoryDynamic | HTML Web Scraping | Mods, addons, maps, tools |
-| **CNC Labs** | CategoryDynamic | HTML Web Scraping | Maps and missions |
-| **GitHub** | CategoryDynamic | GitHub Topics API | Project releases and topics |
-| **AOD Maps** | CategoryDynamic | HTML Web Scraping | Age of Defense maps |
+TheSuperHackers releases package both Generals and Zero Hour executables in the same archive release. Rather than presenting an ambiguous card, the discoverer emits **one grid card per game-client variant** (e.g., `"SuperHackers Weekly &lt;date&gt; — Generals"` and `"SuperHackers Weekly &lt;date&gt; — Zero Hour"`).
 
-##### Bot-Protected Publishers (ModDB)
+- Each variant card has its own `TargetGame` (`GameType.Generals` or `GameType.ZeroHour`).
+- Manifest IDs carry distinct suffixes (`...gameclient.generals` vs `...gameclient.zerohour`).
+- Downloading either variant downloads the archive once; `SuperHackersManifestFactory` extracts and registers the appropriate client binary for the targeted game type.
 
-ModDB sits behind a Cloudflare bot-protection layer that serves a "Just a moment..." challenge to
-automated clients. The challenge **cannot be solved unattended** — headless Chromium is fingerprinted
-and held on the challenge indefinitely, and even a headed browser requires a human to click the "I am
-not a robot" checkbox. To make ModDB usable, GenHub drives a **persistent, headed Playwright context**
-for all ModDB traffic (browse, detail, and download):
+#### Subscribed Creator Catalogs
 
-- The first time the user opens the ModDB section, a real Chromium window appears on the Cloudflare
-  challenge. The user clicks the checkbox once.
-- The resulting clearance cookie is persisted to disk under
-  `%LOCALAPPDATA%\GenHub\BrowserProfiles\moddb` (`PlaywrightService.CreatePersistentPageAsync`).
-- Every subsequent ModDB page that session (and across app restarts, until the cookie expires) reuses
-  that cookie, so no further window or click is needed and pages load at full speed.
-- Because public RSS feeds are unpaginated and limited to ~10 items, ModDB discovery avoids RSS fallbacks
-  in favor of preserving the persistent headed Playwright context so users can verify Cloudflare once
-  and browse the full paginated catalog.
+Creators can distribute content without modifying GenHub's source code by publishing a standard `catalog.json`. When a user subscribes via `genhub://subscribe?url=&lt;catalog_url&gt;`:
+1. `SubscriptionConfirmationDialog` previews publisher details and content counts via `CatalogDocumentReader`.
+2. The subscription is saved to disk via `PublisherSubscriptionStore`.
+3. `DownloadsBrowserViewModel` creates a `GenericCatalogDiscoverer` instance for the subscription.
+4. Content is discovered, resolved via `GenericCatalogResolver`, and cached seamlessly.
+
+---
+
+## Roadmap & Planned Publishers
+
+The GenHub content acquisition roadmap includes web-scraping discoverers for external community repositories that require HTML parsing and bot protection mitigation:
+
+- **ModDB**: Community mods, addons, and maps scraped via Playwright and AngleSharp. Features headed browser fallback to pass Cloudflare bot challenges and persist clearance cookies.
+- **CNC Labs**: Map and mission repository scraped from CNCLabs.net with player-count and terrain tagging.
+- **AOD Maps**: Dedicated Art of Defense map repository.
 
 > [!NOTE]
-> A visible browser window is the tradeoff for ModDB access. The window appears only for ModDB and
-> only when the clearance cookie is missing/expired; other publishers use the shared headless browser.
+> These web scrapers are maintained as part of the broader content ingestion architecture and will be exposed in the browser once their scraper sandboxes and update loops are finalized.
 
-###### ModDB Failure Handling
+---
 
-ModDB discovery handles Cloudflare challenges and network faults gracefully:
+## Filter Panels
 
-| Situation | Behavior |
-| :--- | :--- |
-| Cloudflare challenge detected | The browser window is brought to front for the user to complete verification; `ContentDiscoveryResult.ChallengeDetected` is set to `true`, and the browser UI prompts the user with an actionable toast to solve the check. |
-| Verification timeout | The browser page remains open so the user can complete verification without restarting; a refresh loads the listing once cleared. |
-| Scrape/Playwright error or timeout | Returns an error result; an actionable "No content loaded" toast appears with a retry hint. |
-| ModDB **download** fails (WAF block) | The resolver returns an actionable message ("ModDB is blocking automated access…"); the detail view shows it inline and as an error toast, and points the user to "View on Website". |
+Each publisher exposes customized filtering options through `IFilterPanelViewModel`:
 
-The discoverer sets `ContentDiscoveryResult.ChallengeDetected` on the returned result so the
-browser VM (`DownloadsBrowserViewModel`) can distinguish a Cloudflare block from a genuinely empty result and surface the right
-message instead of a silent empty grid.
+- **GitHub (`GitHubFilterViewModel`)**: Sorts repositories by recent updates, stars, and release types.
+- **Community Outpost (`CommunityOutpostFilterViewModel`)**: Filters by content type (tools vs. patches).
+- **TheSuperHackers (`SuperHackersFilterViewModel`)**: Filters by game client vs. patch releases.
+- **Static Publishers (`StaticPublisherFilterViewModel`)**: Standard content type filtering.
 
-#### Subscribed Publishers
+Search query filtering is controlled per publisher:
+- `CanSearch`: True for GitHub (dynamic API searches) and subscribed catalogs that support search. For static curated publishers, the search bar is suppressed or locked to client-side filtering.
+- `CanShowFilters`: Controls visibility of the filter toggle button.
 
-Subscribed publishers (`CatalogConstants.SubscribedPublisherCategory`) are data-driven creator catalogs added via `genhub://subscribe?url=...`. Introduced in the downloads browser architecture (PR #443 / PR #265), they do not require code changes and are handled uniformly by `GenericCatalogDiscoverer`, `GenericCatalogResolver`, and `GenericCatalogManifestFactory` (`GenHub.Features.Content.Services.Catalog`):
-
-| Publisher | Category | Discovery Mechanism | Resolver Strategy |
-| :--- | :--- | :--- | :--- |
-| **Subscribed Creators** | SubscribedPublisherCategory | `GenericCatalogDiscoverer` (fetches `catalog.json`) | `GenericCatalogResolver` (`CatalogConstants.GenericCatalogResolverId`) |
-
-### Filter Panels
-
-Each publisher provides a specialized filter panel implementing `IFilterPanelViewModel` (inheriting `FilterPanelViewModelBase` in `GenHub.Features.Downloads.ViewModels.Filters`) that encapsulates publisher-specific filtering logic and query generation:
-
-#### ModDB Filter Panel
-
-The ModDB filter panel (`ModDBFilterViewModel`) supports section-based filtering using the `ModDBSection` enum (`GenHub.Features.Downloads.ViewModels.Filters.ModDBSection`), which maps to `ContentSearchQuery.ModDBSection` on search queries:
-
-```csharp
-namespace GenHub.Features.Downloads.ViewModels.Filters;
-
-/// <summary>
-/// Represents the available ModDB sections in the downloads browser.
-/// </summary>
-public enum ModDBSection
-{
-    /// <summary>Downloads/Files section with category + categoryaddon filters.</summary>
-    Downloads,
-
-    /// <summary>Addons section with addon category + licence filters.</summary>
-    Addons,
-
-    /// <summary>Mods section.</summary>
-    Mods,
-}
-```
-
-Filter categories include:
-- **Category**: Releases, Full Version, Demo, Patch, Tools, Media, etc.
-- **Addon Category**: Maps, Models, Skins, Audio, Graphics, etc.
-- **License**: BSD, MIT, GPL, Creative Commons, etc.
-- **Timeframe**: Past 24 hours, week, month, year, or older
-
-#### CNC Labs Filter Panel
-
-The CNC Labs filter provides map-specific filtering:
-
-```csharp
-// Content type filtering
-- ContentType: Map, Mission
-
-// Game filtering
-- TargetGame: Generals, Zero Hour
-
-// Player count filtering
-- NumberOfPlayers: 1-6 players, or Any
-
-// Map tag filtering (toggle-based)
-- Layout: Cramped, Spacious, Symmetric, Asymmetric
-- Quality: Well Balanced, Detailed
-- Economy: Money Map
-- Features: Custom Scripted, Custom Coded
-- Difficulty: Noob Friendly, Veteran Suitable
-- Mode: Art of Defense, Art of Attack, Coop Mission, Multiplayer Only
-- Style: Fun Map
-- Type: Shell Map, Ported Mission to ZH
-```
-
-#### GitHub Filter Panel
-
-Basic filtering for GitHub repositories and releases:
-
-```csharp
-// Repository and release type filtering
-- Sort options: Recent, Popular, etc.
-- Release type filtering
-```
-
-#### AOD Maps Filter Panel
-
-Specialized filtering for Art of Defense maps:
-
-```csharp
-// Map type and difficulty filtering
-- Map type categories
-- Difficulty levels
-```
-
-#### Static Publisher Filter Panel
-
-Minimal filtering for static publishers:
-
-```csharp
-// Basic content type and game filtering
-- ContentType: All types supported by publisher
-- TargetGame: Generals, Zero Hour
-```
-
-### Content Grid
-
-The main content area displays content cards in a responsive grid layout. Each card shows:
-
-- Content icon/thumbnail
-- Content name
-- Short description (truncated to 150 characters)
-- Author name
-- Last updated date
-- Download size (if available)
-- Content state badge (Not Downloaded, Update Available, Downloaded)
-- Action buttons (Download, Update, Add to Profile)
-
-#### Content Card States
-
-```mermaid
-stateDiagram-v2
-    [*] --> NotDownloaded
-    NotDownloaded --> Downloaded: Download completes
-    NotDownloaded --> [*]: Cancelled
-    Downloaded --> UpdateAvailable: Newer version detected
-    UpdateAvailable --> Downloaded: Update completes
-    Downloaded --> [*]: Added to profile
-```
-
-### Content Detail View
-
-Clicking a content card opens the detailed content view with tabbed information:
-
-| Tab | Content | Lazy Loaded |
-| :--- | :--- | :--- |
-| **Overview** | Description, metadata, tags, screenshots | No |
-| **Images** | Additional images from parsed page | Yes |
-| **Videos** | Video content | Yes |
-| **Releases** | Downloadable files/releases | Yes |
-| **Addons** | Related addons | Yes |
-| **Reviews** | User reviews | No |
-| **Comments** | User comments | No |
-
-#### Detail View Features
-
-- **Screenshot gallery**: Visual content preview with full-size viewing
-- **Rich text description**: Formatted content from parsed web pages
-- **Download progress**: Real-time download progress with status messages
-- **Release management**: Multiple release versions with individual download actions
-- **Addon support**: Browse and download related addons
-- **Profile integration**: Add content directly to compatible profiles
+---
 
 ## State Management
 
 ### ContentStateService
 
-Introduced in PR #265 (`feat/ui-downloads`), `ContentStateService` (`GenHub.Features.Downloads.Services.ContentStateService`, implementing `IContentStateService` in `GenHub.Core.Interfaces.Content`) centralizes content state determination for the unified downloads browser. It inspects local manifests in `IContentManifestPool` to determine whether discovered items are `NotDownloaded`, `UpdateAvailable`, or `Downloaded`:
+`ContentStateService` (`GenHub.Features.Downloads.Services.ContentStateService`) centralizes content state determination across the browser by querying `IContentManifestPool`:
 
 ```csharp
 public enum ContentState
 {
     NotDownloaded,    // Show "Download" button
-    UpdateAvailable,  // Show "Update" button
+    UpdateAvailable,  // Show "Update" button (orange accent)
     Downloaded        // Show "Add to Profile" button
 }
 ```
 
-#### State Determination Logic
+#### State Determination Flow
 
 ```mermaid
 flowchart TD
-    A[ContentSearchResult] --> B[Generate Manifest ID]
-    B --> C{Exact Match in Pool?}
-    C -->|Yes| D[Downloaded State]
-    C -->|No| E{Older Versions Exist?}
-    E -->|Yes| F[UpdateAvailable State]
-    E -->|No| G[NotDownloaded State]
+    A["ContentSearchResult"] --> B["Generate Prospective Manifest ID"]
+    B --> C{"Exact Match in ManifestPool?"}
+    C -->|Yes| D["ContentState.Downloaded"]
+    C -->|No| E{"Older Versions Exist in Pool?"}
+    E -->|Yes| F["ContentState.UpdateAvailable"]
+    E -->|No| G["ContentState.NotDownloaded"]
 
-    style D fill:#90EE90
-    style F fill:#FFD700
-    style G fill:#FFB6C1
+    style D fill:#38a169,color:#ffffff
+    style F fill:#dd6b20,color:#ffffff
+    style G fill:#718096,color:#ffffff
 ```
 
-#### Manifest ID Generation
+#### Event Notifications
 
-Manifest IDs are generated using the `ManifestIdGenerator`:
-
-```csharp
-// Format: {schemaVersion}.{userVersion}.{publisher}.{contentType}.{contentName}
-// Example: 1.20240115.moddbshockwaveteam.mod.shockwave
-
-var manifestId = ManifestIdGenerator.GeneratePublisherContentId(
-    publisherId: "moddb-shockwave-team",
-    contentType: ContentType.Mod,
-    contentName: "Shockwave",
-    userVersion: 20240115
-);
-// Result: "1.20240115.moddbshockwaveteam.mod.shockwave"
-```
-
-The `userVersion` segment (second component) is the release date in `yyyyMMdd` format, enabling:
-
-- Version comparison (string comparison works for date-based versions)
-- Update detection (newer date = update available)
-- Multiple version support
-
-### Button Visibility Logic
-
-The visibility of action buttons is determined by the content state:
-
-```csharp
-// ContentGridItemViewModel
-public bool ShowDownloadButton => CurrentState == ContentState.NotDownloaded;
-public bool ShowUpdateButton => CurrentState == ContentState.UpdateAvailable;
-public bool ShowAddToProfileButton => CurrentState == ContentState.Downloaded;
-
-// Command availability
-public bool CanDownload => !IsDownloaded && !IsDownloading && CurrentState != ContentState.Downloaded;
-public bool CanAddToProfile => IsDownloaded && !IsDownloading;
-```
-
-## Download Flow
-
-The download process follows a multi-stage pipeline from user click to CAS storage:
-
-```mermaid
-sequenceDiagram
-    actor User
-    participant UI as ContentCardView
-    participant VM as ContentGridItemViewModel
-    participant DBVM as DownloadsBrowserViewModel
-    participant Resolver as IContentResolver
-    participant Pool as ContentManifestPool
-    participant CAS as CAS Service
-    participant Profile as GameProfile
-
-    User->>UI: Click "Download"
-    UI->>VM: DownloadContent()
-    VM->>VM: Set IsDownloading=true
-    VM->>DBVM: DownloadContentCommand
-
-    DBVM->>CO: ResolveManifestAsync(SearchResult)
-    CO->>Resolver: ResolveAsync(SearchResult)
-    Resolver-->>CO: ContentManifest
-    CO-->>DBVM: ContentManifest
-
-    DBVM->>DBVM: Create temp directory
-    DBVM->>DBVM: Download files to temp
-    Note over DBVM: Progress updates via IProgress&lt;DownloadProgress&gt;
-
-    DBVM->>Pool: AddManifestAsync(manifest, tempDir)
-    Pool->>CAS: StoreContentAsync for each file
-    CAS-->>Pool: ContentAddress references
-    Pool-->>DBVM: Success
-
-    DBVM->>DBVM: Cleanup temp directory
-    DBVM->>VM: Update CurrentState=Downloaded
-    DBVM->>VM: Set IsDownloaded=true
-    VM-->>UI: Update button display
-```
-
-### Download Stages
-
-#### 1. Resolution Stage
-
-```csharp
-// Resolve the search result into a full manifest via ContentOrchestrator
-var manifestResult = await orchestrator.ResolveManifestAsync(item.SearchResult, cancellationToken);
-
-// Or query the pipeline resolver directly
-var resolver = resolvers.FirstOrDefault(r =>
-    r.CanResolve(item.SearchResult) ||
-    string.Equals(r.ResolverId, item.SearchResult.ResolverId, StringComparison.OrdinalIgnoreCase));
-```
-
-#### 2. Download Stage
-
-```csharp
-// Filter for remote files
-var remoteFiles = manifest.Files
-    .Where(f => f.SourceType == ContentSourceType.RemoteDownload)
-    .ToList();
-
-// Download each file with progress reporting
-foreach (var file in remoteFiles)
-{
-    var targetPath = Path.Combine(tempDirectory, file.RelativePath);
-    var downloadResult = await downloadService.DownloadFileAsync(
-        new Uri(file.SourcePath),
-        targetPath,
-        null,
-        new Progress<DownloadProgress>(p =>
-        {
-            // Update UI progress
-            item.DownloadProgress = (int)p.Percentage;
-        }),
-        cancellationToken);
-}
-```
-
-#### 3. Storage Stage
-
-```csharp
-// Store manifest in the pool with files from temp directory
-var addResult = await manifestPool.AddManifestAsync(
-    manifest,
-    tempDir,
-    null,
-    cancellationToken);
-
-// Cleanup temp directory
-if (Directory.Exists(tempDir))
-{
-    Directory.Delete(tempDir, true);
-}
-```
-
-### State Transitions
-
-The download process triggers state transitions:
-
-1. **Initial State**: `NotDownloaded` → Shows "Download" button
-2. **Downloading**: `IsDownloading = true` → Shows progress indicator
-3. **Complete**: `Downloaded` → Shows "Add to Profile" button
-4. **Update Available**: `UpdateAvailable` → Shows "Update" button (when newer version detected)
-
-## Add to Profile Flow
-
-After content is downloaded, users can add it to a game profile through the `ProfileSelectionViewModel`:
-
-```mermaid
-flowchart TD
-    A[User clicks Add to Profile] --> B{Manifest ID valid?}
-    B -->|No| C[Show error: Download first]
-    B -->|Yes| D[Load all profiles]
-
-    D --> E{Profiles exist?}
-    E -->|No| F[Show error: No profiles]
-    E -->|Yes| G{Compatible profiles exist?}
-
-    G -->|No| H[Show all with warnings]
-    G -->|Yes| I[Separate compatible/incompatible]
-
-    H --> J[User selects profile]
-    I --> J
-
-    J --> K[AddContentToProfileAsync]
-    K --> L{Success?}
-    L -->|Yes| M[Show success notification]
-    L -->|No| N[Show error message]
-
-    M --> O[Send ProfileUpdatedMessage]
-    N --> O
-```
-
-### Smart Filtering
-
-The profile selection uses smart filtering to categorize profiles by compatibility:
-
-```csharp
-// Compatibility check
-private bool IsCompatible(GameProfile profile, GameType targetGame)
-{
-    // ZeroHour content can only go in ZeroHour profiles
-    // Generals content can only go in Generals profiles
-    return profile.GameClient.GameType == targetGame;
-}
-
-// Categorize profiles
-foreach (var profile in profiles)
-{
-    if (IsCompatible(profile, targetGame))
-    {
-        CompatibleProfiles.Add(option);
-    }
-    else
-    {
-        option.ShowWarning = true;
-        option.WarningMessage = $"This profile is for {profile.GameClient.GameType}, " +
-                              $"content is for {targetGame}";
-        OtherProfiles.Add(option);
-    }
-}
-```
-
-### Profile Selection UI
-
-The profile selection dialog displays:
-
-- **Compatible profiles** (no warnings)
-- **Incompatible profiles** (with warning messages explaining the mismatch)
-- **Create new profile** option (automatically creates profile with content pre-enabled)
-
-### Dependency Resolution
-
-When adding content to a profile:
-
-```csharp
-// Add content with automatic dependency handling
-var result = await profileContentService.AddContentToProfileAsync(
-    profileId,
-    manifestId,
-    cancellationToken);
-
-// Handle content swap (if content type allows only one instance)
-if (result.WasContentSwapped)
-{
-    logger.LogInformation(
-        "Content swap: replaced {OldContent} with {NewContent} in profile {ProfileName}",
-        result.SwappedContentName,
-        contentName,
-        profileName);
-}
-```
-
-## Supported Publishers
-
-### Publisher Capabilities
-
-| Publisher | Content Types | Filters | Discoverer | Resolver |
-| :--- | :--- | :--- | :--- | :--- |
-| **ModDB** | Mods, Addons, Maps, Tools, Patches | Category, Addon, License, Timeframe | `ModDBDiscoverer` | `ModDBResolver` |
-| **CNC Labs** | Maps, Missions | Game, Players, Tags | `CNCLabsMapDiscoverer` | `CNCLabsMapResolver` |
-| **GitHub** | All types | Repository, Release type | `GitHubReleasesDiscoverer`, `GitHubTopicsDiscoverer` | `GitHubResolver` |
-| **AOD Maps** | Maps | Map type, Difficulty | `AODMapsDiscoverer` | `AODMapsResolver` |
-| **Generals Online** | GameClient, Tools | Basic | `GeneralsOnlineDiscoverer` | `GeneralsOnlineResolver` |
-| **TheSuperHackers** | GameClient, Patches | Basic | `GitHubReleasesDiscoverer` | `GitHubResolver` |
-| **CommunityOutpost** | Tools, Patches | Type | `CommunityOutpostDiscoverer` | `CommunityOutpostResolver` |
-
-#### Game-Client Variants (TheSuperHackers)
-
-TheSuperHackers releases ship **both** a Generals and a Zero Hour executable in the same archive.
-Rather than showing one card and requiring a variant picker, the discoverer emits **one grid card per
-game-client variant** (e.g. `SuperHackers Weekly <date> — Generals` and `…— Zero Hour`). Each card
-carries its own `TargetGame`, a distinct manifest ID suffix (`...gameclient.generals` /
-`...gameclient.zerohour`), and independent download state. Downloading a variant card downloads the
-release once and stores only that variant's manifest (`SuperHackersManifestFactory` honors the
-requested game type), so Add-to-Profile maps directly to the correct client.
-
-### Publisher Constants
-
-All publishers use constant identifiers from `PublisherTypeConstants`:
-
-```csharp
-public static class PublisherTypeConstants
-{
-    public const string All = "all";
-    public const string ModDB = "moddb";
-    public const string CncLabs = "cnclabs";
-    public const string GitHub = "github";
-    public const string AODMaps = "aodmaps";
-    public const string GeneralsOnline = "generalsonline";
-    public const string TheSuperHackers = "thesuperhackers";
-    public const string CommunityOutpost = "communityoutpost";
-}
-```
-
-## Extensibility
-
-### Adding a New Publisher
-
-> [!WARNING]
-> **Built-in / Partner Publishers Only**: The procedure below is for writing C# code for core compiled publishers (like web scrapers or specialized APIs).
-> **For Creators / Third-Party Publishers**: Do **NOT** write custom discoverer C# code. Instead, create and host a standard `catalog.json` file and have users subscribe via `genhub://subscribe?url=<catalog_url>`. All subscribed catalogs are handled dynamically by `GenericCatalogDiscoverer` and `GenericCatalogResolver`.
-
-#### 1. Built-in Publisher Code Integration (Partner / Internal Only)
-
-To add support for a compiled, hardcoded publisher to the Downloads browser:
-
-```csharp
-// In GenHub.Core/Constants/YourPublisherConstants.cs
-public static class YourPublisherConstants
-{
-    public const string PublisherType = "yourpublisher";
-    public const string ContentTypeMaps = "maps";
-    // Add other constants...
-}
-```
-
-Add to `PublisherTypeConstants`:
-
-```csharp
-public static class PublisherTypeConstants
-{
-    // Existing publishers...
-    public const string YourPublisher = "yourpublisher";
-}
-```
-
-#### 2. Implement Discoverer
-
-```csharp
-using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Models.Content;
-using GenHub.Core.Models.Results.Content;
-
-public class YourPublisherDiscoverer : IContentDiscoverer
-{
-    public bool IsEnabled => true;
-    public string SourceName => PublisherTypeConstants.YourPublisher;
-
-    public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
-        ContentSearchQuery query,
-        CancellationToken cancellationToken)
-    {
-        // Implement discovery logic
-        var items = new List<ContentSearchResult>();
-
-        // Fetch content from your source
-        // Create ContentSearchResult for each item
-
-        return OperationResult<ContentDiscoveryResult>.CreateSuccess(
-            new ContentDiscoveryResult
-            {
-                Items = items,
-                TotalItems = items.Count,
-                HasMoreItems = false
-            });
-    }
-}
-```
-
-#### 3. Implement Resolver
-
-> [!NOTE]
-> **Built-in Resolver Strategy**: Built-in publishers implement a dedicated `IContentResolver` with `ResolverId` returning `PublisherTypeConstants.YourPublisher`.
-> **Subscribed Catalog Strategy**: All subscribed creator catalogs return `CatalogConstants.GenericCatalogResolverId` as their `ResolverId` in `ContentSearchResult`, routing resolution through the single shared `GenericCatalogResolver`.
-
-```csharp
-using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Models.Manifest;
-using GenHub.Core.Models.Results.Content;
-
-public class YourPublisherResolver : IContentResolver
-{
-    public string ResolverId => PublisherTypeConstants.YourPublisher;
-
-    public async Task<OperationResult<ContentManifest>> ResolveAsync(
-        ContentSearchResult searchResult,
-        CancellationToken cancellationToken)
-    {
-        // Implement resolution logic
-        // Create ContentManifest with files
-
-        var manifest = new ContentManifestBuilder()
-            .WithBasicInfo(...)
-            .WithMetadata(...)
-            .AddRemoteFileAsync(url, ...)
-            .Build();
-
-        return OperationResult<ContentManifest>.CreateSuccess(manifest);
-    }
-}
-```
-
-#### 4. Create Filter ViewModel
-
-```csharp
-using GenHub.Features.Downloads.ViewModels.Filters;
-
-public partial class YourPublisherFilterViewModel : FilterPanelViewModelBase
-{
-    public override string PublisherId => PublisherTypeConstants.YourPublisher;
-
-    [ObservableProperty]
-    private string? _selectedCategory;
-
-    public ObservableCollection<FilterOption> CategoryOptions { get; } = [];
-
-    public override bool HasActiveFilters => !string.IsNullOrEmpty(SelectedCategory);
-
-    public override ContentSearchQuery ApplyFilters(ContentSearchQuery baseQuery)
-    {
-        if (!string.IsNullOrEmpty(SelectedCategory))
-        {
-            baseQuery.YourPublisherCategory = SelectedCategory;
-        }
-        return baseQuery;
-    }
-
-    public override void ClearFilters()
-    {
-        SelectedCategory = null;
-        NotifyFiltersChanged();
-        OnFiltersCleared();
-    }
-
-    public override IEnumerable<string> GetActiveFilterSummary()
-    {
-        if (!string.IsNullOrEmpty(SelectedCategory))
-        {
-            yield return $"Category: {SelectedCategory}";
-        }
-    }
-}
-```
-
-#### 5. Register in DownloadsBrowserViewModel
-
-```csharp
-// In InitializePublishers()
-Publishers.Add(
-    new PublisherItemViewModel(
-        PublisherTypeConstants.YourPublisher,
-        "Your Publisher",
-        "avares://GenHub/Assets/Logos/yourpublisher-logo.png",
-        "dynamic"));
-
-// In InitializeFilterViewModels()
-_filterViewModels[PublisherTypeConstants.YourPublisher] =
-    new YourPublisherFilterViewModel();
-
-// In GetDiscovererForPublisher()
-case PublisherTypeConstants.YourPublisher:
-    return contentDiscoverers.OfType<YourPublisherDiscoverer>().FirstOrDefault();
-```
-
-#### 6. Register Services
-
-In `GenHub/Infrastructure/DependencyInjection/ContentPipelineModule.cs`:
-
-```csharp
-// Register discoverer
-services.AddTransient<IContentDiscoverer, YourPublisherDiscoverer>();
-
-// Register resolver
-services.AddTransient<IContentResolver, YourPublisherResolver>();
-```
-
-### Creator Catalogs (Subscribed Publishers)
-
-The primary extensibility mechanism for GenHub content creators is data-driven publishing using `PublisherCatalog` (JSON).
-
-#### How Subscribed Catalogs Work
-
-1. **Creator publishes `catalog.json`**: The catalog contains publisher profile details and array of `CatalogContentItem` entries with semantic version releases and artifact download URLs.
-2. **User Subscribes**: User clicks or opens a `genhub://subscribe?url=<catalog_url>` link.
-3. **Generic Dispatch**: `DownloadsBrowserViewModel` creates an instance of `GenericCatalogDiscoverer` configured with the subscription record (`PublisherSubscription`).
-4. **Unified Discovery & Resolution**: `GenericCatalogDiscoverer` fetches and parses the catalog, outputting search results with `ResolverId => CatalogConstants.GenericCatalogResolverId`. Downloads flow seamlessly through `GenericCatalogResolver` and the existing CAS storage pipeline.
-
-For detailed schema definitions and guide on hosting creator catalogs, see [Hosting Model Documentation](./content/hosting-model.md).
-
-### Extending Filter Queries
-
-Add publisher-specific query properties to `ContentSearchQuery`:
-
-```csharp
-public class ContentSearchQuery
-{
-    // Existing properties...
-
-    // Your publisher filters
-    public string? YourPublisherCategory { get; set; }
-    public string? YourPublisherCustomFilter { get; set; }
-}
-```
-
-### Custom Manifest Factories
-
-For publishers with special manifest generation requirements:
-
-```csharp
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Models.Manifest;
-
-public class YourPublisherManifestFactory : IPublisherManifestFactory
-{
-    public string PublisherId => PublisherTypeConstants.YourPublisher;
-
-    public bool CanHandle(ContentManifest manifest)
-    {
-        return string.Equals(
-            manifest.Publisher.PublisherType,
-            PublisherTypeConstants.YourPublisher,
-            StringComparison.OrdinalIgnoreCase);
-    }
-
-    public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
-        ContentManifest originalManifest,
-        string extractedDirectory,
-        CancellationToken cancellationToken = default)
-    {
-        // Custom manifest generation logic from extracted files on disk
-        var manifests = new List<ContentManifest>();
-
-        // Enrich manifest with extracted files, hashes, and variant metadata
-
-        return manifests;
-    }
-
-    public string GetManifestDirectory(ContentManifest manifest, string extractedDirectory)
-    {
-        return extractedDirectory;
-    }
-}
-```
-
-> [!NOTE]
-> The ViewModels and Views documented below are introduced as part of the Unified Downloads Browser in PR #265 (`feat/ui-downloads`), providing MVVM presentation for the multi-publisher downloads experience.
-
-## ViewModels Reference
-
-### DownloadsBrowserViewModel
-
-**Location**: `GenHub/Features/Downloads/ViewModels/DownloadsBrowserViewModel.cs`
-
-The main coordinator for the Downloads browser.
-
-#### Key Properties
-
-| Property | Type | Description |
-| :--- | :--- | :--- |
-| `Publishers` | `ObservableCollection<PublisherItemViewModel>` | Available content sources |
-| `SelectedPublisher` | `PublisherItemViewModel` | Currently selected publisher |
-| `ContentItems` | `ObservableCollection<ContentGridItemViewModel>` | Discovered content |
-| `FilterViewModel` | `IFilterPanelViewModel` | Publisher-specific filters |
-| `SelectedContent` | `ContentDetailViewModel` | Currently viewing content details |
-| `IsLoading` | `bool` | Content discovery in progress |
-| `CanLoadMore` | `bool` | More pages available |
-| `CurrentPage` | `int` | Current pagination page |
-| `PageSize` | `int` | Items per page (default: 24) |
-
-#### Key Commands
-
-| Command | Description |
-| :--- | :--- |
-| `SelectPublisherCommand` | Switches to selected publisher |
-| `SearchCommand` | Executes search with current filters |
-| `LoadMoreCommand` | Loads next page of results |
-| `ViewContentCommand` | Opens content detail view |
-| `CloseDetailCommand` | Closes content detail view |
-| `DownloadContentCommand` | Initiates content download |
-| `AddContentToProfileCommand` | Adds content to profile |
-
-### ContentGridItemViewModel
-
-**Location**: `GenHub/Features/Downloads/ViewModels/ContentGridItemViewModel.cs`
-
-Represents a content item in the grid.
-
-#### ContentGrid Properties
-
-| Property | Type | Description |
-| :--- | :--- | :--- |
-| `SearchResult` | `ContentSearchResult` | Underlying search result |
-| `CurrentState` | `ContentState` | Download state |
-| `IsDownloading` | `bool` | Download in progress |
-| `IsDownloaded` | `bool` | Successfully downloaded |
-| `DownloadProgress` | `int` | Progress 0-100 |
-| `DownloadStatus` | `string` | Status message |
-| `ShowDownloadButton` | `bool` | Show download button |
-| `ShowUpdateButton` | `bool` | Show update button |
-| `ShowAddToProfileButton` | `bool` | Show add to profile button |
-| `Variants` | `ObservableCollection<InstallableVariant>` | Installable variants |
-| `HasVariants` | `bool` | Multiple variants available |
-
-### ContentDetailViewModel
-
-**Location**: `GenHub/Features/Downloads/ViewModels/ContentDetailViewModel.cs`
-
-Displays detailed content information.
-
-#### ContentDetail Properties
-
-| Property | Type | Description |
-| :--- | :--- | :--- |
-| `ParsedPage` | `ParsedWebPage` | Parsed web page data |
-| `Screenshots` | `ObservableCollection<string>` | Screenshot URLs |
-| `SelectedScreenshotUrl` | `string` | Currently selected screenshot |
-| `Articles` | `ObservableCollection<Article>` | Article content |
-| `Videos` | `ObservableCollection<Video>` | Video content |
-| `Images` | `ObservableCollection<Image>` | Image content |
-| `Files` | `ObservableCollection<WebFile>` | File listings |
-| `Releases` | `ObservableCollection<ReleaseItemViewModel>` | Release items |
-| `Addons` | `ObservableCollection<AddonItemViewModel>` | Addon items |
-| `Reviews` | `ObservableCollection<Review>` | User reviews |
-| `Comments` | `ObservableCollection<Comment>` | User comments |
-| `HasReleases` | `bool` | Has releases to display |
-| `HasAddons` | `bool` | Has addons to display |
-| `IsDownloading` | `bool` | Download in progress |
-| `IsDownloaded` | `bool` | Successfully downloaded |
-| `IsUpdateAvailable` | `bool` | Update available |
-
-#### Lazy Loading (Detail View)
-
-The detail view implements lazy loading for optimal performance:
-
-```csharp
-// Lazy loaded tabs
-[RelayCommand]
-private async Task LoadImagesAsync() { /* Loads images tab */ }
-
-[RelayCommand]
-private async Task LoadVideosAsync() { /* Loads videos tab */ }
-
-[RelayCommand]
-private async Task LoadReleasesAsync() { /* Loads releases tab */ }
-
-[RelayCommand]
-private async Task LoadAddonsAsync() { /* Loads addons tab */ }
-```
-
-### ProfileSelectionViewModel
-
-**Location**: `GenHub/Features/Downloads/ViewModels/ProfileSelectionViewModel.cs`
-
-Manages profile selection with compatibility filtering.
-
-#### ProfileSelection Properties
-
-| Property | Type | Description |
-| :--- | :--- | :--- |
-| `CompatibleProfiles` | `ObservableCollection<ProfileOptionViewModel>` | Compatible profiles |
-| `OtherProfiles` | `ObservableCollection<ProfileOptionViewModel>` | Incompatible profiles |
-| `TargetGame` | `GameType` | Content's target game |
-| `ContentManifestId` | `string` | Content to add |
-| `ContentName` | `string` | Content name |
-| `HasAnyProfiles` | `bool` | Any profiles available |
-| `ProfileSummary` | `string` | Profile count summary |
-| `IsLoading` | `bool` | Loading profiles |
-| `ErrorMessage` | `string` | Error message |
-
-#### ProfileSelection Commands
-
-| Command | Description |
-| :--- | :--- |
-| `SelectProfileCommand` | Adds content to selected profile |
-| `CreateNewProfileCommand` | Creates new profile with content |
-
-## Services Reference
-
-### IContentStateService
-
-**Location**: `GenHub.Core/Interfaces/Content/IContentStateService.cs`
-
-Determines the current state of content for UI display.
+`ContentStateService` implements `NotifyStateChanged` and exposes the `ContentStateChanged` event:
 
 ```csharp
 public interface IContentStateService
 {
+    event EventHandler<ContentStateChangedEventArgs>? ContentStateChanged;
+
+    void NotifyStateChanged(string contentId, ContentState newState, string? manifestId = null);
+
     Task<ContentState> GetStateAsync(ContentSearchResult item, CancellationToken cancellationToken = default);
 
     Task<ContentState> GetStateAsync(
@@ -1026,173 +243,167 @@ public interface IContentStateService
         CancellationToken cancellationToken = default);
 
     Task<string?> GetLocalManifestIdAsync(ContentSearchResult item, CancellationToken cancellationToken = default);
+
+    Task<ContentState> GetStateByManifestIdAsync(string manifestId, CancellationToken cancellationToken = default);
 }
 ```
 
-### ContentStateService Implementation
+Whenever content finishes downloading or is uninstalled, `NotifyStateChanged` broadcasts the new state so that both grid cards and detail views instantly refresh their action buttons.
 
-**Location**: `GenHub/Features/Downloads/Services/ContentStateService.cs`
+---
 
-Implementation of content state detection.
+## Download Flow & Coordination
 
-#### State Detection Algorithm
+Downloads are orchestrated by `ContentDownloadCoordinator`, ensuring concurrent deduplication, live progress updates, and transactional manifest storage:
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Card as ContentCardView
+    participant GridVM as ContentGridItemViewModel
+    participant DBVM as DownloadsBrowserViewModel
+    participant CDC as ContentDownloadCoordinator
+    participant CO as ContentOrchestrator
+    participant Pool as IContentManifestPool
+    participant CSS as ContentStateService
+
+    User->>Card: Click "Download"
+    Card->>GridVM: DownloadContentCommand
+    GridVM->>GridVM: IsDownloading = true
+    GridVM->>DBVM: DownloadContentAsync(item)
+
+    DBVM->>CDC: DownloadContentAsync(item.SearchResult, progress, token)
+    Note over CDC: Deduplicates against _inFlightDownloads
+
+    CDC->>CO: AcquireContentAsync(searchResult, progress, token)
+    Note over CO: Downloads archives, extracts payload, writes CAS files, generates manifest
+
+    CO->>Pool: Register acquired ContentManifest
+    CO-->>CDC: OperationResult&lt;ContentManifest&gt;
+
+    CDC->>CSS: NotifyStateChanged(manifest.Id, ContentState.Downloaded)
+    CDC-->>DBVM: OperationResult&lt;ContentManifest&gt;
+
+    DBVM->>DBVM: HandleSuccessfulAcquisitionAsync(item, manifest)
+    DBVM->>GridVM: CurrentState = Downloaded, IsDownloaded = true
+    DBVM->>GridVM: IsDownloading = false
+    GridVM-->>Card: Render "Add to Profile" button
+```
+
+### In-Flight Deduplication
+
+When a user initiates a download (or when multiple views reference the same package):
+1. `ContentDownloadCoordinator` computes a download key (`{ProviderName}::{Id}` or `{ProviderName}::{Name}`).
+2. If a download with that key is already in progress, the coordinator attaches the new `IProgress` reporter to the existing task instead of initiating a duplicate HTTP request.
+3. Once completed, all listeners are notified and the in-flight record is cleared.
+
+### Composite Bundle Component Downloads
+
+Certain catalog items represent composite bundles (e.g. full game conversions with separate audio, map, and patch packs).
+- `CatalogBundleComponentBuilder` extracts individual component manifests.
+- In `DownloadsBrowserViewModel`, `DownloadBundleComponentsAsync` downloads all bundle parts and monitors component-level progress via `BundleComponentViewModel`.
+
+---
+
+## Detail View & Dynamic Custom Tabs
+
+When a user selects a card, `ContentDetailViewModel` loads rich metadata:
+
+- **Screenshot & Media Carousel**: Full-size previews and gallery browsing.
+- **Sanitized Markdown Rendering**: Release notes and overview descriptions are rendered with `SafeMarkdownHyperlinkCommand` (restricting hyperlinks strictly to `http:` and `https:`) and `SafeMarkdownPathResolver` (preventing directory traversal in image tags).
+- **Dynamic Catalog Tabs**: Implemented via `ITabProviderRegistry`:
+
+```csharp
+public interface ITabProvider
+{
+    string ProviderId { get; }
+    bool CanProvideTabsFor(ContentSearchResult searchResult);
+    Task<IReadOnlyList<CustomTabDefinition>> GetTabsAsync(
+        ContentSearchResult searchResult,
+        CancellationToken cancellationToken = default);
+}
+```
+
+`CatalogTabProvider` reads publisher-defined tabs from `catalog.json` (such as dedicated server guides, system requirements, or custom credits), allowing creators to present rich multi-tab pages within GenHub.
+
+---
+
+## Add to Profile Workflow
+
+Once content is in the `Downloaded` state, clicking "Add to Profile" opens `ProfileSelectionView`:
 
 ```mermaid
 flowchart TD
-    A[GetStateAsync] --> B[Generate prospective manifest ID]
-    B --> C{Exact match in pool?}
-    C -->|Yes| D[Return Downloaded]
-    C -->|No| E[Find older versions]
-    E --> F{Older versions found?}
-    F -->|Yes| G[Return UpdateAvailable]
-    F -->|No| H[Return NotDownloaded]
+    A["User clicks Add to Profile"] --> B["ProfileSelectionViewModel.LoadProfilesAsync()"]
+    B --> C["Load all GameProfiles from GameProfileManager"]
+    C --> D{"Profile.TargetGame == Content.TargetGame?"}
+    D -->|Match| E["Add to CompatibleProfiles"]
+    D -->|Mismatch| F["Add to OtherProfiles (Warning Badge)"]
+
+    E --> G["User selects Profile"]
+    F --> G
+    G --> H["ProfileContentService.AddContentToProfileAsync()"]
+    H --> I["NotificationService.ShowSuccess()"]
 ```
 
-## Content Pipeline Integration
+- **Safety Checks**: Incompatible profiles (e.g. adding a Zero Hour mod to a Generals profile) are visually quarantined in `OtherProfiles` with explicit warning badges.
+- **Quick Creation**: If no suitable profile exists, "Create New Profile" creates a dedicated profile with the target game and pre-enables the content.
+- **Profile Selection**: `ProfileSelectionView` binds `SelectProfileCommand` directly with the selected `ProfileOptionViewModel`.
 
-The Downloads browser integrates with the content pipeline through:
+---
 
-### Content Discovery
+## UI Converters Reference
 
-```csharp
-// Discover content from selected publisher
-var discoverer = GetDiscovererForPublisher(publisherId);
-var result = await discoverer.DiscoverAsync(query, cancellationToken);
+The Downloads browser uses specialized Avalonia converters from `GenHub.Infrastructure.Converters`:
 
-// Result contains:
-// - Items: List of ContentSearchResult
-// - TotalItems: Total available items
-// - HasMoreItems: Whether more pages exist
-```
+| Converter | Type | Description |
+| :--- | :--- | :--- |
+| `ContentTypeToBrushConverter` | `IValueConverter` | Converts a `ContentType` enum value into a solid accent brush for badges and card borders (e.g. Cyan for GameClient, Purple for Mod, Amber for Patch, Green for Map). |
+| `ContentTypeToBadgeBackgroundConverter` | `IValueConverter` | Produces a 14.5% opacity tinted background brush (alpha 0x25 / 37) matching the content type accent color. |
+| `ProfileSelectionConverter` | `IMultiValueConverter` | Legacy multi-value converter combining content item and profile into parameters for profile assignment. |
 
-### Content Resolution
+---
 
-```csharp
-// Resolve search result into manifest via orchestrator or matching resolver
-var resolver = resolvers.FirstOrDefault(r =>
-    r.CanResolve(item.SearchResult) ||
-    string.Equals(r.ResolverId, item.SearchResult.ResolverId, StringComparison.OrdinalIgnoreCase));
+## ViewModel Reference
 
-var manifestResult = await resolver.ResolveAsync(item.SearchResult, cancellationToken);
+### DownloadsBrowserViewModel
 
-// Result contains:
-// - ContentManifest with metadata and files
-// - Ready for storage in manifest pool
-```
+**Location**: `GenHub/Features/Downloads/ViewModels/DownloadsBrowserViewModel.cs`
 
-### Manifest Storage
+| Property / Command | Type | Description |
+| :--- | :--- | :--- |
+| `Publishers` | `ObservableCollection<PublisherItemViewModel>` | Available content sources. |
+| `SelectedPublisher` | `PublisherItemViewModel?` | Currently active publisher. |
+| `ContentItems` | `ObservableCollection<ContentGridItemViewModel>` | Grid of discovered content items. |
+| `SelectedContent` | `ContentDetailViewModel?` | Active content detail view overlay. |
+| `IsDetailViewVisible` | `bool` | Whether the detail view overlay is visible. |
+| `SearchTerm` | `string` | Search query text. |
+| `CanSearch` | `bool` | Whether active publisher supports text search. |
+| `CanShowFilters` | `bool` | Whether active publisher provides filter options. |
+| `IsFilterPanelVisible` | `bool` | Toggle state of the filter panel drawer. |
+| `CurrentFilterViewModel` | `IFilterPanelViewModel?` | Active publisher filter view model. |
+| `IsLoading` | `bool` | Content discovery in progress. |
+| `CanLoadMore` | `bool` | Whether more pages can be requested. |
+| `OpenManifestsFolderCommand` | `IRelayCommand` | Opens the local manifests folder in file explorer. |
+| `SearchCommand` | `IAsyncRelayCommand` | Executes a content search with active terms and filters. |
+| `LoadMoreCommand` | `IAsyncRelayCommand` | Requests next page of content from current publisher. |
+| `UpdateContentCommand` | `IAsyncRelayCommand` | Updates an installed item to its prospective newer version. |
+| `ViewContentCommand` | `IRelayCommand` | Opens the content detail view overlay for selected item. |
+| `CloseDetailCommand` | `IRelayCommand` | Closes the content detail view overlay. |
+| `DownloadContentCommand` | `IAsyncRelayCommand` | Downloads selected content item via `ContentDownloadCoordinator`. |
+| `AddContentToProfileCommand` | `IAsyncRelayCommand` | Opens profile selection modal and attaches content. |
 
-```csharp
-// Store manifest with files in CAS
-var addResult = await manifestPool.AddManifestAsync(
-    manifest,
-    tempDirectory,
-    null,
-    cancellationToken);
+> [!NOTE]
+> - `TogglePaneCommand` is provided on the shared [`SidebarLayout`](../Common/Controls/SidebarLayout.cs) control rather than the view model.
+> - Filter drawer opening/closing is bound directly to the `IsFilterPanelVisible` property.
+> - Download and search cancellation is handled internally via cancellation tokens rather than a separate public command.
 
-// Manifest pool:
-// - Stores files in CAS (Content Addressable Storage)
-// - Creates manifest references to CAS content
-// - Deduplicates identical files
-// - Enables content sharing across profiles
-```
-
-## Error Handling
-
-### Download Errors
-
-```mermaid
-flowchart TD
-    A[Download Attempt] --> B{Resolver available?}
-    B -->|No| C[Show: No resolver error]
-    B -->|Yes| D[Resolve content]
-
-    D --> E{Resolution success?}
-    E -->|No| F[Show: Resolution error]
-    E -->|Yes| G[Download files]
-
-    G --> H{Download success?}
-    H -->|No| I[Show: Download error]
-    H -->|Yes| J[Store manifest]
-
-    J --> K{Storage success?}
-    K -->|No| L[Show: Storage error]
-    K -->|Yes| M[Show: Success]
-
-    C --> N[Cleanup temp files]
-    F --> N
-    I --> N
-    L --> N
-    M --> N
-```
-
-### Error Messages
-
-The Downloads browser provides user-friendly error messages:
-
-| Error Type | Message |
-| :--- | :--- |
-| No resolver | "No resolver found for {publisher}" |
-| Resolution failed | "Failed to resolve content: {error}" |
-| Download failed | "Error downloading {filename}" |
-| Storage failed | "Error: {error}" |
-| Network error | "Network error: {error}" |
-| No profiles | "No profiles available" |
-| Incompatible profile | "This profile is for {profileGame}, content is for {contentGame}" |
-
-## Performance Optimizations
-
-### Lazy Loading Optimization
-
-- **Content details**: Only loaded when tabs are accessed
-- **Images/Videos**: Loaded on-demand when tabs open
-- **Releases/Addons**: Populated when tab is selected
-
-### Pagination
-
-- **Page size**: 24 items per page
-- **Load more**: Only loads additional pages when requested
-- **Cancellation**: Previous searches are cancelled when new search starts
-
-### Caching
-
-- **Icon bitmaps**: Loaded and cached in ViewModels
-- **Parsed pages**: Stored in SearchResult for reuse
-- **Content states**: Cached by ContentStateService
-
-### UI Responsiveness
-
-- **Async operations**: All I/O is asynchronous
-- **Progress updates**: Real-time download progress
-- **State notifications**: PropertyChanged notifications for UI updates
-
-## Accessibility
-
-The Downloads browser follows accessibility best practices:
-
-- **Keyboard navigation**: Full keyboard support for all actions
-- **Screen reader support**: Semantic markup and ARIA labels
-- **High contrast**: Support for high contrast themes
-- **Focus management**: Proper focus handling for dialogs and overlays
-- **Error announcements**: Screen reader announcements for errors
+---
 
 ## Related Documentation
 
-- [Content System](./content/index.md) - Content pipeline architecture
-- [Content Pipeline](./content/content-pipeline.md) - Three-tier pipeline details
-- [Downloads Flow](../FlowCharts/Downloads-Flow.md) - User flow diagrams
-- [Publisher Infrastructure](./content/publisher-infrastructure.md) - Extensible publisher handling
-- [Content Dependencies](./content/content-dependencies.md) - Dependency system
-
-## Future Enhancements
-
-- [ ] Batch download multiple items
-- [ ] Download queue management
-- [ ] Automatic update detection and notifications
-- [ ] Content rating/review integration
-- [ ] Advanced search with full-text filtering
-- [ ] Content favorites/bookmarks
-- [ ] Download history
-- [ ] Cloud sync for downloaded content
-- [ ] Content preview (in-app screenshots/videos)
-- [ ] User-generated content uploads
+- [Downloads UI Architecture & Views](./downloads-ui.md) - Detailed guide to Avalonia views, templates, and controls.
+- [Downloads Flow Diagram](../FlowCharts/Downloads-Flow.md) - Interactive visual workflow of downloads, state transitions, and caching.
+- [Content Pipeline Architecture](./content/content-pipeline.md) - Three-tier discovery, resolution, and acquisition pipeline.
+- [Content Addressable Storage (CAS)](./storage.md) - CAS deduplication, hashing, and storage architecture.
+- [Hosting Model for Creators](./content/hosting-model.md) - Guide for creating and hosting community `catalog.json` files.

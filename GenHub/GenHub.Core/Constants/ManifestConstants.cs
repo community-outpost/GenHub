@@ -180,6 +180,26 @@ public static class ManifestConstants
     /// </summary>
     public const string ZeroHourManifestVersion = "1.04";
 
+    /// <summary>
+    /// Manifest ID for the Zero Hour game installation dependency.
+    /// </summary>
+    public const string ZeroHourGameInstallationManifestId = "1.104.any.gameinstallation.zerohour";
+
+    /// <summary>
+    /// Manifest ID for the Generals game installation dependency.
+    /// </summary>
+    public const string GeneralsGameInstallationManifestId = "1.108.any.gameinstallation.generals";
+
+    /// <summary>
+    /// Display name for the Zero Hour installation dependency.
+    /// </summary>
+    public const string ZeroHourInstallationName = "Zero Hour Installation";
+
+    /// <summary>
+    /// Display name for the Generals installation dependency.
+    /// </summary>
+    public const string GeneralsInstallationName = "Generals Installation";
+
     /// <summary>Tag for unknown authors.</summary>
     public const string UnknownAuthor = "unknown";
 

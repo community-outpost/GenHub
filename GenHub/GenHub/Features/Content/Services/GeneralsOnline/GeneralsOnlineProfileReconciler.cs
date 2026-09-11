@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -14,6 +16,7 @@ using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
@@ -67,70 +70,89 @@ public class GeneralsOnlineProfileReconciler(
                 return OperationResult<bool>.CreateSuccess(false);
             }
 
-            notificationService.ShowInfo(
-                "GeneralsOnline Update Found",
+            var progressNotificationId = Guid.NewGuid();
+            var progressNotification = new NotificationMessage(
+                NotificationType.Info,
+                "GeneralsOnline Update",
                 $"Installing GeneralsOnline {updateResult.LatestVersion}. Please wait...",
-                NotificationDurations.VeryLong);
-
-            var oldManifests = await FindGeneralsOnlineManifestsAsync(cancellationToken);
-            if (oldManifests.Count == 0)
+                autoDismissMilliseconds: null,
+                isPersistent: true)
             {
-                logger.LogWarning("[GO Reconciler] No existing GeneralsOnline manifests found in pool");
-            }
+                Id = progressNotificationId,
+            };
+            notificationService.Show(progressNotification);
 
-            logger.LogInformation(
-                "[GO Reconciler] Found {Count} existing GeneralsOnline manifests to replace",
-                oldManifests.Count);
-
-            var acquireResult = await AcquireLatestVersionAsync(oldManifests, cancellationToken);
-            if (!acquireResult.Success)
+            try
             {
-                notificationService.ShowError(
-                    "GeneralsOnline Update Failed",
-                    $"Failed to download update: {acquireResult.FirstError}",
-                    NotificationDurations.Critical);
+                var oldManifests = await FindGeneralsOnlineManifestsAsync(cancellationToken);
+                if (oldManifests.Count == 0)
+                {
+                    logger.LogWarning("[GO Reconciler] No existing GeneralsOnline manifests found in pool");
+                }
 
-                return OperationResult<bool>.CreateFailure(
-                    $"Failed to acquire new GeneralsOnline version: {acquireResult.FirstError}");
+                logger.LogInformation(
+                    "[GO Reconciler] Found {Count} existing GeneralsOnline manifests to replace",
+                    oldManifests.Count);
+
+                var acquireResult = await AcquireLatestVersionAsync(oldManifests, progressNotificationId, cancellationToken);
+                if (!acquireResult.Success)
+                {
+                    notificationService.ShowError(
+                        "GeneralsOnline Update Failed",
+                        $"Failed to download update: {acquireResult.FirstError}",
+                        NotificationDurations.Critical);
+
+                    return OperationResult<bool>.CreateFailure(
+                        $"Failed to acquire new GeneralsOnline version: {acquireResult.FirstError}");
+                }
+
+                var newManifests = acquireResult.Data!;
+                logger.LogInformation("[GO Reconciler] Successfully acquired {Count} new manifests", newManifests.Count);
+
+                notificationService.Update(
+                    progressNotificationId,
+                    "Applying update to profiles...",
+                    "GeneralsOnline Update");
+
+                var updateResultData = await ApplyUpdateStrategyAsync(strategy, oldManifests, newManifests, updateResult.LatestVersion ?? "Unknown", cancellationToken);
+                if (!updateResultData.Success)
+                {
+                    return OperationResult<bool>.CreateFailure(updateResultData.FirstError ?? "Failed to apply update strategy");
+                }
+
+                var (profilesUpdated, anyFailure, manifestMapping) = updateResultData.Data;
+
+                var enforceResult = await EnforceMapPackDependencyAsync(newManifests, cancellationToken);
+                if (!enforceResult.Success)
+                {
+                    logger.LogWarning("[GO Reconciler] Map pack dependency enforcement had warnings: {Error}", enforceResult.FirstError);
+                    anyFailure = true;
+                }
+
+                bool shouldDeleteOldVersions = (strategy != UpdateStrategy.CreateNewProfile) && (subscription?.DeleteOldVersions ?? true);
+                await HandleOldManifestsAndCleanupAsync(shouldDeleteOldVersions, anyFailure, manifestMapping, oldManifests, cancellationToken);
+
+                if (anyFailure)
+                {
+                    notificationService.ShowWarning(
+                        "Generals Online Updated (Partial)",
+                        $"Updated to {updateResult.LatestVersion}, but some profiles or components had issues.",
+                        NotificationDurations.VeryLong);
+                }
+                else
+                {
+                    notificationService.ShowSuccess(
+                        "Generals Online Updated",
+                        $"Successfully updated {profilesUpdated} profile(s) to Generals Online {updateResult.LatestVersion}.",
+                        NotificationDurations.Long);
+                }
+
+                return OperationResult<bool>.CreateSuccess(true);
             }
-
-            var newManifests = acquireResult.Data!;
-            logger.LogInformation("[GO Reconciler] Successfully acquired {Count} new manifests", newManifests.Count);
-
-            var updateResultData = await ApplyUpdateStrategyAsync(strategy, oldManifests, newManifests, updateResult.LatestVersion ?? "Unknown", cancellationToken);
-            if (!updateResultData.Success)
+            finally
             {
-                return OperationResult<bool>.CreateFailure(updateResultData.FirstError ?? "Failed to apply update strategy");
+                notificationService.Dismiss(progressNotificationId);
             }
-
-            var (profilesUpdated, anyFailure, manifestMapping) = updateResultData.Data;
-
-            var enforceResult = await EnforceMapPackDependencyAsync(newManifests, cancellationToken);
-            if (!enforceResult.Success)
-            {
-                logger.LogWarning("[GO Reconciler] Map pack dependency enforcement had warnings: {Error}", enforceResult.FirstError);
-                anyFailure = true;
-            }
-
-            bool shouldDeleteOldVersions = (strategy != UpdateStrategy.CreateNewProfile) && (subscription?.DeleteOldVersions ?? true);
-            await HandleOldManifestsAndCleanupAsync(shouldDeleteOldVersions, anyFailure, manifestMapping, oldManifests, cancellationToken);
-
-            if (anyFailure)
-            {
-                notificationService.ShowWarning(
-                    "Generals Online Updated (Partial)",
-                    $"Updated to {updateResult.LatestVersion}, but some profiles or components had issues.",
-                    NotificationDurations.VeryLong);
-            }
-            else
-            {
-                notificationService.ShowSuccess(
-                    "Generals Online Updated",
-                    $"Successfully updated {profilesUpdated} profile(s) to Generals Online {updateResult.LatestVersion}.",
-                    NotificationDurations.Long);
-            }
-
-            return OperationResult<bool>.CreateSuccess(true);
         }
         catch (OperationCanceledException)
         {
@@ -595,11 +617,81 @@ public class GeneralsOnlineProfileReconciler(
                   (m.Name is { } name && name.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase))))];
     }
 
+    private IProgress<ContentAcquisitionProgress>? CreateAcquisitionProgress(
+        Guid? progressNotificationId,
+        string itemName,
+        int currentItemIndex,
+        int totalItems)
+    {
+        if (!progressNotificationId.HasValue)
+        {
+            return null;
+        }
+
+        var notificationId = progressNotificationId.Value;
+        var lastNotificationTimestamp = Stopwatch.GetTimestamp();
+
+        return new Progress<ContentAcquisitionProgress>(p =>
+        {
+            var elapsedMs = Stopwatch.GetElapsedTime(lastNotificationTimestamp).TotalMilliseconds;
+            if (elapsedMs < ManifestConstants.NotificationUpdateThrottleMs && p.ProgressPercentage < 100)
+            {
+                return;
+            }
+
+            lastNotificationTimestamp = Stopwatch.GetTimestamp();
+            var status = p.FormatProgressStatus();
+            var message = totalItems > 1
+                ? $"[{currentItemIndex}/{totalItems}] {itemName}: {status}"
+                : $"{itemName}: {status}";
+
+            notificationService.Update(
+                notificationId,
+                message,
+                "GeneralsOnline Update");
+        });
+    }
+
+    private async Task<OperationResult<bool>> AcquireItemsAsync(
+        IReadOnlyList<ContentSearchResult> items,
+        Guid? progressNotificationId,
+        CancellationToken cancellationToken)
+    {
+        int totalItems = items.Count;
+        int currentItemIndex = 0;
+
+        foreach (var result in items)
+        {
+            currentItemIndex++;
+            var progress = CreateAcquisitionProgress(
+                progressNotificationId,
+                result.Name,
+                currentItemIndex,
+                totalItems);
+
+            var acquireOp = await contentOrchestrator.AcquireContentAsync(result, progress, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!acquireOp.Success)
+            {
+                logger.LogError(
+                    "[GO:Reconciler] Failed to acquire content {ContentId}: {Error}",
+                    result.Id,
+                    acquireOp.FirstError);
+
+                return OperationResult<bool>.CreateFailure(
+                    $"Failed to acquire content {result.Id}: {acquireOp.FirstError}");
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
     /// <summary>
     /// Acquires the latest GeneralsOnline version by searching and downloading.
     /// </summary>
     private async Task<OperationResult<List<ContentManifest>>> AcquireLatestVersionAsync(
         List<ContentManifest> oldManifests,
+        Guid? progressNotificationId,
         CancellationToken cancellationToken)
     {
         try
@@ -647,20 +739,11 @@ public class GeneralsOnlineProfileReconciler(
                     "No GeneralsOnline content found from provider");
             }
 
-            foreach (var result in allResults)
+            var items = allResults;
+            var acquireResult = await AcquireItemsAsync(items, progressNotificationId, cancellationToken);
+            if (!acquireResult.Success)
             {
-                var acquireOp = await contentOrchestrator.AcquireContentAsync(result, progress: null, cancellationToken);
-                cancellationToken.ThrowIfCancellationRequested();
-                if (!acquireOp.Success)
-                {
-                    logger.LogError(
-                        "[GO:Reconciler] Failed to acquire content {ContentId}: {Error}",
-                        result.Id,
-                        acquireOp.FirstError);
-
-                    return OperationResult<List<ContentManifest>>.CreateFailure(
-                        $"Failed to acquire content {result.Id}: {acquireOp.FirstError}");
-                }
+                return OperationResult<List<ContentManifest>>.CreateFailure(acquireResult.FirstError ?? "Failed to acquire content");
             }
 
             var allGoManifests = await FindGeneralsOnlineManifestsAsync(cancellationToken);

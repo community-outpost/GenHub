@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -14,6 +16,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
@@ -94,81 +97,99 @@ public class CommunityOutpostProfileReconciler(
             var strategy = promptResult.Strategy;
             var shouldDeleteOldVersions = promptResult.ShouldDeleteOldVersions;
 
-            // Step 2: Notify user that update is being installed
-            notificationService.ShowInfo(
-                "Community Patch Update Found",
+            var progressNotificationId = Guid.NewGuid();
+            var progressNotification = new NotificationMessage(
+                NotificationType.Info,
+                "Community Patch Update",
                 $"Installing Community Patch {updateResult.LatestVersion}. Please wait...",
-                NotificationDurations.VeryLong);
-
-            // Step 3: Find all Community Outpost manifests currently installed
-            var oldManifests = await FindCommunityOutpostManifestsAsync(cancellationToken);
-            if (oldManifests.Count == 0)
+                autoDismissMilliseconds: null,
+                isPersistent: true)
             {
-                logger.LogWarning("[CO Reconciler] No existing Community Outpost manifests found in pool");
-            }
+                Id = progressNotificationId,
+            };
+            notificationService.Show(progressNotification);
 
-            logger.LogInformation(
-                "[CO Reconciler] Found {Count} existing Community Outpost manifests to replace",
-                oldManifests.Count);
-
-            // Step 4: Download and acquire new content
-            var acquireResult = await AcquireLatestVersionAsync(oldManifests, cancellationToken);
-            if (!acquireResult.Success)
+            try
             {
-                notificationService.ShowError(
-                    "Community Patch Update Failed",
-                    $"Failed to download update: {acquireResult.FirstError}",
-                    NotificationDurations.Critical);
+                // Step 3: Find all Community Outpost manifests currently installed
+                var oldManifests = await FindCommunityOutpostManifestsAsync(cancellationToken);
+                if (oldManifests.Count == 0)
+                {
+                    logger.LogWarning("[CO Reconciler] No existing Community Outpost manifests found in pool");
+                }
 
-                return OperationResult<bool>.CreateFailure(
-                    $"Failed to acquire new Community Patch version: {acquireResult.FirstError}");
+                logger.LogInformation(
+                    "[CO Reconciler] Found {Count} existing Community Outpost manifests to replace",
+                    oldManifests.Count);
+
+                // Step 4: Download and acquire new content
+                var acquireResult = await AcquireLatestVersionAsync(oldManifests, progressNotificationId, cancellationToken);
+                if (!acquireResult.Success)
+                {
+                    notificationService.ShowError(
+                        "Community Patch Update Failed",
+                        $"Failed to download update: {acquireResult.FirstError}",
+                        NotificationDurations.Critical);
+
+                    return OperationResult<bool>.CreateFailure(
+                        $"Failed to acquire new Community Patch version: {acquireResult.FirstError}");
+                }
+
+                var newManifests = acquireResult.Data!;
+                logger.LogInformation(
+                    "[CO Reconciler] Successfully acquired {Count} new manifests",
+                    newManifests.Count);
+
+                notificationService.Update(
+                    progressNotificationId,
+                    "Applying update to profiles...",
+                    "Community Patch Update");
+
+                // Step 5: Update affected profiles based on strategy
+                var updateOutcome = await ApplyUpdateStrategyAsync(
+                    strategy,
+                    oldManifests,
+                    newManifests,
+                    updateResult.LatestVersion ?? "Unknown",
+                    shouldDeleteOldVersions,
+                    cancellationToken);
+
+                if (!updateOutcome.Success)
+                {
+                    return OperationResult<bool>.CreateFailure(updateOutcome.FirstError ?? "Update strategy execution failed");
+                }
+
+                var profilesUpdated = updateOutcome.ProfilesUpdated;
+                var anyFailure = updateOutcome.AnyFailure;
+                shouldDeleteOldVersions = updateOutcome.ShouldDeleteOldVersions;
+
+                // Step 6: Run garbage collection (only if old versions were deleted AND no failures occurred)
+                if (shouldDeleteOldVersions && !anyFailure)
+                {
+                    await reconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
+                }
+                else if (shouldDeleteOldVersions && anyFailure)
+                {
+                    logger.LogWarning("[CO Reconciler] Skipping scheduled GC due to partial update failure to avoid deleting referenced content.");
+                }
+
+                // Step 7: Show success notification
+                notificationService.ShowSuccess(
+                    "Community Patch Updated",
+                    $"Successfully updated to version {updateResult.LatestVersion}. {profilesUpdated} profiles {(strategy == UpdateStrategy.CreateNewProfile ? "created" : "updated")}.",
+                    NotificationDurations.Long);
+
+                logger.LogInformation(
+                    "[CO Reconciler] Reconciliation complete. Processed {ProfileCount} profiles with strategy {Strategy}",
+                    profilesUpdated,
+                    strategy);
+
+                return OperationResult<bool>.CreateSuccess(true);
             }
-
-            var newManifests = acquireResult.Data!;
-            logger.LogInformation(
-                "[CO Reconciler] Successfully acquired {Count} new manifests",
-                newManifests.Count);
-
-            // Step 5: Update affected profiles based on strategy
-            var updateOutcome = await ApplyUpdateStrategyAsync(
-                strategy,
-                oldManifests,
-                newManifests,
-                updateResult.LatestVersion ?? "Unknown",
-                shouldDeleteOldVersions,
-                cancellationToken);
-
-            if (!updateOutcome.Success)
+            finally
             {
-                return OperationResult<bool>.CreateFailure(updateOutcome.FirstError ?? "Update strategy execution failed");
+                notificationService.Dismiss(progressNotificationId);
             }
-
-            var profilesUpdated = updateOutcome.ProfilesUpdated;
-            var anyFailure = updateOutcome.AnyFailure;
-            shouldDeleteOldVersions = updateOutcome.ShouldDeleteOldVersions;
-
-            // Step 6: Run garbage collection (only if old versions were deleted AND no failures occurred)
-            if (shouldDeleteOldVersions && !anyFailure)
-            {
-                await reconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
-            }
-            else if (shouldDeleteOldVersions && anyFailure)
-            {
-                logger.LogWarning("[CO Reconciler] Skipping scheduled GC due to partial update failure to avoid deleting referenced content.");
-            }
-
-            // Step 7: Show success notification
-            notificationService.ShowSuccess(
-                "Community Patch Updated",
-                $"Successfully updated to version {updateResult.LatestVersion}. {profilesUpdated} profiles {(strategy == UpdateStrategy.CreateNewProfile ? "created" : "updated")}.",
-                NotificationDurations.Long);
-
-            logger.LogInformation(
-                "[CO Reconciler] Reconciliation complete. Processed {ProfileCount} profiles with strategy {Strategy}",
-                profilesUpdated,
-                strategy);
-
-            return OperationResult<bool>.CreateSuccess(true);
         }
         catch (OperationCanceledException)
         {
@@ -186,9 +207,6 @@ public class CommunityOutpostProfileReconciler(
         }
     }
 
-    /// <summary>
-    /// Builds a mapping from old manifest IDs to new manifest IDs.
-    /// </summary>
     private static Dictionary<string, string> BuildManifestMapping(
         IReadOnlyList<ContentManifest> oldManifests,
         IReadOnlyList<ContentManifest> newManifests)
@@ -197,10 +215,8 @@ public class CommunityOutpostProfileReconciler(
 
         foreach (var oldManifest in oldManifests)
         {
-            // Find corresponding new manifest by matching content type
-            var newManifest = newManifests.FirstOrDefault(n =>
-                n.ContentType == oldManifest.ContentType &&
-                n.Publisher?.PublisherType == oldManifest.Publisher?.PublisherType);
+            var newManifest = newManifests
+                .FirstOrDefault(n => n.ContentType == oldManifest.ContentType);
 
             if (newManifest != null)
             {
@@ -211,9 +227,6 @@ public class CommunityOutpostProfileReconciler(
         return mapping;
     }
 
-    /// <summary>
-    /// Finds all Community Outpost manifests currently in the manifest pool.
-    /// </summary>
     private async Task<List<ContentManifest>> FindCommunityOutpostManifestsAsync(
         CancellationToken cancellationToken)
     {
@@ -228,11 +241,78 @@ public class CommunityOutpostProfileReconciler(
                 m.Publisher?.PublisherType?.Equals(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase) == true)];
     }
 
-    /// <summary>
-    /// Acquires the latest Community Outpost version by searching and downloading.
-    /// </summary>
+    private IProgress<ContentAcquisitionProgress>? CreateAcquisitionProgress(
+        Guid? progressNotificationId,
+        string itemName,
+        int currentItemIndex,
+        int totalItems)
+    {
+        if (!progressNotificationId.HasValue)
+        {
+            return null;
+        }
+
+        var notificationId = progressNotificationId.Value;
+        var lastNotificationTimestamp = Stopwatch.GetTimestamp();
+
+        return new Progress<ContentAcquisitionProgress>(p =>
+        {
+            var elapsedMs = Stopwatch.GetElapsedTime(lastNotificationTimestamp).TotalMilliseconds;
+            if (elapsedMs < ManifestConstants.NotificationUpdateThrottleMs && p.ProgressPercentage < 100)
+            {
+                return;
+            }
+
+            lastNotificationTimestamp = Stopwatch.GetTimestamp();
+            var status = p.FormatProgressStatus();
+            var message = totalItems > 1
+                ? $"[{currentItemIndex}/{totalItems}] {itemName}: {status}"
+                : $"{itemName}: {status}";
+
+            notificationService.Update(
+                notificationId,
+                message,
+                "Community Patch Update");
+        });
+    }
+
+    private async Task<OperationResult<bool>> AcquireItemsAsync(
+        IReadOnlyList<ContentSearchResult> items,
+        Guid? progressNotificationId,
+        CancellationToken cancellationToken)
+    {
+        int totalItems = items.Count;
+        int currentItemIndex = 0;
+
+        foreach (var result in items)
+        {
+            currentItemIndex++;
+            var progress = CreateAcquisitionProgress(
+                progressNotificationId,
+                result.Name,
+                currentItemIndex,
+                totalItems);
+
+            var acquireOp = await contentOrchestrator.AcquireContentAsync(result, progress, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!acquireOp.Success)
+            {
+                logger.LogError(
+                    "[CO:Reconciler] Failed to acquire content {ContentId}: {Error}",
+                    result.Id,
+                    acquireOp.FirstError);
+
+                return OperationResult<bool>.CreateFailure(
+                    $"Failed to acquire Community Patch content {result.Id}: {acquireOp.FirstError}");
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
     private async Task<OperationResult<List<ContentManifest>>> AcquireLatestVersionAsync(
         IReadOnlyList<ContentManifest> oldManifests,
+        Guid? progressNotificationId,
         CancellationToken cancellationToken)
     {
         try
@@ -254,20 +334,11 @@ public class CommunityOutpostProfileReconciler(
                     "No Community Outpost content found from provider");
             }
 
-            foreach (var result in searchResult.Data)
+            var items = searchResult.Data.ToList();
+            var acquireResult = await AcquireItemsAsync(items, progressNotificationId, cancellationToken);
+            if (!acquireResult.Success)
             {
-                var acquireOp = await contentOrchestrator.AcquireContentAsync(result, progress: null, cancellationToken);
-                cancellationToken.ThrowIfCancellationRequested();
-                if (!acquireOp.Success)
-                {
-                    logger.LogError(
-                        "[CO:Reconciler] Failed to acquire content {ContentId}: {Error}",
-                        result.Id,
-                        acquireOp.FirstError);
-
-                    return OperationResult<List<ContentManifest>>.CreateFailure(
-                        $"Failed to acquire Community Patch content {result.Id}: {acquireOp.FirstError}");
-                }
+                return OperationResult<List<ContentManifest>>.CreateFailure(acquireResult.FirstError ?? "Failed to acquire content");
             }
 
             var allManifests = await FindCommunityOutpostManifestsAsync(cancellationToken);
@@ -328,8 +399,31 @@ public class CommunityOutpostProfileReconciler(
                    Name = $"{profile.Name} (v{newVersion})",
                    GameInstallationId = profile.GameInstallationId,
                    WorkspaceStrategy = profile.WorkspaceStrategy,
-                   GameClient = profile.GameClient,
+                   GameClient = profile.GameClient, // Default to old, override below if mapping exists
                 };
+
+                // Update GameClient if mapped
+                if (profile.GameClient != null && manifestMapping.TryGetValue(profile.GameClient.Id, out var newClientId))
+                {
+                    var matchedManifest = newManifests.FirstOrDefault(m => m.Id.Value == newClientId);
+                    if (matchedManifest != null)
+                    {
+                        cloneRequest.GameClient = new Core.Models.GameClients.GameClient
+                        {
+                            Id = matchedManifest.Id.Value,
+                            Name = matchedManifest.Name,
+                            Version = matchedManifest.Version ?? string.Empty,
+                            GameType = matchedManifest.TargetGame,
+                            SourceType = matchedManifest.ContentType,
+                            PublisherType = matchedManifest.Publisher?.PublisherType,
+                            InstallationId = profile.GameClient.InstallationId,
+                        };
+                    }
+                }
+                else if (profile.GameClient != null)
+                {
+                    logger.LogDebug("No manifest mapping found for GameClient '{ClientId}' in profile '{ProfileName}'. Preserving existing client.", profile.GameClient.Id, profile.Name);
+                }
 
                 // Calculate new content IDs
                 var newEnabledContent = new List<string>();
@@ -390,7 +484,7 @@ public class CommunityOutpostProfileReconciler(
 
         var dialogResult = await dialogService.ShowUpdateOptionDialogAsync(
             "Community Patch Update Available",
-            $"A new version of **Community Patch** is available (v{updateResult.LatestVersion}).\n\nHow do you want to apply this update?");
+            $"A new version of the **Community Patch** is available ({updateResult.LatestVersion}).\n\nHow do you want to apply this update?");
 
         if (dialogResult == null)
         {
@@ -417,7 +511,7 @@ public class CommunityOutpostProfileReconciler(
 
         if (dialogResult.IsDoNotAskAgain)
         {
-            logger.LogInformation("[CO Reconciler] Saving user preference for Community Patch updates");
+            logger.LogInformation("[CO Reconciler] Saving user preference for Community Outpost updates");
             await userSettingsService.TryUpdateAndSaveAsync(s =>
             {
                 s.SetAutoUpdatePreference(CommunityOutpostConstants.PublisherType, true);
@@ -447,7 +541,7 @@ public class CommunityOutpostProfileReconciler(
 
         if (strategy == UpdateStrategy.CreateNewProfile)
         {
-            // Force keep old versions if creating new profiles
+            // keep old versions when creating new profiles
             shouldDeleteOldVersions = false;
 
             var createResult = await CreateNewProfilesForUpdateAsync(oldManifests, newManifests, latestVersion, cancellationToken);
@@ -464,7 +558,6 @@ public class CommunityOutpostProfileReconciler(
             return (true, null, profilesUpdated, anyFailure, shouldDeleteOldVersions);
         }
 
-        // ReplaceCurrent
         var manifestMapping = BuildManifestMapping(oldManifests, newManifests);
         var bulkUpdateResult = await reconciliationService.OrchestrateBulkUpdateAsync(
             manifestMapping,
@@ -477,14 +570,14 @@ public class CommunityOutpostProfileReconciler(
             if (bulkUpdateResult.Data.FailedProfilesCount > 0)
             {
                 anyFailure = true;
-                notificationService.ShowWarning("Community Patch Update Partial", $"{bulkUpdateResult.Data.FailedProfilesCount} profiles could not be updated. Check logs for details.");
+                notificationService.ShowWarning("Community Patch Update Partial", $"{bulkUpdateResult.Data.FailedProfilesCount} profiles could not be updated.", NotificationDurations.VeryLong);
             }
 
             return (true, null, profilesUpdated, anyFailure, shouldDeleteOldVersions);
         }
 
         anyFailure = true;
-        notificationService.ShowWarning("Community Patch Update Partial", $"Some profiles could not be updated: {bulkUpdateResult.FirstError}");
+        notificationService.ShowWarning("Community Patch Update Partial", $"Some profiles could not be updated: {bulkUpdateResult.FirstError}", NotificationDurations.VeryLong);
         return (false, $"Bulk update failed: {bulkUpdateResult.FirstError}", profilesUpdated, anyFailure, shouldDeleteOldVersions);
     }
 }

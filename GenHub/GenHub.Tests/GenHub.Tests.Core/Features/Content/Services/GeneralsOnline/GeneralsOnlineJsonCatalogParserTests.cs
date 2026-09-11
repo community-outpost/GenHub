@@ -202,4 +202,35 @@ public class GeneralsOnlineJsonCatalogParserTests
         Assert.NotNull(release);
         Assert.Equal(expectedSha256, release.Sha256);
     }
+
+    /// <summary>
+    /// Tests that ParseAsync correctly parses day releases without QFE (e.g. 082826).
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ParseAsync_WithDayReleaseWithoutQfe_ParsesCorrectlyAsync()
+    {
+        // Arrange
+        var json = @"{
+            ""version"": ""082826"",
+            ""download_url"": ""https://example.com/GeneralsOnline_portable_082826.7z"",
+            ""size"": 30108752,
+            ""release_notes"": ""www.playgenerals.online""
+        }";
+
+        var wrapper = $"{{\"source\":\"manifest\",\"data\":{json}}}";
+
+        // Act
+        var result = await _parser.ParseAsync(wrapper, _provider);
+
+        // Assert
+        Assert.True(result.Success);
+        var item = result.Data.First();
+        Assert.Equal("082826", item.Version);
+        Assert.Equal("Generals Online 082826", item.Description);
+        var release = item.GetData<GeneralsOnlineRelease>();
+        Assert.NotNull(release);
+        Assert.Equal("082826", release.Version);
+        Assert.Equal(new DateTime(2026, 8, 28, 0, 0, 0, DateTimeKind.Utc), release.VersionDate);
+    }
 }

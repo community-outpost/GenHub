@@ -381,7 +381,6 @@ public sealed class PlaywrightService(
         }
 
         await DisposeCoreAsync().ConfigureAwait(false);
-        GC.SuppressFinalize(this);
     }
 
     /// <inheritdoc />
@@ -593,6 +592,17 @@ public sealed class PlaywrightService(
         }
 
         return orderedUnique;
+    }
+
+    private static async Task<Task> WaitForCompletionOrCancellationAsync(
+        Task saveTask,
+        TaskCompletionSource<bool> cancelTcs,
+        CancellationToken cancellationToken)
+    {
+        using (cancellationToken.Register(() => cancelTcs.TrySetResult(true)))
+        {
+            return await Task.WhenAny(saveTask, cancelTcs.Task);
+        }
     }
 
     /// <summary>
@@ -1176,26 +1186,23 @@ public sealed class PlaywrightService(
                 });
 
             var ctx = context;
-            context.Close += (_, _) =>
-            {
-                Task.Run(
-                    async () =>
+            context.Close += (_, _) => Task.Run(
+                async () =>
+                {
+                    await _persistentLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                    try
                     {
-                        await _persistentLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-                        try
+                        if (ReferenceEquals(_persistentContext, ctx))
                         {
-                            if (ReferenceEquals(_persistentContext, ctx))
-                            {
-                                ResetPersistentContextState();
-                            }
+                            ResetPersistentContextState();
                         }
-                        finally
-                        {
-                            _persistentLock.Release();
-                        }
-                    },
-                    CancellationToken.None);
-            };
+                    }
+                    finally
+                    {
+                        _persistentLock.Release();
+                    }
+                },
+                CancellationToken.None);
 
             _persistentContext = context;
             _persistentProfileName = profileDir;
@@ -1286,52 +1293,49 @@ public sealed class PlaywrightService(
             return;
         }
 
-        List<IPage> pages;
         try
         {
-            pages = [.. _persistentContext.Pages];
+            var pages = _persistentContext.Pages;
+            var blankPages = new List<IPage>();
+            foreach (var existing in pages)
+            {
+                if (existing == keepPage || existing.IsClosed || _inUsePersistentPages.Contains(existing))
+                {
+                    continue;
+                }
+
+                string url = string.Empty;
+                try
+                {
+                    url = existing.Url ?? string.Empty;
+                }
+                catch (PlaywrightException ex) when (IsContextClosedError(ex))
+                {
+                    continue;
+                }
+
+                if (IsBlankStartupUrl(url))
+                {
+                    blankPages.Add(existing);
+                }
+            }
+
+            // Close all orphan blank pages.
+            foreach (var blankPage in blankPages)
+            {
+                try
+                {
+                    await blankPage.CloseAsync();
+                }
+                catch (PlaywrightException ex)
+                {
+                    logger.LogDebug(ex, "Could not close orphan startup page; it may have closed already.");
+                }
+            }
         }
         catch (PlaywrightException ex) when (IsContextClosedError(ex))
         {
             logger.LogDebug(ex, "Persistent context closed while collecting orphan startup pages.");
-            return;
-        }
-
-        var blankPages = new List<IPage>();
-        foreach (var existing in pages)
-        {
-            if (existing == keepPage || existing.IsClosed || _inUsePersistentPages.Contains(existing))
-            {
-                continue;
-            }
-
-            string url = string.Empty;
-            try
-            {
-                url = existing.Url ?? string.Empty;
-            }
-            catch (PlaywrightException ex) when (IsContextClosedError(ex))
-            {
-                continue;
-            }
-
-            if (IsBlankStartupUrl(url))
-            {
-                blankPages.Add(existing);
-            }
-        }
-
-        // Close all orphan blank pages.
-        foreach (var blankPage in blankPages)
-        {
-            try
-            {
-                await blankPage.CloseAsync();
-            }
-            catch (PlaywrightException ex)
-            {
-                logger.LogDebug(ex, "Could not close orphan startup page; it may have closed already.");
-            }
         }
     }
 
@@ -1346,7 +1350,7 @@ public sealed class PlaywrightService(
         var runtime = GetOrCreateManagedChromiumRuntime();
         runtime.ConfigureEnvironment();
 
-        IPlaywright playwright;
+        IPlaywright playwright = null!;
         await _playwrightLock.WaitAsync(cancellationToken);
         try
         {
@@ -1684,10 +1688,8 @@ public sealed class PlaywrightService(
         }
 
         var cancelTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var registration = linkedCts.Token.Register(() => cancelTcs.TrySetResult(true));
-
         var saveTask = download.SaveAsAsync(configuration.DestinationPath);
-        var completedTask = await Task.WhenAny(saveTask, cancelTcs.Task);
+        var completedTask = await WaitForCompletionOrCancellationAsync(saveTask, cancelTcs, linkedCts.Token);
 
         if (completedTask != saveTask)
         {

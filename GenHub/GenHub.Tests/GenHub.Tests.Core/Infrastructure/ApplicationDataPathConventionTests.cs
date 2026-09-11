@@ -36,8 +36,8 @@ public class ApplicationDataPathConventionTests
         ["GenHub/GenHub/Common/Services/AppConfiguration.cs"] = "Resolves the legacy roaming root the upgrade migration reads from.",
         ["GenHub/GenHub/Common/Services/UserSettingsService.cs"] = "Loads the settings file that stores the override; cannot depend on it.",
 
-        // Displays the built-in default next to the user's override in the UI.
-        ["GenHub/GenHub/Features/Settings/ViewModels/SettingsViewModel.cs"] = "Computes the factory-default path to show on reset.",
+        // Legacy action set marker migration from Roaming AppData into LocalAppData.
+        ["GenHub/GenHub.Core/Features/ActionSets/BaseActionSet.cs"] = "Migrates legacy fix markers from roaming AppData into LocalAppData.",
 
         // Core-layer fallback, overridden at the composition root by ContentPipelineModule.
         ["GenHub/GenHub.Core/Services/Providers/ProviderDefinitionLoader.cs"] = "Default only; the DI registration supplies an override.",
@@ -47,6 +47,9 @@ public class ApplicationDataPathConventionTests
 
         // Safety check protecting special OS folders from accidental recursive deletion.
         ["GenHub/GenHub/Features/Tools/ModBuilder/ViewModels/ModBuilderViewModel.cs"] = "Safety check protecting special OS folders from accidental recursive deletion.",
+
+        // Custom install cleanup removes empty legacy Roaming AppData folder left from earlier versions.
+        ["GenHub/GenHub/Common/Services/StorageMigrationService.cs"] = "Cleans orphaned legacy Roaming AppData folder when running from custom install root.",
     };
 
     /// <summary>
@@ -89,7 +92,7 @@ public class ApplicationDataPathConventionTests
         }
 
         var message =
-            $"The following files read Environment.SpecialFolder.ApplicationData directly instead of " +
+            "The following files read Environment.SpecialFolder.ApplicationData directly instead of " +
             $"using IConfigurationProviderService.GetApplicationDataPath():\n{string.Join('\n', violations)}\n\n" +
             "If this is intentional (e.g. bootstrapping, or defining the default for the UI), " +
             "add the file to the allowlist in ApplicationDataPathConventionTests with an explanation.";

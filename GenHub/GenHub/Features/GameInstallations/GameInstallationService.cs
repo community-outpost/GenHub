@@ -40,6 +40,9 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
     private ReadOnlyCollection<GameInstallation>? _cachedInstallations;
     private bool _disposed = false;
 
+    /// <inheritdoc/>
+    public IReadOnlyList<GameInstallation>? CachedInstallations => Volatile.Read(ref _cachedInstallations);
+
     /// <summary>
     /// Gets a game installation by its ID.
     /// </summary>
@@ -108,7 +111,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
         _cacheLock.Wait();
         try
         {
-            _cachedInstallations = null;
+            Volatile.Write(ref _cachedInstallations, null);
             logger.LogInformation("Installation cache invalidated");
         }
         finally
@@ -154,7 +157,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                 installationsList.Add(installation);
 
                 // Update cache with new ReadOnlyCollection
-                _cachedInstallations = installationsList.AsReadOnly();
+                Volatile.Write(ref _cachedInstallations, installationsList.AsReadOnly());
 
                 logger.LogInformation(
                     "Added installation to cache: {InstallationType} at {Path} (ID: {Id})",
@@ -903,7 +906,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
             // Generate manifests and populate AvailableVersions for each installation
             await PopulateGameClientsAndManifestsAsync(installations, cancellationToken);
 
-            _cachedInstallations = installations.AsReadOnly();
+            Volatile.Write(ref _cachedInstallations, installations.AsReadOnly());
 
             logger.LogInformation(
                     "[DIAGNOSTIC] Cache initialized with {Count} total installations",

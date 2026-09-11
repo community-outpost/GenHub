@@ -29,4 +29,9 @@ public static class TimeIntervals
     /// Delay for hiding UI notifications.
     /// </summary>
     public static readonly TimeSpan NotificationHideDelay = TimeSpan.FromMilliseconds(3000);
+
+    /// <summary>
+    /// Delay for hiding error UI notifications.
+    /// </summary>
+    public static readonly TimeSpan ErrorNotificationHideDelay = TimeSpan.FromMilliseconds(6000);
 }

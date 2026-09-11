@@ -1270,7 +1270,8 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
             {
                 return votes;
             }
-            else if (!string.IsNullOrEmpty(votesText))
+
+            if (!string.IsNullOrEmpty(votesText))
             {
                 // "12 people found this helpful" — take the leading integer when present.
                 var digits = new string(votesText.TakeWhile(char.IsDigit).ToArray());
@@ -2542,17 +2543,25 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
     }
 
     /// <summary>
-    /// Returns the canonical base URL without query parameters, fragments, or trailing slashes.
+    /// Returns the canonical base URI without query parameters, fragments, or trailing slashes.
     /// </summary>
-    private static string GetCanonicalBaseUrl(string url)
+    private static Uri GetCanonicalBaseUri(Uri uri)
     {
-        var normalized = NormalizeToHttps(url);
+        ArgumentNullException.ThrowIfNull(uri);
+        var path = uri.AbsolutePath.TrimEnd('/');
+        return new Uri($"{UriConstants.HttpsUriScheme}{uri.Authority}{path}", UriKind.Absolute);
+    }
+
+    private static Uri GetCanonicalBaseUri(string uriString)
+    {
+        var normalized = NormalizeToHttps(uriString);
         if (Uri.TryCreate(normalized, UriKind.Absolute, out var uri))
         {
-            return $"{UriConstants.HttpsUriScheme}{uri.Authority}{uri.AbsolutePath.TrimEnd('/')}";
+            return GetCanonicalBaseUri(uri);
         }
 
-        return normalized.Split('?')[0].Split('#')[0].TrimEnd('/');
+        var clean = normalized.Split('?')[0].Split('#')[0].TrimEnd('/');
+        return new Uri(clean, UriKind.RelativeOrAbsolute);
     }
 
     /// <summary>
@@ -2563,7 +2572,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
     {
         if (IsModDetailPage(url))
         {
-            var baseUrl = GetCanonicalBaseUrl(url);
+            var baseUrl = GetCanonicalBaseUri(url).ToString().TrimEnd('/');
 
             return
             [
@@ -2580,7 +2589,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
         var parentModUrl = ExtractParentModUrl(url);
         if (!string.IsNullOrEmpty(parentModUrl))
         {
-            var baseUrl = GetCanonicalBaseUrl(parentModUrl);
+            var baseUrl = GetCanonicalBaseUri(parentModUrl).ToString().TrimEnd('/');
 
             return
             [
@@ -3352,7 +3361,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
         sections.AddRange(ExtractReviews(document));
         sections.AddRange(ExtractComments(document));
 
-        var baseUrl = GetCanonicalBaseUrl(url);
+        var baseUrl = GetCanonicalBaseUri(url).ToString().TrimEnd('/');
         AppendFetchedSections(sections, baseUrl, fetched);
         return DeduplicateSections(sections);
     }
@@ -3391,7 +3400,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
             sections.AddRange(ExtractReviews(parentDoc));
             sections.AddRange(ExtractComments(parentDoc));
 
-            var baseUrl = GetCanonicalBaseUrl(parentModUrl);
+            var baseUrl = GetCanonicalBaseUri(parentModUrl).ToString().TrimEnd('/');
             AppendFetchedSections(sections, baseUrl, fetched);
         }
 

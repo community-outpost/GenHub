@@ -26,6 +26,11 @@ public static class GenLauncherConstants
     public const string GibExtension = ".gib";
 
     /// <summary>
+    /// Contra mod inactive .big file extension.
+    /// </summary>
+    public const string CtrExtension = ".ctr";
+
+    /// <summary>
     /// Standard .big file extension.
     /// </summary>
     public const string BigExtension = ".big";
@@ -43,5 +48,14 @@ public static class GenLauncherConstants
         ReplaceSuffix,
         OriginalFileSuffix,
         TempCopySuffix,
+    ];
+
+    /// <summary>
+    /// Extensions for inactive BIG archive files used by mods/launchers.
+    /// </summary>
+    public static readonly string[] InactiveBigExtensions =
+    [
+        GibExtension,
+        CtrExtension,
     ];
 }

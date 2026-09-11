@@ -3,24 +3,28 @@ title: Downloads Flow
 description: Complete user flow for downloading and installing content in GenHub
 ---
 
-## Flowchart: Downloads User Flow
+# Downloads Flow
 
 > [!NOTE]
-> This document details the **Unified Downloads Flow** designed and implemented in PR #265 (`feat/ui-downloads`), illustrating how user interaction in `DownloadsBrowserViewModel` connects with discovery, resolution, state tracking via `ContentStateService`, and content acquisition.
+> This document details the **Unified Downloads User Flow** implemented in PR #443 (`feat/downloads-browser`, carved from PR #265 `feat/ui-downloads`), illustrating how user interaction in `DownloadsBrowserViewModel` connects with discovery, resolution, state tracking via `ContentStateService`, background download coordination via `ContentDownloadCoordinator`, and game profile integration.
 
-This flowchart details the complete user journey from browsing publishers to downloading and installing content, including state management, profile selection, and caching.
+This flowchart details the complete user journey from browsing publishers to downloading, verifying, and adding content to profiles, including state management, deduplication, and caching.
+
+---
 
 ## Table of Contents
 
 1. [User Browsing Flow](#user-browsing-flow)
 2. [Content State Management](#content-state-management)
 3. [Publisher Selection](#publisher-selection)
-4. [Content Acquisition Flow (Updated)](#content-acquisition-flow-updated)
+4. [Content Acquisition Flow](#content-acquisition-flow)
 5. [Profile Selection Flow](#profile-selection-flow)
-6. [ModDB Integration](#moddb-integration)
+6. [Roadmap & External Web Scraper Pipeline](#roadmap--external-web-scraper-pipeline)
 7. [Content Caching Layer](#content-caching-layer)
 8. [Key Components](#key-components)
 9. [Error Handling](#error-handling)
+
+---
 
 ## User Browsing Flow
 
@@ -39,31 +43,31 @@ This flowchart details the complete user journey from browsing publishers to dow
 flowchart TD
     subgraph User["👤 User Actions"]
         A["Open Downloads Tab"]
-        B["Select Publisher<br/>(ModDB, CNC Labs, etc.)"]
-        C["Browse/Search Content"]
+        B["Select Publisher<br/>(Generals Online, SuperHackers, Outpost, GitHub, Subscriptions)"]
+        C["Browse / Filter / Search"]
         D["Click Content Card"]
-        E["View Details"]
+        E["View Details Overlay"]
         F["Click Download"]
     end
 
     subgraph ViewModel["📱 DownloadsBrowserViewModel"]
-        V1["LoadPublishersAsync()"]
-        V2["SetSelectedPublisher()"]
-        V3["DiscoverContentAsync()"]
-        V4["OpenContentDetail()"]
+        V1["CreateBuiltInPublishers()"]
+        V2["HandleSelectedPublisherChanged()"]
+        V3["PopulatePublisherContentAsync()"]
+        V4["ViewContentCommand"]
         V5["DownloadContentCommand"]
     end
 
-    subgraph Pipeline["🔧 Content Pipeline"]
+    subgraph Pipeline["🔧 Content Pipeline & Services"]
         P1["IContentDiscoverer"]
         P2["ContentDiscoveryResult"]
-        P3["IContentResolver"]
-        P4["IContentManifestFactory"]
+        P3["ContentDownloadCoordinator"]
+        P4["IContentOrchestrator"]
     end
 
-    subgraph Storage["💾 Storage"]
-        S1["CAS Service"]
-        S2["Manifest Pool"]
+    subgraph Storage["💾 Storage & Pools"]
+        S1["ICasService (CAS)"]
+        S2["IContentManifestPool"]
         S3["Profile Integration"]
     end
 
@@ -96,11 +100,13 @@ flowchart TD
     class S1,S2,S3 storage
 ```
 
+---
+
 ## Content State Management
 
-The `ContentStateService` determines the current state of content for UI display, enabling the Downloads browser to show appropriate buttons (Download, Update, Add to Profile) based on content availability.
+The `ContentStateService` centralizes content state determination for UI display, enabling the Downloads browser to show appropriate buttons (Download, Update, Add to Profile) based on local manifest presence.
 
-### State Flow Diagram
+### State Transitions
 
 ```mermaid
 %%{init: {
@@ -115,39 +121,37 @@ The `ContentStateService` determines the current state of content for UI display
 }}%%
 
 stateDiagram-v2
-    [*] --> NotDownloaded: Content discovered
-    NotDownloaded --> Downloaded: Download complete
-    Downloaded --> UpdateAvailable: Newer version found
-    UpdateAvailable --> Downloaded: Update downloaded
-    Downloaded --> [*]: Content removed
-    NotDownloaded --> [*]: Content skipped
+    [*] --> NotDownloaded: Discovered
+    NotDownloaded --> Downloaded: Download completed
+    Downloaded --> UpdateAvailable: Newer release found
+    UpdateAvailable --> Downloaded: Update acquired
+    Downloaded --> [*]: Uninstalled
+    NotDownloaded --> [*]: Skipped
 
     NotDownloaded: Show "Download" button
     Downloaded: Show "Add to Profile" button
     UpdateAvailable: Show "Update" button
 ```
 
-### ContentStateService
+### ContentStateService Mechanics
 
 **Location**: `GenHub/Features/Downloads/Services/ContentStateService.cs`
 
-The service uses the 5-segment manifest ID format to detect content versions:
+The service uses the 5-segment manifest ID structure to correlate content versions:
 
 ```text
 Format: schemaVersion.userVersion.publisher.contentType.contentName
-Example: 1.20240315.moddbauthor.mod.releasename
+Example: 1.20240315.superhackers.patch.generals
 ```
 
 **Detection Logic**:
 
-1. **Exact Match Check**: Generates prospective manifest ID using `ManifestIdGenerator.GeneratePublisherContentId(publisher, contentType, name, releaseDate)`
-2. **Update Detection**: Searches for manifests with same publisher, contentType, and contentName but older userVersion (date)
-3. **State Determination**:
-   - `Downloaded`: Exact match found in manifest pool
-   - `UpdateAvailable`: Older version found
-   - `NotDownloaded`: No versions found
-
-**Usage Example**:
+1. **Exact Match**: Generates prospective manifest ID using `ManifestIdGenerator.GeneratePublisherContentId(publisher, contentType, name, releaseDate)` and checks `IContentManifestPool.IsManifestAcquiredAsync(id)`.
+2. **Update Detection**: Searches for local manifests with matching publisher, contentType, and contentName but older `userVersion`.
+3. **State Evaluation**:
+   - `Downloaded`: Exact match found in manifest pool.
+   - `UpdateAvailable`: Older version found in pool.
+   - `NotDownloaded`: No matching version found.
 
 ```csharp
 var state = await contentStateService.GetStateAsync(searchResult);
@@ -157,7 +161,7 @@ switch (state)
         // Show Download button
         break;
     case ContentState.UpdateAvailable:
-        // Show Update button
+        // Show Update button (orange accent)
         break;
     case ContentState.Downloaded:
         // Show "Add to Profile" button
@@ -183,11 +187,11 @@ sequenceDiagram
     participant VM as ContentGridItemViewModel
     participant CSS as ContentStateService
     participant MIG as ManifestIdGenerator
-    participant Pool as ManifestPool
+    participant Pool as IContentManifestPool
 
     VM->>CSS: GetStateAsync(searchResult)
     CSS->>MIG: GeneratePublisherContentId(publisher, type, name, date)
-    MIG-->>CSS: "1.20240315.moddbauthor.mod.mycontent"
+    MIG-->>CSS: prospective manifest ID
     CSS->>Pool: IsManifestAcquiredAsync(prospectiveId)
 
     alt Exact Match Found
@@ -196,7 +200,7 @@ sequenceDiagram
     else No Exact Match
         Pool-->>CSS: false
         CSS->>Pool: GetAllManifestsAsync()
-        Pool-->>CSS: List&lt;ContentManifest&gt;
+        Pool-->>CSS: List of ContentManifest
         CSS->>CSS: FindOlderVersionsAsync()
 
         alt Older Version Found
@@ -206,6 +210,8 @@ sequenceDiagram
         end
     end
 ```
+
+---
 
 ## Publisher Selection
 
@@ -222,20 +228,17 @@ sequenceDiagram
 }}%%
 
 flowchart LR
-    subgraph Sidebar["Publisher Sidebar"]
-        P1["🎮 ModDB"]
-        P2["🗺️ CNC Labs"]
-        P3["🗺️ AOD Maps"]
-        P4["🔧 Community Outpost"]
-        P5["🐙 GitHub"]
-        P6["🌐 Generals Online"]
+    subgraph Sidebar["Active Publisher Sidebar"]
+        P1["🌐 Generals Online (Static)"]
+        P2["⚡ TheSuperHackers (Static)"]
+        P3["🔧 Community Outpost (Static)"]
+        P4["🐙 GitHub Topics (Dynamic)"]
+        P5["📦 Subscribed Creator Catalogs"]
     end
 
-    subgraph Filter["Filter Panel"]
-        F1["Content Type"]
-        F2["Game (Generals/ZH)"]
-        F3["Search Term"]
-        F4["Sort Order"]
+    subgraph Filter["Filter Panel / Search"]
+        F1["FilterPanelView (Dynamic)"]
+        F2["Search Box (when CanSearch=true)"]
     end
 
     subgraph Grid["Content Grid"]
@@ -244,13 +247,15 @@ flowchart LR
         G3["ContentCardView n..."]
     end
 
-    P1 & P2 & P3 & P4 & P5 & P6 --> Filter
+    P1 & P2 & P3 & P4 & P5 --> Filter
     Filter --> Grid
 ```
 
-## Content Acquisition Flow (Updated)
+---
 
-This sequence diagram shows the complete flow from download to profile integration, including state detection and profile selection.
+## Content Acquisition Flow
+
+This sequence diagram illustrates the coordinated download pipeline managed by `ContentDownloadCoordinator`:
 
 ```mermaid
 %%{init: {
@@ -269,72 +274,54 @@ sequenceDiagram
     participant UI as ContentCardView
     participant VM as ContentGridItemViewModel
     participant BVM as DownloadsBrowserViewModel
+    participant CDC as ContentDownloadCoordinator
     participant CO as ContentOrchestrator
+    participant CAS as ICasService
+    participant Pool as IContentManifestPool
     participant CSS as ContentStateService
-    participant R as Resolver
-    participant MIG as ManifestIdGenerator
-    participant MF as ManifestFactory
-    participant DS as DownloadService
-    participant CAS as CAS Service
-    participant Pool as ManifestPool
     participant PS as ProfileSelectionViewModel
     participant PCS as ProfileContentService
 
     User->>UI: Click "Download" / "Update"
-    UI->>VM: DownloadCommand / UpdateCommand
+    UI->>VM: DownloadContentCommand
+    VM->>VM: IsDownloading = true
     VM->>BVM: DownloadContentAsync(item)
 
-    Note over BVM: Resolve manifest via Orchestrator
-    BVM->>CO: ResolveManifestAsync(searchResult)
-    CO->>R: ResolveAsync(searchResult)
+    BVM->>CDC: DownloadContentAsync(searchResult, progress)
+    Note over CDC: Deduplicate concurrent in-flight requests
+    CDC->>CO: AcquireContentAsync(searchResult, progress)
 
-    alt ModDB Content
-        R->>R: Parse page (Playwright + AngleSharp)
-        R->>R: Extract files with FileSectionType
-    end
+    Note over CO: Download archive, extract payload,<br/>store CAS files, generate manifest
+    CO->>CAS: StoreContentAsync (deduplicated payload)
+    CO->>Pool: Register acquired ContentManifest
+    CO-->>CDC: OperationResult&lt;ContentManifest&gt;
 
-    R->>MIG: GeneratePublisherContentId()
-    Note over MIG: Format: 1.yyyyMMdd.publisher.type.name
-    MIG-->>R: Manifest ID
+    CDC->>CSS: NotifyStateChanged(manifest.Id, ContentState.Downloaded)
+    CDC-->>BVM: OperationResult&lt;ContentManifest&gt;
 
-    R->>MF: CreateManifestAsync(details)
-    MF-->>R: ContentManifest
-    R-->>CO: ContentManifest
-    CO-->>BVM: ContentManifest
-
-    Note over BVM: Download files to temp
-    BVM->>DS: DownloadFileAsync(url, tempPath)
-
-    Note over BVM: Store manifest in pool (pool delegates to CAS)
-    BVM->>Pool: AddManifestAsync(manifest, tempDir)
-    Pool->>CAS: StoreContentAsync for each file (via ContentStorageService)
-    CAS-->>Pool: ContentAddress references
-    Pool-->>BVM: Success
-
-    Note over BVM: Update item state
-    BVM->>VM: CurrentState = Downloaded
+    BVM->>BVM: HandleSuccessfulAcquisitionAsync()
+    BVM->>VM: CurrentState = Downloaded, IsDownloaded = true
     VM->>UI: Show "Add to Profile" button
 
-    Note over User: Content ready for profiles
+    Note over User: Content ready for profile attachment
     User->>UI: Click "Add to Profile"
-    UI->>BVM: AddContentToProfileAsync(item)
-    BVM->>PS: LoadProfilesAsync(targetGame, manifestId)
+    UI->>BVM: AddContentToProfileCommand
+    BVM->>PS: LoadProfilesAsync(targetGame, manifestId, contentName)
 
-    Note over PS: Filter by game type compatibility
-    PS->>PS: Separate compatible vs incompatible
-    PS-->>User: Show profile dialog
+    Note over PS: Partition profiles by target game
+    PS-->>User: Show ProfileSelectionView modal
 
-    User->>PS: Select profile
+    User->>PS: Select profile & confirm
     PS->>PCS: AddContentToProfileAsync(profileId, manifestId)
     PCS-->>PS: Success
-    PS-->>User: Close dialog + notification
+    PS-->>User: Close dialog & toast success
 ```
+
+---
 
 ## Profile Selection Flow
 
-The `ProfileSelectionViewModel` provides smart filtering for game profiles, showing compatible profiles first and incompatible profiles with warnings. This ensures content is added to the correct game type profile.
-
-### Profile Selection Diagram
+The `ProfileSelectionViewModel` provides compatibility filtering for game profiles, showing compatible profiles first and flagging incompatible profiles with warnings to prevent accidental cross-game attachment.
 
 ```mermaid
 %%{init: {
@@ -358,9 +345,8 @@ flowchart TD
             C2["Profile 2 (Zero Hour)"]
         end
 
-        subgraph Incompatible["⚠️ Incompatible Profiles"]
-            I1["Profile 3 (Generals)<br/>Warning: Content is for Zero Hour"]
-            I2["Profile 4 (Generals)<br/>Warning: Content is for Zero Hour"]
+        subgraph Incompatible["⚠️ Other Profiles"]
+            I1["Profile 3 (Generals)<br/>Warning: Mismatched Game Type"]
         end
 
         Buttons["Create New Profile | Cancel"]
@@ -370,32 +356,6 @@ flowchart TD
     SelectProfile --> PCS[ProfileContentService]
     PCS --> Profile[Add content to profile]
     Profile --> Notify[Show success notification]
-```
-
-### Smart Filtering Logic
-
-**Location**: `GenHub/Features/Downloads/ViewModels/ProfileSelectionViewModel.cs`
-
-The profile selection uses the following compatibility rules:
-
-| Content Type | Compatible Profile | Incompatible Profile |
-| :--- | :--- | :--- |
-| ZeroHour Mod | Zero Hour profiles | Generals profiles |
-| Generals Mod | Generals profiles | Zero Hour profiles |
-
-**Key Methods**:
-
-- `LoadProfilesAsync(targetGame, contentManifestId, contentName)` - Loads and filters profiles
-- `IsCompatible(profile, targetGame)` - Checks if profile's game type matches content
-- `CreateNewProfileAsync()` - Creates a new profile with the content pre-enabled
-
-**Profile Summary Display**:
-
-```text
-"2 compatible, 1 incompatible"  - Mixed compatibility
-"3 compatible profiles"          - All compatible
-"1 incompatible profile"         - All incompatible
-"No profiles available"          - No profiles exist
 ```
 
 ### Profile Selection Sequence Diagram
@@ -416,153 +376,45 @@ sequenceDiagram
     participant User
     participant CDVM as ContentDetailViewModel
     participant PSVM as ProfileSelectionViewModel
-    participant PM as ProfileManager
+    participant PM as IGameProfileManager
     participant PCS as ProfileContentService
-    participant Profile as GameProfile
 
     User->>CDVM: Click "Add to Profile"
-    CDVM->>PSVM: Create(targetGame, manifestId, contentName)
+    CDVM->>PSVM: LoadProfilesAsync(targetGame, manifestId, contentName)
     PSVM->>PM: GetAllProfilesAsync()
-    PM-->>PSVM: List<GameProfile>
+    PM-->>PSVM: List of GameProfile
 
     loop For each profile
         PSVM->>PSVM: IsCompatible(profile, targetGame)
         alt Game Type Matches
             PSVM->>PSVM: Add to CompatibleProfiles
         else Game Type Mismatch
-            PSVM->>PSVM: Add to OtherProfiles<br/>with warning
+            PSVM->>PSVM: Add to OtherProfiles with warning
         end
     end
 
     PSVM-->>User: Show dialog with filtered profiles
     User->>PSVM: Select profile
     PSVM->>PCS: AddContentToProfileAsync(profileId, manifestId)
-    PCS->>Profile: Add content
     PCS-->>PSVM: Success
     PSVM-->>User: Close dialog + notify
 ```
 
-## ModDB Integration
+---
 
-ModDB content discovery uses a two-stage approach: Playwright for JavaScript-rendered content, followed by AngleSharp for structured HTML parsing. The parser distinguishes between main releases (Downloads section) and addons.
+## Roadmap & External Web Scraper Pipeline
 
-### ModDB Parsing Flow
+Web-scraping discoverers for external repositories (ModDB, CNC Labs, AOD Maps) are part of GenHub's content ingestion architecture:
 
-```mermaid
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#e2e8f0',
-    'primaryTextColor': '#1a202c',
-    'primaryBorderColor': '#4a5568',
-    'lineColor': '#2d3748',
-    'background': '#ffffff'
-  }
-}}%%
+- **ModDB Web Ingestion**: Uses Playwright for JavaScript rendering and AngleSharp for structured HTML extraction. Supports persistent browser cookies for Cloudflare clearance.
+- **Section Parsing**: Handles separate `/downloads` and `/addons` sections with `FileSectionType.Downloads` vs `FileSectionType.Addons`.
+- **Planned Browser Integration**: Once scraper sandboxes are finalized, these providers will be added to the downloads browser sidebar alongside static partners.
 
-flowchart TD
-    Start["ModDB URL"] --> Playwright["Playwright Fetch<br/>(handles JavaScript)"]
-    Playwright --> HTML["Raw HTML"]
-    HTML --> AngleSharp["AngleSharp Parser<br/>(structured extraction)"]
-
-    AngleSharp --> Detect{Page Type?}
-
-    Detect -->|Mod Detail| Detail["Detail Page"]
-    Detect -->|File Detail| FileDetail["File Detail Page"]
-    Detect -->|List| List["List Page<br/>(addons/images)"]
-
-    Detail --> FetchBoth["Fetch Both Sections"]
-    FetchBoth --> Downloads["/downloads section<br/>(FileSectionType.Downloads)"]
-    FetchBoth --> Addons["/addons section<br/>(FileSectionType.Addons)"]
-
-    Downloads --> Files["Extract Files"]
-    Addons --> Files
-    FileDetail --> Files
-    List --> Files
-
-    Files --> Parse["Parse File Metadata"]
-    Parse --> SectionTag["Tag with FileSectionType"]
-    SectionTag --> Result["ParsedWebPage"]
-```
-
-### FileSectionType Enum
-
-**Location**: `GenHub/Core/Models/Parsers/FileSectionType.cs`
-
-```csharp
-public enum FileSectionType
-{
-    /// <summary>Files from the main releases/downloads section</summary>
-    Downloads,
-
-    /// <summary>Files from the addons section</summary>
-    Addons,
-}
-```
-
-### Addon-Only Mod Handling
-
-For mods that only have addons (no main downloads):
-
-1. **Detection**: Parser detects mod detail pages without a `/downloads` section
-2. **Addons Section**: Fetches `/addons` subsection and parses with `FileSectionType.Addons`
-3. **Manifest Creation**: Each addon gets its own manifest with `ContentType.Addon`
-4. **Content Type**: Addons are tagged separately from main mod releases
-
-### ModDB Resolver Flow
-
-```mermaid
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#e2e8f0',
-    'primaryTextColor': '#1a202c',
-    'primaryBorderColor': '#4a5568',
-    'lineColor': '#2d3748',
-    'background': '#ffffff'
-  }
-}}%%
-
-sequenceDiagram
-    participant DC as DownloadsBrowserViewModel
-    participant MR as ModDBResolver
-    participant MP as ModDBPageParser
-    participant MF as ModDBManifestFactory
-    participant MIG as ManifestIdGenerator
-
-    DC->>MR: ResolveAsync(searchResult)
-    MR->>MP: ParseAsync(sourceUrl)
-
-    alt Mod Detail Page
-        MP->>MP: Fetch /downloads
-        MP->>MP: Fetch /addons
-        MP-->>MR: ParsedWebPage with both sections
-    else Standard Page
-        MP-->>MR: ParsedWebPage
-    end
-
-    MR->>MR: Extract files from parsed page
-
-    alt Has Downloads Section Files
-        MR->>MR: Use primary file from Downloads
-    else Only Addons
-        MR->>MR: Use primary file from Addons
-    end
-
-    MR->>MR: ConvertFileToMapDetails(file)
-    Note over MR: ContentType = Addon if<br/>FileSectionType.Addons
-
-    MR->>MF: CreateManifestAsync(mapDetails, sourceUrl)
-    MF->>MIG: GeneratePublisherContentId()
-    Note over MIG: Uses release date as version<br/>Format: 1.yyyyMMdd.publisher.type.name
-    MIG-->>MF: Manifest ID
-    MF-->>MR: ContentManifest
-    MR-->>DC: ContentManifest with section metadata tags
-```
+---
 
 ## Content Caching Layer
 
-The `ContentCacheService` provides an in-memory cache for parsed web page content with a configurable TTL (Time To Live). This reduces redundant fetching and parsing of the same pages.
+The `ContentCacheService` provides an in-memory cache for parsed content with a configurable TTL (Time To Live). This reduces redundant network traffic and page parsing.
 
 ### Cache Architecture
 
@@ -597,79 +449,9 @@ flowchart LR
     Has --> CacheStore
     Invalidate --> CacheStore
     Clear --> CacheStore
-
-    CacheEntry["CacheEntry<br/>- ParsedWebPage Data<br/>- ExpiresAt DateTime"]
-
-    CacheStore --> CacheEntry
 ```
 
-### Cache Service Details
-
-**Location**: `GenHub/Features/Content/Services/ContentCacheService.cs`
-
-| Method | Purpose | Returns |
-| :--- | :--- | :--- |
-| `GetAsync(cacheKey)` | Retrieve cached content | `ParsedWebPage?` or `null` if expired/missing |
-| `SetAsync(cacheKey, data, ttl?)` | Store content in cache | `Task` (completed) |
-| `HasValidCache(cacheKey)` | Check if valid cache exists | `bool` |
-| `Invalidate(cacheKey)` | Remove specific entry | `void` |
-| `ClearAll()` | Clear all cache entries | `void` |
-
-**Cache Entry Structure**:
-
-```csharp
-private record CacheEntry(
-    ParsedWebPage Data,      // The cached parsed page
-    DateTime ExpiresAt       // When the cache expires
-);
-```
-
-**Default TTL**: 1 hour (`TimeSpan.FromHours(1)`)
-
-### Lazy Loading for Tabs
-
-The `ContentDetailViewModel` implements lazy loading for detail view tabs to improve performance:
-
-```mermaid
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#e2e8f0',
-    'primaryTextColor': '#1a202c',
-    'primaryBorderColor': '#4a5568',
-    'lineColor': '#2d3748',
-    'background': '#ffffff'
-  }
-}}%%
-
-flowchart TD
-    User["User opens detail view"] --> Basic["Load Basic Content"]
-    Basic --> Icon["Load Icon"]
-    Icon --> Idle["Idle State"]
-
-    Idle --> ImagesTab["User clicks Images tab"]
-    Idle --> VideosTab["User clicks Videos tab"]
-    Idle --> ReleasesTab["User clicks Releases tab"]
-    Idle --> AddonsTab["User clicks Addons tab"]
-
-    ImagesTab --> LoadImages["LoadImagesAsync()"]
-    VideosTab --> LoadVideos["LoadVideosAsync()"]
-    ReleasesTab --> LoadReleases["LoadReleasesAsync()"]
-    AddonsTab --> LoadAddons["LoadAddonsAsync()"]
-
-    LoadImages --> ImagesDone["Images loaded (flag set)"]
-    LoadVideos --> VideosDone["Videos loaded (flag set)"]
-    LoadReleases --> ReleasesDone["Releases populated"]
-    LoadAddons --> AddonsDone["Addons populated"]
-```
-
-**Lazy Load Flags**:
-
-- `_imagesLoaded` - Prevents re-loading images tab
-- `_videosLoaded` - Prevents re-loading videos tab
-- `_releasesLoaded` - Prevents re-loading releases tab
-- `_addonsLoaded` - Prevents re-loading addons tab
-- `_basicContentLoaded` - Basic page info loaded on open
+---
 
 ## Key Components
 
@@ -677,117 +459,80 @@ flowchart TD
 
 **Location**: `GenHub/Features/Downloads/ViewModels/DownloadsBrowserViewModel.cs`
 
-| Property/Command | Type | Purpose |
+| Property / Command | Type | Purpose |
 | :--- | :--- | :--- |
 | `Publishers` | `ObservableCollection<PublisherItemViewModel>` | Available content sources |
-| `SelectedPublisher` | `PublisherItemViewModel` | Currently selected publisher |
-| `ContentItems` | `ObservableCollection<ContentGridItemViewModel>` | Discovered content |
-| `FilterViewModel` | `IFilterPanelViewModel` | Publisher-specific filters |
-| `DownloadContentCommand` | `IAsyncRelayCommand` | Initiates download |
-| `AddContentToProfileCommand` | `IAsyncRelayCommand` | Adds content to profile |
+| `SelectedPublisher` | `PublisherItemViewModel?` | Currently selected publisher |
+| `ContentItems` | `ObservableCollection<ContentGridItemViewModel>` | Discovered content items |
+| `CurrentFilterViewModel` | `IFilterPanelViewModel?` | Publisher-specific filter model |
+| `DownloadContentCommand` | `IAsyncRelayCommand` | Initiates content acquisition |
+| `AddContentToProfileCommand` | `IAsyncRelayCommand` | Opens profile selection modal and attaches content |
+| `ViewContentCommand` | `IRelayCommand` | Opens content detail view overlay |
+
+### ContentDownloadCoordinator
+
+**Location**: `GenHub/Features/Downloads/Services/ContentDownloadCoordinator.cs`
+
+| Method | Return Type | Purpose |
+| :--- | :--- | :--- |
+| `DownloadContentAsync` | `Task<OperationResult<ContentManifest>>` | Deduplicates in-flight downloads, multiplexes progress, acquires content via `IContentOrchestrator`, and updates `ContentStateService`. |
+| `IsDownloading` | `bool` | Checks whether content is actively downloading. |
+| `TryGetDownloadProgress` | `bool` | Retrieves current progress percentage and message for in-flight tasks. |
 
 ### ContentGridItemViewModel
 
 **Location**: `GenHub/Features/Downloads/ViewModels/ContentGridItemViewModel.cs`
 
-Represents a single content item in the grid with:
-
-- Title, description, preview image
-- Publisher info and tags
-- Download URL and content type
-- Installation status tracking via `CurrentState` property
-
-**State-Dependent UI Properties**:
-
 | Property | Condition | Purpose |
 | :--- | :--- | :--- |
-| `ShowDownloadButton` | `CurrentState == NotDownloaded` | Shows download button |
-| `ShowUpdateButton` | `CurrentState == UpdateAvailable` | Shows update button |
-| `ShowAddToProfileButton` | `CurrentState == Downloaded` | Shows "Add to Profile" button |
-| `CanDownload` | `!IsDownloaded && !IsDownloading` | Enables download action |
-
-### ContentDetailViewModel
-
-**Location**: `GenHub/Features/Downloads/ViewModels/ContentDetailViewModel.cs`
-
-Provides detailed content view with lazy-loaded tabs:
-
-- **Overview Tab**: Basic content info (loaded immediately)
-- **Images Tab**: Gallery images (loaded on first access)
-- **Videos Tab**: Embedded videos (loaded on first access)
-- **Releases Tab**: Main downloads section files (loaded on first access)
-- **Addons Tab**: Addon section files (loaded on first access)
-
-**Lazy Loading Implementation**:
-
-```csharp
-private bool _imagesLoaded;
-private bool _videosLoaded;
-private bool _releasesLoaded;
-private bool _addonsLoaded;
-private bool _basicContentLoaded;
-
-[RelayCommand]
-private async Task LoadImagesAsync()
-{
-    if (_imagesLoaded || IsLoadingImages) return;
-    // ... load images
-    _imagesLoaded = true;
-}
-```
+| `ShowDownloadButton` | `CurrentState == NotDownloaded` | Shows download action |
+| `ShowUpdateButton` | `CurrentState == UpdateAvailable` | Shows update action |
+| `ShowAddToProfileButton` | `CurrentState == Downloaded` | Shows profile addition action |
+| `CanDownload` | `!IsDownloaded && !IsDownloading` | Enables download button |
 
 ### Filter ViewModels
 
-Each publisher has a specialized filter ViewModel:
+**Location**: `GenHub/Features/Downloads/ViewModels/Filters/`
 
-| Publisher | Filter ViewModel | Special Filters |
+| Publisher | Filter ViewModel | Capabilities |
 | :--- | :--- | :--- |
-| ModDB | `ModDBFilterViewModel` | Category, release date |
-| CNC Labs | `CNCLabsFilterViewModel` | Map size, player count |
-| AOD Maps | `AODMapsFilterViewModel` | Map type |
-| Community Outpost | `CommunityOutpostFilterViewModel` | Tool vs patch |
-| GitHub | `GitHubFilterViewModel` | Repository, release type |
+| GitHub | `GitHubFilterViewModel` | Sort order (recent, popular), release types |
+| Community Outpost | `CommunityOutpostFilterViewModel` | Content type (tools vs. patches) |
+| TheSuperHackers | `SuperHackersFilterViewModel` | Game client vs. patch releases |
+| Static Curated | `StaticPublisherFilterViewModel` | Content type and target game |
 
-### ContentStateService Reference
+### ContentStateService
 
 **Location**: `GenHub/Features/Downloads/Services/ContentStateService.cs`
 
-| Method | Purpose |
+| Method / Event | Purpose |
 | :--- | :--- |
-| `GetStateAsync(item)` | Gets current state (NotDownloaded, UpdateAvailable, Downloaded) |
-| `GetLocalManifestIdAsync(item)` | Returns local manifest ID if downloaded |
+| `GetStateAsync(item)` | Evaluates state (`NotDownloaded`, `UpdateAvailable`, `Downloaded`) |
+| `GetStateByManifestIdAsync(manifestId)` | Checks state for a specific manifest ID |
+| `NotifyStateChanged(contentId, newState)` | Broadcasts state updates to UI subscribers |
+| `ContentStateChanged` | Event raised when content state changes |
 
-### ProfileSelectionViewModel
-
-**Location**: `GenHub/Features/Downloads/ViewModels/ProfileSelectionViewModel.cs`
-
-| Property | Type | Purpose |
-| :--- | :--- | :--- |
-| `CompatibleProfiles` | `ObservableCollection<ProfileOptionViewModel>` | Matching game type profiles |
-| `OtherProfiles` | `ObservableCollection<ProfileOptionViewModel>` | Non-matching profiles with warnings |
-| `ProfileSummary` | `string` | Human-readable profile counts |
-| `SelectProfileCommand` | `IAsyncRelayCommand` | Adds content to selected profile |
-| `CreateNewProfileCommand` | `IAsyncRelayCommand` | Creates new profile with content |
+---
 
 ## Error Handling
 
 ```mermaid
 flowchart TD
-    D["Download Attempt"] --> N{Network OK?}
-    N -->|No| E1["Show network error<br/>+ retry option"]
-    N -->|Yes| A{Auth Required?}
-    A -->|Yes| E2["Prompt for auth<br/>(ModDB WAF)"]
-    A -->|No| DL["Download File"]
-    DL --> V{Valid File?}
-    V -->|No| E3["Show validation error"]
-    V -->|Yes| EX{Extract OK?}
-    EX -->|No| E4["Show extraction error<br/>fallback to single file"]
-    EX -->|Yes| S["Store in CAS"]
-    S --> M["Create Manifest"]
+    D["Download Attempt"] --> N{"Network Available?"}
+    N -->|No| E1["Show network error toast + retry"]
+    N -->|Yes| DL["Acquire via Orchestrator"]
+    DL --> V{"Valid Content & Checksum?"}
+    V -->|No| E2["Show validation / hash error"]
+    V -->|Yes| EX{"Payload Extraction OK?"}
+    EX -->|No| E3["Show extraction error"]
+    EX -->|Yes| S["Store in CAS & Pool"]
+    S --> M["Notify State Service & UI"]
 ```
+
+---
 
 ## Related Documentation
 
-- [Content Pipeline](../features/content/content-pipeline.md) - Detailed pipeline architecture
-- [Discovery Flow](./Discovery-Flow.md) - Discovery process
-- [Acquisition Flow](./Acquisition-Flow.md) - Content acquisition
+- [Downloads Browser Feature Guide](../features/downloads.md) - Complete feature documentation.
+- [Downloads UI & Views Architecture](../features/downloads-ui.md) - UI controls, view models, and styling.
+- [Content Pipeline Flow](../features/content/content-pipeline.md) - Detailed pipeline architecture.

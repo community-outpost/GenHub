@@ -13,6 +13,15 @@ public static class ModDBConstants
     /// <summary>Base URL for ModDB website.</summary>
     public const string BaseUrl = "https://www.moddb.com";
 
+    /// <summary>Domain name fragment for ModDB URLs.</summary>
+    public const string DomainFragment = "moddb.com";
+
+    /// <summary>URL path fragment identifying mods.</summary>
+    public const string ModsPathFragment = "/mods/";
+
+    /// <summary>URL path fragment identifying addons.</summary>
+    public const string AddonsPathFragment = "/addons/";
+
     /// <summary>
     /// URL to the ModDB icon.
     /// </summary>
