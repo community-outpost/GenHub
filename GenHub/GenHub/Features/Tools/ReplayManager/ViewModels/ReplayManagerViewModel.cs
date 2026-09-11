@@ -1786,19 +1786,19 @@ public partial class ReplayManagerViewModel(
     [RelayCommand]
     private Task MintCheckpointAsync() => CreateCheckpointAsync();
 
-    private int GetReplayFps()
+    private static int GetReplayFps(ReplayFile? replay, GameProfile? profile)
     {
-        if (ActiveCheckpointReplay?.Metadata?.FramesPerSecond is { } fps && fps > 0)
+        if (replay?.Metadata?.FramesPerSecond is { } fps && fps > 0)
         {
             return fps;
         }
 
-        if (IsGeneralsOnlineProfile(SelectedCompatibleProfile))
+        if (IsGeneralsOnlineProfile(profile))
         {
             return 60;
         }
 
-        return ActiveCheckpointReplay?.FramesPerSecond ?? 30;
+        return replay?.FramesPerSecond ?? 30;
     }
 
     private static bool IsGeneralsOnlineProfile(GameProfile? profile)
@@ -1817,7 +1817,7 @@ public partial class ReplayManagerViewModel(
 
     private void UpdateReplayTimingBounds()
     {
-        var fps = GetReplayFps();
+        var fps = GetReplayFps(ActiveCheckpointReplay, SelectedCompatibleProfile);
         var totalFrames = ActiveCheckpointReplay?.Metadata?.TotalFrames;
 
         if (totalFrames is > 0)
@@ -1833,7 +1833,7 @@ public partial class ReplayManagerViewModel(
         else
         {
             MaxCheckpointSeconds = 600;
-            MaxCheckpointFrames = (int)(600 * fps);
+            MaxCheckpointFrames = 600 * fps;
         }
 
         var maxTs = TimeSpan.FromSeconds(MaxCheckpointSeconds);
@@ -1850,7 +1850,7 @@ public partial class ReplayManagerViewModel(
 
     private void UpdateCheckpointTimingDisplay()
     {
-        var fps = GetReplayFps();
+        var fps = GetReplayFps(ActiveCheckpointReplay, SelectedCompatibleProfile);
         var seconds = Math.Max(1, (int)Math.Round(TargetCheckpointTimeSeconds));
         var frame = Math.Max(1, (int)Math.Round(seconds * (double)fps));
         if (MaxCheckpointFrames > 0 && frame > MaxCheckpointFrames)
