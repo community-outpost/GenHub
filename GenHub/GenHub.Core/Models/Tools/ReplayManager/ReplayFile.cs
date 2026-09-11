@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
 
@@ -11,6 +12,7 @@ namespace GenHub.Core.Models.Tools.ReplayManager;
 public sealed class ReplayFile : IExportableFile
 {
     private const string UnknownValue = "Unknown";
+    private bool _supportsCheckpoints;
 
     /// <summary>
     /// Gets or sets the full path to the replay file.
@@ -63,9 +65,42 @@ public sealed class ReplayFile : IExportableFile
     public string? MatchingProfileName { get; set; }
 
     /// <summary>
+    /// Gets or sets the unique identifier of the compatible game profile configured to provide checkpoint recovery capabilities.
+    /// </summary>
+    public string? RecoveryProfileId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the display name of the compatible game profile configured to provide checkpoint recovery capabilities.
+    /// </summary>
+    public string? RecoveryProfileName { get; set; }
+
+    /// <summary>
     /// Gets the formatted file size string.
     /// </summary>
     public string FormattedSize => FormatFileSize(SizeInBytes);
+
+    /// <summary>
+    /// Gets the estimated frame rate in frames per second (e.g. 60 for GeneralsOnline, 30 for classic/retail).
+    /// </summary>
+    public int FramesPerSecond
+    {
+        get
+        {
+            if (Metadata?.FramesPerSecond is { } fps && fps > 0)
+            {
+                return fps;
+            }
+
+            var isGeneralsOnline = (MatchedClient != null && (string.Equals(MatchedClient.Publisher, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+                                                             MatchedClient.ManifestId.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+                                                             MatchedClient.Description.Contains("60Hz", StringComparison.OrdinalIgnoreCase))) ||
+                                   (Metadata?.VersionString?.Contains("60", StringComparison.OrdinalIgnoreCase) == true) ||
+                                   (Metadata?.BuildTimeString?.Contains("60", StringComparison.OrdinalIgnoreCase) == true) ||
+                                   (Metadata?.Title?.Contains("60Hz", StringComparison.OrdinalIgnoreCase) == true);
+
+            return isGeneralsOnline ? 60 : 30;
+        }
+    }
 
     /// <summary>
     /// Gets the user-facing display text for the game client and data patch version.
@@ -113,18 +148,31 @@ public sealed class ReplayFile : IExportableFile
     /// <summary>
     /// Gets the user-friendly compatibility status tooltip describing the state and CRC details.
     /// </summary>
-    public string CompatibilityTooltip => CompatibilityStatus switch
+    public string CompatibilityTooltip
     {
-        ReplayCompatibilityStatus.Compatible =>
-            $"Profile '{MatchingProfileName ?? MatchedClient?.Description ?? UnknownValue}' is ready with matching client and data patch. Click 'Play' to watch this replay.",
-        ReplayCompatibilityStatus.RequiresProfile =>
-            $"Game client and patch for '{MatchedClient?.Description ?? UnknownValue}' are available. Click 'Create Profile' to configure a dedicated profile.",
-        ReplayCompatibilityStatus.Downloadable =>
-            $"Game client and data patch for '{MatchedClient?.Description ?? UnknownValue}' can be downloaded. Click 'Setup' to acquire and configure this profile.",
-        ReplayCompatibilityStatus.Orphaned =>
-            $"Exe CRC {Metadata?.FormattedExeCrc ?? "N/A"} / INI CRC {Metadata?.FormattedIniCrc ?? "N/A"} is not in the official catalog. Click 'Profile' to configure using your base installation.",
-        _ => "Replay header metadata is not available or could not be parsed.",
-    };
+        get
+        {
+            var baseTooltip = CompatibilityStatus switch
+            {
+                ReplayCompatibilityStatus.Compatible =>
+                    $"Profile '{MatchingProfileName ?? MatchedClient?.Description ?? UnknownValue}' is ready with matching client and data patch. Click 'Play' to watch this replay.",
+                ReplayCompatibilityStatus.RequiresProfile =>
+                    $"Game client and patch for '{MatchedClient?.Description ?? UnknownValue}' are available. Click 'Create Profile' to configure a dedicated profile.",
+                ReplayCompatibilityStatus.Downloadable =>
+                    $"Game client and data patch for '{MatchedClient?.Description ?? UnknownValue}' can be downloaded. Click 'Setup' to acquire and configure this profile.",
+                ReplayCompatibilityStatus.Orphaned =>
+                    $"Exe CRC {Metadata?.FormattedExeCrc ?? "N/A"} / INI CRC {Metadata?.FormattedIniCrc ?? "N/A"} is not in the official catalog. Click 'Profile' to configure using your base installation.",
+                _ => "Replay header metadata is not available or could not be parsed.",
+            };
+
+            if (SupportsCheckpoints && !string.IsNullOrEmpty(RecoveryProfileName))
+            {
+                return $"{baseTooltip}\n\nRecovery Engine: Profile '{RecoveryProfileName}' supports checkpoint saves, replay resumption, and live match takeover.";
+            }
+
+            return baseTooltip;
+        }
+    }
 
     /// <summary>
     /// Gets the user-friendly tooltip for the Play Replay button showing which profile will be launched.
@@ -132,6 +180,36 @@ public sealed class ReplayFile : IExportableFile
     public string PlayButtonTooltip => CompatibilityStatus == ReplayCompatibilityStatus.Compatible && !string.IsNullOrEmpty(MatchingProfileName)
         ? $"Launch profile '{MatchingProfileName}' to watch this replay"
         : "Launch game profile matching this replay";
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this replay has a compatible client or recovery profile supporting checkpoint saves, replay resumption, and live player takeover.
+    /// </summary>
+    public bool SupportsCheckpoints
+    {
+        get => _supportsCheckpoints || MatchedClient?.SupportsCheckpoints == true;
+        set => _supportsCheckpoints = value;
+    }
+
+    /// <summary>
+    /// Gets the tooltip explaining the Checkpoint / Takeover feature availability.
+    /// </summary>
+    public string TakeoverButtonTooltip
+    {
+        get
+        {
+            if (!SupportsCheckpoints)
+            {
+                return "Checkpoint recovery and match takeover require a game client with checkpoint capabilities (e.g. MP-Recovery or modern community engine).";
+            }
+
+            if (!string.IsNullOrEmpty(RecoveryProfileName))
+            {
+                return $"Resume replay from a checkpoint save, or take over and play the match live as any player using profile '{RecoveryProfileName}'.";
+            }
+
+            return "Resume replay from a checkpoint save, or take over and play the match live as any player.";
+        }
+    }
 
     private static string FormatFileSize(long bytes) => bytes switch
     {

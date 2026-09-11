@@ -56,7 +56,7 @@ public sealed class ReplayHeaderParserTests
         writer.Write(0x76B251A3u);
 
         // 8. InitString ASCII null terminated with colon-separated slots
-        writer.Write(Encoding.ASCII.GetBytes("M=maps/defcon6/defcon6.map;S=HPlayerOne,0,0,1:HPlayerTwo,0,0,2:CAI_Easy,0,0,3:X:X;" + char.MinValue));
+        writer.Write(Encoding.ASCII.GetBytes("M=maps/defcon6/defcon6.map;S=HPlayerOne,127.0.0.1,8086,0,1,2:HPlayerTwo,127.0.0.1,8087,0,3,4:CE,5,6,0,1:X:X;" + char.MinValue));
 
         writer.Flush();
         stream.Position = 0;
@@ -74,11 +74,27 @@ public sealed class ReplayHeaderParserTests
         Assert.Equal("0x27533BB0", result.Data.FormattedExeCrc);
         Assert.Equal("0x76B251A3", result.Data.FormattedIniCrc);
         Assert.Equal("defcon6", result.Data.MapName);
+        Assert.Equal(300u, result.Data.TotalFrames);
+        Assert.Equal(30, result.Data.FramesPerSecond);
+        Assert.NotNull(result.Data.Duration);
+        Assert.Equal(TimeSpan.FromSeconds(10), result.Data.Duration.Value);
         Assert.NotNull(result.Data.Players);
         Assert.Equal(3, result.Data.Players.Count);
         Assert.Contains("PlayerOne", result.Data.Players);
         Assert.Contains("PlayerTwo", result.Data.Players);
-        Assert.Contains("AI_Easy", result.Data.Players);
+        Assert.Contains("AI (Easy)", result.Data.Players);
+
+        Assert.NotNull(result.Data.Slots);
+        Assert.Equal(3, result.Data.Slots.Count);
+        Assert.Equal("PlayerOne", result.Data.Slots[0].PlayerName);
+        Assert.True(result.Data.Slots[0].IsHuman);
+        Assert.Equal(1, result.Data.Slots[0].ColorIndex);
+        Assert.Equal(2, result.Data.Slots[0].FactionIndex);
+
+        Assert.Equal("AI (Easy)", result.Data.Slots[2].PlayerName);
+        Assert.False(result.Data.Slots[2].IsHuman);
+        Assert.Equal(5, result.Data.Slots[2].ColorIndex);
+        Assert.Equal(6, result.Data.Slots[2].FactionIndex);
     }
 
     /// <summary>
@@ -247,6 +263,46 @@ public sealed class ReplayHeaderParserTests
         Assert.NotNull(result.Data.Players);
         Assert.Single(result.Data.Players);
         Assert.Equal("Hank", result.Data.Players[0]);
+    }
+
+    /// <summary>
+    /// Verifies that a GeneralsOnline 60Hz replay stream correctly detects 60 FPS tick rate and computes duration accordingly.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ParseHeaderAsync_GeneralsOnline60HzReplayStream_Extracts60FpsAndDurationAsync()
+    {
+        using var stream = new MemoryStream();
+        using var writer = new BinaryWriter(stream, Encoding.ASCII, leaveOpen: true);
+
+        writer.Write(Encoding.ASCII.GetBytes("GENREP"));
+        writer.Write(1000u);
+        writer.Write(1100u);
+        writer.Write(6000u);
+        writer.Write((byte)1);
+        writer.Write((byte)2);
+        writer.Write(new byte[8]);
+
+        writer.Write(Encoding.Unicode.GetBytes("GeneralsOnline Match" + char.MinValue));
+        writer.Write(new byte[16]);
+        writer.Write(Encoding.Unicode.GetBytes("GeneralsOnline 1.04 (60Hz)" + char.MinValue));
+        writer.Write(Encoding.Unicode.GetBytes("Aug 21 2026" + char.MinValue));
+        writer.Write(20260821u);
+        writer.Write(0x27533BB0u);
+        writer.Write(0x76B251A3u);
+        writer.Write(Encoding.ASCII.GetBytes("M=maps/defcon6/defcon6.map;H=PlayerOne;" + char.MinValue));
+
+        writer.Flush();
+        stream.Position = 0;
+
+        var result = await _parser.ParseHeaderAsync(stream);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        Assert.NotNull(result.Data);
+        Assert.Equal(6000u, result.Data.TotalFrames);
+        Assert.Equal(60, result.Data.FramesPerSecond);
+        Assert.NotNull(result.Data.Duration);
+        Assert.Equal(TimeSpan.FromSeconds(100), result.Data.Duration.Value);
     }
 
     /// <summary>

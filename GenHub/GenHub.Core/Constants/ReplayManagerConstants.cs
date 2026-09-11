@@ -18,6 +18,61 @@ public static class ReplayManagerConstants
     public const string ZipFileExtension = ".zip";
 
     /// <summary>
+    /// File extension for Command &amp; Conquer save files.
+    /// </summary>
+    public const string SaveFileExtension = ".sav";
+
+    /// <summary>
+    /// Default folder name for game save files within user data.
+    /// </summary>
+    public const string SaveFolderName = "Save";
+
+    /// <summary>
+    /// Command line argument flag to skip intro cinematic sequences and menus.
+    /// </summary>
+    public const string CliQuickStart = "-quickstart";
+
+    /// <summary>
+    /// Command line argument flag to specify the replay file to play or scrub through.
+    /// </summary>
+    public const string CliReplay = "-replay";
+
+    /// <summary>
+    /// Command line argument flag to mint a checkpoint save at a target frame or comma-separated list of frames.
+    /// Used by preview checkpoint-recovery engine builds, gated via GameClientCapabilities.CheckpointSaves.
+    /// </summary>
+    public const string CliSaveAtFrame = "-saveatframe";
+
+    /// <summary>
+    /// Command line argument flag to specify the output checkpoint save file name.
+    /// Used by preview checkpoint-recovery engine builds, gated via GameClientCapabilities.CheckpointSaves.
+    /// </summary>
+    public const string CliSaveTo = "-saveto";
+
+    /// <summary>
+    /// Command line argument flag to quit the game cleanly after reaching a target frame.
+    /// Used by preview checkpoint-recovery engine builds, gated via GameClientCapabilities.CheckpointSaves.
+    /// </summary>
+    public const string CliQuitAtFrame = "-quitatframe";
+
+    /// <summary>
+    /// Command line argument flag to load a save file.
+    /// </summary>
+    public const string CliLoadSave = "-loadsave";
+
+    /// <summary>
+    /// Command line argument flag to resume playback of a replay file deterministically from a checkpoint save.
+    /// Used by preview checkpoint-recovery engine builds, gated via GameClientCapabilities.ReplayResumption.
+    /// </summary>
+    public const string CliResumeReplay = "-resumereplay";
+
+    /// <summary>
+    /// Command line argument flag to take over live control of a specified player slot index from a save.
+    /// Used by preview checkpoint-recovery engine builds, gated via GameClientCapabilities.PlayerTakeover.
+    /// </summary>
+    public const string CliResumeAs = "-resumeas";
+
+    /// <summary>
     /// Environment variable name to override the default community CRC mapping catalog endpoint.
     /// </summary>
     public const string CrcCatalogUrlEnvironmentVariable = "GENHUB_CRC_CATALOG_URL";
@@ -61,6 +116,11 @@ public static class ReplayManagerConstants
     /// Default file name for imported replays.
     /// </summary>
     public const string DefaultImportedReplayFileName = "imported_replay.rep";
+
+    /// <summary>
+    /// Error message returned when a checkpoint minting operation is canceled by the user.
+    /// </summary>
+    public const string CheckpointMintingCanceledErrorMessage = "Checkpoint minting canceled by user.";
 
     /// <summary>
     /// File pattern for replay ZIP archives.

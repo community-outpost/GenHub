@@ -24,9 +24,24 @@ public sealed class ReplayMetadata
     public IReadOnlyList<string>? Players { get; init; }
 
     /// <summary>
+    /// Gets the structured player slot definitions parsed from the match setup string.
+    /// </summary>
+    public IReadOnlyList<ReplaySlotInfo>? Slots { get; init; }
+
+    /// <summary>
     /// Gets the game duration.
     /// </summary>
     public TimeSpan? Duration { get; init; }
+
+    /// <summary>
+    /// Gets the total number of frames recorded in the replay.
+    /// </summary>
+    public uint? TotalFrames { get; init; }
+
+    /// <summary>
+    /// Gets the replay frame rate in frames per second (e.g. 30 or 60).
+    /// </summary>
+    public int? FramesPerSecond { get; init; }
 
     /// <summary>
     /// Gets the date the game was played.

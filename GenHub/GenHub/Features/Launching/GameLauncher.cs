@@ -233,14 +233,20 @@ public class GameLauncher(
     }
 
     /// <summary>
-    /// Launches a game profile by its ID.
+    /// Launches a game profile by its ID with optional transient command line arguments.
     /// </summary>
     /// <param name="profileId">The ID of the game profile to launch.</param>
     /// <param name="progress">Optional progress reporter for launch progress.</param>
     /// <param name="skipUserDataCleanup">Whether to skip cleanup of user data files (maps, etc.) from other profiles.</param>
     /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <param name="additionalArguments">Optional transient command line arguments to merge with profile launch options.</param>
     /// <returns>A <see cref="LaunchOperationResult{T}"/> representing the result of the launch operation.</returns>
-    public async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(string profileId, IProgress<LaunchProgress>? progress = null, bool skipUserDataCleanup = false, CancellationToken cancellationToken = default)
+    public async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(
+        string profileId,
+        IProgress<LaunchProgress>? progress = null,
+        bool skipUserDataCleanup = false,
+        CancellationToken cancellationToken = default,
+        IReadOnlyDictionary<string, string>? additionalArguments = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
 
@@ -255,18 +261,24 @@ public class GameLauncher(
         }
 
         var profile = profileResult.Data;
-        return await LaunchProfileAsync(profile, progress, skipUserDataCleanup, cancellationToken);
+        return await LaunchProfileAsync(profile, progress, skipUserDataCleanup, cancellationToken, additionalArguments);
     }
 
     /// <summary>
-    /// Launches a game using the provided game profile object.
+    /// Launches a game using the provided game profile object with optional transient command line arguments.
     /// </summary>
     /// <param name="profile">The game profile to launch.</param>
     /// <param name="progress">Optional progress reporter for launch progress.</param>
     /// <param name="skipUserDataCleanup">Whether to skip cleanup of user data files (maps, etc.) from other profiles.</param>
     /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <param name="additionalArguments">Optional transient command line arguments to merge with profile launch options.</param>
     /// <returns>A <see cref="LaunchOperationResult{T}"/> representing the result of the launch operation.</returns>
-    public async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, IProgress<LaunchProgress>? progress = null, bool skipUserDataCleanup = false, CancellationToken cancellationToken = default)
+    public async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(
+        GameProfile profile,
+        IProgress<LaunchProgress>? progress = null,
+        bool skipUserDataCleanup = false,
+        CancellationToken cancellationToken = default,
+        IReadOnlyDictionary<string, string>? additionalArguments = null)
     {
         ArgumentNullException.ThrowIfNull(profile);
 
@@ -313,7 +325,7 @@ public class GameLauncher(
             };
             await launchRegistry.RegisterLaunchAsync(placeholderLaunchInfo);
             logger.LogDebug("Registered placeholder launch {LaunchId} for profile {ProfileId} to prevent deletion during launch", launchId, profile.Id);
-            return await LaunchProfileAsync(profile, skipUserDataCleanup, progress, launchId, cancellationToken);
+            return await LaunchProfileAsync(profile, skipUserDataCleanup, additionalArguments, progress, launchId, cancellationToken);
         }
         finally
         {
@@ -465,6 +477,58 @@ public class GameLauncher(
         }
 
         return true;
+    }
+
+    private static OperationResult<bool> PopulateCommandLineArguments(
+        string commandLineArguments,
+        Dictionary<string, string> arguments)
+    {
+        var args = commandLineArguments.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var arg in args)
+        {
+            if (!IsValidCommandArgument(arg))
+            {
+                return OperationResult<bool>.CreateFailure($"Invalid command argument: {arg}");
+            }
+        }
+
+        var positionalIndex = 0;
+        foreach (var arg in args)
+        {
+            if (arg.StartsWith('-'))
+            {
+                arguments[arg] = string.Empty;
+            }
+            else
+            {
+                arguments[$"_pos{positionalIndex}"] = arg;
+                positionalIndex++;
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static OperationResult<bool> MergeAdditionalArguments(
+        IReadOnlyDictionary<string, string> additionalArguments,
+        Dictionary<string, string> arguments)
+    {
+        foreach (var kvp in additionalArguments)
+        {
+            if (!IsValidCommandArgument(kvp.Key))
+            {
+                return OperationResult<bool>.CreateFailure($"Invalid additional command argument key: {kvp.Key}");
+            }
+
+            if (!string.IsNullOrEmpty(kvp.Value) && !IsValidCommandArgument(kvp.Value))
+            {
+                return OperationResult<bool>.CreateFailure($"Invalid additional command argument value for '{kvp.Key}': {kvp.Value}");
+            }
+
+            arguments[kvp.Key] = kvp.Value;
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
     }
 
     /// <summary>
@@ -720,7 +784,7 @@ public class GameLauncher(
         return path.Replace('\\', '/');
     }
 
-    private async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, bool skipUserDataCleanup, IProgress<LaunchProgress>? progress, string launchId, CancellationToken cancellationToken)
+    private async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, bool skipUserDataCleanup, IReadOnlyDictionary<string, string>? additionalArguments, IProgress<LaunchProgress>? progress, string launchId, CancellationToken cancellationToken)
     {
         IDisposable? steamInstallationLock = null;
 
@@ -820,6 +884,7 @@ public class GameLauncher(
                 finalExecutablePath,
                 workspaceInfo,
                 isSteamLaunch,
+                additionalArguments,
                 cancellationToken);
 
             if (!prepResult.Success || prepResult.Data.LaunchConfig == null)
@@ -944,9 +1009,10 @@ public class GameLauncher(
         string finalExecutablePath,
         WorkspaceInfo workspaceInfo,
         bool isSteamLaunch,
+        IReadOnlyDictionary<string, string>? additionalArguments,
         CancellationToken cancellationToken)
     {
-        var argsResult = BuildCommandLineArguments(profile);
+        var argsResult = BuildCommandLineArguments(profile, additionalArguments);
         if (!argsResult.Success || argsResult.Data == null)
         {
             return OperationResult<(GameLaunchConfiguration, SteamLaunchPrepResult?, string?)>.CreateFailure(argsResult.FirstError ?? "Invalid command line arguments");
@@ -1435,38 +1501,32 @@ public class GameLauncher(
         }
     }
 
-    private OperationResult<Dictionary<string, string>> BuildCommandLineArguments(GameProfile profile)
+    private OperationResult<Dictionary<string, string>> BuildCommandLineArguments(
+        GameProfile profile,
+        IReadOnlyDictionary<string, string>? additionalArguments = null)
     {
         var arguments = new Dictionary<string, string>();
         if (!string.IsNullOrEmpty(profile.CommandLineArguments))
         {
-            var args = profile.CommandLineArguments.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            foreach (var arg in args)
+            var parseResult = PopulateCommandLineArguments(profile.CommandLineArguments, arguments);
+            if (!parseResult.Success)
             {
-                if (!IsValidCommandArgument(arg))
-                {
-                    return OperationResult<Dictionary<string, string>>.CreateFailure($"Invalid command argument: {arg}");
-                }
-            }
-
-            var positionalIndex = 0;
-            foreach (var arg in args)
-            {
-                if (arg.StartsWith('-'))
-                {
-                    arguments[arg] = string.Empty;
-                }
-                else
-                {
-                    arguments[$"_pos{positionalIndex}"] = arg;
-                    positionalIndex++;
-                }
+                return OperationResult<Dictionary<string, string>>.CreateFailure(parseResult.FirstError ?? "Invalid command argument");
             }
         }
 
         foreach (var kvp in profile.LaunchOptions)
         {
             arguments[kvp.Key] = kvp.Value;
+        }
+
+        if (additionalArguments != null)
+        {
+            var mergeResult = MergeAdditionalArguments(additionalArguments, arguments);
+            if (!mergeResult.Success)
+            {
+                return OperationResult<Dictionary<string, string>>.CreateFailure(mergeResult.FirstError ?? "Invalid additional arguments");
+            }
         }
 
         if (profile.VideoWindowed == true && !arguments.ContainsKey("-win"))

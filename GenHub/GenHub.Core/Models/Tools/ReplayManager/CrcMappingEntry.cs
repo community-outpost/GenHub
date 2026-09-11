@@ -1,3 +1,7 @@
+using System;
+using GenHub.Core.Constants;
+using GenHub.Core.Models.GameClients;
+
 namespace GenHub.Core.Models.Tools.ReplayManager;
 
 /// <summary>
@@ -5,6 +9,8 @@ namespace GenHub.Core.Models.Tools.ReplayManager;
 /// </summary>
 public sealed record CrcMappingEntry
 {
+    private readonly GameClientCapabilities _capabilities = GameClientCapabilities.None;
+
     /// <summary>
     /// Gets the executable CRC in hexadecimal format (e.g., "0x27533BB0").
     /// </summary>
@@ -69,4 +75,32 @@ public sealed record CrcMappingEntry
     /// Gets the direct CDN or patch download URL for the data patch BIG/INI if available.
     /// </summary>
     public string? DataPatchCdnUrl { get; init; }
+
+    /// <summary>
+    /// Gets the capability flags supported by this game client.
+    /// Defaults to ReplayCliLaunch and CheckpointSaves when published by TheSuperHackers.
+    /// </summary>
+    public GameClientCapabilities Capabilities
+    {
+        get
+        {
+            if (_capabilities != GameClientCapabilities.None)
+            {
+                return _capabilities;
+            }
+
+            if (string.Equals(Publisher, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
+            {
+                return GameClientCapabilities.AllRecoveryFeatures;
+            }
+
+            return GameClientCapabilities.None;
+        }
+        init => _capabilities = value;
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether this client supports replay checkpoint generation, replay resumption, and live player takeover.
+    /// </summary>
+    public bool SupportsCheckpoints => (Capabilities & GameClientCapabilities.CheckpointSaves) != 0;
 }

@@ -175,6 +175,18 @@
                       </StackPanel>
                     </Button>
 
+                    <!-- Checkpoint Recovery Button (When client supports checkpoints) -->
+                    <Button Classes="Secondary" Padding="8,4"
+                            Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).OpenCheckpointDrawerCommand}"
+                            CommandParameter="{Binding}"
+                            IsVisible="{Binding SupportsCheckpoints}"
+                            ToolTip.Tip="{Binding TakeoverButtonTooltip}">
+                      <StackPanel Orientation="Horizontal" Spacing="4">
+                        <PathIcon Data="{StaticResource ToolIcon.Restore}" Width="11" Height="11" VerticalAlignment="Center"/>
+                        <TextBlock Text="Recovery" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                      </StackPanel>
+                    </Button>
+
                     <!-- Create Profile Button (When RequiresProfile) -->
                     <Button Classes="Primary" Padding="8,4"
                             Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).CreateProfileForReplayCommand}"
@@ -401,6 +413,283 @@
           </StackPanel>
         </StackPanel>
       </Grid>
+    </Border>
+
+
+    <!-- Checkpoint Recovery Modal Dialog Overlay -->
+    <Border Grid.Row="0" Grid.RowSpan="4"
+            Background="#A0000000"
+            IsVisible="{Binding IsCheckpointDrawerOpen}"
+            HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+            ZIndex="100">
+      <Border Background="{DynamicResource CardBackground}"
+              BorderBrush="{DynamicResource BorderBrush}"
+              BorderThickness="1"
+              CornerRadius="16"
+              Padding="24"
+              BoxShadow="0 16 48 0 #60000000"
+              Width="580"
+              MaxHeight="680"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center">
+        <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+          <!-- Header -->
+          <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+            <StackPanel Grid.Column="0" Spacing="4">
+              <TextBlock Text="Replay Recovery &amp; Takeover"
+                         FontSize="18"
+                         FontWeight="Bold"
+                         Foreground="{DynamicResource TextPrimary}"/>
+              <TextBlock Text="{Binding ActiveCheckpointReplay.FileName}"
+                         FontSize="12"
+                         Foreground="{DynamicResource TextSecondary}"
+                         TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+            <Button Grid.Column="1"
+                    Classes="icon-subtle"
+                    Command="{Binding CloseCheckpointDrawerCommand}"
+                    Padding="6"
+                    VerticalAlignment="Top">
+              <PathIcon Data="{StaticResource ToolIcon.Close}" Width="16" Height="16"/>
+            </Button>
+          </Grid>
+
+          <!-- Compatible Profile Selector -->
+          <Border Grid.Row="1" Margin="0,0,0,16"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="1"
+                  CornerRadius="10"
+                  Padding="14,10">
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0"
+                         Text="Target Profile"
+                         FontSize="12"
+                         FontWeight="SemiBold"
+                         Foreground="{DynamicResource TextSecondary}"
+                         VerticalAlignment="Center"
+                         Margin="0,0,16,0"/>
+              <ComboBox Grid.Row="0" Grid.Column="1"
+                        ItemsSource="{Binding CompatibleProfiles}"
+                        SelectedItem="{Binding SelectedCompatibleProfile}"
+                        HorizontalAlignment="Stretch">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Name}"/>
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+              <TextBlock Grid.Row="1" Grid.Column="1"
+                         Text="Select a profile with checkpoint and takeover engine support."
+                         FontSize="11"
+                         Foreground="{DynamicResource TextMuted}"
+                         Margin="0,4,0,0"/>
+            </Grid>
+          </Border>
+
+          <!-- Section: Create Checkpoint Save -->
+          <Border Grid.Row="2" Margin="0,0,0,16"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="1"
+                  CornerRadius="10"
+                  Padding="14,12">
+            <StackPanel Spacing="10">
+              <TextBlock Text="Create Checkpoint Save"
+                         FontSize="13"
+                         FontWeight="SemiBold"
+                         Foreground="{DynamicResource TextPrimary}"/>
+              <TextBlock Text="GenHub will launch the game to fast-forward through the replay up to your chosen point and snapshot the state. Once the checkpoint is created, the game will automatically save and close itself."
+                         FontSize="11"
+                         Foreground="{DynamicResource TextSecondary}"
+                         TextWrapping="Wrap"/>
+
+              <!-- Time / Frame Scrubber Slider -->
+              <Grid RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,4">
+                  <TextBlock Grid.Column="0"
+                             Text="Target Point"
+                             FontSize="12"
+                             FontWeight="Medium"
+                             Foreground="{DynamicResource TextSecondary}"
+                             VerticalAlignment="Center"/>
+                  <TextBlock Grid.Column="2"
+                             Text="{Binding CheckpointTimeDisplay}"
+                             FontSize="12"
+                             FontWeight="SemiBold"
+                             Foreground="{DynamicResource AccentBrush}"
+                             VerticalAlignment="Center"/>
+                </Grid>
+
+                <Slider Grid.Row="1"
+                        Minimum="1"
+                        Maximum="{Binding MaxCheckpointSeconds}"
+                        Value="{Binding TargetCheckpointTimeSeconds}"
+                        TickFrequency="1"
+                        IsSnapToTickEnabled="False"
+                        IsEnabled="{Binding !IsMintingCheckpoint}"
+                        Margin="0,2,0,2"/>
+
+                <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto">
+                  <TextBlock Grid.Column="0"
+                             Text="0s (0 frames)"
+                             FontSize="10"
+                             Foreground="{DynamicResource TextMuted}"/>
+                  <TextBlock Grid.Column="2"
+                             Text="{Binding MaxCheckpointTimeDisplay}"
+                             FontSize="10"
+                             Foreground="{DynamicResource TextMuted}"/>
+                </Grid>
+              </Grid>
+
+              <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,4,0,0">
+                <Button Grid.Column="1"
+                        Classes="Secondary"
+                        Command="{Binding CreateCheckpointCommand}"
+                        IsEnabled="{Binding !IsMintingCheckpoint}"
+                        IsVisible="{Binding !IsMintingCheckpoint}"
+                        Padding="14,6">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <PathIcon Data="{StaticResource ToolIcon.Restore}" Width="14" Height="14" VerticalAlignment="Center"/>
+                    <TextBlock Text="Create Checkpoint" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"/>
+                  </StackPanel>
+                </Button>
+                <Button Grid.Column="2"
+                        Classes="Secondary"
+                        Command="{Binding CancelMintCheckpointCommand}"
+                        IsVisible="{Binding IsMintingCheckpoint}"
+                        Padding="14,6">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <PathIcon Data="{StaticResource ToolIcon.Close}" Width="14" Height="14" VerticalAlignment="Center"/>
+                    <TextBlock Text="Cancel" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"/>
+                  </StackPanel>
+                </Button>
+              </Grid>
+            </StackPanel>
+          </Border>
+
+          <!-- Section: Available Checkpoints & Slot Selection -->
+          <Border Grid.Row="3" Margin="0,0,0,16"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="1"
+                  CornerRadius="10"
+                  Padding="14,12">
+            <Grid RowDefinitions="Auto,*,Auto">
+              <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+                <TextBlock Grid.Column="0"
+                           Text="Existing Checkpoints"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimary}"/>
+                <TextBlock Grid.Column="1"
+                           Text="{Binding AvailableCheckpoints.Count, StringFormat={}{0} saves}"
+                           FontSize="11"
+                           Foreground="{DynamicResource TextMuted}"/>
+              </Grid>
+
+              <!-- Checkpoints List -->
+              <Border Grid.Row="1" Margin="0,0,0,8"
+                      Background="{DynamicResource CardBackground}"
+                      BorderBrush="{DynamicResource BorderBrush}"
+                      BorderThickness="1"
+                      CornerRadius="8"
+                      MinHeight="100"
+                      MaxHeight="150">
+                <ListBox ItemsSource="{Binding AvailableCheckpoints}"
+                         SelectedItem="{Binding SelectedCheckpoint}"
+                         Background="Transparent">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate>
+                      <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="4,2">
+                        <TextBlock Grid.Column="0"
+                                   Text="{Binding TargetFrame, StringFormat={}Frame {0}}"
+                                   FontWeight="Bold"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,12,0"/>
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding CreatedAt, StringFormat={}{0:yyyy-MM-dd HH:mm}}"
+                                   Foreground="{DynamicResource TextSecondary}"
+                                   FontSize="11"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="2"
+                                   Text="{Binding FormattedSize}"
+                                   Foreground="{DynamicResource TextMuted}"
+                                   FontSize="11"
+                                   VerticalAlignment="Center"
+                                   Margin="12,0"/>
+                        <Button Grid.Column="3"
+                                Classes="icon-subtle"
+                                Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).DeleteCheckpointCommand}"
+                                CommandParameter="{Binding}"
+                                Padding="4"
+                                ToolTip.Tip="Delete checkpoint save">
+                          <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="13" Height="13"/>
+                        </Button>
+                      </Grid>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </Border>
+
+              <!-- Takeover Slot Picker -->
+              <Grid Grid.Row="2" ColumnDefinitions="Auto,*" Margin="0,4,0,0">
+                <TextBlock Grid.Column="0"
+                           Text="Takeover Player"
+                           FontSize="12"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextSecondary}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,16,0"/>
+                <ComboBox Grid.Column="1"
+                          ItemsSource="{Binding AvailableSlots}"
+                          SelectedItem="{Binding SelectedSlot}"
+                          HorizontalAlignment="Stretch">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                      <TextBlock Text="{Binding DisplayLabel}"/>
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+              </Grid>
+            </Grid>
+          </Border>
+
+          <!-- Footer Actions -->
+          <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto">
+            <Button Grid.Column="0"
+                    Classes="Secondary"
+                    Command="{Binding CloseCheckpointDrawerCommand}"
+                    HorizontalAlignment="Left"
+                    Padding="14,8">
+              <TextBlock Text="Cancel"/>
+            </Button>
+            <Button Grid.Column="1"
+                    Classes="Secondary"
+                    Command="{Binding ResumeReplayFromCheckpointCommand}"
+                    IsEnabled="{Binding SelectedCheckpoint, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    Padding="14,8"
+                    Margin="0,0,8,0"
+                    ToolTip.Tip="Resume deterministic replay playback from the selected checkpoint">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <PathIcon Data="{StaticResource ToolIcon.Play}" Width="14" Height="14" VerticalAlignment="Center"/>
+                <TextBlock Text="Resume Replay" VerticalAlignment="Center" FontWeight="SemiBold"/>
+              </StackPanel>
+            </Button>
+            <Button Grid.Column="2"
+                    Classes="Primary"
+                    Command="{Binding TakeoverMatchFromCheckpointCommand}"
+                    IsEnabled="{Binding SelectedCheckpoint, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    Padding="14,8"
+                    ToolTip.Tip="Take over live match control from this checkpoint as the chosen player">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <PathIcon Data="{StaticResource ToolIcon.Gamepad}" Width="14" Height="14" VerticalAlignment="Center"/>
+                <TextBlock Text="Takeover Match" VerticalAlignment="Center" FontWeight="SemiBold"/>
+              </StackPanel>
+            </Button>
+          </Grid>
+        </Grid>
+      </Border>
     </Border>
 
     <!-- Footer Storage Notice -->

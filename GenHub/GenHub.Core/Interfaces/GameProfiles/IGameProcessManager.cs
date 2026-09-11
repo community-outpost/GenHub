@@ -1,7 +1,7 @@
+using System.Diagnostics;
 using GenHub.Core.Models.Events;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Results;
-using System.Diagnostics;
 
 namespace GenHub.Core.Interfaces.GameProfiles;
 

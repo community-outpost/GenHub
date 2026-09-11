@@ -255,7 +255,7 @@ public class GameProcessManager(
                 if (process.HasExited)
                 {
                     _managedProcesses.TryRemove(processId, out _);
-                    return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure("Process not found"));
+                    return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure(ProcessConstants.ProcessNotFoundErrorMessage));
                 }
 
                 var processInfo = new GameProcessInfo
@@ -276,7 +276,7 @@ public class GameProcessManager(
                 process = Process.GetProcessById(processId);
                 if (process == null || process.HasExited)
                 {
-                    return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure("Process not found"));
+                    return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure(ProcessConstants.ProcessNotFoundErrorMessage));
                 }
 
                 var processInfo = new GameProcessInfo
@@ -292,13 +292,13 @@ public class GameProcessManager(
             }
             catch (ArgumentException)
             {
-                return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure("Process not found"));
+                return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure(ProcessConstants.ProcessNotFoundErrorMessage));
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to get process info for {ProcessId}", processId);
-            return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure("Process not found"));
+            return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure($"Failed to get process info for {processId}: {ex.Message}"));
         }
     }
 

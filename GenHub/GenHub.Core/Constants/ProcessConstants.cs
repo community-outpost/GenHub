@@ -44,6 +44,11 @@ public static class ProcessConstants
     /// </summary>
     public const string PowerShellExecutable = "powershell.exe";
 
+    /// <summary>
+    /// Error message indicating that the requested process was not found or has already exited.
+    /// </summary>
+    public const string ProcessNotFoundErrorMessage = "Process not found";
+
     // Windows API constants
 
     /// <summary>

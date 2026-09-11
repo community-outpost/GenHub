@@ -78,4 +78,20 @@ public interface IReplayDirectoryService
     /// <param name="ct">Cancellation token.</param>
     /// <returns><c>true</c> if the profile is running; otherwise, <c>false</c>.</returns>
     Task<bool> IsProfileRunningAsync(string profileId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Finds all compatible game profiles for the specified replay, ordered by relevance score descending.
+    /// </summary>
+    /// <param name="replay">The replay file to match against.</param>
+    /// <param name="profiles">The list of candidate profiles.</param>
+    /// <returns>A list of compatible profiles ordered by relevance.</returns>
+    IReadOnlyList<GameProfile> FindCompatibleProfiles(ReplayFile replay, IReadOnlyList<GameProfile> profiles);
+
+    /// <summary>
+    /// Finds all recovery-capable game profiles for the specified replay, ordered by relevance score descending.
+    /// </summary>
+    /// <param name="replay">The replay file to recover.</param>
+    /// <param name="profiles">The list of candidate profiles.</param>
+    /// <returns>A list of recovery-capable profiles ordered by relevance.</returns>
+    IReadOnlyList<GameProfile> FindRecoveryProfiles(ReplayFile replay, IReadOnlyList<GameProfile> profiles);
 }
