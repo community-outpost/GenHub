@@ -6,6 +6,7 @@
 
 html {
     scroll-behavior: smooth;
+    color-scheme: dark;
 }
 
 body {
@@ -17,9 +18,11 @@ body {
     flex-direction: column;
     min-height: 100vh;
     overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
-/* Animated Background */
+/* Atmospheric Ambient Background */
 body::before {
     content: '';
     position: fixed;
@@ -28,14 +31,15 @@ body::before {
     width: 100%;
     height: 100%;
     background: 
-        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(124, 58, 237, 0.2) 0%, transparent 50%),
-        radial-gradient(ellipse 60% 40% at 90% 80%, rgba(168, 85, 247, 0.12) 0%, transparent 40%),
-        radial-gradient(ellipse 50% 30% at 10% 60%, rgba(124, 58, 237, 0.15) 0%, transparent 40%);
+        radial-gradient(ellipse 70% 50% at 50% -10%, rgba(139, 92, 246, 0.22) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 40% at 85% 65%, rgba(56, 189, 248, 0.12) 0%, transparent 50%),
+        radial-gradient(ellipse 45% 35% at 15% 45%, rgba(168, 85, 247, 0.16) 0%, transparent 50%),
+        radial-gradient(circle 400px at 50% 90%, rgba(124, 58, 237, 0.1) 0%, transparent 70%);
     pointer-events: none;
-    z-index: -1;
+    z-index: -2;
 }
 
-/* Noise Texture Overlay */
+/* Subtle Tech Grid / Scanline Texture */
 body::after {
     content: '';
     position: fixed;
@@ -43,21 +47,30 @@ body::after {
     left: 0;
     width: 100%;
     height: 100%;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-    opacity: 0.03;
+    background-image: 
+        linear-gradient(to right, rgba(139, 92, 246, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(139, 92, 246, 0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
     pointer-events: none;
     z-index: -1;
+}
+
+/* Focus Rings for Keyboard Accessibility */
+:focus-visible {
+    outline: 2px solid var(--primary-light);
+    outline-offset: 3px;
+    border-radius: 4px;
 }
 
 /* Selection Styling */
 ::selection {
     background: var(--primary);
-    color: white;
+    color: #ffffff;
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-    width: 8px;
+    width: 9px;
 }
 
 ::-webkit-scrollbar-track {
@@ -65,10 +78,83 @@ body::after {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: var(--primary-dark);
-    border-radius: 4px;
+    background: #2b184d;
+    border-radius: 5px;
+    border: 2px solid var(--bg-deep);
 }
 
 ::-webkit-scrollbar-thumb:hover {
     background: var(--primary);
+}
+
+/* Accessibility: Visually Hidden for Screen Readers */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Container */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    width: 100%;
+}
+
+/* Section Header Shared Component */
+.section-header {
+    text-align: center;
+    max-width: 780px;
+    margin: 0 auto 3.5rem;
+}
+
+.section-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(139, 92, 246, 0.12);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    color: var(--primary-light);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.35rem 0.9rem;
+    border-radius: 9999px;
+    margin-bottom: 1rem;
+}
+
+.section-tag svg,
+.section-tag i {
+    width: 14px;
+    height: 14px;
+}
+
+.section-title {
+    font-size: clamp(1.85rem, 4vw, 2.75rem);
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.025em;
+    color: var(--text-main);
+    margin-bottom: 1rem;
+}
+
+.section-title .text-gradient {
+    background: var(--gradient-accent);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.section-description {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
 }
