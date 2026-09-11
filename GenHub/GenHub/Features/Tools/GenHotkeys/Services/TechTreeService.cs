@@ -23,6 +23,7 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
 {
     private const string AssetsFolder = "Assets";
     private const string GenHotkeysFolder = "GenHotkeys";
+    private const string GenHubFolder = "GenHub";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -231,49 +232,15 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
         var consolidated = new List<List<TechTreeActionJson>>();
         var currentMerged = new List<TechTreeActionJson>(layouts[0]);
         var currentKeys = new HashSet<string>(
-            layouts[0].Select(a => a.HotkeyString ?? a.IconName),
+            layouts[0].Select(GetActionKey),
             StringComparer.OrdinalIgnoreCase);
 
         for (var i = 1; i < layouts.Count; i++)
         {
             var nextLayout = layouts[i];
-            var nextKeys = new HashSet<string>(
-                nextLayout.Select(a => a.HotkeyString ?? a.IconName),
-                StringComparer.OrdinalIgnoreCase);
-
-            var commonCount = nextKeys.Count(currentKeys.Contains);
-            var overlapRatio = (double)commonCount / Math.Min(currentKeys.Count, nextKeys.Count);
-
-            // If more than 40% of actions are shared, this is an upgrade variant of the same command set
-            if (overlapRatio > 0.40)
+            if (IsUpgradeVariant(currentKeys, nextLayout))
             {
-                foreach (var act in nextLayout)
-                {
-                    var key = act.HotkeyString ?? act.IconName;
-                    if (currentKeys.Add(key))
-                    {
-                        var insertIndex = FindInsertIndex(currentMerged, act);
-                        if (insertIndex >= 0 && insertIndex < currentMerged.Count)
-                        {
-                            currentMerged.Insert(insertIndex + 1, act);
-                        }
-                        else
-                        {
-                            var sellIndex = currentMerged.FindIndex(a =>
-                                string.Equals(a.HotkeyString, "CONTROLBAR:Sell", StringComparison.OrdinalIgnoreCase) ||
-                                string.Equals(a.IconName, "Sell", StringComparison.OrdinalIgnoreCase));
-
-                            if (sellIndex >= 0)
-                            {
-                                currentMerged.Insert(sellIndex, act);
-                            }
-                            else
-                            {
-                                currentMerged.Add(act);
-                            }
-                        }
-                    }
-                }
+                MergeUpgradeLayout(currentMerged, currentKeys, nextLayout);
             }
             else
             {
@@ -281,7 +248,7 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
                 consolidated.Add(currentMerged);
                 currentMerged = new List<TechTreeActionJson>(nextLayout);
                 currentKeys = new HashSet<string>(
-                    nextLayout.Select(a => a.HotkeyString ?? a.IconName),
+                    nextLayout.Select(GetActionKey),
                     StringComparer.OrdinalIgnoreCase);
             }
         }
@@ -289,6 +256,65 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
         consolidated.Add(currentMerged);
         return consolidated;
     }
+
+    private static string GetActionKey(TechTreeActionJson action) =>
+        action.HotkeyString ?? action.IconName;
+
+    private static bool IsUpgradeVariant(HashSet<string> currentKeys, List<TechTreeActionJson> nextLayout)
+    {
+        var nextKeys = new HashSet<string>(
+            nextLayout.Select(GetActionKey),
+            StringComparer.OrdinalIgnoreCase);
+
+        var commonCount = nextKeys.Count(currentKeys.Contains);
+        var minCount = Math.Min(currentKeys.Count, nextKeys.Count);
+        if (minCount == 0)
+        {
+            return false;
+        }
+
+        var overlapRatio = (double)commonCount / minCount;
+        return overlapRatio > 0.40;
+    }
+
+    private static void MergeUpgradeLayout(
+        List<TechTreeActionJson> currentMerged,
+        HashSet<string> currentKeys,
+        List<TechTreeActionJson> nextLayout)
+    {
+        foreach (var act in nextLayout)
+        {
+            var key = GetActionKey(act);
+            if (currentKeys.Add(key))
+            {
+                InsertAction(currentMerged, act);
+            }
+        }
+    }
+
+    private static void InsertAction(List<TechTreeActionJson> currentMerged, TechTreeActionJson act)
+    {
+        var insertIndex = FindInsertIndex(currentMerged, act);
+        if (insertIndex >= 0 && insertIndex < currentMerged.Count)
+        {
+            currentMerged.Insert(insertIndex + 1, act);
+            return;
+        }
+
+        var sellIndex = currentMerged.FindIndex(IsSellAction);
+        if (sellIndex >= 0)
+        {
+            currentMerged.Insert(sellIndex, act);
+        }
+        else
+        {
+            currentMerged.Add(act);
+        }
+    }
+
+    private static bool IsSellAction(TechTreeActionJson action) =>
+        string.Equals(action.HotkeyString, "CONTROLBAR:Sell", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(action.IconName, "Sell", StringComparison.OrdinalIgnoreCase);
 
     private static int FindInsertIndex(List<TechTreeActionJson> list, TechTreeActionJson action)
     {
@@ -358,7 +384,7 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
         // 1. Try Avalonia resource loader
         try
         {
-            var uri = new Uri($"avares://GenHub/{AssetsFolder}/{GenHotkeysFolder}/{relativePath.Replace('\\', '/')}");
+            var uri = new Uri($"avares://{GenHubFolder}/{AssetsFolder}/{GenHotkeysFolder}/{relativePath.Replace('\\', '/')}");
             if (AssetLoader.Exists(uri))
             {
                 return AssetLoader.Open(uri);
@@ -380,9 +406,9 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
         var searchRoots = new[]
         {
             Path.Combine(AppContext.BaseDirectory, "..", "..", "..", AssetsFolder, GenHotkeysFolder, relativePath),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "GenHub", AssetsFolder, GenHotkeysFolder, relativePath),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "GenHub", AssetsFolder, GenHotkeysFolder, relativePath),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "GenHub", "GenHub", AssetsFolder, GenHotkeysFolder, relativePath),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", GenHubFolder, AssetsFolder, GenHotkeysFolder, relativePath),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", GenHubFolder, AssetsFolder, GenHotkeysFolder, relativePath),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", GenHubFolder, GenHubFolder, AssetsFolder, GenHotkeysFolder, relativePath),
         };
 
         var match = searchRoots.FirstOrDefault(File.Exists);
