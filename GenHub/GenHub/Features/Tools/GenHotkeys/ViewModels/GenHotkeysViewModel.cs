@@ -28,6 +28,7 @@ public partial class GenHotkeysViewModel(
     ILogger<GenHotkeysViewModel> logger) : ObservableObject, IDisposable
 {
     private readonly ConcurrentDictionary<(GameType Game, string Icon), Bitmap> _bitmapCache = new();
+    private readonly SemaphoreSlim _saveSemaphore = new(1, 1);
 
     private List<HotkeyFaction> _allFactions = [];
     private bool _isInitializing;
@@ -359,7 +360,7 @@ public partial class GenHotkeysViewModel(
 
         var oldName = SelectedProfile.Name;
         SelectedProfile.Name = newName;
-        await profileStorageService.SaveProfileAsync(SelectedProfile, CancellationToken.None);
+        await SaveCurrentProfileAsync(CancellationToken.None);
 
         var index = Profiles.IndexOf(SelectedProfile);
         if (index >= 0)
@@ -439,9 +440,17 @@ public partial class GenHotkeysViewModel(
             return;
         }
 
-        SelectedProfile.OverlayEnabled = OverlayEnabled;
-        SelectedProfile.OverlayCorner = SelectedCorner;
-        await profileStorageService.SaveProfileAsync(SelectedProfile, cancellationToken);
+        await _saveSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            SelectedProfile.OverlayEnabled = OverlayEnabled;
+            SelectedProfile.OverlayCorner = SelectedCorner;
+            await profileStorageService.SaveProfileAsync(SelectedProfile, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _saveSemaphore.Release();
+        }
     }
 
     /// <inheritdoc />
@@ -536,6 +545,8 @@ public partial class GenHotkeysViewModel(
             _reloadCts?.Cancel();
             _reloadCts?.Dispose();
             _reloadCts = null;
+
+            _saveSemaphore.Dispose();
 
             foreach (var kvp in _bitmapCache)
             {
