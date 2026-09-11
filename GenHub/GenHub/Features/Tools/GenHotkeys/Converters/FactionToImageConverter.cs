@@ -23,15 +23,15 @@ public class FactionToImageConverter : IValueConverter
         {
             HotkeyFaction faction => faction.FactionGroup,
             string s => s,
-            _ => "USA",
+            _ => HotkeyFaction.UsaGroup,
         };
 
-        if (string.Equals(group, "China", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(group, HotkeyFaction.ChinaGroup, StringComparison.OrdinalIgnoreCase))
         {
             return ChinaBitmap.Value;
         }
 
-        if (string.Equals(group, "GLA", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(group, HotkeyFaction.GlaGroup, StringComparison.OrdinalIgnoreCase))
         {
             return GlaBitmap.Value;
         }

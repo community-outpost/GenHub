@@ -32,6 +32,11 @@ public sealed class GenHotkeysToolPlugin : IToolPlugin, IDisposable
     /// <inheritdoc />
     public Control CreateControl()
     {
+        if (_view != null)
+        {
+            return _view;
+        }
+
         if (_serviceProvider != null)
         {
             var viewModel = _serviceProvider.GetRequiredService<GenHotkeysViewModel>();
@@ -62,6 +67,11 @@ public sealed class GenHotkeysToolPlugin : IToolPlugin, IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
+        if (_view?.DataContext is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
+
         _view = null;
         _serviceProvider = null;
     }

@@ -318,6 +318,7 @@ public partial class GenHotkeysViewModel(
         var profile = new HotkeyProfile
         {
             Name = name,
+            BasePreset = GenHotkeysConstants.PresetVanilla,
             TargetGame = SelectedGame,
             OverlayEnabled = OverlayEnabled,
             OverlayCorner = SelectedCorner,
@@ -905,7 +906,7 @@ public partial class GenHotkeysViewModel(
         HasConflicts = conflictCount > 0;
         TotalConflictsCount = conflictCount;
         ConflictSummary = conflictCount > 0
-            ? $"{conflictCount} commands have overlapping hotkeys on the same unit/structure. In-game, pressing a shared key triggers multiple commands simultaneously or causes collision. Conflicting buttons are highlighted with a red warning border."
+            ? $"{conflictCount} commands have overlapping hotkeys on the same unit/structure. In-game, the SAGE engine registers only the first command and ignores duplicate bindings, causing conflicting actions to become unresponsive. Conflicting buttons are highlighted with a red warning border."
             : string.Empty;
     }
 }

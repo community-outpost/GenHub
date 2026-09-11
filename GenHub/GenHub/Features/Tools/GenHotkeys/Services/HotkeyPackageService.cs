@@ -9,11 +9,9 @@ using System.Threading.Tasks;
 using Avalonia.Platform;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Tools.GenHotkeys;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.GenHotkeys;
@@ -66,12 +64,9 @@ public class HotkeyPackageService(
 
             // 3. Pack into .big archive
             progress?.Report("Packing files into .big archive...");
-            var bigFilePath = await PackBigArchiveAsync(profile, stagingDir, packageDir);
+            await PackBigArchiveAsync(profile, stagingDir, packageDir);
 
-            // 4. Optionally deploy directly into local game installation directory if present
-            await TryCopyToGameInstallationAsync(profile, bigFilePath, cancellationToken);
-
-            // 5. Register with GenHub as ContentManifest Addon
+            // 4. Register with GenHub as ContentManifest Addon
             progress?.Report("Registering hotkey addon in GenHub...");
             var result = await RegisterAddonManifestAsync(profile, packageDir, cancellationToken);
 
@@ -251,15 +246,15 @@ public class HotkeyPackageService(
 
         var iniContent = sb.ToString();
 
-        // Write to Data/INI/MappedImages/Hotkeys.ini (for Generals)
-        var mappedDir1 = Path.Combine(stagingDir, "Data", "INI", "MappedImages");
-        Directory.CreateDirectory(mappedDir1);
-        await File.WriteAllTextAsync(Path.Combine(mappedDir1, "Hotkeys.ini"), iniContent, cancellationToken);
+        // 1. Write to Data/INI/MappedImages/HandCreated/Hotkeys.ini (scanned last by SAGE ImageCollection::load)
+        var handCreatedDir = Path.Combine(stagingDir, "Data", "INI", "MappedImages", "HandCreated");
+        Directory.CreateDirectory(handCreatedDir);
+        await File.WriteAllTextAsync(Path.Combine(handCreatedDir, "Hotkeys.ini"), iniContent, cancellationToken);
 
-        // Write to Data/INI/MappedImages/TextureSize_512/Hotkeys.ini (for Zero Hour)
-        var mappedDir2 = Path.Combine(stagingDir, "Data", "INI", "MappedImages", "TextureSize_512");
-        Directory.CreateDirectory(mappedDir2);
-        await File.WriteAllTextAsync(Path.Combine(mappedDir2, "Hotkeys.ini"), iniContent, cancellationToken);
+        // 2. Write to Data/INI/MappedImages/TextureSize_512/zzHotkeys.ini (alphabetically sorts after retail SA/SN/SU in std::set)
+        var textureSizeDir = Path.Combine(stagingDir, "Data", "INI", "MappedImages", "TextureSize_512");
+        Directory.CreateDirectory(textureSizeDir);
+        await File.WriteAllTextAsync(Path.Combine(textureSizeDir, "zzHotkeys.ini"), iniContent, cancellationToken);
     }
 
     private static void AppendIconMappedImages(StringBuilder sb, string icon)
@@ -283,6 +278,7 @@ public class HotkeyPackageService(
         foreach (var prefix in prefixes)
         {
             AppendMappedImageEntry(sb, $"{prefix}{baseName}", $"{icon}.tga");
+            AppendMappedImageEntry(sb, $"{prefix}{baseName}_L", $"{icon}.tga");
         }
     }
 
@@ -296,55 +292,6 @@ public class HotkeyPackageService(
         sb.AppendLine("  Status = NONE");
         sb.AppendLine("End");
         sb.AppendLine();
-    }
-
-    private static string? ResolveTargetInstallationPath(HotkeyProfile profile, GameInstallation install)
-    {
-        if (profile.TargetGame == GameType.Generals)
-        {
-            return install.HasGenerals ? install.GeneralsPath : null;
-        }
-
-        return install.HasZeroHour ? install.ZeroHourPath : null;
-    }
-
-    private async Task TryCopyToGameInstallationAsync(
-        HotkeyProfile profile,
-        string bigFilePath,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            using var scope = scopeFactory.CreateScope();
-            var gameInstallService = scope.ServiceProvider.GetService<IGameInstallationService>();
-            if (gameInstallService == null)
-            {
-                return;
-            }
-
-            var installResult = await gameInstallService.GetAllInstallationsAsync(cancellationToken);
-            if (!installResult.Success || installResult.Data == null)
-            {
-                return;
-            }
-
-            foreach (var install in installResult.Data)
-            {
-                var targetPath = ResolveTargetInstallationPath(profile, install);
-
-                if (!string.IsNullOrWhiteSpace(targetPath) && Directory.Exists(targetPath))
-                {
-                    var fileName = Path.GetFileName(bigFilePath);
-                    var destPath = Path.Combine(targetPath, fileName);
-                    File.Copy(bigFilePath, destPath, overwrite: true);
-                    logger.LogInformation("Copied hotkey .big archive directly to game installation: {Path}", destPath);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to copy hotkey .big archive directly to game installation");
-        }
     }
 
     private async Task GenerateOverlayTexturesAsync(

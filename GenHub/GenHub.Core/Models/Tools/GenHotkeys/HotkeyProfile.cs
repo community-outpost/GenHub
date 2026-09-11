@@ -20,7 +20,7 @@ public class HotkeyProfile
     public GameType TargetGame { get; set; } = GameType.ZeroHour;
 
     /// <summary>Gets or sets the base preset name used for this profile (e.g. "Vanilla", "Legionnaire", "Leikeze").</summary>
-    public string BasePreset { get; set; } = GenHotkeysConstants.PresetLeikeze;
+    public string? BasePreset { get; set; }
 
     /// <summary>Gets or sets a value indicating whether to overlay hotkey badges directly on in-game button icons.</summary>
     public bool OverlayEnabled { get; set; } = true;
