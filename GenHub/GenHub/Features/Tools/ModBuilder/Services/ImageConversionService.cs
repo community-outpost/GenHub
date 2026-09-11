@@ -290,32 +290,9 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
     {
         try
         {
-            byte[] rawData = [];
-            int width = 0;
-            int height = 0;
-            bool hasAlpha = false;
-
-            if (sourcePath.EndsWith(".dds", StringComparison.OrdinalIgnoreCase))
-            {
-                using var magickImage = new MagickImage(sourcePath);
-                width = (int)magickImage.Width;
-                height = (int)magickImage.Height;
-                hasAlpha = magickImage.HasAlpha;
-                var pixelCollection = magickImage.GetPixels();
-                rawData = pixelCollection.ToByteArray(PixelMapping.RGBA) ?? Array.Empty<byte>();
-            }
-            else
-            {
-                using var image = await Image.LoadAsync<Rgba32>(sourcePath, cancellationToken).ConfigureAwait(false);
-                using var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
-                using var rgbaImage = resizedImage is Image<Rgba32> exact ? exact : resizedImage.CloneAs<Rgba32>();
-                width = rgbaImage.Width;
-                height = rgbaImage.Height;
-                hasAlpha = await HasAlphaChannelAsync(sourcePath, cancellationToken).ConfigureAwait(false);
-
-                rawData = new byte[width * height * 4];
-                rgbaImage.CopyPixelDataTo(rawData);
-            }
+            var (rawData, width, height, hasAlpha) = sourcePath.EndsWith(".dds", StringComparison.OrdinalIgnoreCase)
+                ? LoadDdsPixels(sourcePath)
+                : await LoadStandardPixelsAsync(sourcePath, parameters, cancellationToken).ConfigureAwait(false);
 
             var encoder = new BcEncoder();
             encoder.OutputOptions.GenerateMipMaps = true;
@@ -344,6 +321,34 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
             logger.LogError(ex, "Failed to convert to DDS: {SourcePath}", sourcePath);
             return false;
         }
+    }
+
+    private static (byte[] RawData, int Width, int Height, bool HasAlpha) LoadDdsPixels(string sourcePath)
+    {
+        using var magickImage = new MagickImage(sourcePath);
+        var width = (int)magickImage.Width;
+        var height = (int)magickImage.Height;
+        var hasAlpha = magickImage.HasAlpha;
+        var pixelCollection = magickImage.GetPixels();
+        var rawData = pixelCollection.ToByteArray(PixelMapping.RGBA) ?? [];
+        return (rawData, width, height, hasAlpha);
+    }
+
+    private async Task<(byte[] RawData, int Width, int Height, bool HasAlpha)> LoadStandardPixelsAsync(
+        string sourcePath,
+        IDictionary<string, object>? parameters,
+        CancellationToken cancellationToken)
+    {
+        using var image = await Image.LoadAsync<Rgba32>(sourcePath, cancellationToken).ConfigureAwait(false);
+        using var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
+        using var rgbaImage = resizedImage is Image<Rgba32> exact ? exact : resizedImage.CloneAs<Rgba32>();
+        var width = rgbaImage.Width;
+        var height = rgbaImage.Height;
+        var hasAlpha = await HasAlphaChannelAsync(sourcePath, cancellationToken).ConfigureAwait(false);
+
+        var rawData = new byte[width * height * 4];
+        rgbaImage.CopyPixelDataTo(rawData);
+        return (rawData, width, height, hasAlpha);
     }
 
     private static async Task<bool> ConvertGenericAsync(
