@@ -47,6 +47,7 @@ namespace GenHub.Features.Tools.ReplayManager.ViewModels;
 /// <param name="notificationService">The notification service.</param>
 /// <param name="logger">The logger instance.</param>
 /// <param name="dialogService">Optional dialog service for user confirmations.</param>
+/// <param name="serviceProvider">Optional service provider for resolving dialog viewmodels dynamically.</param>
 public partial class ReplayManagerViewModel(
     IReplayDirectoryService directoryService,
     IReplayImportService importService,
