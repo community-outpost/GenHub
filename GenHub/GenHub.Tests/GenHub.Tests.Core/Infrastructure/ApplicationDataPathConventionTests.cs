@@ -42,8 +42,8 @@ public class ApplicationDataPathConventionTests
         // Core-layer fallback, overridden at the composition root by ContentPipelineModule.
         ["GenHub/GenHub.Core/Services/Providers/ProviderDefinitionLoader.cs"] = "Default only; the DI registration supplies an override.",
 
-        // UI settings reset defines the default Roaming CAS pool path.
-        ["GenHub/GenHub/Features/Settings/ViewModels/SettingsViewModel.cs"] = "Resets the CAS pool path to the default roaming root in the UI.",
+        // Custom install cleanup removes empty legacy Roaming AppData folder left from earlier versions.
+        ["GenHub/GenHub/Common/Services/StorageMigrationService.cs"] = "Cleans orphaned legacy Roaming AppData folder when running from custom install root.",
     };
 
     /// <summary>

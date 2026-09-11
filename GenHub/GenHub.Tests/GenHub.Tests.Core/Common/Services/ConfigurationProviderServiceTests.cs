@@ -101,6 +101,7 @@ public class ConfigurationProviderServiceTests
                 GcLockTimeout = expectedTimeout,
             },
         };
+        _mockAppConfig.Setup(c => c.GetConfiguredDataPath()).Returns(Path.Combine("C:", "AppData", "GenHub"));
         _mockUserSettings.Setup(service => service.Get()).Returns(settings);
         var provider = CreateProvider();
 
@@ -108,6 +109,7 @@ public class ConfigurationProviderServiceTests
 
         Assert.Equal(expectedTimeout, result.GcLockTimeout);
         Assert.False(string.IsNullOrWhiteSpace(result.CasRootPath));
+        Assert.Equal(Path.Combine(provider.GetApplicationDataPath(), DirectoryNames.CasPool), result.CasRootPath);
     }
 
     /// <summary>
@@ -929,11 +931,11 @@ public class ConfigurationProviderServiceTests
     }
 
     /// <summary>
-    /// Verifies that the legacy roaming data root is migrated into the current root while the CAS
-    /// pool, which still defaults to the legacy location, is left in place.
+    /// Verifies that the legacy roaming data root is migrated into the current root including the CAS
+    /// pool so that no files are left behind in the legacy roaming location.
     /// </summary>
     [Fact]
-    public void MigrateLegacyDataRoot_WithLegacyData_MovesTrackedEntriesAndLeavesCasPool()
+    public void MigrateLegacyDataRoot_WithLegacyData_MovesTrackedEntriesAndCasPool()
     {
         var (legacyRoot, newRoot) = CreateMigrationRoots();
         try
@@ -948,9 +950,10 @@ public class ConfigurationProviderServiceTests
             Assert.Equal("backup", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.UserData, DirectoryNames.UserDataBackups, "save.bak")));
             Assert.Equal("settings", File.ReadAllText(Path.Combine(newRoot, FileTypes.SettingsFileName)));
             Assert.Equal("workspaces", File.ReadAllText(Path.Combine(newRoot, FileTypes.WorkspaceMetadataFileName)));
+            Assert.Equal("cas", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.CasPool, "objects", "blob.bin")));
 
-            Assert.True(File.Exists(Path.Combine(legacyRoot, DirectoryNames.CasPool, "objects", "blob.bin")));
-            Assert.False(Directory.Exists(Path.Combine(newRoot, DirectoryNames.CasPool)));
+            Assert.False(Directory.Exists(Path.Combine(legacyRoot, DirectoryNames.CasPool)));
+            Assert.False(Directory.Exists(legacyRoot));
         }
         finally
         {
@@ -975,7 +978,8 @@ public class ConfigurationProviderServiceTests
 
             Assert.Equal("profile", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.Profiles, "profile.json")));
             Assert.Equal("settings", File.ReadAllText(Path.Combine(newRoot, FileTypes.SettingsFileName)));
-            Assert.True(File.Exists(Path.Combine(legacyRoot, DirectoryNames.CasPool, "objects", "blob.bin")));
+            Assert.Equal("cas", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.CasPool, "objects", "blob.bin")));
+            Assert.False(Directory.Exists(Path.Combine(legacyRoot, DirectoryNames.CasPool)));
         }
         finally
         {
@@ -1071,6 +1075,8 @@ public class ConfigurationProviderServiceTests
             Assert.False(Directory.Exists(Path.Combine(legacyRoot, DirectoryNames.Profiles)));
             Assert.False(Directory.Exists(Path.Combine(legacyRoot, FileTypes.ManifestsDirectory)));
             Assert.False(Directory.Exists(Path.Combine(legacyRoot, DirectoryNames.UserData)));
+            Assert.False(Directory.Exists(Path.Combine(legacyRoot, DirectoryNames.CasPool)));
+            Assert.False(Directory.Exists(legacyRoot));
         }
         finally
         {
@@ -1079,8 +1085,7 @@ public class ConfigurationProviderServiceTests
     }
 
     /// <summary>
-    /// Verifies the steady state after a successful migration: a legacy root that still holds the CAS
-    /// pool, but none of the migrated entries, is left completely alone.
+    /// Verifies the steady state when no legacy directories exist: unrelated directories are left completely alone.
     /// </summary>
     [Fact]
     public void MigrateLegacyDataRoot_WithoutLegacyEntries_LeavesBothRootsAlone()
@@ -1089,12 +1094,12 @@ public class ConfigurationProviderServiceTests
         Directory.Delete(newRoot);
         try
         {
-            WriteFile(Path.Combine(legacyRoot, DirectoryNames.CasPool, "objects", "blob.bin"), "cas");
+            WriteFile(Path.Combine(legacyRoot, "unrelated-dir", "data.bin"), "data");
 
             CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot, newRoot);
 
             Assert.False(Directory.Exists(newRoot));
-            Assert.True(File.Exists(Path.Combine(legacyRoot, DirectoryNames.CasPool, "objects", "blob.bin")));
+            Assert.True(File.Exists(Path.Combine(legacyRoot, "unrelated-dir", "data.bin")));
         }
         finally
         {

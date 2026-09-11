@@ -273,8 +273,8 @@ public class StorageMigrationService(
     internal static void SetCustomInstallRootOverrideForTesting(bool? isCustom) => _customInstallRootOverride = isCustom;
 
     /// <summary>
-    /// If running from a custom install location, removes empty %LOCALAPPDATA%\GenHub folder if it was
-    /// created during bootstrap or leftover from default paths.
+    /// If running from a custom install location, removes empty %LOCALAPPDATA%\GenHub and %APPDATA%\GenHub folders
+    /// if they were created during bootstrap or leftover from default paths.
     /// </summary>
     internal static void CleanOrphanedDefaultAppDataIfCustom()
     {
@@ -283,29 +283,13 @@ public class StorageMigrationService(
             return;
         }
 
-        try
-        {
-            var defaultInstallRoot = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppConstants.AppName);
+        CleanIfEmpty(Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            AppConstants.AppName));
 
-            if (Directory.Exists(defaultInstallRoot) && !Directory.EnumerateFileSystemEntries(defaultInstallRoot).Any())
-            {
-                Directory.Delete(defaultInstallRoot);
-            }
-        }
-        catch (IOException)
-        {
-            // Non-fatal cleanup
-        }
-        catch (UnauthorizedAccessException)
-        {
-            // Non-fatal cleanup
-        }
-        catch (ArgumentException)
-        {
-            // Non-fatal cleanup
-        }
+        CleanIfEmpty(Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            AppConstants.AppName));
     }
 
     /// <summary>
@@ -1056,6 +1040,66 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
             {
                 // Best effort temp cleanup
             }
+        }
+    }
+
+    private static void CleanIfEmpty(string path)
+    {
+        try
+        {
+            if (!Directory.Exists(path))
+            {
+                return;
+            }
+
+            CleanEmptySubdirectories(path);
+
+            if (!Directory.EnumerateFileSystemEntries(path).Any())
+            {
+                Directory.Delete(path);
+            }
+        }
+        catch (IOException)
+        {
+            // Non-fatal cleanup
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Non-fatal cleanup
+        }
+        catch (ArgumentException)
+        {
+            // Non-fatal cleanup
+        }
+        catch (System.Security.SecurityException)
+        {
+            // Non-fatal cleanup
+        }
+    }
+
+    private static void CleanEmptySubdirectories(string dir)
+    {
+        try
+        {
+            foreach (var subDir in Directory.GetDirectories(dir))
+            {
+                CleanEmptySubdirectories(subDir);
+                if (!Directory.EnumerateFileSystemEntries(subDir).Any())
+                {
+                    try
+                    {
+                        Directory.Delete(subDir);
+                    }
+                    catch (Exception)
+                    {
+                        // Non-fatal cleanup
+                    }
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Non-fatal cleanup
         }
     }
 

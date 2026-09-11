@@ -5,6 +5,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using GenHub.Common.Services;
 using GenHub.Common.ViewModels;
 using GenHub.Common.Views;
 using GenHub.Core.Constants;
@@ -84,6 +85,9 @@ public partial class App : Application
 
             // Repair desktop and application shortcuts if application executable has moved/relocated
             SafeFireAndForget(RepairShortcutsAsync(), nameof(RepairShortcutsAsync));
+
+            // Clean any orphaned default AppData folders when running from a custom install location
+            StorageMigrationService.CleanOrphanedDefaultAppDataIfCustom();
         }
 
         base.OnFrameworkInitializationCompleted();

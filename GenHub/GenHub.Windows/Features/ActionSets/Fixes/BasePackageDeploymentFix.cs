@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -236,45 +237,7 @@ public abstract class BasePackageDeploymentFix(
             "Backups",
             $"{Id}_{key}");
 
-        try
-        {
-            if (Directory.Exists(roamingDir) && !Directory.Exists(localDir))
-            {
-                var parent = Path.GetDirectoryName(localDir);
-                if (!string.IsNullOrEmpty(parent))
-                {
-                    Directory.CreateDirectory(parent);
-                }
-
-                Directory.Move(roamingDir, localDir);
-            }
-        }
-        catch (IOException ex)
-        {
-            Logger.LogWarning(ex, "Failed to migrate backup directory from {RoamingDir} to {LocalDir}", roamingDir, localDir);
-            if (Directory.Exists(roamingDir) && !Directory.Exists(localDir))
-            {
-                return roamingDir;
-            }
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            Logger.LogWarning(ex, "Failed to migrate backup directory from {RoamingDir} to {LocalDir}", roamingDir, localDir);
-            if (Directory.Exists(roamingDir) && !Directory.Exists(localDir))
-            {
-                return roamingDir;
-            }
-        }
-        catch (System.Security.SecurityException ex)
-        {
-            Logger.LogWarning(ex, "Failed to migrate backup directory from {RoamingDir} to {LocalDir}", roamingDir, localDir);
-            if (Directory.Exists(roamingDir) && !Directory.Exists(localDir))
-            {
-                return roamingDir;
-            }
-        }
-
-        return localDir;
+        return MigrateRoamingBackupDirectory(roamingDir, localDir);
     }
 
     /// <inheritdoc/>
@@ -321,10 +284,9 @@ public abstract class BasePackageDeploymentFix(
                 installation,
                 ct);
 
-            if (deployed == null)
+            if (deployed != null)
             {
-                RollbackDeployment(backupEntries, persistentBackupDir, details);
-                return new ActionSetResult(false, $"Failed to extract and validate {PackageDisplayName} package.", details);
+                deployedFiles.AddRange(deployed);
             }
 
             details.Add($"✓ Extracted and deployed {extractedCount} assets to game folders.");
@@ -624,6 +586,43 @@ public abstract class BasePackageDeploymentFix(
         }
 
         return false;
+    }
+
+    private string MigrateRoamingBackupDirectory(string roamingDir, string localDir)
+    {
+        try
+        {
+            if (Directory.Exists(roamingDir) && !Directory.Exists(localDir))
+            {
+                var parent = Path.GetDirectoryName(localDir);
+                if (!string.IsNullOrEmpty(parent))
+                {
+                    Directory.CreateDirectory(parent);
+                }
+
+                Directory.Move(roamingDir, localDir);
+            }
+        }
+        catch (IOException ex)
+        {
+            return HandleBackupMigrationException(ex, roamingDir, localDir);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return HandleBackupMigrationException(ex, roamingDir, localDir);
+        }
+        catch (SecurityException ex)
+        {
+            return HandleBackupMigrationException(ex, roamingDir, localDir);
+        }
+
+        return localDir;
+    }
+
+    private string HandleBackupMigrationException(Exception ex, string roamingDir, string localDir)
+    {
+        Logger.LogWarning(ex, "Failed to migrate backup directory from {RoamingDir} to {LocalDir}", roamingDir, localDir);
+        return Directory.Exists(roamingDir) && !Directory.Exists(localDir) ? roamingDir : localDir;
     }
 
     private List<(string DestPath, string? BackupPath)> ParseMarkerRecords(string[] lines, GameInstallation installation)

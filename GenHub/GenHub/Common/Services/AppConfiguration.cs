@@ -15,6 +15,9 @@ namespace GenHub.Common.Services;
 /// </summary>
 public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfiguration>? logger) : IAppConfiguration
 {
+    private const string FailedToGetConfiguredAppDataPathMessage = "Failed to get configured AppDataPath, using default";
+    private const string FailedToResolveCustomInstallRootMessage = "Failed to resolve custom install root for configured data path, falling back to default";
+
     private readonly IConfiguration? _configuration = configuration;
     private readonly ILogger<AppConfiguration>? _logger = logger;
 
@@ -41,22 +44,22 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
         }
         catch (IOException ex)
         {
-            _logger?.LogWarning(ex, "Failed to get configured AppDataPath, using default");
+            _logger?.LogWarning(ex, FailedToGetConfiguredAppDataPathMessage);
             return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
         }
         catch (UnauthorizedAccessException ex)
         {
-            _logger?.LogWarning(ex, "Failed to get configured AppDataPath, using default");
+            _logger?.LogWarning(ex, FailedToGetConfiguredAppDataPathMessage);
             return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
         }
         catch (System.Security.SecurityException ex)
         {
-            _logger?.LogWarning(ex, "Failed to get configured AppDataPath, using default");
+            _logger?.LogWarning(ex, FailedToGetConfiguredAppDataPathMessage);
             return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
         }
         catch (ArgumentException ex)
         {
-            _logger?.LogWarning(ex, "Failed to get configured AppDataPath, using default");
+            _logger?.LogWarning(ex, FailedToGetConfiguredAppDataPathMessage);
             return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
         }
     }
@@ -259,19 +262,19 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
         }
         catch (IOException ex)
         {
-            _logger?.LogWarning(ex, "Failed to resolve custom install root for configured data path, falling back to default");
+            _logger?.LogWarning(ex, FailedToResolveCustomInstallRootMessage);
         }
         catch (UnauthorizedAccessException ex)
         {
-            _logger?.LogWarning(ex, "Failed to resolve custom install root for configured data path, falling back to default");
+            _logger?.LogWarning(ex, FailedToResolveCustomInstallRootMessage);
         }
         catch (System.Security.SecurityException ex)
         {
-            _logger?.LogWarning(ex, "Failed to resolve custom install root for configured data path, falling back to default");
+            _logger?.LogWarning(ex, FailedToResolveCustomInstallRootMessage);
         }
         catch (ArgumentException ex)
         {
-            _logger?.LogWarning(ex, "Failed to resolve custom install root for configured data path, falling back to default");
+            _logger?.LogWarning(ex, FailedToResolveCustomInstallRootMessage);
         }
 
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);

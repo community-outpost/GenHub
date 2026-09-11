@@ -131,40 +131,7 @@ public static class PathHelper
     /// <returns>An enumeration of ancestor directory paths on the same volume.</returns>
     public static IEnumerable<string> EnumerateSameVolumeAncestors(string startPath)
     {
-        if (string.IsNullOrWhiteSpace(startPath))
-        {
-            yield break;
-        }
-
-        string fullPath = string.Empty;
-        string? volumeRoot = null;
-        try
-        {
-            fullPath = Path.GetFullPath(startPath);
-            volumeRoot = Path.GetPathRoot(fullPath);
-        }
-        catch (IOException)
-        {
-            yield break;
-        }
-        catch (ArgumentException)
-        {
-            yield break;
-        }
-        catch (NotSupportedException)
-        {
-            yield break;
-        }
-        catch (SecurityException)
-        {
-            yield break;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            yield break;
-        }
-
-        if (string.IsNullOrEmpty(volumeRoot))
+        if (string.IsNullOrWhiteSpace(startPath) || !TryGetFullPathAndVolumeRoot(startPath, out var fullPath, out var volumeRoot))
         {
             yield break;
         }
@@ -500,6 +467,49 @@ public static class PathHelper
         catch (SecurityException)
         {
             return fullPath;
+        }
+    }
+
+    private static bool TryGetFullPathAndVolumeRoot(
+        string path,
+        [NotNullWhen(true)] out string? fullPath,
+        [NotNullWhen(true)] out string? volumeRoot)
+    {
+        try
+        {
+            fullPath = Path.GetFullPath(path);
+            volumeRoot = Path.GetPathRoot(fullPath);
+            return !string.IsNullOrEmpty(volumeRoot);
+        }
+        catch (IOException)
+        {
+            fullPath = null;
+            volumeRoot = null;
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            fullPath = null;
+            volumeRoot = null;
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            fullPath = null;
+            volumeRoot = null;
+            return false;
+        }
+        catch (SecurityException)
+        {
+            fullPath = null;
+            volumeRoot = null;
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            fullPath = null;
+            volumeRoot = null;
+            return false;
         }
     }
 }
