@@ -6,7 +6,6 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Avalonia.Platform;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools.GenHotkeys;
 using GenHub.Core.Models.Enums;
@@ -21,10 +20,6 @@ namespace GenHub.Features.Tools.GenHotkeys.Services;
 /// </summary>
 public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
 {
-    private const string AssetsFolder = "Assets";
-    private const string GenHotkeysFolder = "GenHotkeys";
-    private const string GenHubFolder = "GenHub";
-
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -116,7 +111,7 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
 
         foreach (var relativePath in EnumerateCandidateIconPaths(searchDirs, candidateNames))
         {
-            using var stream = TryOpenAssetStream(relativePath);
+            using var stream = GenHotkeysAssetLoader.TryOpenAssetStream(relativePath);
             if (stream == null)
             {
                 continue;
@@ -366,7 +361,7 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
 
     private static async Task<string?> LoadAssetStringAsync(string relativePath, CancellationToken cancellationToken)
     {
-        var stream = TryOpenAssetStream(relativePath);
+        var stream = GenHotkeysAssetLoader.TryOpenAssetStream(relativePath);
         if (stream == null)
         {
             return null;
@@ -379,47 +374,11 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
         }
     }
 
-    private static Stream? TryOpenAssetStream(string relativePath)
-    {
-        // 1. Try Avalonia resource loader
-        try
-        {
-            var uri = new Uri($"avares://{GenHubFolder}/{AssetsFolder}/{GenHotkeysFolder}/{relativePath.Replace('\\', '/')}");
-            if (AssetLoader.Exists(uri))
-            {
-                return AssetLoader.Open(uri);
-            }
-        }
-        catch
-        {
-            // Ignore and fall back to filesystem
-        }
-
-        // 2. Try AppContext.BaseDirectory
-        var fileOnDisk = Path.Combine(AppContext.BaseDirectory, AssetsFolder, GenHotkeysFolder, relativePath);
-        if (File.Exists(fileOnDisk))
-        {
-            return File.OpenRead(fileOnDisk);
-        }
-
-        // 3. Try relative to project/solution directories during development
-        var searchRoots = new[]
-        {
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", AssetsFolder, GenHotkeysFolder, relativePath),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", GenHubFolder, AssetsFolder, GenHotkeysFolder, relativePath),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", GenHubFolder, AssetsFolder, GenHotkeysFolder, relativePath),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", GenHubFolder, GenHubFolder, AssetsFolder, GenHotkeysFolder, relativePath),
-        };
-
-        var match = searchRoots.FirstOrDefault(File.Exists);
-        return match != null ? File.OpenRead(match) : null;
-    }
-
     private CsfFile? LoadReferenceCsf(GameType gameType)
     {
         try
         {
-            var stream = TryOpenAssetStream(GenHotkeysConstants.PresetsLeikezeEn);
+            var stream = GenHotkeysAssetLoader.TryOpenAssetStream(GenHotkeysConstants.PresetsLeikezeEn);
             if (stream != null)
             {
                 using (stream)

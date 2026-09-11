@@ -1,3 +1,4 @@
+using System.IO;
 using System.Linq;
 using GenHub.Core.Constants;
 using GenHub.Core.Services.Tools.GenHotkeys;
@@ -20,6 +21,24 @@ public class CsfFileTests
         var extracted = CsfFile.ExtractHotkey(result);
 
         Assert.Equal('Y', extracted);
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CsfFile.SetHotkey"/> inserts or updates hotkey brackets and ampersands without mutating inline words.
+    /// </summary>
+    /// <param name="input">Original string.</param>
+    /// <param name="hotkey">New hotkey to set.</param>
+    /// <param name="expected">Expected modified string.</param>
+    [Theory]
+    [InlineData("[&D] Build Dozer", 'R', "[&R] Build Dozer")]
+    [InlineData("&Dozer", 'R', "[&R] Dozer")]
+    [InlineData("Laser Crusader (&L)", 'A', "Laser Crusader (&A)")]
+    [InlineData("Build Dozer", 'D', "[&D] Build Dozer")]
+    [InlineData("", 'X', "[&X]")]
+    public void SetHotkey_UpdatesCorrectly(string input, char hotkey, string expected)
+    {
+        var actual = CsfFile.SetHotkey(input, hotkey);
+        Assert.Equal(expected, actual);
     }
 
     /// <summary>
@@ -54,6 +73,40 @@ public class CsfFileTests
     {
         var result = CsfFile.ExtractHotkey(input);
         Assert.Equal(expected, result);
+    }
+
+    /// <summary>
+    /// Verifies that saving and reloading a CSF file preserves header metadata and all labels and values.
+    /// </summary>
+    [Fact]
+    public void SaveAndLoad_RoundTrip_PreservesAllStrings()
+    {
+        var original = new CsfFile
+        {
+            Version = 3,
+            LanguageCode = 0,
+        };
+
+        original.SetString("CONTROLBAR:ConstructAmericaDozer", "[&D] Dozer");
+        original.SetString("CONTROLBAR:ConstructAmericaRanger", "[&R] Ranger");
+        original.SetString("CONTROLBAR:ConstructAmericaTank", "[&T] Crusader Tank");
+
+        using var ms = new MemoryStream();
+        original.Save(ms);
+        var savedBytes = ms.ToArray();
+
+        Assert.NotEmpty(savedBytes);
+
+        using var readStream = new MemoryStream(savedBytes);
+        var loaded = CsfFile.Load(readStream);
+
+        Assert.Equal(3u, loaded.Version);
+        Assert.Equal(0u, loaded.LanguageCode);
+        Assert.Equal(3, loaded.Strings.Count);
+
+        Assert.Equal("[&D] Dozer", loaded.GetString("CONTROLBAR:ConstructAmericaDozer"));
+        Assert.Equal("[&R] Ranger", loaded.GetString("CONTROLBAR:ConstructAmericaRanger"));
+        Assert.Equal("[&T] Crusader Tank", loaded.GetString("CONTROLBAR:ConstructAmericaTank"));
     }
 
     /// <summary>

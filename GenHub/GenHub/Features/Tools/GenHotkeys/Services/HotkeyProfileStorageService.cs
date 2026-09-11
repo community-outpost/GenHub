@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Avalonia.Platform;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools.GenHotkeys;
@@ -161,7 +160,7 @@ public class HotkeyProfileStorageService(
                     ? GenHotkeysConstants.PresetsLegionnaireRu
                     : GenHotkeysConstants.PresetsLeikezeEn;
 
-                var stream = TryOpenAssetStream(assetPath);
+                var stream = GenHotkeysAssetLoader.TryOpenAssetStream(assetPath);
                 if (stream == null)
                 {
                     logger.LogWarning("Preset file not found: {Path}", assetPath);
@@ -201,39 +200,6 @@ public class HotkeyProfileStorageService(
             OverlayEnabled = true,
             OverlayCorner = OverlayCorner.TopLeft,
         };
-    }
-
-    private static Stream? TryOpenAssetStream(string relativePath)
-    {
-        try
-        {
-            var uri = new Uri($"avares://GenHub/Assets/GenHotkeys/{relativePath.Replace('\\', '/')}");
-            if (AssetLoader.Exists(uri))
-            {
-                return AssetLoader.Open(uri);
-            }
-        }
-        catch
-        {
-            // Fall back
-        }
-
-        var fileOnDisk = Path.Combine(AppContext.BaseDirectory, "Assets", "GenHotkeys", relativePath);
-        if (File.Exists(fileOnDisk))
-        {
-            return File.OpenRead(fileOnDisk);
-        }
-
-        var searchRoots = new[]
-        {
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Assets", "GenHotkeys", relativePath),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "GenHub", "Assets", "GenHotkeys", relativePath),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "GenHub", "Assets", "GenHotkeys", relativePath),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "GenHub", "GenHub", "Assets", "GenHotkeys", relativePath),
-        };
-
-        var match = searchRoots.FirstOrDefault(File.Exists);
-        return match != null ? File.OpenRead(match) : null;
     }
 
     private string GetSafeProfilePath(string profileId)
