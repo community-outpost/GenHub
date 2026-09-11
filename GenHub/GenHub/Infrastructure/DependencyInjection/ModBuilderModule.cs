@@ -33,6 +33,7 @@ public static class ModBuilderModule
         services.AddSingleton<IFileHashRegistryService, FileHashRegistryService>();
         services.AddSingleton<IMd5HashProvider, Md5HashProvider>();
         services.AddSingleton<IProjectStructureGenerator, ProjectStructureGenerator>();
+        services.AddSingleton<ISampleProjectService, SampleProjectService>();
 
         // ViewModels
         services.AddTransient<ModBuilderViewModel>();

@@ -1,18 +1,3 @@
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Platform.Storage;
-using Avalonia.Threading;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Notifications;
-using GenHub.Core.Interfaces.Tools.ModBuilder;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Tools.ModBuilder;
-using GenHub.Features.Tools.ModBuilder.Models;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -20,10 +5,25 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
-using System.Text.Json;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Platform.Storage;
+using Avalonia.Threading;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Tools.ModBuilder;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Tools.ModBuilder;
+using GenHub.Features.Tools.ModBuilder.Models;
+using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 
@@ -35,8 +35,6 @@ namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 public partial class ModBuilderViewModel : ObservableObject, IDisposable
 {
     private const string ModBuilderLiteral = "ModBuilder";
-    private const string BasicModLiteral = "BasicMod";
-    private const string BasicModProjectFileLiteral = "BasicMod.mbproj";
     private const string MbprojFilter = "*.mbproj";
     private const string SampleProjectsDirLiteral = "SampleProjects";
     private const string NoProjectTitle = "No Project";
@@ -53,6 +51,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     private readonly IDialogService? _dialogService;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<ModBuilderViewModel> _logger;
+    private readonly ISampleProjectService? _sampleProjectService;
     private readonly Stopwatch _buildStopwatch = new();
     private readonly Dictionary<string, (bool? Big, string? OutputFile)> _originalPackStates = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<RecentProjectInfo> _allRecentProjects = [];
@@ -77,6 +76,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// <param name="loggerFactory">The logger factory.</param>
     /// <param name="logger">The logger.</param>
     /// <param name="dialogService">Optional dialog service for user confirmations.</param>
+    /// <param name="sampleProjectService">Optional sample project service for asset acquisition.</param>
     public ModBuilderViewModel(
         IBuildEngineService buildEngineService,
         IProjectConfigService projectConfigService,
@@ -86,7 +86,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         FileManagerViewModel fileManager,
         ILoggerFactory loggerFactory,
         ILogger<ModBuilderViewModel> logger,
-        IDialogService? dialogService = null)
+        IDialogService? dialogService = null,
+        ISampleProjectService? sampleProjectService = null)
     {
         _buildEngineService = buildEngineService;
         _projectConfigService = projectConfigService;
@@ -98,6 +99,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         _loggerFactory = loggerFactory;
         _logger = logger;
         _dialogService = dialogService;
+        _sampleProjectService = sampleProjectService;
 
         // Initialize compression levels
         CompressionLevels.Add(CompressionLevel.NoCompression);
@@ -523,10 +525,17 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         // migrate it to user documents and scrub old app-dir paths so Velopack updates won't be blocked.
         foreach (var rawPath in rawPaths)
         {
+            if (IsDeprecatedSamplePath(rawPath))
+            {
+                continue;
+            }
+
             if (IsPathInsideAppDirectory(rawPath))
             {
                 var migrated = await MigrateProjectOutOfAppDirectoryAsync(rawPath).ConfigureAwait(false);
-                if (!string.IsNullOrEmpty(migrated) && !projectPaths.Contains(migrated, StringComparer.OrdinalIgnoreCase))
+                if (!string.IsNullOrEmpty(migrated) &&
+                    !IsDeprecatedSamplePath(migrated) &&
+                    !projectPaths.Contains(migrated, StringComparer.OrdinalIgnoreCase))
                 {
                     projectPaths.Add(migrated);
                 }
@@ -538,6 +547,25 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
 
         return projectPaths;
+    }
+
+    private static bool IsDeprecatedSamplePath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var name = Path.GetFileNameWithoutExtension(path);
+        var dirName = Path.GetFileName(Path.GetDirectoryName(path) ?? string.Empty);
+        return string.Equals(name, "BasicMod", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(dirName, "BasicMod", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(name, "BalancePatch", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(dirName, "BalancePatch", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(name, "TextureOverhaul", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(dirName, "TextureOverhaul", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(name, "CustomIcons", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(dirName, "CustomIcons", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task PrependDiscoveredSampleProjectsAsync(List<string> projectPaths)
@@ -687,6 +715,20 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                     await _projectStructureGenerator.GenerateProjectStructureAsync(
                         projectPath,
                         CancellationToken.None).ConfigureAwait(false);
+
+                    var newProjectDir = Path.GetDirectoryName(projectPath);
+                    if (_sampleProjectService != null &&
+                        !string.IsNullOrEmpty(newProjectDir) &&
+                        _sampleProjectService.IsSampleProject(projectPath) &&
+                        !_sampleProjectService.HasSampleAssets(newProjectDir))
+                    {
+                        var progressReporter = new Progress<string>(AppendBuildLog);
+                        await _sampleProjectService.EnsureSampleAssetsAsync(
+                            newProjectDir,
+                            projectName,
+                            progressReporter,
+                            CancellationToken.None).ConfigureAwait(false);
+                    }
 
                     await LoadProjectDataAsync().ConfigureAwait(false);
                     await _projectConfigService.AddToRecentProjectsAsync(projectPath, CancellationToken.None).ConfigureAwait(false);
@@ -1113,24 +1155,13 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             {
                 _notificationService.ShowWarning(
                     "Sample Not Found",
-                    "Sample project not found and could not be created automatically.");
-                AppendBuildLog("Sample project not found in search paths and could not be created.");
+                    "Sample project not found.");
+                AppendBuildLog("Sample project not found in search paths.");
                 return;
             }
 
             _logger.LogInformation("Found sample project at: {SamplePath}", samplePath);
-
-            var sampleDir = Path.GetDirectoryName(samplePath);
-            if (!string.IsNullOrEmpty(sampleDir))
-            {
-                await EnsureSampleTgaExistsAsync(sampleDir).ConfigureAwait(false);
-            }
-
             await LoadProjectFromPathAsync(samplePath).ConfigureAwait(false);
-
-            _notificationService.ShowSuccess(
-                "Sample Loaded",
-                "Sample project loaded. Click 'Build' to test ModBuilder.");
         }
         catch (Exception ex)
         {
@@ -1151,6 +1182,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         };
 
         var userSamplesDir = Path.Combine(GetUserModBuilderDirectory(), "Samples");
+        CleanDeprecatedSampleDirectories(userSamplesDir);
+
         var userProjectPaths = new List<string>();
 
         foreach (var baseDir in sampleBaseDirs.Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase))
@@ -1158,15 +1191,33 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             await ProvisionSampleTemplatesFromDirectoryAsync(baseDir, userSamplesDir, userProjectPaths).ConfigureAwait(false);
         }
 
-        if (userProjectPaths.Count > 0)
+        return userProjectPaths;
+    }
+
+    private void CleanDeprecatedSampleDirectories(string userSamplesDir)
+    {
+        if (!Directory.Exists(userSamplesDir))
         {
-            return userProjectPaths;
+            return;
         }
 
-        var fallbackPath = await EnsureFallbackBasicModProjectAsync().ConfigureAwait(false);
-        return !string.IsNullOrEmpty(fallbackPath) && File.Exists(fallbackPath)
-            ? new[] { fallbackPath }
-            : Array.Empty<string>();
+        var deprecated = new[] { "BasicMod", "BalancePatch", "TextureOverhaul", "CustomIcons" };
+        foreach (var name in deprecated)
+        {
+            var staleDir = Path.Combine(userSamplesDir, name);
+            if (Directory.Exists(staleDir))
+            {
+                try
+                {
+                    Directory.Delete(staleDir, recursive: true);
+                    _logger.LogInformation("Removed deprecated sample directory: {Dir}", staleDir);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "Failed to clean deprecated sample directory {Dir}", staleDir);
+                }
+            }
+        }
     }
 
     private async Task ProvisionSampleTemplatesFromDirectoryAsync(string baseDir, string userSamplesDir, List<string> userProjectPaths)
@@ -1194,6 +1245,12 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
 
         var projectName = Path.GetFileName(templateDir);
+        var allowedSampleNames = new[] { "GeneralsGamePatch2", "ImprovedMenus", "Hotkeys" };
+        if (!allowedSampleNames.Contains(projectName, StringComparer.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
         var userProjectDir = Path.Combine(userSamplesDir, projectName);
         var userProjectFile = Path.Combine(userProjectDir, Path.GetFileName(templateFile));
 
@@ -1219,28 +1276,6 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         {
             userProjectPaths.Add(userProjectFile);
         }
-    }
-
-    private async Task<string?> EnsureFallbackBasicModProjectAsync()
-    {
-        var defaultFolder = Path.Combine(GetUserModBuilderDirectory(), BasicModLiteral);
-        Directory.CreateDirectory(defaultFolder);
-        var generatedPath = Path.Combine(defaultFolder, BasicModProjectFileLiteral);
-
-        if (!File.Exists(generatedPath))
-        {
-            var createResult = await _projectConfigService.CreateProjectAsync(
-                generatedPath,
-                BasicModLiteral,
-                cancellationToken: CancellationToken.None).ConfigureAwait(false);
-
-            if (createResult.Success)
-            {
-                await _projectStructureGenerator.GenerateProjectStructureAsync(generatedPath, CancellationToken.None).ConfigureAwait(false);
-            }
-        }
-
-        return generatedPath;
     }
 
     private async Task<string?> ResolveSampleProjectPathAsync()
@@ -1527,52 +1562,6 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     private bool CanOpenFileManager() => CurrentProject != null && !IsBuildRunning;
 
     /// <summary>
-    /// Ensures the sample TGA file exists by creating it if needed.
-    /// </summary>
-    private static async Task EnsureSampleTgaExistsAsync(string projectRoot, string? gameFilesEditedDir = null)
-    {
-        var editedDir = !string.IsNullOrWhiteSpace(gameFilesEditedDir)
-            ? gameFilesEditedDir
-            : ModBuilderConstants.GameFilesEditedDir;
-        var editedPath = Path.IsPathRooted(editedDir) ? editedDir : Path.Combine(projectRoot, editedDir);
-        var tgaPath = Path.Combine(editedPath, "Art", "Textures", "sample.tga");
-
-        if (File.Exists(tgaPath))
-        {
-            var fileInfo = new FileInfo(tgaPath);
-            if (fileInfo.Length > 100) // Already a valid TGA
-            {
-                return;
-            }
-        }
-
-        // Create a simple 64x64 gradient TGA using ImageSharp
-        using var image = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(64, 64);
-
-        // Create gradient pattern
-        for (int y = 0; y < 64; y++)
-        {
-            for (int x = 0; x < 64; x++)
-            {
-                byte r = (byte)((x / 64.0) * 255);
-                byte g = (byte)((y / 64.0) * 255);
-                byte b = 128;
-                byte a = 255;
-                image[x, y] = new SixLabors.ImageSharp.PixelFormats.Rgba32(r, g, b, a);
-            }
-        }
-
-        var tgaDir = Path.GetDirectoryName(tgaPath);
-        if (!string.IsNullOrEmpty(tgaDir))
-        {
-            Directory.CreateDirectory(tgaDir);
-        }
-
-        using var fileStream = File.Create(tgaPath);
-        await image.SaveAsync(fileStream, new SixLabors.ImageSharp.Formats.Tga.TgaEncoder()).ConfigureAwait(false);
-    }
-
-    /// <summary>
     /// Loads a project from a specific path.
     /// </summary>
     private async Task LoadProjectFromPathAsync(string projectPath)
@@ -1612,6 +1601,34 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 ProjectPath = projectPath;
                 ProjectName = result.Data.Name;
                 IsProjectLoaded = true;
+
+                var projectDir = Path.GetDirectoryName(projectPath) ?? string.Empty;
+                if (_sampleProjectService != null &&
+                    _sampleProjectService.IsSampleProject(projectPath) &&
+                    !_sampleProjectService.HasSampleAssets(projectDir))
+                {
+                    StatusMessage = $"Acquiring sample assets for {ProjectName}...";
+                    AppendBuildLog($"Sample assets missing for {ProjectName}. Downloading and extracting authentic game files on-demand...");
+                    _notificationService.ShowInfo("Downloading Sample Assets", $"Downloading sample assets for {ProjectName}...");
+
+                    var progressReporter = new Progress<string>(AppendBuildLog);
+                    var acquireResult = await _sampleProjectService.EnsureSampleAssetsAsync(
+                        projectDir,
+                        ProjectName,
+                        progressReporter,
+                        CancellationToken.None).ConfigureAwait(false);
+
+                    if (acquireResult.Success)
+                    {
+                        AppendBuildLog($"Successfully acquired sample assets for {ProjectName}.");
+                        _notificationService.ShowSuccess("Sample Assets Ready", "Authentic game files extracted into GameFilesEdited.");
+                    }
+                    else
+                    {
+                        AppendBuildLog($"Warning: Failed to acquire sample assets: {acquireResult.FirstError}");
+                        _notificationService.ShowWarning("Sample Assets Incomplete", acquireResult.FirstError ?? "Failed to acquire sample assets.");
+                    }
+                }
 
                 await LoadProjectDataAsync().ConfigureAwait(false);
                 await _projectConfigService.AddToRecentProjectsAsync(projectPath, CancellationToken.None).ConfigureAwait(false);

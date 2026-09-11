@@ -1444,7 +1444,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             var configsDir = Path.Combine(projectDir, directories.Configs);
             Directory.CreateDirectory(configsDir);
 
-            if (template?.Name == ProjectTemplate.CustomIcons.Name)
+            if (template?.Name == ProjectTemplate.Hotkeys.Name || template?.Name == "CustomIcons")
             {
                 await CreateCustomIconsSampleFilesAsync(projectDir, directories, configsDir, cancellationToken).ConfigureAwait(false);
             }

@@ -59,4 +59,9 @@ public sealed class RecentProjectInfo
     public string DisplayLastModified => LastBuildTime.HasValue
         ? $"Modified: {LastBuildTime.Value:MMM dd, yyyy}"
         : "Recent Project";
+
+    /// <summary>
+    /// Gets the formatted last opened date string.
+    /// </summary>
+    public string LastOpened => DisplayLastModified;
 }
