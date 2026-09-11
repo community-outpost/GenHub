@@ -2856,20 +2856,6 @@ public sealed class ReplayDirectoryServiceTests
         Assert.Equal("Vanilla 1.04 INI", replay.MatchedClient.DataPatchName);
     }
 
-    private static ReplayFile CreateTestReplayForPathResolution(string publisher) => new()
-    {
-        FileName = "Test.rep",
-        FullPath = "/replays/Test.rep",
-        SizeInBytes = 2048,
-        LastModified = DateTime.UtcNow,
-        GameVersion = GameType.ZeroHour,
-        MatchedClient = new CrcMappingEntry
-        {
-            Publisher = publisher,
-        },
-    };
-}
-
     /// <summary>
     /// Verifies that CreateProfileForReplayAsync uses the custom game client when one is provided.
     /// </summary>
@@ -2990,4 +2976,17 @@ public sealed class ReplayDirectoryServiceTests
             l => l.LaunchProfileAsync("explicit-user-profile-id", true, It.IsAny<CancellationToken>()),
             Times.Once);
     }
+
+    private static ReplayFile CreateTestReplayForPathResolution(string publisher) => new()
+    {
+        FileName = "Test.rep",
+        FullPath = "/replays/Test.rep",
+        SizeInBytes = 2048,
+        LastModified = DateTime.UtcNow,
+        GameVersion = GameType.ZeroHour,
+        MatchedClient = new CrcMappingEntry
+        {
+            Publisher = publisher,
+        },
+    };
 }
