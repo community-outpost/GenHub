@@ -27,6 +27,7 @@
       <hotkeyConverters:CornerToHorizontalAlignmentConverter x:Key="CornerToHorizontalAlignmentConverter" />
       <hotkeyConverters:CornerToVerticalAlignmentConverter x:Key="CornerToVerticalAlignmentConverter" />
       <hotkeyConverters:FactionToGeometryConverter x:Key="FactionToGeometryConverter" />
+      <hotkeyConverters:FactionToImageConverter x:Key="FactionToImageConverter" />
       <hotkeyConverters:FactionToBrushConverter x:Key="FactionToBrushConverter" />
     </ResourceDictionary>
   </UserControl.Resources>
@@ -227,16 +228,17 @@
               <DataTemplate x:DataType="hotkeyModels:HotkeyFaction">
                 <DockPanel Margin="2,3">
                   <Border DockPanel.Dock="Left"
-                          Width="22" Height="22"
-                          CornerRadius="11"
-                          Background="#252525"
+                          Width="26" Height="26"
+                          CornerRadius="6"
+                          Background="#16171E"
                           BorderBrush="{Binding Converter={StaticResource FactionToBrushConverter}}"
                           BorderThickness="1.5"
-                          Margin="0,0,8,0">
-                    <PathIcon Data="{Binding Converter={StaticResource FactionToGeometryConverter}}"
-                              Foreground="{Binding Converter={StaticResource FactionToBrushConverter}}"
-                              Width="12" Height="12"
-                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                          Margin="0,0,8,0"
+                          ClipToBounds="True">
+                    <Image Source="{Binding Converter={StaticResource FactionToImageConverter}}"
+                           Width="20" Height="20"
+                           Stretch="Uniform"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
                   </Border>
                   <StackPanel VerticalAlignment="Center">
                     <TextBlock Text="{Binding FormattedTitle}" FontWeight="SemiBold" FontSize="12"/>
