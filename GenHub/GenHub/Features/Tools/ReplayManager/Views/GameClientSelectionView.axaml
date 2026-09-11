@@ -1,0 +1,213 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:GenHub.Features.Tools.ReplayManager.ViewModels"
+        mc:Ignorable="d"
+        d:DesignWidth="760" d:DesignHeight="620"
+        x:Class="GenHub.Features.Tools.ReplayManager.Views.GameClientSelectionView"
+        x:DataType="vm:GameClientSelectionViewModel"
+        Title="Select Game Client"
+        Width="760" Height="620"
+        MinWidth="540" MinHeight="420"
+        WindowStartupLocation="CenterOwner"
+        ExtendClientAreaToDecorations="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="40"
+        Background="{DynamicResource SurfaceBackground}">
+
+    <Grid RowDefinitions="40,*">
+        <!-- Custom Title Bar -->
+        <Grid Grid.Row="0"
+              ColumnDefinitions="*,Auto,Auto,Auto,Auto"
+              Background="{DynamicResource SurfaceBackground}"
+              x:Name="TitleBarGrid"
+              PointerPressed="OnTitleBarPointerPressed">
+
+            <!-- App icon and title -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="14,0,0,0">
+                <Image Source="avares://GenHub/Assets/Icons/generalshub-icon.png"
+                       Width="22" Height="22" />
+                <TextBlock Text="Select Game Client"
+                           VerticalAlignment="Center"
+                           FontSize="13" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimary}" />
+            </StackPanel>
+
+            <!-- Minimize Button -->
+            <Button Grid.Column="2"
+                    VerticalAlignment="Stretch"
+                    VerticalContentAlignment="Center"
+                    HorizontalContentAlignment="Center"
+                    Background="Transparent"
+                    Foreground="{DynamicResource TextSecondary}"
+                    BorderThickness="0"
+                    Padding="0"
+                    Width="46" Height="40"
+                    Click="MinimizeButton_Click">
+                <Path Data="M4,11H20V13H4Z"
+                      Fill="{Binding $parent[Button].Foreground}"
+                      Width="12" Height="12"
+                      Stretch="Uniform"
+                      VerticalAlignment="Center"
+                      HorizontalAlignment="Center"
+                      Margin="0,8,0,0" />
+                <Button.Styles>
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+
+            <!-- Maximize/Restore Button -->
+            <Button Grid.Column="3"
+                    VerticalAlignment="Stretch"
+                    VerticalContentAlignment="Center"
+                    HorizontalContentAlignment="Center"
+                    Background="Transparent"
+                    Foreground="{DynamicResource TextSecondary}"
+                    BorderThickness="0"
+                    Padding="0"
+                    Width="46" Height="40"
+                    Click="MaximizeButton_Click">
+                <Path x:Name="MaximizeIcon"
+                      Data="M4,4H20V20H4V4M6,8V18H18V8H6Z"
+                      Fill="{Binding $parent[Button].Foreground}"
+                      Width="12" Height="12"
+                      Stretch="Uniform"
+                      VerticalAlignment="Center"
+                      HorizontalAlignment="Center" />
+                <Button.Styles>
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+
+            <!-- Close Button -->
+            <Button Grid.Column="4"
+                    VerticalAlignment="Stretch"
+                    VerticalContentAlignment="Center"
+                    HorizontalContentAlignment="Center"
+                    Background="Transparent"
+                    Foreground="{DynamicResource TextSecondary}"
+                    BorderThickness="0"
+                    Padding="0"
+                    Width="46" Height="40"
+                    Click="CloseButton_Click">
+                <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                      Fill="{Binding $parent[Button].Foreground}"
+                      Width="12" Height="12"
+                      Stretch="Uniform"
+                      VerticalAlignment="Center"
+                      HorizontalAlignment="Center" />
+                <Button.Styles>
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
+                        <Setter Property="Foreground" Value="White"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </Grid>
+
+        <!-- Main Body -->
+        <Grid Grid.Row="1" RowDefinitions="Auto,Auto,*">
+            <!-- Header Context -->
+            <Border Grid.Row="0" Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="24,14">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="3">
+                        <TextBlock Text="Select Game Client" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                        <TextBlock Text="{Binding ReplayFileName}" FontSize="13" Foreground="{DynamicResource AccentBrush}" TextTrimming="CharacterEllipsis"
+                                   IsVisible="{Binding ReplayFileName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" Text="Choose a client to create a dedicated profile" Foreground="{DynamicResource TextSecondary}" FontSize="12" VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+
+            <!-- Search Filter Bar -->
+            <Border Grid.Row="1" Background="{DynamicResource SurfaceBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="24,12">
+                <TextBox Text="{Binding SearchText, Mode=TwoWay}"
+                         Watermark="Filter game clients (e.g. Community Patch, MP Recovery, 1.04, Retail, TheSuperHackers)..."
+                         FontSize="13"
+                         Padding="10,8"
+                         CornerRadius="6" />
+            </Border>
+
+            <!-- Clients List / Loading Area -->
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="24,16">
+                <StackPanel Spacing="12">
+                    <!-- Loading Indicator -->
+                    <StackPanel IsVisible="{Binding IsLoading}" HorizontalAlignment="Center" Margin="0,64" Spacing="10">
+                        <ProgressBar IsIndeterminate="True" Width="220" Foreground="{DynamicResource AccentBrush}" />
+                        <TextBlock Text="Discovering available game clients…" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center" />
+                    </StackPanel>
+
+                    <!-- Empty State -->
+                    <StackPanel IsVisible="{Binding !IsLoading}" Spacing="10">
+                        <Border IsVisible="{Binding !FilteredClients.Count}"
+                                Background="{DynamicResource CardBackground}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="24,32">
+                            <StackPanel HorizontalAlignment="Center" Spacing="8">
+                                <TextBlock Text="No game clients found" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" />
+                                <TextBlock Text="No clients match your filter or are available on this system." Foreground="{DynamicResource TextSecondary}" FontSize="12" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Client Cards -->
+                        <ItemsControl ItemsSource="{Binding FilteredClients}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="vm:GameClientCardViewModel">
+                                    <Border Background="{DynamicResource CardBackground}"
+                                            BorderBrush="{DynamicResource BorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Padding="16,12"
+                                            Margin="0,0,0,10">
+                                        <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto">
+                                            <!-- Top Row: Name and Category Badge -->
+                                            <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                                <Border CornerRadius="10" Background="{DynamicResource SurfaceElevatedBrush}" Padding="8,2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Category}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" />
+                                                </Border>
+                                            </StackPanel>
+
+                                            <!-- Middle Row: Publisher, Version, Executable / Details -->
+                                            <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Spacing="12" Margin="0,4,0,0">
+                                                <TextBlock Text="{Binding Publisher, StringFormat='Publisher: {0}'}" FontSize="12" Foreground="{DynamicResource TextSecondary}" />
+                                                <TextBlock Text="{Binding Version, StringFormat='Version: {0}'}" FontSize="12" Foreground="{DynamicResource TextSecondary}" />
+                                            </StackPanel>
+
+                                            <TextBlock Grid.Row="2" Grid.Column="0"
+                                                       Text="{Binding Description}"
+                                                       FontSize="11" Foreground="{DynamicResource TextMuted}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Margin="0,4,0,0" />
+
+                                            <!-- Action Button -->
+                                            <Button Grid.Row="0" Grid.RowSpan="3" Grid.Column="1"
+                                                    Classes="Primary"
+                                                    Command="{Binding SelectCommand}"
+                                                    VerticalAlignment="Center"
+                                                    Padding="14,8"
+                                                    CornerRadius="6">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <TextBlock Text="Select &amp; Create Profile" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Button>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Window>

@@ -72,6 +72,7 @@ public static class ReplayManagerModule
 
         // ViewModel (Singleton to persist state across tool activations)
         services.AddSingleton<ReplayManagerViewModel>();
+        services.AddTransient<GameClientSelectionViewModel>();
 
         // Tool Plugin (Registered as a singleton IToolPlugin)
         services.AddSingleton<IToolPlugin, ReplayManagerToolPlugin>();

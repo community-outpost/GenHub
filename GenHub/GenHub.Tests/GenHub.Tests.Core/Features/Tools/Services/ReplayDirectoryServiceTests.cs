@@ -2869,3 +2869,125 @@ public sealed class ReplayDirectoryServiceTests
         },
     };
 }
+
+    /// <summary>
+    /// Verifies that CreateProfileForReplayAsync uses the custom game client when one is provided.
+    /// </summary>
+    [Fact]
+    public async Task CreateProfileForReplayAsync_WhenCustomGameClientProvided_UsesCustomGameClient()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "CustomClientReplay.rep",
+            FullPath = "/replays/CustomClientReplay.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+        };
+
+        var customClient = new GameClient
+        {
+            Id = "custom-community-client-id",
+            Name = "Community Patch 1.06",
+            Version = "1.06",
+            PublisherType = "community",
+            GameType = GameType.ZeroHour,
+            ExecutablePath = "generalszh.exe",
+        };
+
+        var installation = new GameInstallation
+        {
+            HasZeroHour = true,
+            ZeroHourPath = "/games/ZeroHour",
+            AvailableGameClients = [customClient],
+        };
+
+        _mockInstallationService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+
+        _mockProfileManager
+            .Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        CreateProfileRequest? capturedRequest = null;
+        _mockProfileManager
+            .Setup(p => p.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<CreateProfileRequest, CancellationToken>((req, _) => capturedRequest = req)
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "created-custom-profile-id", Name = "Community Patch 1.06 (Replay: CustomClientReplay)" }));
+
+        _mockCasPoolService
+            .Setup(c => c.EnsurePoolPathAsync(It.IsAny<IReadOnlyList<GameInstallation>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var result = await service.CreateProfileForReplayAsync(replay, customGameClient: customClient, customClientManifestId: "custom-community-client-id");
+
+        Assert.True(result.Success);
+        Assert.NotNull(capturedRequest);
+        Assert.Equal("Community Patch 1.06", capturedRequest.GameClient.Name);
+        Assert.Equal("created-custom-profile-id", replay.MatchingProfileId);
+        Assert.Equal(ReplayCompatibilityStatus.Compatible, replay.CompatibilityStatus);
+    }
+
+    /// <summary>
+    /// Verifies that LaunchReplayAsync uses explicit profile ID when provided.
+    /// </summary>
+    [Fact]
+    public async Task LaunchReplayAsync_WhenExplicitProfileIdProvided_LaunchesExplicitProfile()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "ExplicitProfile.rep",
+            FullPath = "/replays/ExplicitProfile.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+        };
+
+        var explicitProfile = new GameProfile
+        {
+            Id = "explicit-user-profile-id",
+            Name = "MP Recovery Profile",
+            GameClient = new GameClient
+            {
+                Id = "mp-recovery-client-id",
+                Name = "MP Recovery",
+                GameType = GameType.ZeroHour,
+                PublisherType = "community",
+            },
+        };
+
+        _mockProfileManager
+            .Setup(p => p.GetProfileAsync("explicit-user-profile-id", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(explicitProfile));
+
+        _mockProfileLauncherFacade
+            .Setup(l => l.GetLaunchStatusAsync("explicit-user-profile-id", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<LaunchStatus>.CreateSuccess(new LaunchStatus { IsRunning = false }));
+
+        _mockProfileLauncherFacade
+            .Setup(l => l.LaunchProfileAsync("explicit-user-profile-id", true, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo()));
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var result = await service.LaunchReplayAsync(replay, profileId: "explicit-user-profile-id");
+
+        Assert.True(result.Success);
+        Assert.Equal("explicit-user-profile-id", replay.MatchingProfileId);
+        Assert.Equal("MP Recovery Profile", replay.MatchingProfileName);
+        _mockProfileLauncherFacade.Verify(
+            l => l.LaunchProfileAsync("explicit-user-profile-id", true, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+}

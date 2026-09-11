@@ -93,6 +93,30 @@ public sealed partial class ProfileSelectionViewModel(
     [ObservableProperty]
     private string? _selectedProfileName;
 
+    [ObservableProperty]
+    private string _dialogTitle = "Add to Profile";
+
+    [ObservableProperty]
+    private string _headerTitle = "Add to profile";
+
+    [ObservableProperty]
+    private string _headerSubtitle = "Click a profile to add it";
+
+    [ObservableProperty]
+    private string _actionBadgeText = "Add";
+
+    [ObservableProperty]
+    private string _createProfileCardSubtitle = "Add this content to a fresh profile";
+
+    [ObservableProperty]
+    private GameProfile? _selectedProfile;
+
+    [ObservableProperty]
+    private string? _selectedProfileId;
+
+    [ObservableProperty]
+    private bool _isCreateNewRequested;
+
     /// <summary>
     /// Event raised when the dialog should be closed.
     /// </summary>
@@ -340,6 +364,8 @@ public sealed partial class ProfileSelectionViewModel(
             if (string.IsNullOrEmpty(ContentManifestId))
             {
                 logger.LogInformation("Profile '{ProfileName}' selected (no content to add)", profile.Name);
+                SelectedProfile = profile;
+                SelectedProfileId = profile.Id;
                 SelectedProfileName = profile.Name;
                 WasSuccessful = true;
                 RequestClose?.Invoke(this, EventArgs.Empty);
@@ -421,7 +447,10 @@ public sealed partial class ProfileSelectionViewModel(
     {
         if (string.IsNullOrEmpty(ContentManifestId))
         {
-            logger.LogWarning("Cannot create profile: no content manifest ID provided");
+            logger.LogInformation("Create new profile requested without content manifest ID");
+            IsCreateNewRequested = true;
+            WasSuccessful = false;
+            RequestClose?.Invoke(this, EventArgs.Empty);
             return;
         }
 

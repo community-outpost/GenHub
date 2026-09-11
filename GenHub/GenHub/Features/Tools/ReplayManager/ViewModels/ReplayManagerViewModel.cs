@@ -29,6 +29,10 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Tools.ReplayManager;
 using GenHub.Core.Models.Tools.UploadThing;
 using GenHub.Features.Tools.ViewModels;
+using GenHub.Features.Downloads.ViewModels;
+using GenHub.Features.Downloads.Views;
+using GenHub.Features.Tools.ReplayManager.Views;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Tools.ReplayManager.ViewModels;
@@ -50,7 +54,8 @@ public partial class ReplayManagerViewModel(
     IUploadHistoryService uploadHistoryService,
     INotificationService notificationService,
     ILogger<ReplayManagerViewModel> logger,
-    IDialogService? dialogService = null) : ObservableObject,
+    IDialogService? dialogService = null,
+    IServiceProvider? serviceProvider = null) : ObservableObject,
     IRecipient<ProfileLaunchedMessage>,
     IRecipient<ProfileStoppedMessage>,
     IRecipient<ProfileDeletedMessage>,
@@ -1048,6 +1053,7 @@ public partial class ReplayManagerViewModel(
 
     /// <summary>
     /// Creates a dedicated game profile configured for the selected replay file.
+    /// Opens the game client selection dialog so the user can choose from all available game clients.
     /// </summary>
     /// <param name="replay">The replay file to create a profile for.</param>
     [RelayCommand]
@@ -1058,11 +1064,114 @@ public partial class ReplayManagerViewModel(
             return;
         }
 
+        if (serviceProvider != null)
+        {
+            await SelectClientAndCreateProfileAsync(replay);
+            return;
+        }
+
+        await ExecuteDirectProfileCreationAsync(replay);
+    }
+
+    /// <summary>
+    /// Opens the game client selection dialog allowing the user to choose an available game client
+    /// (e.g. Community Patch, MP Recovery, TheSuperHackers, detected installations) to create a profile.
+    /// </summary>
+    [RelayCommand]
+    private async Task SelectClientAndCreateProfileAsync(ReplayFile replay)
+    {
+        if (replay == null || IsBusy)
+        {
+            return;
+        }
+
         if (IsDemoPath(replay.FullPath))
         {
             notificationService.ShowInfo(
-                "Create Profile for Replay",
-                "Creates a dedicated game profile configured with the exact game client and INI configuration required by this replay.");
+                "Select Game Client",                "Choose from available game clients (such as Community Patch, MP Recovery, or detected installations) to configure a dedicated profile.");
+            return;
+        }
+
+        if (serviceProvider != null)
+        {
+            try
+            {
+                using var scope = serviceProvider.CreateScope();
+                var sp = scope.ServiceProvider;
+
+                var clientVm = ActivatorUtilities.CreateInstance<GameClientSelectionViewModel>(sp);
+                await clientVm.LoadClientsAsync(replay.GameVersion, replay.FileName);
+
+                var dialog = new GameClientSelectionView(clientVm);
+                var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is
+                    IClassicDesktopStyleApplicationLifetime desktop
+                        ? desktop.MainWindow
+                        : null;
+
+                if (mainWindow != null)
+                {
+                    await dialog.ShowDialog(mainWindow);
+                }
+
+                if (clientVm.WasSuccessful && clientVm.SelectedClient != null)
+                {
+                    IsBusy = true;
+                    IsIndeterminate = true;
+                    StatusMessage = $"Configuring profile for {replay.FileName}...";
+
+                    try
+                    {
+                        var result = await directoryService.CreateProfileForReplayAsync(
+                            replay,
+                            clientVm.SelectedClient,
+                            clientVm.SelectedManifestId);
+
+                        if (result.Success && result.Data != null)
+                        {
+                            notificationService.ShowSuccess(
+                                "Profile Created",                                $"Created profile '{result.Data.Name}' with {clientVm.SelectedClient.Name}.");
+                            StatusMessage = $"Created profile '{result.Data.Name}'.";
+                            await LoadReplaysAsync();
+                        }
+                        else
+                        {
+                            var errorMsg = result.FirstError ?? "Failed to create game profile for replay.";
+                            notificationService.ShowError("Profile Creation Failed", errorMsg);
+                            StatusMessage = "Profile creation failed.";
+                        }
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        logger.LogError(ex, "Failed to create profile for replay {FileName}", replay.FileName);
+                        notificationService.ShowError("Profile Creation Error", ex.Message);
+                        StatusMessage = "Profile creation error.";
+                    }
+                    finally
+                    {
+                        IsBusy = false;
+                        IsIndeterminate = false;
+                    }
+                    return;
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogError(ex, "Failed to display game client selection dialog for {FileName}", replay.FileName);
+            }
+        }
+        else
+        {
+            await ExecuteDirectProfileCreationAsync(replay);
+        }
+    }
+
+    [RelayCommand]
+    private async Task ExecuteDirectProfileCreationAsync(ReplayFile replay)
+    {
+        if (IsDemoPath(replay.FullPath))
+        {
+            notificationService.ShowInfo(
+                "Create Profile for Replay",                "Creates a dedicated game profile configured with the exact game client and INI configuration required by this replay.");
             return;
         }
 
@@ -1076,8 +1185,7 @@ public partial class ReplayManagerViewModel(
             if (result.Success && result.Data != null)
             {
                 notificationService.ShowSuccess(
-                    "Profile Created",
-                    $"Created profile '{result.Data.Name}' for {replay.ClientAndPatchDisplay}.");
+                    "Profile Created",                    $"Created profile '{result.Data.Name}' for {replay.ClientAndPatchDisplay}.");
                 StatusMessage = $"Created profile '{result.Data.Name}'.";
                 await LoadReplaysAsync();
             }
@@ -1103,6 +1211,7 @@ public partial class ReplayManagerViewModel(
 
     /// <summary>
     /// Launches the game profile matching the selected replay.
+    /// If no profile is associated, opens the profile selection view so the user can choose.
     /// </summary>
     /// <param name="replay">The replay file to launch.</param>
     [RelayCommand]
@@ -1113,34 +1222,115 @@ public partial class ReplayManagerViewModel(
             return;
         }
 
+        if (string.IsNullOrEmpty(replay.MatchingProfileId))
+        {
+            await SelectProfileAndLaunchReplayAsync(replay);
+            return;
+        }
+
+        await LaunchReplayWithProfileAsync(replay, replay.MatchingProfileId);
+    }
+
+    /// <summary>
+    /// Opens the profile selection dialog allowing the user to select which profile to run the replay with.
+    /// </summary>
+    [RelayCommand]
+    private async Task SelectProfileAndLaunchReplayAsync(ReplayFile replay)
+    {
+        if (replay == null || IsBusy)
+        {
+            return;
+        }
+
+        if (IsDemoPath(replay.FullPath))
+        {
+            notificationService.ShowInfo(
+                "Select Profile to Run Replay",                "Choose a profile to watch this replay with.");
+            return;
+        }
+
+        if (serviceProvider != null)
+        {
+            try
+            {
+                using var scope = serviceProvider.CreateScope();
+                var sp = scope.ServiceProvider;
+
+                var profileVm = ActivatorUtilities.CreateInstance<ProfileSelectionViewModel>(sp);
+                profileVm.DialogTitle = $"Select Profile - {replay.FileName}";
+                profileVm.HeaderTitle = "Select Profile to Run Replay";
+                profileVm.HeaderSubtitle = "Click a profile to launch this replay";
+                profileVm.ActionBadgeText = "Play";
+                profileVm.CreateProfileCardSubtitle = "Choose an available game client to create a fresh profile";
+
+                await profileVm.LoadProfilesAsync(replay.GameVersion, contentManifestId: string.Empty, contentName: replay.FileName);
+
+                var dialog = new ProfileSelectionView(profileVm);
+                var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is
+                    IClassicDesktopStyleApplicationLifetime desktop
+                        ? desktop.MainWindow
+                        : null;
+
+                if (mainWindow != null)
+                {
+                    await dialog.ShowDialog(mainWindow);
+                }
+
+                if (profileVm.IsCreateNewRequested)
+                {
+                    await SelectClientAndCreateProfileAsync(replay);
+                    return;
+                }
+
+                if (profileVm.WasSuccessful && profileVm.SelectedProfile != null)
+                {
+                    replay.MatchingProfileId = profileVm.SelectedProfile.Id;
+                    replay.MatchingProfileName = profileVm.SelectedProfile.Name;
+                    replay.CompatibilityStatus = ReplayCompatibilityStatus.Compatible;
+
+                    await LaunchReplayWithProfileAsync(replay, profileVm.SelectedProfile.Id);
+                    return;
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogError(ex, "Failed to display profile selection dialog for {FileName}", replay.FileName);
+            }
+        }
+        else
+        {
+            await LaunchReplayWithProfileAsync(replay, replay.MatchingProfileId);
+        }
+    }
+
+    private async Task LaunchReplayWithProfileAsync(ReplayFile replay, string? profileId)
+    {
         EnsureMessengerRegistered();
 
         if (IsDemoPath(replay.FullPath))
         {
             notificationService.ShowInfo(
-                "Launch Replay Profile",
-                "Launches the game using the profile matching this replay so you can watch it without version or INI mismatch errors.");
+                "Launch Replay Profile",                "Launches the game using the profile matching this replay so you can watch it without version or INI mismatch errors.");
             return;
         }
 
-        if (!string.IsNullOrEmpty(replay.MatchingProfileId))
+        if (!string.IsNullOrEmpty(profileId))
         {
             bool isRunning = false;
             lock (_runningProfileIds)
             {
-                isRunning = _runningProfileIds.Contains(replay.MatchingProfileId);
+                isRunning = _runningProfileIds.Contains(profileId);
             }
 
             if (!isRunning)
             {
-                isRunning = await directoryService.IsProfileRunningAsync(replay.MatchingProfileId);
+                isRunning = await directoryService.IsProfileRunningAsync(profileId);
             }
 
             if (isRunning)
             {
                 notificationService.ShowWarning(
-                    "Game Running",
-                    "The game profile for this replay is already running.");
+                    "Game Running",                    "The game profile for this replay is already running.");
                 return;
             }
         }
@@ -1151,15 +1341,14 @@ public partial class ReplayManagerViewModel(
 
         try
         {
-            var result = await directoryService.LaunchReplayAsync(replay);
+            var result = await directoryService.LaunchReplayAsync(replay, profileId);
             if (result.Success)
             {
                 var profileName = !string.IsNullOrEmpty(replay.MatchingProfileName)
                     ? replay.MatchingProfileName
                     : (replay.MatchedClient?.Description ?? "Matching Profile");
                 notificationService.ShowSuccess(
-                    "Game Launched",
-                    $"Launched profile '{profileName}' for replay '{replay.FileName}'.");
+                    "Game Launched",                    $"Launched profile '{profileName}' for replay '{replay.FileName}'.");
                 StatusMessage = $"Launched profile '{profileName}'.";
             }
             else

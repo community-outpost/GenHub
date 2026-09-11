@@ -130,8 +130,8 @@ public sealed class ReplayFile : IExportableFile
     /// Gets the user-friendly tooltip for the Play Replay button showing which profile will be launched.
     /// </summary>
     public string PlayButtonTooltip => CompatibilityStatus == ReplayCompatibilityStatus.Compatible && !string.IsNullOrEmpty(MatchingProfileName)
-        ? $"Launch profile '{MatchingProfileName}' to watch this replay"
-        : "Launch game profile matching this replay";
+        ? $"Launch profile '{MatchingProfileName}' to watch this replay (Right-click to select a different profile)"
+        : "Select or configure a profile to play this replay";
 
     private static string FormatFileSize(long bytes) => bytes switch
     {

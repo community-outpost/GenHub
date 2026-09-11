@@ -166,30 +166,38 @@
             </DataGridTemplateColumn>
             <DataGridTextColumn Header="Size" Binding="{Binding FormattedSize}" Width="Auto" MinWidth="65" IsReadOnly="True" />
             <DataGridTextColumn Header="Modified" Binding="{Binding LastModified, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="Auto" MinWidth="115" IsReadOnly="True" />
-            <DataGridTemplateColumn Width="Auto" MinWidth="110" Header="Actions">
+            <DataGridTemplateColumn Width="Auto" MinWidth="140" Header="Actions">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
                   <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <!-- Play Replay Button (When Compatible with matching profile) -->
+                    <!-- Play / Run Button (Always visible & actionable; right-click to choose a different profile) -->
                     <Button Classes="Primary" Padding="8,4"
                             Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).LaunchReplayCommand}"
                             CommandParameter="{Binding}"
                             IsEnabled="{Binding !$parent[UserControl].((vm:ReplayManagerViewModel)DataContext).IsBusy}"
-                            IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Compatible}}"
                             ToolTip.Tip="{Binding PlayButtonTooltip}">
+                      <Button.ContextFlyout>
+                        <MenuFlyout>
+                          <MenuItem Header="Select Profile to Run..."
+                                    Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).SelectProfileAndLaunchReplayCommand}"
+                                    CommandParameter="{Binding}" />
+                          <MenuItem Header="Select Game Client &amp; Create Profile..."
+                                    Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).SelectClientAndCreateProfileCommand}"
+                                    CommandParameter="{Binding}" />
+                        </MenuFlyout>
+                      </Button.ContextFlyout>
                       <StackPanel Orientation="Horizontal" Spacing="4">
                         <PathIcon Data="{StaticResource ToolIcon.Play}" Width="11" Height="11" VerticalAlignment="Center"/>
                         <TextBlock Text="Play" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                       </StackPanel>
                     </Button>
 
-                    <!-- Create Profile Button (When RequiresProfile) -->
-                    <Button Classes="Primary" Padding="8,4"
-                            Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).CreateProfileForReplayCommand}"
+                    <!-- Profile Button (Always visible & actionable; opens game client selection dialog) -->
+                    <Button Classes="Secondary" Padding="8,4"
+                            Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).SelectClientAndCreateProfileCommand}"
                             CommandParameter="{Binding}"
                             IsEnabled="{Binding !$parent[UserControl].((vm:ReplayManagerViewModel)DataContext).IsBusy}"
-                            IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.RequiresProfile}}"
-                            ToolTip.Tip="Create a dedicated game profile configured with matching game client and data patch">
+                            ToolTip.Tip="View available game clients and create a profile for this replay">
                       <StackPanel Orientation="Horizontal" Spacing="4">
                         <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="11" Height="11" VerticalAlignment="Center"/>
                         <TextBlock Text="Profile" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -197,8 +205,8 @@
                     </Button>
 
                     <!-- Download & Setup Button (When Downloadable) -->
-                    <Button Classes="Secondary" Padding="8,4"
-                            Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).CreateProfileForReplayCommand}"
+                    <Button Classes="icon-subtle" Padding="6,4"
+                            Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).ExecuteDirectProfileCreationCommand}"
                             CommandParameter="{Binding}"
                             IsEnabled="{Binding !$parent[UserControl].((vm:ReplayManagerViewModel)DataContext).IsBusy}"
                             IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Downloadable}}"
@@ -206,19 +214,6 @@
                       <StackPanel Orientation="Horizontal" Spacing="4">
                         <PathIcon Data="{StaticResource ToolIcon.Download}" Width="11" Height="11" VerticalAlignment="Center"/>
                         <TextBlock Text="Setup" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                      </StackPanel>
-                    </Button>
-
-                    <!-- Custom / Unmapped Profile Button (When Orphaned / Custom CRC) -->
-                    <Button Classes="icon-subtle" Padding="6,4"
-                            Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).CreateProfileForReplayCommand}"
-                            CommandParameter="{Binding}"
-                            IsEnabled="{Binding !$parent[UserControl].((vm:ReplayManagerViewModel)DataContext).IsBusy}"
-                            IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Orphaned}}"
-                            ToolTip.Tip="Create a profile using your base game installation to watch this custom replay">
-                      <StackPanel Orientation="Horizontal" Spacing="4">
-                        <PathIcon Data="{StaticResource ToolIcon.CogOutline}" Width="11" Height="11" VerticalAlignment="Center"/>
-                        <TextBlock Text="Profile" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                       </StackPanel>
                     </Button>
                   </StackPanel>

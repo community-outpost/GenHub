@@ -183,14 +183,27 @@ public sealed class ReplayDirectoryService(
     }
 
     /// <inheritdoc />
-    public async Task<ProfileOperationResult<GameProfile>> CreateProfileForReplayAsync(ReplayFile replay, CancellationToken ct = default)
+    public async Task<ProfileOperationResult<GameProfile>> CreateProfileForReplayAsync(
+        ReplayFile replay,
+        GameClient? customGameClient = null,
+        string? customClientManifestId = null,
+        CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(replay);
 
         EnsureReplayMatch(replay);
 
         var isUnmappedReplay = replay.MatchedClient == null;
-        if (isUnmappedReplay)
+        if (customGameClient != null)
+        {
+            logger.LogInformation(
+                "[ReplayManager] Creating profile for replay '{ReplayFile}' using custom game client '{ClientName}' ({Publisher}, {Version})",
+                replay.FileName,
+                customGameClient.Name,
+                customGameClient.PublisherType,
+                customGameClient.Version);
+        }
+        else if (isUnmappedReplay)
         {
             logger.LogInformation(
                 "[ReplayManager] Replay '{ReplayFile}' (Exe: {ExeCrc}, INI: {IniCrc}) is unmapped; creating profile using base {GameVersion} installation",
@@ -244,19 +257,34 @@ public sealed class ReplayDirectoryService(
             var isRetailClient = isUnmappedReplay ||
                                  IsRetailClient(replay.MatchedClient?.Publisher, replay.MatchedClient?.ManifestId);
 
-            var (clientManifestId, gameClient) = await ResolveReplayGameClientAsync(
-                installation, replay, defaultVersion, isRetailClient, manifestPool, contentOrchestrator, ct);
+            var (clientManifestId, gameClient) = customGameClient != null
+                ? (customClientManifestId ?? customGameClient.Id ?? string.Empty, customGameClient)
+                : await ResolveReplayGameClientAsync(
+                    installation, replay, defaultVersion, isRetailClient, manifestPool, contentOrchestrator, ct);
 
             if (gameClient == null || string.IsNullOrWhiteSpace(gameClient.ExecutablePath))
             {
-                logger.LogError("[ReplayManager] Could not determine executable path for {GameVersion} installation", replay.GameVersion);
-                return ProfileOperationResult<GameProfile>.CreateFailure(
-                    $"Could not determine executable path for {replay.GameVersion} installation.");
+                var defaultExe = GetDefaultExecutableName(replay.GameVersion, replay.MatchedClient?.Publisher);
+                if (gameClient != null)
+                {
+                    gameClient.ExecutablePath = defaultExe;
+                }
+                else
+                {
+                    logger.LogError("[ReplayManager] Could not determine executable path for {GameVersion} installation", replay.GameVersion);
+                    return ProfileOperationResult<GameProfile>.CreateFailure(
+                        $"Could not determine executable path for {replay.GameVersion} installation.");
+                }
             }
 
             var resolutionContext = new ReplayContentResolutionContext(
                 manifestPool, contentOrchestrator, dependencyResolver, replay, installationManifestId, clientManifestId);
             var enabledContentIds = await GatherEnabledContentIdsAsync(resolutionContext, logger, ct);
+
+            if (!string.IsNullOrWhiteSpace(clientManifestId) && !enabledContentIds.Contains(clientManifestId, StringComparer.OrdinalIgnoreCase))
+            {
+                enabledContentIds.Add(clientManifestId);
+            }
 
             logger.LogInformation(
                 "[ReplayManager] Gathered {Count} enabled content IDs for replay profile: [{ContentIds}]",
@@ -294,9 +322,19 @@ public sealed class ReplayDirectoryService(
     }
 
     /// <inheritdoc />
-    public async Task<ProfileOperationResult<GameLaunchInfo>> LaunchReplayAsync(ReplayFile replay, CancellationToken ct = default)
+    public async Task<ProfileOperationResult<GameLaunchInfo>> LaunchReplayAsync(
+        ReplayFile replay,
+        string? profileId = null,
+        CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(replay);
+
+        var isExplicitProfile = !string.IsNullOrWhiteSpace(profileId);
+        if (isExplicitProfile)
+        {
+            replay.MatchingProfileId = profileId;
+            replay.CompatibilityStatus = ReplayCompatibilityStatus.Compatible;
+        }
 
         logger.LogInformation(
             "[ReplayManager] Starting replay launch workflow for '{ReplayFile}' (GameVersion: {GameVersion}, ProfileId: {ProfileId})",
@@ -304,7 +342,23 @@ public sealed class ReplayDirectoryService(
             replay.GameVersion,
             replay.MatchingProfileId ?? "none");
 
-        await EnsureValidProfileReferenceAsync(replay, ct);
+        if (!isExplicitProfile)
+        {
+            await EnsureValidProfileReferenceAsync(replay, ct);
+        }
+        else
+        {
+            using var checkScope = scopeFactory.CreateScope();
+            var profileManager = checkScope.ServiceProvider.GetService<IGameProfileManager>();
+            if (profileManager != null)
+            {
+                var profileCheck = await profileManager.GetProfileAsync(profileId!, ct);
+                if (profileCheck?.Success == true && profileCheck.Data != null)
+                {
+                    replay.MatchingProfileName = profileCheck.Data.Name;
+                }
+            }
+        }
 
         if (string.IsNullOrEmpty(replay.MatchingProfileId))
         {
@@ -423,6 +477,17 @@ public sealed class ReplayDirectoryService(
             if (p.GameClient?.GameType != gameVersion)
             {
                 return false;
+            }
+
+            if (!string.IsNullOrEmpty(replay?.MatchingProfileId) &&
+                string.Equals(p.Id, replay.MatchingProfileId, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (IsDedicatedToThisReplay(p, replay, logger))
+            {
+                return true;
             }
 
             return isRetailClient
@@ -779,6 +844,12 @@ public sealed class ReplayDirectoryService(
     {
         var score = 0;
 
+        if (!string.IsNullOrEmpty(replay?.MatchingProfileId) &&
+            string.Equals(profile.Id, replay.MatchingProfileId, StringComparison.OrdinalIgnoreCase))
+        {
+            score += 2000;
+        }
+
         if (IsDedicatedToThisReplay(profile, replay, logger))
         {
             score += 1000;
@@ -1091,12 +1162,12 @@ public sealed class ReplayDirectoryService(
         WorkspaceStrategy workspaceStrategy = WorkspaceStrategy.HardLink)
     {
         var isUnmapped = replay.MatchedClient == null;
-        var clientTitle = GetReplayClientTitle(replay);
+        var clientTitle = !string.IsNullOrWhiteSpace(gameClient.Name) ? gameClient.Name : GetReplayClientTitle(replay);
 
         var profileName = $"{clientTitle} (Replay: {Path.GetFileNameWithoutExtension(replay.FileName)})";
         var description = isUnmapped
             ? $"[replay:{replay.FileName}] Profile configured for unmapped replay {replay.FileName} (Exe: {replay.Metadata?.FormattedExeCrc ?? "N/A"}, INI: {replay.Metadata?.FormattedIniCrc ?? "N/A"})"
-            : $"[replay:{replay.FileName}] Profile configured for {replay.MatchedClient?.Description} (Exe: {replay.Metadata?.FormattedExeCrc}, INI: {replay.Metadata?.FormattedIniCrc})";
+            : $"[replay:{replay.FileName}] Profile configured for {clientTitle} (Exe: {replay.Metadata?.FormattedExeCrc}, INI: {replay.Metadata?.FormattedIniCrc})";
 
         return new CreateProfileRequest
         {
@@ -1229,9 +1300,21 @@ public sealed class ReplayDirectoryService(
         if (replay.MatchedClient != null)
         {
             var isRetail = IsRetailClient(replay.MatchedClient.Publisher, replay.MatchedClient.ManifestId);
-            return isRetail
+            var standardMatch = isRetail
                 ? IsProfileMatchingRetail(profile, replay.MatchedClient.DataPatchManifestId)
                 : IsProfileMatchingThirdParty(profile, replay.MatchedClient.ManifestId, replay.MatchedClient.DataPatchManifestId, replay.MatchedClient.Version);
+
+            if (standardMatch)
+            {
+                return true;
+            }
+
+            if (IsDedicatedToThisReplay(profile, replay, null))
+            {
+                return profile.GameClient.GameType == replay.GameVersion;
+            }
+
+            return false;
         }
 
         return profile.GameClient.GameType == replay.GameVersion;
@@ -2243,7 +2326,7 @@ public sealed class ReplayDirectoryService(
                 if (!string.IsNullOrEmpty(replay.MatchingProfileId) &&
                     string.Equals(p.Id, replay.MatchingProfileId, StringComparison.OrdinalIgnoreCase))
                 {
-                    return 1000;
+                    return 2000;
                 }
 
                 var nameMatches = !string.IsNullOrEmpty(p.Name) && !string.IsNullOrEmpty(replayBaseName) &&
@@ -2253,6 +2336,17 @@ public sealed class ReplayDirectoryService(
                 if (nameMatches || descMatches)
                 {
                     return 1000;
+                }
+
+                var clientName = p.GameClient?.Name ?? string.Empty;
+                if (clientName.Contains("Patch", StringComparison.OrdinalIgnoreCase) ||
+                    clientName.Contains("Community", StringComparison.OrdinalIgnoreCase) ||
+                    clientName.Contains("Recovery", StringComparison.OrdinalIgnoreCase) ||
+                    p.Name.Contains("Patch", StringComparison.OrdinalIgnoreCase) ||
+                    p.Name.Contains("Community", StringComparison.OrdinalIgnoreCase) ||
+                    p.Name.Contains("Recovery", StringComparison.OrdinalIgnoreCase))
+                {
+                    return 250;
                 }
 
                 return 0;
