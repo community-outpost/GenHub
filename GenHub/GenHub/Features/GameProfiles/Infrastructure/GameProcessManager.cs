@@ -298,7 +298,7 @@ public class GameProcessManager(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to get process info for {ProcessId}", processId);
-            return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure(ProcessConstants.ProcessNotFoundErrorMessage));
+            return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure($"Failed to get process info for {processId}: {ex.Message}"));
         }
     }
 
