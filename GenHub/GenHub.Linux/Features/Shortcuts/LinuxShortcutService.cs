@@ -13,7 +13,8 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Linux.Features.Shortcuts;
 
 /// <summary>
-/// Linux implementation of <see cref="IShortcutService"/> that creates .desktop files.\n/// </summary>
+/// Linux implementation of <see cref="IShortcutService"/> that creates .desktop files.
+/// </summary>
 [SupportedOSPlatform("linux")]
 public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShortcutService
 {
@@ -279,7 +280,11 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
     private static string EscapeExecValue(string value)
     {
         var escaped = value.Replace("%", "%%");
-        if (escaped.Contains(' ', StringComparison.Ordinal) || escaped.Contains('"', StringComparison.Ordinal))
+        if (escaped.Contains(' ', StringComparison.Ordinal) ||
+            escaped.Contains('"', StringComparison.Ordinal) ||
+            escaped.Contains('\\', StringComparison.Ordinal) ||
+            escaped.Contains('\t', StringComparison.Ordinal) ||
+            escaped.Contains('\n', StringComparison.Ordinal))
         {
             escaped = escaped.Replace("\\", "\\\\").Replace("\"", "\\\"");
             return $"\"{escaped}\"";
@@ -351,10 +356,17 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
                 var parentDir = Directory.GetParent(dir)?.FullName;
                 if (!string.IsNullOrEmpty(parentDir))
                 {
-                    var parentExe = Path.Combine(parentDir, AppConstants.AppName);
+                    var exeName = Path.GetFileName(executablePath);
+                    var parentExe = Path.Combine(parentDir, exeName);
                     if (File.Exists(parentExe))
                     {
                         return parentExe;
+                    }
+
+                    var appNameExe = Path.Combine(parentDir, AppConstants.AppName);
+                    if (File.Exists(appNameExe))
+                    {
+                        return appNameExe;
                     }
                 }
             }
@@ -368,15 +380,55 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
     /// </summary>
     private static string GetDesktopPath()
     {
-        var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-        if (string.IsNullOrEmpty(desktopPath))
+        var xdgDesktop = Environment.GetEnvironmentVariable("XDG_DESKTOP_DIR");
+        if (!string.IsNullOrWhiteSpace(xdgDesktop) && Directory.Exists(xdgDesktop))
         {
-            desktopPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                "Desktop");
+            return xdgDesktop;
         }
 
-        return desktopPath;
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var configHome = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
+        if (string.IsNullOrWhiteSpace(configHome))
+        {
+            configHome = Path.Combine(home, ".config");
+        }
+
+        var userDirsFile = Path.Combine(configHome, "user-dirs.dirs");
+        if (File.Exists(userDirsFile))
+        {
+            try
+            {
+                foreach (var line in File.ReadAllLines(userDirsFile))
+                {
+                    var trimmed = line.Trim();
+                    if (trimmed.StartsWith("XDG_DESKTOP_DIR=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var value = trimmed["XDG_DESKTOP_DIR=".Length..].Trim('"', '\'', ' ');
+                        value = value.Replace("$HOME", home, StringComparison.Ordinal);
+                        if (!string.IsNullOrWhiteSpace(value) && Directory.Exists(value))
+                        {
+                            return value;
+                        }
+                    }
+                }
+            }
+            catch (IOException)
+            {
+                // Best effort XDG resolution
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Best effort XDG resolution
+            }
+        }
+
+        var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+        if (!string.IsNullOrWhiteSpace(desktopPath) && Directory.Exists(desktopPath))
+        {
+            return desktopPath;
+        }
+
+        return Path.Combine(home, "Desktop");
     }
 
     /// <summary>
@@ -399,27 +451,58 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
 
     private void TryRepairDesktopEntry(string shortcutPath, string executablePath, string workingDirectory)
     {
-        var lines = File.ReadAllLines(shortcutPath);
-        var updated = false;
-        for (var i = 0; i < lines.Length; i++)
+        try
         {
-            if (lines[i].StartsWith("Exec=", StringComparison.OrdinalIgnoreCase))
+            var lines = File.ReadAllLines(shortcutPath);
+            var updated = false;
+            for (var i = 0; i < lines.Length; i++)
             {
-                lines[i] = ReplaceExecutableInExecLine(lines[i], executablePath);
-                updated = true;
+                if (lines[i].StartsWith("Exec=", StringComparison.OrdinalIgnoreCase))
+                {
+                    lines[i] = ReplaceExecutableInExecLine(lines[i], executablePath);
+                    updated = true;
+                }
+                else if (lines[i].StartsWith("Path=", StringComparison.OrdinalIgnoreCase))
+                {
+                    lines[i] = $"Path={workingDirectory}";
+                    updated = true;
+                }
             }
-            else if (lines[i].StartsWith("Path=", StringComparison.OrdinalIgnoreCase))
+
+            if (updated)
             {
-                lines[i] = $"Path={workingDirectory}";
-                updated = true;
+                var dir = Path.GetDirectoryName(shortcutPath) ?? Path.GetTempPath();
+                var tempPath = Path.Combine(dir, $"{Path.GetFileName(shortcutPath)}.{Guid.NewGuid():N}.tmp");
+                try
+                {
+                    File.WriteAllLines(tempPath, lines, Utf8NoBom);
+                    MakeExecutable(tempPath);
+                    File.Move(tempPath, shortcutPath, overwrite: true);
+                    logger.LogInformation("Repaired application desktop entry at {ShortcutPath} -> {ExecutablePath}", shortcutPath, executablePath);
+                }
+                finally
+                {
+                    if (File.Exists(tempPath))
+                    {
+                        try
+                        {
+                            File.Delete(tempPath);
+                        }
+                        catch (IOException)
+                        {
+                            // Ignored
+                        }
+                    }
+                }
             }
         }
-
-        if (updated)
+        catch (IOException ex)
         {
-            File.WriteAllLines(shortcutPath, lines, Utf8NoBom);
-            MakeExecutable(shortcutPath);
-            logger.LogInformation("Repaired application desktop entry at {ShortcutPath} -> {ExecutablePath}", shortcutPath, executablePath);
+            logger.LogWarning(ex, "Failed to repair desktop entry at {ShortcutPath}", shortcutPath);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Failed to repair desktop entry at {ShortcutPath}", shortcutPath);
         }
     }
 }

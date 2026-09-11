@@ -100,7 +100,23 @@ public static class PathHelper
                    !string.IsNullOrEmpty(secondRoot) &&
                    string.Equals(firstRoot, secondRoot, PathComparison);
         }
-        catch (Exception ex) when (ex is IOException or ArgumentException or NotSupportedException or SecurityException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
+        catch (SecurityException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
         {
             return false;
         }
@@ -120,14 +136,30 @@ public static class PathHelper
             yield break;
         }
 
-        string fullPath;
-        string? volumeRoot;
+        string fullPath = string.Empty;
+        string? volumeRoot = null;
         try
         {
             fullPath = Path.GetFullPath(startPath);
             volumeRoot = Path.GetPathRoot(fullPath);
         }
-        catch (Exception ex) when (ex is IOException or ArgumentException or NotSupportedException or SecurityException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            yield break;
+        }
+        catch (ArgumentException)
+        {
+            yield break;
+        }
+        catch (NotSupportedException)
+        {
+            yield break;
+        }
+        catch (SecurityException)
+        {
+            yield break;
+        }
+        catch (UnauthorizedAccessException)
         {
             yield break;
         }

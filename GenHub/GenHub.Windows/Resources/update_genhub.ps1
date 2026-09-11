@@ -66,7 +66,9 @@ try {
     if (Test-Path $TargetDir) {
         $existingItems = Get-ChildItem -Path $TargetDir -Force -ErrorAction SilentlyContinue
         if ($null -ne $existingItems -and $existingItems.Count -gt 0) {
-            Copy-Item -Path "$TargetDir\*" -Destination $BackupDir -Recurse -Force -ErrorAction Stop
+            $existingItems | ForEach-Object {
+                Copy-Item -Path $_.FullName -Destination $BackupDir -Recurse -Force -ErrorAction Stop
+            }
         }
     }
     
@@ -116,8 +118,10 @@ catch {
     if (Test-Path $BackupDir) {
         $backupItems = Get-ChildItem -Path $BackupDir -Force -ErrorAction SilentlyContinue
         if ($null -ne $backupItems -and $backupItems.Count -gt 0) {
-            Remove-Item -Path "$TargetDir\*" -Recurse -Force -ErrorAction SilentlyContinue
-            Copy-Item -Path "$BackupDir\*" -Destination $TargetDir -Recurse -Force -ErrorAction SilentlyContinue
+            Get-ChildItem -Path $TargetDir -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+            $backupItems | ForEach-Object {
+                Copy-Item -Path $_.FullName -Destination $TargetDir -Recurse -Force -ErrorAction SilentlyContinue
+            }
             Write-Log "Backup restored successfully"
         }
     }

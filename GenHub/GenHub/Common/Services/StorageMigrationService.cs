@@ -63,6 +63,7 @@ public class StorageMigrationService(
         StorageMigrationConstants.LogsCapitalizedDirectoryName,
         StorageMigrationConstants.UploadHistoryFileName,
         MapManagerConstants.MapPacksSubdirectoryName,
+        StorageMigrationConstants.MapPacksCapitalizedDirectoryName,
         StorageMigrationConstants.MapPacksLowercaseDirectoryName,
         StorageMigrationConstants.DotGenHubCasDirectoryName,
     };
@@ -172,7 +173,7 @@ public class StorageMigrationService(
             {
                 if (segments[i].EndsWith(".app", StringComparison.OrdinalIgnoreCase))
                 {
-                    var prefix = OperatingSystem.IsWindows() ? string.Empty : "/";
+                    const string prefix = "/";
                     return prefix + string.Join('/', segments.Take(i + 1));
                 }
             }
@@ -472,8 +473,8 @@ public class StorageMigrationService(
 
         if (!hasSufficientSpace)
         {
-            var reqMb = requiredBytes / (1024 * 1024);
-            var availMb = availableBytes / (1024 * 1024);
+            var reqMb = requiredBytes / ConversionConstants.BytesPerMegabyte;
+            var availMb = availableBytes / ConversionConstants.BytesPerMegabyte;
             return $"Insufficient disk space on target drive. Required: {reqMb:N0} MB, Available: {availMb:N0} MB.";
         }
 
@@ -564,7 +565,9 @@ try {{
     if (Test-Path $TargetDir) {{
         $existingItems = Get-ChildItem -Path $TargetDir -Force -ErrorAction SilentlyContinue
         if ($null -ne $existingItems -and $existingItems.Count -gt 0) {{
-            Copy-Item -Path ""$TargetDir\*"" -Destination $BackupDir -Recurse -Force -ErrorAction Stop
+            $existingItems | ForEach-Object {{
+                Copy-Item -Path $_.FullName -Destination $BackupDir -Recurse -Force -ErrorAction Stop
+            }}
         }}
     }}
     Get-ChildItem -Path $SourceDir -Force | Where-Object {{ $excluded -notcontains $_.Name }} | ForEach-Object {{
@@ -603,8 +606,10 @@ catch {{
     if (Test-Path $BackupDir) {{
         $backupItems = Get-ChildItem -Path $BackupDir -Force -ErrorAction SilentlyContinue
         if ($null -ne $backupItems -and $backupItems.Count -gt 0) {{
-            Remove-Item -Path ""$TargetDir\*"" -Recurse -Force -ErrorAction SilentlyContinue
-            Copy-Item -Path ""$BackupDir\*"" -Destination $TargetDir -Recurse -Force -ErrorAction SilentlyContinue
+            Get-ChildItem -Path $TargetDir -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+            $backupItems | ForEach-Object {{
+                Copy-Item -Path $_.FullName -Destination $TargetDir -Recurse -Force -ErrorAction SilentlyContinue
+            }}
             Write-Log ""Backup restored successfully""
         }}
     }}
@@ -649,7 +654,7 @@ is_excluded() {{
 }}
 
 write_log ""GenHub Linux Migration Script Started""
-for i in {{1..60}}; do
+for _ in {{1..60}}; do
     if ! kill -0 ""$PROCESS_ID"" 2>/dev/null; then
         break
     fi
@@ -713,7 +718,7 @@ if [ -f ""$CURRENT_EXE"" ]; then
     fi
     nohup ""./$EXE_NAME"" > /dev/null 2>&1 &
     APP_PID=$!
-    for i in $(seq 1 5); do
+    for _ in $(seq 1 5); do
         sleep 1
         if ! kill -0 ""$APP_PID"" 2>/dev/null; then
             write_log ""Error: Application exited prematurely after launch""
@@ -776,7 +781,7 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
                     }
                 }
             }
-            catch (Exception ex) when (ex is IOException or NotSupportedException or InvalidOperationException or SecurityException)
+            catch (Exception ex) when (ex is IOException or NotSupportedException or InvalidOperationException or SecurityException or BadImageFormatException or FileLoadException)
             {
                 // Continue searching other assemblies
             }
@@ -837,21 +842,34 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
             return true;
         }
 
-        try
+        const int maxAttempts = 2;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            if (Directory.Exists(targetPath))
+            try
             {
-                MigrateDirectorySafely(targetPath, originalPath);
-                logger.LogInformation("Successfully rolled back directory move from {Target} to {Original}", targetPath, originalPath);
-            }
+                if (Directory.Exists(targetPath))
+                {
+                    MigrateDirectorySafely(targetPath, originalPath);
+                    logger.LogInformation("Successfully rolled back directory move from {Target} to {Original}", targetPath, originalPath);
+                }
 
-            return true;
+                return true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (attempt < maxAttempts)
+                {
+                    logger.LogWarning(ex, "Rollback attempt {Attempt} of {MaxAttempts} failed from {Target} to {Original}. Retrying in 500ms...", attempt, maxAttempts, targetPath, originalPath);
+                    Thread.Sleep(500);
+                }
+                else
+                {
+                    logger.LogCritical(ex, "Failed to rollback directory move from {Target} to {Original} after {MaxAttempts} attempts. Manual recovery may be required.", targetPath, originalPath, maxAttempts);
+                }
+            }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            logger.LogCritical(ex, "Failed to rollback directory move from {Target} to {Original}. Manual recovery may be required.", targetPath, originalPath);
-            return false;
-        }
+
+        return false;
     }
 
     private static bool TryRewritePath(string? path, string oldRoot, string newRoot, Action<string> apply)
@@ -862,7 +880,13 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
         }
 
         var relative = Path.GetRelativePath(oldRoot, path);
-        if (relative != "." && !relative.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(relative))
+        if (relative == ".")
+        {
+            apply(newRoot);
+            return true;
+        }
+
+        if (!relative.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(relative))
         {
             apply(Path.Combine(newRoot, relative));
             return true;
@@ -966,7 +990,7 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
 
         if (workspaceMoved && !string.IsNullOrWhiteSpace(currentWorkspaceRoot))
         {
-            await RewriteWorkspaceMetadataAsync(currentWorkspaceRoot, finalWorkspaceRoot, cancellationToken);
+            await RewriteWorkspaceMetadataAsync(currentWorkspaceRoot, finalWorkspaceRoot, CancellationToken.None);
         }
 
         var saved = await userSettingsService.TryUpdateAndSaveAsync(settings =>
@@ -1031,7 +1055,7 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
 
         if (workspaceRolledBack && !string.IsNullOrWhiteSpace(paths.CurrentWorkspaceRoot))
         {
-            await RewriteWorkspaceMetadataAsync(paths.FinalWorkspaceRoot, paths.CurrentWorkspaceRoot, cancellationToken);
+            await RewriteWorkspaceMetadataAsync(paths.FinalWorkspaceRoot, paths.CurrentWorkspaceRoot, CancellationToken.None);
         }
 
         var rollbackSaved = await PersistRollbackPathsAsync(
@@ -1129,14 +1153,24 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
 
     private string? ResolveEffectiveCasRoot()
     {
-        return userSettingsService.Get().CasConfiguration?.CasRootPath ??
-               configurationProvider.GetCasConfiguration()?.CasRootPath;
+        var settingsPath = userSettingsService.Get().CasConfiguration?.CasRootPath;
+        if (!string.IsNullOrWhiteSpace(settingsPath))
+        {
+            return settingsPath;
+        }
+
+        return configurationProvider.GetCasConfiguration()?.CasRootPath;
     }
 
     private string? ResolveEffectiveWorkspaceRoot()
     {
-        return userSettingsService.Get().WorkspacePath ??
-               configurationProvider.GetWorkspacePath();
+        var settingsPath = userSettingsService.Get().WorkspacePath;
+        if (!string.IsNullOrWhiteSpace(settingsPath))
+        {
+            return settingsPath;
+        }
+
+        return configurationProvider.GetWorkspacePath();
     }
 
     private async Task RewriteWorkspaceMetadataAsync(string oldWorkspaceRoot, string newWorkspaceRoot, CancellationToken cancellationToken)
@@ -1174,9 +1208,30 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
                     var options = new JsonSerializerOptions { WriteIndented = true };
                     var updatedJson = JsonSerializer.Serialize(workspaces, options);
                     var tempPath = Path.Combine(Path.GetDirectoryName(metadataPath)!, $"{Path.GetFileName(metadataPath)}.{Guid.NewGuid():N}.tmp");
-                    await File.WriteAllTextAsync(tempPath, updatedJson, cancellationToken);
-                    File.Move(tempPath, metadataPath, overwrite: true);
-                    logger.LogInformation("Rewrote workspace metadata paths from {OldRoot} to {NewRoot} in {Path}", oldWorkspaceRoot, newWorkspaceRoot, metadataPath);
+                    try
+                    {
+                        await File.WriteAllTextAsync(tempPath, updatedJson, cancellationToken);
+                        File.Move(tempPath, metadataPath, overwrite: true);
+                        logger.LogInformation("Rewrote workspace metadata paths from {OldRoot} to {NewRoot} in {Path}", oldWorkspaceRoot, newWorkspaceRoot, metadataPath);
+                    }
+                    finally
+                    {
+                        if (File.Exists(tempPath))
+                        {
+                            try
+                            {
+                                File.Delete(tempPath);
+                            }
+                            catch (IOException)
+                            {
+                                // Best effort temp cleanup
+                            }
+                            catch (UnauthorizedAccessException)
+                            {
+                                // Best effort temp cleanup
+                            }
+                        }
+                    }
                 }
             }
             catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
@@ -1300,6 +1355,11 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
 
             helperLaunched = StageAndLaunchAssistant(request, sourceRoot, targetRoot, progress, out stagedTempDir);
 
+            if (!helperLaunched && stagedTempDir != null)
+            {
+                FileOperationsService.DeleteDirectoryIfExists(stagedTempDir);
+            }
+
             FinalizeMigration(request, progress);
             return OperationResult<bool>.CreateSuccess(true);
         }
@@ -1371,8 +1431,8 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
         var tempDir = Path.Combine(Path.GetTempPath(), $"{StorageMigrationConstants.MigrationTempDirectoryPrefix}{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempDir);
         stagedTempDir = tempDir;
-        var logFile = Path.Combine(tempDir, "migration.log");
-        var backupDir = Path.Combine(tempDir, "backup");
+        var logFile = Path.Combine(tempDir, StorageMigrationConstants.MigrationLogFileName);
+        var backupDir = Path.Combine(tempDir, StorageMigrationConstants.MigrationBackupDirectoryName);
         var relativeExe = GetRelativeExecutablePath(sourceRoot);
         var scriptPath = PrepareMigrationScript(tempDir);
 

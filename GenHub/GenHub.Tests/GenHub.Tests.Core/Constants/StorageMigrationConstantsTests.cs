@@ -18,6 +18,10 @@ public class StorageMigrationConstantsTests
         {
             Assert.Equal("update_genhub.ps1", StorageMigrationConstants.WindowsUpdateScriptName);
             Assert.Equal("update_genhub.sh", StorageMigrationConstants.LinuxUpdateScriptName);
+            Assert.Equal("migration.log", StorageMigrationConstants.MigrationLogFileName);
+            Assert.Equal("backup", StorageMigrationConstants.MigrationBackupDirectoryName);
+            Assert.Equal("MapPacks", StorageMigrationConstants.MapPacksCapitalizedDirectoryName);
+            Assert.Equal("mappacks", StorageMigrationConstants.MapPacksLowercaseDirectoryName);
             Assert.True(StorageMigrationConstants.DiskSpaceSafetyMarginBytes > 0);
             Assert.Equal("Preflight Validation", StorageMigrationConstants.StagePreflight);
             Assert.Equal("Relocating Application Data", StorageMigrationConstants.StageStagingData);

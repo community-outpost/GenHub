@@ -16,6 +16,16 @@ public static class StorageMigrationConstants
     public const string LinuxUpdateScriptName = "update_genhub.sh";
 
     /// <summary>
+    /// Log file name for the migration assistant.
+    /// </summary>
+    public const string MigrationLogFileName = "migration.log";
+
+    /// <summary>
+    /// Backup directory name for the migration assistant.
+    /// </summary>
+    public const string MigrationBackupDirectoryName = "backup";
+
+    /// <summary>
     /// Safety margin in bytes added to disk space calculations during migration preflight (50 MB).
     /// </summary>
     public const long DiskSpaceSafetyMarginBytes = 50 * 1024 * 1024;
@@ -73,12 +83,17 @@ public static class StorageMigrationConstants
     /// <summary>
     /// Capitalized logs directory name.
     /// </summary>
-    public const string LogsCapitalizedDirectoryName = "Logs";
+    public const string LogsCapitalizedDirectoryName = DirectoryNames.Logs;
 
     /// <summary>
     /// Lowercase cache directory name.
     /// </summary>
     public const string CacheLowercaseDirectoryName = "cache";
+
+    /// <summary>
+    /// Capitalized mappacks directory name.
+    /// </summary>
+    public const string MapPacksCapitalizedDirectoryName = "MapPacks";
 
     /// <summary>
     /// Lowercase mappacks directory name.

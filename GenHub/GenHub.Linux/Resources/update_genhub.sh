@@ -30,7 +30,7 @@ write_log "GenHub Linux Update Script Started"
 write_log "Waiting for main application (PID: $PROCESS_ID) to close..."
 
 # Wait for the main process to exit
-for i in {1..60}; do
+for _ in {1..60}; do
     if ! kill -0 "$PROCESS_ID" 2>/dev/null; then
         write_log "Main process has exited"
         break
@@ -109,7 +109,7 @@ if [ -f "$CURRENT_EXE" ]; then
     
     nohup "./$EXE_NAME" > /dev/null 2>&1 &
     APP_PID=$!
-    for i in $(seq 1 5); do
+    for _ in $(seq 1 5); do
         sleep 1
         if ! kill -0 "$APP_PID" 2>/dev/null; then
             write_log "Error: Application exited prematurely after launch"

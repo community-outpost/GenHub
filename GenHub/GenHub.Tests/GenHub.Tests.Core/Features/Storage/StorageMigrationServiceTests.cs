@@ -105,7 +105,11 @@ public class StorageMigrationServiceTests : IDisposable
                 Directory.Delete(_tempRoot, recursive: true);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Best effort cleanup
+        }
+        catch (UnauthorizedAccessException)
         {
             // Best effort cleanup
         }

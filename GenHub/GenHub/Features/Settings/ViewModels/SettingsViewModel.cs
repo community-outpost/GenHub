@@ -957,6 +957,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
 
         var hideDelayMs = (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds;
+        var errorHideDelayMs = (int)TimeIntervals.ErrorNotificationHideDelay.TotalMilliseconds;
         try
         {
             if (string.IsNullOrWhiteSpace(MigrationTargetPath))
@@ -980,7 +981,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 var errorMessage = preflight.Data?.ErrorMessage ?? preflight.FirstError ?? "Pre-flight validation failed.";
                 _logger.LogWarning("Migration pre-flight checks failed: {ErrorMessage}", errorMessage);
-                _notificationService.ShowError("Migration Pre-flight Failed", errorMessage, hideDelayMs);
+                _notificationService.ShowError("Migration Pre-flight Failed", errorMessage, errorHideDelayMs);
                 IsMigrating = false;
                 MigrationStatusText = string.Empty;
                 MigrationProgressPercentage = 0;
@@ -1025,7 +1026,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 var error = migrationResult.FirstError ?? "Migration operation failed.";
                 _logger.LogError("Installation migration failed: {Error}", error);
-                _notificationService.ShowError("Migration Failed", error, hideDelayMs);
+                _notificationService.ShowError("Migration Failed", error, errorHideDelayMs);
                 IsMigrating = false;
                 MigrationStatusText = $"Migration failed: {error}";
                 MigrationProgressPercentage = 0;
@@ -1039,7 +1040,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error during installation migration");
-            _notificationService.ShowError("Migration Error", ex.Message, hideDelayMs);
+            _notificationService.ShowError("Migration Error", ex.Message, errorHideDelayMs);
             IsMigrating = false;
             MigrationStatusText = string.Empty;
             MigrationProgressPercentage = 0;

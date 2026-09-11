@@ -223,7 +223,15 @@ public abstract class BaseActionSet(ILogger logger) : IActionSet
                 }
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        catch (IOException)
+        {
+            // Best effort migration
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Best effort migration
+        }
+        catch (System.Security.SecurityException)
         {
             // Best effort migration
         }

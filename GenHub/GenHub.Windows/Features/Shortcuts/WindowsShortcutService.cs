@@ -119,153 +119,6 @@ public class WindowsShortcutService(ILogger<WindowsShortcutService> logger) : IS
         void SetPath([MarshalAs(UnmanagedType.LPWStr)] string pszFile);
     }
 
-    /// <summary>
-    /// Creates a shortcut using Windows COM interfaces.
-    /// </summary>
-    private static void CreateShortcut(
-        string shortcutPath,
-        string targetPath,
-        string? arguments = null,
-        string? workingDirectory = null,
-        string? description = null,
-        string? iconPath = null)
-    {
-        IShellLink? link = null;
-        IPersistFile? file = null;
-
-        try
-        {
-            link = (IShellLink)new ShellLink();
-            link.SetPath(targetPath);
-
-            if (!string.IsNullOrEmpty(arguments))
-            {
-                link.SetArguments(arguments);
-            }
-
-            if (!string.IsNullOrEmpty(workingDirectory))
-            {
-                link.SetWorkingDirectory(workingDirectory);
-            }
-
-            if (!string.IsNullOrEmpty(description))
-            {
-                link.SetDescription(description);
-            }
-
-            if (!string.IsNullOrEmpty(iconPath))
-            {
-                link.SetIconLocation(iconPath, 0);
-            }
-
-            file = (IPersistFile)link;
-            file.Save(shortcutPath, false);
-        }
-        finally
-        {
-            if (file != null)
-            {
-                Marshal.ReleaseComObject(file);
-            }
-
-            if (link != null)
-            {
-                Marshal.ReleaseComObject(link);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Reads arguments from an existing Windows shortcut (.lnk file) using COM interop.
-    /// </summary>
-    private static string? TryReadShortcutArguments(string shortcutPath)
-    {
-        IShellLink? link = null;
-        IPersistFile? file = null;
-
-        try
-        {
-            link = (IShellLink)new ShellLink();
-            file = (IPersistFile)link;
-            file.Load(shortcutPath, 0);
-
-            var sb = new StringBuilder(1024);
-            link.GetArguments(sb, sb.Capacity);
-            var args = sb.ToString();
-            return string.IsNullOrWhiteSpace(args) ? null : args;
-        }
-        catch (Exception ex) when (ex is COMException or IOException or UnauthorizedAccessException)
-        {
-            return null;
-        }
-        finally
-        {
-            if (file != null)
-            {
-                Marshal.ReleaseComObject(file);
-            }
-
-            if (link != null)
-            {
-                Marshal.ReleaseComObject(link);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Sanitizes a file name by removing or replacing invalid characters.
-    /// </summary>
-    /// <param name="fileName">The file name to sanitize.</param>
-    /// <returns>A sanitized file name.</returns>
-    private static string SanitizeFileName(string fileName)
-    {
-        var invalidChars = Path.GetInvalidFileNameChars();
-        var sanitized = new StringBuilder(fileName);
-
-        foreach (var c in invalidChars)
-        {
-            sanitized.Replace(c, '_');
-        }
-
-        return sanitized.ToString().Trim();
-    }
-
-    /// <summary>
-    /// Resolves the stable Velopack root launcher executable if running from a versioned directory.
-    /// </summary>
-    /// <param name="executablePath">The running process executable path.</param>
-    /// <returns>The root launcher path if available; otherwise the original executable path.</returns>
-    private static string ResolveLauncherExecutable(string executablePath)
-    {
-        var dir = Path.GetDirectoryName(executablePath);
-        if (!string.IsNullOrEmpty(dir))
-        {
-            var dirName = Path.GetFileName(dir);
-            if (string.Equals(dirName, StorageMigrationConstants.CurrentDirectoryName, StringComparison.OrdinalIgnoreCase) ||
-                dirName.StartsWith(StorageMigrationConstants.AppDirectoryPrefix, StringComparison.OrdinalIgnoreCase))
-            {
-                var parentDir = Path.GetDirectoryName(dir);
-                if (!string.IsNullOrEmpty(parentDir))
-                {
-                    var exeName = Path.GetFileName(executablePath);
-                    var parentExe = Path.Combine(parentDir, exeName);
-                    if (File.Exists(parentExe))
-                    {
-                        return parentExe;
-                    }
-
-                    var appNameExe = Path.Combine(parentDir, $"{AppConstants.AppName}.exe");
-                    if (File.Exists(appNameExe))
-                    {
-                        return appNameExe;
-                    }
-                }
-            }
-        }
-
-        return executablePath;
-    }
-
     /// <inheritdoc />
     public Task<OperationResult<string>> CreateDesktopShortcutAsync(GameProfile profile, string? shortcutName = null)
     {
@@ -423,5 +276,171 @@ public class WindowsShortcutService(ILogger<WindowsShortcutService> logger) : IS
             logger.LogWarning(ex, "Failed to repair application shortcuts");
             return Task.FromResult(OperationResult<bool>.CreateFailure($"Failed to repair application shortcuts: {ex.Message}"));
         }
+    }
+
+    /// <summary>
+    /// Creates a shortcut using Windows COM interfaces.
+    /// </summary>
+    private static void CreateShortcut(
+        string shortcutPath,
+        string targetPath,
+        string? arguments = null,
+        string? workingDirectory = null,
+        string? description = null,
+        string? iconPath = null)
+    {
+        IShellLink? link = null;
+        IPersistFile? file = null;
+
+        try
+        {
+            link = (IShellLink)new ShellLink();
+            link.SetPath(targetPath);
+
+            if (!string.IsNullOrEmpty(arguments))
+            {
+                link.SetArguments(arguments);
+            }
+
+            if (!string.IsNullOrEmpty(workingDirectory))
+            {
+                link.SetWorkingDirectory(workingDirectory);
+            }
+
+            if (!string.IsNullOrEmpty(description))
+            {
+                link.SetDescription(description);
+            }
+
+            if (!string.IsNullOrEmpty(iconPath))
+            {
+                link.SetIconLocation(iconPath, 0);
+            }
+
+            file = (IPersistFile)link;
+            file.Save(shortcutPath, false);
+        }
+        finally
+        {
+            if (file != null)
+            {
+                Marshal.ReleaseComObject(file);
+            }
+
+            if (link != null)
+            {
+                Marshal.ReleaseComObject(link);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Reads arguments from an existing Windows shortcut (.lnk file) using COM interop.
+    /// </summary>
+    private static string? TryReadShortcutArguments(string shortcutPath)
+    {
+        IShellLink? link = null;
+        IPersistFile? file = null;
+
+        try
+        {
+            link = (IShellLink)new ShellLink();
+            file = (IPersistFile)link;
+            file.Load(shortcutPath, 0);
+
+            var capacity = 1024;
+            while (capacity <= 32768)
+            {
+                var sb = new StringBuilder(capacity);
+                link.GetArguments(sb, sb.Capacity);
+                var args = sb.ToString();
+                if (args.Length < capacity - 1)
+                {
+                    return string.IsNullOrWhiteSpace(args) ? null : args;
+                }
+
+                capacity *= 2;
+            }
+
+            return null;
+        }
+        catch (COMException)
+        {
+            return null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+        finally
+        {
+            if (file != null)
+            {
+                Marshal.ReleaseComObject(file);
+            }
+
+            if (link != null)
+            {
+                Marshal.ReleaseComObject(link);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Sanitizes a file name by removing or replacing invalid characters.
+    /// </summary>
+    /// <param name="fileName">The file name to sanitize.</param>
+    /// <returns>A sanitized file name.</returns>
+    private static string SanitizeFileName(string fileName)
+    {
+        var invalidChars = Path.GetInvalidFileNameChars();
+        var sanitized = new StringBuilder(fileName);
+
+        foreach (var c in invalidChars)
+        {
+            sanitized.Replace(c, '_');
+        }
+
+        return sanitized.ToString().Trim();
+    }
+
+    /// <summary>
+    /// Resolves the stable Velopack root launcher executable if running from a versioned directory.
+    /// </summary>
+    /// <param name="executablePath">The running process executable path.</param>
+    /// <returns>The root launcher path if available; otherwise the original executable path.</returns>
+    private static string ResolveLauncherExecutable(string executablePath)
+    {
+        var dir = Path.GetDirectoryName(executablePath);
+        if (!string.IsNullOrEmpty(dir))
+        {
+            var dirName = Path.GetFileName(dir);
+            if (string.Equals(dirName, StorageMigrationConstants.CurrentDirectoryName, StringComparison.OrdinalIgnoreCase) ||
+                dirName.StartsWith(StorageMigrationConstants.AppDirectoryPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                var parentDir = Path.GetDirectoryName(dir);
+                if (!string.IsNullOrEmpty(parentDir))
+                {
+                    var exeName = Path.GetFileName(executablePath);
+                    var parentExe = Path.Combine(parentDir, exeName);
+                    if (File.Exists(parentExe))
+                    {
+                        return parentExe;
+                    }
+
+                    var appNameExe = Path.Combine(parentDir, $"{AppConstants.AppName}.exe");
+                    if (File.Exists(appNameExe))
+                    {
+                        return appNameExe;
+                    }
+                }
+            }
+        }
+
+        return executablePath;
     }
 }
