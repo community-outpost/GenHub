@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
@@ -131,6 +132,37 @@ public interface IContentManifestBuilder
         bool isExclusive = false,
         List<ManifestId>? conflictsWith = null,
         List<GameType>? compatibleGameTypes = null);
+
+    /// <summary>
+    /// Adds a dependency to the manifest with version bounds inclusivity.
+    /// </summary>
+    /// <param name="id">Dependency ID.</param>
+    /// <param name="name">Dependency name.</param>
+    /// <param name="dependencyType">The type of dependency.</param>
+    /// <param name="installBehavior">Defines the requirement and installation action for this dependency.</param>
+    /// <param name="minVersion">Minimum required version.</param>
+    /// <param name="maxVersion">Maximum allowed version.</param>
+    /// <param name="compatibleVersions">List of compatible versions.</param>
+    /// <param name="isExclusive">Whether the dependency is exclusive.</param>
+    /// <param name="conflictsWith">List of conflicting dependency IDs.</param>
+    /// <param name="compatibleGameTypes">List of compatible game types.</param>
+    /// <param name="minInclusive">Whether the minimum version bound is inclusive.</param>
+    /// <param name="maxInclusive">Whether the maximum version bound is inclusive.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Manifest builder fluent API preserves overload parity with existing AddDependency methods.")]
+    IContentManifestBuilder AddDependency(
+        ManifestId id,
+        string name,
+        ContentType dependencyType,
+        DependencyInstallBehavior installBehavior,
+        string minVersion,
+        string maxVersion,
+        List<string>? compatibleVersions,
+        bool isExclusive,
+        List<ManifestId>? conflictsWith,
+        List<GameType>? compatibleGameTypes,
+        bool minInclusive,
+        bool maxInclusive);
 
     /// <summary>
     /// Scans a directory and adds files with the specified source type.

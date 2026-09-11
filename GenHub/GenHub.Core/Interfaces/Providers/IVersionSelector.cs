@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using GenHub.Core.Models.Providers;
 
 namespace GenHub.Core.Interfaces.Providers;
@@ -13,7 +14,7 @@ public interface IVersionSelector
     /// <param name="releases">All available releases.</param>
     /// <param name="policy">The version selection policy.</param>
     /// <returns>Filtered releases according to policy.</returns>
-    IEnumerable<ContentRelease> SelectReleases(IEnumerable<ContentRelease> releases, VersionPolicy policy);
+    IReadOnlyList<ContentRelease> SelectReleases(IEnumerable<ContentRelease> releases, VersionPolicy policy);
 
     /// <summary>
     /// Gets the latest stable release from a collection.

@@ -494,7 +494,7 @@
 
                 <!-- Row 2: Inline Action Error Alert Banner (When catalog is loaded but an action/confirmation fails) -->
                 <Border Grid.Row="2"
-                        IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                        IsVisible="{Binding ShowActionError}"
                         Background="{DynamicResource CardBackground}"
                         BorderBrush="{DynamicResource ErrorBrush}"
                         BorderThickness="1"

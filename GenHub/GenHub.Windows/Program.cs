@@ -77,7 +77,7 @@ public class Program
                 // Forward subscribe so the running UI can show the confirmation dialog
                 if (!string.IsNullOrEmpty(subscriptionUrl))
                 {
-                    bootstrapLogger.LogInformation("Forwarding subscribe command to primary instance: {Url}", subscriptionUrl);
+                    bootstrapLogger.LogInformation("Forwarding subscribe command to primary instance");
                     SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.SubscribePrefix}{subscriptionUrl}");
                 }
 

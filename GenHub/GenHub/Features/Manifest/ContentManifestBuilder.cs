@@ -1,3 +1,9 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
@@ -7,11 +13,6 @@ using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace GenHub.Features.Manifest;
 
@@ -355,6 +356,42 @@ public partial class ContentManifestBuilder(
             ConflictsWith = conflictsWith ?? [],
             InstallBehavior = installBehavior,
             CompatibleGameTypes = compatibleGameTypes ?? [],
+        };
+        _manifest.Dependencies.Add(dependency);
+        logger.LogDebug("Added dependency: {DependencyId} (InstallBehavior: {InstallBehavior}, Exclusive: {IsExclusive})", id, installBehavior, isExclusive);
+        return this;
+    }
+
+    /// <inheritdoc/>
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Manifest builder fluent API preserves overload parity with existing AddDependency methods.")]
+    public IContentManifestBuilder AddDependency(
+        ManifestId id,
+        string name,
+        ContentType dependencyType,
+        DependencyInstallBehavior installBehavior,
+        string minVersion,
+        string maxVersion,
+        List<string>? compatibleVersions,
+        bool isExclusive,
+        List<ManifestId>? conflictsWith,
+        List<GameType>? compatibleGameTypes,
+        bool minInclusive,
+        bool maxInclusive)
+    {
+        var dependency = new ContentDependency
+        {
+            Id = id,
+            Name = name,
+            DependencyType = dependencyType,
+            MinVersion = minVersion,
+            MaxVersion = maxVersion,
+            CompatibleVersions = compatibleVersions ?? [],
+            IsExclusive = isExclusive,
+            ConflictsWith = conflictsWith ?? [],
+            InstallBehavior = installBehavior,
+            CompatibleGameTypes = compatibleGameTypes ?? [],
+            MinInclusive = minInclusive,
+            MaxInclusive = maxInclusive,
         };
         _manifest.Dependencies.Add(dependency);
         logger.LogDebug("Added dependency: {DependencyId} (InstallBehavior: {InstallBehavior}, Exclusive: {IsExclusive})", id, installBehavior, isExclusive);

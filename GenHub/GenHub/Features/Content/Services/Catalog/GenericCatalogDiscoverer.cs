@@ -13,6 +13,7 @@ using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GitHub;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
@@ -38,11 +39,6 @@ public class GenericCatalogDiscoverer(
     IVersionSelector versionSelector,
     IGitHubApiClient gitHubClient) : IContentDiscoverer
 {
-    private const string GameTypeVariantAxis = "game-type";
-    private static readonly ConcurrentDictionary<string, (GitHubRelease Release, DateTime CachedAt)> ReleaseCache = new(StringComparer.OrdinalIgnoreCase);
-    private static readonly ConcurrentDictionary<string, Task<GitHubRelease?>> PendingReleaseFetches = new(StringComparer.OrdinalIgnoreCase);
-    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
-
     private readonly record struct VariantSiblingContext(
         ContentRelease OriginalRelease,
         ContentRelease ResolvedRelease,
@@ -50,12 +46,98 @@ public class GenericCatalogDiscoverer(
         string FamilyName,
         string DeclaredPublisher);
 
+    private static readonly ConcurrentDictionary<string, (GitHubRelease Release, DateTime CachedAt)> ReleaseCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, Task<GitHubRelease?>> PendingReleaseFetches = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
+
     private Core.Models.Providers.PublisherSubscription? _subscription;
 
     /// <summary>
     /// Gets the unique identifier of the resolver used by this discoverer.
     /// </summary>
     public static string ResolverId => CatalogConstants.GenericCatalogResolverId;
+
+    /// <inheritdoc />
+    public string SourceName => _subscription?.PublisherName ?? "Generic Catalog";
+
+    /// <inheritdoc />
+    public string Description => _subscription != null
+        ? $"Content from {_subscription.PublisherName}"
+        : "Generic catalog-based content source";
+
+    /// <inheritdoc />
+    public bool IsEnabled => _subscription != null;
+
+    /// <inheritdoc />
+    public ContentSourceCapabilities Capabilities => ContentSourceCapabilities.RequiresDiscovery | ContentSourceCapabilities.SupportsManifestGeneration;
+
+    /// <summary>
+    /// Configures this discoverer for a specific publisher subscription.
+    /// </summary>
+    /// <param name="subscription">The publisher subscription.</param>
+    public void Configure(Core.Models.Providers.PublisherSubscription subscription)
+    {
+        ArgumentNullException.ThrowIfNull(subscription);
+        _subscription = subscription;
+        logger.LogDebug("Configured discoverer for publisher: {PublisherId}", subscription.PublisherId);
+    }
+
+    /// <inheritdoc />
+    public virtual async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
+        ContentSearchQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        if (_subscription == null)
+        {
+            return OperationResult<ContentDiscoveryResult>.CreateFailure(
+                "Discoverer not configured with subscription");
+        }
+
+        try
+        {
+            // Fetch and parse catalog
+            var catalogResult = await FetchCatalogAsync(cancellationToken);
+            if (!catalogResult.Success)
+            {
+                return OperationResult<ContentDiscoveryResult>.CreateFailure(catalogResult);
+            }
+
+            var catalog = catalogResult.Data;
+            if (catalog == null)
+            {
+                return OperationResult<ContentDiscoveryResult>.CreateFailure("Catalog data is null");
+            }
+
+            // Dynamically hydrate upstream releases (e.g. TheSuperHackers latest release)
+            await HydrateDynamicReleasesAsync(catalog, cancellationToken);
+
+            // Convert catalog items to search results
+            var searchResults = ConvertCatalogToSearchResults(catalog, query).ToList();
+
+            var result = new ContentDiscoveryResult
+            {
+                Items = searchResults,
+                TotalItems = searchResults.Count,
+                HasMoreItems = false, // All results returned at once from catalog
+            };
+
+            logger.LogInformation(
+                "Discovered {Count} content items from publisher '{PublisherId}'",
+                searchResults.Count,
+                _subscription.PublisherId);
+
+            return OperationResult<ContentDiscoveryResult>.CreateSuccess(result);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to discover content from publisher '{PublisherId}'", _subscription.PublisherId);
+            return OperationResult<ContentDiscoveryResult>.CreateFailure($"Discovery failed: {ex.Message}");
+        }
+    }
 
     /// <summary>
     /// Clears the static dynamic release cache. Used for testing and cache invalidation.
@@ -79,8 +161,8 @@ public class GenericCatalogDiscoverer(
         {
             var targetGame = query.TargetGame.Value;
             var hasGameVariant = release?.Artifacts?.Any(a =>
-                string.Equals(a.VariantAxis, GameTypeVariantAxis, StringComparison.OrdinalIgnoreCase) &&
-                ResolveVariantGameType(a.Variant) == targetGame) == true;
+                string.Equals(a.VariantAxis, CatalogConstants.GameTypeVariantAxis, StringComparison.OrdinalIgnoreCase) &&
+                ResolveSiblingTargetGame(GameType.Unknown, a.VariantAxis ?? string.Empty, a.Variant ?? string.Empty) == targetGame) == true;
 
             if (content.TargetGame != targetGame && !hasGameVariant)
             {
@@ -97,10 +179,12 @@ public class GenericCatalogDiscoverer(
         // Filter by search text
         if (!string.IsNullOrWhiteSpace(query.SearchTerm))
         {
-            var searchLower = query.SearchTerm.ToLowerInvariant();
-            if (!content.Name.Contains(searchLower, StringComparison.OrdinalIgnoreCase) &&
-                !content.Description.Contains(searchLower, StringComparison.OrdinalIgnoreCase) &&
-                content.Tags.All(t => !t.Contains(searchLower, StringComparison.OrdinalIgnoreCase)))
+            var searchTerm = query.SearchTerm;
+            var matchesName = content.Name?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) == true;
+            var matchesDescription = content.Description?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) == true;
+            var matchesTags = content.Tags?.Any(t => t?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) == true) == true;
+
+            if (!matchesName && !matchesDescription && !matchesTags)
             {
                 return false;
             }
@@ -115,37 +199,8 @@ public class GenericCatalogDiscoverer(
     /// least one axis has two or more artifacts. An empty list means the release should NOT be
     /// split (single card, original path).
     /// </summary>
-    private static List<ReleaseArtifact> GetVariantArtifacts(ContentRelease release)
-    {
-        if (release.Artifacts == null || release.Artifacts.Count == 0)
-        {
-            return [];
-        }
-
-        var hinted = release.Artifacts
-            .Where(a => !string.IsNullOrWhiteSpace(a.VariantAxis) && !string.IsNullOrWhiteSpace(a.Variant))
-            .ToList();
-
-        if (hinted.Count < 2)
-        {
-            return [];
-        }
-
-        var multiAxes = hinted
-            .Where(a => a.VariantAxis != null)
-            .GroupBy(a => a.VariantAxis, StringComparer.OrdinalIgnoreCase)
-            .Where(g => g.Count() > 1)
-            .Select(g => g.Key)
-            .OfType<string>()
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        if (multiAxes.Count == 0)
-        {
-            return [];
-        }
-
-        return hinted.Where(a => a.VariantAxis != null && multiAxes.Contains(a.VariantAxis)).ToList();
-    }
+    private static List<ReleaseArtifact> GetVariantArtifacts(ContentRelease release) =>
+        CatalogManifestIdentity.GetVariantArtifacts(release);
 
     /// <summary>
     /// Guarantees exactly one variant is marked default. If the author declared one via
@@ -154,36 +209,12 @@ public class GenericCatalogDiscoverer(
     /// </summary>
     private static void MarkDefaultVariant(List<ContentVariantInfo> variants)
     {
-        if (variants.Count == 0)
-        {
-            return;
-        }
-
-        if (variants.Any(v => v.IsDefault))
-        {
-            // Keep the first author-declared default, clear the rest.
-            var seen = false;
-            foreach (var v in variants)
-            {
-                if (v.IsDefault && !seen)
-                {
-                    seen = true;
-                }
-                else
-                {
-                    v.IsDefault = false;
-                }
-            }
-
-            return;
-        }
-
-        var chosen = variants.FirstOrDefault(v =>
-                       v.Name.Contains("1080p", StringComparison.OrdinalIgnoreCase) ||
-                       v.Name.Contains("1920x1080", StringComparison.OrdinalIgnoreCase))
-                   ?? variants.FirstOrDefault(v => v.VariantType == "resolution")
-                   ?? variants[0];
-        chosen.IsDefault = true;
+        CatalogManifestIdentity.SelectDefaultVariant(
+            variants,
+            v => v.Name,
+            v => v.VariantType,
+            v => v.IsDefault,
+            (v, isDefault) => v.IsDefault = isDefault);
     }
 
     private static void AttachResolverMetadata(
@@ -208,6 +239,11 @@ public class GenericCatalogDiscoverer(
         IReadOnlyDictionary<string, string> contentNamesById)
     {
         var names = new List<string>();
+        if (release.Dependencies == null)
+        {
+            return names;
+        }
+
         foreach (var dependency in release.Dependencies)
         {
             if (dependency.IsOptional ||
@@ -230,38 +266,17 @@ public class GenericCatalogDiscoverer(
         return names;
     }
 
-    private static GameType? ResolveVariantGameType(string? variant)
-    {
-        if (string.IsNullOrWhiteSpace(variant))
-        {
-            return null;
-        }
-
-        if (string.Equals(variant, ContentConstants.GeneralsGameSegment, StringComparison.OrdinalIgnoreCase))
-        {
-            return GameType.Generals;
-        }
-
-        if (string.Equals(variant, ContentConstants.ZeroHourGameSegment, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(variant, "Zero Hour", StringComparison.OrdinalIgnoreCase))
-        {
-            return GameType.ZeroHour;
-        }
-
-        return null;
-    }
-
     private static GameType ResolveSiblingTargetGame(GameType defaultTargetGame, string axis, string variantLabel)
     {
-        if (axis.Equals(GameTypeVariantAxis, StringComparison.OrdinalIgnoreCase))
+        if (axis.Equals(CatalogConstants.GameTypeVariantAxis, StringComparison.OrdinalIgnoreCase))
         {
-            if (variantLabel.Equals("Generals", StringComparison.OrdinalIgnoreCase))
+            if (variantLabel.Equals(CatalogConstants.GeneralsVariantLabel, StringComparison.OrdinalIgnoreCase))
             {
                 return GameType.Generals;
             }
 
-            if (variantLabel.Equals("Zero Hour", StringComparison.OrdinalIgnoreCase) ||
-                variantLabel.Equals("ZeroHour", StringComparison.OrdinalIgnoreCase))
+            if (variantLabel.Equals(CatalogConstants.ZeroHourVariantLabel, StringComparison.OrdinalIgnoreCase) ||
+                variantLabel.Equals(CatalogConstants.ZeroHourCompactVariantLabel, StringComparison.OrdinalIgnoreCase))
             {
                 return GameType.ZeroHour;
             }
@@ -350,9 +365,12 @@ public class GenericCatalogDiscoverer(
             }
         }
 
-        foreach (var tag in contentItem.Tags)
+        if (contentItem.Tags != null)
         {
-            searchResult.Tags.Add(tag);
+            foreach (var tag in contentItem.Tags.Where(t => !string.IsNullOrWhiteSpace(t)))
+            {
+                searchResult.Tags.Add(tag);
+            }
         }
 
         if (contentItem.Metadata?.PlayerCount is int playerCount && playerCount > 0)
@@ -368,88 +386,6 @@ public class GenericCatalogDiscoverer(
             ContentCardBadgeHelper.ApplyIncludesSummary(
                 searchResult,
                 ResolveIncludedContentNames(release, contentNamesById));
-        }
-    }
-
-    /// <inheritdoc />
-    public string SourceName => _subscription?.PublisherName ?? "Generic Catalog";
-
-    /// <inheritdoc />
-    public string Description => _subscription != null
-        ? $"Content from {_subscription.PublisherName}"
-        : "Generic catalog-based content source";
-
-    /// <inheritdoc />
-    public bool IsEnabled => _subscription != null;
-
-    /// <inheritdoc />
-    public ContentSourceCapabilities Capabilities => ContentSourceCapabilities.RequiresDiscovery | ContentSourceCapabilities.SupportsManifestGeneration;
-
-    /// <summary>
-    /// Configures this discoverer for a specific publisher subscription.
-    /// </summary>
-    /// <param name="subscription">The publisher subscription.</param>
-    public void Configure(Core.Models.Providers.PublisherSubscription subscription)
-    {
-        ArgumentNullException.ThrowIfNull(subscription);
-        _subscription = subscription;
-        logger.LogDebug("Configured discoverer for publisher: {PublisherId}", subscription.PublisherId);
-    }
-
-    /// <inheritdoc />
-    public virtual async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
-        ContentSearchQuery query,
-        CancellationToken cancellationToken = default)
-    {
-        if (_subscription == null)
-        {
-            return OperationResult<ContentDiscoveryResult>.CreateFailure(
-                "Discoverer not configured with subscription");
-        }
-
-        try
-        {
-            // Fetch and parse catalog
-            var catalogResult = await FetchCatalogAsync(cancellationToken);
-            if (!catalogResult.Success)
-            {
-                return OperationResult<ContentDiscoveryResult>.CreateFailure(catalogResult);
-            }
-
-            var catalog = catalogResult.Data;
-            if (catalog == null)
-            {
-                return OperationResult<ContentDiscoveryResult>.CreateFailure("Catalog data is null");
-            }
-
-            // Dynamically hydrate upstream releases (e.g. TheSuperHackers latest release)
-            await HydrateDynamicReleasesAsync(catalog, cancellationToken);
-
-            // Convert catalog items to search results
-            var searchResults = ConvertCatalogToSearchResults(catalog, query).ToList();
-
-            var result = new ContentDiscoveryResult
-            {
-                Items = searchResults,
-                TotalItems = searchResults.Count,
-                HasMoreItems = false, // All results returned at once from catalog
-            };
-
-            logger.LogInformation(
-                "Discovered {Count} content items from publisher '{PublisherId}'",
-                searchResults.Count,
-                _subscription.PublisherId);
-
-            return OperationResult<ContentDiscoveryResult>.CreateSuccess(result);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to discover content from publisher '{PublisherId}'", _subscription.PublisherId);
-            return OperationResult<ContentDiscoveryResult>.CreateFailure($"Discovery failed: {ex.Message}");
         }
     }
 
@@ -512,9 +448,9 @@ public class GenericCatalogDiscoverer(
             a.Name.Contains("_zh", StringComparison.OrdinalIgnoreCase));
 
         var genAsset = latestRelease.Assets?.FirstOrDefault(a =>
-            a.Name.Contains(ContentConstants.GeneralsGameSegment, StringComparison.OrdinalIgnoreCase) &&
+            a.Name.Contains(CatalogConstants.GeneralsContentId, StringComparison.OrdinalIgnoreCase) &&
             !a.Name.Contains("generalszh", StringComparison.OrdinalIgnoreCase) &&
-            !a.Name.Contains("zerohour", StringComparison.OrdinalIgnoreCase) &&
+            !a.Name.Contains(CatalogConstants.ZeroHourContentId, StringComparison.OrdinalIgnoreCase) &&
             !a.Name.Contains("zero-hour", StringComparison.OrdinalIgnoreCase) &&
             !a.Name.Contains("_zh", StringComparison.OrdinalIgnoreCase));
 
@@ -534,8 +470,8 @@ public class GenericCatalogDiscoverer(
                     DownloadUrl = zhAsset.BrowserDownloadUrl,
                     Size = zhAsset.Size,
                     ContentType = "application/zip",
-                    VariantAxis = GameTypeVariantAxis,
-                    Variant = "Zero Hour",
+                    VariantAxis = CatalogConstants.GameTypeVariantAxis,
+                    Variant = CatalogConstants.ZeroHourVariantLabel,
                     IsDefaultVariant = item.TargetGame == GameType.ZeroHour,
                     IsPrimary = item.TargetGame == GameType.ZeroHour,
                 });
@@ -549,8 +485,8 @@ public class GenericCatalogDiscoverer(
                     DownloadUrl = genAsset.BrowserDownloadUrl,
                     Size = genAsset.Size,
                     ContentType = "application/zip",
-                    VariantAxis = GameTypeVariantAxis,
-                    Variant = "Generals",
+                    VariantAxis = CatalogConstants.GameTypeVariantAxis,
+                    Variant = CatalogConstants.GeneralsVariantLabel,
                     IsDefaultVariant = item.TargetGame == GameType.Generals,
                     IsPrimary = item.TargetGame == GameType.Generals,
                 });
@@ -570,9 +506,9 @@ public class GenericCatalogDiscoverer(
                     [
                         new CatalogDependency
                         {
-                            PublisherId = "ea",
-                            ContentId = item.TargetGame == GameType.Generals ? ContentConstants.GeneralsGameSegment : ContentConstants.ZeroHourGameSegment,
-                            VersionConstraint = item.TargetGame == GameType.Generals ? "1.08" : "1.04",
+                            PublisherId = CatalogConstants.EaPublisherId,
+                            ContentId = item.TargetGame == GameType.Generals ? CatalogConstants.GeneralsContentId : CatalogConstants.ZeroHourContentId,
+                            VersionConstraint = item.TargetGame == GameType.Generals ? ManifestConstants.GeneralsManifestVersion : ManifestConstants.ZeroHourManifestVersion,
                             ContentType = ContentType.GameInstallation.ToString(),
                             IsOptional = false,
                         },
@@ -595,7 +531,18 @@ public class GenericCatalogDiscoverer(
                  (dep.PublisherId?.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true &&
                   dep.VersionConstraint?.Equals("latest", StringComparison.OrdinalIgnoreCase) == true)))
             {
-                dep.VersionConstraint = $">={cleanTag}";
+                if (dep.VersionConstraint?.Equals("latest", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    dep.VersionConstraint = $">={cleanTag}";
+                }
+                else
+                {
+                    var testConstraint = new VersionConstraint { ConstraintExpression = $">={cleanTag}" };
+                    if (testConstraint.IsSatisfiedBy(cleanTag))
+                    {
+                        dep.VersionConstraint = $">={cleanTag}";
+                    }
+                }
             }
         }
     }
@@ -632,7 +579,7 @@ public class GenericCatalogDiscoverer(
 
             if (!string.IsNullOrWhiteSpace(_subscription.DefinitionUrl))
             {
-                throw new NotSupportedException("Definition-resolved catalogs (Publisher Studio) are not yet supported. Only direct CatalogUrl subscriptions are supported.");
+                return OperationResult<PublisherCatalog>.CreateFailure("Definition-resolved catalogs (Publisher Studio) are not yet supported. Only direct CatalogUrl subscriptions are supported.");
             }
 
             logger.LogDebug("Fetching catalog from: {CatalogUrl}", _subscription.CatalogUrl);
@@ -773,7 +720,7 @@ public class GenericCatalogDiscoverer(
         PopulatePresentation(searchResult, contentItem, release, contentNamesById);
         AttachResolverMetadata(searchResult, catalog, contentItem, resolvedRelease);
 
-        if (contentItem.ContentType == ContentType.ContentBundle)
+        if (contentItem.ContentType == ContentType.ContentBundle || release.Dependencies is { Count: > 0 })
         {
             var components = CatalogBundleComponentBuilder.Build(catalog, contentItem, release);
             searchResult.ResolverMetadata[CatalogConstants.BundleComponentsJsonMetadataKey] =
@@ -891,9 +838,9 @@ public class GenericCatalogDiscoverer(
                 {
                     return new CatalogDependency
                     {
-                        PublisherId = dep.PublisherId ?? "ea",
-                        ContentId = siblingTargetGame == GameType.Generals ? ContentConstants.GeneralsGameSegment : ContentConstants.ZeroHourGameSegment,
-                        VersionConstraint = siblingTargetGame == GameType.Generals ? "1.08" : "1.04",
+                        PublisherId = dep.PublisherId ?? CatalogConstants.EaPublisherId,
+                        ContentId = siblingTargetGame == GameType.Generals ? CatalogConstants.GeneralsContentId : CatalogConstants.ZeroHourContentId,
+                        VersionConstraint = siblingTargetGame == GameType.Generals ? ManifestConstants.GeneralsManifestVersion : ManifestConstants.ZeroHourManifestVersion,
                         ContentType = ContentType.GameInstallation.ToString(),
                         IsOptional = dep.IsOptional,
                     };
@@ -905,7 +852,7 @@ public class GenericCatalogDiscoverer(
 
         AttachResolverMetadata(sibling, catalog, contentItem, singleArtifactRelease);
 
-        if (contentItem.ContentType == ContentType.ContentBundle)
+        if (contentItem.ContentType == ContentType.ContentBundle || context.OriginalRelease.Dependencies is { Count: > 0 })
         {
             var components = CatalogBundleComponentBuilder.Build(catalog, contentItem, context.OriginalRelease);
             sibling.ResolverMetadata[CatalogConstants.BundleComponentsJsonMetadataKey] =

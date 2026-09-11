@@ -107,4 +107,49 @@ public static class CatalogConstants
     /// Badge text for official providers.
     /// </summary>
     public const string OfficialProviderBadge = "Official Provider";
+
+    /// <summary>
+    /// Base game content ID for Command &amp; Conquer Generals.
+    /// </summary>
+    public const string GeneralsContentId = "generals";
+
+    /// <summary>
+    /// Base game content ID for Command &amp; Conquer Generals: Zero Hour.
+    /// </summary>
+    public const string ZeroHourContentId = "zerohour";
+
+    /// <summary>
+    /// Publisher ID for Electronic Arts base game installations.
+    /// </summary>
+    public const string EaPublisherId = "ea";
+
+    /// <summary>
+    /// Publisher wildcard for base game installations satisfied by any publisher.
+    /// </summary>
+    public const string AnyPublisherId = "any";
+
+    /// <summary>
+    /// Variant axis name for target game discrimination (Generals vs Zero Hour).
+    /// </summary>
+    public const string GameTypeVariantAxis = "game-type";
+
+    /// <summary>
+    /// Variant axis name for display resolution.
+    /// </summary>
+    public const string ResolutionVariantAxis = "resolution";
+
+    /// <summary>
+    /// Variant label for Command &amp; Conquer Generals.
+    /// </summary>
+    public const string GeneralsVariantLabel = "Generals";
+
+    /// <summary>
+    /// Variant label for Command &amp; Conquer Generals: Zero Hour.
+    /// </summary>
+    public const string ZeroHourVariantLabel = "Zero Hour";
+
+    /// <summary>
+    /// Compact variant label for Command &amp; Conquer Generals: Zero Hour (without spaces).
+    /// </summary>
+    public const string ZeroHourCompactVariantLabel = "ZeroHour";
 }

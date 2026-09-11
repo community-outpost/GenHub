@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Providers;
@@ -35,6 +36,24 @@ public sealed class CatalogBundleComponentDescriptor
     /// </summary>
     [JsonPropertyName("isBaseGame")]
     public bool IsBaseGame { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the component could be resolved in the catalog.
+    /// </summary>
+    [JsonPropertyName("isAvailable")]
+    public bool IsAvailable { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the diagnostic reason if the component could not be resolved.
+    /// </summary>
+    [JsonPropertyName("unavailableReason")]
+    public string? UnavailableReason { get; set; }
+
+    /// <summary>
+    /// Gets or sets the resolved release version for this component.
+    /// </summary>
+    [JsonPropertyName("releaseVersion")]
+    public string ReleaseVersion { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the serialized catalog item JSON used to acquire this component.</summary>
     [JsonPropertyName("catalogItemJson")]
