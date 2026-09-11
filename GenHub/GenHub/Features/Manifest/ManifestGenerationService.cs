@@ -58,6 +58,14 @@ public class ManifestGenerationService(
         Skipped,
     }
 
+    private sealed record ProcessedAuthoritativeEntry(
+        AuthoritativeFileStatus Status,
+        CsvCatalogEntry Entry,
+        string? SourcePath,
+        long FileLength,
+        string? ComputedHash,
+        bool IsExecutable);
+
     private static readonly CsvConfiguration CsvConfig = new(CultureInfo.InvariantCulture)
     {
         HasHeaderRecord = true,
@@ -918,6 +926,11 @@ public class ManifestGenerationService(
         }
     }
 
+    /// <summary>
+    /// Checks whether a path or any parent in the path is a reparse point or symbolic link.
+    /// The reparse cache is scoped to a single manifest generation run to avoid repeatedly probing
+    /// unchanging directories across parallel entry evaluations.
+    /// </summary>
     private static bool IsPathOrCacheReparsePoint(string currentPath, ConcurrentDictionary<string, bool>? cache)
     {
         if (cache != null && cache.TryGetValue(currentPath, out var cachedIsReparse))
@@ -998,14 +1011,6 @@ public class ManifestGenerationService(
                !string.IsNullOrWhiteSpace(entry.Sha256) &&
                string.Equals(computedHash, entry.Sha256, StringComparison.OrdinalIgnoreCase);
     }
-
-    private sealed record ProcessedAuthoritativeEntry(
-        AuthoritativeFileStatus Status,
-        CsvCatalogEntry Entry,
-        string? SourcePath,
-        long FileLength,
-        string? ComputedHash,
-        bool IsExecutable);
 
     /// <summary>
     /// Adds authoritative vanilla game files to a manifest builder using the CSV catalog authority.

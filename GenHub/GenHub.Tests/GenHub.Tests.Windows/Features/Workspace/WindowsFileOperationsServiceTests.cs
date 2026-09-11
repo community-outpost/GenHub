@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Features.Workspace;
@@ -136,7 +137,7 @@ public class WindowsFileOperationsServiceTests : IDisposable
             UseShellExecute = false,
         };
         using var process = System.Diagnostics.Process.Start(psi);
-        process?.WaitForExit(5000);
+        process?.WaitForExit(ProcessConstants.HelperProcessTimeoutMs);
 
         if (!Directory.Exists(junctionPath))
         {

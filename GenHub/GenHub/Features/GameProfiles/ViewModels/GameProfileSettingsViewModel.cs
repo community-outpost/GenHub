@@ -580,8 +580,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private void SyncInstallationSelection(ContentDisplayItem value)
     {
         var isToolProfile = ToolProfileHelper.IsToolProfile(EnabledContent
-            .Where(i => i.ContentType != ContentType.GameInstallation)
-            .Select(i => (i.ManifestId.Value, i.ContentType)));
+            .Where(c => c.IsEnabled)
+            .Select(c => (c.ManifestId.Value, c.ContentType)));
         if (isToolProfile)
         {
             _logger?.LogInformation("SelectedGameInstallation ignored because profile is a standalone tool profile");

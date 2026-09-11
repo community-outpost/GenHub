@@ -132,7 +132,7 @@ public static class WorkspaceCompatibilityHelper
         {
             FileOperationsService.DeleteDirectoryIfExists(targetPath);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogDebug(ex, "Failed to clean up stale entry at {Target}", targetPath);
         }
@@ -174,15 +174,22 @@ public static class WorkspaceCompatibilityHelper
                 try
                 {
                     Directory.CreateDirectory(targetPath);
-                    foreach (var file in Directory.GetFiles(sourcePath))
+                    foreach (var file in Directory.GetFiles(sourcePath, "*", SearchOption.AllDirectories))
                     {
-                        var destFile = Path.Combine(targetPath, Path.GetFileName(file));
+                        var relativeFile = Path.GetRelativePath(sourcePath, file);
+                        var destFile = Path.Combine(targetPath, relativeFile);
+                        var destDir = Path.GetDirectoryName(destFile);
+                        if (!string.IsNullOrEmpty(destDir))
+                        {
+                            Directory.CreateDirectory(destDir);
+                        }
+
                         File.Copy(file, destFile, overwrite: true);
                     }
 
                     logger.LogInformation("Copied {Directory} directory contents from {Source} to {Target} as fallback", directoryName, sourcePath, targetPath);
                 }
-                catch (Exception copyEx)
+                catch (Exception copyEx) when (copyEx is IOException or UnauthorizedAccessException)
                 {
                     logger.LogWarning(copyEx, "Failed to copy {Directory} directory to {Target}", directoryName, targetPath);
                     workspaceInfo.ValidationIssues.Add(new ValidationIssue(

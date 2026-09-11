@@ -786,6 +786,11 @@ public partial class ContentManifestBuilder(
     /// <inheritdoc/>
     public IContentManifestBuilder WithEntryPoint(string? entryPoint)
     {
+        if (string.IsNullOrWhiteSpace(entryPoint))
+        {
+            return this;
+        }
+
         _manifest.EntryPoint = entryPoint;
         logger.LogDebug("Set declared entry point: {EntryPoint}", entryPoint);
         return this;

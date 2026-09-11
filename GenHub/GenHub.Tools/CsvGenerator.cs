@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -285,13 +286,20 @@ public class CsvGenerator(ILogger logger)
         using var md5 = MD5.Create();
         using var sha256 = SHA256.Create();
 
-        var buffer = new byte[IoConstants.FileHashBufferSize];
-        var bytesRead = 0;
-
-        while ((bytesRead = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
+        var buffer = ArrayPool<byte>.Shared.Rent(IoConstants.FileHashBufferSize);
+        try
         {
-            md5.TransformBlock(buffer, 0, bytesRead, null, 0);
-            sha256.TransformBlock(buffer, 0, bytesRead, null, 0);
+            var bytesRead = 0;
+
+            while ((bytesRead = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
+            {
+                md5.TransformBlock(buffer, 0, bytesRead, null, 0);
+                sha256.TransformBlock(buffer, 0, bytesRead, null, 0);
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
         }
 
         md5.TransformFinalBlock([], 0, 0);
