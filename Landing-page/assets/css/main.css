@@ -37,13 +37,16 @@ main {
     box-shadow: 0 0 20px rgba(139, 92, 246, 0.15);
 }
 
+.pulse-dot,
 .version-badge .pulse-dot {
+    display: inline-block;
     width: 8px;
     height: 8px;
     background: var(--accent-emerald);
     border-radius: 50%;
     box-shadow: 0 0 10px var(--accent-emerald);
     animation: pulse-emerald 2s infinite ease-in-out;
+    flex-shrink: 0;
 }
 
 .hero-title {
