@@ -607,6 +607,14 @@ public partial class GenHotkeysViewModel(
             _reloadCts?.Cancel();
             _reloadCts?.Dispose();
             _reloadCts = new CancellationTokenSource();
+
+            foreach (var kvp in _bitmapCache)
+            {
+                kvp.Value.Dispose();
+            }
+
+            _bitmapCache.Clear();
+
             var token = _reloadCts.Token;
             _ = SafeReloadAllAsync(token);
         }
