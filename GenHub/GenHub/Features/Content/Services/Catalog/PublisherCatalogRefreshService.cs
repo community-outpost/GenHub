@@ -85,9 +85,17 @@ public class PublisherCatalogRefreshService(
 
             // Re-fetch latest subscription state before updating to preserve user settings
             var latestSubResult = await subscriptionStore.GetSubscriptionAsync(publisherId, cancellationToken);
-            var currentSubscription = (latestSubResult.Success && latestSubResult.Data != null)
-                ? latestSubResult.Data
-                : subscription;
+            if (!latestSubResult.Success || latestSubResult.Data == null)
+            {
+                return OperationResult<bool>.CreateFailure($"Subscription '{publisherId}' not found");
+            }
+
+            var currentSubscription = latestSubResult.Data;
+            if (!string.Equals(currentSubscription.CatalogUrl, subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogInformation("Catalog URL changed for {PublisherId} during refresh; discarding stale fetch result", publisherId);
+                return OperationResult<bool>.CreateFailure("Catalog URL changed during refresh");
+            }
 
             // Update subscription metadata
             var hash = ComputeHash(catalogJson);

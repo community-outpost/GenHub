@@ -25,6 +25,7 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameSettings;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Content.Services.SuperHackers;
@@ -1197,22 +1198,30 @@ public class ProfileLauncherFacade(
     /// <returns>True if compatible, false otherwise.</returns>
     private bool IsVersionCompatible(string version, ContentDependency dependency)
     {
-        // If compatible versions list is specified, check exact match
+        // If compatible versions list is specified, check exact match or numeric equivalence
         if (dependency.CompatibleVersions.Count > 0)
         {
-            return dependency.CompatibleVersions.Contains(version, StringComparer.OrdinalIgnoreCase);
+            return dependency.CompatibleVersions.Any(cv =>
+                string.Equals(cv, version, StringComparison.OrdinalIgnoreCase) ||
+                CatalogManifestIdentity.CompareVersions(cv, version) == 0);
         }
 
-        // Simple string comparison for min/max versions (semantic versioning would be better in production)
-        // For now, we use string comparison which works for versions like "1.04", "1.08", etc.
-        if (!string.IsNullOrEmpty(dependency.MinVersion) && string.Compare(version, dependency.MinVersion, StringComparison.OrdinalIgnoreCase) < 0)
+        if (!string.IsNullOrEmpty(dependency.MinVersion))
         {
-            return false;
+            var comparison = CatalogManifestIdentity.CompareVersions(version, dependency.MinVersion);
+            if (dependency.MinInclusive ? comparison < 0 : comparison <= 0)
+            {
+                return false;
+            }
         }
 
-        if (!string.IsNullOrEmpty(dependency.MaxVersion) && string.Compare(version, dependency.MaxVersion, StringComparison.OrdinalIgnoreCase) > 0)
+        if (!string.IsNullOrEmpty(dependency.MaxVersion))
         {
-            return false;
+            var comparison = CatalogManifestIdentity.CompareVersions(version, dependency.MaxVersion);
+            if (dependency.MaxInclusive ? comparison > 0 : comparison >= 0)
+            {
+                return false;
+            }
         }
 
         return true;
@@ -1233,12 +1242,14 @@ public class ProfileLauncherFacade(
         var parts = new List<string>();
         if (!string.IsNullOrEmpty(dependency.MinVersion))
         {
-            parts.Add($"version >= {dependency.MinVersion}");
+            var op = dependency.MinInclusive ? ">=" : ">";
+            parts.Add($"version {op} {dependency.MinVersion}");
         }
 
         if (!string.IsNullOrEmpty(dependency.MaxVersion))
         {
-            parts.Add($"version <= {dependency.MaxVersion}");
+            var op = dependency.MaxInclusive ? "<=" : "<";
+            parts.Add($"version {op} {dependency.MaxVersion}");
         }
 
         return parts.Count > 0 ? $"({string.Join(" and ", parts)})" : string.Empty;
