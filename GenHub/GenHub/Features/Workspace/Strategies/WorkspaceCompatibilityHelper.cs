@@ -123,11 +123,25 @@ public static class WorkspaceCompatibilityHelper
         ILogger logger)
     {
         var targetPath = Path.Combine(workspaceInfo.WorkspacePath, directoryName);
-        if (Directory.Exists(targetPath))
+        if (Directory.Exists(targetPath) || !TryCleanStaleTargetPath(targetPath, workspaceInfo, logger))
         {
             return;
         }
 
+        var sourceDir = EnumerateCandidateDirectories(configuration)
+            .FirstOrDefault(d => Directory.Exists(Path.Combine(d, directoryName)));
+
+        if (string.IsNullOrEmpty(sourceDir))
+        {
+            return;
+        }
+
+        var sourcePath = Path.Combine(sourceDir, directoryName);
+        LinkOrCopyDirectory(workspaceInfo, directoryName, sourcePath, targetPath, logger);
+    }
+
+    private static bool TryCleanStaleTargetPath(string targetPath, WorkspaceInfo workspaceInfo, ILogger logger)
+    {
         try
         {
             FileOperationsService.DeleteDirectoryIfExists(targetPath);
@@ -143,67 +157,82 @@ public static class WorkspaceCompatibilityHelper
             workspaceInfo.ValidationIssues.Add(new ValidationIssue(
                 $"Conflicting target path {targetPath} could not be cleaned up prior to linking",
                 ValidationSeverity.Warning));
-            return;
+            return false;
         }
 
-        var sourceDir = EnumerateCandidateDirectories(configuration)
-            .FirstOrDefault(d => Directory.Exists(Path.Combine(d, directoryName)));
+        return true;
+    }
 
-        if (string.IsNullOrEmpty(sourceDir))
-        {
-            return;
-        }
-
-        var sourcePath = Path.Combine(sourceDir, directoryName);
+    private static void LinkOrCopyDirectory(
+        WorkspaceInfo workspaceInfo,
+        string directoryName,
+        string sourcePath,
+        string targetPath,
+        ILogger logger)
+    {
         try
         {
             Directory.CreateSymbolicLink(targetPath, sourcePath);
             logger.LogInformation("Linked {Directory} directory via symlink from {Source} to {Target}", directoryName, sourcePath, targetPath);
+            return;
         }
         catch (Exception symlinkEx)
         {
             logger.LogDebug(symlinkEx, "Failed to create symbolic link for {Directory} directory at {Target}; attempting junction fallback", directoryName, targetPath);
-            if (TryCreateDirectoryJunction(targetPath, sourcePath, logger))
-            {
-                logger.LogInformation("Linked {Directory} directory via junction from {Source} to {Target}", directoryName, sourcePath, targetPath);
-            }
-            else if (string.Equals(directoryName, GameClientConstants.CoreDirectory, StringComparison.OrdinalIgnoreCase))
-            {
-                // Core contains critical DRM and activation libraries (Activation.dll, ~2MB total).
-                // If symlink and junction fail, copy files directly so retail/EA/Steam client does not crash with 0xC0000135.
-                try
-                {
-                    Directory.CreateDirectory(targetPath);
-                    foreach (var file in Directory.GetFiles(sourcePath, "*", SearchOption.AllDirectories))
-                    {
-                        var relativeFile = Path.GetRelativePath(sourcePath, file);
-                        var destFile = Path.Combine(targetPath, relativeFile);
-                        var destDir = Path.GetDirectoryName(destFile);
-                        if (!string.IsNullOrEmpty(destDir))
-                        {
-                            Directory.CreateDirectory(destDir);
-                        }
+        }
 
-                        File.Copy(file, destFile, overwrite: true);
-                    }
+        if (TryCreateDirectoryJunction(targetPath, sourcePath, logger))
+        {
+            logger.LogInformation("Linked {Directory} directory via junction from {Source} to {Target}", directoryName, sourcePath, targetPath);
+            return;
+        }
 
-                    logger.LogInformation("Copied {Directory} directory contents from {Source} to {Target} as fallback", directoryName, sourcePath, targetPath);
-                }
-                catch (Exception copyEx) when (copyEx is IOException or UnauthorizedAccessException)
-                {
-                    logger.LogWarning(copyEx, "Failed to copy {Directory} directory to {Target}", directoryName, targetPath);
-                    workspaceInfo.ValidationIssues.Add(new ValidationIssue(
-                        $"Failed to copy fallback {directoryName} directory contents to {targetPath}: {copyEx.Message}",
-                        ValidationSeverity.Warning));
-                }
-            }
-            else
+        if (string.Equals(directoryName, GameClientConstants.CoreDirectory, StringComparison.OrdinalIgnoreCase))
+        {
+            CopyCoreDirectoryFallback(workspaceInfo, directoryName, sourcePath, targetPath, logger);
+        }
+        else
+        {
+            logger.LogWarning("Failed to create symbolic link or junction for {Directory} directory at {Target}; skipping materialization to avoid freezing UI with large directory copy", directoryName, targetPath);
+            workspaceInfo.ValidationIssues.Add(new ValidationIssue(
+                $"Failed to create symbolic link or junction for {directoryName} directory at {targetPath}",
+                ValidationSeverity.Warning));
+        }
+    }
+
+    private static void CopyCoreDirectoryFallback(
+        WorkspaceInfo workspaceInfo,
+        string directoryName,
+        string sourcePath,
+        string targetPath,
+        ILogger logger)
+    {
+        // Core contains critical DRM and activation libraries (Activation.dll, ~2MB total).
+        // If symlink and junction fail, copy files directly so retail/EA/Steam client does not crash with 0xC0000135.
+        try
+        {
+            Directory.CreateDirectory(targetPath);
+            foreach (var file in Directory.GetFiles(sourcePath, "*", SearchOption.AllDirectories))
             {
-                logger.LogWarning("Failed to create symbolic link or junction for {Directory} directory at {Target}; skipping materialization to avoid freezing UI with large directory copy", directoryName, targetPath);
-                workspaceInfo.ValidationIssues.Add(new ValidationIssue(
-                    $"Failed to create symbolic link or junction for {directoryName} directory at {targetPath}",
-                    ValidationSeverity.Warning));
+                var relativeFile = Path.GetRelativePath(sourcePath, file);
+                var destFile = Path.Combine(targetPath, relativeFile);
+                var destDir = Path.GetDirectoryName(destFile);
+                if (!string.IsNullOrEmpty(destDir))
+                {
+                    Directory.CreateDirectory(destDir);
+                }
+
+                File.Copy(file, destFile, overwrite: true);
             }
+
+            logger.LogInformation("Copied {Directory} directory contents from {Source} to {Target} as fallback", directoryName, sourcePath, targetPath);
+        }
+        catch (Exception copyEx) when (copyEx is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(copyEx, "Failed to copy {Directory} directory to {Target}", directoryName, targetPath);
+            workspaceInfo.ValidationIssues.Add(new ValidationIssue(
+                $"Failed to copy fallback {directoryName} directory contents to {targetPath}: {copyEx.Message}",
+                ValidationSeverity.Warning));
         }
     }
 

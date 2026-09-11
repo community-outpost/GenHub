@@ -887,14 +887,11 @@ public class FileOperationsService(
         // Check for directory symlink or junction FIRST when directory attribute or existence indicates a directory,
         // preventing directory junctions from failing with UnauthorizedAccessException when passed to File.Delete.
         var dirInfo = new DirectoryInfo(path);
-        if (dirInfo.Exists || (dirInfo.Attributes & FileAttributes.Directory) != 0)
+        if ((dirInfo.Exists || (dirInfo.Attributes & FileAttributes.Directory) != 0) && IsReparsePointOrSymlink(dirInfo))
         {
-            if (IsReparsePointOrSymlink(dirInfo))
-            {
-                ClearReadOnlyAttribute(dirInfo);
-                Directory.Delete(path, recursive: false);
-                return true;
-            }
+            ClearReadOnlyAttribute(dirInfo);
+            Directory.Delete(path, recursive: false);
+            return true;
         }
 
         // Check for file symlink (LinkTarget check works even for broken symlinks)

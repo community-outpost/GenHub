@@ -1109,8 +1109,6 @@ public class ManifestGenerationService(
                     var processed = await ProcessAuthoritativeEntryAsync(
                         installationPath,
                         entry,
-                        i + 1,
-                        totalEntries,
                         progressNotificationId,
                         reparseCache,
                         ct);
@@ -1483,8 +1481,6 @@ public class ManifestGenerationService(
     private async Task<ProcessedAuthoritativeEntry> ProcessAuthoritativeEntryAsync(
         string installationPath,
         CsvCatalogEntry entry,
-        int currentIndex,
-        int totalEntries,
         Guid? progressNotificationId,
         ConcurrentDictionary<string, bool> reparseCache,
         CancellationToken cancellationToken = default)
