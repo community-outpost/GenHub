@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,6 +21,9 @@ namespace GenHub.Features.Tools.GenHotkeys.Services;
 /// </summary>
 public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
 {
+    private const string AssetsFolder = "Assets";
+    private const string GenHotkeysFolder = "GenHotkeys";
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -107,20 +111,45 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
             searchDirs.Add("Generals");
         }
 
+        var candidateNames = BuildCandidateIconNames(iconName);
+
+        foreach (var relativePath in EnumerateCandidateIconPaths(searchDirs, candidateNames))
+        {
+            using var stream = TryOpenAssetStream(relativePath);
+            if (stream == null)
+            {
+                continue;
+            }
+
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms, cancellationToken);
+            var data = ms.ToArray();
+            _iconCache[cacheKey] = data;
+            return data;
+        }
+
+        _iconCache[cacheKey] = null;
+        return null;
+    }
+
+    private static List<string> BuildCandidateIconNames(string iconName)
+    {
         var candidateNames = new List<string> { iconName };
-        if (iconName.StartsWith("USA", StringComparison.OrdinalIgnoreCase) && iconName.Length > 3)
-        {
-            candidateNames.Add(iconName[3..]);
-        }
-        else if (iconName.StartsWith("PRC", StringComparison.OrdinalIgnoreCase) && iconName.Length > 3)
-        {
-            candidateNames.Add(iconName[3..]);
-        }
-        else if (iconName.StartsWith("GLA", StringComparison.OrdinalIgnoreCase) && iconName.Length > 3)
+        if (iconName.Length > 3 &&
+            (iconName.StartsWith("USA", StringComparison.OrdinalIgnoreCase) ||
+             iconName.StartsWith("PRC", StringComparison.OrdinalIgnoreCase) ||
+             iconName.StartsWith("GLA", StringComparison.OrdinalIgnoreCase)))
         {
             candidateNames.Add(iconName[3..]);
         }
 
+        return candidateNames;
+    }
+
+    private static IEnumerable<string> EnumerateCandidateIconPaths(
+        IEnumerable<string> searchDirs,
+        IEnumerable<string> candidateNames)
+    {
         foreach (var dir in searchDirs)
         {
             foreach (var sub in FactionSubdirs)
@@ -129,26 +158,11 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
                 {
                     foreach (var ext in IconExtensions)
                     {
-                        var relativePath = $"Profiles/{dir}/Icons/{sub}{name}{ext}";
-                        var stream = TryOpenAssetStream(relativePath);
-                        if (stream != null)
-                        {
-                            using (stream)
-                            using (var ms = new MemoryStream())
-                            {
-                                await stream.CopyToAsync(ms, cancellationToken);
-                                var data = ms.ToArray();
-                                _iconCache[cacheKey] = data;
-                                return data;
-                            }
-                        }
+                        yield return $"Profiles/{dir}/Icons/{sub}{name}{ext}";
                     }
                 }
             }
         }
-
-        _iconCache[cacheKey] = null;
-        return null;
     }
 
     private static void AddGameObjects(
@@ -246,7 +260,7 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
         // 1. Try Avalonia resource loader
         try
         {
-            var uri = new Uri($"avares://GenHub/Assets/GenHotkeys/{relativePath.Replace('\\', '/')}");
+            var uri = new Uri($"avares://GenHub/{AssetsFolder}/{GenHotkeysFolder}/{relativePath.Replace('\\', '/')}");
             if (AssetLoader.Exists(uri))
             {
                 return AssetLoader.Open(uri);
@@ -258,7 +272,7 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
         }
 
         // 2. Try AppContext.BaseDirectory
-        var fileOnDisk = Path.Combine(AppContext.BaseDirectory, "Assets", "GenHotkeys", relativePath);
+        var fileOnDisk = Path.Combine(AppContext.BaseDirectory, AssetsFolder, GenHotkeysFolder, relativePath);
         if (File.Exists(fileOnDisk))
         {
             return File.OpenRead(fileOnDisk);
@@ -267,20 +281,13 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
         // 3. Try relative to project/solution directories during development
         var searchRoots = new[]
         {
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Assets", "GenHotkeys", relativePath),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "GenHub", "Assets", "GenHotkeys", relativePath),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "GenHub", "GenHub", "Assets", "GenHotkeys", relativePath),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", AssetsFolder, GenHotkeysFolder, relativePath),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "GenHub", AssetsFolder, GenHotkeysFolder, relativePath),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "GenHub", "GenHub", AssetsFolder, GenHotkeysFolder, relativePath),
         };
 
-        foreach (var root in searchRoots)
-        {
-            if (File.Exists(root))
-            {
-                return File.OpenRead(root);
-            }
-        }
-
-        return null;
+        var match = searchRoots.FirstOrDefault(File.Exists);
+        return match != null ? File.OpenRead(match) : null;
     }
 
     private CsfFile? LoadReferenceCsf(GameType gameType)

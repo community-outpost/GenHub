@@ -510,6 +510,26 @@ public partial class GenHotkeysViewModel(
         return conflictCount;
     }
 
+    private static char? ResolveCurrentActionHotkey(HotkeyAction action, HotkeyProfile? profile)
+    {
+        if (profile == null || string.IsNullOrEmpty(action.HotkeyString))
+        {
+            return action.DefaultHotkey;
+        }
+
+        if (profile.ClearedKeys.Contains(action.HotkeyString))
+        {
+            return null;
+        }
+
+        if (profile.KeyMappings.TryGetValue(action.HotkeyString, out var mappedKey))
+        {
+            return mappedKey;
+        }
+
+        return action.DefaultHotkey;
+    }
+
     partial void OnSelectedGameChanged(GameType value)
     {
         if (!_isInitializing)
@@ -678,31 +698,11 @@ public partial class GenHotkeysViewModel(
             HotkeyString = action.HotkeyString,
             DisplayName = action.DisplayName,
             DefaultHotkey = action.DefaultHotkey,
-            Hotkey = ResolveCurrentActionHotkey(action),
+            Hotkey = ResolveCurrentActionHotkey(action, SelectedProfile),
         };
 
         LoadBitmapForAction(actionVm, action.IconName, cancellationToken);
         return actionVm;
-    }
-
-    private char? ResolveCurrentActionHotkey(HotkeyAction action)
-    {
-        if (SelectedProfile == null || string.IsNullOrEmpty(action.HotkeyString))
-        {
-            return action.DefaultHotkey;
-        }
-
-        if (SelectedProfile.ClearedKeys.Contains(action.HotkeyString))
-        {
-            return null;
-        }
-
-        if (SelectedProfile.KeyMappings.TryGetValue(action.HotkeyString, out var mappedKey))
-        {
-            return mappedKey;
-        }
-
-        return action.DefaultHotkey;
     }
 
     private void LoadBitmapForObject(
@@ -817,7 +817,6 @@ public partial class GenHotkeysViewModel(
     private void ValidateConflicts()
     {
         var conflictCount = 0;
-
         foreach (var obj in FilteredGameObjects)
         {
             var objConflicts = ValidateGameObjectConflicts(obj);

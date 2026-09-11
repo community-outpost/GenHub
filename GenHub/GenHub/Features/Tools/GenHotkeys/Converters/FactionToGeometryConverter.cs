@@ -30,7 +30,7 @@ public class FactionToGeometryConverter : IValueConverter
             _ => "ToolIcon.FactionUsa",
         };
 
-        if (Application.Current != null && Application.Current.TryFindResource(key, out var res) && res is Geometry geo)
+        if (Application.Current is { } app && app.TryFindResource(key, out var res) && res is Geometry geo)
         {
             return geo;
         }

@@ -45,6 +45,21 @@ public class HotkeyProfileStorageServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that GetProfilesAsync initializes a default profile if none exists.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetProfilesAsync_WhenEmpty_CreatesAndReturnsDefaultProfileAsync()
+    {
+        var profiles = await _service.GetProfilesAsync(GameType.ZeroHour);
+
+        Assert.NotEmpty(profiles);
+        var first = profiles[0];
+        Assert.Equal(GameType.ZeroHour, first.TargetGame);
+        Assert.Contains("Default", first.Name);
+    }
+
+    /// <summary>
     /// Verifies that SaveProfileAsync persists a profile and GetProfilesAsync retrieves it.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -75,6 +90,23 @@ public class HotkeyProfileStorageServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that SaveProfileAsync rejects path traversal in profile Id.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SaveProfileAsync_WithTraversalId_ThrowsArgumentExceptionAsync()
+    {
+        var maliciousProfile = new HotkeyProfile
+        {
+            Id = "../evil",
+            Name = "Malicious",
+            TargetGame = GameType.ZeroHour,
+        };
+
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.SaveProfileAsync(maliciousProfile));
+    }
+
+    /// <summary>
     /// Verifies that DeleteProfileAsync removes a persisted profile file.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -94,6 +126,16 @@ public class HotkeyProfileStorageServiceTests : IDisposable
         await _service.DeleteProfileAsync(profile.Id);
         var after = await _service.GetProfilesAsync(GameType.ZeroHour);
         Assert.DoesNotContain(after, p => p.Id == profile.Id);
+    }
+
+    /// <summary>
+    /// Verifies that DeleteProfileAsync rejects path traversal in profile Id.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteProfileAsync_WithTraversalId_ThrowsArgumentExceptionAsync()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.DeleteProfileAsync("../../evil"));
     }
 
     /// <summary>
