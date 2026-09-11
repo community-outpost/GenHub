@@ -92,7 +92,7 @@ public class FileOperationsService(
             return false;
         }
 
-        FileAttributes attributes;
+        FileAttributes attributes = default;
         try
         {
             attributes = File.GetAttributes(directoryPath);

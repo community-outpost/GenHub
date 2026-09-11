@@ -268,8 +268,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
     private readonly NotificationService _localNotificationService = new(NullLogger<NotificationService>.Instance);
     private readonly List<string> _originalEnabledContentIds = [];
-    private GameProfile? _originalProfile;
-    private UpdateProfileRequest? _originalGameSettings;
+    private GameProfile? _originalProfile; // skipcq: CS-R1137
+    private UpdateProfileRequest? _originalGameSettings; // skipcq: CS-R1137
     private bool _isSynchronizingEnabledContent;
 
     private WorkspaceStrategy? OriginalWorkspaceStrategy { get; set; }
@@ -606,7 +606,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             }
         }
 
-        if (!EnabledContent.Any(i => i.ManifestId.Value == value.ManifestId.Value))
+        if (EnabledContent.All(i => i.ManifestId.Value != value.ManifestId.Value))
         {
             EnabledContent.Add(value);
         }
@@ -907,7 +907,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private void EnsureSelectedInstallationEnabled()
     {
         if (SelectedGameInstallation != null &&
-            !EnabledContent.Any(e => e.ManifestId.Value == SelectedGameInstallation.ManifestId.Value))
+            EnabledContent.All(e => e.ManifestId.Value != SelectedGameInstallation.ManifestId.Value))
         {
             SelectedGameInstallation.IsEnabled = true;
             EnabledContent.Add(SelectedGameInstallation);

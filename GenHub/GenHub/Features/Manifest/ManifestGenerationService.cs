@@ -111,6 +111,7 @@ public class ManifestGenerationService(
     };
 
     private readonly ILanguageDetector _languageDetector = languageDetector ?? new LanguageDetector();
+    private readonly object _progressLock = new();
 
     /// <summary>
     /// Creates a manifest builder for a game installation with string version normalization.
@@ -933,7 +934,7 @@ public class ManifestGenerationService(
     /// </summary>
     private static bool IsPathOrCacheReparsePoint(string currentPath, ConcurrentDictionary<string, bool>? cache)
     {
-        if (cache != null && cache.TryGetValue(currentPath, out var cachedIsReparse))
+        if (cache?.TryGetValue(currentPath, out var cachedIsReparse) == true)
         {
             return cachedIsReparse;
         }
@@ -1095,7 +1096,6 @@ public class ManifestGenerationService(
         };
 
         var reparseCache = new ConcurrentDictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
-        var progressLock = new object();
 
         try
         {
@@ -1115,7 +1115,7 @@ public class ManifestGenerationService(
 
                     processedEntries[i] = processed;
 
-                    lock (progressLock)
+                    lock (_progressLock)
                     {
                         var completed = ++processedCount;
 

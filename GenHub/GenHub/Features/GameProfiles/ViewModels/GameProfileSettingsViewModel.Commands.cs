@@ -259,7 +259,7 @@ public partial class GameProfileSettingsViewModel
         }
         else if (itemToRemove.ContentType is ContentType.GameClient or ContentType.Mod &&
                  SelectedGameInstallation != null &&
-                 !EnabledContent.Any(e => e.ContentType is ContentType.GameClient or ContentType.Mod))
+                 EnabledContent.All(e => e.ContentType is not (ContentType.GameClient or ContentType.Mod)))
         {
             SelectedGameInstallation = null;
             _logger?.LogInformation("Auto-disabled SelectedGameInstallation as no GameClient or Mod remains enabled");
