@@ -17,6 +17,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.GenHotkeys;
 using GenHub.Core.Services.Tools.GenHotkeys;
 using GenHub.Features.Content.Services.CommunityOutpost;
+using GenHub.Features.Tools.GenHotkeys.Data;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -277,26 +278,46 @@ public class HotkeyPackageService(
 
     private static void AppendIconMappedImages(StringBuilder sb, string icon)
     {
-        AppendMappedImageEntry(sb, icon, $"{icon}.tga");
+        var written = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        if (icon.Length <= 3)
+        void AddEntry(string name)
         {
-            return;
+            if (written.Add(name))
+            {
+                AppendMappedImageEntry(sb, name, $"{icon}.tga");
+            }
         }
 
-        var baseName = icon[3..];
-        var prefixes = icon[..3].ToUpperInvariant() switch
-        {
-            "USA" => new[] { "SAC", "SA" },
-            "PRC" => new[] { "SN", "SNC" },
-            "GLA" => new[] { "SU", "SUC" },
-            _ => Array.Empty<string>(),
-        };
+        AddEntry(icon);
+        AddEntry($"{icon}_L");
 
-        foreach (var prefix in prefixes)
+        // 1. Check known retail ButtonImage mappings from SAGE CommandButton.ini
+        if (HotkeyRetailCameoMappings.Mappings.TryGetValue(icon, out var retailImages))
         {
-            AppendMappedImageEntry(sb, $"{prefix}{baseName}", $"{icon}.tga");
-            AppendMappedImageEntry(sb, $"{prefix}{baseName}_L", $"{icon}.tga");
+            foreach (var img in retailImages)
+            {
+                AddEntry(img);
+                AddEntry($"{img}_L");
+            }
+        }
+
+        // 2. Faction prefix heuristics as fallback/supplement
+        if (icon.Length > 3)
+        {
+            var baseName = icon[3..];
+            var prefixes = icon[..3].ToUpperInvariant() switch
+            {
+                "USA" => new[] { "SAC", "SA" },
+                "PRC" => new[] { "SN", "SNC" },
+                "GLA" => new[] { "SU", "SUC" },
+                _ => Array.Empty<string>(),
+            };
+
+            foreach (var prefix in prefixes)
+            {
+                AddEntry($"{prefix}{baseName}");
+                AddEntry($"{prefix}{baseName}_L");
+            }
         }
     }
 
