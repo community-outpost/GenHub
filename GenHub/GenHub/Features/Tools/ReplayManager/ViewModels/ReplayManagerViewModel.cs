@@ -1786,35 +1786,6 @@ public partial class ReplayManagerViewModel(
     [RelayCommand]
     private Task MintCheckpointAsync() => CreateCheckpointAsync();
 
-    private static int GetReplayFps(ReplayFile? replay, GameProfile? profile)
-    {
-        if (replay?.Metadata?.FramesPerSecond is { } fps && fps > 0)
-        {
-            return fps;
-        }
-
-        if (IsGeneralsOnlineProfile(profile))
-        {
-            return 60;
-        }
-
-        return replay?.FramesPerSecond ?? 30;
-    }
-
-    private static bool IsGeneralsOnlineProfile(GameProfile? profile)
-    {
-        if (profile?.GameClient == null)
-        {
-            return false;
-        }
-
-        var client = profile.GameClient;
-        return string.Equals(client.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
-               (!string.IsNullOrEmpty(client.ExecutablePath) && client.ExecutablePath.Contains("60", StringComparison.OrdinalIgnoreCase)) ||
-               (!string.IsNullOrEmpty(profile.Name) && profile.Name.Contains("60Hz", StringComparison.OrdinalIgnoreCase)) ||
-               (!string.IsNullOrEmpty(client.Name) && client.Name.Contains("60Hz", StringComparison.OrdinalIgnoreCase));
-    }
-
     private void UpdateReplayTimingBounds()
     {
         var fps = GetReplayFps(ActiveCheckpointReplay, SelectedCompatibleProfile);
@@ -2009,5 +1980,34 @@ public partial class ReplayManagerViewModel(
             logger.LogError(ex, "Failed to delete checkpoint {File}", checkpoint.FileName);
             notificationService.ShowError("Delete Error", ex.Message);
         }
+    }
+
+    private static int GetReplayFps(ReplayFile? replay, GameProfile? profile)
+    {
+        if (replay?.Metadata?.FramesPerSecond is { } fps && fps > 0)
+        {
+            return fps;
+        }
+
+        if (IsGeneralsOnlineProfile(profile))
+        {
+            return 60;
+        }
+
+        return replay?.FramesPerSecond ?? 30;
+    }
+
+    private static bool IsGeneralsOnlineProfile(GameProfile? profile)
+    {
+        if (profile?.GameClient == null)
+        {
+            return false;
+        }
+
+        var client = profile.GameClient;
+        return string.Equals(client.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+               (!string.IsNullOrEmpty(client.ExecutablePath) && client.ExecutablePath.Contains("60", StringComparison.OrdinalIgnoreCase)) ||
+               (!string.IsNullOrEmpty(profile.Name) && profile.Name.Contains("60Hz", StringComparison.OrdinalIgnoreCase)) ||
+               (!string.IsNullOrEmpty(client.Name) && client.Name.Contains("60Hz", StringComparison.OrdinalIgnoreCase));
     }
 }
