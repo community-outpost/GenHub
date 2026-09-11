@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -80,4 +83,54 @@ public static class GenHotkeysConstants
 
     /// <summary>Command CSF key prefix.</summary>
     public const string CsfCommandPrefix = "COMMAND:";
+
+    /// <summary>
+    /// Mapping of primary hotkey labels (typically CONTROLBAR:...) to their corresponding
+    /// sidebar shortcut button labels (OBJECT:..., GUI:Superweapon..., ...Shortcut) in generals.csf.
+    /// In the SAGE engine, sidebar shortcut buttons use SPECIAL_POWER_FROM_SHORTCUT which references
+    /// distinct CSF labels rather than the primary Command Center button labels.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, string[]> ShortcutLabelAliases =
+        new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            // USA Generals Powers & Superweapons
+            ["CONTROLBAR:SpyDrone"] = ["OBJECT:SpyDrone"],
+            ["CONTROLBAR:A10ThunderboltMissileStrike"] = ["GUI:SuperweaponA10ThunderboltMissileStrike"],
+            ["CONTROLBAR:DaisyCutter"] = ["OBJECT:DaisyCutterBomb", "GUI:SuperweaponDaisyCutter"],
+            ["CONTROLBAR:MOAB"] = ["OBJECT:MOAB"],
+            ["CONTROLBAR:Paradrop"] = ["GUI:SuperweaponParadropAmerica"],
+            ["CONTROLBAR:TankParadrop"] = ["GUI:SuperweaponTankParadrop", "CONTROLBAR:TankParadropShort"],
+            ["CONTROLBAR:ClusterMines"] = ["OBJECT:ClusterMinesBomb", "GUI:SuperweaponClusterMines"],
+            ["CONTROLBAR:EMPPulse"] = ["OBJECT:EMPPulseBomb", "GUI:SuperweaponEMPPulse"],
+            ["CONTROLBAR:SpectreGunship"] = ["CONTROLBAR:SpectreGunshipFromShortcut", "GUI:SuperweaponSpectreGunship"],
+            ["CONTROLBAR:LeafletDrop"] = ["CONTROLBAR:LeafletDropShort"],
+            ["CONTROLBAR:FireParticleUplinkCannon"] = ["CONTROLBAR:FireParticleUplinkCannonShortcut", "GUI:SuperweaponParticleUplinkCannon"],
+            ["CONTROLBAR:EmergencyRepair"] = ["GUI:SuperweaponEmergencyRepair"],
+            ["CONTROLBAR:SpySatellite"] = ["CONTROLBAR:NoHotKeySpySatellite"],
+            ["CONTROLBAR:CIAIntelligence"] = ["CONTROLBAR:CIAIntelligenceShortcut"],
+
+            // China Generals Powers & Superweapons
+            ["CONTROLBAR:CarpetBomb"] = ["OBJECT:CarpetBomb", "GUI:SuperweaponCarpetBomb"],
+            ["CONTROLBAR:Nuke_CarpetBomb"] = ["OBJECT:Nuke_CarpetBomb"],
+            ["CONTROLBAR:ArtilleryBarrage"] = ["CONTROLBAR:NoHotKeyArtilleryBarrage"],
+            ["CONTROLBAR:Frenzy"] = ["CONTROLBAR:NoHotKeyFrenzy"],
+            ["CONTROLBAR:CashHack"] = ["GUI:SuperweaponCashHack"],
+            ["CONTROLBAR:NeutronMissile"] = ["CONTROLBAR:NeutronMissileShortcut", "GUI:SuperweaponNeutronMissile"],
+            ["CONTROLBAR:NukeDrop"] = ["OBJECT:NukeDrop"],
+            ["CONTROLBAR:CommunicationsDownload"] = ["CONTROLBAR:CommunicationsDownloadShortcut"],
+            ["CONTROLBAR:NapalmStrike"] = ["GUI:SuperweaponNapalmStrike"],
+            ["CONTROLBAR:CrateDrop"] = ["GUI:SuperweaponCrateDrop"],
+
+            // GLA Generals Powers & Superweapons
+            ["CONTROLBAR:Ambush"] = ["GUI:SuperweaponRebelAmbush"],
+            ["CONTROLBAR:RebelAmbush"] = ["GUI:SuperweaponRebelAmbush"],
+            ["CONTROLBAR:GPSScrambler"] = ["GUI:SuperweaponGPSScrambler"],
+            ["CONTROLBAR:AnthraxBomb"] = ["OBJECT:AnthraxBomb", "GUI:SuperweaponAnthraxBomb"],
+            ["CONTROLBAR:SneakAttack"] = ["CONTROLBAR:SneakAttackShort"],
+            ["CONTROLBAR:ScudStorm"] = ["CONTROLBAR:ScudStormShortcut", "GUI:SuperweaponScudStorm"],
+            ["CONTROLBAR:RadarVanScan"] = ["CONTROLBAR:RadarVanScanShortcut"],
+
+            // Superweapon General Cruise Missile
+            ["CONTROLBAR:ICBM"] = ["CONTROLBAR:ICBMShortcut"],
+        };
 }

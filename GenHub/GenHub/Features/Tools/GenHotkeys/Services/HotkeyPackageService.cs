@@ -107,25 +107,44 @@ public class HotkeyPackageService(
     {
         var baseCsf = LoadBaseCsf(profile);
 
-        // Strip explicitly cleared hotkeys
+        // Strip explicitly cleared hotkeys (both primary label and linked shortcut aliases)
         foreach (var label in profile.ClearedKeys)
         {
-            var existing = baseCsf.GetString(label);
-            if (!string.IsNullOrEmpty(existing))
-            {
-                var stripped = CsfFile.StripHotkey(existing);
-                baseCsf.SetString(label, stripped);
-            }
+            StripLabelAndAliases(baseCsf, label);
         }
 
-        // Apply customized key mappings
+        // Apply customized key mappings (both primary label and linked shortcut aliases)
         foreach (var (label, key) in profile.KeyMappings)
         {
-            var existing = baseCsf.GetString(label);
-            if (!string.IsNullOrEmpty(existing))
+            SetLabelAndAliases(baseCsf, label, key);
+        }
+
+        // Synchronize all shortcut aliases with their primary labels in baseCsf
+        // for any powers not explicitly modified by the user, ensuring default/preset
+        // hotkeys also apply to sidebar buttons (e.g. OBJECT:SpyDrone gets &Y from CONTROLBAR:SpyDrone).
+        foreach (var (primaryLabel, aliases) in GenHotkeysConstants.ShortcutLabelAliases)
+        {
+            if (profile.ClearedKeys.Contains(primaryLabel) || profile.KeyMappings.ContainsKey(primaryLabel))
             {
-                var updated = CsfFile.SetHotkey(existing, key);
-                baseCsf.SetString(label, updated);
+                continue;
+            }
+
+            var primaryText = baseCsf.GetString(primaryLabel);
+            if (!string.IsNullOrEmpty(primaryText))
+            {
+                var defaultHk = CsfFile.ExtractHotkey(primaryText);
+                if (defaultHk.HasValue)
+                {
+                    foreach (var alias in aliases)
+                    {
+                        var aliasText = baseCsf.GetString(alias);
+                        if (!string.IsNullOrEmpty(aliasText))
+                        {
+                            var updated = CsfFile.SetHotkey(aliasText, defaultHk.Value);
+                            baseCsf.SetString(alias, updated);
+                        }
+                    }
+                }
             }
         }
 
@@ -133,6 +152,48 @@ public class HotkeyPackageService(
         Directory.CreateDirectory(englishDir);
         var csfOutputPath = Path.Combine(englishDir, GenHotkeysConstants.GeneralsCsfFileName);
         baseCsf.Save(csfOutputPath);
+    }
+
+    private static void StripLabelAndAliases(CsfFile csf, string label)
+    {
+        var existing = csf.GetString(label);
+        if (!string.IsNullOrEmpty(existing))
+        {
+            csf.SetString(label, CsfFile.StripHotkey(existing));
+        }
+
+        if (GenHotkeysConstants.ShortcutLabelAliases.TryGetValue(label, out var aliases))
+        {
+            foreach (var alias in aliases)
+            {
+                var aliasExisting = csf.GetString(alias);
+                if (!string.IsNullOrEmpty(aliasExisting))
+                {
+                    csf.SetString(alias, CsfFile.StripHotkey(aliasExisting));
+                }
+            }
+        }
+    }
+
+    private static void SetLabelAndAliases(CsfFile csf, string label, char key)
+    {
+        var existing = csf.GetString(label);
+        if (!string.IsNullOrEmpty(existing))
+        {
+            csf.SetString(label, CsfFile.SetHotkey(existing, key));
+        }
+
+        if (GenHotkeysConstants.ShortcutLabelAliases.TryGetValue(label, out var aliases))
+        {
+            foreach (var alias in aliases)
+            {
+                var aliasExisting = csf.GetString(alias);
+                if (!string.IsNullOrEmpty(aliasExisting))
+                {
+                    csf.SetString(alias, CsfFile.SetHotkey(aliasExisting, key));
+                }
+            }
+        }
     }
 
     private static char? ResolveActionHotkey(HotkeyAction action, HotkeyProfile profile)
@@ -220,13 +281,16 @@ public class HotkeyPackageService(
             return File.OpenRead(fileOnDisk);
         }
 
-        var devPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Assets", "GenHotkeys", relativePath);
-        if (File.Exists(devPath))
+        var searchRoots = new[]
         {
-            return File.OpenRead(devPath);
-        }
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Assets", "GenHotkeys", relativePath),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "GenHub", "Assets", "GenHotkeys", relativePath),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "GenHub", "Assets", "GenHotkeys", relativePath),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "GenHub", "GenHub", "Assets", "GenHotkeys", relativePath),
+        };
 
-        return null;
+        var match = searchRoots.FirstOrDefault(File.Exists);
+        return match != null ? File.OpenRead(match) : null;
     }
 
     private static void TryDeleteDirectory(string path)
