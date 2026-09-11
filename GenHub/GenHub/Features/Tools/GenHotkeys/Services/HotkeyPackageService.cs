@@ -95,6 +95,7 @@ public class HotkeyPackageService(
         finally
         {
             TryDeleteDirectory(stagingDir);
+            TryDeleteDirectory(packageDir);
         }
     }
 
@@ -167,6 +168,11 @@ public class HotkeyPackageService(
         return bigFilePath;
     }
 
+    /// <summary>
+    /// Loads the base CSF string table for the specified profile.
+    /// Non-Legionnaire presets (including Vanilla/Default) use the bundled LeikezeEN string table,
+    /// which provides the reference English layout used across the editor.
+    /// </summary>
     private static CsfFile LoadBaseCsf(HotkeyProfile profile)
     {
         var presetFile = profile.BasePreset?.Contains(GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase) == true
