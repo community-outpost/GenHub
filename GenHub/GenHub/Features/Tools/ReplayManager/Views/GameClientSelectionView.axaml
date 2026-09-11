@@ -11,7 +11,7 @@
         Width="760" Height="620"
         MinWidth="540" MinHeight="420"
         WindowStartupLocation="CenterOwner"
-        ExtendClientAreaToDecorations="True"
+        ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="40"
         Background="{DynamicResource SurfaceBackground}">
