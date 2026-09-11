@@ -63,6 +63,7 @@ public sealed partial class GameClientSelectionViewModel(
     /// <param name="targetGame">The game type (Generals or Zero Hour).</param>
     /// <param name="replayFileName">The name of the replay file.</param>
     /// <param name="ct">Cancellation token.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task LoadClientsAsync(GameType targetGame, string replayFileName, CancellationToken ct = default)
     {
         TargetGame = targetGame;
@@ -169,7 +170,7 @@ public sealed partial class GameClientSelectionViewModel(
             // 3. Discover clients from Content Manifest Pool (TheSuperHackers, GeneralsOnline, Community Outpost, etc.)
             try
             {
-                var manifestsResult = await manifestPool.GetAllAsync(ct);
+                var manifestsResult = await manifestPool.GetAllManifestsAsync(ct);
                 if (manifestsResult.Success && manifestsResult.Data != null)
                 {
                     foreach (var manifest in manifestsResult.Data.Where(m => m.ContentType == ContentType.GameClient))

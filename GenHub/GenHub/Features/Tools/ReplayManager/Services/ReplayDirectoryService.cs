@@ -182,7 +182,6 @@ public sealed class ReplayDirectoryService(
         }
     }
 
-    /// <inheritdoc />
     /// <inheritdoc/>
     public Task<ProfileOperationResult<GameProfile>> CreateProfileForReplayAsync(
         ReplayFile replay,
@@ -328,7 +327,6 @@ public sealed class ReplayDirectoryService(
         }
     }
 
-    /// <inheritdoc />
     /// <inheritdoc/>
     public Task<ProfileOperationResult<GameLaunchInfo>> LaunchReplayAsync(
         ReplayFile replay,
@@ -2231,7 +2229,6 @@ public sealed class ReplayDirectoryService(
              (string.Equals(id, knownEntry.DataPatchManifestId, StringComparison.OrdinalIgnoreCase) ||
               HasMatchingDataPatchId(knownEntry.DataPatchManifestId, id))));
     }
-
 
     private bool TryResolveGeneralsOnlineHeuristic(ReplayFile replay, out CrcMappingEntry? matchedEntry)
     {
