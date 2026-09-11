@@ -201,6 +201,27 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         return (isLocked, canToggle);
     }
 
+    /// <summary>
+    /// Gets priority for ordering game installations. Lower numbers indicate higher preference.
+    /// </summary>
+    /// <param name="item">The content display item representing an installation.</param>
+    /// <returns>The priority integer value.</returns>
+    private static int GetInstallationPriority(ContentDisplayItem item)
+    {
+        return item.InstallationType switch
+        {
+            GameInstallationType.Steam => 0,
+            GameInstallationType.EaApp => 1,
+            GameInstallationType.TheFirstDecade => 2,
+            GameInstallationType.CDISO => 3,
+            GameInstallationType.Retail => 4,
+            GameInstallationType.Wine => 5,
+            GameInstallationType.Lutris => 6,
+            GameInstallationType.Custom => 7,
+            _ => 10,
+        };
+    }
+
     private ContentDisplayItem ConvertToViewModelContentDisplayItem(Core.Models.Content.ContentDisplayItem coreItem)
     {
         var (isLocked, canToggle) = GetItemHotswapState(IsHotswapMode, coreItem.ContentType, coreItem.Manifest);
@@ -261,7 +282,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly ILocalContentService? _localContentService;
     private readonly IGenLauncherNormalizationService? _genLauncherNormalizationService;
     private readonly IDialogService? _dialogService;
-    private readonly IArchivePayloadProcessor? _archivePayloadProcessor;
     private readonly ILogger<GameProfileSettingsViewModel>? _logger;
     private readonly ILogger<GameSettingsViewModel>? _gameSettingsLogger;
     private readonly IProfileContentLinker? _profileContentLinker;
@@ -339,7 +359,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         _localContentService = localContentService;
         _genLauncherNormalizationService = genLauncherNormalizationService;
         _dialogService = dialogService;
-        _archivePayloadProcessor = archivePayloadProcessor;
         _logger = logger;
         _gameSettingsLogger = gameSettingsLogger;
         _profileContentLinker = profileContentLinker;
@@ -934,9 +953,12 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         if (compatibleInstallation == null && dependency.CompatibleGameTypes != null)
         {
             compatibleInstallation = AvailableGameInstallations
+                .OrderBy(GetInstallationPriority)
                 .FirstOrDefault(x => dependency.CompatibleGameTypes.Contains(x.GameType) &&
                                      x.InstallationType == contentItem.InstallationType);
-            compatibleInstallation ??= AvailableGameInstallations.FirstOrDefault(x => dependency.CompatibleGameTypes.Contains(x.GameType));
+            compatibleInstallation ??= AvailableGameInstallations
+                .OrderBy(GetInstallationPriority)
+                .FirstOrDefault(x => dependency.CompatibleGameTypes.Contains(x.GameType));
         }
 
         return compatibleInstallation;
@@ -1222,6 +1244,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             {
                 SelectedGameInstallation = AvailableGameInstallations
                     .OrderByDescending(i => i.GameType == Core.Models.Enums.GameType.ZeroHour)
+                    .ThenBy(GetInstallationPriority)
                     .First();
                 SelectedGameInstallation.IsEnabled = true;
             }

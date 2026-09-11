@@ -1416,6 +1416,62 @@ public class GameLauncher(
         return OperationResult<List<ContentManifest>>.CreateSuccess(manifests);
     }
 
+    private async Task<string?> ResolveManifestSourcePathAsync(
+        ContentManifest manifest,
+        GameProfile profile,
+        CancellationToken cancellationToken)
+    {
+        var contentDirResult = await manifestPool.GetContentDirectoryAsync(manifest.Id, cancellationToken);
+        if (contentDirResult.Success && !string.IsNullOrEmpty(contentDirResult.Data))
+        {
+            logger.LogDebug(
+                "[GameLauncher] Source path for content {ManifestId} ({ContentType}): {SourcePath}",
+                manifest.Id.Value,
+                manifest.ContentType,
+                contentDirResult.Data);
+            return contentDirResult.Data;
+        }
+
+        if (manifest.ContentType == ContentType.GameClient && !string.IsNullOrEmpty(profile.GameClient?.WorkingDirectory))
+        {
+            logger.LogDebug(
+                "[GameLauncher] Source path for GameClient {ManifestId} resolved from profile working directory: {SourcePath}",
+                manifest.Id.Value,
+                profile.GameClient.WorkingDirectory);
+            return profile.GameClient.WorkingDirectory;
+        }
+
+        if (contentDirResult.Success)
+        {
+            logger.LogDebug(
+                "[GameLauncher] Manifest {ManifestId} ({ContentType}) is CAS-managed (no external source directory required)",
+                manifest.Id.Value,
+                manifest.ContentType);
+            return null;
+        }
+
+        bool isCasBacked = manifest.Files is { Count: > 0 } &&
+            manifest.Files.All(f => f.SourceType == ContentSourceType.ContentAddressable || !string.IsNullOrEmpty(f.Hash));
+
+        if (isCasBacked)
+        {
+            logger.LogDebug(
+                "[GameLauncher] Source path for CAS-backed manifest {ManifestId} ({ContentType}) is managed by CAS pool",
+                manifest.Id.Value,
+                manifest.ContentType);
+        }
+        else
+        {
+            logger.LogWarning(
+                "[GameLauncher] Could not resolve source path for manifest {ManifestId} ({ContentType}): {Error}",
+                manifest.Id.Value,
+                manifest.ContentType,
+                contentDirResult.FirstError);
+        }
+
+        return null;
+    }
+
     private async Task<Dictionary<string, string>> BuildManifestSourcePathsAsync(
         IReadOnlyList<ContentManifest> manifests,
         GameProfile profile,
@@ -1429,51 +1485,10 @@ public class GameLauncher(
                 continue;
             }
 
-            var contentDirResult = await manifestPool.GetContentDirectoryAsync(manifest.Id, cancellationToken);
-            if (contentDirResult.Success && !string.IsNullOrEmpty(contentDirResult.Data))
+            var sourcePath = await ResolveManifestSourcePathAsync(manifest, profile, cancellationToken);
+            if (!string.IsNullOrEmpty(sourcePath))
             {
-                manifestSourcePaths[manifest.Id.Value] = contentDirResult.Data;
-                logger.LogDebug(
-                    "[GameLauncher] Source path for content {ManifestId} ({ContentType}): {SourcePath}",
-                    manifest.Id.Value,
-                    manifest.ContentType,
-                    contentDirResult.Data);
-            }
-            else if (manifest.ContentType == ContentType.GameClient && !string.IsNullOrEmpty(profile.GameClient?.WorkingDirectory))
-            {
-                manifestSourcePaths[manifest.Id.Value] = profile.GameClient.WorkingDirectory;
-                logger.LogDebug(
-                    "[GameLauncher] Source path for GameClient {ManifestId} resolved from profile working directory: {SourcePath}",
-                    manifest.Id.Value,
-                    profile.GameClient.WorkingDirectory);
-            }
-            else if (contentDirResult.Success)
-            {
-                logger.LogDebug(
-                    "[GameLauncher] Manifest {ManifestId} ({ContentType}) is CAS-managed (no external source directory required)",
-                    manifest.Id.Value,
-                    manifest.ContentType);
-            }
-            else
-            {
-                bool isCasBacked = manifest.Files is { Count: > 0 } &&
-                    manifest.Files.All(f => f.SourceType == ContentSourceType.ContentAddressable || !string.IsNullOrEmpty(f.Hash));
-
-                if (isCasBacked)
-                {
-                    logger.LogDebug(
-                        "[GameLauncher] Source path for CAS-backed manifest {ManifestId} ({ContentType}) is managed by CAS pool",
-                        manifest.Id.Value,
-                        manifest.ContentType);
-                }
-                else
-                {
-                    logger.LogWarning(
-                        "[GameLauncher] Could not resolve source path for manifest {ManifestId} ({ContentType}): {Error}",
-                        manifest.Id.Value,
-                        manifest.ContentType,
-                        contentDirResult.FirstError);
-                }
+                manifestSourcePaths[manifest.Id.Value] = sourcePath;
             }
         }
 

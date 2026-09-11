@@ -11,6 +11,7 @@ using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
@@ -1060,6 +1061,147 @@ public class SettingsViewModelTests
         Assert.Equal(ThemeConstants.DefaultTheme.Id, viewModel.Theme);
         Assert.Equal(ThemeConstants.DefaultTheme, viewModel.SelectedTheme);
         mockThemeService.Verify(s => s.ApplyTheme(ThemeConstants.DefaultTheme), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that LoadCustomInstallationsAsync uses CachedInstallations when available
+    /// without calling GetAllInstallationsAsync.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadCustomInstallationsAsync_WhenCachedInstallationsAvailable_UsesCacheWithoutCallingGetAllInstallationsAsync()
+    {
+        // Arrange
+        var customInstallation = new GameInstallation("C:\\Games\\CustomCC", GameInstallationType.Custom)
+        {
+            Id = "custom-1",
+            DisplayName = "Custom Game",
+        };
+        var eaInstallation = new GameInstallation("C:\\Games\\EACC", GameInstallationType.EaApp)
+        {
+            Id = "ea-1",
+            DisplayName = "EA App Game",
+        };
+
+        _mockInstallationService
+            .Setup(x => x.CachedInstallations)
+            .Returns([customInstallation, eaInstallation]);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.LoadCustomInstallationsAsync();
+
+        // Assert
+        Assert.Single(viewModel.CustomInstallations);
+        Assert.Equal("custom-1", viewModel.CustomInstallations[0].Id);
+        _mockInstallationService.Verify(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that LoadCustomInstallationsAsync falls back to GetAllInstallationsAsync when cache is null.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadCustomInstallationsAsync_WhenCacheNull_QueriesGetAllInstallationsAsync()
+    {
+        // Arrange
+        var customInstallation = new GameInstallation("C:\\Games\\CustomCC", GameInstallationType.Custom)
+        {
+            Id = "custom-2",
+            DisplayName = "Custom Game 2",
+        };
+
+        _mockInstallationService
+            .Setup(x => x.CachedInstallations)
+            .Returns((IReadOnlyList<GameInstallation>?)null);
+
+        _mockInstallationService
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([customInstallation]));
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.LoadCustomInstallationsAsync();
+
+        // Assert
+        Assert.Single(viewModel.CustomInstallations);
+        Assert.Equal("custom-2", viewModel.CustomInstallations[0].Id);
+        _mockInstallationService.Verify(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that RemoveCustomInstallationCommand removes the installation when confirmed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RemoveCustomInstallationCommand_WhenConfirmed_RemovesInstallationAsync()
+    {
+        // Arrange
+        var customInstallation = new GameInstallation("C:\\Games\\CustomCC", GameInstallationType.Custom)
+        {
+            Id = "custom-to-remove",
+            DisplayName = "Custom Game",
+        };
+
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                "Remove Custom Installation",
+                It.IsAny<string>(),
+                "Remove",
+                "Cancel",
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        _mockInstallationService
+            .Setup(x => x.RemoveCustomInstallationAsync("custom-to-remove", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        _mockInstallationService
+            .Setup(x => x.CachedInstallations)
+            .Returns([]);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.RemoveCustomInstallationCommand.ExecuteAsync(customInstallation);
+
+        // Assert
+        _mockInstallationService.Verify(x => x.RemoveCustomInstallationAsync("custom-to-remove", It.IsAny<CancellationToken>()), Times.Once);
+        _mockNotificationService.Verify(x => x.ShowSuccess("Installation Removed", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that RemoveCustomInstallationCommand does not remove when dialog is cancelled.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RemoveCustomInstallationCommand_WhenCancelled_DoesNotRemoveAsync()
+    {
+        // Arrange
+        var customInstallation = new GameInstallation("C:\\Games\\CustomCC", GameInstallationType.Custom)
+        {
+            Id = "custom-to-keep",
+            DisplayName = "Custom Game",
+        };
+
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                "Remove Custom Installation",
+                It.IsAny<string>(),
+                "Remove",
+                "Cancel",
+                It.IsAny<string?>()))
+            .ReturnsAsync(false);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.RemoveCustomInstallationCommand.ExecuteAsync(customInstallation);
+
+        // Assert
+        _mockInstallationService.Verify(x => x.RemoveCustomInstallationAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private void SetupDeletableData()

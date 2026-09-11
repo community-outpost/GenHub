@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Manifest;
@@ -36,6 +37,7 @@ public class GameInstallationService(
     IManifestGenerationService? manifestGenerationService = null,
     IContentManifestPool? contentManifestPool = null,
     IInstallationPathResolver? pathResolver = null,
+    IUserSettingsService? userSettingsService = null,
     IInstallationCasPoolService? installationCasPoolService = null) : IGameInstallationService, IDisposable
 {
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
@@ -272,6 +274,145 @@ public class GameInstallationService(
             installation.InstallationType);
     }
 
+    /// <inheritdoc/>
+    public async Task<OperationResult<GameInstallation>> RegisterCustomInstallationAsync(string directoryPath, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPath))
+        {
+            return OperationResult<GameInstallation>.CreateFailure("Directory path cannot be null or empty.");
+        }
+
+        if (!Directory.Exists(directoryPath))
+        {
+            return OperationResult<GameInstallation>.CreateFailure($"Directory does not exist: {directoryPath}");
+        }
+
+        var normalizedPath = Path.GetFullPath(directoryPath);
+
+        var initResult = await TryInitializeCacheAsync(cancellationToken);
+        if (!initResult.Success)
+        {
+            return OperationResult<GameInstallation>.CreateFailure(initResult.Errors.FirstOrDefault() ?? "Failed to initialize installation cache.");
+        }
+
+        await _cacheLock.WaitAsync(cancellationToken);
+        try
+        {
+            var installationsList = _cachedInstallations?.ToList() ?? [];
+
+            var existing = installationsList.FirstOrDefault(i => PathHelper.AreSamePath(i.InstallationPath, normalizedPath));
+            if (existing != null)
+            {
+                return OperationResult<GameInstallation>.CreateFailure($"An installation at '{normalizedPath}' is already registered.");
+            }
+
+            var installation = new GameInstallation(normalizedPath, GameInstallationType.Custom)
+            {
+                Id = Guid.NewGuid().ToString(),
+                DetectedAt = DateTime.UtcNow,
+            };
+
+            installation.Fetch();
+            if (!installation.HasGenerals && !installation.HasZeroHour)
+            {
+                return OperationResult<GameInstallation>.CreateFailure("No valid Command & Conquer Generals or Zero Hour game files found in the specified directory.");
+            }
+
+            var clientsResult = await clientOrchestrator.DetectGameClientsFromInstallationsAsync([installation], cancellationToken);
+            if (clientsResult.Success && clientsResult.Items.Count > 0)
+            {
+                installation.PopulateGameClients(clientsResult.Items);
+            }
+
+            // Create and pool manifests before mutating cache
+            await CreateAndRegisterInstallationManifestsAsync(installation, cancellationToken);
+
+            if (!await TryPersistRegistrationAsync(normalizedPath, cancellationToken))
+            {
+                return OperationResult<GameInstallation>.CreateFailure("Failed to persist custom installation to user settings.");
+            }
+
+            // Commit to in-memory cache only after durable operations succeed
+            installationsList.Add(installation);
+            UpdateCustomInstallationDisplayNames(installationsList);
+            Volatile.Write(ref _cachedInstallations, installationsList.AsReadOnly());
+
+            logger.LogInformation("Successfully registered custom game installation: {Path} with DisplayName '{DisplayName}'", normalizedPath, installation.DisplayName);
+            return OperationResult<GameInstallation>.CreateSuccess(installation);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error registering custom installation: {Path}", directoryPath);
+            RollbackRegistrationSettings(normalizedPath);
+            await RemoveInstallationManifestsFromPoolAsync(normalizedPath, cancellationToken);
+            return OperationResult<GameInstallation>.CreateFailure($"Failed to register custom installation: {ex.Message}");
+        }
+        finally
+        {
+            _cacheLock.Release();
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<bool>> RemoveCustomInstallationAsync(string installationIdOrPath, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(installationIdOrPath))
+        {
+            return OperationResult<bool>.CreateFailure("Installation ID or path cannot be null or empty.");
+        }
+
+        var initResult = await TryInitializeCacheAsync(cancellationToken);
+        if (!initResult.Success)
+        {
+            return OperationResult<bool>.CreateFailure(initResult.Errors.FirstOrDefault() ?? "Failed to initialize installation cache.");
+        }
+
+        await _cacheLock.WaitAsync(cancellationToken);
+        try
+        {
+            var installationsList = _cachedInstallations?.ToList() ?? [];
+            var target = installationsList.FirstOrDefault(i =>
+                i.Id == installationIdOrPath ||
+                PathHelper.AreSamePath(i.InstallationPath, installationIdOrPath));
+
+            if (target == null)
+            {
+                return OperationResult<bool>.CreateFailure($"Installation '{installationIdOrPath}' was not found.");
+            }
+
+            if (target.InstallationType != GameInstallationType.Custom)
+            {
+                return OperationResult<bool>.CreateFailure("Only custom game installations can be removed.");
+            }
+
+            // Persist removal from user settings first
+            if (!await TryPersistRemovalAsync(target.InstallationPath))
+            {
+                return OperationResult<bool>.CreateFailure("Failed to persist settings changes while removing custom installation.");
+            }
+
+            // Remove manifests from pool
+            await RemoveInstallationManifestsFromPoolAsync(target.InstallationPath, cancellationToken);
+
+            // Only commit in-memory cache removal after durable cleanup succeeds
+            installationsList.Remove(target);
+            UpdateCustomInstallationDisplayNames(installationsList);
+            Volatile.Write(ref _cachedInstallations, installationsList.AsReadOnly());
+
+            logger.LogInformation("Successfully removed custom installation: {Path} ({Id})", target.InstallationPath, target.Id);
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error removing custom installation: {IdOrPath}", installationIdOrPath);
+            return OperationResult<bool>.CreateFailure($"Failed to remove custom installation: {ex.Message}");
+        }
+        finally
+        {
+            _cacheLock.Release();
+        }
+    }
+
     /// <summary>
     /// Releases resources used by the <see cref="GameInstallationService"/>.
     /// </summary>
@@ -361,6 +502,25 @@ public class GameInstallationService(
 
         installation.Fetch();
         return installation;
+    }
+
+    private static void UpdateCustomInstallationDisplayNames(IEnumerable<GameInstallation> installations)
+    {
+        var customInstalls = installations
+            .Where(i => i.InstallationType == GameInstallationType.Custom)
+            .ToList();
+
+        if (customInstalls.Count == 1)
+        {
+            customInstalls[0].DisplayName = PublisherInfoConstants.GenHubLocal.Name;
+        }
+        else if (customInstalls.Count > 1)
+        {
+            for (int i = 0; i < customInstalls.Count; i++)
+            {
+                customInstalls[i].DisplayName = $"{PublisherInfoConstants.GenHubLocal.Name} {i + 1}";
+            }
+        }
     }
 
     /// <summary>
@@ -653,6 +813,12 @@ public class GameInstallationService(
             versionForManifest,
             cancellationToken: cancellationToken);
 
+        if (manifestBuilder == null)
+        {
+            logger.LogWarning("Manifest builder was null for {GameType} at {Path}", gameType, gamePath);
+            return;
+        }
+
         var manifest = manifestBuilder.Build();
         manifest.ContentType = ContentType.GameInstallation;
         manifest.Id = manifestId;
@@ -825,7 +991,12 @@ public class GameInstallationService(
 
             installations = await ValidateAndResolveInstallationsAsync(installations, cancellationToken);
 
+            LoadCustomInstallationsFromSettings(installations);
+            UpdateCustomInstallationDisplayNames(installations);
+
             await PopulateGameClientsAndManifestsAsync(installations, cancellationToken);
+
+            UpdateCustomInstallationDisplayNames(installations);
 
             if (installationCasPoolService != null)
             {
@@ -1053,6 +1224,142 @@ public class GameInstallationService(
                 "Error creating GameInstallation manifest for {GameType} in installation {InstallationId}",
                 gameType,
                 installation.Id);
+        }
+    }
+
+    private async Task RemoveInstallationManifestsFromPoolAsync(string installationPath, CancellationToken cancellationToken)
+    {
+        if (contentManifestPool == null || string.IsNullOrEmpty(installationPath))
+        {
+            return;
+        }
+
+        try
+        {
+            var searchQuery = new ContentSearchQuery
+            {
+                ContentType = ContentType.GameInstallation,
+                Take = 1000,
+            };
+            var searchResult = await contentManifestPool.SearchManifestsAsync(searchQuery, cancellationToken);
+            if (searchResult?.Success == true && searchResult.Data != null)
+            {
+                var manifestIdsToRemove = searchResult.Data
+                    .Where(m => !string.IsNullOrEmpty(m.Metadata.SourcePath) && PathHelper.AreSamePath(m.Metadata.SourcePath, installationPath))
+                    .Select(m => m.Id)
+                    .ToList();
+
+                foreach (var manifestId in manifestIdsToRemove)
+                {
+                    await contentManifestPool.RemoveManifestAsync(manifestId, cancellationToken: cancellationToken);
+                    logger.LogInformation("Removed custom installation manifest {Id} from pool", manifestId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to remove manifests for installation path {Path} from pool", installationPath);
+        }
+    }
+
+    private async Task<bool> TryPersistRegistrationAsync(string normalizedPath, CancellationToken cancellationToken)
+    {
+        if (userSettingsService == null)
+        {
+            return true;
+        }
+
+        var saveSuccess = await userSettingsService.TryUpdateAndSaveAsync(settings =>
+        {
+            if (settings.CustomInstallationDirectories.All(d => !PathHelper.AreSamePath(d, normalizedPath)))
+            {
+                settings.CustomInstallationDirectories.Add(normalizedPath);
+            }
+
+            return true;
+        });
+
+        if (!saveSuccess)
+        {
+            RollbackRegistrationSettings(normalizedPath);
+            await RemoveInstallationManifestsFromPoolAsync(normalizedPath, cancellationToken);
+            return false;
+        }
+
+        return true;
+    }
+
+    private void RollbackRegistrationSettings(string normalizedPath)
+    {
+        userSettingsService?.Update(settings =>
+        {
+            settings.CustomInstallationDirectories.RemoveAll(d => PathHelper.AreSamePath(d, normalizedPath));
+        });
+    }
+
+    private async Task<bool> TryPersistRemovalAsync(string? targetPath)
+    {
+        if (userSettingsService == null || string.IsNullOrEmpty(targetPath))
+        {
+            return true;
+        }
+
+        var saveSuccess = await userSettingsService.TryUpdateAndSaveAsync(settings =>
+        {
+            settings.CustomInstallationDirectories.RemoveAll(d => PathHelper.AreSamePath(d, targetPath));
+            return true;
+        });
+
+        if (!saveSuccess)
+        {
+            userSettingsService.Update(settings =>
+            {
+                if (settings.CustomInstallationDirectories.All(d => !PathHelper.AreSamePath(d, targetPath)))
+                {
+                    settings.CustomInstallationDirectories.Add(targetPath);
+                }
+            });
+            return false;
+        }
+
+        return true;
+    }
+
+    private void LoadCustomInstallationsFromSettings(List<GameInstallation> installations)
+    {
+        if (userSettingsService == null)
+        {
+            return;
+        }
+
+        var settings = userSettingsService.Get();
+        if (settings?.CustomInstallationDirectories == null)
+        {
+            return;
+        }
+
+        foreach (var customDir in settings.CustomInstallationDirectories)
+        {
+            if (string.IsNullOrWhiteSpace(customDir) || !Directory.Exists(customDir))
+            {
+                continue;
+            }
+
+            var existing = installations.FirstOrDefault(i => PathHelper.AreSamePath(i.InstallationPath, customDir));
+            if (existing == null)
+            {
+                var customInstall = new GameInstallation(customDir, GameInstallationType.Custom)
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    DetectedAt = DateTime.UtcNow,
+                };
+                customInstall.Fetch();
+                if (customInstall.HasGenerals || customInstall.HasZeroHour)
+                {
+                    installations.Add(customInstall);
+                    logger.LogInformation("Loaded custom game installation from settings: {Path}", customDir);
+                }
+            }
         }
     }
 }

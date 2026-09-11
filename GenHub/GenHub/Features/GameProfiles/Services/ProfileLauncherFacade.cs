@@ -554,6 +554,39 @@ public class ProfileLauncherFacade(
         return false;
     }
 
+    private static string? ResolveToolExecutableRelativePath(ContentManifest toolManifest)
+    {
+        var declaredEntryPoint = toolManifest.Variants.Count == 0
+            ? toolManifest.EntryPoint
+            : ManifestVariantResolver.ResolveVariant(toolManifest)?.EntryPoint ?? toolManifest.EntryPoint;
+
+        var resolvedFiles = ManifestVariantResolver.ResolveFiles(toolManifest);
+
+        if (!string.IsNullOrWhiteSpace(declaredEntryPoint))
+        {
+            var matched = resolvedFiles?.FirstOrDefault(f => ManifestVariantResolver.PathsMatch(f.RelativePath, declaredEntryPoint));
+            return matched?.RelativePath ?? declaredEntryPoint;
+        }
+
+        var markedExecutable = resolvedFiles?.FirstOrDefault(f => f.IsExecutable)
+            ?? toolManifest.Files?.FirstOrDefault(f => f.IsExecutable);
+
+        if (markedExecutable != null)
+        {
+            return markedExecutable.RelativePath;
+        }
+
+        var entryPointResolution = ManifestVariantResolver.ResolveEntryPoint(toolManifest);
+        if (entryPointResolution.Success && !string.IsNullOrEmpty(entryPointResolution.RelativePath))
+        {
+            return entryPointResolution.RelativePath;
+        }
+
+        var fallbackExecutable = resolvedFiles?.FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            ?? toolManifest.Files?.FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
+        return fallbackExecutable?.RelativePath;
+    }
+
     /// <summary>
     /// Checks if a profile uses a Community Outpost game client.
     /// </summary>
@@ -650,39 +683,6 @@ public class ProfileLauncherFacade(
         return ProfileOperationResult<string>.CreateSuccess(workspacePath);
     }
 
-    private string? ResolveToolExecutableRelativePath(ContentManifest toolManifest)
-    {
-        var declaredEntryPoint = toolManifest.Variants.Count == 0
-            ? toolManifest.EntryPoint
-            : ManifestVariantResolver.ResolveVariant(toolManifest)?.EntryPoint ?? toolManifest.EntryPoint;
-
-        var resolvedFiles = ManifestVariantResolver.ResolveFiles(toolManifest);
-
-        if (!string.IsNullOrWhiteSpace(declaredEntryPoint))
-        {
-            var matched = resolvedFiles?.FirstOrDefault(f => ManifestVariantResolver.PathsMatch(f.RelativePath, declaredEntryPoint));
-            return matched?.RelativePath ?? declaredEntryPoint;
-        }
-
-        var markedExecutable = resolvedFiles?.FirstOrDefault(f => f.IsExecutable)
-            ?? toolManifest.Files?.FirstOrDefault(f => f.IsExecutable);
-
-        if (markedExecutable != null)
-        {
-            return markedExecutable.RelativePath;
-        }
-
-        var entryPointResolution = ManifestVariantResolver.ResolveEntryPoint(toolManifest);
-        if (entryPointResolution.Success && !string.IsNullOrEmpty(entryPointResolution.RelativePath))
-        {
-            return entryPointResolution.RelativePath;
-        }
-
-        var fallbackExecutable = resolvedFiles?.FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-            ?? toolManifest.Files?.FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
-        return fallbackExecutable?.RelativePath;
-    }
-
     private async Task<ProfileOperationResult<GameLaunchInfo>> LaunchToolProfileAsync(
         GameProfile profile,
         CancellationToken cancellationToken)
@@ -739,6 +739,7 @@ public class ProfileLauncherFacade(
             }
 
             toolWorkspacePath = hydrationResult.Data!;
+            actualWorkspaceId = $"{ProfileConstants.ToolProfileWorkspaceIdPrefix}-{profile.Id}";
         }
 
         var toolDirectoryPath = toolWorkspacePath;

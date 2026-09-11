@@ -23,10 +23,22 @@ public class GameInstallation(
     GameInstallationType installationType,
     ILogger<GameInstallation>? logger = null) : IGameInstallation
 {
+    private string? _displayName;
+
     /// <summary>
     /// Gets or sets the unique identifier for this installation.
     /// </summary>
     public string Id { get; set; } = Guid.NewGuid().ToString();
+
+    /// <summary>
+    /// Gets or sets the display name for this installation.
+    /// If not explicitly set, falls back to the installation type display name.
+    /// </summary>
+    public string DisplayName
+    {
+        get => !string.IsNullOrWhiteSpace(_displayName) ? _displayName : InstallationType.GetDisplayName();
+        set => _displayName = value;
+    }
 
     /// <summary>Gets or sets the installation type.</summary>
     public GameInstallationType InstallationType { get; set; } = installationType;
@@ -131,7 +143,7 @@ public class GameInstallation(
     /// </summary>
     /// <remarks>
     /// This method is primarily used for testing and initialization purposes.
-    /// For production code, prefer using <see cref="SetPaths(string?, string?)"/> with explicit paths.
+    /// For production code, prefer using <see cref="SetPaths(string?, string?)"/> with explicit paths technique.
     /// </remarks>
     public void Fetch()
     {
@@ -423,7 +435,7 @@ public class GameInstallation(
             HasGenerals = true;
             GeneralsPath = InstallationPath;
             foundGenerals = true;
-            logger?.LogDebug("Found Generals installation at root {GeneralsPath}", GeneralsPath);
+            logger?.LogDebug("Found Generals installation at root based on fallback {GeneralsPath}", GeneralsPath);
         }
     }
 }

@@ -5,6 +5,7 @@
              xmlns:vm="clr-namespace:GenHub.Features.Settings.ViewModels"
              xmlns:models="clr-namespace:GenHub.Features.Settings.Models"
              xmlns:theming="clr-namespace:GenHub.Core.Models.Theming;assembly=GenHub.Core"
+             xmlns:installations="clr-namespace:GenHub.Core.Models.GameInstallations;assembly=GenHub.Core"
              xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters"
              xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls"
              xmlns:commonControls="clr-namespace:GenHub.Common.Controls"
@@ -198,6 +199,50 @@
                         MinWidth="250" />
               <TextBlock Text="Choose how files are managed in game workspaces"
                          Classes="setting-description" />
+            </StackPanel>
+
+            <!-- Custom Game Installations -->
+            <StackPanel Spacing="8">
+              <TextBlock Text="Custom Game Installations" Classes="setting-label" />
+              <TextBlock Text="Add custom or Git-tracked game installations outside Steam/EA App"
+                         Classes="setting-description" />
+
+              <ItemsControl ItemsSource="{Binding CustomInstallations}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="installations:GameInstallation">
+                    <Border Background="{DynamicResource SurfaceCardBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="12"
+                            Margin="0,4,0,4">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="2">
+                          <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                          <TextBlock Text="{Binding InstallationPath}" FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                VerticalAlignment="Center"
+                                ToolTip.Tip="Remove custom installation"
+                                Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).RemoveCustomInstallationCommand}"
+                                CommandParameter="{Binding}">
+                          <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
+                                    Width="14" Height="14" Foreground="{DynamicResource TextSecondary}" />
+                        </Button>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <Button HorizontalAlignment="Left"
+                      Margin="0,4,0,0"
+                      Command="{Binding AddCustomInstallationCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="14" Height="14" />
+                  <TextBlock Text="Add Custom Installation..." VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
             </StackPanel>
           </StackPanel>
         </Border>

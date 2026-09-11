@@ -27,6 +27,8 @@ using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results.CAS;
 using GenHub.Core.Models.Storage;
@@ -43,6 +45,7 @@ namespace GenHub.Features.Settings.ViewModels;
 /// </summary>
 public partial class SettingsViewModel : ObservableObject, IDisposable
 {
+    private const string ErrorTitle = "Error";
     private static readonly char[] LineSeparators = ['\r', '\n'];
 
     private enum CasCleanupOutcome
@@ -164,6 +167,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private string _profilesInfo = "Calculating...";
+
+    [ObservableProperty]
+    private ObservableCollection<GameInstallation> _customInstallations = [];
+
+    [ObservableProperty]
+    private bool _isLoadingCustomInstallations;
 
     [ObservableProperty]
     private string? _workspacePath;
@@ -377,6 +386,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
                     // Initial update when becoming visible
                     Task.Run(UpdateDangerZoneDataAsync);
+                    _ = LoadCustomInstallationsAsync();
                     NotifyDangerZoneCanExecuteChanged();
                 }
                 else
@@ -440,6 +450,44 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         Dispose(true);
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Loads custom game installations.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task LoadCustomInstallationsAsync()
+    {
+        try
+        {
+            IsLoadingCustomInstallations = true;
+            var cachedInstallations = _installationService.CachedInstallations;
+            if (cachedInstallations != null)
+            {
+                var customList = cachedInstallations
+                    .Where(i => i.InstallationType == GameInstallationType.Custom)
+                    .ToList();
+                CustomInstallations = new ObservableCollection<GameInstallation>(customList);
+                return;
+            }
+
+            var result = await _installationService.GetAllInstallationsAsync();
+            if (result.Success && result.Data != null)
+            {
+                var customList = result.Data
+                    .Where(i => i.InstallationType == GameInstallationType.Custom)
+                    .ToList();
+                CustomInstallations = new ObservableCollection<GameInstallation>(customList);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading custom installations");
+        }
+        finally
+        {
+            IsLoadingCustomInstallations = false;
+        }
     }
 
     /// <summary>
@@ -840,6 +888,90 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to reset settings to defaults");
+        }
+    }
+
+    [RelayCommand]
+    private async Task AddCustomInstallationAsync()
+    {
+        try
+        {
+            _logger.LogDebug("Add custom installation requested");
+
+            var lifetime = Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var mainWindow = lifetime?.MainWindow;
+            var topLevel = mainWindow != null ? TopLevel.GetTopLevel(mainWindow) : null;
+            if (topLevel == null)
+            {
+                return;
+            }
+
+            var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "Select Game Installation Directory",
+                AllowMultiple = false,
+            });
+
+            if (folders.Count == 0)
+            {
+                return;
+            }
+
+            var path = folders[0].Path.LocalPath;
+            var regResult = await _installationService.RegisterCustomInstallationAsync(path);
+            if (regResult.Success)
+            {
+                await LoadCustomInstallationsAsync();
+                _notificationService.ShowSuccess("Custom Installation Added", $"Successfully registered '{regResult.Data?.DisplayName ?? "Custom Installation"}'.", 3000);
+            }
+            else
+            {
+                _notificationService.ShowError("Registration Failed", regResult.Errors.FirstOrDefault() ?? "Unknown error", 5000);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error adding custom installation");
+            _notificationService.ShowError(ErrorTitle, $"Failed to add custom installation: {ex.Message}", 5000);
+        }
+    }
+
+    [RelayCommand]
+    private async Task RemoveCustomInstallationAsync(GameInstallation? installation)
+    {
+        if (installation == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var confirmed = await _dialogService.ShowConfirmationAsync(
+                "Remove Custom Installation",
+                $"Are you sure you want to remove '{installation.DisplayName}' ({installation.InstallationPath})? No files on disk will be deleted.",
+                "Remove",
+                "Cancel");
+
+            if (!confirmed)
+            {
+                return;
+            }
+
+            var remResult = await _installationService.RemoveCustomInstallationAsync(installation.Id);
+            if (remResult.Success)
+            {
+                await LoadCustomInstallationsAsync();
+                _notificationService.ShowSuccess("Installation Removed", $"Custom installation '{installation.DisplayName}' was removed.", 3000);
+            }
+            else
+            {
+                _notificationService.ShowError("Removal Failed", remResult.Errors.FirstOrDefault() ?? "Unknown error", 5000);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error removing custom installation: {Id}", installation.Id);
+            _notificationService.ShowError(ErrorTitle, $"Failed to remove custom installation: {ex.Message}", 5000);
         }
     }
 
@@ -1259,8 +1391,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _logger.LogError(ex, "Failed to update Danger Zone data");
             CasStorageInfo = "Error";
             ManifestsInfo = "Error";
-            WorkspacesInfo = "Error";
-            ProfilesInfo = "Error";
+            WorkspacesInfo = ErrorTitle;
+            ProfilesInfo = ErrorTitle;
         }
         finally
         {
@@ -1648,6 +1780,25 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
+    private async Task<bool> RemoveManifestsBatchAsync(IEnumerable<ManifestId> manifestIds)
+    {
+        var allRemoved = true;
+        foreach (var manifestId in manifestIds)
+        {
+            var removeResult = await _manifestPool.RemoveManifestAsync(manifestId);
+            if (!removeResult.Success)
+            {
+                allRemoved = false;
+                _logger.LogWarning(
+                    "Failed to delete manifest {ManifestId}: {Error}",
+                    manifestId,
+                    removeResult.FirstError);
+            }
+        }
+
+        return allRemoved;
+    }
+
     private async Task DeleteManifestsInternalAsync(bool showToast, bool updateDangerZone)
     {
         try
@@ -1657,19 +1808,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (manifestsResult.Success && manifestsResult.Data != null)
             {
                 var count = manifestsResult.Data.Count();
-                var allRemoved = true;
-                foreach (var manifestId in manifestsResult.Data.Select(manifest => manifest.Id))
-                {
-                    var removeResult = await _manifestPool.RemoveManifestAsync(manifestId);
-                    if (!removeResult.Success)
-                    {
-                        allRemoved = false;
-                        _logger.LogWarning(
-                            "Failed to delete manifest {ManifestId}: {Error}",
-                            manifestId,
-                            removeResult.FirstError);
-                    }
-                }
+                var allRemoved = await RemoveManifestsBatchAsync(manifestsResult.Data.Select(manifest => manifest.Id));
 
                 if (allRemoved)
                 {
@@ -2098,7 +2237,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open logs directory");
-            _notificationService.ShowError("Error", $"Failed to open logs directory: {ex.Message}", 5000);
+            _notificationService.ShowError(ErrorTitle, $"Failed to open logs directory: {ex.Message}", 5000);
         }
     }
 
@@ -2126,7 +2265,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open AppData directory");
-            _notificationService.ShowError("Error", $"Failed to open AppData directory: {ex.Message}", 5000);
+            _notificationService.ShowError(ErrorTitle, $"Failed to open AppData directory: {ex.Message}", 5000);
         }
     }
 
@@ -2154,7 +2293,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open profiles directory");
-            _notificationService.ShowError("Error", $"Failed to open profiles directory: {ex.Message}", 5000);
+            _notificationService.ShowError(ErrorTitle, $"Failed to open profiles directory: {ex.Message}", 5000);
         }
     }
 
@@ -2182,7 +2321,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open manifests directory");
-            _notificationService.ShowError("Error", $"Failed to open manifests directory: {ex.Message}", 5000);
+            _notificationService.ShowError(ErrorTitle, $"Failed to open manifests directory: {ex.Message}", 5000);
         }
     }
 
@@ -2225,7 +2364,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open workspaces directory");
-            _notificationService.ShowError("Error", $"Failed to open workspaces directory: {ex.Message}", 5000);
+            _notificationService.ShowError(ErrorTitle, $"Failed to open workspaces directory: {ex.Message}", 5000);
         }
     }
 
@@ -2268,7 +2407,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open CAS pool directory");
-            _notificationService.ShowError("Error", $"Failed to open CAS pool directory: {ex.Message}", 5000);
+            _notificationService.ShowError(ErrorTitle, $"Failed to open CAS pool directory: {ex.Message}", 5000);
         }
     }
 
@@ -2283,7 +2422,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (!Directory.Exists(logsPath))
             {
                 _logger.LogWarning("Logs directory not found at {Path}", logsPath);
-                _notificationService.ShowError("Error", "Logs directory not found.", 3000);
+                _notificationService.ShowError(ErrorTitle, "Logs directory not found.", 3000);
                 return;
             }
 
@@ -2310,7 +2449,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open latest log file");
-            _notificationService.ShowError("Error", $"Failed to open latest log file: {ex.Message}", 5000);
+            _notificationService.ShowError(ErrorTitle, $"Failed to open latest log file: {ex.Message}", 5000);
         }
     }
 
@@ -2322,7 +2461,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             var logsPath = _configurationProvider.GetLogsPath();
             if (!Directory.Exists(logsPath))
             {
-                _notificationService.ShowError("Error", "Logs directory not found.", 3000);
+                _notificationService.ShowError(ErrorTitle, "Logs directory not found.", 3000);
                 return;
             }
 
@@ -2351,13 +2490,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     }
                     else
                     {
-                        _notificationService.ShowError("Error", "Clipboard not available.", 3000);
+                        _notificationService.ShowError(ErrorTitle, "Clipboard not available.", 3000);
                     }
                 }
                 catch (IOException ioEx)
                 {
                     _logger.LogWarning(ioEx, "Failed to read log file (file in use?)");
-                    _notificationService.ShowError("Error", "Could not read log file (it might be in use).", 3000);
+                    _notificationService.ShowError(ErrorTitle, "Could not read log file (it might be in use).", 3000);
                 }
             }
             else
@@ -2368,7 +2507,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to copy latest log file");
-            _notificationService.ShowError("Error", "Failed to copy latest log.", 3000);
+            _notificationService.ShowError(ErrorTitle, "Failed to copy latest log.", 3000);
         }
     }
 
@@ -2391,7 +2530,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to clear logs");
-            _notificationService.ShowError("Error", $"Failed to clear logs: {ex.Message}", 5000);
+            _notificationService.ShowError(ErrorTitle, $"Failed to clear logs: {ex.Message}", 5000);
         }
     }
 
@@ -2436,13 +2575,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
             else
             {
-                _notificationService.ShowError("Error", $"Failed to remove subscription: {result.FirstError}");
+                _notificationService.ShowError(ErrorTitle, $"Failed to remove subscription: {result.FirstError}");
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to remove subscription");
-            _notificationService.ShowError("Error", "Failed to remove subscription");
+            _notificationService.ShowError(ErrorTitle, "Failed to remove subscription");
         }
     }
 
@@ -2493,7 +2632,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to refresh catalogs");
-            _notificationService.ShowError("Error", "An unexpected error occurred during refresh.");
+            _notificationService.ShowError(ErrorTitle, "An unexpected error occurred during refresh.");
         }
         finally
         {
@@ -2528,7 +2667,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
         if (deletedCount == 0)
         {
-            _notificationService.ShowError("Error", "Could not clear active log files (files in use).", 3000);
+            _notificationService.ShowError(ErrorTitle, "Could not clear active log files (files in use).", 3000);
             return;
         }
 

@@ -198,6 +198,30 @@ public partial class App : Application
         mainViewModel.GameProfilesViewModel.ErrorMessage = error;
     }
 
+    private static async Task RepairProfileShortcutsAsync(
+        IShortcutService shortcutService,
+        IGameProfileManager profileManager,
+        ILogger<App>? logger)
+    {
+        var profilesResult = await profileManager.GetAllProfilesAsync();
+        if (!profilesResult.Success || profilesResult.Data == null)
+        {
+            return;
+        }
+
+        foreach (var profile in profilesResult.Data)
+        {
+            if (await shortcutService.ShortcutExistsAsync(profile))
+            {
+                var result = await shortcutService.CreateDesktopShortcutAsync(profile);
+                if (!result.Success)
+                {
+                    logger?.LogWarning("Failed to repair desktop shortcut for profile {ProfileName}: {Error}", profile.Name, result.FirstError);
+                }
+            }
+        }
+    }
+
     private async Task ProcessSubscriptionDialogAsync(Window mainWindow, string url, ILogger<App>? logger)
     {
         logger?.LogInformation("Showing subscription confirmation dialog for: {Url}", url);
@@ -419,30 +443,6 @@ public partial class App : Application
         catch (Exception ex)
         {
             logger?.LogError(ex, "Exception while launching profile {ProfileId}", profileId);
-        }
-    }
-
-    private async Task RepairProfileShortcutsAsync(
-        IShortcutService shortcutService,
-        IGameProfileManager profileManager,
-        ILogger<App>? logger)
-    {
-        var profilesResult = await profileManager.GetAllProfilesAsync();
-        if (!profilesResult.Success || profilesResult.Data == null)
-        {
-            return;
-        }
-
-        foreach (var profile in profilesResult.Data)
-        {
-            if (await shortcutService.ShortcutExistsAsync(profile))
-            {
-                var result = await shortcutService.CreateDesktopShortcutAsync(profile);
-                if (!result.Success)
-                {
-                    logger?.LogWarning("Failed to repair desktop shortcut for profile {ProfileName}: {Error}", profile.Name, result.FirstError);
-                }
-            }
         }
     }
 
