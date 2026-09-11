@@ -40,38 +40,7 @@ public class CommandMapFile
 
         while (reader.ReadLine() is { } line)
         {
-            var trimmed = line.Trim();
-
-            if (current == null)
-            {
-                if (trimmed.StartsWith("CommandMap ", StringComparison.OrdinalIgnoreCase))
-                {
-                    var name = trimmed[11..].Trim();
-                    current = new CommandMapEntry { Name = name };
-                    map.Entries.Add(current);
-                }
-                else
-                {
-                    map.HeaderLines.Add(line);
-                }
-            }
-            else
-            {
-                if (trimmed.Equals("End", StringComparison.OrdinalIgnoreCase))
-                {
-                    current = null;
-                }
-                else
-                {
-                    var eqIdx = trimmed.IndexOf('=');
-                    if (eqIdx > 0)
-                    {
-                        var propKey = trimmed[..eqIdx].Trim();
-                        var propVal = trimmed[(eqIdx + 1)..].Trim();
-                        current.Properties[propKey] = propVal;
-                    }
-                }
-            }
+            current = ProcessLine(map, current, line);
         }
 
         return map;
@@ -99,11 +68,11 @@ public class CommandMapFile
     /// <param name="stream">The writable stream.</param>
     public void Save(Stream stream)
     {
-        using var writer = new StreamWriter(stream, Encoding.ASCII, leaveOpen: true);
+        using var writer = new StreamWriter(stream, Encoding.UTF8, leaveOpen: true);
 
-        foreach (var line in HeaderLines)
+        foreach (var header in HeaderLines)
         {
-            writer.WriteLine(line);
+            writer.WriteLine(header);
         }
 
         foreach (var entry in Entries)
@@ -117,6 +86,40 @@ public class CommandMapFile
             writer.WriteLine("End");
             writer.WriteLine();
         }
+    }
+
+    private static CommandMapEntry? ProcessLine(CommandMapFile map, CommandMapEntry? current, string line)
+    {
+        var trimmed = line.Trim();
+
+        if (current == null)
+        {
+            if (trimmed.StartsWith("CommandMap ", StringComparison.OrdinalIgnoreCase))
+            {
+                var name = trimmed[11..].Trim();
+                var entry = new CommandMapEntry { Name = name };
+                map.Entries.Add(entry);
+                return entry;
+            }
+
+            map.HeaderLines.Add(line);
+            return null;
+        }
+
+        if (trimmed.Equals("End", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var eqIdx = trimmed.IndexOf('=');
+        if (eqIdx > 0)
+        {
+            var propKey = trimmed[..eqIdx].Trim();
+            var propVal = trimmed[(eqIdx + 1)..].Trim();
+            current.Properties[propKey] = propVal;
+        }
+
+        return current;
     }
 
     /// <summary>

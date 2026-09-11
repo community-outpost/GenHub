@@ -21,7 +21,7 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Features.Tools.GenHotkeys.Services;
 
 /// <summary>
-/// Service for building a standalone .big archive containing customized CSF, CommandMap.ini,
+/// Service for building a standalone .big archive containing customized CSF
 /// and icon TGAs, and registering it as a GenHub ContentManifest Addon.
 /// </summary>
 public class HotkeyPackageService(
@@ -30,7 +30,7 @@ public class HotkeyPackageService(
     IServiceScopeFactory scopeFactory,
     ILogger<HotkeyPackageService> logger) : IHotkeyPackageService
 {
-    private static readonly Regex SafeFileNameRegex = new("[^a-zA-Z0-9_-]", RegexOptions.Compiled);
+    private static readonly Regex SafeFileNameRegex = new("[^a-zA-Z0-9_-]", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
     /// <inheritdoc />
     public async Task<OperationResult<ContentManifest>> CreateHotkeysAddonAsync(
@@ -49,136 +49,24 @@ public class HotkeyPackageService(
             Directory.CreateDirectory(packageDir);
 
             progress?.Report("Preparing customized CSF string table...");
-            logger.LogInformation("Generating hotkey addon for profile '{Name}' ({Game})", profile.Name, profile.TargetGame);
+            logger.LogDebug("Generating hotkey addon for profile '{Name}' ({Game})", profile.Name, profile.TargetGame);
 
             // 1. Build and modify CSF
-            var baseCsf = await LoadBaseCsfAsync(profile.TargetGame, cancellationToken);
-            foreach (var (label, key) in profile.KeyMappings)
-            {
-                var existing = baseCsf.GetString(label);
-                var updated = CsfFile.SetHotkey(existing, key);
-                baseCsf.SetString(label, updated);
-            }
+            ApplyCsfModifications(profile, stagingDir);
 
-            var englishDir = Path.Combine(stagingDir, GenHotkeysConstants.DataEnglishDirectory);
-            Directory.CreateDirectory(englishDir);
-            var csfOutputPath = Path.Combine(englishDir, "generals.csf");
-            baseCsf.Save(csfOutputPath);
-
-            // Also place in Data/generals.csf for maximum game engine compatibility
-            var dataDir = Path.Combine(stagingDir, "Data");
-            baseCsf.Save(Path.Combine(dataDir, "generals.csf"));
-
-            // 2. Build CommandMap.ini
-            progress?.Report("Configuring CommandMap.ini...");
-            var iniDir = Path.Combine(stagingDir, "Data", "INI");
-            Directory.CreateDirectory(iniDir);
-            var commandMapStream = TryOpenAssetStream(GenHotkeysConstants.PresetsCommandMap);
-            if (commandMapStream != null)
-            {
-                using (commandMapStream)
-                {
-                    var cmdMap = CommandMapFile.Load(commandMapStream);
-                    cmdMap.Save(Path.Combine(iniDir, GenHotkeysConstants.CommandMapFileName));
-                }
-            }
-
-            // 3. Process Icon Overlays if enabled
+            // 2. Process Icon Overlays if enabled
             if (profile.OverlayEnabled)
             {
-                progress?.Report("Rendering hotkey badge overlays on unit icons...");
-                var texturesDir = Path.Combine(stagingDir, GenHotkeysConstants.ArtTexturesDirectory);
-                Directory.CreateDirectory(texturesDir);
-
-                var factions = await techTreeService.LoadTechTreeAsync(profile.TargetGame, cancellationToken);
-                var processedIcons = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-                foreach (var faction in factions)
-                {
-                    foreach (var obj in faction.GameObjects)
-                    {
-                        foreach (var layout in obj.KeyboardLayouts)
-                        {
-                            foreach (var action in layout)
-                            {
-                                if (string.IsNullOrWhiteSpace(action.IconName) || !processedIcons.Add(action.IconName))
-                                {
-                                    continue;
-                                }
-
-                                // Check if this action has an assigned hotkey
-                                char? assignedHotkey = null;
-                                if (!string.IsNullOrEmpty(action.HotkeyString) &&
-                                    profile.KeyMappings.TryGetValue(action.HotkeyString, out var mappedKey))
-                                {
-                                    assignedHotkey = mappedKey;
-                                }
-                                else if (action.Hotkey.HasValue)
-                                {
-                                    assignedHotkey = action.Hotkey.Value;
-                                }
-
-                                if (assignedHotkey.HasValue)
-                                {
-                                    var iconBytes = await techTreeService.GetIconBytesAsync(
-                                        action.IconName,
-                                        profile.TargetGame,
-                                        cancellationToken);
-
-                                    if (iconBytes != null && iconBytes.Length > 0)
-                                    {
-                                        try
-                                        {
-                                            var tgaBytes = await iconOverlayService.GenerateOverlayTgaAsync(
-                                                iconBytes,
-                                                assignedHotkey.Value,
-                                                profile.OverlayCorner,
-                                                cancellationToken);
-
-                                            var tgaPath = Path.Combine(texturesDir, $"{action.IconName}.tga");
-                                            await File.WriteAllBytesAsync(tgaPath, tgaBytes, cancellationToken);
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            logger.LogWarning(ex, "Failed to stamp hotkey overlay on icon {Icon}", action.IconName);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                await GenerateOverlayTexturesAsync(profile, stagingDir, progress, cancellationToken);
             }
 
-            // 4. Pack into .big archive
+            // 3. Pack into .big archive
             progress?.Report("Packing files into .big archive...");
-            var sanitizedName = SafeFileNameRegex.Replace(profile.Name, "_");
-            if (string.IsNullOrWhiteSpace(sanitizedName))
-            {
-                sanitizedName = "Hotkeys";
-            }
+            var bigFilePath = await PackBigArchiveAsync(profile, stagingDir, packageDir);
 
-            var gameTag = profile.TargetGame == GameType.Generals ? "Gen" : "ZH";
-            var bigFileName = string.Format(GenHotkeysConstants.BigFileNamePattern, sanitizedName, gameTag);
-            var bigFilePath = Path.Combine(packageDir, bigFileName);
-
-            await BigFilePacker.PackAsync(stagingDir, bigFilePath);
-            logger.LogInformation("Packed hotkeys .big archive at {Path}", bigFilePath);
-
-            // 5. Register with GenHub as ContentManifest Addon
+            // 4. Register with GenHub as ContentManifest Addon
             progress?.Report("Registering hotkey addon in GenHub...");
-            using var scope = scopeFactory.CreateScope();
-            var localContentService = scope.ServiceProvider.GetRequiredService<ILocalContentService>();
-
-            var manifestDisplayName = $"Hotkeys - {profile.Name} ({gameTag})";
-            var result = await localContentService.CreateLocalContentManifestAsync(
-                directoryPath: packageDir,
-                name: manifestDisplayName,
-                contentType: ContentType.Addon,
-                targetGame: profile.TargetGame,
-                sourcePath: null,
-                progress: null,
-                cancellationToken: cancellationToken);
+            var result = await RegisterAddonManifestAsync(profile, packageDir, cancellationToken);
 
             if (!result.Success || result.Data == null)
             {
@@ -189,7 +77,7 @@ public class HotkeyPackageService(
 
             progress?.Report("Hotkey addon created successfully!");
             logger.LogInformation(
-                "Successfully created and registered hotkey addon manifest {Id} for profile {Name}",
+                "Successfully created hotkey addon manifest {Id} for profile {Name}",
                 result.Data.Id,
                 profile.Name);
 
@@ -202,15 +90,84 @@ public class HotkeyPackageService(
         }
         finally
         {
-            // Clean up temporary directories
             TryDeleteDirectory(stagingDir);
             TryDeleteDirectory(packageDir);
         }
     }
 
-    private static async Task<CsfFile> LoadBaseCsfAsync(GameType gameType, CancellationToken cancellationToken)
+    private static void ApplyCsfModifications(HotkeyProfile profile, string stagingDir)
     {
-        var stream = TryOpenAssetStream(GenHotkeysConstants.PresetsLeikezeEn);
+        var baseCsf = LoadBaseCsf(profile);
+
+        // Strip explicitly cleared hotkeys
+        foreach (var label in profile.ClearedKeys)
+        {
+            var existing = baseCsf.GetString(label);
+            if (!string.IsNullOrEmpty(existing))
+            {
+                var stripped = CsfFile.StripHotkey(existing);
+                baseCsf.SetString(label, stripped);
+            }
+        }
+
+        // Apply customized key mappings
+        foreach (var (label, key) in profile.KeyMappings)
+        {
+            var existing = baseCsf.GetString(label);
+            var updated = CsfFile.SetHotkey(existing, key);
+            baseCsf.SetString(label, updated);
+        }
+
+        var englishDir = Path.Combine(stagingDir, GenHotkeysConstants.DataEnglishDirectory);
+        Directory.CreateDirectory(englishDir);
+        var csfOutputPath = Path.Combine(englishDir, "generals.csf");
+        baseCsf.Save(csfOutputPath);
+    }
+
+    private static char? ResolveActionHotkey(HotkeyAction action, HotkeyProfile profile)
+    {
+        if (!string.IsNullOrEmpty(action.HotkeyString))
+        {
+            if (profile.ClearedKeys.Contains(action.HotkeyString))
+            {
+                return null;
+            }
+
+            if (profile.KeyMappings.TryGetValue(action.HotkeyString, out var mappedKey))
+            {
+                return mappedKey;
+            }
+        }
+
+        return action.Hotkey;
+    }
+
+    private static async Task<string> PackBigArchiveAsync(
+        HotkeyProfile profile,
+        string stagingDir,
+        string packageDir)
+    {
+        var sanitizedName = SafeFileNameRegex.Replace(profile.Name, "_");
+        if (string.IsNullOrWhiteSpace(sanitizedName))
+        {
+            sanitizedName = "Hotkeys";
+        }
+
+        var gameTag = profile.TargetGame == GameType.Generals ? "Gen" : "ZH";
+        var bigFileName = string.Format(GenHotkeysConstants.BigFileNamePattern, sanitizedName, gameTag);
+        var bigFilePath = Path.Combine(packageDir, bigFileName);
+
+        await BigFilePacker.PackAsync(stagingDir, bigFilePath);
+        return bigFilePath;
+    }
+
+    private static CsfFile LoadBaseCsf(HotkeyProfile profile)
+    {
+        var presetFile = profile.BasePreset?.Contains(GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase) == true
+            ? GenHotkeysConstants.PresetsLegionnaireRu
+            : GenHotkeysConstants.PresetsLeikezeEn;
+
+        var stream = TryOpenAssetStream(presetFile);
         if (stream != null)
         {
             using (stream)
@@ -253,7 +210,7 @@ public class HotkeyPackageService(
         return null;
     }
 
-    private void TryDeleteDirectory(string path)
+    private static void TryDeleteDirectory(string path)
     {
         try
         {
@@ -262,9 +219,121 @@ public class HotkeyPackageService(
                 Directory.Delete(path, true);
             }
         }
+        catch
+        {
+            // Best effort cleanup
+        }
+    }
+
+    private async Task GenerateOverlayTexturesAsync(
+        HotkeyProfile profile,
+        string stagingDir,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        progress?.Report("Rendering hotkey badge overlays on unit icons...");
+        var texturesDir = Path.Combine(stagingDir, GenHotkeysConstants.ArtTexturesDirectory);
+        Directory.CreateDirectory(texturesDir);
+
+        var factions = await techTreeService.LoadTechTreeAsync(profile.TargetGame, cancellationToken);
+        var processedIcons = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var faction in factions)
+        {
+            foreach (var obj in faction.GameObjects)
+            {
+                await ProcessGameObjectOverlaysAsync(
+                    obj,
+                    profile,
+                    texturesDir,
+                    processedIcons,
+                    cancellationToken);
+            }
+        }
+    }
+
+    private async Task ProcessGameObjectOverlaysAsync(
+        HotkeyGameObject obj,
+        HotkeyProfile profile,
+        string texturesDir,
+        HashSet<string> processedIcons,
+        CancellationToken cancellationToken)
+    {
+        foreach (var layout in obj.KeyboardLayouts)
+        {
+            foreach (var action in layout)
+            {
+                if (string.IsNullOrWhiteSpace(action.IconName) || !processedIcons.Add(action.IconName))
+                {
+                    continue;
+                }
+
+                var assignedHotkey = ResolveActionHotkey(action, profile);
+                if (assignedHotkey.HasValue)
+                {
+                    await TryRenderOverlayTgaAsync(
+                        action.IconName,
+                        assignedHotkey.Value,
+                        profile,
+                        texturesDir,
+                        cancellationToken);
+                }
+            }
+        }
+    }
+
+    private async Task TryRenderOverlayTgaAsync(
+        string iconName,
+        char hotkey,
+        HotkeyProfile profile,
+        string texturesDir,
+        CancellationToken cancellationToken)
+    {
+        var iconBytes = await techTreeService.GetIconBytesAsync(
+            iconName,
+            profile.TargetGame,
+            cancellationToken);
+
+        if (iconBytes == null || iconBytes.Length == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var tgaBytes = await iconOverlayService.GenerateOverlayTgaAsync(
+                iconBytes,
+                hotkey,
+                profile.OverlayCorner,
+                cancellationToken);
+
+            var tgaPath = Path.Combine(texturesDir, $"{iconName}.tga");
+            await File.WriteAllBytesAsync(tgaPath, tgaBytes, cancellationToken);
+        }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to clean up temporary directory {Path}", path);
+            logger.LogWarning(ex, "Failed to stamp hotkey overlay on icon {Icon}", iconName);
         }
+    }
+
+    private async Task<OperationResult<ContentManifest>> RegisterAddonManifestAsync(
+        HotkeyProfile profile,
+        string packageDir,
+        CancellationToken cancellationToken)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var localContentService = scope.ServiceProvider.GetRequiredService<ILocalContentService>();
+
+        var gameTag = profile.TargetGame == GameType.Generals ? "Gen" : "ZH";
+        var manifestDisplayName = $"Hotkeys - {profile.Name} ({gameTag})";
+
+        return await localContentService.CreateLocalContentManifestAsync(
+            directoryPath: packageDir,
+            name: manifestDisplayName,
+            contentType: ContentType.Addon,
+            targetGame: profile.TargetGame,
+            sourcePath: null,
+            progress: null,
+            cancellationToken: cancellationToken);
     }
 }

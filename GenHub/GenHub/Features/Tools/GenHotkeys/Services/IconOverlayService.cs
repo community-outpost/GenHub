@@ -13,16 +13,16 @@ using SixLabors.ImageSharp.PixelFormats;
 namespace GenHub.Features.Tools.GenHotkeys.Services;
 
 /// <summary>
-/// Service for stamping hotkey badges onto icon textures and generating in-game TGAs.
+/// Service for stamping hotkey badges onto unit/structure icons and encoding them as in-game TGAs.
 /// </summary>
 public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverlayService
 {
-    private static readonly Rgba32 BadgeBackground = new(18, 18, 22, 230);
-    private static readonly Rgba32 BadgeBorder = new(235, 195, 55, 255); // Generals Gold
+    private static readonly Rgba32 BadgeBackground = new(18, 22, 28, 225);
+    private static readonly Rgba32 BadgeBorder = new(245, 166, 35, 255);
     private static readonly Rgba32 TextColor = new(255, 255, 255, 255);
-    private static readonly Rgba32 ShadowColor = new(0, 0, 0, 200);
+    private static readonly Rgba32 ShadowColor = new(0, 0, 0, 180);
 
-    // 5x7 pixel font representation (7 rows of 5-bit numbers)
+    // 5x7 bitmap font definitions for letters A-Z and digits 0-9
     private static readonly Dictionary<char, byte[]> Font5X7 = new()
     {
         ['A'] = [0b01110, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001],
@@ -31,9 +31,9 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
         ['D'] = [0b11110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b11110],
         ['E'] = [0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b11111],
         ['F'] = [0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b10000],
-        ['G'] = [0b01111, 0b10000, 0b10000, 0b10111, 0b10001, 0b10001, 0b01110],
+        ['G'] = [0b01111, 0b10000, 0b10000, 0b10111, 0b10001, 0b10001, 0b01111],
         ['H'] = [0b10001, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001],
-        ['I'] = [0b11111, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b11111],
+        ['I'] = [0b01110, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110],
         ['J'] = [0b00001, 0b00001, 0b00001, 0b00001, 0b10001, 0b10001, 0b01110],
         ['K'] = [0b10001, 0b10010, 0b10100, 0b11000, 0b10100, 0b10010, 0b10001],
         ['L'] = [0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b11111],
@@ -65,15 +65,15 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
 
     /// <inheritdoc />
     public async Task<byte[]> GenerateOverlayTgaAsync(
-        byte[] originalImageBytes,
+        byte[] sourceIconBytes,
         char hotkey,
-        OverlayCorner corner = OverlayCorner.TopLeft,
+        OverlayCorner corner,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(originalImageBytes);
+        ArgumentNullException.ThrowIfNull(sourceIconBytes);
         logger.LogDebug("Rendering hotkey badge '{Key}' at {Corner}", hotkey, corner);
 
-        using var image = Image.Load<Rgba32>(originalImageBytes);
+        using var image = Image.Load<Rgba32>(sourceIconBytes);
 
         var badgeChar = char.ToUpperInvariant(hotkey);
         StampBadge(image, badgeChar, corner);
@@ -108,31 +108,41 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
         DrawBadgeBox(image, badgeX, badgeY, badgeWidth, badgeHeight, BadgeBackground, BadgeBorder);
 
         // 3. Draw Character Glyph
-        if (Font5X7.TryGetValue(character, out var glyphRows))
-        {
-            var textStartX = badgeX + paddingX;
-            var textStartY = badgeY + paddingY;
+        DrawGlyph(image, character, badgeX + paddingX, badgeY + paddingY, scale);
+    }
 
-            for (var row = 0; row < 7; row++)
+    private static void DrawGlyph(Image<Rgba32> image, char character, int textStartX, int textStartY, int scale)
+    {
+        if (!Font5X7.TryGetValue(character, out var glyphRows))
+        {
+            return;
+        }
+
+        for (var row = 0; row < 7; row++)
+        {
+            DrawGlyphRow(image, glyphRows[row], textStartX, textStartY + (row * scale), scale);
+        }
+    }
+
+    private static void DrawGlyphRow(Image<Rgba32> image, byte rowBits, int startX, int startY, int scale)
+    {
+        for (var col = 0; col < 5; col++)
+        {
+            var isPixelSet = ((rowBits >> (4 - col)) & 1) == 1;
+            if (isPixelSet)
             {
-                var rowBits = glyphRows[row];
-                for (var col = 0; col < 5; col++)
-                {
-                    var isPixelSet = ((rowBits >> (4 - col)) & 1) == 1;
-                    if (isPixelSet)
-                    {
-                        // Draw scaled pixel (scale x scale)
-                        for (var dy = 0; dy < scale; dy++)
-                        {
-                            for (var dx = 0; dx < scale; dx++)
-                            {
-                                var px = textStartX + (col * scale) + dx;
-                                var py = textStartY + (row * scale) + dy;
-                                SetPixelSafe(image, px, py, TextColor);
-                            }
-                        }
-                    }
-                }
+                DrawScaledPixel(image, startX + (col * scale), startY, scale);
+            }
+        }
+    }
+
+    private static void DrawScaledPixel(Image<Rgba32> image, int px, int py, int scale)
+    {
+        for (var dy = 0; dy < scale; dy++)
+        {
+            for (var dx = 0; dx < scale; dx++)
+            {
+                SetPixelSafe(image, px + dx, py + dy, TextColor);
             }
         }
     }

@@ -24,9 +24,9 @@ public partial class GenHotkeysViewModel(
     ITechTreeService techTreeService,
     IHotkeyProfileStorageService profileStorageService,
     IHotkeyPackageService packageService,
-    ILogger<GenHotkeysViewModel> logger) : ObservableObject
+    ILogger<GenHotkeysViewModel> logger) : ObservableObject, IDisposable
 {
-    private readonly ConcurrentDictionary<string, Bitmap> _bitmapCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<(GameType Game, string Icon), Bitmap> _bitmapCache = new();
 
     private List<HotkeyFaction> _allFactions = [];
     private bool _isInitializing;
@@ -154,6 +154,7 @@ public partial class GenHotkeysViewModel(
 
         if (!string.IsNullOrEmpty(SelectedAction.HotkeyString))
         {
+            SelectedProfile.ClearedKeys.Remove(SelectedAction.HotkeyString);
             SelectedProfile.KeyMappings[SelectedAction.HotkeyString] = upper;
         }
 
@@ -177,6 +178,7 @@ public partial class GenHotkeysViewModel(
         if (!string.IsNullOrEmpty(SelectedAction.HotkeyString))
         {
             SelectedProfile.KeyMappings.Remove(SelectedAction.HotkeyString);
+            SelectedProfile.ClearedKeys.Add(SelectedAction.HotkeyString);
         }
 
         ValidateConflicts();
@@ -221,6 +223,8 @@ public partial class GenHotkeysViewModel(
             BusyMessage = $"Applying preset '{presetName}'...";
 
             var preset = await profileStorageService.LoadPresetAsync(presetName, SelectedGame);
+            SelectedProfile.BasePreset = presetName;
+            SelectedProfile.ClearedKeys.Clear();
             SelectedProfile.KeyMappings.Clear();
             foreach (var (k, v) in preset.KeyMappings)
             {
@@ -346,11 +350,80 @@ public partial class GenHotkeysViewModel(
         await profileStorageService.SaveProfileAsync(SelectedProfile);
     }
 
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Disposes managed resources.
+    /// </summary>
+    /// <param name="disposing">Whether to dispose managed state.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _reloadCts?.Cancel();
+            _reloadCts?.Dispose();
+            _reloadCts = null;
+
+            foreach (var kvp in _bitmapCache)
+            {
+                kvp.Value.Dispose();
+            }
+
+            _bitmapCache.Clear();
+        }
+    }
+
+    private static int ValidateGameObjectConflicts(HotkeyGameObjectViewModel obj)
+    {
+        var count = 0;
+        foreach (var layout in obj.Layouts)
+        {
+            count += ValidateLayoutConflicts(layout);
+        }
+
+        return count;
+    }
+
+    private static int ValidateLayoutConflicts(ObservableCollection<HotkeyActionViewModel> layout)
+    {
+        foreach (var action in layout)
+        {
+            action.IsConflict = false;
+            action.ConflictReason = null;
+        }
+
+        var assigned = layout.Where(a => a.Hotkey.HasValue).ToList();
+        var groups = assigned.GroupBy(a => char.ToUpperInvariant(a.Hotkey.GetValueOrDefault()));
+
+        var conflictCount = 0;
+        foreach (var grp in groups)
+        {
+            if (grp.Count() > 1)
+            {
+                conflictCount += grp.Count();
+                var names = string.Join(", ", grp.Select(a => a.DisplayName));
+                foreach (var conflictAct in grp)
+                {
+                    conflictAct.IsConflict = true;
+                    conflictAct.ConflictReason = $"Conflicts with: {names}";
+                }
+            }
+        }
+
+        return conflictCount;
+    }
+
     partial void OnSelectedGameChanged(GameType value)
     {
         if (!_isInitializing)
         {
             _reloadCts?.Cancel();
+            _reloadCts?.Dispose();
             _reloadCts = new CancellationTokenSource();
             var token = _reloadCts.Token;
             _ = SafeReloadAllAsync(token);
@@ -444,10 +517,10 @@ public partial class GenHotkeysViewModel(
         }
 
         SelectedFaction = Factions.FirstOrDefault();
-        FilterGameObjects();
+        FilterGameObjects(cancellationToken);
     }
 
-    private void FilterGameObjects()
+    private void FilterGameObjects(CancellationToken cancellationToken = default)
     {
         FilteredGameObjects.Clear();
         if (SelectedFaction == null)
@@ -471,7 +544,7 @@ public partial class GenHotkeysViewModel(
                 IconName = obj.IconName,
             };
 
-            LoadBitmapForObject(vm, obj.IconName);
+            LoadBitmapForObject(vm, obj.IconName, cancellationToken);
 
             foreach (var layout in obj.KeyboardLayouts)
             {
@@ -479,11 +552,16 @@ public partial class GenHotkeysViewModel(
                 foreach (var action in layout)
                 {
                     char? currentHk = action.DefaultHotkey;
-                    if (SelectedProfile != null &&
-                        !string.IsNullOrEmpty(action.HotkeyString) &&
-                        SelectedProfile.KeyMappings.TryGetValue(action.HotkeyString, out var mappedKey))
+                    if (SelectedProfile != null && !string.IsNullOrEmpty(action.HotkeyString))
                     {
-                        currentHk = mappedKey;
+                        if (SelectedProfile.ClearedKeys.Contains(action.HotkeyString))
+                        {
+                            currentHk = null;
+                        }
+                        else if (SelectedProfile.KeyMappings.TryGetValue(action.HotkeyString, out var mappedKey))
+                        {
+                            currentHk = mappedKey;
+                        }
                     }
 
                     var actionVm = new HotkeyActionViewModel
@@ -495,8 +573,7 @@ public partial class GenHotkeysViewModel(
                         Hotkey = currentHk,
                     };
 
-                    LoadBitmapForAction(actionVm, action.IconName);
-
+                    LoadBitmapForAction(actionVm, action.IconName, cancellationToken);
                     layoutVm.Add(actionVm);
                 }
 
@@ -510,51 +587,74 @@ public partial class GenHotkeysViewModel(
         ValidateConflicts();
     }
 
-    private void LoadBitmapForObject(HotkeyGameObjectViewModel vm, string iconName)
+    private void LoadBitmapForObject(
+        HotkeyGameObjectViewModel vm,
+        string iconName,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(iconName))
         {
             return;
         }
 
-        if (_bitmapCache.TryGetValue(iconName, out var cached))
+        var key = (SelectedGame, iconName);
+        if (_bitmapCache.TryGetValue(key, out var cached))
         {
             vm.IconBitmap = cached;
             return;
         }
 
-        _ = LoadBitmapAsync(iconName, SelectedGame, bmp => vm.IconBitmap = bmp);
+        _ = LoadBitmapAsync(iconName, SelectedGame, bmp => vm.IconBitmap = bmp, cancellationToken);
     }
 
-    private void LoadBitmapForAction(HotkeyActionViewModel vm, string iconName)
+    private void LoadBitmapForAction(
+        HotkeyActionViewModel vm,
+        string iconName,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(iconName))
         {
             return;
         }
 
-        if (_bitmapCache.TryGetValue(iconName, out var cached))
+        var key = (SelectedGame, iconName);
+        if (_bitmapCache.TryGetValue(key, out var cached))
         {
             vm.IconBitmap = cached;
             return;
         }
 
-        _ = LoadBitmapAsync(iconName, SelectedGame, bmp => vm.IconBitmap = bmp);
+        _ = LoadBitmapAsync(iconName, SelectedGame, bmp => vm.IconBitmap = bmp, cancellationToken);
     }
 
-    private async Task LoadBitmapAsync(string iconName, GameType gameType, Action<Bitmap> onLoaded)
+    private async Task LoadBitmapAsync(
+        string iconName,
+        GameType gameType,
+        Action<Bitmap> onLoaded,
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            var bytes = await techTreeService.GetIconBytesAsync(iconName, gameType).ConfigureAwait(false);
+            var key = (gameType, iconName);
+            if (_bitmapCache.TryGetValue(key, out var cached))
+            {
+                onLoaded(cached);
+                return;
+            }
+
+            var bytes = await techTreeService.GetIconBytesAsync(iconName, gameType, cancellationToken).ConfigureAwait(false);
             if (bytes != null && bytes.Length > 0)
             {
                 using var ms = new MemoryStream(bytes);
                 var bmp = new Bitmap(ms);
-                _bitmapCache[iconName] = bmp;
+                _bitmapCache[key] = bmp;
 
                 Dispatcher.UIThread.Post(() => onLoaded(bmp));
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when canceled
         }
         catch (Exception ex)
         {
@@ -575,8 +675,15 @@ public partial class GenHotkeysViewModel(
             {
                 foreach (var action in layout)
                 {
-                    if (!string.IsNullOrEmpty(action.HotkeyString) &&
-                        SelectedProfile.KeyMappings.TryGetValue(action.HotkeyString, out var mappedKey))
+                    if (string.IsNullOrEmpty(action.HotkeyString))
+                    {
+                        action.Hotkey = action.DefaultHotkey;
+                    }
+                    else if (SelectedProfile.ClearedKeys.Contains(action.HotkeyString))
+                    {
+                        action.Hotkey = null;
+                    }
+                    else if (SelectedProfile.KeyMappings.TryGetValue(action.HotkeyString, out var mappedKey))
                     {
                         action.Hotkey = mappedKey;
                     }
@@ -595,34 +702,10 @@ public partial class GenHotkeysViewModel(
 
         foreach (var obj in FilteredGameObjects)
         {
-            foreach (var layout in obj.Layouts)
-            {
-                var assigned = layout.Where(a => a.Hotkey.HasValue).ToList();
-                var groups = assigned.GroupBy(a => char.ToUpperInvariant(a.Hotkey!.Value));
-
-                foreach (var action in layout)
-                {
-                    action.IsConflict = false;
-                    action.ConflictReason = null;
-                }
-
-                foreach (var grp in groups)
-                {
-                    if (grp.Count() > 1)
-                    {
-                        conflictCount += grp.Count();
-                        var names = string.Join(", ", grp.Select(a => a.DisplayName));
-                        foreach (var conflictAct in grp)
-                        {
-                            conflictAct.IsConflict = true;
-                            conflictAct.ConflictReason = $"Conflicts with: {names}";
-                        }
-                    }
-                }
-            }
+            conflictCount += ValidateGameObjectConflicts(obj);
         }
 
-        TotalConflictsCount = conflictCount;
         HasConflicts = conflictCount > 0;
+        TotalConflictsCount = conflictCount;
     }
 }

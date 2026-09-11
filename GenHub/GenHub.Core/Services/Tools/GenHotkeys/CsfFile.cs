@@ -17,7 +17,8 @@ public class CsfFile
 
     private static readonly Regex HotkeyBracketRegex = new(
         @"\[&?[A-Za-z]\]|\(&?[A-Za-z]\)",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(1));
 
     private readonly Dictionary<string, string> _strings = new(StringComparer.OrdinalIgnoreCase);
 
@@ -56,7 +57,7 @@ public class CsfFile
 
         csf.Version = reader.ReadUInt32();
         var numLabels = reader.ReadUInt32();
-        var numStrings = reader.ReadUInt32();
+        _ = reader.ReadUInt32(); // Discard numStrings (recalculated on write)
         csf.UselessBytes = reader.ReadUInt32();
         csf.LanguageCode = reader.ReadUInt32();
 
@@ -253,27 +254,26 @@ public class CsfFile
             for (int i = 0; i < val.Length; i++)
             {
                 var ch = val[i];
-                var inverted = (ushort)~ch;
-                writer.Write(inverted);
+                writer.Write((ushort)~ch);
             }
         }
     }
 
     /// <summary>
-    /// Retrieves a string by label name.
+    /// Gets a string value by its label.
     /// </summary>
-    /// <param name="label">Case-insensitive label identifier.</param>
-    /// <returns>The string value, or null if not found.</returns>
-    public string? GetString(string label)
+    /// <param name="label">CSF label name.</param>
+    /// <returns>The string value or empty string if not found.</returns>
+    public string GetString(string label)
     {
-        return _strings.TryGetValue(label, out var val) ? val : null;
+        return _strings.TryGetValue(label, out var val) ? val : string.Empty;
     }
 
     /// <summary>
-    /// Sets or updates a label and its string value.
+    /// Sets or adds a label and value pair in the string table.
     /// </summary>
-    /// <param name="label">Label name.</param>
-    /// <param name="value">String value.</param>
+    /// <param name="label">CSF label name.</param>
+    /// <param name="value">String value to assign.</param>
     public void SetString(string label, string value)
     {
         _strings[label] = value;

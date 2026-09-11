@@ -1,6 +1,5 @@
 using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
-using GenHub.Core.Models.Tools.GenHotkeys;
 
 namespace GenHub.Features.Tools.GenHotkeys.ViewModels;
 
@@ -36,8 +35,10 @@ public partial class HotkeyActionViewModel : ObservableObject
     [ObservableProperty]
     private Bitmap? _iconBitmap;
 
+#pragma warning disable S2325 // SonarCloud false positive on MVVM Toolkit generated property
     /// <summary>Gets the display badge text for the hotkey.</summary>
     public string HotkeyBadge => Hotkey.HasValue ? $"[{char.ToUpperInvariant(Hotkey.Value)}]" : "[-]";
+#pragma warning restore S2325
 
     partial void OnHotkeyChanged(char? value)
     {

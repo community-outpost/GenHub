@@ -20,6 +20,14 @@ public interface IHotkeyProfileStorageService
     Task<IReadOnlyList<HotkeyProfile>> GetProfilesAsync(GameType gameType, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets a specific profile by its identifier.
+    /// </summary>
+    /// <param name="profileId">The unique profile ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The matching profile, or null if not found.</returns>
+    Task<HotkeyProfile?> GetProfileAsync(string profileId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Saves or updates a profile to persistent storage.
     /// </summary>
     /// <param name="profile">The profile to save.</param>
