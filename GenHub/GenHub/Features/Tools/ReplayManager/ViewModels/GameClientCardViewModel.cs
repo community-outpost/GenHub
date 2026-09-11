@@ -6,6 +6,29 @@ using GenHub.Core.Models.GameClients;
 namespace GenHub.Features.Tools.ReplayManager.ViewModels;
 
 /// <summary>
+/// Parameters for initializing a <see cref="GameClientCardViewModel"/>.
+/// </summary>
+/// <param name="Client">The game client model.</param>
+/// <param name="ManifestId">The manifest ID if catalog backed.</param>
+/// <param name="Name">The display name.</param>
+/// <param name="Version">The client version.</param>
+/// <param name="Publisher">The publisher name.</param>
+/// <param name="Category">The category name.</param>
+/// <param name="ExecutablePath">The executable path.</param>
+/// <param name="Description">The description.</param>
+/// <param name="OnSelect">Callback when the client card is selected.</param>
+public sealed record GameClientCardParameters(
+    GameClient Client,
+    string? ManifestId,
+    string Name,
+    string Version,
+    string Publisher,
+    string Category,
+    string ExecutablePath,
+    string Description,
+    Action<GameClientCardViewModel> OnSelect);
+
+/// <summary>
 /// Card ViewModel representing an available game client candidate for profile creation.
 /// </summary>
 public sealed partial class GameClientCardViewModel : ObservableObject
@@ -58,34 +81,18 @@ public sealed partial class GameClientCardViewModel : ObservableObject
     /// <summary>
     /// Initializes a new instance of the <see cref="GameClientCardViewModel"/> class.
     /// </summary>
-    /// <param name="client">The game client model.</param>
-    /// <param name="manifestId">The manifest ID if catalog backed.</param>
-    /// <param name="name">The display name.</param>
-    /// <param name="version">The client version.</param>
-    /// <param name="publisher">The publisher name.</param>
-    /// <param name="category">The category name.</param>
-    /// <param name="executablePath">The executable path.</param>
-    /// <param name="description">The description.</param>
-    /// <param name="onSelect">Callback when the client card is selected.</param>
-    public GameClientCardViewModel(
-        GameClient client,
-        string? manifestId,
-        string name,
-        string version,
-        string publisher,
-        string category,
-        string executablePath,
-        string description,
-        Action<GameClientCardViewModel> onSelect)
+    /// <param name="parameters">The card configuration parameters.</param>
+    public GameClientCardViewModel(GameClientCardParameters parameters)
     {
-        Client = client ?? throw new ArgumentNullException(nameof(client));
-        ManifestId = manifestId;
-        Name = name;
-        Version = version;
-        Publisher = publisher;
-        Category = category;
-        ExecutablePath = executablePath;
-        Description = description;
-        SelectCommand = new RelayCommand(() => onSelect(this));
+        ArgumentNullException.ThrowIfNull(parameters);
+        Client = parameters.Client ?? throw new ArgumentNullException(nameof(parameters));
+        ManifestId = parameters.ManifestId;
+        Name = parameters.Name;
+        Version = parameters.Version;
+        Publisher = parameters.Publisher;
+        Category = parameters.Category;
+        ExecutablePath = parameters.ExecutablePath;
+        Description = parameters.Description;
+        SelectCommand = new RelayCommand(() => parameters.OnSelect(this));
     }
 }

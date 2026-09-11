@@ -46,7 +46,6 @@ namespace GenHub.Features.Tools.ReplayManager.ViewModels;
 /// <param name="uploadHistoryService">The upload history and rate limit service.</param>
 /// <param name="notificationService">The notification service.</param>
 /// <param name="logger">The logger instance.</param>
-/// <param name="dialogService">Optional dialog service for user confirmations.</param>
 /// <param name="serviceProvider">Optional service provider for resolving dialog viewmodels dynamically.</param>
 public partial class ReplayManagerViewModel(
     IReplayDirectoryService directoryService,
@@ -55,7 +54,6 @@ public partial class ReplayManagerViewModel(
     IUploadHistoryService uploadHistoryService,
     INotificationService notificationService,
     ILogger<ReplayManagerViewModel> logger,
-    IDialogService? dialogService = null,
     IServiceProvider? serviceProvider = null) : ObservableObject,
     IRecipient<ProfileLaunchedMessage>,
     IRecipient<ProfileStoppedMessage>,
@@ -67,6 +65,8 @@ public partial class ReplayManagerViewModel(
     private readonly SemaphoreSlim _reloadLock = new(1, 1);
     private int _pendingReloadRequests;
     private bool _messengerRegistered;
+
+    private IDialogService? DialogService => serviceProvider?.GetService<IDialogService>();
 
     [ObservableProperty]
     private GameType selectedTab = GameType.ZeroHour;
@@ -500,9 +500,9 @@ public partial class ReplayManagerViewModel(
             return;
         }
 
-        if (dialogService != null)
+        if (DialogService != null)
         {
-            var confirmed = await dialogService.ShowConfirmationAsync(
+            var confirmed = await DialogService.ShowConfirmationAsync(
                 "Delete Upload",
                 $"Are you sure you want to delete '{item.FileName}' from cloud storage and remove it from history?",
                 confirmText: "Delete",
@@ -551,9 +551,9 @@ public partial class ReplayManagerViewModel(
             return;
         }
 
-        if (dialogService != null)
+        if (DialogService != null)
         {
-            var confirmed = await dialogService.ShowConfirmationAsync(
+            var confirmed = await DialogService.ShowConfirmationAsync(
                 "Clear Upload History",
                 "Are you sure you want to delete all uploaded replays from cloud storage and clear your upload history? This cannot be undone.",
                 confirmText: "Clear All",
@@ -1089,81 +1089,85 @@ public partial class ReplayManagerViewModel(
         if (IsDemoPath(replay.FullPath))
         {
             notificationService.ShowInfo(
-                "Select Game Client",                "Choose from available game clients (such as Community Patch, MP Recovery, or detected installations) to configure a dedicated profile.");
+                "Select Game Client",
+                "Choose from available game clients (such as Community Patch, MP Recovery, or detected installations) to configure a dedicated profile.");
             return;
         }
 
-        if (serviceProvider != null)
-        {
-            try
-            {
-                using var scope = serviceProvider.CreateScope();
-                var sp = scope.ServiceProvider;
-
-                var clientVm = ActivatorUtilities.CreateInstance<GameClientSelectionViewModel>(sp);
-                await clientVm.LoadClientsAsync(replay.GameVersion, replay.FileName);
-
-                var dialog = new GameClientSelectionView(clientVm);
-                var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is
-                    IClassicDesktopStyleApplicationLifetime desktop
-                        ? desktop.MainWindow
-                        : null;
-
-                if (mainWindow != null)
-                {
-                    await dialog.ShowDialog(mainWindow);
-                }
-
-                if (clientVm.WasSuccessful && clientVm.SelectedClient != null)
-                {
-                    IsBusy = true;
-                    IsIndeterminate = true;
-                    StatusMessage = $"Configuring profile for {replay.FileName}...";
-
-                    try
-                    {
-                        var result = await directoryService.CreateProfileForReplayAsync(
-                            replay,
-                            clientVm.SelectedClient,
-                            clientVm.SelectedManifestId);
-
-                        if (result.Success && result.Data != null)
-                        {
-                            notificationService.ShowSuccess(
-                                "Profile Created",                                $"Created profile '{result.Data.Name}' with {clientVm.SelectedClient.Name}.");
-                            StatusMessage = $"Created profile '{result.Data.Name}'.";
-                            await LoadReplaysAsync();
-                        }
-                        else
-                        {
-                            var errorMsg = result.FirstError ?? "Failed to create game profile for replay.";
-                            notificationService.ShowError("Profile Creation Failed", errorMsg);
-                            StatusMessage = "Profile creation failed.";
-                        }
-                    }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
-                    {
-                        logger.LogError(ex, "Failed to create profile for replay {FileName}", replay.FileName);
-                        notificationService.ShowError("Profile Creation Error", ex.Message);
-                        StatusMessage = "Profile creation error.";
-                    }
-                    finally
-                    {
-                        IsBusy = false;
-                        IsIndeterminate = false;
-                    }
-
-                    return;
-                }
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                logger.LogError(ex, "Failed to display game client selection dialog for {FileName}", replay.FileName);
-            }
-        }
-        else
+        if (serviceProvider == null)
         {
             await ExecuteDirectProfileCreationAsync(replay);
+            return;
+        }
+
+        try
+        {
+            using var scope = serviceProvider.CreateScope();
+            var clientVm = ActivatorUtilities.CreateInstance<GameClientSelectionViewModel>(scope.ServiceProvider);
+            await clientVm.LoadClientsAsync(replay.GameVersion, replay.FileName);
+
+            var dialog = new GameClientSelectionView(clientVm);
+            var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is
+                IClassicDesktopStyleApplicationLifetime desktop
+                    ? desktop.MainWindow
+                    : null;
+
+            if (mainWindow != null)
+            {
+                await dialog.ShowDialog(mainWindow);
+            }
+
+            await ApplySelectedClientToReplayAsync(replay, clientVm);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Failed to display game client selection dialog for {FileName}", replay.FileName);
+        }
+    }
+
+    private async Task ApplySelectedClientToReplayAsync(ReplayFile replay, GameClientSelectionViewModel clientVm)
+    {
+        if (!clientVm.WasSuccessful || clientVm.SelectedClient == null)
+        {
+            return;
+        }
+
+        IsBusy = true;
+        IsIndeterminate = true;
+        StatusMessage = $"Configuring profile for {replay.FileName}...";
+
+        try
+        {
+            var result = await directoryService.CreateProfileForReplayAsync(
+                replay,
+                clientVm.SelectedClient,
+                clientVm.SelectedManifestId);
+
+            if (result.Success && result.Data != null)
+            {
+                notificationService.ShowSuccess(
+                    "Profile Created",
+                    $"Created profile '{result.Data.Name}' with {clientVm.SelectedClient.Name}.");
+                StatusMessage = $"Created profile '{result.Data.Name}'.";
+                await LoadReplaysAsync();
+            }
+            else
+            {
+                var errorMsg = result.FirstError ?? "Failed to create game profile for replay.";
+                notificationService.ShowError("Profile Creation Failed", errorMsg);
+                StatusMessage = "Profile creation failed.";
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Failed to create profile for replay {FileName}", replay.FileName);
+            notificationService.ShowError("Profile Creation Error", ex.Message);
+            StatusMessage = "Profile creation error.";
+        }
+        finally
+        {
+            IsBusy = false;
+            IsIndeterminate = false;
         }
     }
 
@@ -1247,62 +1251,68 @@ public partial class ReplayManagerViewModel(
         if (IsDemoPath(replay.FullPath))
         {
             notificationService.ShowInfo(
-                "Select Profile to Run Replay",                "Choose a profile to watch this replay with.");
+                "Select Profile to Run Replay",
+                "Choose a profile to watch this replay with.");
             return;
         }
 
-        if (serviceProvider != null)
-        {
-            try
-            {
-                using var scope = serviceProvider.CreateScope();
-                var sp = scope.ServiceProvider;
-
-                var profileVm = ActivatorUtilities.CreateInstance<ProfileSelectionViewModel>(sp);
-                profileVm.DialogTitle = $"Select Profile - {replay.FileName}";
-                profileVm.HeaderTitle = "Select Profile to Run Replay";
-                profileVm.HeaderSubtitle = "Click a profile to launch this replay";
-                profileVm.ActionBadgeText = "Play";
-                profileVm.CreateProfileCardSubtitle = "Choose an available game client to create a fresh profile";
-
-                await profileVm.LoadProfilesAsync(replay.GameVersion, contentManifestId: string.Empty, contentName: replay.FileName);
-
-                var dialog = new ProfileSelectionView(profileVm);
-                var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is
-                    IClassicDesktopStyleApplicationLifetime desktop
-                        ? desktop.MainWindow
-                        : null;
-
-                if (mainWindow != null)
-                {
-                    await dialog.ShowDialog(mainWindow);
-                }
-
-                if (profileVm.IsCreateNewRequested)
-                {
-                    await SelectClientAndCreateProfileAsync(replay);
-                    return;
-                }
-
-                if (profileVm.WasSuccessful && profileVm.SelectedProfile != null)
-                {
-                    replay.MatchingProfileId = profileVm.SelectedProfile.Id;
-                    replay.MatchingProfileName = profileVm.SelectedProfile.Name;
-                    replay.CompatibilityStatus = ReplayCompatibilityStatus.Compatible;
-
-                    await LaunchReplayWithProfileAsync(replay, profileVm.SelectedProfile.Id);
-                    return;
-                }
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                logger.LogError(ex, "Failed to display profile selection dialog for {FileName}", replay.FileName);
-            }
-        }
-        else
+        if (serviceProvider == null)
         {
             await LaunchReplayWithProfileAsync(replay, replay.MatchingProfileId);
+            return;
         }
+
+        try
+        {
+            using var scope = serviceProvider.CreateScope();
+            var profileVm = await ShowProfileSelectionDialogAsync(scope.ServiceProvider, replay);
+
+            if (profileVm.IsCreateNewRequested)
+            {
+                await SelectClientAndCreateProfileAsync(replay);
+                return;
+            }
+
+            if (profileVm.WasSuccessful && profileVm.SelectedProfile != null)
+            {
+                replay.MatchingProfileId = profileVm.SelectedProfile.Id;
+                replay.MatchingProfileName = profileVm.SelectedProfile.Name;
+                replay.CompatibilityStatus = ReplayCompatibilityStatus.Compatible;
+
+                await LaunchReplayWithProfileAsync(replay, profileVm.SelectedProfile.Id);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Failed to display profile selection dialog for {FileName}", replay.FileName);
+        }
+    }
+
+    private static async Task<ProfileSelectionViewModel> ShowProfileSelectionDialogAsync(
+        IServiceProvider sp,
+        ReplayFile replay)
+    {
+        var profileVm = ActivatorUtilities.CreateInstance<ProfileSelectionViewModel>(sp);
+        profileVm.DialogTitle = $"Select Profile - {replay.FileName}";
+        profileVm.HeaderTitle = "Select Profile to Run Replay";
+        profileVm.HeaderSubtitle = "Click a profile to launch this replay";
+        profileVm.ActionBadgeText = "Play";
+        profileVm.CreateProfileCardSubtitle = "Choose an available game client to create a fresh profile";
+
+        await profileVm.LoadProfilesAsync(replay.GameVersion, contentManifestId: string.Empty, contentName: replay.FileName);
+
+        var dialog = new ProfileSelectionView(profileVm);
+        var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is
+            IClassicDesktopStyleApplicationLifetime desktop
+                ? desktop.MainWindow
+                : null;
+
+        if (mainWindow != null)
+        {
+            await dialog.ShowDialog(mainWindow);
+        }
+
+        return profileVm;
     }
 
     private async Task LaunchReplayWithProfileAsync(ReplayFile replay, string? profileId)

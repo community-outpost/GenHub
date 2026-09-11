@@ -2861,7 +2861,7 @@ public sealed class ReplayDirectoryServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateProfileForReplayAsync_WhenCustomGameClientProvided_UsesCustomGameClient()
+    public async Task CreateProfileForReplayAsync_WhenCustomGameClientProvided_UsesCustomGameClientAsync()
     {
         var replay = new ReplayFile
         {
@@ -2928,7 +2928,7 @@ public sealed class ReplayDirectoryServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task LaunchReplayAsync_WhenExplicitProfileIdProvided_LaunchesExplicitProfile()
+    public async Task LaunchReplayAsync_WhenExplicitProfileIdProvided_LaunchesExplicitProfileAsync()
     {
         var replay = new ReplayFile
         {

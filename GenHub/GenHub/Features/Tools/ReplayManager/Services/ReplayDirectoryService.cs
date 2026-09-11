@@ -200,33 +200,7 @@ public sealed class ReplayDirectoryService(
         EnsureReplayMatch(replay);
 
         var isUnmappedReplay = replay.MatchedClient == null;
-        if (customGameClient != null)
-        {
-            logger.LogInformation(
-                "[ReplayManager] Creating profile for replay '{ReplayFile}' using custom game client '{ClientName}' ({Publisher}, {Version})",
-                replay.FileName,
-                customGameClient.Name,
-                customGameClient.PublisherType,
-                customGameClient.Version);
-        }
-        else if (isUnmappedReplay)
-        {
-            logger.LogInformation(
-                "[ReplayManager] Replay '{ReplayFile}' (Exe: {ExeCrc}, INI: {IniCrc}) is unmapped; creating profile using base {GameVersion} installation",
-                replay.FileName,
-                replay.Metadata?.FormattedExeCrc ?? "N/A",
-                replay.Metadata?.FormattedIniCrc ?? "N/A",
-                replay.GameVersion);
-        }
-        else
-        {
-            logger.LogInformation(
-                "[ReplayManager] Creating profile for replay '{ReplayFile}' matched to {MatchedDescription} (Publisher: {Publisher}, Version: {Version})",
-                replay.FileName,
-                replay.MatchedClient?.Description,
-                replay.MatchedClient?.Publisher,
-                replay.MatchedClient?.Version);
-        }
+        LogCreateProfileStart(replay, customGameClient, isUnmappedReplay);
 
         try
         {
@@ -268,19 +242,12 @@ public sealed class ReplayDirectoryService(
                 : await ResolveReplayGameClientAsync(
                     installation, replay, defaultVersion, isRetailClient, manifestPool, contentOrchestrator, ct);
 
-            if (gameClient == null || string.IsNullOrWhiteSpace(gameClient.ExecutablePath))
+            gameClient = EnsureGameClientExecutable(gameClient, replay.GameVersion, replay.MatchedClient?.Publisher);
+            if (gameClient == null)
             {
-                var defaultExe = GetDefaultExecutableName(replay.GameVersion, replay.MatchedClient?.Publisher);
-                if (gameClient != null)
-                {
-                    gameClient.ExecutablePath = defaultExe;
-                }
-                else
-                {
-                    logger.LogError("[ReplayManager] Could not determine executable path for {GameVersion} installation", replay.GameVersion);
-                    return ProfileOperationResult<GameProfile>.CreateFailure(
-                        $"Could not determine executable path for {replay.GameVersion} installation.");
-                }
+                logger.LogError("[ReplayManager] Could not determine executable path for {GameVersion} installation", replay.GameVersion);
+                return ProfileOperationResult<GameProfile>.CreateFailure(
+                    $"Could not determine executable path for {replay.GameVersion} installation.");
             }
 
             var resolutionContext = new ReplayContentResolutionContext(
@@ -346,6 +313,11 @@ public sealed class ReplayDirectoryService(
         {
             replay.MatchingProfileId = profileId;
             replay.CompatibilityStatus = ReplayCompatibilityStatus.Compatible;
+            await ResolveExplicitProfileNameAsync(replay, profileId!, ct);
+        }
+        else
+        {
+            await EnsureValidProfileReferenceAsync(replay, ct);
         }
 
         logger.LogInformation(
@@ -354,80 +326,16 @@ public sealed class ReplayDirectoryService(
             replay.GameVersion,
             replay.MatchingProfileId ?? "none");
 
-        if (!isExplicitProfile)
-        {
-            await EnsureValidProfileReferenceAsync(replay, ct);
-        }
-        else
-        {
-            using var checkScope = scopeFactory.CreateScope();
-            var profileManager = checkScope.ServiceProvider.GetService<IGameProfileManager>();
-            if (profileManager != null)
-            {
-                var profileCheck = await profileManager.GetProfileAsync(profileId!, ct);
-                if (profileCheck?.Success == true && profileCheck.Data != null)
-                {
-                    replay.MatchingProfileName = profileCheck.Data.Name;
-                }
-            }
-        }
-
         if (string.IsNullOrEmpty(replay.MatchingProfileId))
         {
-            logger.LogInformation("[ReplayManager] No matching profile associated with '{ReplayFile}', creating one now...", replay.FileName);
-            var createResult = await CreateProfileForReplayAsync(replay, ct);
-            if (!createResult.Success || createResult.Data == null)
+            var ensureError = await EnsureReplayProfileExistsAsync(replay, ct);
+            if (ensureError != null)
             {
-                logger.LogError("[ReplayManager] Profile creation failed for '{ReplayFile}': {Error}", replay.FileName, createResult.FirstError);
-                return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
-                    createResult.FirstError ?? "Failed to create or find a matching profile for this replay.");
+                return ensureError;
             }
         }
 
-        try
-        {
-            using var scope = scopeFactory.CreateScope();
-            var launcherFacade = scope.ServiceProvider.GetRequiredService<IProfileLauncherFacade>();
-
-            var runningStatus = await launcherFacade.GetLaunchStatusAsync(replay.MatchingProfileId ?? string.Empty, ct);
-            if (runningStatus?.Success == true && runningStatus.Data?.IsRunning == true)
-            {
-                logger.LogWarning("[ReplayManager] Profile '{ProfileId}' is already running.", replay.MatchingProfileId);
-                return ProfileOperationResult<GameLaunchInfo>.CreateFailure("The game profile for this replay is already running.");
-            }
-
-            logger.LogInformation(
-                "[ReplayManager] Launching profile '{ProfileId}' for replay '{ReplayFile}'...",
-                replay.MatchingProfileId,
-                replay.FileName);
-
-            var launchResult = await launcherFacade.LaunchProfileAsync(
-                replay.MatchingProfileId ?? string.Empty,
-                skipUserDataCleanup: true,
-                cancellationToken: ct);
-
-            if (launchResult.Success)
-            {
-                logger.LogInformation(
-                    "[ReplayManager] Successfully launched profile '{ProfileId}' for replay '{ReplayFile}'",
-                    replay.MatchingProfileId,
-                    replay.FileName);
-                return launchResult;
-            }
-
-            logger.LogError(
-                "[ReplayManager] Launch failed for profile '{ProfileId}' (Replay: '{ReplayFile}'): {Error}",
-                replay.MatchingProfileId,
-                replay.FileName,
-                launchResult.FirstError);
-            return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
-                launchResult.FirstError ?? "Failed to launch game profile.");
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            logger.LogError(ex, "[ReplayManager] Exception launching profile '{ProfileId}' for replay '{ReplayFile}'", replay.MatchingProfileId, replay.FileName);
-            return ProfileOperationResult<GameLaunchInfo>.CreateFailure($"Launch failed: {ex.Message}");
-        }
+        return await ExecuteProfileLaunchAsync(replay.MatchingProfileId ?? string.Empty, replay.FileName, ct);
     }
 
     /// <inheritdoc />
@@ -2102,6 +2010,126 @@ public sealed class ReplayDirectoryService(
         }
 
         return replay;
+    }
+
+    private static GameClient? EnsureGameClientExecutable(GameClient? gameClient, GameType gameVersion, string? publisher)
+    {
+        if (gameClient != null && string.IsNullOrWhiteSpace(gameClient.ExecutablePath))
+        {
+            gameClient.ExecutablePath = GetDefaultExecutableName(gameVersion, publisher);
+        }
+
+        return gameClient;
+    }
+
+    private void LogCreateProfileStart(ReplayFile replay, GameClient? customGameClient, bool isUnmappedReplay)
+    {
+        if (customGameClient != null)
+        {
+            logger.LogInformation(
+                "[ReplayManager] Creating profile for replay '{ReplayFile}' using custom game client '{ClientName}' ({Publisher}, {Version})",
+                replay.FileName,
+                customGameClient.Name,
+                customGameClient.PublisherType,
+                customGameClient.Version);
+        }
+        else if (isUnmappedReplay)
+        {
+            logger.LogInformation(
+                "[ReplayManager] Replay '{ReplayFile}' (Exe: {ExeCrc}, INI: {IniCrc}) is unmapped; creating profile using base {GameVersion} installation",
+                replay.FileName,
+                replay.Metadata?.FormattedExeCrc ?? "N/A",
+                replay.Metadata?.FormattedIniCrc ?? "N/A",
+                replay.GameVersion);
+        }
+        else
+        {
+            logger.LogInformation(
+                "[ReplayManager] Creating profile for replay '{ReplayFile}' matched to {MatchedDescription} (Publisher: {Publisher}, Version: {Version})",
+                replay.FileName,
+                replay.MatchedClient?.Description,
+                replay.MatchedClient?.Publisher,
+                replay.MatchedClient?.Version);
+        }
+    }
+
+    private async Task ResolveExplicitProfileNameAsync(ReplayFile replay, string profileId, CancellationToken ct)
+    {
+        using var checkScope = scopeFactory.CreateScope();
+        var profileManager = checkScope.ServiceProvider.GetService<IGameProfileManager>();
+        if (profileManager != null)
+        {
+            var profileCheck = await profileManager.GetProfileAsync(profileId, ct);
+            if (profileCheck?.Success == true && profileCheck.Data != null)
+            {
+                replay.MatchingProfileName = profileCheck.Data.Name;
+            }
+        }
+    }
+
+    private async Task<ProfileOperationResult<GameLaunchInfo>?> EnsureReplayProfileExistsAsync(ReplayFile replay, CancellationToken ct)
+    {
+        logger.LogInformation("[ReplayManager] No matching profile associated with '{ReplayFile}', creating one now...", replay.FileName);
+        var createResult = await CreateProfileForReplayAsync(replay, ct);
+        if (!createResult.Success || createResult.Data == null)
+        {
+            logger.LogError("[ReplayManager] Profile creation failed for '{ReplayFile}': {Error}", replay.FileName, createResult.FirstError);
+            return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
+                createResult.FirstError ?? "Failed to create or find a matching profile for this replay.");
+        }
+
+        return null;
+    }
+
+    private async Task<ProfileOperationResult<GameLaunchInfo>> ExecuteProfileLaunchAsync(
+        string profileId,
+        string replayFileName,
+        CancellationToken ct)
+    {
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var launcherFacade = scope.ServiceProvider.GetRequiredService<IProfileLauncherFacade>();
+
+            var runningStatus = await launcherFacade.GetLaunchStatusAsync(profileId, ct);
+            if (runningStatus?.Success == true && runningStatus.Data?.IsRunning == true)
+            {
+                logger.LogWarning("[ReplayManager] Profile '{ProfileId}' is already running.", profileId);
+                return ProfileOperationResult<GameLaunchInfo>.CreateFailure("The game profile for this replay is already running.");
+            }
+
+            logger.LogInformation(
+                "[ReplayManager] Launching profile '{ProfileId}' for replay '{ReplayFile}'...",
+                profileId,
+                replayFileName);
+
+            var launchResult = await launcherFacade.LaunchProfileAsync(
+                profileId,
+                skipUserDataCleanup: true,
+                cancellationToken: ct);
+
+            if (launchResult.Success)
+            {
+                logger.LogInformation(
+                    "[ReplayManager] Successfully launched profile '{ProfileId}' for replay '{ReplayFile}'",
+                    profileId,
+                    replayFileName);
+                return launchResult;
+            }
+
+            logger.LogError(
+                "[ReplayManager] Launch failed for profile '{ProfileId}' (Replay: '{ReplayFile}'): {Error}",
+                profileId,
+                replayFileName,
+                launchResult.FirstError);
+            return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
+                launchResult.FirstError ?? "Failed to launch game profile.");
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "[ReplayManager] Exception launching profile '{ProfileId}' for replay '{ReplayFile}'", profileId, replayFileName);
+            return ProfileOperationResult<GameLaunchInfo>.CreateFailure($"Launch failed: {ex.Message}");
+        }
     }
 
     private void EnsureReplayMatch(ReplayFile replay)
