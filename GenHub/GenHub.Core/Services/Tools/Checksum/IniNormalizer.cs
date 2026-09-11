@@ -1,6 +1,13 @@
+using System;
 using System.Buffers;
 
 namespace GenHub.Core.Services.Tools.Checksum;
+
+/// <summary>
+/// Delegate for visiting a span of bytes for a normalized INI line.
+/// </summary>
+/// <param name="lineSpan">The line span.</param>
+public delegate void LineSpanVisitor(ReadOnlySpan<byte> lineSpan);
 
 /// <summary>
 /// Normalizes SAGE INI lines by stripping comments and replacing ASCII control characters with spaces.
@@ -12,7 +19,7 @@ public static class IniNormalizer
     /// </summary>
     /// <param name="data">The raw INI file bytes.</param>
     /// <param name="lineVisitor">Callback invoked for each non-empty normalized line.</param>
-    public static void ProcessLines(ReadOnlySpan<byte> data, Action<ReadOnlySpan<byte>> lineVisitor)
+    public static void ProcessLines(ReadOnlySpan<byte> data, LineSpanVisitor lineVisitor)
     {
         ArgumentNullException.ThrowIfNull(lineVisitor);
 
