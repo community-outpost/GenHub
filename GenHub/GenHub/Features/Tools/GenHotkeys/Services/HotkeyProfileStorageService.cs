@@ -151,7 +151,7 @@ public class HotkeyProfileStorageService(
                 };
 
                 if (string.Equals(presetName, GenHotkeysConstants.PresetVanilla, StringComparison.OrdinalIgnoreCase) ||
-                    presetName.Contains("Default", StringComparison.OrdinalIgnoreCase))
+                    presetName.Contains(GenHotkeysConstants.DefaultPresetKeyword, StringComparison.OrdinalIgnoreCase))
                 {
                     return profile;
                 }

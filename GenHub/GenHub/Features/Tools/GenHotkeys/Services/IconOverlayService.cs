@@ -64,29 +64,37 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
     };
 
     /// <inheritdoc />
-    public async Task<byte[]> GenerateOverlayTgaAsync(
+    public Task<byte[]> GenerateOverlayTgaAsync(
         byte[] sourceIconBytes,
         char hotkey,
         OverlayCorner corner,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(sourceIconBytes);
-        logger.LogDebug("Rendering hotkey badge '{Key}' at {Corner}", hotkey, corner);
+        cancellationToken.ThrowIfCancellationRequested();
 
-        using var image = Image.Load<Rgba32>(sourceIconBytes);
+        return Task.Run(
+            () =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                logger.LogDebug("Rendering hotkey badge '{Key}' at {Corner}", hotkey, corner);
 
-        var badgeChar = char.ToUpperInvariant(hotkey);
-        StampBadge(image, badgeChar, corner);
+                using var image = Image.Load<Rgba32>(sourceIconBytes);
 
-        using var ms = new MemoryStream();
-        var tgaEncoder = new TgaEncoder
-        {
-            BitsPerPixel = TgaBitsPerPixel.Pixel32,
-            Compression = TgaCompression.None,
-        };
+                var badgeChar = char.ToUpperInvariant(hotkey);
+                StampBadge(image, badgeChar, corner);
 
-        await image.SaveAsync(ms, tgaEncoder, cancellationToken);
-        return ms.ToArray();
+                using var ms = new MemoryStream();
+                var tgaEncoder = new TgaEncoder
+                {
+                    BitsPerPixel = TgaBitsPerPixel.Pixel32,
+                    Compression = TgaCompression.None,
+                };
+
+                image.Save(ms, tgaEncoder);
+                return ms.ToArray();
+            },
+            cancellationToken);
     }
 
     private static void StampBadge(Image<Rgba32> image, char character, OverlayCorner corner)

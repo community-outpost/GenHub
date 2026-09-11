@@ -269,7 +269,7 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
         }
 
         var overlapRatio = (double)commonCount / minCount;
-        return overlapRatio > 0.40;
+        return overlapRatio > GenHotkeysConstants.UpgradeVariantOverlapRatioThreshold;
     }
 
     private static void MergeUpgradeLayout(
@@ -308,27 +308,27 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
     }
 
     private static bool IsSellAction(TechTreeActionJson action) =>
-        string.Equals(action.HotkeyString, "CONTROLBAR:Sell", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(action.IconName, "Sell", StringComparison.OrdinalIgnoreCase);
+        string.Equals(action.HotkeyString, GenHotkeysConstants.CsfLabels.Sell, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(action.IconName, GenHotkeysConstants.IconNames.Sell, StringComparison.OrdinalIgnoreCase);
 
     private static int FindInsertIndex(List<TechTreeActionJson> list, TechTreeActionJson action)
     {
         // Neutron Mines -> right after Land Mines
-        if (string.Equals(action.HotkeyString, "CONTROLBAR:UpgradeEMPMines", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(action.IconName, "PRCNeutronMines", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(action.HotkeyString, GenHotkeysConstants.CsfLabels.UpgradeEmpMines, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(action.IconName, GenHotkeysConstants.IconNames.PrcNeutronMines, StringComparison.OrdinalIgnoreCase))
         {
             return list.FindIndex(a =>
-                string.Equals(a.HotkeyString, "CONTROLBAR:UpgradeChinaMines", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(a.IconName, "PRCLandMine", StringComparison.OrdinalIgnoreCase));
+                string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.UpgradeChinaMines, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(a.IconName, GenHotkeysConstants.IconNames.PrcLandMine, StringComparison.OrdinalIgnoreCase));
         }
 
         // Satellite Hack 2 -> right after Satellite Hack 1
-        if (string.Equals(action.HotkeyString, "CONTROLBAR:UpgradeChinaSatelliteHackTwo", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(action.IconName, "PRCSatelliteHack2", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(action.HotkeyString, GenHotkeysConstants.CsfLabels.UpgradeChinaSatelliteHackTwo, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(action.IconName, GenHotkeysConstants.IconNames.PrcSatelliteHack2, StringComparison.OrdinalIgnoreCase))
         {
             return list.FindIndex(a =>
-                string.Equals(a.HotkeyString, "CONTROLBAR:UpgradeChinaSatelliteHackOne", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(a.IconName, "PRCSatelliteHack1", StringComparison.OrdinalIgnoreCase));
+                string.Equals(a.HotkeyString, GenHotkeysConstants.CsfLabels.UpgradeChinaSatelliteHackOne, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(a.IconName, GenHotkeysConstants.IconNames.PrcSatelliteHack1, StringComparison.OrdinalIgnoreCase));
         }
 
         return -1;

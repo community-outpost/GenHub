@@ -29,6 +29,12 @@ public static class GenHotkeysConstants
     /// <summary>Leikeze preset name.</summary>
     public const string PresetLeikeze = "Leikeze";
 
+    /// <summary>Keyword indicating a default preset name.</summary>
+    public const string DefaultPresetKeyword = "Default";
+
+    /// <summary>Minimum overlap ratio threshold between layout actions to consider an upgrade variant.</summary>
+    public const double UpgradeVariantOverlapRatioThreshold = 0.40;
+
     /// <summary>Storage directory name for user hotkey profiles.</summary>
     public const string HotkeysStorageDirectory = "Hotkeys";
 
@@ -83,6 +89,56 @@ public static class GenHotkeysConstants
 
     /// <summary>Command CSF key prefix.</summary>
     public const string CsfCommandPrefix = "COMMAND:";
+
+    /// <summary>Mutual exclusion and special action CSF labels.</summary>
+    public static class CsfLabels
+    {
+        /// <summary>CSF label for Daisy Cutter special power.</summary>
+        public const string DaisyCutter = "CONTROLBAR:DaisyCutter";
+
+        /// <summary>CSF label for MOAB special power.</summary>
+        public const string Moab = "CONTROLBAR:MOAB";
+
+        /// <summary>CSF label for China Land Mines upgrade.</summary>
+        public const string UpgradeChinaMines = "CONTROLBAR:UpgradeChinaMines";
+
+        /// <summary>CSF label for China EMP / Neutron Mines upgrade.</summary>
+        public const string UpgradeEmpMines = "CONTROLBAR:UpgradeEMPMines";
+
+        /// <summary>CSF label for China Satellite Hack 1 upgrade.</summary>
+        public const string UpgradeChinaSatelliteHackOne = "CONTROLBAR:UpgradeChinaSatelliteHackOne";
+
+        /// <summary>CSF label for China Satellite Hack 2 upgrade.</summary>
+        public const string UpgradeChinaSatelliteHackTwo = "CONTROLBAR:UpgradeChinaSatelliteHackTwo";
+
+        /// <summary>CSF label for Structure Sell command.</summary>
+        public const string Sell = "CONTROLBAR:Sell";
+    }
+
+    /// <summary>Mutual exclusion and special action icon names.</summary>
+    public static class IconNames
+    {
+        /// <summary>Icon identifier for USA Daisy Cutter.</summary>
+        public const string UsaDaisyCutter = "USADaisyCutter";
+
+        /// <summary>Icon identifier for USA MOAB.</summary>
+        public const string UsaMoab = "USAMOAB";
+
+        /// <summary>Icon identifier for PRC Land Mines.</summary>
+        public const string PrcLandMine = "PRCLandMine";
+
+        /// <summary>Icon identifier for PRC Neutron Mines.</summary>
+        public const string PrcNeutronMines = "PRCNeutronMines";
+
+        /// <summary>Icon identifier for PRC Satellite Hack 1.</summary>
+        public const string PrcSatelliteHack1 = "PRCSatelliteHack1";
+
+        /// <summary>Icon identifier for PRC Satellite Hack 2.</summary>
+        public const string PrcSatelliteHack2 = "PRCSatelliteHack2";
+
+        /// <summary>Icon identifier for Sell action.</summary>
+        public const string Sell = "Sell";
+    }
 
     /// <summary>
     /// Mapping of primary hotkey labels (typically CONTROLBAR:...) to their corresponding
