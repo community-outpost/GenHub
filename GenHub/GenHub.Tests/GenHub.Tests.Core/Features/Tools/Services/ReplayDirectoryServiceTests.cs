@@ -2728,6 +2728,134 @@ public sealed class ReplayDirectoryServiceTests
         Assert.Equal("1.101.thesuperhackers.patch.gamedata", replay.MatchedClient.DataPatchManifestId);
     }
 
+    /// <summary>
+    /// Verifies that when a replay has a GeneralsOnline Exe CRC and Vanilla 1.04 INI CRC (0xFEAAE3F3),
+    /// compatibility does not discard baseClient, resolving to Vanilla 1.04 INI rather than unmapped.
+    /// </summary>
+    [Fact]
+    public void ResolveCompatibility_WhenGeneralsOnlineClientWithVanillaIni_ResolvesWithoutDroppingBaseClient()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "TWTF.rep",
+            FullPath = "/replays/TWTF.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0x45BF602F,
+                IniCrc = 0xFEAAE3F3,
+            },
+        };
+
+        var baseClient = new CrcMappingEntry
+        {
+            ExeCrc = "0x45BF602F",
+            IniCrc = "0x5CB7992C",
+            ManifestId = "1.329261.generalsonline.gameclient.zerohour",
+            Publisher = "generalsonline",
+            GameType = "ZeroHour",
+            Version = "032926_QFE1",
+            Description = "GeneralsOnline 032926_QFE1",
+            CdnUrl = "https://cdn.playgenerals.online/GeneralsOnline_portable_032926_QFE1.zip",
+        };
+
+        CrcMappingEntry? nullEntry = null;
+        CrcMappingEntry? outBase = baseClient;
+        _mockCrcRegistry
+            .Setup(r => r.TryGetEntry("0x45BF602F", "0xFEAAE3F3", out nullEntry))
+            .Returns(false);
+        _mockCrcRegistry
+            .Setup(r => r.TryGetEntryByExeCrc("0x45BF602F", out outBase))
+            .Returns(true);
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var acquiredIds = new HashSet<string>
+        {
+            "1.329261.generalsonline.gameclient.zerohour",
+        };
+
+        service.ResolveCompatibility(replay, acquiredIds, []);
+
+        Assert.Equal(ReplayCompatibilityStatus.RequiresProfile, replay.CompatibilityStatus);
+        Assert.NotNull(replay.MatchedClient);
+        Assert.Equal("generalsonline", replay.MatchedClient.Publisher);
+        Assert.Equal("032926_QFE1", replay.MatchedClient.Version);
+        Assert.Equal("Vanilla 1.04 INI", replay.MatchedClient.DataPatchName);
+    }
+
+    /// <summary>
+    /// Verifies that when exact CRC pair is missing, a replay matching GeneralsOnline pattern
+    /// and modern build timestamp resolves via heuristic to GeneralsOnline with Vanilla 1.04 INI.
+    /// </summary>
+    [Fact]
+    public void ResolveCompatibility_WhenGeneralsOnlineLadderReplayAndModernBuildTime_ResolvesViaHeuristic()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "match_1374991_user_35b24c0a6c98950114114a3a7bfd5fe6_replay.rep",
+            FullPath = "/replays/match_1374991_user_35b24c0a6c98950114114a3a7bfd5fe6_replay.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0xE981A0B4,
+                IniCrc = 0xFEAAE3F3,
+                BuildTimeString = "Mar 31 2026 18:16:29",
+            },
+        };
+
+        var goClient = new CrcMappingEntry
+        {
+            ExeCrc = "0x3EAC0C69",
+            IniCrc = "0x5CB7992C",
+            ManifestId = "1.329262.generalsonline.gameclient.zerohour",
+            Publisher = "generalsonline",
+            GameType = "ZeroHour",
+            Version = "032926_QFE2",
+            BuildDate = "2026-03-31",
+            Description = "GeneralsOnline 032926_QFE2",
+            CdnUrl = "https://cdn.playgenerals.online/GeneralsOnline_portable_032926_QFE2.zip",
+        };
+
+        CrcMappingEntry? nullEntry = null;
+        _mockCrcRegistry
+            .Setup(r => r.TryGetEntry(It.IsAny<string>(), It.IsAny<string>(), out nullEntry))
+            .Returns(false);
+        _mockCrcRegistry
+            .Setup(r => r.TryGetEntryByExeCrc(It.IsAny<string>(), out nullEntry))
+            .Returns(false);
+        _mockCrcRegistry
+            .Setup(r => r.GetAllEntries())
+            .Returns([goClient]);
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var acquiredIds = new HashSet<string>
+        {
+            "1.329262.generalsonline.gameclient.zerohour",
+        };
+
+        service.ResolveCompatibility(replay, acquiredIds, []);
+
+        Assert.Equal(ReplayCompatibilityStatus.RequiresProfile, replay.CompatibilityStatus);
+        Assert.NotNull(replay.MatchedClient);
+        Assert.Equal("generalsonline", replay.MatchedClient.Publisher);
+        Assert.Equal("032926_QFE2", replay.MatchedClient.Version);
+        Assert.Equal("Vanilla 1.04 INI", replay.MatchedClient.DataPatchName);
+    }
+
     private static ReplayFile CreateTestReplayForPathResolution(string publisher) => new()
     {
         FileName = "Test.rep",

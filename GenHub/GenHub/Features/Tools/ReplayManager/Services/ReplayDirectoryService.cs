@@ -45,6 +45,10 @@ public sealed class ReplayDirectoryService(
     ILogger<ReplayDirectoryService> logger) : IReplayDirectoryService
 {
     private static readonly TimeSpan ReplayFileNameRegexTimeout = TimeSpan.FromMilliseconds(250);
+    private static readonly Regex GeneralsOnlineFileNameRegex = new(
+        @"^match_\d+_user_[a-fA-F0-9]+_replay\.rep$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+        ReplayFileNameRegexTimeout);
 
     private sealed record ReplayContentResolutionContext(
         IContentManifestPool ManifestPool,
@@ -672,6 +676,57 @@ public sealed class ReplayDirectoryService(
                 ResolveMatchedClientCompatibility(replay, resolvedEntry, acquiredIds, profiles, logger);
                 return;
             }
+
+            // Step 3: Check if INI is vanilla Zero Hour or matches base client's known INI
+            if (string.Equals(normalizedIni, "FEAAE3F3", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(normalizedIni, "76B251A3", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(normalizedIni, NormalizeCrcHex(baseClient.IniCrc), StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(normalizedIni, "5CB7992C", StringComparison.OrdinalIgnoreCase))
+            {
+                var resolvedEntry = baseClient with
+                {
+                    IniCrc = iniCrcStr,
+                    DataPatchManifestId = null,
+                    DataPatchName = "Vanilla 1.04 INI",
+                    DataPatchCdnUrl = null,
+                };
+
+                ResolveMatchedClientCompatibility(replay, resolvedEntry, acquiredIds, profiles, logger);
+                return;
+            }
+
+            // Step 4: Unknown custom INI, but base client is known
+            {
+                var resolvedEntry = baseClient with
+                {
+                    IniCrc = iniCrcStr,
+                    DataPatchManifestId = null,
+                    DataPatchName = $"Custom INI ({normalizedIni})",
+                    DataPatchCdnUrl = null,
+                };
+
+                ResolveMatchedClientCompatibility(replay, resolvedEntry, acquiredIds, profiles, logger);
+                return;
+            }
+        }
+
+        // Step 5: Heuristic fallback for third-party / GeneralsOnline replays by filename pattern or build timestamp
+        if (TryResolveGeneralsOnlineHeuristic(replay, out var heuristicClient) && heuristicClient != null)
+        {
+            var normalizedIni = NormalizeCrcHex(iniCrcStr);
+            var isVanillaIni = string.Equals(normalizedIni, "FEAAE3F3", StringComparison.OrdinalIgnoreCase) ||
+                               string.Equals(normalizedIni, "76B251A3", StringComparison.OrdinalIgnoreCase);
+
+            var resolvedEntry = heuristicClient with
+            {
+                ExeCrc = exeCrcStr,
+                IniCrc = iniCrcStr,
+                DataPatchManifestId = isVanillaIni ? null : heuristicClient.DataPatchManifestId,
+                DataPatchName = isVanillaIni ? "Vanilla 1.04 INI" : (heuristicClient.DataPatchName ?? $"Custom INI ({normalizedIni})"),
+            };
+
+            ResolveMatchedClientCompatibility(replay, resolvedEntry, acquiredIds, profiles, logger);
+            return;
         }
 
         ResolveUnmappedClientCompatibility(replay, profiles);
@@ -1931,13 +1986,183 @@ public sealed class ReplayDirectoryService(
 
     private void EnsureReplayMatch(ReplayFile replay)
     {
-        if (replay.MatchedClient == null &&
-            !string.IsNullOrEmpty(replay.Metadata?.FormattedExeCrc) &&
-            !string.IsNullOrEmpty(replay.Metadata?.FormattedIniCrc) &&
-            crcMappingRegistry.TryGetEntry(replay.Metadata.FormattedExeCrc, replay.Metadata.FormattedIniCrc, out var resolvedMatch))
+        if (replay.MatchedClient != null)
+        {
+            return;
+        }
+
+        var exeCrc = replay.Metadata?.FormattedExeCrc;
+        var iniCrc = replay.Metadata?.FormattedIniCrc;
+
+        if (string.IsNullOrEmpty(exeCrc))
+        {
+            return;
+        }
+
+        // 1. Exact match
+        if (!string.IsNullOrEmpty(iniCrc) &&
+            crcMappingRegistry.TryGetEntry(exeCrc, iniCrc, out var resolvedMatch) &&
+            resolvedMatch != null)
         {
             replay.MatchedClient = resolvedMatch;
+            return;
         }
+
+        // 2. Secondary resolution: Base client by Exe CRC
+        if (crcMappingRegistry.TryGetEntryByExeCrc(exeCrc, out var baseClient) && baseClient != null)
+        {
+            var normalizedIni = !string.IsNullOrEmpty(iniCrc) ? NormalizeCrcHex(iniCrc) : string.Empty;
+
+            if (!string.IsNullOrEmpty(iniCrc) &&
+                crcMappingRegistry.TryGetEntryByIniCrc(iniCrc, out var catalogEntry) &&
+                !string.IsNullOrEmpty(catalogEntry?.DataPatchManifestId))
+            {
+                replay.MatchedClient = baseClient with
+                {
+                    IniCrc = iniCrc,
+                    DataPatchManifestId = catalogEntry.DataPatchManifestId,
+                    DataPatchName = catalogEntry.DataPatchName,
+                    DataPatchCdnUrl = catalogEntry.DataPatchCdnUrl,
+                };
+                return;
+            }
+
+            var isVanillaIni = string.Equals(normalizedIni, "FEAAE3F3", StringComparison.OrdinalIgnoreCase) ||
+                               string.Equals(normalizedIni, "76B251A3", StringComparison.OrdinalIgnoreCase) ||
+                               string.Equals(normalizedIni, NormalizeCrcHex(baseClient.IniCrc), StringComparison.OrdinalIgnoreCase) ||
+                               string.Equals(normalizedIni, "5CB7992C", StringComparison.OrdinalIgnoreCase) ||
+                               string.IsNullOrEmpty(normalizedIni);
+
+            replay.MatchedClient = baseClient with
+            {
+                IniCrc = iniCrc ?? baseClient.IniCrc,
+                DataPatchManifestId = null,
+                DataPatchName = isVanillaIni ? "Vanilla 1.04 INI" : $"Custom INI ({normalizedIni})",
+                DataPatchCdnUrl = null,
+            };
+            return;
+        }
+
+        // 3. Heuristic resolution for GeneralsOnline replays
+        if (TryResolveGeneralsOnlineHeuristic(replay, out var heuristicClient) && heuristicClient != null)
+        {
+            var normalizedIni = !string.IsNullOrEmpty(iniCrc) ? NormalizeCrcHex(iniCrc) : string.Empty;
+            var isVanillaIni = string.Equals(normalizedIni, "FEAAE3F3", StringComparison.OrdinalIgnoreCase) ||
+                               string.Equals(normalizedIni, "76B251A3", StringComparison.OrdinalIgnoreCase) ||
+                               string.IsNullOrEmpty(normalizedIni);
+
+            replay.MatchedClient = heuristicClient with
+            {
+                ExeCrc = exeCrc,
+                IniCrc = iniCrc ?? heuristicClient.IniCrc,
+                DataPatchManifestId = isVanillaIni ? null : heuristicClient.DataPatchManifestId,
+                DataPatchName = isVanillaIni ? "Vanilla 1.04 INI" : (heuristicClient.DataPatchName ?? $"Custom INI ({normalizedIni})"),
+            };
+        }
+    }
+
+    private bool TryResolveGeneralsOnlineHeuristic(ReplayFile replay, out CrcMappingEntry? matchedEntry)
+    {
+        matchedEntry = null;
+
+        var fileName = replay.FileName;
+        var buildTime = replay.Metadata?.BuildTimeString;
+        var versionStr = replay.Metadata?.VersionString;
+
+        var isGeneralsOnlinePattern =
+            (!string.IsNullOrEmpty(fileName) && GeneralsOnlineFileNameRegex.IsMatch(fileName)) ||
+            (!string.IsNullOrEmpty(fileName) && fileName.Contains("generalsonline", StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(versionStr) && versionStr.Contains("generalsonline", StringComparison.OrdinalIgnoreCase));
+
+        var isModernBuild = !string.IsNullOrEmpty(buildTime) && (buildTime.Contains("2026") || buildTime.Contains("2025"));
+
+        if (!isGeneralsOnlinePattern && !isModernBuild)
+        {
+            return false;
+        }
+
+        var allEntries = crcMappingRegistry.GetAllEntries();
+        var generalsOnlineEntries = allEntries
+            .Where(e => string.Equals(e.Publisher, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (generalsOnlineEntries.Count == 0)
+        {
+            return false;
+        }
+
+        // 1. Try to match by build date
+        if (!string.IsNullOrEmpty(buildTime))
+        {
+            var dateMatch = generalsOnlineEntries.FirstOrDefault(e =>
+                (!string.IsNullOrEmpty(e.BuildDate) && IsBuildDateMatching(e.BuildDate, buildTime)) ||
+                (!string.IsNullOrEmpty(e.Version) && buildTime.Contains(e.Version, StringComparison.OrdinalIgnoreCase)));
+
+            if (dateMatch != null)
+            {
+                matchedEntry = dateMatch;
+                return true;
+            }
+        }
+
+        // 2. If it is a GeneralsOnline pattern replay, fall back to the most recent GeneralsOnline entry
+        if (isGeneralsOnlinePattern)
+        {
+            matchedEntry = generalsOnlineEntries
+                .OrderByDescending(e => e.BuildDate ?? string.Empty)
+                .ThenByDescending(e => e.Version)
+                .FirstOrDefault();
+            return matchedEntry != null;
+        }
+
+        return false;
+    }
+
+    private static bool IsBuildDateMatching(string buildDate, string buildTime)
+    {
+        var parts = buildDate.Split('-');
+        if (parts.Length != 3)
+        {
+            return false;
+        }
+
+        var year = parts[0];
+        var monthNum = parts[1];
+        var dayNum = parts[2].TrimStart('0');
+
+        string monthName = monthNum switch
+        {
+            "01" => "Jan",
+            "02" => "Feb",
+            "03" => "Mar",
+            "04" => "Apr",
+            "05" => "May",
+            "06" => "Jun",
+            "07" => "Jul",
+            "08" => "Aug",
+            "09" => "Sep",
+            "10" => "Oct",
+            "11" => "Nov",
+            "12" => "Dec",
+            _ => string.Empty,
+        };
+
+        if (string.IsNullOrEmpty(monthName))
+        {
+            return false;
+        }
+
+        if (!buildTime.Contains(year, StringComparison.OrdinalIgnoreCase) ||
+            !buildTime.Contains(monthName, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return Regex.IsMatch(
+            buildTime,
+            $@"\b0?{Regex.Escape(dayNum)}\b",
+            RegexOptions.CultureInvariant,
+            ReplayFileNameRegexTimeout);
     }
 
     private async Task EnsureValidProfileReferenceAsync(ReplayFile replay, CancellationToken ct)

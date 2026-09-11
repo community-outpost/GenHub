@@ -123,6 +123,66 @@ BASELINE_ENTRIES = [
         "dataPatchCdnUrl": None,
     },
     {
+        "exeCrc": "0x45BF602F",
+        "iniCrc": "0xFEAAE3F3",
+        "sha256": "e03e98227249ee5ad4236f2b61f3ae6eeda2765dcb95b9c6b5090919e563c89e",
+        "manifestId": "1.329261.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": None,
+        "dataPatchName": "Vanilla 1.04 INI",
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "032926_QFE1",
+        "buildDate": "2026-03-30",
+        "description": "GeneralsOnline 032926_QFE1",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_032926_QFE1.zip",
+        "dataPatchCdnUrl": None,
+    },
+    {
+        "exeCrc": "0xE981A0B4",
+        "iniCrc": "0xFEAAE3F3",
+        "sha256": "ff240ed786c8a524c45a03f8c70be687cff6aae1bc05156f2b64cfe6c366549d",
+        "manifestId": "1.329262.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": None,
+        "dataPatchName": "Vanilla 1.04 INI",
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "032926_QFE2",
+        "buildDate": "2026-03-31",
+        "description": "GeneralsOnline 032926_QFE2",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_032926_QFE2.zip",
+        "dataPatchCdnUrl": None,
+    },
+    {
+        "exeCrc": "0x1A5EF2C5",
+        "iniCrc": "0xFEAAE3F3",
+        "sha256": "cfaba92da40f476fc7c99696d569d0f802a493651774a441ec952b23b89e528b",
+        "manifestId": "1.329263.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": None,
+        "dataPatchName": "Vanilla 1.04 INI",
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "032926_QFE3",
+        "buildDate": "2026-04-02",
+        "description": "GeneralsOnline 032926_QFE3",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_032926_QFE3.zip",
+        "dataPatchCdnUrl": None,
+    },
+    {
+        "exeCrc": "0x88BEB180",
+        "iniCrc": "0xFEAAE3F3",
+        "sha256": "123ad03667cc45f1f89811ca9705abfca6104673af85c646adeb50595ab89f41",
+        "manifestId": "1.213262.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": None,
+        "dataPatchName": "Vanilla 1.04 INI",
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "021326_QFE2",
+        "buildDate": "2026-03-16",
+        "description": "GeneralsOnline 021326_QFE2",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_021326_QFE2.zip",
+        "dataPatchCdnUrl": None,
+    },
+    {
         "exeCrc": "0xB9DB8815",
         "iniCrc": "0x81FB5632",
         "sha256": "7156faf170b7c1415b7886e20cc3e0b7d8045721de983415bac952f3c3f069ab",
@@ -271,7 +331,7 @@ def inspect_archive_binary(download_url: str, binary_patterns: list[str]) -> tup
                             exe_crc = compute_buffer_crc(binary_bytes)
                             sha256 = compute_buffer_sha256(binary_bytes)
                             break
-                if not ini_crc and base_name in ("mapcachego.ini", "generals.ini"):
+                if not ini_crc and base_name in ("generals.ini",):
                     ini_bytes = zf.read(name)
                     ini_crc = compute_buffer_crc(ini_bytes)
 
@@ -451,7 +511,21 @@ def build_generalsonline_entry(cand: tuple[str, str, str, str], inspect_binaries
     date_code, version_str, manifest_id, url = cand
     exe_crc = ""
     sha256 = ""
-    ini_crc = "0x5CB7992C"
+    month = int(date_code[:2])
+    ini_crc = "0x81FB5632" if month >= 8 else "0xFEAAE3F3"
+
+    known_sage_crcs = {
+        "021326_QFE2": "0x88BEB180",
+        "032926_QFE1": "0x45BF602F",
+        "032926_QFE2": "0xE981A0B4",
+        "032926_QFE3": "0x1A5EF2C5",
+        "032926_QFE4": "0x1A5EF2C5",
+        "032926_QFE5": "0x1A5EF2C5",
+        "082826": "0xB9DB8815",
+        "082826_QFE1": "0xB9DB8815",
+    }
+    if version_str in known_sage_crcs:
+        exe_crc = known_sage_crcs[version_str]
 
     if inspect_binaries:
         c_exe, c_sha, c_ini = inspect_archive_binary(url, ["generalsonlinezh_60.exe", "generalsonlinezh.exe"])
