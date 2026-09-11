@@ -256,7 +256,7 @@ public sealed partial class GameClientSelectionViewModel(
                 _allClients.Add(CreateManifestGameClientCard(manifest, targetGame));
             }
 
-            bool MatchesGame(IContentManifest manifest)
+            bool MatchesGame(ContentManifest manifest)
             {
                 if (manifest.TargetGame == targetGame)
                 {
@@ -279,7 +279,7 @@ public sealed partial class GameClientSelectionViewModel(
         }
     }
 
-    private GameClientCardViewModel CreateManifestGameClientCard(IContentManifest manifest, GameType targetGame)
+    private GameClientCardViewModel CreateManifestGameClientCard(ContentManifest manifest, GameType targetGame)
     {
         var entryResolution = ManifestVariantResolver.ResolveEntryPoint(manifest);
         var relExePath = entryResolution.Success && !string.IsNullOrWhiteSpace(entryResolution.RelativePath)
