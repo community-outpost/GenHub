@@ -32,6 +32,9 @@ public static class GenHotkeysConstants
     /// <summary>Default CommandMap filename.</summary>
     public const string CommandMapFileName = "CommandMap.ini";
 
+    /// <summary>Standard CSF filename.</summary>
+    public const string GeneralsCsfFileName = "generals.csf";
+
     /// <summary>Preset path for English CSF.</summary>
     public const string PresetsLeikezeEn = "Presets/LeikezeEN.csf";
 
@@ -47,14 +50,30 @@ public static class GenHotkeysConstants
     /// <summary>Tech tree relative path for Zero Hour.</summary>
     public const string TechTreeGeneralsZh = "Profiles/GeneralsZH/TechTree.json";
 
-    /// <summary>Naming format for generated hotkey .big files (prefixed with zzz so SAGE engine loads it last to override default game assets): zzz_Hotkeys_{0}_{1}.big.</summary>
-    public const string BigFileNamePattern = "zzz_Hotkeys_{0}_{1}.big";
+    /// <summary>
+    /// Naming format for generated hotkey .big files: !Hotkeys_{0}_{1}.big.
+    /// Prefixed with '!' so SAGE engine loads it alphabetically before retail archives (e.g. EnglishZH.big),
+    /// because SAGE's ArchiveFileSystem uses first-loaded wins (overwrite = FALSE).
+    /// </summary>
+    public const string BigFileNamePattern = "!Hotkeys_{0}_{1}.big";
 
     /// <summary>Target directory in .big for localized CSF files.</summary>
     public const string DataEnglishDirectory = "Data/English";
 
     /// <summary>Target directory in .big for overlay TGA textures.</summary>
     public const string ArtTexturesDirectory = "Art/Textures";
+
+    /// <summary>Relative directory in .big for hand-created mapped images INIs.</summary>
+    public const string MappedImagesHandCreatedDirectory = "Data/INI/MappedImages/HandCreated";
+
+    /// <summary>Relative directory in .big for 512-texture size mapped images INIs.</summary>
+    public const string MappedImagesTextureSize512Directory = "Data/INI/MappedImages/TextureSize_512";
+
+    /// <summary>MappedImages INI filename for hand-created overrides.</summary>
+    public const string HandCreatedHotkeysIniFileName = "Hotkeys.ini";
+
+    /// <summary>MappedImages INI filename for TextureSize_512 overrides.</summary>
+    public const string TextureSize512HotkeysIniFileName = "zzHotkeys.ini";
 
     /// <summary>ControlBar CSF key prefix.</summary>
     public const string CsfControlBarPrefix = "CONTROLBAR:";

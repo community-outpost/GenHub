@@ -13,10 +13,6 @@ namespace GenHub.Features.Tools.GenHotkeys.Converters;
 /// </summary>
 public class FactionToBrushConverter : IValueConverter
 {
-    private static readonly IBrush DefaultUsaBrush = new SolidColorBrush(Color.Parse("#3B82F6"));
-    private static readonly IBrush DefaultChinaBrush = new SolidColorBrush(Color.Parse("#EF4444"));
-    private static readonly IBrush DefaultGlaBrush = new SolidColorBrush(Color.Parse("#10B981"));
-
     /// <inheritdoc />
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
@@ -29,15 +25,15 @@ public class FactionToBrushConverter : IValueConverter
 
         if (string.Equals(group, HotkeyFaction.ChinaGroup, StringComparison.OrdinalIgnoreCase))
         {
-            return TryGetThemeBrush("ErrorBrush") ?? DefaultChinaBrush;
+            return TryGetThemeBrush("ErrorBrush") ?? TryGetThemeBrush("AccentBrush") ?? Brushes.Red;
         }
 
         if (string.Equals(group, HotkeyFaction.GlaGroup, StringComparison.OrdinalIgnoreCase))
         {
-            return TryGetThemeBrush("SuccessBrush") ?? DefaultGlaBrush;
+            return TryGetThemeBrush("SuccessBrush") ?? TryGetThemeBrush("AccentBrush") ?? Brushes.Green;
         }
 
-        return TryGetThemeBrush("ZeroHourAccentBrush") ?? DefaultUsaBrush;
+        return TryGetThemeBrush("ZeroHourAccentBrush") ?? TryGetThemeBrush("AccentBrush") ?? Brushes.DodgerBlue;
     }
 
     /// <inheritdoc />

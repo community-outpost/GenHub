@@ -225,4 +225,41 @@ public class HotkeyPackageServiceTests
                 It.IsAny<CancellationToken>()),
             Times.Never);
     }
+
+    /// <summary>
+    /// Verifies that key mappings for labels missing from the base CSF do not inject malformed badges.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateHotkeysAddonAsync_WithUnknownCsfLabel_DoesNotCorruptCsfAsync()
+    {
+        var profile = new HotkeyProfile
+        {
+            Name = "Unknown Label Profile",
+            TargetGame = GameType.ZeroHour,
+            OverlayEnabled = false,
+        };
+        profile.KeyMappings["UNKNOWN:NonExistentLabel"] = 'X';
+
+        _mockLocalContent.Setup(l => l.CreateLocalContentManifestAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                ContentType.Addon,
+                GameType.ZeroHour,
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.local.addon.hotkeys-unknown"),
+                Name = "Custom Hotkeys: Unknown",
+                ContentType = ContentType.Addon,
+                TargetGame = GameType.ZeroHour,
+            }));
+
+        var result = await _service.CreateHotkeysAddonAsync(profile);
+
+        Assert.True(result.Success);
+    }
 }
