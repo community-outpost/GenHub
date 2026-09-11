@@ -496,7 +496,7 @@ public sealed class ProfileContentService(
                             if (ExclusiveContentTypes.Contains(manifest1.ContentType) &&
                                 manifest1.ContentType == manifest2.ContentType)
                             {
-                                warnings.Add($"⚠ Conflict: '{manifest1.Name}' and '{manifest2.Name}' cannot both be enabled ({manifest1.ContentType})");
+                                warnings.Add($"Conflict: '{manifest1.Name}' and '{manifest2.Name}' cannot both be enabled ({manifest1.ContentType})");
                             }
 
                             // Check Community Outpost category conflicts
@@ -508,7 +508,7 @@ public sealed class ProfileContentService(
                                 var conflicting1 = Core.Models.CommunityOutpost.GenPatcherDependencyBuilder.GetConflictingCodes(code1);
                                 if (conflicting1.Contains(code2, StringComparer.OrdinalIgnoreCase))
                                 {
-                                    warnings.Add($"⚠ Conflict: '{manifest1.Name}' and '{manifest2.Name}' cannot both be enabled. Please remove one.");
+                                    warnings.Add($"Conflict: '{manifest1.Name}' and '{manifest2.Name}' cannot both be enabled. Please remove one.");
                                 }
                             }
                         }

@@ -122,7 +122,10 @@ public class MockNotificationService : INotificationService
 public class MockUploadHistoryService : IUploadHistoryService
 {
     /// <inheritdoc/>
-    public long MaxUploadBytesPerPeriod => 1024 * 1024 * 50; // 50MB mock
+    public event EventHandler? UploadHistoryChanged;
+
+    /// <inheritdoc/>
+    public long MaxUploadBytesPerPeriod => 10 * 1024 * 1024; // 10MB mock
 
     /// <inheritdoc/>
     public Task<IReadOnlyList<UploadHistoryItem>> GetUploadHistoryAsync(string? category = null)
@@ -134,7 +137,7 @@ public class MockUploadHistoryService : IUploadHistoryService
     public Task<UsageInfo> GetUsageInfoAsync(string? category = null)
     {
         // UsageInfo is a record struct with (UsedBytes, LimitBytes, ResetDate)
-        return Task.FromResult(new UsageInfo(1024 * 1024 * 5, 1024 * 1024 * 50, DateTime.UtcNow.AddDays(1)));
+        return Task.FromResult(new UsageInfo(1024 * 1024 * 5, 10 * 1024 * 1024, DateTime.UtcNow.AddDays(1)));
     }
 
     /// <inheritdoc/>

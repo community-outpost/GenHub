@@ -37,6 +37,7 @@ public partial class GameProfileSettingsViewModel
 
             CurrentProfileId = null;
             IsHotswapMode = false;
+            OnPropertyChanged(nameof(CanShareProfile));
             Name = ProfileConstants.DefaultProfileName;
             Description = "A new game profile";
             ColorValue = "#1976D2";
@@ -136,6 +137,7 @@ public partial class GameProfileSettingsViewModel
             }
 
             CurrentProfileId = profileId;
+            OnPropertyChanged(nameof(CanShareProfile));
             _logger?.LogInformation("InitializeForProfileAsync called with profileId: {ProfileId}", profileId);
 
             if (_gameProfileManager == null)

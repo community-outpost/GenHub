@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using GenHub.Core.Models.Common;
@@ -10,6 +11,11 @@ namespace GenHub.Core.Interfaces.Common;
 /// </summary>
 public interface IUploadHistoryService
 {
+    /// <summary>
+    /// Occurs when upload history or storage quota usage is updated.
+    /// </summary>
+    event EventHandler? UploadHistoryChanged;
+
     /// <summary>
     /// Gets the default maximum upload bytes per period.
     /// </summary>

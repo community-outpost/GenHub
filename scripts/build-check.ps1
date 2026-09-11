@@ -187,7 +187,6 @@ try {
             Write-Status "Running compile check on: $(Split-Path $target -Leaf)"
 
             # Use --no-restore to skip package resolution (much faster)
-            # Use --no-dependencies when checking a single project (skip transitive)
             $buildArgs = @(
                 "build", $target,
                 "--no-restore",
@@ -195,10 +194,6 @@ try {
                 "--verbosity", $Verbosity,
                 "-maxcpucount:2"
             )
-
-            if ($Project) {
-                $buildArgs += "--no-dependencies"
-            }
 
             & dotnet @buildArgs
             $exitCode = $LASTEXITCODE

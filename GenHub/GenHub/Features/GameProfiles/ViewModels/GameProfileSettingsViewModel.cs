@@ -261,20 +261,29 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly ILocalContentService? _localContentService;
     private readonly IGenLauncherNormalizationService? _genLauncherNormalizationService;
     private readonly IDialogService? _dialogService;
+    private readonly Func<IProfileSharingService>? _profileSharingServiceFactory;
+    private readonly IUploadHistoryService? _uploadHistoryService;
     private readonly ILogger<GameProfileSettingsViewModel>? _logger;
     private readonly ILogger<GameSettingsViewModel>? _gameSettingsLogger;
+    private readonly ILoggerFactory? _loggerFactory;
     private readonly IProfileContentLinker? _profileContentLinker;
     private readonly ILaunchRegistry? _launchRegistry;
-
     private readonly NotificationService _localNotificationService = new(NullLogger<NotificationService>.Instance);
     private readonly List<string> _originalEnabledContentIds = [];
     private GameProfile? _originalProfile; // skipcq: CS-R1137
     private UpdateProfileRequest? _originalGameSettings; // skipcq: CS-R1137
     private bool _isSynchronizingEnabledContent;
 
+    /// <summary>
+    /// Gets a value indicating whether the current profile can be shared (i.e. is already saved and has an ID).
+    /// </summary>
+    public bool CanShareProfile => !string.IsNullOrEmpty(CurrentProfileId);
+
     private WorkspaceStrategy? OriginalWorkspaceStrategy { get; set; }
 
     private string? CurrentProfileId { get; set; }
+
+    private IProfileSharingService? ProfileSharingService => _profileSharingServiceFactory?.Invoke();
 
     /// <summary>
     /// Event triggered when the view model requests to close.
@@ -307,6 +316,9 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// <param name="dialogService">The dialog service.</param>
     /// <param name="logger">The logger for this view model.</param>
     /// <param name="gameSettingsLogger">The logger for the game settings view model.</param>
+    /// <param name="profileSharingServiceFactory">Optional factory for resolving the profile sharing service.</param>
+    /// <param name="loggerFactory">Optional logger factory for creating child view model loggers.</param>
+    /// <param name="uploadHistoryService">Optional upload history service for quota monitoring.</param>
     /// <param name="profileContentLinker">The profile content linker service.</param>
     /// <param name="launchRegistry">The launch registry service.</param>
     public GameProfileSettingsViewModel(
@@ -323,6 +335,9 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         IDialogService? dialogService,
         ILogger<GameProfileSettingsViewModel>? logger,
         ILogger<GameSettingsViewModel>? gameSettingsLogger,
+        Func<IProfileSharingService>? profileSharingServiceFactory = null,
+        ILoggerFactory? loggerFactory = null,
+        IUploadHistoryService? uploadHistoryService = null,
         IProfileContentLinker? profileContentLinker = null,
         ILaunchRegistry? launchRegistry = null)
     {
@@ -339,6 +354,9 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         _dialogService = dialogService;
         _logger = logger;
         _gameSettingsLogger = gameSettingsLogger;
+        _profileSharingServiceFactory = profileSharingServiceFactory;
+        _loggerFactory = loggerFactory;
+        _uploadHistoryService = uploadHistoryService;
         _profileContentLinker = profileContentLinker;
         _launchRegistry = launchRegistry;
 

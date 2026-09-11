@@ -1,0 +1,433 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Platform.Storage;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using GenHub.Common.ViewModels;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Models.GameProfile;
+using Microsoft.Extensions.Logging;
+
+namespace GenHub.Features.GameProfiles.ViewModels;
+
+/// <summary>
+/// ViewModel for the Share Profile dialog modal.
+/// </summary>
+[SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates CommunityToolkit generated observable properties.")]
+public partial class ShareProfileDialogViewModel : ViewModelBase, IDisposable
+{
+    private readonly IProfileSharingService _profileSharingService;
+    private readonly IUploadHistoryService? _uploadHistoryService;
+    private readonly ILogger _logger;
+    private readonly string _profileId;
+    private readonly System.Threading.CancellationTokenSource _cts = new();
+    private readonly Task? _quotaTask;
+    private bool _disposed;
+    private Task? _generateShareLinkTask;
+    private Task? _exportFileTask;
+
+    [ObservableProperty]
+    private string _profileName = string.Empty;
+
+    [ObservableProperty]
+    private string _gameVersion = string.Empty;
+
+    [ObservableProperty]
+    private string _themeColor = "#9575CD";
+
+    [ObservableProperty]
+    private string _shareUri = string.Empty;
+
+    [ObservableProperty]
+    private bool _isShareUriGenerated;
+
+    [ObservableProperty]
+    private bool _isGeneratingLink;
+
+    [ObservableProperty]
+    private string _generatingStatusText = string.Empty;
+
+    [ObservableProperty]
+    private string _statusMessage = string.Empty;
+
+    [ObservableProperty]
+    private bool _isStatusMessageVisible;
+
+    [ObservableProperty]
+    private bool _hasCloudUploads;
+
+    [ObservableProperty]
+    private string _cloudUploadDetails = string.Empty;
+
+    [ObservableProperty]
+    private string _uploadQuotaText = string.Empty;
+
+    [ObservableProperty]
+    private double _uploadQuotaPercentage;
+
+    [ObservableProperty]
+    private bool _isQuotaNearLimit;
+
+    [ObservableProperty]
+    private bool _isQuotaExceeded;
+
+    [ObservableProperty]
+    private bool _hasUploadWarnings;
+
+    [ObservableProperty]
+    private string _uploadWarningMessage = string.Empty;
+
+    /// <summary>
+    /// Event raised when the dialog should be closed.
+    /// </summary>
+    public event EventHandler? CloseRequested;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ShareProfileDialogViewModel"/> class.
+    /// </summary>
+    /// <param name="profileId">The ID of the profile being shared.</param>
+    /// <param name="profile">The profile instance.</param>
+    /// <param name="profileSharingService">The sharing service instance.</param>
+    /// <param name="logger">The logger instance.</param>
+    /// <param name="uploadHistoryService">Optional upload history service instance for quota monitoring.</param>
+    /// <param name="initialShareUri">Optional pre-generated share URI.</param>
+    public ShareProfileDialogViewModel(
+        string profileId,
+        GameProfile profile,
+        IProfileSharingService profileSharingService,
+        ILogger logger,
+        IUploadHistoryService? uploadHistoryService = null,
+        string? initialShareUri = null)
+    {
+        _profileId = profileId ?? throw new ArgumentNullException(nameof(profileId));
+        _profileSharingService = profileSharingService ?? throw new ArgumentNullException(nameof(profileSharingService));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _uploadHistoryService = uploadHistoryService;
+
+        ProfileName = profile.Name;
+        GameVersion = !string.IsNullOrEmpty(profile.GameClient?.Version)
+            ? $"{profile.GameClient.GameType} {profile.GameClient.Version}"
+            : $"{profile.Version}".Trim();
+        ThemeColor = !string.IsNullOrEmpty(profile.ThemeColor) ? profile.ThemeColor : "#9575CD";
+        ShareUri = initialShareUri ?? string.Empty;
+        IsShareUriGenerated = !string.IsNullOrEmpty(ShareUri);
+
+        bool containsLocal = profile.EnabledContentIds?.Any(id =>
+            id.Contains(".local.", StringComparison.OrdinalIgnoreCase) &&
+            !id.Contains(".gameinstallation.", StringComparison.OrdinalIgnoreCase)) == true;
+
+        HasCloudUploads = containsLocal;
+        CloudUploadDetails = containsLocal
+            ? "This profile contains custom local content that must be uploaded to temporary cloud storage (14-day retention) to generate a shareable link. You can also export a standalone .ghprofile file without uploading to cloud."
+            : string.Empty;
+
+        if (containsLocal)
+        {
+            if (_uploadHistoryService != null)
+            {
+                _quotaTask = LoadUploadQuotaAsync();
+            }
+        }
+        else if (string.IsNullOrEmpty(ShareUri))
+        {
+            _ = GenerateShareLinkAsync();
+        }
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ShareProfileDialogViewModel"/> class with a precomputed share URI.
+    /// </summary>
+    /// <param name="profileId">The ID of the profile being shared.</param>
+    /// <param name="profile">The profile instance.</param>
+    /// <param name="shareUri">The generated genhub:// share URI.</param>
+    /// <param name="profileSharingService">The sharing service instance.</param>
+    /// <param name="logger">The logger instance.</param>
+    /// <param name="uploadHistoryService">Optional upload history service instance for quota monitoring.</param>
+    public ShareProfileDialogViewModel(
+        string profileId,
+        GameProfile profile,
+        string shareUri,
+        IProfileSharingService profileSharingService,
+        ILogger logger,
+        IUploadHistoryService? uploadHistoryService = null)
+        : this(profileId, profile, profileSharingService, logger, uploadHistoryService, shareUri)
+    {
+    }
+
+    /// <summary>
+    /// Releases unmanaged and - optionally - managed resources.
+    /// </summary>
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases unmanaged and - optionally - managed resources.
+    /// </summary>
+    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        if (disposing)
+        {
+            try
+            {
+                _cts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Ignore if already cancelled or disposed
+            }
+
+            // Defer CTS disposal until in-flight tasks observe cancellation and complete,
+            // avoiding ObjectDisposedException when registering callbacks or tokens in transit.
+            _ = Task.Run(
+                async () =>
+                {
+                    try
+                    {
+                        var tasks = new List<Task>();
+                        if (_generateShareLinkTask != null)
+                        {
+                            tasks.Add(_generateShareLinkTask);
+                        }
+
+                        if (_exportFileTask != null)
+                        {
+                            tasks.Add(_exportFileTask);
+                        }
+
+                        if (_quotaTask != null)
+                        {
+                            tasks.Add(_quotaTask);
+                        }
+
+                        if (tasks.Count > 0)
+                        {
+                            await Task.WhenAll(tasks).ConfigureAwait(false);
+                        }
+                    }
+                    catch
+                    {
+                        // Suppress task cancellation / failures on dispose
+                    }
+                    finally
+                    {
+                        _cts.Dispose();
+                    }
+                },
+                System.Threading.CancellationToken.None);
+        }
+    }
+
+    private static TopLevel? GetMainWindowTopLevel()
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } mainWindow })
+        {
+            return TopLevel.GetTopLevel(mainWindow);
+        }
+
+        return null;
+    }
+
+    private async Task LoadUploadQuotaAsync()
+    {
+        if (_uploadHistoryService == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var usage = await _uploadHistoryService.GetUsageInfoAsync(ProfileSharingConstants.UploadCategoryProfiles);
+            double usedMb = usage.UsedBytes / (1024.0 * 1024.0);
+            double limitMb = usage.LimitBytes / (1024.0 * 1024.0);
+            double pct = usage.LimitBytes > 0 ? (usedMb / limitMb) * 100.0 : 0.0;
+
+            UploadQuotaText = $"Storage Quota: {usedMb:F1} MB / {limitMb:F1} MB ({pct:F0}% used)";
+            UploadQuotaPercentage = Math.Min(100.0, pct);
+            IsQuotaNearLimit = pct >= 80.0;
+            IsQuotaExceeded = pct >= 100.0;
+
+            if (IsQuotaExceeded)
+            {
+                HasUploadWarnings = true;
+                UploadWarningMessage = "Cloud storage limit reached (10 MB). Old uploads can be cleared in Settings > Uploads & Storage, or you can export a .ghprofile file instead.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load upload quota information.");
+        }
+    }
+
+    [RelayCommand]
+    private async Task GenerateShareLinkAsync()
+    {
+        _generateShareLinkTask = GenerateShareLinkInternalAsync();
+        await _generateShareLinkTask;
+    }
+
+    private async Task GenerateShareLinkInternalAsync()
+    {
+        if (IsGeneratingLink)
+        {
+            return;
+        }
+
+        try
+        {
+            IsGeneratingLink = true;
+            GeneratingStatusText = HasCloudUploads
+                ? "Packaging and uploading custom content..."
+                : "Generating share link...";
+
+            var uriResult = await _profileSharingService.ExportProfileToUriAsync(_profileId, _cts.Token);
+            if (!uriResult.Success || string.IsNullOrEmpty(uriResult.Data))
+            {
+                ShowStatus($"Failed to generate share link: {uriResult.FirstError ?? "Unknown error"}");
+                _logger.LogWarning("Failed to generate share link for profile {ProfileId}: {Error}", _profileId, uriResult.FirstError);
+                return;
+            }
+
+            ShareUri = uriResult.Data;
+            IsShareUriGenerated = true;
+            ShowStatus("Share link generated!");
+
+            if (HasCloudUploads && _uploadHistoryService != null)
+            {
+                await LoadUploadQuotaAsync();
+            }
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.LogInformation(ex, "Profile share link generation cancelled for profile {ProfileId}", _profileId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to generate share link for profile {ProfileId}", _profileId);
+            ShowStatus($"Error generating link: {ex.Message}");
+        }
+        finally
+        {
+            IsGeneratingLink = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task CopyUriAsync()
+    {
+        try
+        {
+            var topLevel = GetMainWindowTopLevel();
+            if (topLevel?.Clipboard != null)
+            {
+                await topLevel.Clipboard.SetTextAsync(ShareUri);
+                ShowStatus("Share link copied to clipboard!");
+                _logger.LogInformation("Copied share URI to clipboard for profile {ProfileName}", ProfileName);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to copy share URI to clipboard.");
+            ShowStatus("Failed to copy link.");
+        }
+    }
+
+    [RelayCommand]
+    private async Task ExportFileAsync()
+    {
+        _exportFileTask = ExportFileInternalAsync();
+        await _exportFileTask;
+    }
+
+    private async Task ExportFileInternalAsync()
+    {
+        try
+        {
+            var topLevel = GetMainWindowTopLevel();
+            if (topLevel?.StorageProvider == null)
+            {
+                return;
+            }
+
+            var file = await topLevel.StorageProvider.SaveFilePickerAsync(CreateExportFilePickerOptions());
+            if (file == null)
+            {
+                return;
+            }
+
+            var destination = file.Path.LocalPath;
+            var result = await _profileSharingService.ExportProfileToFileAsync(_profileId, destination, _cts.Token);
+            if (result.Success)
+            {
+                ShowStatus("Profile package exported successfully!");
+                _logger.LogInformation("Exported profile {ProfileName} to {Path}", ProfileName, destination);
+            }
+            else
+            {
+                ShowStatus($"Export failed: {result.FirstError}");
+            }
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.LogInformation(ex, "Profile file export cancelled for profile {ProfileId}", _profileId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to export profile file.");
+            ShowStatus("Failed to export profile file.");
+        }
+    }
+
+    private FilePickerSaveOptions CreateExportFilePickerOptions()
+    {
+        string safeProfileName = string.Join("_", ProfileName.Split(Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries)).Replace(' ', '_');
+        if (string.IsNullOrWhiteSpace(safeProfileName))
+        {
+            safeProfileName = "profile";
+        }
+
+        return new FilePickerSaveOptions
+        {
+            Title = "Export Game Profile Package",
+            SuggestedFileName = $"{safeProfileName}{ProfileSharingConstants.ProfileFileExtension}",
+            DefaultExtension = ProfileSharingConstants.ProfileFileExtension.TrimStart('.'),
+            FileTypeChoices =
+            [
+                new FilePickerFileType(ProfileSharingConstants.ProfileFileTypeDisplayName)
+                {
+                    Patterns = [ProfileSharingConstants.ProfileFilePattern],
+                },
+            ],
+        };
+    }
+
+    [RelayCommand]
+    private void Close()
+    {
+        CloseRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void ShowStatus(string message)
+    {
+        StatusMessage = message;
+        IsStatusMessageVisible = true;
+    }
+}
