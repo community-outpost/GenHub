@@ -230,14 +230,14 @@ public abstract class BasePackageDeploymentFix(
             "Backups",
             $"{Id}_{key}");
 
+        var roamingDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            AppConstants.AppName,
+            "Backups",
+            $"{Id}_{key}");
+
         try
         {
-            var roamingDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                AppConstants.AppName,
-                "Backups",
-                $"{Id}_{key}");
-
             if (Directory.Exists(roamingDir) && !Directory.Exists(localDir))
             {
                 var parent = Path.GetDirectoryName(localDir);
@@ -249,17 +249,13 @@ public abstract class BasePackageDeploymentFix(
                 Directory.Move(roamingDir, localDir);
             }
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {
-            // Best effort migration
-        }
-        catch (UnauthorizedAccessException)
-        {
-            // Best effort migration
-        }
-        catch (System.Security.SecurityException)
-        {
-            // Best effort migration
+            Logger.LogWarning(ex, "Failed to migrate backup directory from {RoamingDir} to {LocalDir}", roamingDir, localDir);
+            if (Directory.Exists(roamingDir) && !Directory.Exists(localDir))
+            {
+                return roamingDir;
+            }
         }
 
         return localDir;

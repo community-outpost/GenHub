@@ -68,6 +68,9 @@ public class StorageMigrationService(
         StorageMigrationConstants.DotGenHubCasDirectoryName,
     };
 
+    private static readonly Lazy<bool> CachedIsCustomInstallRoot = new(ComputeIsCustomInstallRoot);
+    private static bool? _customInstallRootOverride;
+
     /// <inheritdoc />
     public async Task<OperationResult<StorageMigrationPreflightResult>> ValidatePreflightAsync(
         string targetPath,
@@ -261,20 +264,13 @@ public class StorageMigrationService(
     /// rather than the default %LOCALAPPDATA%\GenHub root.
     /// </summary>
     /// <returns><c>true</c> if running from a custom Velopack install root; otherwise, <c>false</c>.</returns>
-    internal static bool IsCustomInstallRoot()
-    {
-        var sourceRoot = GetSourceRootDirectory();
-        var defaultInstallRoot = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            AppConstants.AppName);
+    internal static bool IsCustomInstallRoot() => _customInstallRootOverride ?? CachedIsCustomInstallRoot.Value;
 
-        if (string.Equals(sourceRoot, defaultInstallRoot, PathHelper.PathComparison))
-        {
-            return false;
-        }
-
-        return IsVelopackRoot(sourceRoot);
-    }
+    /// <summary>
+    /// Sets an override for <see cref="IsCustomInstallRoot"/> for unit testing.
+    /// </summary>
+    /// <param name="isCustom">The override value, or <see langword="null"/> to reset.</param>
+    internal static void SetCustomInstallRootOverrideForTesting(bool? isCustom) => _customInstallRootOverride = isCustom;
 
     /// <summary>
     /// If running from a custom install location, removes empty %LOCALAPPDATA%\GenHub folder if it was
@@ -449,6 +445,28 @@ public class StorageMigrationService(
         {
             TryDeleteDirectory(destDir);
             throw;
+        }
+    }
+
+    private static bool ComputeIsCustomInstallRoot()
+    {
+        try
+        {
+            var sourceRoot = GetSourceRootDirectory();
+            var defaultInstallRoot = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                AppConstants.AppName);
+
+            if (string.Equals(sourceRoot, defaultInstallRoot, PathHelper.PathComparison))
+            {
+                return false;
+            }
+
+            return IsVelopackRoot(sourceRoot);
+        }
+        catch (Exception)
+        {
+            return false;
         }
     }
 

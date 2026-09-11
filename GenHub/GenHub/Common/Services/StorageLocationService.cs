@@ -189,8 +189,15 @@ public class StorageLocationService(
         string installationId,
         out string path)
     {
+        var volumeRoot = Path.GetPathRoot(basePath);
         foreach (var ancestor in PathHelper.EnumerateSameVolumeAncestors(basePath))
         {
+            if (!string.IsNullOrEmpty(volumeRoot) && PathHelper.AreSamePath(ancestor, volumeRoot))
+            {
+                // Do not materialize candidate directory directly at volume root (e.g. D:\.genhub-cas)
+                continue;
+            }
+
             var candidate = Path.Combine(ancestor, directoryName);
             if (writabilityProbe.CanCreateStorageAt(candidate))
             {

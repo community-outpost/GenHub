@@ -37,12 +37,12 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
                 return StorageMigrationService.GetSourceRootDirectory();
             }
 
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GenHub");
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
         }
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "Failed to get configured AppDataPath, using default");
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GenHub");
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
         }
     }
 
@@ -235,9 +235,16 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
             }
         }
 
-        if (StorageMigrationService.IsCustomInstallRoot())
+        try
         {
-            return StorageMigrationService.GetSourceRootDirectory();
+            if (StorageMigrationService.IsCustomInstallRoot())
+            {
+                return StorageMigrationService.GetSourceRootDirectory();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to resolve custom install root for configured data path, falling back to default");
         }
 
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);

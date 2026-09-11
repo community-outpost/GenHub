@@ -169,10 +169,22 @@ public static class PathHelper
             yield break;
         }
 
-        var current = fullPath;
+        var current = Path.TrimEndingDirectorySeparator(fullPath);
+        if (string.IsNullOrEmpty(current))
+        {
+            current = fullPath;
+        }
+
+        var canonicalVolumeRoot = Path.TrimEndingDirectorySeparator(volumeRoot);
+
         while (!string.IsNullOrEmpty(current))
         {
             yield return current;
+
+            if (AreSamePath(current, volumeRoot) || (!string.IsNullOrEmpty(canonicalVolumeRoot) && AreSamePath(current, canonicalVolumeRoot)))
+            {
+                break;
+            }
 
             var parent = Path.GetDirectoryName(current);
             if (string.IsNullOrEmpty(parent) || AreSamePath(current, parent))

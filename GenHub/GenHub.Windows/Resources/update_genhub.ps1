@@ -55,7 +55,7 @@ $excluded = @(
 
 try {
     Write-Log "Ensuring target directory exists: $TargetDir"
-    if (-not (Test-Path $TargetDir)) {
+    if (-not (Test-Path -LiteralPath $TargetDir)) {
         New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
     }
 
@@ -63,24 +63,24 @@ try {
     New-Item -ItemType Directory -Path $BackupDir -Force | Out-Null
     
     Write-Log "Backing up existing files..."
-    if (Test-Path $TargetDir) {
-        $existingItems = Get-ChildItem -Path $TargetDir -Force -ErrorAction SilentlyContinue
+    if (Test-Path -LiteralPath $TargetDir) {
+        $existingItems = Get-ChildItem -LiteralPath $TargetDir -Force -ErrorAction SilentlyContinue
         if ($null -ne $existingItems -and $existingItems.Count -gt 0) {
             $existingItems | ForEach-Object {
-                Copy-Item -Path $_.FullName -Destination $BackupDir -Recurse -Force -ErrorAction Stop
+                Copy-Item -LiteralPath $_.FullName -Destination $BackupDir -Recurse -Force -ErrorAction Stop
             }
         }
     }
     
     Write-Log "Copying application binaries from $SourceDir to $TargetDir"
-    Get-ChildItem -Path $SourceDir -Force | Where-Object { $excluded -notcontains $_.Name } | ForEach-Object {
-        Copy-Item -Path $_.FullName -Destination $TargetDir -Recurse -Force -ErrorAction Stop
+    Get-ChildItem -LiteralPath $SourceDir -Force | Where-Object { $excluded -notcontains $_.Name } | ForEach-Object {
+        Copy-Item -LiteralPath $_.FullName -Destination $TargetDir -Recurse -Force -ErrorAction Stop
     }
     
     Write-Log "Update files copied successfully"
     
     Write-Log "Starting updated application: $CurrentExe"
-    if (-not (Test-Path $CurrentExe)) {
+    if (-not (Test-Path -LiteralPath $CurrentExe)) {
         throw "Updated executable not found: $CurrentExe"
     }
 
@@ -100,14 +100,14 @@ try {
     Write-Log "Application started and verified running (PID: $($proc.Id))"
 
     # Clean up migrated application binaries from source, preserving user data
-    if (Test-Path $SourceDir) {
-        Get-ChildItem -Path $SourceDir -Force | Where-Object { $excluded -notcontains $_.Name } | ForEach-Object {
-            Remove-Item -Path $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
+    if (Test-Path -LiteralPath $SourceDir) {
+        Get-ChildItem -LiteralPath $SourceDir -Force | Where-Object { $excluded -notcontains $_.Name } | ForEach-Object {
+            Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
         }
         # Remove source directory only if it is now completely empty
-        $remaining = Get-ChildItem -Path $SourceDir -Force -ErrorAction SilentlyContinue
+        $remaining = Get-ChildItem -LiteralPath $SourceDir -Force -ErrorAction SilentlyContinue
         if ($null -eq $remaining -or $remaining.Count -eq 0) {
-            Remove-Item -Path $SourceDir -Force -ErrorAction SilentlyContinue
+            Remove-Item -LiteralPath $SourceDir -Force -ErrorAction SilentlyContinue
         }
     }
     $updateSuccess = $true
@@ -115,12 +115,14 @@ try {
 catch {
     Write-Log "Update failed: $($_.Exception.Message)"
     Write-Log "Attempting to restore backup..."
-    if (Test-Path $BackupDir) {
-        $backupItems = Get-ChildItem -Path $BackupDir -Force -ErrorAction SilentlyContinue
+    if (Test-Path -LiteralPath $BackupDir) {
+        $backupItems = Get-ChildItem -LiteralPath $BackupDir -Force -ErrorAction SilentlyContinue
         if ($null -ne $backupItems -and $backupItems.Count -gt 0) {
-            Get-ChildItem -Path $TargetDir -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+            Get-ChildItem -LiteralPath $TargetDir -Force -ErrorAction SilentlyContinue | ForEach-Object {
+                Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
+            }
             $backupItems | ForEach-Object {
-                Copy-Item -Path $_.FullName -Destination $TargetDir -Recurse -Force -ErrorAction SilentlyContinue
+                Copy-Item -LiteralPath $_.FullName -Destination $TargetDir -Recurse -Force -ErrorAction SilentlyContinue
             }
             Write-Log "Backup restored successfully"
         }
@@ -131,8 +133,8 @@ finally {
     $updaterDir = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
     if ($updateSuccess) {
         Start-Sleep -Seconds 2
-        if (Test-Path $updaterDir) {
-            Remove-Item -Path $updaterDir -Recurse -Force -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $updaterDir) {
+            Remove-Item -LiteralPath $updaterDir -Recurse -Force -ErrorAction SilentlyContinue
         }
     } else {
         Write-Log "Preserving backup and temporary updater directory for recovery: $updaterDir"

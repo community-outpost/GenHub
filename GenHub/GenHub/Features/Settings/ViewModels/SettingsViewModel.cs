@@ -804,7 +804,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             ApplicationDataPath = null;
 
             // Reset CAS settings
-            CasRootPath = Path.Combine(_configurationProvider.GetApplicationDataPath(), DirectoryNames.CasPool);
+            CasRootPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppConstants.AppName, DirectoryNames.CasPool);
             EnableAutomaticGc = true;
             MaxCacheSizeGB = 50;
             CasMaxConcurrentOperations = CasDefaults.MaxConcurrentOperations;

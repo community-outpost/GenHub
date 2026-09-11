@@ -283,10 +283,17 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
         if (escaped.Contains(' ', StringComparison.Ordinal) ||
             escaped.Contains('"', StringComparison.Ordinal) ||
             escaped.Contains('\\', StringComparison.Ordinal) ||
+            escaped.Contains('$', StringComparison.Ordinal) ||
+            escaped.Contains('`', StringComparison.Ordinal) ||
             escaped.Contains('\t', StringComparison.Ordinal) ||
             escaped.Contains('\n', StringComparison.Ordinal))
         {
-            escaped = escaped.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            escaped = escaped
+                .Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace("$", "\\$")
+                .Replace("`", "\\`")
+                .Replace("\n", "\\n");
             return $"\"{escaped}\"";
         }
 
@@ -405,6 +412,11 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
                     {
                         var value = trimmed["XDG_DESKTOP_DIR=".Length..].Trim('"', '\'', ' ');
                         value = value.Replace("$HOME", home, StringComparison.Ordinal);
+                        if (!Path.IsPathRooted(value))
+                        {
+                            value = Path.Combine(home, value);
+                        }
+
                         if (!string.IsNullOrWhiteSpace(value) && Directory.Exists(value))
                         {
                             return value;
@@ -464,7 +476,7 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
                 }
                 else if (lines[i].StartsWith("Path=", StringComparison.OrdinalIgnoreCase))
                 {
-                    lines[i] = $"Path={workingDirectory}";
+                    lines[i] = $"Path={EscapeDesktopValue(workingDirectory)}";
                     updated = true;
                 }
             }

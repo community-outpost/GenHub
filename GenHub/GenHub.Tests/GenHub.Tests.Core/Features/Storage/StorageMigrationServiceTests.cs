@@ -611,16 +611,29 @@ public class StorageMigrationServiceTests : IDisposable
     /// <summary>
     /// Tests that IsVelopackRoot correctly detects Velopack markers.
     /// </summary>
-    [Fact]
-    public void IsVelopackRoot_DetectsVelopackMarkers()
+    /// <param name="markerName">The marker file or directory name.</param>
+    /// <param name="isDirectory">Whether the marker is a directory.</param>
+    [Theory]
+    [InlineData("Update.exe", false)]
+    [InlineData("Update", false)]
+    [InlineData("packages", true)]
+    [InlineData("app-1.0.0", true)]
+    public void IsVelopackRoot_DetectsVelopackMarkers(string markerName, bool isDirectory)
     {
-        var testDir = Path.Combine(_tempRoot, "VelopackTestDir");
+        var testDir = Path.Combine(_tempRoot, $"VelopackTestDir_{Guid.NewGuid():N}");
         Directory.CreateDirectory(testDir);
 
         Assert.False(StorageMigrationService.IsVelopackRoot(testDir));
 
-        var updateExe = Path.Combine(testDir, "Update.exe");
-        File.WriteAllText(updateExe, "stub");
+        var markerPath = Path.Combine(testDir, markerName);
+        if (isDirectory)
+        {
+            Directory.CreateDirectory(markerPath);
+        }
+        else
+        {
+            File.WriteAllText(markerPath, "stub");
+        }
 
         Assert.True(StorageMigrationService.IsVelopackRoot(testDir));
     }

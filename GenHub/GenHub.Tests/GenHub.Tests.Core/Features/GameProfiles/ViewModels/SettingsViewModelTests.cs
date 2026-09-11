@@ -910,9 +910,8 @@ public class SettingsViewModelTests
             _mockConfigurationProvider.Setup(x => x.GetLogsPath()).Returns(tempLogsDir);
             var viewModel = CreateViewModel();
 
-            // Lock logFile2 exclusively
+            // Lock logFile2 exclusively to simulate an in-use file held open during cleanup
             using var lockStream = new FileStream(logFile2, System.IO.FileMode.Open, System.IO.FileAccess.ReadWrite, System.IO.FileShare.None);
-            Assert.NotNull(lockStream);
 
             // Act
             await viewModel.ClearLogsCommand.ExecuteAsync(null);

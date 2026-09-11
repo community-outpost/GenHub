@@ -314,8 +314,14 @@ public sealed class InstallationCasPoolService(
         var baseInstallationPath = GetBaseInstallationPath(preferredInstallation);
         if (!string.IsNullOrWhiteSpace(baseInstallationPath))
         {
-            foreach (var ancestor in PathHelper.EnumerateSameVolumeAncestors(baseInstallationPath))
+            var volumeRoot = Path.GetPathRoot(baseInstallationPath);
+            foreach (var ancestor in PathHelper.EnumerateSameVolumeAncestors(baseInstallationPath).Skip(1))
             {
+                if (!string.IsNullOrEmpty(volumeRoot) && PathHelper.AreSamePath(ancestor, volumeRoot))
+                {
+                    continue;
+                }
+
                 var ancestorCandidate = Path.Combine(ancestor, DirectoryNames.GenHubCasPool);
                 if (writabilityProbe.CanCreateStorageAt(ancestorCandidate))
                 {

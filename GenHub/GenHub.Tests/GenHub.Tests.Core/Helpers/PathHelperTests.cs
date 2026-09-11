@@ -292,6 +292,8 @@ public sealed class PathHelperTests
     [InlineData(null, @"C:\Test")]
     [InlineData(@"C:\Test", null)]
     [InlineData("", @"C:\Test")]
+    [InlineData("   ", @"C:\Test")]
+    [InlineData(@"C:\Test", "   ")]
     public void AreSameVolume_ReturnsFalseForNullOrEmpty(string? path1, string? path2)
     {
         Assert.False(PathHelper.AreSameVolume(path1!, path2!));
@@ -314,9 +316,24 @@ public sealed class PathHelperTests
             var expectedFirst = Path.Combine(tempRoot, "A", "B");
             var expectedSecond = Path.Combine(tempRoot, "A");
 
-            Assert.Contains(ancestors, a => PathHelper.AreSamePath(a, expectedFirst));
-            Assert.Contains(ancestors, a => PathHelper.AreSamePath(a, expectedSecond));
+            Assert.True(PathHelper.AreSamePath(ancestors[0], deepChild));
+            Assert.True(PathHelper.AreSamePath(ancestors[1], expectedFirst));
+            Assert.True(PathHelper.AreSamePath(ancestors[2], expectedSecond));
             Assert.Contains(ancestors, a => PathHelper.AreSamePath(a, tempRoot));
+
+            var volumeRoot = Path.GetPathRoot(deepChild);
+            if (!string.IsNullOrEmpty(volumeRoot))
+            {
+                Assert.Contains(ancestors, a => PathHelper.AreSamePath(a, volumeRoot));
+            }
+
+            // Trailing directory separator should yield the exact same canonical ancestors without duplicating
+            var ancestorsWithTrailing = PathHelper.EnumerateSameVolumeAncestors(deepChild + Path.DirectorySeparatorChar).ToList();
+            Assert.Equal(ancestors.Count, ancestorsWithTrailing.Count);
+            for (int i = 0; i < ancestors.Count; i++)
+            {
+                Assert.True(PathHelper.AreSamePath(ancestors[i], ancestorsWithTrailing[i]));
+            }
         }
         finally
         {

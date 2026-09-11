@@ -105,23 +105,53 @@ public static class LoggingModule
     /// <returns>The full path to the log file.</returns>
     public static string GetLogFilePath()
     {
-        string rootDir;
-        if (StorageMigrationService.IsCustomInstallRoot())
+        try
         {
-            rootDir = StorageMigrationService.GetSourceRootDirectory();
-            StorageMigrationService.CleanOrphanedDefaultAppDataIfCustom();
-        }
-        else
-        {
-            rootDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppConstants.AppName);
-        }
+            string rootDir;
+            if (StorageMigrationService.IsCustomInstallRoot())
+            {
+                rootDir = StorageMigrationService.GetSourceRootDirectory();
+                try
+                {
+                    StorageMigrationService.CleanOrphanedDefaultAppDataIfCustom();
+                }
+                catch
+                {
+                    // Non-fatal cleanup
+                }
+            }
+            else
+            {
+                rootDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    AppConstants.AppName);
+            }
 
-        var logDir = Path.Combine(rootDir, DirectoryNames.Logs);
-        Directory.CreateDirectory(logDir);
-        var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-        return Path.Combine(logDir, $"{AppConstants.AppName.ToLowerInvariant()}-{timestamp}.log");
+            var logDir = Path.Combine(rootDir, DirectoryNames.Logs);
+            Directory.CreateDirectory(logDir);
+            var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            return Path.Combine(logDir, $"{AppConstants.AppName.ToLowerInvariant()}-{timestamp}.log");
+        }
+        catch
+        {
+            try
+            {
+                var fallbackDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    AppConstants.AppName,
+                    DirectoryNames.Logs);
+                Directory.CreateDirectory(fallbackDir);
+                var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                return Path.Combine(fallbackDir, $"{AppConstants.AppName.ToLowerInvariant()}-{timestamp}.log");
+            }
+            catch
+            {
+                var tempLogDir = Path.Combine(Path.GetTempPath(), AppConstants.AppName, DirectoryNames.Logs);
+                Directory.CreateDirectory(tempLogDir);
+                var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                return Path.Combine(tempLogDir, $"{AppConstants.AppName.ToLowerInvariant()}-{timestamp}.log");
+            }
+        }
     }
 
     private static bool ReadEnableDetailedLoggingFromSettings()
@@ -152,13 +182,23 @@ public static class LoggingModule
 
     private static string GetSettingsFilePath()
     {
-        var rootDir = StorageMigrationService.IsCustomInstallRoot()
-            ? StorageMigrationService.GetSourceRootDirectory()
-            : Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppConstants.AppName);
+        try
+        {
+            var rootDir = StorageMigrationService.IsCustomInstallRoot()
+                ? StorageMigrationService.GetSourceRootDirectory()
+                : Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    AppConstants.AppName);
 
-        return Path.Combine(rootDir, FileTypes.SettingsFileName);
+            return Path.Combine(rootDir, FileTypes.SettingsFileName);
+        }
+        catch
+        {
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                AppConstants.AppName,
+                FileTypes.SettingsFileName);
+        }
     }
 
     private static string ToCamelCase(this string str)

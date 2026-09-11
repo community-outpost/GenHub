@@ -71,6 +71,26 @@ public static class StorageMigrationConstants
     public const string AppDirectoryPrefix = "app-";
 
     /// <summary>
+    /// Velopack updater executable name for Windows.
+    /// </summary>
+    public const string VelopackUpdateExe = "Update.exe";
+
+    /// <summary>
+    /// Velopack updater executable name for Unix/Linux.
+    /// </summary>
+    public const string VelopackUpdateUnix = "Update";
+
+    /// <summary>
+    /// Velopack packages directory name.
+    /// </summary>
+    public const string VelopackPackagesDirectoryName = "packages";
+
+    /// <summary>
+    /// Search pattern for Velopack versioned application directories.
+    /// </summary>
+    public const string VelopackAppDirectoryPattern = "app-*";
+
+    /// <summary>
     /// Prefix for temporary migration staging directories.
     /// </summary>
     public const string MigrationTempDirectoryPrefix = "genhub_migrate_";
