@@ -16,12 +16,17 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Features.Tools.GenHotkeys.Services;
 
 /// <summary>
-/// Service for loading tech trees, factions, units, and icon assets for Generals and Zero Hour.
+/// Service for loading C&amp;C Generals and Zero Hour tech tree structures, icons, and localized hotkey strings.
 /// </summary>
 public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+    };
+
     private readonly ConcurrentDictionary<GameType, IReadOnlyList<HotkeyFaction>> _cache = new();
-    private readonly ConcurrentDictionary<string, byte[]?> _iconCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, byte[]?> _iconCache = new();
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<HotkeyFaction>> LoadTechTreeAsync(
@@ -33,25 +38,25 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
             return cached;
         }
 
-        var techTreePath = gameType == GameType.Generals
+        var relativePath = gameType == GameType.Generals
             ? GenHotkeysConstants.TechTreeGenerals
             : GenHotkeysConstants.TechTreeGeneralsZh;
 
-        var json = await LoadAssetStringAsync(techTreePath, cancellationToken);
-        if (string.IsNullOrEmpty(json))
+        var jsonString = await LoadAssetStringAsync(relativePath, cancellationToken);
+        if (string.IsNullOrWhiteSpace(jsonString))
         {
-            logger.LogWarning("Failed to load TechTree.json for {GameType}", gameType);
+            logger.LogWarning("Failed to load tech tree JSON for {GameType} from {Path}", gameType, relativePath);
             return [];
         }
 
-        var root = JsonSerializer.Deserialize<TechTreeRoot>(json);
-        if (root == null || root.TechTree.Count == 0)
+        var root = JsonSerializer.Deserialize<TechTreeRoot>(jsonString, JsonOptions);
+        if (root?.TechTree == null)
         {
             return [];
         }
 
         // Load reference CSF for default strings and hotkeys
-        var refCsf = await LoadReferenceCsfAsync(gameType, cancellationToken);
+        var refCsf = LoadReferenceCsf(gameType);
 
         var factions = new List<HotkeyFaction>();
         foreach (var factionJson in root.TechTree)
@@ -86,28 +91,19 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
             return null;
         }
 
-        var cacheKey = $"{gameType}_{iconName}";
-        if (_iconCache.TryGetValue(cacheKey, out var bytes))
+        var profileDir = gameType == GameType.Generals ? "Generals" : "GeneralsZH";
+        var cacheKey = $"{profileDir}/{iconName}";
+
+        if (_iconCache.TryGetValue(cacheKey, out var cached))
         {
-            return bytes;
+            return cached;
         }
 
-        var folder = gameType == GameType.Generals ? "Generals" : "GeneralsZH";
-        var candidatePaths = new[]
+        var extensions = new[] { ".webp", ".png" };
+        foreach (var ext in extensions)
         {
-            $"Profiles/{folder}/Icons/{iconName}.webp",
-            $"Profiles/{folder}/Icons/USA/{iconName}.webp",
-            $"Profiles/{folder}/Icons/PRC/{iconName}.webp",
-            $"Profiles/{folder}/Icons/GLA/{iconName}.webp",
-            $"Profiles/GeneralsZH/Icons/{iconName}.webp",
-            $"Profiles/GeneralsZH/Icons/USA/{iconName}.webp",
-            $"Profiles/GeneralsZH/Icons/PRC/{iconName}.webp",
-            $"Profiles/GeneralsZH/Icons/GLA/{iconName}.webp",
-        };
-
-        foreach (var relPath in candidatePaths)
-        {
-            var stream = TryOpenAssetStream(relPath);
+            var relativePath = $"Profiles/{profileDir}/Icons/{iconName}{ext}";
+            var stream = TryOpenAssetStream(relativePath);
             if (stream != null)
             {
                 using (stream)
@@ -133,58 +129,71 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
     {
         foreach (var objJson in sourceList)
         {
-            var cleanDisplayName = objJson.Name;
-            if (refCsf != null && !string.IsNullOrEmpty(objJson.IngameName))
-            {
-                var localized = refCsf.GetString(objJson.IngameName);
-                if (!string.IsNullOrWhiteSpace(localized))
-                {
-                    cleanDisplayName = CsfFile.StripHotkey(localized);
-                }
-            }
-
-            var gameObj = new HotkeyGameObject
-            {
-                Name = objJson.Name,
-                IngameName = objJson.IngameName,
-                DisplayName = cleanDisplayName,
-                Category = category,
-                IconName = objJson.Name,
-            };
-
-            foreach (var layoutJson in objJson.KeyboardLayouts)
-            {
-                var layout = new List<HotkeyAction>();
-                foreach (var actJson in layoutJson)
-                {
-                    var actDisplayName = actJson.IconName;
-                    char? defaultHk = null;
-
-                    if (refCsf != null && !string.IsNullOrEmpty(actJson.HotkeyString))
-                    {
-                        var csfVal = refCsf.GetString(actJson.HotkeyString);
-                        if (!string.IsNullOrWhiteSpace(csfVal))
-                        {
-                            actDisplayName = CsfFile.StripHotkey(csfVal);
-                            defaultHk = CsfFile.ExtractHotkey(csfVal);
-                        }
-                    }
-
-                    layout.Add(new HotkeyAction
-                    {
-                        IconName = actJson.IconName,
-                        HotkeyString = actJson.HotkeyString,
-                        DisplayName = actDisplayName,
-                        DefaultHotkey = defaultHk,
-                        Hotkey = defaultHk,
-                    });
-                }
-
-                gameObj.KeyboardLayouts.Add(layout);
-            }
-
-            targetList.Add(gameObj);
+            targetList.Add(CreateGameObject(objJson, category, refCsf));
         }
+    }
+
+    private static HotkeyGameObject CreateGameObject(
+        TechTreeGameObjectJson objJson,
+        HotkeyCategory category,
+        CsfFile? refCsf)
+    {
+        var cleanDisplayName = objJson.Name;
+        if (refCsf != null && !string.IsNullOrEmpty(objJson.IngameName))
+        {
+            var localized = refCsf.GetString(objJson.IngameName);
+            if (!string.IsNullOrWhiteSpace(localized))
+            {
+                cleanDisplayName = CsfFile.StripHotkey(localized);
+            }
+        }
+
+        var gameObj = new HotkeyGameObject
+        {
+            Name = objJson.Name,
+            IngameName = objJson.IngameName,
+            DisplayName = cleanDisplayName,
+            Category = category,
+            IconName = objJson.Name,
+        };
+
+        foreach (var layoutJson in objJson.KeyboardLayouts)
+        {
+            var layout = new List<HotkeyAction>();
+            foreach (var actJson in layoutJson)
+            {
+                layout.Add(CreateAction(actJson, refCsf));
+            }
+
+            gameObj.KeyboardLayouts.Add(layout);
+        }
+
+        return gameObj;
+    }
+
+    private static HotkeyAction CreateAction(TechTreeActionJson actJson, CsfFile? refCsf)
+    {
+        var actDisplayName = actJson.IconName;
+        char? defaultHk = null;
+
+        if (refCsf != null && !string.IsNullOrEmpty(actJson.HotkeyString))
+        {
+            var csfVal = refCsf.GetString(actJson.HotkeyString);
+            if (!string.IsNullOrWhiteSpace(csfVal))
+            {
+                actDisplayName = CsfFile.StripHotkey(csfVal);
+                defaultHk = CsfFile.ExtractHotkey(csfVal);
+            }
+        }
+
+        return new HotkeyAction
+        {
+            IconName = actJson.IconName,
+            HotkeyString = actJson.HotkeyString,
+            DisplayName = actDisplayName,
+            DefaultHotkey = defaultHk,
+            Hotkey = defaultHk,
+        };
     }
 
     private static async Task<string?> LoadAssetStringAsync(string relativePath, CancellationToken cancellationToken)
@@ -235,7 +244,7 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
         return null;
     }
 
-    private async Task<CsfFile?> LoadReferenceCsfAsync(GameType gameType, CancellationToken cancellationToken)
+    private CsfFile? LoadReferenceCsf(GameType gameType)
     {
         try
         {

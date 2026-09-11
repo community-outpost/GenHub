@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,7 +16,7 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Features.Tools.GenHotkeys.Services;
 
 /// <summary>
-/// Service for loading, persisting, and managing hotkey profiles and presets.
+/// Service for saving, loading, deleting, and managing persistent user hotkey profiles and presets.
 /// </summary>
 public class HotkeyProfileStorageService(
     IAppConfiguration appConfig,
@@ -26,9 +25,11 @@ public class HotkeyProfileStorageService(
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
+        PropertyNameCaseInsensitive = true,
     };
 
-    private readonly string _profilesDirectory = Path.Combine(appConfig.GetConfiguredDataPath(), GenHotkeysConstants.HotkeysStorageDirectory);
+    private string ProfilesDirectory =>
+        Path.Combine(appConfig.GetConfiguredDataPath(), GenHotkeysConstants.HotkeysStorageDirectory);
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<HotkeyProfile>> GetProfilesAsync(
@@ -38,14 +39,14 @@ public class HotkeyProfileStorageService(
         EnsureDirectory();
 
         var profiles = new List<HotkeyProfile>();
-        var files = Directory.GetFiles(_profilesDirectory, "*.json");
+        var files = Directory.GetFiles(ProfilesDirectory, "*.json");
 
         foreach (var file in files)
         {
             try
             {
                 var json = await File.ReadAllTextAsync(file, cancellationToken);
-                var profile = JsonSerializer.Deserialize<HotkeyProfile>(json);
+                var profile = JsonSerializer.Deserialize<HotkeyProfile>(json, JsonOptions);
                 if (profile != null && profile.TargetGame == gameType)
                 {
                     profiles.Add(profile);
@@ -53,18 +54,44 @@ public class HotkeyProfileStorageService(
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Failed to read hotkey profile from {File}", file);
+                logger.LogWarning(ex, "Failed to deserialize hotkey profile from {Path}", file);
             }
         }
 
         if (profiles.Count == 0)
         {
+            // Seed default profile for this game
             var defaultProfile = CreateDefaultProfile(gameType);
             await SaveProfileAsync(defaultProfile, cancellationToken);
             profiles.Add(defaultProfile);
         }
 
-        return profiles.OrderBy(p => p.Name).ToList();
+        return profiles;
+    }
+
+    /// <inheritdoc />
+    public async Task<HotkeyProfile?> GetProfileAsync(
+        string profileId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
+
+        var filePath = GetSafeProfilePath(profileId);
+        if (!File.Exists(filePath))
+        {
+            return null;
+        }
+
+        try
+        {
+            var json = await File.ReadAllTextAsync(filePath, cancellationToken);
+            return JsonSerializer.Deserialize<HotkeyProfile>(json, JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to read hotkey profile {Id} from {Path}", profileId, filePath);
+            return null;
+        }
     }
 
     /// <inheritdoc />
@@ -151,36 +178,7 @@ public class HotkeyProfileStorageService(
         return profile;
     }
 
-    private string GetSafeProfilePath(string profileId)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
-
-        var safeId = Path.GetFileName(profileId);
-        if (!string.Equals(safeId, profileId, StringComparison.Ordinal) ||
-            safeId.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-        {
-            throw new ArgumentException("Invalid profile ID: path traversal or invalid characters detected.", nameof(profileId));
-        }
-
-        var fullPath = Path.GetFullPath(Path.Combine(_profilesDirectory, $"{safeId}.json"));
-        var basePathWithSeparator = Path.GetFullPath(_profilesDirectory) + Path.DirectorySeparatorChar;
-        if (!fullPath.StartsWith(basePathWithSeparator, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ArgumentException("Profile path escapes allowed profiles directory.", nameof(profileId));
-        }
-
-        return fullPath;
-    }
-
-    private void EnsureDirectory()
-    {
-        if (!Directory.Exists(_profilesDirectory))
-        {
-            Directory.CreateDirectory(_profilesDirectory);
-        }
-    }
-
-    private HotkeyProfile CreateDefaultProfile(GameType gameType)
+    private static HotkeyProfile CreateDefaultProfile(GameType gameType)
     {
         return new HotkeyProfile
         {
@@ -191,7 +189,7 @@ public class HotkeyProfileStorageService(
         };
     }
 
-    private Stream? TryOpenAssetStream(string relativePath)
+    private static Stream? TryOpenAssetStream(string relativePath)
     {
         try
         {
@@ -219,5 +217,36 @@ public class HotkeyProfileStorageService(
         }
 
         return null;
+    }
+
+    private void EnsureDirectory()
+    {
+        if (!Directory.Exists(ProfilesDirectory))
+        {
+            Directory.CreateDirectory(ProfilesDirectory);
+        }
+    }
+
+    private string GetSafeProfilePath(string profileId)
+    {
+        if (string.IsNullOrWhiteSpace(profileId) ||
+            profileId.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
+            profileId.Contains("..", StringComparison.Ordinal) ||
+            profileId.Contains('/') ||
+            profileId.Contains('\\'))
+        {
+            throw new ArgumentException($"Invalid profile ID: '{profileId}'", nameof(profileId));
+        }
+
+        var fileName = $"{profileId}.json";
+        var fullPath = Path.GetFullPath(Path.Combine(ProfilesDirectory, fileName));
+        var dirPath = Path.GetFullPath(ProfilesDirectory);
+
+        if (!fullPath.StartsWith(dirPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new UnauthorizedAccessException("Path traversal detected.");
+        }
+
+        return fullPath;
     }
 }

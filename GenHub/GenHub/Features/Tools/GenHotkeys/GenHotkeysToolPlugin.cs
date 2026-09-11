@@ -10,15 +10,15 @@ using Microsoft.Extensions.DependencyInjection;
 namespace GenHub.Features.Tools.GenHotkeys;
 
 /// <summary>
-/// Tool plugin for GenHotkeys Visual Hotkey Editor.
+/// Tool plugin implementation for the visual C&amp;C Generals / Zero Hour Hotkeys Editor.
 /// </summary>
-public sealed class GenHotkeysToolPlugin : IToolPlugin
+public sealed class GenHotkeysToolPlugin : IToolPlugin, IDisposable
 {
-    private GenHotkeysView? _view;
     private IServiceProvider? _serviceProvider;
+    private GenHotkeysView? _view;
 
     /// <inheritdoc />
-    public ToolMetadata Metadata => new()
+    public ToolMetadata Metadata { get; } = new()
     {
         Id = GenHotkeysConstants.ToolId,
         Name = GenHotkeysConstants.ToolName,
@@ -27,16 +27,18 @@ public sealed class GenHotkeysToolPlugin : IToolPlugin
         Description = GenHotkeysConstants.ToolDescription,
         IconPath = "⌨️",
         IsBundled = true,
-        Tags = ["Configuration", "Hotkeys", "Modding"],
     };
 
     /// <inheritdoc />
     public Control CreateControl()
     {
-        if (_view == null && _serviceProvider != null)
+        if (_serviceProvider != null)
         {
             var viewModel = _serviceProvider.GetRequiredService<GenHotkeysViewModel>();
-            _view = new GenHotkeysView { DataContext = viewModel };
+            _view = new GenHotkeysView
+            {
+                DataContext = viewModel,
+            };
 
             // Trigger activation load on first view creation
             _ = viewModel.InitializeAsync();
@@ -54,10 +56,7 @@ public sealed class GenHotkeysToolPlugin : IToolPlugin
     /// <inheritdoc />
     public void OnDeactivated()
     {
-        if (_view?.DataContext is GenHotkeysViewModel vm)
-        {
-            // Nothing to clean up specifically
-        }
+        // No deactivation cleanup required for hotkeys tool
     }
 
     /// <inheritdoc />
