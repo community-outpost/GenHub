@@ -550,11 +550,6 @@ public sealed class ReplayDirectoryService(
                 return false;
             }
 
-            if (IsDedicatedToThisReplay(p, replay, logger))
-            {
-                return true;
-            }
-
             return isRetailClient
                 ? IsProfileMatchingRetail(p, replay.MatchedClient?.DataPatchManifestId)
                 : IsProfileMatchingThirdParty(p, clientManifestId, replay.MatchedClient?.DataPatchManifestId, replay.MatchedClient?.Version);
@@ -1890,11 +1885,6 @@ public sealed class ReplayDirectoryService(
             return false;
         }
 
-        if (IsDedicatedToThisReplay(profile, replay, null))
-        {
-            return profile.GameClient.GameType == replay.GameVersion;
-        }
-
         if (replay.MatchedClient != null)
         {
             var isRetail = IsRetailClient(replay.MatchedClient.Publisher, replay.MatchedClient.ManifestId);
@@ -1913,7 +1903,8 @@ public sealed class ReplayDirectoryService(
             return IsProfileMatchingThirdParty(profile, replay.MatchedClient.ManifestId, replay.MatchedClient.DataPatchManifestId, replay.MatchedClient.Version);
         }
 
-        return profile.GameClient.GameType == replay.GameVersion;
+        return profile.GameClient.GameType == replay.GameVersion &&
+               IsDedicatedToThisReplay(profile, replay, null);
     }
 
     private static void ClearReplayProfileReference(ReplayFile replay)
