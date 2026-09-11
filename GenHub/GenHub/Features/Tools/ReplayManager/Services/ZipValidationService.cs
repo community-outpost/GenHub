@@ -97,6 +97,35 @@ public sealed class ZipValidationService(ILogger<ZipValidationService> logger) :
         }
     }
 
+    private static (bool IsValid, string? ErrorMessage) ValidateSingleEntry(IArchiveEntry entry)
+    {
+        var entryKey = entry.Key ?? string.Empty;
+        var segments = entryKey.Split(PathSeparators, StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Any(s => s == "." || s == ".." || s.Contains(':')))
+        {
+            return (false, $"Archive contains invalid path traversal segment in '{entryKey}'.");
+        }
+
+        var fileName = Path.GetFileName(entryKey);
+        if (!fileName.EndsWith(FileTypes.ReplayFileExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, $"Archive contains non-replay file: {fileName}. Only {FileTypes.ReplayFileExtension} files are allowed.");
+        }
+
+        if (entry.Size > ReplayManagerConstants.MaxReplaySizeBytes)
+        {
+            return (false, $"File {fileName} in archive exceeds {ReplayManagerConstants.MaxReplaySizeBytes / ConversionConstants.BytesPerMegabyte} MB limit.");
+        }
+
+        if (entry.CompressedSize > 0 &&
+            ((double)entry.Size / entry.CompressedSize) > ReplayManagerConstants.MaxCompressionRatio)
+        {
+            return (false, $"File {fileName} exceeds maximum compression ratio (potential zip bomb).");
+        }
+
+        return (true, null);
+    }
+
     private (bool IsValid, string? ErrorMessage) ValidateWithSharpCompress(string archivePath)
     {
         try
@@ -118,33 +147,13 @@ public sealed class ZipValidationService(ILogger<ZipValidationService> logger) :
 
             foreach (var entry in nonDirEntries)
             {
-                var entryKey = entry.Key ?? string.Empty;
-                var segments = entryKey.Split(PathSeparators, StringSplitOptions.RemoveEmptyEntries);
-                if (segments.Any(s => s == "." || s == ".." || s.Contains(':')))
+                var (isValid, errorMessage) = ValidateSingleEntry(entry);
+                if (!isValid)
                 {
-                    return (false, $"Archive contains invalid path traversal segment in '{entryKey}'.");
-                }
-
-                var fileName = Path.GetFileName(entryKey);
-                if (!fileName.EndsWith(FileTypes.ReplayFileExtension, StringComparison.OrdinalIgnoreCase))
-                {
-                    return (false, $"Archive contains non-replay file: {fileName}. Only {FileTypes.ReplayFileExtension} files are allowed.");
+                    return (false, errorMessage);
                 }
 
                 replayCount++;
-
-                if (entry.Size > ReplayManagerConstants.MaxReplaySizeBytes)
-                {
-                    return (false, $"File {fileName} in archive exceeds {ReplayManagerConstants.MaxReplaySizeBytes / ConversionConstants.BytesPerMegabyte} MB limit.");
-                }
-
-                // Check compression ratio
-                if (entry.CompressedSize > 0 &&
-                    ((double)entry.Size / entry.CompressedSize) > ReplayManagerConstants.MaxCompressionRatio)
-                {
-                    return (false, $"File {fileName} exceeds maximum compression ratio (potential zip bomb).");
-                }
-
                 totalUncompressedBytes += entry.Size;
                 if (totalUncompressedBytes > ReplayManagerConstants.MaxAggregateUncompressedBytes)
                 {

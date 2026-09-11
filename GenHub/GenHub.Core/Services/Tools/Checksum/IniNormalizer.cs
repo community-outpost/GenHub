@@ -27,43 +27,53 @@ public static class IniNormalizer
 
         while (!data.IsEmpty)
         {
-            int newlineIndex = data.IndexOf((byte)'\n');
-            ReadOnlySpan<byte> line = newlineIndex >= 0 ? data[..newlineIndex] : data;
-            data = newlineIndex >= 0 ? data[(newlineIndex + 1)..] : ReadOnlySpan<byte>.Empty;
-
-            // Strip comment starting with ';'
-            int commentIndex = line.IndexOf((byte)';');
-            if (commentIndex >= 0)
+            ReadOnlySpan<byte> line = GetNextLine(ref data);
+            if (!line.IsEmpty)
             {
-                line = line[..commentIndex];
+                NormalizeAndVisit(line, stackBuffer, lineVisitor);
+            }
+        }
+    }
+
+    private static ReadOnlySpan<byte> GetNextLine(ref ReadOnlySpan<byte> data)
+    {
+        int newlineIndex = data.IndexOf((byte)'\n');
+        ReadOnlySpan<byte> line = newlineIndex >= 0 ? data[..newlineIndex] : data;
+        data = newlineIndex >= 0 ? data[(newlineIndex + 1)..] : ReadOnlySpan<byte>.Empty;
+
+        int commentIndex = line.IndexOf((byte)';');
+        return commentIndex >= 0 ? line[..commentIndex] : line;
+    }
+
+    private static void NormalizeAndVisit(ReadOnlySpan<byte> line, Span<byte> stackBuffer, LineSpanVisitor lineVisitor)
+    {
+        byte[]? rented = null;
+        Span<byte> normalized;
+        if (line.Length <= stackBuffer.Length)
+        {
+            normalized = stackBuffer[..line.Length];
+        }
+        else
+        {
+            rented = ArrayPool<byte>.Shared.Rent(line.Length);
+            normalized = rented.AsSpan(0, line.Length);
+        }
+
+        try
+        {
+            for (int i = 0; i < line.Length; i++)
+            {
+                byte b = line[i];
+                normalized[i] = (b > 0 && b < 32) ? (byte)' ' : b;
             }
 
-            if (line.IsEmpty)
+            lineVisitor(normalized);
+        }
+        finally
+        {
+            if (rented != null)
             {
-                continue;
-            }
-
-            byte[]? rented = null;
-            Span<byte> normalized = line.Length <= stackBuffer.Length
-                ? stackBuffer[..line.Length]
-                : (rented = ArrayPool<byte>.Shared.Rent(line.Length)).AsSpan(0, line.Length);
-
-            try
-            {
-                for (int i = 0; i < line.Length; i++)
-                {
-                    byte b = line[i];
-                    normalized[i] = (b > 0 && b < 32) ? (byte)' ' : b;
-                }
-
-                lineVisitor(normalized);
-            }
-            finally
-            {
-                if (rented != null)
-                {
-                    ArrayPool<byte>.Shared.Return(rented);
-                }
+                ArrayPool<byte>.Shared.Return(rented);
             }
         }
     }

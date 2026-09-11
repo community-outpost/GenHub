@@ -1,38 +1,76 @@
-using GenHub.Core.Interfaces.Tools.Checksum;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
 
 namespace GenHub.Core.Services.Tools.Checksum;
 
 /// <summary>
-/// Service implementing SAGE engine executable and configuration checksum calculations.
+/// Service implementing native SAGE engine CRC calculations for game executables and INI data hierarchies.
 /// </summary>
 public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
 {
     private static readonly (string DefaultPath, string OverridePath)[] GeneralsMdOrder =
     [
-        (@"Data\INI\Default\GameData", @"Data\INI\GameData"),
-        (@"Data\INI\Default\Water", string.Empty),
-        (@"Data\INI\Water", string.Empty),
-        (@"Data\INI\Default\Weather", string.Empty),
-        (@"Data\INI\Weather", string.Empty),
-        (@"Data\INI\Default\Science", @"Data\INI\Science"),
-        (@"Data\INI\Default\Multiplayer", @"Data\INI\Multiplayer"),
-        (@"Data\INI\Default\Terrain", @"Data\INI\Terrain"),
-        (@"Data\INI\Default\Roads", @"Data\INI\Roads"),
-        (string.Empty, @"Data\INI\Rank"),
-        (@"Data\INI\Default\PlayerTemplate", @"Data\INI\PlayerTemplate"),
-        (@"Data\INI\Default\FXList", @"Data\INI\FXList"),
-        (string.Empty, @"Data\INI\Weapon"),
-        (@"Data\INI\Default\ObjectCreationList", @"Data\INI\ObjectCreationList"),
-        (string.Empty, @"Data\INI\Locomotor"),
-        (@"Data\INI\Default\SpecialPower", @"Data\INI\SpecialPower"),
-        (string.Empty, @"Data\INI\DamageFX"),
-        (string.Empty, @"Data\INI\Armor"),
-        (@"Data\INI\Default\Object", @"Data\INI\Object"),
-        (@"Data\INI\Default\Upgrade", @"Data\INI\Upgrade"),
-        (@"Data\INI\Default\AIData", @"Data\INI\AIData"),
-        (@"Data\INI\Default\Crate", @"Data\INI\Crate"),
+        (@\"Data\INI\Default\GameData\", @\"Data\INI\GameData\"),
+        (string.Empty, @\"Data\INI\GameData.ini\"),
+        (string.Empty, @\"Data\INI\Default\GameData.ini\"),
+        (string.Empty, @\"Data\INI\INIZH.ini\"),
+        (string.Empty, @\"Data\INI\Default\INIZH.ini\"),
+        (@\"Data\INI\Default\Water\", @\"Data\INI\Water\"),
+        (string.Empty, @\"Data\INI\Default\Weather.ini\"),
+        (string.Empty, @\"Data\INI\Weather.ini\"),
+        (string.Empty, @\"Data\INI\Default\Terrain.ini\"),
+        (string.Empty, @\"Data\INI\Terrain.ini\"),
+        (string.Empty, @\"Data\INI\Default\Road.ini\"),
+        (string.Empty, @\"Data\INI\Road.ini\"),
+        (string.Empty, @\"Data\INI\Default\Handicap.ini\"),
+        (string.Empty, @\"Data\INI\Handicap.ini\"),
+        (string.Empty, @\"Data\INI\Default\CommandSet.ini\"),
+        (string.Empty, @\"Data\INI\CommandSet.ini\"),
+        (string.Empty, @\"Data\INI\Default\CommandButton.ini\"),
+        (string.Empty, @\"Data\INI\CommandButton.ini\"),
+        (string.Empty, @\"Data\INI\Default\Science.ini\"),
+        (string.Empty, @\"Data\INI\Science.ini\"),
+        (string.Empty, @\"Data\INI\Default\ModifierList.ini\"),
+        (string.Empty, @\"Data\INI\ModifierList.ini\"),
+        (string.Empty, @\"Data\INI\Default\ControlBarScheme.ini\"),
+        (string.Empty, @\"Data\INI\ControlBarScheme.ini\"),
+        (string.Empty, @\"Data\INI\Default\Video.ini\"),
+        (string.Empty, @\"Data\INI\Video.ini\"),
+        (string.Empty, @\"Data\INI\Default\AudioFX.ini\"),
+        (string.Empty, @\"Data\INI\AudioFX.ini\"),
+        (string.Empty, @\"Data\INI\Default\Animation.ini\"),
+        (string.Empty, @\"Data\INI\Animation.ini\"),
+        (string.Empty, @\"Data\INI\Default\Rank.ini\"),
+        (string.Empty, @\"Data\INI\Rank.ini\"),
+        (string.Empty, @\"Data\INI\Default\WebBanners.ini\"),
+        (string.Empty, @\"Data\INI\WebBanners.ini\"),
+        (string.Empty, @\"Data\INI\Default\MiscFX.ini\"),
+        (string.Empty, @\"Data\INI\MiscFX.ini\"),
+        (string.Empty, @\"Data\INI\Default\ParticleSystem.ini\"),
+        (string.Empty, @\"Data\INI\ParticleSystem.ini\"),
+        (string.Empty, @\"Data\INI\Default\FXList.ini\"),
+        (string.Empty, @\"Data\INI\FXList.ini\"),
+        (string.Empty, @\"Data\INI\Default\DamageFX.ini\"),
+        (string.Empty, @\"Data\INI\DamageFX.ini\"),
+        (string.Empty, @\"Data\INI\Default\Armor.ini\"),
+        (string.Empty, @\"Data\INI\Armor.ini\"),
+        (string.Empty, @\"Data\INI\Default\Locomotor.ini\"),
+        (string.Empty, @\"Data\INI\Locomotor.ini\"),
+        (string.Empty, @\"Data\INI\Default\SpecialPower.ini\"),
+        (string.Empty, @\"Data\INI\SpecialPower.ini\"),
+        (string.Empty, @\"Data\INI\Default\Weapon.ini\"),
+        (string.Empty, @\"Data\INI\Weapon.ini\"),
+        (string.Empty, @\"Data\INI\DamageFX\"),
+        (string.Empty, @\"Data\INI\Armor\"),
+        (@\"Data\INI\Default\Object\", @\"Data\INI\Object\"),
+        (@\"Data\INI\Default\Upgrade\", @\"Data\INI\Upgrade\"),
+        (@\"Data\INI\Default\AIData\", @\"Data\INI\AIData\"),
+        (@\"Data\INI\Default\Crate\", @\"Data\INI\Crate\"),
     ];
 
     /// <inheritdoc/>
@@ -66,76 +104,11 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
                 var crc = new LegacyChecksum();
                 crc.Add(exeBytes);
 
-                int resolvedMajor = major ?? 0;
-                int resolvedMinor = minor ?? 0;
-
-                if (major == null || minor == null)
-                {
-                    if (PeVersionExtractor.TryExtract(exeBytes, out int extractedMajor, out int extractedMinor))
-                    {
-                        resolvedMajor = extractedMajor;
-                        resolvedMinor = extractedMinor;
-                    }
-                    else if (PeVersionExtractor.TryExtractFromFile(executablePath, out extractedMajor, out extractedMinor))
-                    {
-                        resolvedMajor = extractedMajor;
-                        resolvedMinor = extractedMinor;
-                    }
-                    else
-                    {
-                        // Fallback based on filename convention
-                        string name = Path.GetFileName(executablePath).ToLowerInvariant();
-                        if (name.Contains("zh") || name.Contains("zerohour"))
-                        {
-                            resolvedMajor = 1;
-                            resolvedMinor = 4;
-                        }
-                        else
-                        {
-                            resolvedMajor = 1;
-                            resolvedMinor = 8;
-                        }
-                    }
-                }
-
-                byte[] versionBytes =
-                [
-                    (byte)(resolvedMinor & 0xFF),
-                    (byte)((resolvedMinor >> 8) & 0xFF),
-                    (byte)(resolvedMajor & 0xFF),
-                    (byte)((resolvedMajor >> 8) & 0xFF)
-                ];
-                crc.Add(versionBytes);
+                var (resolvedMajor, resolvedMinor) = ResolveVersion(exeBytes, executablePath, major, minor);
+                AddVersionBytes(crc, resolvedMajor, resolvedMinor);
 
                 string root = gameRootPath ?? Path.GetDirectoryName(executablePath) ?? string.Empty;
-                if (!string.IsNullOrEmpty(root))
-                {
-                    string skirmishPath = Path.Combine(root, "Data", "Scripts", "SkirmishScripts.scb");
-                    if (File.Exists(skirmishPath))
-                    {
-                        try
-                        {
-                            crc.Add(File.ReadAllBytes(skirmishPath));
-                        }
-                        catch
-                        {
-                            // Ignore script read failure
-                        }
-                    }
-
-                    string mpPath = Path.Combine(root, "Data", "Scripts", "MultiplayerScripts.scb");
-                    if (File.Exists(mpPath))
-                    {
-                        try
-                        {
-                            crc.Add(File.ReadAllBytes(mpPath));
-                        }
-                        catch
-                        {
-                            // Ignore script read failure
-                        }
-                    }
-                }
+                AddScriptFiles(crc, root);
 
                 return OperationResult<string>.CreateSuccess($"0x{crc.Value:X8}");
             },
@@ -169,50 +142,117 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
                     : BuildGeneralsOrder();
 
                 // Phase 1: Load GameData before sideloads/mods are mounted
-                if (!string.IsNullOrEmpty(order[0].DefaultPath))
-                {
-                    LoadDirectory(vfs, order[0].DefaultPath, crc);
-                }
-
-                if (!string.IsNullOrEmpty(order[0].OverridePath))
-                {
-                    LoadDirectory(vfs, order[0].OverridePath, crc);
-                }
+                LoadOrderStep(order[0], vfs, crc);
 
                 // Phase 2: Mount Sideloads and Mods
-                if (sideloadPaths != null)
-                {
-                    foreach (string sideload in sideloadPaths)
-                    {
-                        vfs.AddSideload(sideload);
-                    }
-                }
+                MountSideloadsAndMods(vfs, sideloadPaths, modPath);
 
-                if (!string.IsNullOrWhiteSpace(modPath))
-                {
-                    vfs.AddMod(modPath);
-                }
-
-                // Phase 3: Load remaining categories (Water, Weather, Science, Objects, etc.)
+                // Phase 3: Load remaining categories
                 for (int i = 1; i < order.Length; i++)
                 {
                     ct.ThrowIfCancellationRequested();
-
-                    var (defaultPath, overridePath) = order[i];
-                    if (!string.IsNullOrEmpty(defaultPath))
-                    {
-                        LoadDirectory(vfs, defaultPath, crc);
-                    }
-
-                    if (!string.IsNullOrEmpty(overridePath))
-                    {
-                        LoadDirectory(vfs, overridePath, crc);
-                    }
+                    LoadOrderStep(order[i], vfs, crc);
                 }
 
                 return OperationResult<string>.CreateSuccess($"0x{crc.Value:X8}");
             },
             ct);
+    }
+
+    private static (int Major, int Minor) ResolveVersion(byte[] exeBytes, string executablePath, int? major, int? minor)
+    {
+        if (major != null && minor != null)
+        {
+            return (major.Value, minor.Value);
+        }
+
+        if (PeVersionExtractor.TryExtract(exeBytes, out int extractedMajor, out int extractedMinor) ||
+            PeVersionExtractor.TryExtractFromFile(executablePath, out extractedMajor, out extractedMinor))
+        {
+            return (extractedMajor, extractedMinor);
+        }
+
+        // Fallback based on filename convention
+        string name = Path.GetFileName(executablePath).ToLowerInvariant();
+        if (name.Contains("zh") || name.Contains("zerohour"))
+        {
+            return (1, 4);
+        }
+
+        return (1, 8);
+    }
+
+    private static void AddVersionBytes(LegacyChecksum crc, int major, int minor)
+    {
+        byte[] versionBytes =
+        [
+            (byte)(minor & 0xFF),
+            (byte)((minor >> 8) & 0xFF),
+            (byte)(major & 0xFF),
+            (byte)((major >> 8) & 0xFF)
+        ];
+        crc.Add(versionBytes);
+    }
+
+    private static void AddScriptFiles(LegacyChecksum crc, string root)
+    {
+        if (string.IsNullOrEmpty(root))
+        {
+            return;
+        }
+
+        string skirmishPath = Path.Combine(root, "Data", "Scripts", "SkirmishScripts.scb");
+        if (File.Exists(skirmishPath))
+        {
+            TryAddFileBytes(crc, skirmishPath);
+        }
+
+        string mpPath = Path.Combine(root, "Data", "Scripts", "MultiplayerScripts.scb");
+        if (File.Exists(mpPath))
+        {
+            TryAddFileBytes(crc, mpPath);
+        }
+    }
+
+    private static void TryAddFileBytes(LegacyChecksum crc, string path)
+    {
+        try
+        {
+            crc.Add(File.ReadAllBytes(path));
+        }
+        catch
+        {
+            // Ignore script read failure
+        }
+    }
+
+    private static void LoadOrderStep((string DefaultPath, string OverridePath) step, SageVirtualFileSystem vfs, XferChecksum crc)
+    {
+        if (!string.IsNullOrEmpty(step.DefaultPath))
+        {
+            LoadDirectory(vfs, step.DefaultPath, crc);
+        }
+
+        if (!string.IsNullOrEmpty(step.OverridePath))
+        {
+            LoadDirectory(vfs, step.OverridePath, crc);
+        }
+    }
+
+    private static void MountSideloadsAndMods(SageVirtualFileSystem vfs, IReadOnlyList<string>? sideloadPaths, string? modPath)
+    {
+        if (sideloadPaths != null)
+        {
+            foreach (string sideload in sideloadPaths)
+            {
+                vfs.AddSideload(sideload);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(modPath))
+        {
+            vfs.AddMod(modPath);
+        }
     }
 
     private static (string DefaultPath, string OverridePath)[] BuildGeneralsOrder()
@@ -228,21 +268,18 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
             list.Add(GeneralsMdOrder[i]);
         }
 
-        return list.ToArray();
+        return [.. list];
     }
 
     private static void LoadDirectory(SageVirtualFileSystem vfs, string path, XferChecksum crc)
     {
-        bool Read(string file)
+        void Read(string file)
         {
             byte[]? data = vfs.Read(file);
-            if (data == null)
+            if (data != null)
             {
-                return false;
+                IniNormalizer.ProcessLines(data, line => crc.Add(line));
             }
-
-            IniNormalizer.ProcessLines(data, line => crc.Add(line));
-            return true;
         }
 
         Read(path + ".ini");

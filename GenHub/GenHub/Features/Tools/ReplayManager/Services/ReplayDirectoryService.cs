@@ -513,6 +513,13 @@ public sealed class ReplayDirectoryService(
         return GetDefaultExecutableName(replay.GameVersion, replay.MatchedClient?.Publisher);
     }
 
+    /// <summary>
+    /// Checks whether the game client manifest associated with the CRC mapping is installed locally.
+    /// </summary>
+    /// <param name="match">The CRC mapping entry.</param>
+    /// <param name="gameVersion">The game version.</param>
+    /// <param name="acquiredIds">The set of acquired manifest IDs.</param>
+    /// <returns><c>true</c> if the client manifest is installed; otherwise, <c>false</c>.</returns>
     internal static bool IsClientManifestInstalled(CrcMappingEntry match, GameType gameVersion, HashSet<string> acquiredIds)
     {
         if (!string.IsNullOrEmpty(match.ManifestId) && acquiredIds.Contains(match.ManifestId))
@@ -544,6 +551,12 @@ public sealed class ReplayDirectoryService(
         return false;
     }
 
+    /// <summary>
+    /// Determines the unconfigured compatibility status for a matched CRC entry.
+    /// </summary>
+    /// <param name="match">The CRC mapping entry.</param>
+    /// <param name="isInstalled">Whether the client manifest is installed.</param>
+    /// <returns>The resolved <see cref="ReplayCompatibilityStatus"/>.</returns>
     internal static ReplayCompatibilityStatus DetermineUnconfiguredStatus(CrcMappingEntry match, bool isInstalled)
     {
         if (isInstalled)
@@ -561,6 +574,14 @@ public sealed class ReplayDirectoryService(
         return ReplayCompatibilityStatus.Orphaned;
     }
 
+    /// <summary>
+    /// Resolves the compatibility status for a replay that matched a known client entry.
+    /// </summary>
+    /// <param name="replay">The replay file.</param>
+    /// <param name="match">The CRC mapping entry.</param>
+    /// <param name="acquiredIds">The set of acquired manifest IDs.</param>
+    /// <param name="profiles">The list of game profiles.</param>
+    /// <param name="logger">Optional logger.</param>
     internal static void ResolveMatchedClientCompatibility(
         ReplayFile replay,
         CrcMappingEntry match,

@@ -121,7 +121,12 @@ public static class PeVersionExtractor
         major = 0;
         minor = 0;
 
-        if (!ConsumePush(ref data) || !ConsumePush(ref data))
+        if (!ConsumePush(ref data))
+        {
+            return false;
+        }
+
+        if (!ConsumePush(ref data))
         {
             return false;
         }
@@ -185,7 +190,12 @@ public static class PeVersionExtractor
         major = 0;
         minor = 0;
 
-        if (!ConsumePush(ref data) || !ConsumePush(ref data))
+        if (!ConsumePush(ref data))
+        {
+            return false;
+        }
+
+        if (!ConsumePush(ref data))
         {
             return false;
         }

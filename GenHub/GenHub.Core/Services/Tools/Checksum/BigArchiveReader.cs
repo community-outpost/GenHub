@@ -1,4 +1,6 @@
+using System;
 using System.Buffers.Binary;
+using System.IO;
 using System.Text;
 
 namespace GenHub.Core.Services.Tools.Checksum;
@@ -8,8 +10,8 @@ namespace GenHub.Core.Services.Tools.Checksum;
 /// </summary>
 public static class BigArchiveReader
 {
-    private static readonly byte[] BigfMagic = "BIGF"u8.ToArray();
-    private static readonly byte[] Big4Magic = "BIG4"u8.ToArray();
+    private static readonly byte[] BigfMagic = [(byte)'B', (byte)'I', (byte)'G', (byte)'F'];
+    private static readonly byte[] Big4Magic = [(byte)'B', (byte)'I', (byte)'G', (byte)'4'];
 
     /// <summary>
     /// Reads and indexes the directory table from a .BIG archive file.
@@ -29,19 +31,7 @@ public static class BigArchiveReader
             throw new InvalidDataException($"'{archivePath}' is too small to be a valid BIG archive.");
         }
 
-        ReadOnlySpan<byte> magic = headerBuffer.AsSpan(0, 4);
-        if (!magic.SequenceEqual(BigfMagic) && !magic.SequenceEqual(Big4Magic))
-        {
-            throw new InvalidDataException($"'{archivePath}' does not contain a valid BIG magic header.");
-        }
-
-        int count = unchecked((int)BinaryPrimitives.ReadUInt32BigEndian(headerBuffer.AsSpan(8, 4)));
-        int headerSize = unchecked((int)BinaryPrimitives.ReadUInt32BigEndian(headerBuffer.AsSpan(12, 4)));
-
-        if (count < 0 || headerSize < 16)
-        {
-            throw new InvalidDataException($"'{archivePath}' contains invalid header entry counts or sizes.");
-        }
+        ValidateHeader(headerBuffer, archivePath, out int count, out int headerSize);
 
         int dirSize = headerSize - 16;
         byte[] dirBuffer = new byte[dirSize];
@@ -57,35 +47,8 @@ public static class BigArchiveReader
 
         for (int i = 0; i < count; i++)
         {
-            if (pos + 8 > dirSize)
-            {
-                throw new InvalidDataException($"'{archivePath}' directory table ended prematurely.");
-            }
-
-            int offset = unchecked((int)BinaryPrimitives.ReadUInt32BigEndian(dirBuffer.AsSpan(pos, 4)));
-            int size = unchecked((int)BinaryPrimitives.ReadUInt32BigEndian(dirBuffer.AsSpan(pos + 4, 4)));
-            pos += 8;
-
-            int nameStart = pos;
-            while (pos < dirSize && dirBuffer[pos] != 0)
-            {
-                pos++;
-            }
-
-            if (pos >= dirSize)
-            {
-                throw new InvalidDataException($"'{archivePath}' entry path is not null-terminated.");
-            }
-
-            string relativePath = Encoding.Latin1.GetString(dirBuffer, nameStart, pos - nameStart).Replace('/', '\\');
-            pos++; // Skip null terminator
-
-            if (offset < 0 || size < 0 || offset + (long)size > fileLength)
-            {
-                throw new InvalidDataException($"'{archivePath}' entry '{relativePath}' exceeds archive boundaries.");
-            }
-
-            entries[relativePath.ToLowerInvariant()] = new BigArchiveEntry(relativePath, archivePath, offset, size);
+            var entry = ReadDirectoryEntry(dirBuffer, ref pos, dirSize, fileLength, archivePath);
+            entries[entry.Path.ToLowerInvariant()] = entry;
         }
 
         return entries;
@@ -100,21 +63,65 @@ public static class BigArchiveReader
     {
         ArgumentNullException.ThrowIfNull(entry);
 
-        byte[] buffer = new byte[entry.Size];
         using var fileStream = new FileStream(entry.ArchivePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         fileStream.Seek(entry.Offset, SeekOrigin.Begin);
-        int read = 0;
-        while (read < entry.Size)
+        byte[] data = new byte[entry.Size];
+        int read = fileStream.Read(data, 0, entry.Size);
+        if (read < entry.Size)
         {
-            int n = fileStream.Read(buffer, read, entry.Size - read);
-            if (n == 0)
-            {
-                throw new EndOfStreamException($"Premature end of stream while reading entry '{entry.Path}' from '{entry.ArchivePath}'.");
-            }
-
-            read += n;
+            throw new InvalidDataException($"Incomplete read for entry '{entry.Path}' in '{entry.ArchivePath}'.");
         }
 
-        return buffer;
+        return data;
+    }
+
+    private static void ValidateHeader(byte[] headerBuffer, string archivePath, out int count, out int headerSize)
+    {
+        ReadOnlySpan<byte> magic = headerBuffer.AsSpan(0, 4);
+        if (!magic.SequenceEqual(BigfMagic) && !magic.SequenceEqual(Big4Magic))
+        {
+            throw new InvalidDataException($"'{archivePath}' does not contain a valid BIG magic header.");
+        }
+
+        count = unchecked((int)BinaryPrimitives.ReadUInt32BigEndian(headerBuffer.AsSpan(8, 4)));
+        headerSize = unchecked((int)BinaryPrimitives.ReadUInt32BigEndian(headerBuffer.AsSpan(12, 4)));
+
+        if (count < 0 || headerSize < 16)
+        {
+            throw new InvalidDataException($"'{archivePath}' contains invalid header entry counts or sizes.");
+        }
+    }
+
+    private static BigArchiveEntry ReadDirectoryEntry(byte[] dirBuffer, ref int pos, int dirSize, long fileLength, string archivePath)
+    {
+        if (pos + 8 > dirSize)
+        {
+            throw new InvalidDataException($"'{archivePath}' directory table ended prematurely.");
+        }
+
+        int offset = unchecked((int)BinaryPrimitives.ReadUInt32BigEndian(dirBuffer.AsSpan(pos, 4)));
+        int size = unchecked((int)BinaryPrimitives.ReadUInt32BigEndian(dirBuffer.AsSpan(pos + 4, 4)));
+        pos += 8;
+
+        int nameStart = pos;
+        while (pos < dirSize && dirBuffer[pos] != 0)
+        {
+            pos++;
+        }
+
+        if (pos >= dirSize)
+        {
+            throw new InvalidDataException($"'{archivePath}' entry path is not null-terminated.");
+        }
+
+        string relativePath = Encoding.Latin1.GetString(dirBuffer, nameStart, pos - nameStart).Replace('/', '\\');
+        pos++; // Skip null terminator
+
+        if (offset < 0 || size < 0 || offset + (long)size > fileLength)
+        {
+            throw new InvalidDataException($"'{archivePath}' entry '{relativePath}' exceeds archive boundaries.");
+        }
+
+        return new BigArchiveEntry(relativePath, archivePath, offset, size);
     }
 }

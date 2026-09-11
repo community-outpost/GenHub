@@ -5,7 +5,6 @@ namespace GenHub.Core.Services.Tools.Checksum;
 /// </summary>
 public sealed class SageVirtualFileSystem
 {
-    private readonly string _gameRoot;
     private readonly List<string> _looseRoots = [];
     private readonly Dictionary<string, BigArchiveEntry> _archiveEntries = new(StringComparer.OrdinalIgnoreCase);
 
@@ -16,7 +15,7 @@ public sealed class SageVirtualFileSystem
     /// <param name="isZeroHour">Whether the target game is Zero Hour (generalsmd) or vanilla Generals.</param>
     public SageVirtualFileSystem(string gameRoot, bool isZeroHour)
     {
-        _gameRoot = gameRoot ?? throw new ArgumentNullException(nameof(gameRoot));
+        ArgumentNullException.ThrowIfNull(gameRoot);
         _looseRoots.Add(gameRoot);
 
         if (!Directory.Exists(gameRoot))
