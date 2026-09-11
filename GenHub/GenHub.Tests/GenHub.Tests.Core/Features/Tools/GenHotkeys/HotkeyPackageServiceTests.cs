@@ -10,6 +10,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.GenHotkeys;
 using GenHub.Features.Tools.GenHotkeys.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
@@ -40,10 +41,20 @@ public class HotkeyPackageServiceTests : IDisposable
         _mockTechTree = new Mock<ITechTreeService>();
         _mockIconOverlay = new Mock<IIconOverlayService>();
 
+        var mockScope = new Mock<IServiceScope>();
+        var mockServiceProvider = new Mock<IServiceProvider>();
+        mockServiceProvider
+            .Setup(sp => sp.GetService(typeof(ILocalContentService)))
+            .Returns(_mockLocalContent.Object);
+        mockScope.Setup(s => s.ServiceProvider).Returns(mockServiceProvider.Object);
+
+        var mockScopeFactory = new Mock<IServiceScopeFactory>();
+        mockScopeFactory.Setup(f => f.CreateScope()).Returns(mockScope.Object);
+
         _service = new HotkeyPackageService(
             _mockTechTree.Object,
             _mockIconOverlay.Object,
-            _mockLocalContent.Object,
+            mockScopeFactory.Object,
             NullLogger<HotkeyPackageService>.Instance);
     }
 
