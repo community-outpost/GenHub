@@ -43,6 +43,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     private const string NoProjectMessage = "Please load or create a project first";
     private const string ReadyStatusLiteral = "Ready";
     private const string UnknownErrorLiteral = "Unknown error";
+    private const string DefaultStatusColor = UiConstants.DefaultStatusBackgroundColor;
 
     private readonly IBuildEngineService _buildEngineService;
     private readonly IProjectConfigService _projectConfigService;
@@ -191,23 +192,6 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     partial void OnSearchQueryChanged(string value)
     {
         ApplyProjectFilter();
-    }
-
-    private void ApplyProjectFilter()
-    {
-        RecentProjects.Clear();
-        var query = SearchQuery?.Trim() ?? string.Empty;
-        var filtered = string.IsNullOrEmpty(query)
-            ? _allRecentProjects
-            : _allRecentProjects.Where(p => p.Name.Contains(query, StringComparison.OrdinalIgnoreCase) || p.Path.Contains(query, StringComparison.OrdinalIgnoreCase));
-
-        foreach (var project in filtered)
-        {
-            RecentProjects.Add(project);
-        }
-
-        OnPropertyChanged(nameof(HasRecentProjects));
-        OnPropertyChanged(nameof(TotalProjects));
     }
 
     /// <summary>
@@ -426,65 +410,6 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
     }
 
-    private void UpdatePacksForSingleBigMode(IEnumerable<BundlePack>? packs, bool singleBigMode)
-    {
-        if (packs == null)
-        {
-            return;
-        }
-
-        foreach (var pack in packs)
-        {
-            ApplyPackSingleBigMode(pack, singleBigMode, _packsPromotedToBig);
-        }
-    }
-
-    private static void ApplyPackSingleBigMode(BundlePack pack, bool singleBigMode, ISet<string>? promotedPacks = null)
-    {
-        if (singleBigMode)
-        {
-            if (pack.Big != false)
-            {
-                if (!pack.IsBigPack && promotedPacks != null)
-                {
-                    promotedPacks.Add(pack.Name);
-                }
-
-                pack.Big = true;
-                pack.OutputFile = ReplaceExtension(pack.OutputFile, ".zip", ".big");
-            }
-        }
-        else
-        {
-            if (pack.Big == false)
-            {
-                return;
-            }
-
-            if (promotedPacks != null && promotedPacks.Contains(pack.Name))
-            {
-                promotedPacks.Remove(pack.Name);
-                pack.Big = null;
-                pack.OutputFile = ReplaceExtension(pack.OutputFile, ".big", ".zip");
-            }
-            else if (promotedPacks == null && pack.IsBigPack)
-            {
-                pack.Big = null;
-                pack.OutputFile = ReplaceExtension(pack.OutputFile, ".big", ".zip");
-            }
-        }
-    }
-
-    private static string? ReplaceExtension(string? filePath, string oldExt, string newExt)
-    {
-        if (!string.IsNullOrWhiteSpace(filePath) && filePath.EndsWith(oldExt, StringComparison.OrdinalIgnoreCase))
-        {
-            return Path.ChangeExtension(filePath, newExt).Replace('\\', '/');
-        }
-
-        return filePath;
-    }
-
     /// <summary>
     /// Gets or sets the status message.
     /// </summary>
@@ -500,8 +425,6 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Default status color value for the status bar.
     /// </summary>
-    private const string DefaultStatusColor = UiConstants.DefaultStatusBackgroundColor;
-
     /// <summary>
     /// Gets or sets the status color for the status bar.
     /// </summary>
@@ -1115,13 +1038,22 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var projectDir = Path.GetDirectoryName(path);
             if (!string.IsNullOrEmpty(projectDir) && Directory.Exists(projectDir))
             {
+                var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
                 var specialFolders = new[]
                 {
-                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    userProfile,
                     Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                     Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                    Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+                    Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyMusic),
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyVideos),
+                    Environment.GetFolderPath(Environment.SpecialFolder.Templates),
+                    !string.IsNullOrEmpty(userProfile) ? Path.Combine(userProfile, "Downloads") : null,
                     Path.GetPathRoot(projectDir),
                 }.Where(p => !string.IsNullOrEmpty(p))
                  .Select(p => Path.GetFullPath(p!).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
@@ -2892,6 +2824,82 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         {
             Dispatcher.UIThread.Post(action);
         }
+    }
+
+    private void ApplyProjectFilter()
+    {
+        RecentProjects.Clear();
+        var query = SearchQuery?.Trim() ?? string.Empty;
+        var filtered = string.IsNullOrEmpty(query)
+            ? _allRecentProjects
+            : _allRecentProjects.Where(p => p.Name.Contains(query, StringComparison.OrdinalIgnoreCase) || p.Path.Contains(query, StringComparison.OrdinalIgnoreCase));
+
+        foreach (var project in filtered)
+        {
+            RecentProjects.Add(project);
+        }
+
+        OnPropertyChanged(nameof(HasRecentProjects));
+        OnPropertyChanged(nameof(TotalProjects));
+    }
+
+    private void UpdatePacksForSingleBigMode(IEnumerable<BundlePack>? packs, bool singleBigMode)
+    {
+        if (packs == null)
+        {
+            return;
+        }
+
+        foreach (var pack in packs)
+        {
+            ApplyPackSingleBigMode(pack, singleBigMode, _packsPromotedToBig);
+        }
+    }
+
+    private static void ApplyPackSingleBigMode(BundlePack pack, bool singleBigMode, ISet<string>? promotedPacks = null)
+    {
+        if (singleBigMode)
+        {
+            if (pack.Big != false)
+            {
+                if (!pack.IsBigPack && promotedPacks != null)
+                {
+                    promotedPacks.Add(pack.Name);
+                }
+
+                pack.Big = true;
+                pack.OutputFile = ReplaceExtension(pack.OutputFile, ".zip", ".big");
+            }
+        }
+        else
+        {
+            if (pack.Big == false)
+            {
+                return;
+            }
+
+            if (promotedPacks != null && promotedPacks.Contains(pack.Name))
+            {
+                promotedPacks.Remove(pack.Name);
+                pack.Big = null;
+                pack.OutputFile = ReplaceExtension(pack.OutputFile, ".big", ".zip");
+            }
+            else if (promotedPacks == null && pack.IsBigPack)
+            {
+                pack.Big = null;
+                pack.OutputFile = ReplaceExtension(pack.OutputFile, ".big", ".zip");
+            }
+        }
+    }
+
+    private static string? ReplaceExtension(string? filePath, string oldExt, string newExt)
+    {
+        if (!string.IsNullOrWhiteSpace(filePath) && filePath.EndsWith(oldExt, StringComparison.OrdinalIgnoreCase))
+        {
+            return Path.ChangeExtension(filePath, newExt).Replace('\\', '/');
+        }
+
+        return filePath;
     }
 
     /// <summary>
