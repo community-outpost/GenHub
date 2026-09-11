@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
+using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Infrastructure.Logging;
 using Microsoft.Extensions.DependencyInjection;
@@ -104,11 +105,20 @@ public static class LoggingModule
     /// <returns>The full path to the log file.</returns>
     public static string GetLogFilePath()
     {
-        var logDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            AppConstants.AppName,
-            DirectoryNames.Logs);
+        string rootDir;
+        if (StorageMigrationService.IsCustomInstallRoot())
+        {
+            rootDir = StorageMigrationService.GetSourceRootDirectory();
+            StorageMigrationService.CleanOrphanedDefaultAppDataIfCustom();
+        }
+        else
+        {
+            rootDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                AppConstants.AppName);
+        }
 
+        var logDir = Path.Combine(rootDir, DirectoryNames.Logs);
         Directory.CreateDirectory(logDir);
         var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         return Path.Combine(logDir, $"{AppConstants.AppName.ToLowerInvariant()}-{timestamp}.log");
@@ -142,10 +152,13 @@ public static class LoggingModule
 
     private static string GetSettingsFilePath()
     {
-        return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            AppConstants.AppName,
-            FileTypes.SettingsFileName);
+        var rootDir = StorageMigrationService.IsCustomInstallRoot()
+            ? StorageMigrationService.GetSourceRootDirectory()
+            : Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                AppConstants.AppName);
+
+        return Path.Combine(rootDir, FileTypes.SettingsFileName);
     }
 
     private static string ToCamelCase(this string str)

@@ -27,9 +27,17 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
         try
         {
             var configured = _configuration?.GetValue<string>(ConfigurationKeys.AppDataPath);
-            return !string.IsNullOrEmpty(configured)
-                ? configured
-                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GenHub");
+            if (!string.IsNullOrEmpty(configured))
+            {
+                return configured;
+            }
+
+            if (StorageMigrationService.IsCustomInstallRoot())
+            {
+                return StorageMigrationService.GetSourceRootDirectory();
+            }
+
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GenHub");
         }
         catch (Exception ex)
         {
@@ -218,15 +226,21 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
     /// <returns>The application data path as a string.</returns>
     public string GetConfiguredDataPath()
     {
-        if (_configuration == null)
+        if (_configuration != null)
         {
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
+            var configured = _configuration[ConfigurationKeys.AppDataPath];
+            if (!string.IsNullOrEmpty(configured))
+            {
+                return configured;
+            }
         }
 
-        var configured = _configuration[ConfigurationKeys.AppDataPath];
-        return !string.IsNullOrEmpty(configured)
-            ? configured
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
+        if (StorageMigrationService.IsCustomInstallRoot())
+        {
+            return StorageMigrationService.GetSourceRootDirectory();
+        }
+
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
     }
 
     /// <summary>

@@ -108,6 +108,24 @@ public sealed class InstallationCasPoolService(
         }
 
         var candidateIsWritable = writabilityProbe.CanCreateStorageAt(candidatePath);
+        if (!candidateIsWritable)
+        {
+            var baseInstallationPath = GetBaseInstallationPath(preferredInstallation);
+            if (!string.IsNullOrWhiteSpace(baseInstallationPath))
+            {
+                foreach (var ancestor in PathHelper.EnumerateSameVolumeAncestors(baseInstallationPath))
+                {
+                    var ancestorCandidate = Path.Combine(ancestor, DirectoryNames.GenHubCasPool);
+                    if (writabilityProbe.CanCreateStorageAt(ancestorCandidate))
+                    {
+                        candidatePath = NormalizePath(ancestorCandidate);
+                        candidateIsWritable = true;
+                        break;
+                    }
+                }
+            }
+        }
+
         var effectivePath = candidateIsWritable ? candidatePath : string.Empty;
         var legacyPaths = SelectLegacyPaths(currentSettings, currentPath, candidatePath, effectivePath);
         var settingsAlreadyMatch =
@@ -143,14 +161,14 @@ public sealed class InstallationCasPoolService(
         if (candidateIsWritable)
         {
             logger.LogInformation(
-                "Using installation-adjacent CAS pool {PoolPath} for installation {InstallationId}",
+                "Using same-volume CAS pool {PoolPath} for installation {InstallationId}",
                 candidatePath,
                 preferredInstallation.Id);
         }
         else
         {
             logger.LogWarning(
-                "Installation-adjacent CAS pool {PoolPath} is not writable; new content will use the primary pool",
+                "Installation-adjacent CAS pool {PoolPath} and same-volume ancestors are not writable; new content will use the primary pool",
                 candidatePath);
         }
 
@@ -158,7 +176,7 @@ public sealed class InstallationCasPoolService(
         return true;
     }
 
-    private static string? GetDerivedPoolPath(GameInstallation installation)
+    private static string? GetBaseInstallationPath(GameInstallation installation)
     {
         var installationPath = installation.InstallationPath;
         if (string.IsNullOrWhiteSpace(installationPath))
@@ -168,6 +186,12 @@ public sealed class InstallationCasPoolService(
                 : installation.GeneralsPath;
         }
 
+        return string.IsNullOrWhiteSpace(installationPath) ? null : installationPath;
+    }
+
+    private static string? GetDerivedPoolPath(GameInstallation installation)
+    {
+        var installationPath = GetBaseInstallationPath(installation);
         return string.IsNullOrWhiteSpace(installationPath)
             ? null
             : Path.Combine(installationPath, DirectoryNames.GenHubCasPool);

@@ -79,6 +79,86 @@ public static class PathHelper
     }
 
     /// <summary>
+    /// Determines whether two filesystem paths reside on the same drive volume.
+    /// </summary>
+    /// <param name="first">The first path.</param>
+    /// <param name="second">The second path.</param>
+    /// <returns><see langword="true"/> when both paths share the same volume root; otherwise, <see langword="false"/>.</returns>
+    public static bool AreSameVolume(string first, string second)
+    {
+        if (string.IsNullOrWhiteSpace(first) || string.IsNullOrWhiteSpace(second))
+        {
+            return false;
+        }
+
+        try
+        {
+            var firstRoot = Path.GetPathRoot(Path.GetFullPath(first));
+            var secondRoot = Path.GetPathRoot(Path.GetFullPath(second));
+
+            return !string.IsNullOrEmpty(firstRoot) &&
+                   !string.IsNullOrEmpty(secondRoot) &&
+                   string.Equals(firstRoot, secondRoot, PathComparison);
+        }
+        catch (Exception ex) when (ex is IOException or ArgumentException or NotSupportedException or SecurityException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Enumerates directory paths starting from <paramref name="startPath"/> and walking up
+    /// through its parent directories, stopping at the volume root. All returned paths reside
+    /// on the same filesystem volume as <paramref name="startPath"/>.
+    /// </summary>
+    /// <param name="startPath">The initial path to begin traversal from.</param>
+    /// <returns>An enumeration of ancestor directory paths on the same volume.</returns>
+    public static IEnumerable<string> EnumerateSameVolumeAncestors(string startPath)
+    {
+        if (string.IsNullOrWhiteSpace(startPath))
+        {
+            yield break;
+        }
+
+        string fullPath;
+        string? volumeRoot;
+        try
+        {
+            fullPath = Path.GetFullPath(startPath);
+            volumeRoot = Path.GetPathRoot(fullPath);
+        }
+        catch (Exception ex) when (ex is IOException or ArgumentException or NotSupportedException or SecurityException or UnauthorizedAccessException)
+        {
+            yield break;
+        }
+
+        if (string.IsNullOrEmpty(volumeRoot))
+        {
+            yield break;
+        }
+
+        var current = fullPath;
+        while (!string.IsNullOrEmpty(current))
+        {
+            yield return current;
+
+            var parent = Path.GetDirectoryName(current);
+            if (string.IsNullOrEmpty(parent) || AreSamePath(current, parent))
+            {
+                break;
+            }
+
+            var parentVolume = Path.GetPathRoot(parent);
+            if (string.IsNullOrEmpty(parentVolume) || !string.Equals(parentVolume, volumeRoot, PathComparison))
+            {
+                break;
+            }
+
+            current = parent;
+        }
+    }
+
+    /// <summary>
     /// Gets the parent directory of a path, with fallback to the path itself if at drive root.
     /// </summary>
     /// <param name="path">The path to get the parent directory from.</param>
@@ -374,14 +454,6 @@ public static class PathHelper
             return fullPath;
         }
         catch (SecurityException)
-        {
-            return fullPath;
-        }
-        catch (NotSupportedException)
-        {
-            return fullPath;
-        }
-        catch (ArgumentException)
         {
             return fullPath;
         }

@@ -219,6 +219,79 @@ public class StorageMigrationService(
     }
 
     /// <summary>
+    /// Determines whether the specified directory is a Velopack installation root.
+    /// </summary>
+    /// <param name="directoryPath">The directory path to test.</param>
+    /// <returns><c>true</c> if the directory contains Velopack installation markers; otherwise, <c>false</c>.</returns>
+    internal static bool IsVelopackRoot(string? directoryPath)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            var hasUpdateExe = File.Exists(Path.Combine(directoryPath, "Update.exe")) || File.Exists(Path.Combine(directoryPath, "Update"));
+            var hasPackagesDir = Directory.Exists(Path.Combine(directoryPath, "packages"));
+            var hasAppDirs = Directory.GetDirectories(directoryPath, "app-*").Length > 0;
+            return hasUpdateExe || hasPackagesDir || hasAppDirs;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Determines whether the running instance is located in a custom installation directory (e.g. via --installto)
+    /// rather than the default %LOCALAPPDATA%\GenHub root.
+    /// </summary>
+    /// <returns><c>true</c> if running from a custom Velopack install root; otherwise, <c>false</c>.</returns>
+    internal static bool IsCustomInstallRoot()
+    {
+        var sourceRoot = GetSourceRootDirectory();
+        var defaultInstallRoot = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            AppConstants.AppName);
+
+        if (string.Equals(sourceRoot, defaultInstallRoot, PathHelper.PathComparison))
+        {
+            return false;
+        }
+
+        return IsVelopackRoot(sourceRoot);
+    }
+
+    /// <summary>
+    /// If running from a custom install location, removes empty %LOCALAPPDATA%\GenHub folder if it was
+    /// created during bootstrap or leftover from default paths.
+    /// </summary>
+    internal static void CleanOrphanedDefaultAppDataIfCustom()
+    {
+        if (!IsCustomInstallRoot())
+        {
+            return;
+        }
+
+        try
+        {
+            var defaultInstallRoot = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                AppConstants.AppName);
+
+            if (Directory.Exists(defaultInstallRoot) && !Directory.EnumerateFileSystemEntries(defaultInstallRoot).Any())
+            {
+                Directory.Delete(defaultInstallRoot);
+            }
+        }
+        catch (Exception)
+        {
+            // Non-fatal cleanup
+        }
+    }
+
+    /// <summary>
     /// Checks whether a path is equal to or contained within a parent directory.
     /// </summary>
     /// <param name="path">The path to test.</param>

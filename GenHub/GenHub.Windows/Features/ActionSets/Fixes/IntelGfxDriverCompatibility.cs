@@ -17,7 +17,7 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> logger) : BaseActionSet(logger)
 {
-    private readonly string _markerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", ActionSetConstants.Paths.SubActionSetMarkers, "IntelGfxDriverCompatibility.done");
+    private readonly string _markerPath = GetMarkerPath("IntelGfxDriverCompatibility.done");
 
     /// <inheritdoc/>
     public override string Id => "IntelGfxDriverCompatibility";
@@ -89,7 +89,7 @@ public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> lo
                 return Task.FromResult(new ActionSetResult(true));
             }
 
-            if (IsIntelDriverUpToDate())
+            if (IsIntelDriverUpToDate() && MarkerExists(_markerPath))
             {
                 logger.LogInformation("Intel graphics driver is up to date. No action needed.");
                 return Task.FromResult(new ActionSetResult(true));

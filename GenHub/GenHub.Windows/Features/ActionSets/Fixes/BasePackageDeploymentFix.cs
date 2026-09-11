@@ -183,16 +183,12 @@ public abstract class BasePackageDeploymentFix(
             return markerPath;
         }
 
-        var baseDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "GenHub",
-            ActionSetConstants.Paths.SubActionSetMarkers);
-
         var key = ComputeInstallationKey(installation);
-        var scopedMarker = Path.Combine(baseDir, $"{Path.GetFileNameWithoutExtension(defaultMarkerFileName)}_{key}{Path.GetExtension(defaultMarkerFileName)}");
+        var scopedMarkerName = $"{Path.GetFileNameWithoutExtension(defaultMarkerFileName)}_{key}{Path.GetExtension(defaultMarkerFileName)}";
+        var scopedMarker = BaseActionSet.GetMarkerPath(scopedMarkerName);
 
         // Backward compatibility: migrate legacy global marker to scoped marker if scoped marker is missing
-        var globalMarker = Path.Combine(baseDir, defaultMarkerFileName);
+        var globalMarker = BaseActionSet.GetMarkerPath(defaultMarkerFileName);
         if (!File.Exists(scopedMarker) && File.Exists(globalMarker))
         {
             try
@@ -228,11 +224,37 @@ public abstract class BasePackageDeploymentFix(
     protected string GetBackupDirectory(GameInstallation installation)
     {
         var key = ComputeInstallationKey(installation);
-        return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "GenHub",
+        var localDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            AppConstants.AppName,
             "Backups",
             $"{Id}_{key}");
+
+        try
+        {
+            var roamingDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                AppConstants.AppName,
+                "Backups",
+                $"{Id}_{key}");
+
+            if (Directory.Exists(roamingDir) && !Directory.Exists(localDir))
+            {
+                var parent = Path.GetDirectoryName(localDir);
+                if (!string.IsNullOrEmpty(parent))
+                {
+                    Directory.CreateDirectory(parent);
+                }
+
+                Directory.Move(roamingDir, localDir);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            // Best effort migration
+        }
+
+        return localDir;
     }
 
     /// <inheritdoc/>

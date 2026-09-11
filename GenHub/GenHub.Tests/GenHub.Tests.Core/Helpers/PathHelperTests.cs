@@ -1,4 +1,8 @@
+using System;
+using System.IO;
+using System.Linq;
 using GenHub.Core.Helpers;
+using Xunit;
 
 namespace GenHub.Tests.Core.Helpers;
 
@@ -264,6 +268,59 @@ public sealed class PathHelperTests
         finally
         {
             Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that AreSameVolume identifies paths on the same drive root as identical volume.
+    /// </summary>
+    [Fact]
+    public void AreSameVolume_ReturnsTrueForSameDriveRoot()
+    {
+        var tempDir = Path.GetTempPath();
+        var subDir = Path.Combine(tempDir, "SubFolder", "File.txt");
+
+        Assert.True(PathHelper.AreSameVolume(tempDir, subDir));
+    }
+
+    /// <summary>
+    /// Verifies that AreSameVolume returns false for empty or non-rooted comparison.
+    /// </summary>
+    /// <param name="path1">The first path.</param>
+    /// <param name="path2">The second path.</param>
+    [Theory]
+    [InlineData(null, @"C:\Test")]
+    [InlineData(@"C:\Test", null)]
+    [InlineData("", @"C:\Test")]
+    public void AreSameVolume_ReturnsFalseForNullOrEmpty(string? path1, string? path2)
+    {
+        Assert.False(PathHelper.AreSameVolume(path1!, path2!));
+    }
+
+    /// <summary>
+    /// Verifies that EnumerateSameVolumeAncestors yields parent directories on the same volume.
+    /// </summary>
+    [Fact]
+    public void EnumerateSameVolumeAncestors_YieldsParentsOnSameVolume()
+    {
+        var tempRoot = CreateWorkingDirectory();
+        try
+        {
+            var deepChild = Path.Combine(tempRoot, "A", "B", "C");
+            Directory.CreateDirectory(deepChild);
+
+            var ancestors = PathHelper.EnumerateSameVolumeAncestors(deepChild).ToList();
+
+            var expectedFirst = Path.Combine(tempRoot, "A", "B");
+            var expectedSecond = Path.Combine(tempRoot, "A");
+
+            Assert.Contains(ancestors, a => PathHelper.AreSamePath(a, expectedFirst));
+            Assert.Contains(ancestors, a => PathHelper.AreSamePath(a, expectedSecond));
+            Assert.Contains(ancestors, a => PathHelper.AreSamePath(a, tempRoot));
+        }
+        finally
+        {
+            Directory.Delete(tempRoot, recursive: true);
         }
     }
 

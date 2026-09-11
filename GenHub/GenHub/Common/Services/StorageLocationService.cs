@@ -39,13 +39,10 @@ public class StorageLocationService(
         if (settings.UseInstallationAdjacentStorage)
         {
             var installationPath = installation.InstallationPath;
-            if (!string.IsNullOrWhiteSpace(installationPath))
+            if (!string.IsNullOrWhiteSpace(installationPath) &&
+                TryResolveSameVolumeStorage(installationPath, DirectoryNames.GenHubCasPool, installation.Id, out var adjacentPath))
             {
-                var adjacentPath = Path.Combine(installationPath, DirectoryNames.GenHubCasPool);
-                if (writabilityProbe.CanCreateStorageAt(adjacentPath))
-                {
-                    return Path.GetFullPath(adjacentPath);
-                }
+                return adjacentPath;
             }
         }
 
@@ -63,20 +60,33 @@ public class StorageLocationService(
         ArgumentNullException.ThrowIfNull(installation);
 
         var settings = userSettingsService.Get();
-        if (settings.UseInstallationAdjacentStorage &&
-            TryGetWritableInstallationAdjacentPath(installation, DirectoryNames.GenHubWorkspace, out var adjacentPath))
+        if (settings.UseInstallationAdjacentStorage)
         {
-            logger.LogDebug(
-                "Resolved installation-adjacent workspace path: {WorkspacePath} for installation {InstallationId}",
-                adjacentPath,
-                installation.Id);
-            return adjacentPath;
+            var installationRoot = PathHelper.GetSafeParentDirectory(installation.InstallationPath);
+            if (!string.IsNullOrWhiteSpace(installationRoot) &&
+                TryResolveSameVolumeStorage(installationRoot, DirectoryNames.GenHubWorkspace, installation.Id, out var adjacentPath))
+            {
+                logger.LogDebug(
+                    "Resolved installation-adjacent workspace path: {WorkspacePath} for installation {InstallationId}",
+                    adjacentPath,
+                    installation.Id);
+                return adjacentPath;
+            }
         }
 
         var configuredWorkspacePath = settings.WorkspacePath;
         var workspacePath = !string.IsNullOrWhiteSpace(configuredWorkspacePath) && writabilityProbe.CanCreateStorageAt(configuredWorkspacePath)
             ? Path.GetFullPath(configuredWorkspacePath)
             : Path.Combine(configurationProviderService.GetApplicationDataPath(), DirectoryNames.Workspaces);
+
+        if (!string.IsNullOrWhiteSpace(installation.InstallationPath) &&
+            !PathHelper.AreSameVolume(installation.InstallationPath, workspacePath))
+        {
+            logger.LogWarning(
+                "Workspace path {WorkspacePath} is on a different volume than installation {InstallationPath}. Hardlinks cannot cross volumes.",
+                workspacePath,
+                installation.InstallationPath);
+        }
 
         logger.LogInformation(
             "Using centralized workspace path {WorkspacePath} for installation {InstallationId}",
@@ -173,22 +183,27 @@ public class StorageLocationService(
         return sameVolume;
     }
 
-    private bool TryGetWritableInstallationAdjacentPath(
-        IGameInstallation installation,
+    private bool TryResolveSameVolumeStorage(
+        string basePath,
         string directoryName,
+        string installationId,
         out string path)
     {
-        var installationRoot = PathHelper.GetSafeParentDirectory(installation.InstallationPath);
-        path = Path.Combine(installationRoot, directoryName);
-        if (writabilityProbe.CanCreateStorageAt(path))
+        foreach (var ancestor in PathHelper.EnumerateSameVolumeAncestors(basePath))
         {
-            return true;
+            var candidate = Path.Combine(ancestor, directoryName);
+            if (writabilityProbe.CanCreateStorageAt(candidate))
+            {
+                path = Path.GetFullPath(candidate);
+                return true;
+            }
         }
 
+        path = Path.Combine(basePath, directoryName);
         logger.LogWarning(
-            "Installation-adjacent storage path {StoragePath} is not writable for installation {InstallationId}; falling back to user storage",
+            "Installation-adjacent storage path {StoragePath} and its same-volume ancestors are not writable for installation {InstallationId}; falling back to user storage",
             path,
-            installation.Id);
+            installationId);
         return false;
     }
 }

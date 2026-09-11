@@ -604,6 +604,37 @@ public class StorageMigrationServiceTests : IDisposable
         Assert.Equal(siblingDir, updatedList[1].WorkingDirectory);
     }
 
+    /// <summary>
+    /// Tests that IsVelopackRoot correctly detects Velopack markers.
+    /// </summary>
+    [Fact]
+    public void IsVelopackRoot_DetectsVelopackMarkers()
+    {
+        var testDir = Path.Combine(_tempRoot, "VelopackTestDir");
+        Directory.CreateDirectory(testDir);
+
+        Assert.False(StorageMigrationService.IsVelopackRoot(testDir));
+
+        var updateExe = Path.Combine(testDir, "Update.exe");
+        File.WriteAllText(updateExe, "stub");
+
+        Assert.True(StorageMigrationService.IsVelopackRoot(testDir));
+    }
+
+    /// <summary>
+    /// Tests that IsVelopackRoot returns false for non-existent or empty path.
+    /// </summary>
+    /// <param name="path">The path to test.</param>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(@"C:\NonExistent_Dir_98234729384729384729384")]
+    public void IsVelopackRoot_ReturnsFalseForInvalidPaths(string? path)
+    {
+        Assert.False(StorageMigrationService.IsVelopackRoot(path));
+    }
+
     private StorageMigrationService CreateService()
     {
         return new StorageMigrationService(

@@ -128,7 +128,7 @@ public sealed class ImageCacheService : IImageCacheService
             if (string.IsNullOrWhiteSpace(appDataPath))
             {
                 appDataPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     "GenHub");
             }
 
