@@ -855,7 +855,27 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
             using var reader = new StreamReader(stream);
             return reader.ReadToEnd();
         }
-        catch (Exception ex) when (ex is FileLoadException or BadImageFormatException or IOException or NotSupportedException or InvalidOperationException or SecurityException)
+        catch (FileLoadException)
+        {
+            return null;
+        }
+        catch (BadImageFormatException)
+        {
+            return null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            return null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+        catch (SecurityException)
         {
             return null;
         }
@@ -975,6 +995,38 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
         }
 
         return false;
+    }
+
+    private static bool RewriteWorkspaces(List<WorkspaceInfo> workspaces, string oldWorkspaceRoot, string newWorkspaceRoot)
+    {
+        var updated = false;
+        foreach (var ws in workspaces)
+        {
+            updated |= TryRewritePath(ws.WorkspacePath, oldWorkspaceRoot, newWorkspaceRoot, p => ws.WorkspacePath = p);
+            updated |= TryRewritePath(ws.ExecutablePath, oldWorkspaceRoot, newWorkspaceRoot, p => ws.ExecutablePath = p);
+            updated |= TryRewritePath(ws.WorkingDirectory, oldWorkspaceRoot, newWorkspaceRoot, p => ws.WorkingDirectory = p);
+        }
+
+        return updated;
+    }
+
+    private static void CleanupTempFile(string tempPath)
+    {
+        if (File.Exists(tempPath))
+        {
+            try
+            {
+                File.Delete(tempPath);
+            }
+            catch (IOException)
+            {
+                // Best effort temp cleanup
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Best effort temp cleanup
+            }
+        }
     }
 
     private async Task<(bool HasActiveProcesses, List<string> ProcessNames)> CheckActiveProcessesAsync(CancellationToken cancellationToken)
@@ -1312,19 +1364,6 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
         }
     }
 
-    private bool RewriteWorkspaces(List<WorkspaceInfo> workspaces, string oldWorkspaceRoot, string newWorkspaceRoot)
-    {
-        var updated = false;
-        foreach (var ws in workspaces)
-        {
-            updated |= TryRewritePath(ws.WorkspacePath, oldWorkspaceRoot, newWorkspaceRoot, p => ws.WorkspacePath = p);
-            updated |= TryRewritePath(ws.ExecutablePath, oldWorkspaceRoot, newWorkspaceRoot, p => ws.ExecutablePath = p);
-            updated |= TryRewritePath(ws.WorkingDirectory, oldWorkspaceRoot, newWorkspaceRoot, p => ws.WorkingDirectory = p);
-        }
-
-        return updated;
-    }
-
     private async Task WriteUpdatedMetadataSafelyAsync(
         string metadataPath,
         List<WorkspaceInfo> workspaces,
@@ -1345,21 +1384,6 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
         finally
         {
             CleanupTempFile(tempPath);
-        }
-    }
-
-    private void CleanupTempFile(string tempPath)
-    {
-        if (File.Exists(tempPath))
-        {
-            try
-            {
-                File.Delete(tempPath);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                // Best effort temp cleanup
-            }
         }
     }
 

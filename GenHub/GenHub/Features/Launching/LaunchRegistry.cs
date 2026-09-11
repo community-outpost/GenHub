@@ -183,8 +183,19 @@ public class LaunchRegistry : ILaunchRegistry
         {
             return process.ExitTime;
         }
-        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception or NotSupportedException)
+        catch (InvalidOperationException ex)
         {
+            _logger.LogTrace(ex, "Failed to get process exit time for {ProcessId}, falling back to UtcNow", process.Id);
+            return DateTime.UtcNow;
+        }
+        catch (Win32Exception ex)
+        {
+            _logger.LogTrace(ex, "Failed to get process exit time for {ProcessId}, falling back to UtcNow", process.Id);
+            return DateTime.UtcNow;
+        }
+        catch (NotSupportedException ex)
+        {
+            _logger.LogTrace(ex, "Failed to get process exit time for {ProcessId}, falling back to UtcNow", process.Id);
             return DateTime.UtcNow;
         }
     }
