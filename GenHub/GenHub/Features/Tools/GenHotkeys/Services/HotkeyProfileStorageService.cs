@@ -137,50 +137,57 @@ public class HotkeyProfileStorageService(
         GameType gameType,
         CancellationToken cancellationToken = default)
     {
-        var profile = new HotkeyProfile
-        {
-            Name = $"{presetName} Preset",
-            BasePreset = presetName,
-            TargetGame = gameType,
-            OverlayEnabled = true,
-            OverlayCorner = OverlayCorner.TopLeft,
-        };
-
-        if (string.Equals(presetName, GenHotkeysConstants.PresetVanilla, StringComparison.OrdinalIgnoreCase) ||
-            presetName.Contains("Default", StringComparison.OrdinalIgnoreCase))
-        {
-            return profile;
-        }
-
-        var assetPath = presetName.Contains(GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase)
-            ? GenHotkeysConstants.PresetsLegionnaireRu
-            : GenHotkeysConstants.PresetsLeikezeEn;
-
-        var stream = TryOpenAssetStream(assetPath);
-        if (stream == null)
-        {
-            logger.LogWarning("Preset file not found: {Path}", assetPath);
-            return profile;
-        }
-
-        using (stream)
-        {
-            var csf = CsfFile.Load(stream);
-            foreach (var (label, value) in csf.Strings)
+        return await Task.Run(
+            () =>
             {
-                if (label.StartsWith(GenHotkeysConstants.CsfControlBarPrefix, StringComparison.OrdinalIgnoreCase) ||
-                    label.StartsWith(GenHotkeysConstants.CsfCommandPrefix, StringComparison.OrdinalIgnoreCase))
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var profile = new HotkeyProfile
                 {
-                    var hk = CsfFile.ExtractHotkey(value);
-                    if (hk.HasValue)
+                    Name = $"{presetName} Preset",
+                    BasePreset = presetName,
+                    TargetGame = gameType,
+                    OverlayEnabled = true,
+                    OverlayCorner = OverlayCorner.TopLeft,
+                };
+
+                if (string.Equals(presetName, GenHotkeysConstants.PresetVanilla, StringComparison.OrdinalIgnoreCase) ||
+                    presetName.Contains("Default", StringComparison.OrdinalIgnoreCase))
+                {
+                    return profile;
+                }
+
+                var assetPath = presetName.Contains(GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase)
+                    ? GenHotkeysConstants.PresetsLegionnaireRu
+                    : GenHotkeysConstants.PresetsLeikezeEn;
+
+                var stream = TryOpenAssetStream(assetPath);
+                if (stream == null)
+                {
+                    logger.LogWarning("Preset file not found: {Path}", assetPath);
+                    return profile;
+                }
+
+                using (stream)
+                {
+                    var csf = CsfFile.Load(stream);
+                    foreach (var (label, value) in csf.Strings)
                     {
-                        profile.KeyMappings[label] = hk.Value;
+                        if (label.StartsWith(GenHotkeysConstants.CsfControlBarPrefix, StringComparison.OrdinalIgnoreCase) ||
+                            label.StartsWith(GenHotkeysConstants.CsfCommandPrefix, StringComparison.OrdinalIgnoreCase))
+                        {
+                            var hk = CsfFile.ExtractHotkey(value);
+                            if (hk.HasValue)
+                            {
+                                profile.KeyMappings[label] = hk.Value;
+                            }
+                        }
                     }
                 }
-            }
-        }
 
-        return await Task.FromResult(profile);
+                return profile;
+            },
+            cancellationToken);
     }
 
     private static HotkeyProfile CreateDefaultProfile(GameType gameType)
@@ -217,7 +224,16 @@ public class HotkeyProfileStorageService(
             return File.OpenRead(fileOnDisk);
         }
 
-        return null;
+        var searchRoots = new[]
+        {
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Assets", "GenHotkeys", relativePath),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "GenHub", "Assets", "GenHotkeys", relativePath),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "GenHub", "Assets", "GenHotkeys", relativePath),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "GenHub", "GenHub", "Assets", "GenHotkeys", relativePath),
+        };
+
+        var match = searchRoots.FirstOrDefault(File.Exists);
+        return match != null ? File.OpenRead(match) : null;
     }
 
     private string GetSafeProfilePath(string profileId)
