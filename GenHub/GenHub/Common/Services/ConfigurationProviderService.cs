@@ -513,14 +513,22 @@ public class ConfigurationProviderService(
                     {
                         Directory.Delete(subDir);
                     }
-                    catch (Exception)
+                    catch (IOException)
+                    {
+                        // Ignore
+                    }
+                    catch (UnauthorizedAccessException)
                     {
                         // Ignore
                     }
                 }
             }
         }
-        catch (Exception)
+        catch (IOException)
+        {
+            // Ignore
+        }
+        catch (UnauthorizedAccessException)
         {
             // Ignore
         }

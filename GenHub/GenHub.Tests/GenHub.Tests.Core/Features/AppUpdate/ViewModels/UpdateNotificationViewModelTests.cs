@@ -770,7 +770,7 @@ public class UpdateNotificationViewModelTests
 
         var artifacts = new List<ArtifactUpdateInfo>
         {
-            new("0.0.2804-pr378", "8c9ab37", null, 34634077893, "https://github.com/test/run/34634077893", 777, "genhub-velopack-windows-0.0.2804-pr378", DateTime.UtcNow, "https://github.com/test/art/777", 4096),
+            new("0.0.2804-pr378", "8c9ab37", null, 34_634_077_893, "https://github.com/test/run/34634077893", 777, "genhub-velopack-windows-0.0.2804-pr378", DateTime.UtcNow, "https://github.com/test/art/777", 4_096),
         };
 
         mockVelopack.Setup(x => x.GetArtifactsForBranchAsync("development", It.IsAny<CancellationToken>()))

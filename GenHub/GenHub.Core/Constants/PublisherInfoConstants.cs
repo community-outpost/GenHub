@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Constants;
@@ -11,6 +12,11 @@ namespace GenHub.Core.Constants;
 [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized URI constants / mock demo paths")]
 public static class PublisherInfoConstants
 {
+    /// <summary>
+    /// Default icon source for general GenHub publishers and fallback views.
+    /// </summary>
+    public const string DefaultGenHubIconSource = "avares://GenHub/Assets/Icons/generalshub-icon.png";
+
     private static readonly (string[] Keywords, string LogoSource)[] LogoRules =
     [
         (["communityoutpost", "community outpost", "community-outpost"], CommunityOutpost.LogoSource),
@@ -147,7 +153,7 @@ public static class PublisherInfoConstants
         public const string SupportUrl = "https://forums.lutris.net";
 
         /// <summary>Logo source for Lutris.</summary>
-        public const string LogoSource = "avares://GenHub/Assets/Icons/generalshub-icon.png";
+        public const string LogoSource = DefaultGenHubIconSource;
     }
 
     /// <summary>
@@ -165,7 +171,7 @@ public static class PublisherInfoConstants
         public const string SupportUrl = "https://github.com/community-outpost/GenHub/issues";
 
         /// <summary>Logo source for GenHub Local.</summary>
-        public const string LogoSource = "avares://GenHub/Assets/Icons/generalshub-icon.png";
+        public const string LogoSource = DefaultGenHubIconSource;
     }
 
     /// <summary>
@@ -303,7 +309,7 @@ public static class PublisherInfoConstants
         public const string Name = "All Publishers";
 
         /// <summary>Logo source for All Publishers view.</summary>
-        public const string LogoSource = "avares://GenHub/Assets/Icons/generalshub-icon.png";
+        public const string LogoSource = DefaultGenHubIconSource;
     }
 
     /// <summary>
@@ -321,7 +327,7 @@ public static class PublisherInfoConstants
         public const string SupportUrl = "about:blank";
 
         /// <summary>Logo source for Unknown.</summary>
-        public const string LogoSource = "avares://GenHub/Assets/Icons/generalshub-icon.png";
+        public const string LogoSource = DefaultGenHubIconSource;
     }
 
     /// <summary>
@@ -374,12 +380,9 @@ public static class PublisherInfoConstants
 
         foreach (var (keywords, logoSource) in LogoRules)
         {
-            foreach (var keyword in keywords)
+            if (keywords.Any(keyword => input.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
             {
-                if (input.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-                {
-                    return logoSource;
-                }
+                return logoSource;
             }
         }
 

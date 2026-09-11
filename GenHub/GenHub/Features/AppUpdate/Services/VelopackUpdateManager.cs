@@ -1037,40 +1037,50 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         if (prNumber.HasValue)
         {
-            if (run.TryGetProperty("pull_requests", out var prs) && prs.ValueKind == JsonValueKind.Array)
-            {
-                var prCount = 0;
-                foreach (var pr in prs.EnumerateArray())
-                {
-                    prCount++;
-                    if (pr.TryGetProperty("number", out var num) && num.GetInt32() == prNumber.Value)
-                    {
-                        return true;
-                    }
-                }
-
-                if (prCount > 0)
-                {
-                    return false;
-                }
-            }
-
-            return string.IsNullOrEmpty(branchName) || string.Equals(actualBranch, branchName, StringComparison.Ordinal);
+            return MatchesPullRequestCriteria(run, prNumber.Value, actualBranch, branchName);
         }
 
         if (!string.IsNullOrEmpty(branchName))
         {
-            if (!string.Equals(actualBranch, branchName, StringComparison.Ordinal))
-            {
-                return false;
-            }
-
-            return string.Equals(eventType, "push", StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(eventType, "workflow_dispatch", StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(eventType, "pull_request", StringComparison.OrdinalIgnoreCase);
+            return MatchesBranchCriteria(actualBranch, branchName, eventType);
         }
 
         return true;
+    }
+
+    private static bool MatchesPullRequestCriteria(JsonElement run, int prNumber, string? actualBranch, string? branchName)
+    {
+        if (run.TryGetProperty("pull_requests", out var prs) && prs.ValueKind == JsonValueKind.Array)
+        {
+            var prCount = 0;
+            foreach (var pr in prs.EnumerateArray())
+            {
+                prCount++;
+                if (pr.TryGetProperty("number", out var num) && num.GetInt32() == prNumber)
+                {
+                    return true;
+                }
+            }
+
+            if (prCount > 0)
+            {
+                return false;
+            }
+        }
+
+        return string.IsNullOrEmpty(branchName) || string.Equals(actualBranch, branchName, StringComparison.Ordinal);
+    }
+
+    private static bool MatchesBranchCriteria(string? actualBranch, string branchName, string? eventType)
+    {
+        if (!string.Equals(actualBranch, branchName, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return string.Equals(eventType, "push", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(eventType, "workflow_dispatch", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(eventType, "pull_request", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
