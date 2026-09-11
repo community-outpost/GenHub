@@ -1412,7 +1412,8 @@ public partial class ReplayManagerViewModel(
             else
             {
                 var error = result.FirstError ?? "Failed to mint checkpoint.";
-                if (error.Contains("canceled", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(error, ReplayManagerConstants.CheckpointMintingCanceledErrorMessage, StringComparison.Ordinal) ||
+                    error.Contains("canceled", StringComparison.OrdinalIgnoreCase))
                 {
                     notificationService.ShowInfo("Minting Canceled", "Checkpoint minting was canceled.");
                     StatusMessage = "Minting canceled.";
@@ -1423,6 +1424,11 @@ public partial class ReplayManagerViewModel(
                     StatusMessage = "Minting failed.";
                 }
             }
+        }
+        catch (OperationCanceledException)
+        {
+            notificationService.ShowInfo("Minting Canceled", "Checkpoint minting was canceled.");
+            StatusMessage = "Minting canceled.";
         }
         catch (Exception ex)
         {

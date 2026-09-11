@@ -638,4 +638,102 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
         Assert.False(result.Success);
         _mockProcessManager.Verify(p => p.TerminateProcessAsync(88881, CancellationToken.None), Times.Once);
     }
+
+    /// <summary>
+    /// Verifies that MintCheckpointAsync fails if a pre-existing legacy save file was not updated by the minting run.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task MintCheckpointAsync_PreExistingLegacySaveNotUpdated_ReturnsFailure()
+    {
+        const int targetFrame = 5555;
+        var legacyFilePath = Path.Combine(_tempSaveDir, $"cp_{targetFrame}.sav");
+        await File.WriteAllBytesAsync(legacyFilePath, [0x02]);
+        File.SetLastWriteTimeUtc(legacyFilePath, DateTime.UtcNow.AddMinutes(-10));
+
+        var replay = new ReplayFile
+        {
+            FileName = "LegacyStale.rep",
+            FullPath = @"C:\Games\Replays\LegacyStale.rep",
+            GameVersion = GameType.ZeroHour,
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+        };
+        var profile = new GameProfile { Id = "profile-legacy-stale", Name = "Legacy Stale Profile" };
+
+        _mockLauncherFacade
+            .Setup(l => l.LaunchProfileAsync(
+                profile.Id,
+                false,
+                It.IsAny<CancellationToken>(),
+                It.IsAny<IReadOnlyDictionary<string, string>>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
+            {
+                LaunchId = "launch-legacy-stale",
+                ProfileId = profile.Id,
+                WorkspaceId = "ws-legacy-stale",
+                ProcessInfo = new GameProcessInfo
+                {
+                    ProcessId = 55556,
+                    ProcessName = "generalszh",
+                    StartTime = DateTime.UtcNow,
+                },
+            }));
+
+        _mockProcessManager
+            .Setup(p => p.GetProcessInfoAsync(55556, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProcessInfo>.CreateFailure(ProcessConstants.ProcessNotFoundErrorMessage));
+
+        var result = await _service.MintCheckpointAsync(replay, profile, targetFrame);
+
+        Assert.False(result.Success);
+        Assert.Contains("stale file detected", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that if cancellation is requested before monitoring starts, the launched process is terminated and cancellation failure is returned.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task MintCheckpointAsync_CanceledBeforePolling_TerminatesProcessAndReturnsCancellationFailure()
+    {
+        const int targetFrame = 3333;
+        var replay = new ReplayFile
+        {
+            FileName = "CancelTest.rep",
+            FullPath = @"C:\Games\Replays\CancelTest.rep",
+            GameVersion = GameType.ZeroHour,
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+        };
+        var profile = new GameProfile { Id = "profile-cancel", Name = "Cancel Profile" };
+
+        using var cts = new CancellationTokenSource();
+
+        _mockLauncherFacade
+            .Setup(l => l.LaunchProfileAsync(
+                profile.Id,
+                false,
+                It.IsAny<CancellationToken>(),
+                It.IsAny<IReadOnlyDictionary<string, string>>()))
+            .Callback(() => cts.Cancel())
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
+            {
+                LaunchId = "launch-cancel",
+                ProfileId = profile.Id,
+                WorkspaceId = "ws-cancel",
+                ProcessInfo = new GameProcessInfo
+                {
+                    ProcessId = 99991,
+                    ProcessName = "generalszh",
+                    StartTime = DateTime.UtcNow,
+                },
+            }));
+
+        var result = await _service.MintCheckpointAsync(replay, profile, targetFrame, cts.Token);
+
+        Assert.False(result.Success);
+        Assert.Equal(ReplayManagerConstants.CheckpointMintingCanceledErrorMessage, result.FirstError);
+        _mockProcessManager.Verify(p => p.TerminateProcessAsync(99991, CancellationToken.None), Times.Once);
+    }
 }

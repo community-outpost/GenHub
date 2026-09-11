@@ -118,6 +118,11 @@ public static class ReplayManagerConstants
     public const string DefaultImportedReplayFileName = "imported_replay.rep";
 
     /// <summary>
+    /// Error message returned when a checkpoint minting operation is canceled by the user.
+    /// </summary>
+    public const string CheckpointMintingCanceledErrorMessage = "Checkpoint minting canceled by user.";
+
+    /// <summary>
     /// File pattern for replay ZIP archives.
     /// </summary>
     public const string ZipFilePattern = "*.zip";

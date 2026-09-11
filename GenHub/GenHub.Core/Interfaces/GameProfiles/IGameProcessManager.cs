@@ -1,7 +1,8 @@
+using System.Diagnostics;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Events;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Results;
-using System.Diagnostics;
 
 namespace GenHub.Core.Interfaces.GameProfiles;
 
@@ -10,6 +11,11 @@ namespace GenHub.Core.Interfaces.GameProfiles;
 /// </summary>
 public interface IGameProcessManager
 {
+    /// <summary>
+    /// Error message indicating that the requested process was not found or has already exited.
+    /// </summary>
+    public const string ProcessNotFoundErrorMessage = ProcessConstants.ProcessNotFoundErrorMessage;
+
     /// <summary>
     /// Occurs when a managed game process exits.
     /// </summary>
