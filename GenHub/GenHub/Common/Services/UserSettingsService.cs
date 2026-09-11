@@ -19,6 +19,9 @@ namespace GenHub.Common.Services;
 /// </summary>
 public class UserSettingsService : IUserSettingsService
 {
+    private const string FailedPreUpgradeSettingsFallbackMessage =
+        "Failed to look for pre-upgrade settings, falling back to {DefaultPath}";
+
     /// <summary>
     /// JSON serializer options for settings.
     /// </summary>
@@ -508,25 +511,9 @@ public class UserSettingsService : IUserSettingsService
                 }
             }
         }
-        catch (IOException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
         {
-            _logger.LogWarning(ex, "Failed to look for pre-upgrade settings, falling back to {DefaultPath}", defaultPath);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            _logger.LogWarning(ex, "Failed to look for pre-upgrade settings, falling back to {DefaultPath}", defaultPath);
-        }
-        catch (SecurityException ex)
-        {
-            _logger.LogWarning(ex, "Failed to look for pre-upgrade settings, falling back to {DefaultPath}", defaultPath);
-        }
-        catch (NotSupportedException ex)
-        {
-            _logger.LogWarning(ex, "Failed to look for pre-upgrade settings, falling back to {DefaultPath}", defaultPath);
-        }
-        catch (ArgumentException ex)
-        {
-            _logger.LogWarning(ex, "Failed to look for pre-upgrade settings, falling back to {DefaultPath}", defaultPath);
+            _logger.LogWarning(ex, FailedPreUpgradeSettingsFallbackMessage, defaultPath);
         }
 
         return defaultPath;

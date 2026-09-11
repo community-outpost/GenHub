@@ -143,63 +143,66 @@ public class LaunchRegistry : ILaunchRegistry
 
             if (runningProcess == null)
             {
-                _logger.LogDebug("Process {ProcessId} for launch {LaunchId} no longer exists", launchInfo.ProcessInfo.ProcessId, launchId);
-                _inspectionFailureCounts.TryRemove(launchId, out _);
-                launchInfo.TerminatedAt = DateTime.UtcNow;
-                launchInfo.ProcessInfo.IsRunning = false;
+                HandleMissingProcess(launchInfo, launchId);
+                return;
             }
-            else
+
+            if (runningProcess.HasExited)
             {
-                // Verify process hasn't exited (Handle might throw if process has exited)
-                if (runningProcess.HasExited)
-                {
-                    _logger.LogDebug("Process {ProcessId} for launch {LaunchId} has exited", launchInfo.ProcessInfo.ProcessId, launchId);
-
-                    try
-                    {
-                        launchInfo.TerminatedAt = runningProcess.ExitTime;
-                    }
-                    catch (InvalidOperationException)
-                    {
-                        // Fallback to current time if ExitTime throws
-                        launchInfo.TerminatedAt = DateTime.UtcNow;
-                    }
-                    catch (Win32Exception)
-                    {
-                        // Fallback to current time if ExitTime throws
-                        launchInfo.TerminatedAt = DateTime.UtcNow;
-                    }
-                    catch (NotSupportedException)
-                    {
-                        // Fallback to current time if ExitTime throws
-                        launchInfo.TerminatedAt = DateTime.UtcNow;
-                    }
-
-                    _inspectionFailureCounts.TryRemove(launchId, out _);
-                    launchInfo.ProcessInfo.IsRunning = false;
-                }
-                else
-                {
-                    // Process is actively running and inspected successfully
-                    _inspectionFailureCounts.TryRemove(launchId, out _);
-                }
+                HandleExitedProcess(launchInfo, launchId, runningProcess);
+                return;
             }
+
+            _inspectionFailureCounts.TryRemove(launchId, out _);
         }
         catch (Exception ex)
         {
-            var failures = _inspectionFailureCounts.AddOrUpdate(launchId, 1, (_, count) => count + 1);
-            if (failures >= MaxInspectionFailures)
-            {
-                _logger.LogWarning(ex, "[LaunchRegistry] Process inspection failed {Failures} consecutive times for launch {LaunchId}. Marking as terminated.", failures, launchId);
-                launchInfo.TerminatedAt = DateTime.UtcNow;
-                launchInfo.ProcessInfo.IsRunning = false;
-                _inspectionFailureCounts.TryRemove(new KeyValuePair<string, int>(launchId, failures));
-            }
-            else
-            {
-                // Do not mark process terminated on transient inspection error; preserve it as active so safe teardown guards hold
-                _logger.LogWarning(ex, "Failed to check process status for launch {LaunchId} (attempt {Failures}/{MaxFailures})", launchId, failures, MaxInspectionFailures);
-            }
+            HandleInspectionFailure(launchInfo, launchId, ex);
+        }
+    }
+
+    private void HandleMissingProcess(GameLaunchInfo launchInfo, string launchId)
+    {
+        _logger.LogDebug("Process {ProcessId} for launch {LaunchId} no longer exists", launchInfo.ProcessInfo.ProcessId, launchId);
+        _inspectionFailureCounts.TryRemove(launchId, out _);
+        launchInfo.TerminatedAt = DateTime.UtcNow;
+        launchInfo.ProcessInfo.IsRunning = false;
+    }
+
+    private void HandleExitedProcess(GameLaunchInfo launchInfo, string launchId, Process runningProcess)
+    {
+        _logger.LogDebug("Process {ProcessId} for launch {LaunchId} has exited", launchInfo.ProcessInfo.ProcessId, launchId);
+        launchInfo.TerminatedAt = GetProcessExitTimeSafely(runningProcess);
+        _inspectionFailureCounts.TryRemove(launchId, out _);
+        launchInfo.ProcessInfo.IsRunning = false;
+    }
+
+    private DateTime GetProcessExitTimeSafely(Process process)
+    {
+        try
+        {
+            return process.ExitTime;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception or NotSupportedException)
+        {
+            return DateTime.UtcNow;
+        }
+    }
+
+    private void HandleInspectionFailure(GameLaunchInfo launchInfo, string launchId, Exception ex)
+    {
+        var failures = _inspectionFailureCounts.AddOrUpdate(launchId, 1, (_, count) => count + 1);
+        if (failures >= MaxInspectionFailures)
+        {
+            _logger.LogWarning(ex, "[LaunchRegistry] Process inspection failed {Failures} consecutive times for launch {LaunchId}. Marking as terminated.", failures, launchId);
+            launchInfo.TerminatedAt = DateTime.UtcNow;
+            launchInfo.ProcessInfo.IsRunning = false;
+            _inspectionFailureCounts.TryRemove(new KeyValuePair<string, int>(launchId, failures));
+        }
+        else
+        {
+            // Do not mark process terminated on transient inspection error; preserve it as active so safe teardown guards hold
+            _logger.LogWarning(ex, "Failed to check process status for launch {LaunchId} (attempt {Failures}/{MaxFailures})", launchId, failures, MaxInspectionFailures);
         }
     }
 

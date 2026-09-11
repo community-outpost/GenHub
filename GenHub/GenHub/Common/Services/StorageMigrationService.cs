@@ -825,47 +825,40 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
     {
         foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
         {
-            try
+            var content = TryReadAssemblyResource(assembly, scriptName);
+            if (content != null)
             {
-                var resourceNames = assembly.GetManifestResourceNames();
-                var match = resourceNames.FirstOrDefault(n => n.EndsWith(scriptName, StringComparison.OrdinalIgnoreCase));
-                if (match != null)
-                {
-                    using var stream = assembly.GetManifestResourceStream(match);
-                    if (stream != null)
-                    {
-                        using var reader = new StreamReader(stream);
-                        return reader.ReadToEnd();
-                    }
-                }
-            }
-            catch (FileLoadException)
-            {
-                // Continue searching other assemblies
-            }
-            catch (BadImageFormatException)
-            {
-                // Continue searching other assemblies
-            }
-            catch (IOException)
-            {
-                // Continue searching other assemblies
-            }
-            catch (NotSupportedException)
-            {
-                // Continue searching other assemblies
-            }
-            catch (InvalidOperationException)
-            {
-                // Continue searching other assemblies
-            }
-            catch (SecurityException)
-            {
-                // Continue searching other assemblies
+                return content;
             }
         }
 
         return null;
+    }
+
+    private static string? TryReadAssemblyResource(Assembly assembly, string scriptName)
+    {
+        try
+        {
+            var resourceNames = assembly.GetManifestResourceNames();
+            var match = resourceNames.FirstOrDefault(n => n.EndsWith(scriptName, StringComparison.OrdinalIgnoreCase));
+            if (match == null)
+            {
+                return null;
+            }
+
+            using var stream = assembly.GetManifestResourceStream(match);
+            if (stream == null)
+            {
+                return null;
+            }
+
+            using var reader = new StreamReader(stream);
+            return reader.ReadToEnd();
+        }
+        catch (Exception ex) when (ex is FileLoadException or BadImageFormatException or IOException or NotSupportedException or InvalidOperationException or SecurityException)
+        {
+            return null;
+        }
     }
 
     private static string GetPowerShellPath()
@@ -933,33 +926,32 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
 
                 return true;
             }
-            catch (IOException ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                if (attempt < maxAttempts)
-                {
-                    logger.LogWarning(ex, "Rollback attempt {Attempt} of {MaxAttempts} failed from {Target} to {Original}. Retrying in 500ms...", attempt, maxAttempts, targetPath, originalPath);
-                    Thread.Sleep(500);
-                }
-                else
-                {
-                    logger.LogCritical(ex, "Failed to rollback directory move from {Target} to {Original} after {MaxAttempts} attempts. Manual recovery may be required.", targetPath, originalPath, maxAttempts);
-                }
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                if (attempt < maxAttempts)
-                {
-                    logger.LogWarning(ex, "Rollback attempt {Attempt} of {MaxAttempts} failed from {Target} to {Original}. Retrying in 500ms...", attempt, maxAttempts, targetPath, originalPath);
-                    Thread.Sleep(500);
-                }
-                else
-                {
-                    logger.LogCritical(ex, "Failed to rollback directory move from {Target} to {Original} after {MaxAttempts} attempts. Manual recovery may be required.", targetPath, originalPath, maxAttempts);
-                }
+                HandleRollbackFailure(ex, attempt, maxAttempts, targetPath, originalPath, logger);
             }
         }
 
         return false;
+    }
+
+    private static void HandleRollbackFailure(
+        Exception ex,
+        int attempt,
+        int maxAttempts,
+        string targetPath,
+        string originalPath,
+        ILogger logger)
+    {
+        if (attempt < maxAttempts)
+        {
+            logger.LogWarning(ex, "Rollback attempt {Attempt} of {MaxAttempts} failed from {Target} to {Original}. Retrying in 500ms...", attempt, maxAttempts, targetPath, originalPath);
+            Thread.Sleep(500);
+        }
+        else
+        {
+            logger.LogCritical(ex, "Failed to rollback directory move from {Target} to {Original} after {MaxAttempts} attempts. Manual recovery may be required.", targetPath, originalPath, maxAttempts);
+        }
     }
 
     private static bool TryRewritePath(string? path, string oldRoot, string newRoot, Action<string> apply)
@@ -1292,70 +1284,81 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
 
         foreach (var metadataPath in metadataPaths)
         {
-            if (!File.Exists(metadataPath))
+            await RewriteMetadataFileAsync(metadataPath, oldWorkspaceRoot, newWorkspaceRoot, cancellationToken);
+        }
+    }
+
+    private async Task RewriteMetadataFileAsync(string metadataPath, string oldWorkspaceRoot, string newWorkspaceRoot, CancellationToken cancellationToken)
+    {
+        if (!File.Exists(metadataPath))
+        {
+            return;
+        }
+
+        try
+        {
+            var json = await File.ReadAllTextAsync(metadataPath, cancellationToken);
+            var workspaces = JsonSerializer.Deserialize<List<WorkspaceInfo>>(json);
+            if (workspaces == null || workspaces.Count == 0 || !RewriteWorkspaces(workspaces, oldWorkspaceRoot, newWorkspaceRoot))
             {
-                continue;
+                return;
             }
 
+            await WriteUpdatedMetadataSafelyAsync(metadataPath, workspaces, oldWorkspaceRoot, newWorkspaceRoot, cancellationToken);
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to rewrite workspace metadata paths in {MetadataFile}", metadataPath);
+        }
+    }
+
+    private bool RewriteWorkspaces(List<WorkspaceInfo> workspaces, string oldWorkspaceRoot, string newWorkspaceRoot)
+    {
+        var updated = false;
+        foreach (var ws in workspaces)
+        {
+            updated |= TryRewritePath(ws.WorkspacePath, oldWorkspaceRoot, newWorkspaceRoot, p => ws.WorkspacePath = p);
+            updated |= TryRewritePath(ws.ExecutablePath, oldWorkspaceRoot, newWorkspaceRoot, p => ws.ExecutablePath = p);
+            updated |= TryRewritePath(ws.WorkingDirectory, oldWorkspaceRoot, newWorkspaceRoot, p => ws.WorkingDirectory = p);
+        }
+
+        return updated;
+    }
+
+    private async Task WriteUpdatedMetadataSafelyAsync(
+        string metadataPath,
+        List<WorkspaceInfo> workspaces,
+        string oldWorkspaceRoot,
+        string newWorkspaceRoot,
+        CancellationToken cancellationToken)
+    {
+        var options = new JsonSerializerOptions { WriteIndented = true };
+        var updatedJson = JsonSerializer.Serialize(workspaces, options);
+        var directory = Path.GetDirectoryName(metadataPath);
+        var tempPath = Path.Combine(directory ?? string.Empty, $"{Path.GetFileName(metadataPath)}.{Guid.NewGuid():N}.tmp");
+        try
+        {
+            await File.WriteAllTextAsync(tempPath, updatedJson, cancellationToken);
+            File.Move(tempPath, metadataPath, overwrite: true);
+            logger.LogInformation("Rewrote workspace metadata paths from {OldRoot} to {NewRoot} in {Path}", oldWorkspaceRoot, newWorkspaceRoot, metadataPath);
+        }
+        finally
+        {
+            CleanupTempFile(tempPath);
+        }
+    }
+
+    private void CleanupTempFile(string tempPath)
+    {
+        if (File.Exists(tempPath))
+        {
             try
             {
-                var json = await File.ReadAllTextAsync(metadataPath, cancellationToken);
-                var workspaces = JsonSerializer.Deserialize<List<WorkspaceInfo>>(json);
-                if (workspaces == null || workspaces.Count == 0)
-                {
-                    continue;
-                }
-
-                var updated = false;
-                foreach (var ws in workspaces)
-                {
-                    updated |= TryRewritePath(ws.WorkspacePath, oldWorkspaceRoot, newWorkspaceRoot, p => ws.WorkspacePath = p);
-                    updated |= TryRewritePath(ws.ExecutablePath, oldWorkspaceRoot, newWorkspaceRoot, p => ws.ExecutablePath = p);
-                    updated |= TryRewritePath(ws.WorkingDirectory, oldWorkspaceRoot, newWorkspaceRoot, p => ws.WorkingDirectory = p);
-                }
-
-                if (updated)
-                {
-                    var options = new JsonSerializerOptions { WriteIndented = true };
-                    var updatedJson = JsonSerializer.Serialize(workspaces, options);
-                    var tempPath = Path.Combine(Path.GetDirectoryName(metadataPath)!, $"{Path.GetFileName(metadataPath)}.{Guid.NewGuid():N}.tmp");
-                    try
-                    {
-                        await File.WriteAllTextAsync(tempPath, updatedJson, cancellationToken);
-                        File.Move(tempPath, metadataPath, overwrite: true);
-                        logger.LogInformation("Rewrote workspace metadata paths from {OldRoot} to {NewRoot} in {Path}", oldWorkspaceRoot, newWorkspaceRoot, metadataPath);
-                    }
-                    finally
-                    {
-                        if (File.Exists(tempPath))
-                        {
-                            try
-                            {
-                                File.Delete(tempPath);
-                            }
-                            catch (IOException)
-                            {
-                                // Best effort temp cleanup
-                            }
-                            catch (UnauthorizedAccessException)
-                            {
-                                // Best effort temp cleanup
-                            }
-                        }
-                    }
-                }
+                File.Delete(tempPath);
             }
-            catch (IOException ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                logger.LogWarning(ex, "Failed to rewrite workspace metadata paths in {MetadataFile}", metadataPath);
-            }
-            catch (JsonException ex)
-            {
-                logger.LogWarning(ex, "Failed to rewrite workspace metadata paths in {MetadataFile}", metadataPath);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                logger.LogWarning(ex, "Failed to rewrite workspace metadata paths in {MetadataFile}", metadataPath);
+                // Best effort temp cleanup
             }
         }
     }
@@ -1442,19 +1445,7 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
 
             logger.LogInformation("Started detached helper migration process (PID: {ProcessId}): {ScriptPath}", process.Id, scriptPath);
         }
-        catch (InvalidOperationException)
-        {
-            throw;
-        }
-        catch (Win32Exception ex)
-        {
-            throw new InvalidOperationException($"Failed to start helper migration process for '{scriptPath}'.", ex);
-        }
-        catch (IOException ex)
-        {
-            throw new InvalidOperationException($"Failed to start helper migration process for '{scriptPath}'.", ex);
-        }
-        catch (PlatformNotSupportedException ex)
+        catch (Exception ex) when (ex is Win32Exception or IOException or PlatformNotSupportedException)
         {
             throw new InvalidOperationException($"Failed to start helper migration process for '{scriptPath}'.", ex);
         }
