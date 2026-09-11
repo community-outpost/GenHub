@@ -756,7 +756,11 @@ public partial class FileManagerViewModel(
             {
                 Directory.Delete(dir, recursive: true);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // Ignore non-empty directory errors
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Ignore non-empty directory errors
             }

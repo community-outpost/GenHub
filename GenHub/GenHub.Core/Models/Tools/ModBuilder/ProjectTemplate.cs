@@ -67,18 +67,6 @@ public class ProjectTemplate
     };
 
     /// <summary>
-    /// Gets the custom icons and hotkeys template (alias for Hotkeys).
-    /// </summary>
-    [Obsolete("Use Hotkeys instead.")]
-    public static ProjectTemplate CustomIcons => Hotkeys;
-
-    /// <summary>
-    /// Gets the basic mod template (alias for GeneralsGamePatch2).
-    /// </summary>
-    [Obsolete("Use GeneralsGamePatch2 instead.")]
-    public static ProjectTemplate BasicMod => GeneralsGamePatch2;
-
-    /// <summary>
     /// Gets the imported BIG archive project template.
     /// </summary>
     public static ProjectTemplate ImportedBig => new()

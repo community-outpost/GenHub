@@ -153,7 +153,7 @@ public class VelopackUpdateManagerTests
     public void VelopackUpdateManager_ShouldUseCorrectRepositoryUrl()
     {
         // Arrange & Act
-        var manager = CreateManager();
+        _ = CreateManager();
 
         // Assert - verify that the logger was called during construction
         // In a development/test environment, the UpdateManager won't be available
@@ -241,7 +241,7 @@ public class VelopackUpdateManagerTests
         {
             if (Directory.Exists(sampleDir))
             {
-                try { Directory.Delete(sampleDir, recursive: true); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+                try { Directory.Delete(sampleDir, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
             }
         }
     }
