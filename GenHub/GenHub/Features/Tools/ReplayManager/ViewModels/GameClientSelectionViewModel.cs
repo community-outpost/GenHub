@@ -195,7 +195,9 @@ public sealed partial class GameClientSelectionViewModel(
                             ? entryResolution.RelativePath
                             : string.Empty;
 
-                        var publisherName = manifest.Publisher?.Name ?? manifest.Publisher?.Id ?? "Catalog";
+                        var publisherName = !string.IsNullOrWhiteSpace(manifest.Publisher?.Name)
+                            ? manifest.Publisher.Name
+                            : (!string.IsNullOrWhiteSpace(manifest.Publisher?.PublisherType) ? manifest.Publisher.PublisherType : "Catalog");
                         var client = new GameClient
                         {
                             Id = manifest.Id.Value,
@@ -206,7 +208,9 @@ public sealed partial class GameClientSelectionViewModel(
                             ExecutablePath = relExePath,
                         };
 
-                        var description = manifest.Metadata?.Description ?? manifest.Metadata?.Summary ?? $"Manifest {manifest.Id.Value}";
+                        var description = !string.IsNullOrWhiteSpace(manifest.Metadata?.Description)
+                            ? manifest.Metadata.Description
+                            : $"Manifest {manifest.Id.Value}";
 
                         _allClients.Add(new GameClientCardViewModel(
                             client: client,
