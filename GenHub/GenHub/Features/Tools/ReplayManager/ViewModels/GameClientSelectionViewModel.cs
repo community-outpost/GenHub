@@ -239,11 +239,13 @@ public sealed partial class GameClientSelectionViewModel(
                 return;
             }
 
+            var gameSegment = targetGame.ToString().ToLowerInvariant();
             foreach (var manifest in manifestsResult.Data.Where(m => m.ContentType == ContentType.GameClient))
             {
                 var matchesGame = manifest.TargetGame == targetGame ||
-                                  manifest.TargetGame == GameType.Unknown ||
-                                  manifest.Id.Value.Contains(targetGame.ToString(), StringComparison.OrdinalIgnoreCase);
+                                  (manifest.TargetGame == GameType.Unknown &&
+                                   (manifest.Id.Value.Contains($".gameclient.{gameSegment}", StringComparison.OrdinalIgnoreCase) ||
+                                    manifest.Id.Value.Contains($".{gameSegment}.", StringComparison.OrdinalIgnoreCase)));
 
                 if (!matchesGame)
                 {
@@ -262,13 +264,14 @@ public sealed partial class GameClientSelectionViewModel(
                     : string.Empty;
 
                 var publisherName = GetPublisherDisplayName(manifest.Publisher);
+                var resolvedGameType = manifest.TargetGame != GameType.Unknown ? manifest.TargetGame : targetGame;
                 var client = new GameClient
                 {
                     Id = manifest.Id.Value,
                     Name = manifest.Name,
                     Version = manifest.Version,
                     PublisherType = publisherName,
-                    GameType = targetGame,
+                    GameType = resolvedGameType,
                     ExecutablePath = relExePath,
                 };
 

@@ -62,7 +62,7 @@ public sealed partial class GameClientCardViewModel : ObservableObject
     public GameClientCardViewModel(GameClientCardParameters parameters)
     {
         ArgumentNullException.ThrowIfNull(parameters);
-        Client = parameters.Client ?? throw new ArgumentNullException(nameof(parameters));
+        Client = parameters.Client ?? throw new ArgumentException("Client must not be null.", nameof(parameters));
         ManifestId = parameters.ManifestId;
         Name = parameters.Name;
         Version = parameters.Version;

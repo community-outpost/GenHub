@@ -1104,7 +1104,7 @@ public partial class ReplayManagerViewModel(
         {
             using var scope = serviceProvider.CreateScope();
             var clientVm = ActivatorUtilities.CreateInstance<GameClientSelectionViewModel>(scope.ServiceProvider);
-            await clientVm.LoadClientsAsync(replay.GameVersion, replay.FileName);
+            var loadTask = clientVm.LoadClientsAsync(replay.GameVersion, replay.FileName);
 
             var dialog = new GameClientSelectionView(clientVm);
             var mainWindow = Avalonia.Application.Current?.ApplicationLifetime is
@@ -1117,6 +1117,7 @@ public partial class ReplayManagerViewModel(
                 await dialog.ShowDialog(mainWindow);
             }
 
+            await loadTask;
             await ApplySelectedClientToReplayAsync(replay, clientVm);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -1275,10 +1276,6 @@ public partial class ReplayManagerViewModel(
 
             if (profileVm.WasSuccessful && profileVm.SelectedProfile != null)
             {
-                replay.MatchingProfileId = profileVm.SelectedProfile.Id;
-                replay.MatchingProfileName = profileVm.SelectedProfile.Name;
-                replay.CompatibilityStatus = ReplayCompatibilityStatus.Compatible;
-
                 await LaunchReplayWithProfileAsync(replay, profileVm.SelectedProfile.Id);
             }
         }

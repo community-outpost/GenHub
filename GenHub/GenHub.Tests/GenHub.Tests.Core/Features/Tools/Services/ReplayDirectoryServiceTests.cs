@@ -2988,6 +2988,40 @@ public sealed class ReplayDirectoryServiceTests
             Times.Once());
     }
 
+    /// <summary>
+    /// Verifies that when launching an explicit profile fails, the replay is not marked as compatible with it.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LaunchReplayAsync_WhenExplicitProfileLaunchFails_DoesNotMarkReplayAsCompatibleAsync()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "FailedExplicit.rep",
+            FullPath = "/replays/FailedExplicit.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            CompatibilityStatus = ReplayCompatibilityStatus.Unknown,
+        };
+
+        _mockLauncherFacade
+            .Setup(l => l.LaunchProfileAsync("failing-profile-id", true, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateFailure("Game process failed to start"));
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var result = await service.LaunchReplayAsync(replay, profileId: "failing-profile-id");
+
+        Assert.False(result.Success);
+        Assert.Null(replay.MatchingProfileId);
+        Assert.Equal(ReplayCompatibilityStatus.Unknown, replay.CompatibilityStatus);
+    }
+
     private static ReplayFile CreateTestReplayForPathResolution(string publisher) => new()
     {
         FileName = "Test.rep",

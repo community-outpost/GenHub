@@ -334,7 +334,7 @@ def inspect_archive_binary(download_url: str, binary_patterns: list[str]) -> tup
                             break
                 if not ini_crc and base_name in ("generals.ini",):
                     ini_bytes = zf.read(name)
-                    ini_crc = compute_buffer_crc(ini_bytes)
+                    ini_crc = compute_sage_xfer_crc(ini_bytes)
 
             return exe_crc, sha256, ini_crc
     except (OSError, zipfile.BadZipFile, http.client.HTTPException, zlib.error, EOFError) as e:

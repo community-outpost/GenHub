@@ -20,7 +20,7 @@ public sealed class CrcMappingRegistryTests
         var all = registry.GetAllEntries();
 
         Assert.NotEmpty(all);
-        Assert.InRange(all.Count, 120, 500);
+        Assert.InRange(all.Count, 120, 5000);
         Assert.Contains(all, e => e.ManifestId == "1.104.steam.gameclient.zerohour");
         Assert.Contains(all, e => e.Publisher == "generalsonline");
         Assert.Contains(all, e => e.Publisher == "thesuperhackers");

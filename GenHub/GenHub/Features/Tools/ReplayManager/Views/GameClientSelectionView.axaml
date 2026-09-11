@@ -14,13 +14,13 @@
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="40"
-        Background="{DynamicResource SurfaceBackground}">
+        Background="{DynamicResource SurfaceBackgroundBrush}">
 
     <Grid RowDefinitions="40,*">
         <!-- Custom Title Bar -->
         <Grid Grid.Row="0"
               ColumnDefinitions="*,Auto,Auto,Auto,Auto"
-              Background="{DynamicResource SurfaceBackground}"
+              Background="{DynamicResource SurfaceBackgroundBrush}"
               x:Name="TitleBarGrid"
               PointerPressed="OnTitleBarPointerPressed">
 
@@ -127,7 +127,7 @@
             </Border>
 
             <!-- Search Filter Bar -->
-            <Border Grid.Row="1" Background="{DynamicResource SurfaceBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="24,12">
+            <Border Grid.Row="1" Background="{DynamicResource SurfaceBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="24,12">
                 <TextBox Text="{Binding SearchText, Mode=TwoWay}"
                          Watermark="Filter game clients (e.g. Community Patch, MP Recovery, 1.04, Retail, TheSuperHackers)..."
                          FontSize="13"

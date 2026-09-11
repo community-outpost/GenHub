@@ -309,33 +309,39 @@ public sealed class ReplayDirectoryService(
         ArgumentNullException.ThrowIfNull(replay);
 
         var isExplicitProfile = !string.IsNullOrWhiteSpace(profileId);
-        if (isExplicitProfile)
-        {
-            replay.MatchingProfileId = profileId;
-            replay.CompatibilityStatus = ReplayCompatibilityStatus.Compatible;
-            await ResolveExplicitProfileNameAsync(replay, profileId!, ct);
-        }
-        else
+        if (!isExplicitProfile)
         {
             await EnsureValidProfileReferenceAsync(replay, ct);
         }
+
+        var targetProfileId = isExplicitProfile ? profileId! : replay.MatchingProfileId;
 
         logger.LogInformation(
             "[ReplayManager] Starting replay launch workflow for '{ReplayFile}' (GameVersion: {GameVersion}, ProfileId: {ProfileId})",
             replay.FileName,
             replay.GameVersion,
-            replay.MatchingProfileId ?? "none");
+            targetProfileId ?? "none");
 
-        if (string.IsNullOrEmpty(replay.MatchingProfileId))
+        if (string.IsNullOrEmpty(targetProfileId))
         {
             var ensureError = await EnsureReplayProfileExistsAsync(replay, ct);
             if (ensureError != null)
             {
                 return ensureError;
             }
+
+            targetProfileId = replay.MatchingProfileId;
         }
 
-        return await ExecuteProfileLaunchAsync(replay.MatchingProfileId ?? string.Empty, replay.FileName, ct);
+        var launchResult = await ExecuteProfileLaunchAsync(targetProfileId ?? string.Empty, replay.FileName, ct);
+        if (launchResult.Success && isExplicitProfile)
+        {
+            replay.MatchingProfileId = profileId;
+            replay.CompatibilityStatus = ReplayCompatibilityStatus.Compatible;
+            await ResolveExplicitProfileNameAsync(replay, profileId!, ct);
+        }
+
+        return launchResult;
     }
 
     /// <inheritdoc />

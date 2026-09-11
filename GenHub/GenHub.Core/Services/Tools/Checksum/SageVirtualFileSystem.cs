@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using Microsoft.Extensions.Logging;
+
 namespace GenHub.Core.Services.Tools.Checksum;
 
 /// <summary>
@@ -7,15 +12,18 @@ public sealed class SageVirtualFileSystem
 {
     private readonly List<string> _looseRoots = [];
     private readonly Dictionary<string, BigArchiveEntry> _archiveEntries = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ILogger? _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SageVirtualFileSystem"/> class.
     /// </summary>
     /// <param name="gameRoot">The root directory of the game installation.</param>
     /// <param name="isZeroHour">Whether the target game is Zero Hour (generalsmd) or vanilla Generals.</param>
-    public SageVirtualFileSystem(string gameRoot, bool isZeroHour)
+    /// <param name="logger">Optional logger for diagnostic tracing.</param>
+    public SageVirtualFileSystem(string gameRoot, bool isZeroHour, ILogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(gameRoot);
+        _logger = logger;
         _looseRoots.Add(gameRoot);
 
         if (!Directory.Exists(gameRoot))
@@ -47,9 +55,9 @@ public sealed class SageVirtualFileSystem
                     _archiveEntries.TryAdd(key, entry);
                 }
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
             {
-                // Skip unreadable or corrupted archives
+                _logger?.LogWarning(ex, "Skipping unreadable or corrupted archive at {Path}", bigFile);
             }
         }
     }
@@ -127,9 +135,9 @@ public sealed class SageVirtualFileSystem
                 {
                     return File.ReadAllBytes(loosePath);
                 }
-                catch
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    // Fall back to archive
+                    _logger?.LogDebug(ex, "Failed to read loose file at {Path}; falling back to archive", loosePath);
                 }
             }
         }
@@ -140,8 +148,9 @@ public sealed class SageVirtualFileSystem
             {
                 return BigArchiveReader.ReadEntryData(entry);
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
             {
+                _logger?.LogWarning(ex, "Failed to read archive entry {Key} from {ArchivePath}", entry.Path, entry.ArchivePath);
                 return null;
             }
         }
@@ -177,9 +186,9 @@ public sealed class SageVirtualFileSystem
                     files[rel.ToLowerInvariant()] = rel;
                 }
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                // Skip inaccessible directories
+                _logger?.LogDebug(ex, "Failed to enumerate files in loose directory {Directory}", looseDir);
             }
         }
 
@@ -219,9 +228,9 @@ public sealed class SageVirtualFileSystem
                 }
             }
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
         {
-            // Skip invalid archives
+            _logger?.LogWarning(ex, "Skipping invalid archive at {Path}", archivePath);
         }
     }
 }
