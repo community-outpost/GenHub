@@ -2859,6 +2859,7 @@ public sealed class ReplayDirectoryServiceTests
     /// <summary>
     /// Verifies that CreateProfileForReplayAsync uses the custom game client when one is provided.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task CreateProfileForReplayAsync_WhenCustomGameClientProvided_UsesCustomGameClient()
     {
@@ -2881,7 +2882,7 @@ public sealed class ReplayDirectoryServiceTests
             ExecutablePath = "generalszh.exe",
         };
 
-        var installation = new GameInstallation
+        var installation = new GameInstallation("/games/ZeroHour", GameInstallationType.Retail)
         {
             HasZeroHour = true,
             ZeroHourPath = "/games/ZeroHour",
@@ -2916,7 +2917,7 @@ public sealed class ReplayDirectoryServiceTests
 
         Assert.True(result.Success);
         Assert.NotNull(capturedRequest);
-        Assert.Equal("Community Patch 1.06", capturedRequest.GameClient.Name);
+        Assert.Equal("Community Patch 1.06", capturedRequest!.GameClient.Name);
         Assert.Equal("created-custom-profile-id", replay.MatchingProfileId);
         Assert.Equal(ReplayCompatibilityStatus.Compatible, replay.CompatibilityStatus);
     }
@@ -2924,6 +2925,7 @@ public sealed class ReplayDirectoryServiceTests
     /// <summary>
     /// Verifies that LaunchReplayAsync uses explicit profile ID when provided.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task LaunchReplayAsync_WhenExplicitProfileIdProvided_LaunchesExplicitProfile()
     {
@@ -2949,17 +2951,25 @@ public sealed class ReplayDirectoryServiceTests
             },
         };
 
+        var launchInfo = new GameLaunchInfo
+        {
+            LaunchId = "launch-123",
+            ProfileId = "explicit-user-profile-id",
+            WorkspaceId = "ws-123",
+            ProcessInfo = new GameProcessInfo
+            {
+                ProcessId = 9999,
+                ExecutablePath = "/games/ZeroHour/generalszh.exe",
+            },
+        };
+
         _mockProfileManager
             .Setup(p => p.GetProfileAsync("explicit-user-profile-id", It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(explicitProfile));
 
-        _mockProfileLauncherFacade
-            .Setup(l => l.GetLaunchStatusAsync("explicit-user-profile-id", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<LaunchStatus>.CreateSuccess(new LaunchStatus { IsRunning = false }));
-
-        _mockProfileLauncherFacade
+        _mockLauncherFacade
             .Setup(l => l.LaunchProfileAsync("explicit-user-profile-id", true, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo()));
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
 
         var service = new ReplayDirectoryService(
             _mockHeaderParser.Object,
@@ -2972,9 +2982,9 @@ public sealed class ReplayDirectoryServiceTests
         Assert.True(result.Success);
         Assert.Equal("explicit-user-profile-id", replay.MatchingProfileId);
         Assert.Equal("MP Recovery Profile", replay.MatchingProfileName);
-        _mockProfileLauncherFacade.Verify(
+        _mockLauncherFacade.Verify(
             l => l.LaunchProfileAsync("explicit-user-profile-id", true, It.IsAny<CancellationToken>()),
-            Times.Once);
+            Times.Once());
     }
 
     private static ReplayFile CreateTestReplayForPathResolution(string publisher) => new()
