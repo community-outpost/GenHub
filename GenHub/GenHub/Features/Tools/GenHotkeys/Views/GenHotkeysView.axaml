@@ -27,7 +27,6 @@
       <hotkeyConverters:CornerToHorizontalAlignmentConverter x:Key="CornerToHorizontalAlignmentConverter" />
       <hotkeyConverters:CornerToVerticalAlignmentConverter x:Key="CornerToVerticalAlignmentConverter" />
       <hotkeyConverters:FactionToGeometryConverter x:Key="FactionToGeometryConverter" />
-      <hotkeyConverters:FactionToImageConverter x:Key="FactionToImageConverter" />
       <hotkeyConverters:FactionToBrushConverter x:Key="FactionToBrushConverter" />
     </ResourceDictionary>
   </UserControl.Resources>
