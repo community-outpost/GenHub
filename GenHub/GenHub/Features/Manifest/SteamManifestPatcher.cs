@@ -45,7 +45,7 @@ public class SteamManifestPatcher(
                 return;
             }
 
-            var changed = ApplyLaunchMode(manifest, useSteamLaunch, manifestId);
+            var changed = ApplyLaunchMode(manifest, useSteamLaunch, manifestId, logger);
 
             if (changed)
             {
@@ -100,7 +100,7 @@ public class SteamManifestPatcher(
         return (null, null);
     }
 
-    private bool ApplyLaunchMode(ContentManifest manifest, bool useSteamLaunch, string manifestId)
+    private static bool ApplyLaunchMode(ContentManifest manifest, bool useSteamLaunch, string manifestId, ILogger logger)
     {
         var generalsExe = manifest.Files.FirstOrDefault(f => f.RelativePath.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase));
         var gameDat = manifest.Files.FirstOrDefault(f => f.RelativePath.Equals(GameClientConstants.SteamGameDatExecutable, StringComparison.OrdinalIgnoreCase));
