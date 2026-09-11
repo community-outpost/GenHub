@@ -19,7 +19,7 @@ public class IconOverlayServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GenerateOverlayTgaAsync_StampsBadgeAndExports32BitTga()
+    public async Task GenerateOverlayTgaAsync_StampsBadgeAndExports32BitTgaAsync()
     {
         var service = new IconOverlayService(NullLogger<IconOverlayService>.Instance);
 

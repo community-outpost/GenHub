@@ -25,6 +25,9 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
         PropertyNameCaseInsensitive = true,
     };
 
+    private static readonly string[] FactionSubdirs = [string.Empty, "USA/", "PRC/", "GLA/"];
+    private static readonly string[] IconExtensions = [".webp", ".png"];
+
     private readonly ConcurrentDictionary<GameType, IReadOnlyList<HotkeyFaction>> _cache = new();
     private readonly ConcurrentDictionary<string, byte[]?> _iconCache = new();
 
@@ -55,10 +58,9 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
             return [];
         }
 
-        // Load reference CSF for default strings and hotkeys
         var refCsf = LoadReferenceCsf(gameType);
-
         var factions = new List<HotkeyFaction>();
+
         foreach (var factionJson in root.TechTree)
         {
             var faction = new HotkeyFaction
@@ -99,20 +101,48 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
             return cached;
         }
 
-        var extensions = new[] { ".webp", ".png" };
-        foreach (var ext in extensions)
+        var searchDirs = new List<string> { profileDir };
+        if (gameType == GameType.ZeroHour)
         {
-            var relativePath = $"Profiles/{profileDir}/Icons/{iconName}{ext}";
-            var stream = TryOpenAssetStream(relativePath);
-            if (stream != null)
+            searchDirs.Add("Generals");
+        }
+
+        var candidateNames = new List<string> { iconName };
+        if (iconName.StartsWith("USA", StringComparison.OrdinalIgnoreCase) && iconName.Length > 3)
+        {
+            candidateNames.Add(iconName[3..]);
+        }
+        else if (iconName.StartsWith("PRC", StringComparison.OrdinalIgnoreCase) && iconName.Length > 3)
+        {
+            candidateNames.Add(iconName[3..]);
+        }
+        else if (iconName.StartsWith("GLA", StringComparison.OrdinalIgnoreCase) && iconName.Length > 3)
+        {
+            candidateNames.Add(iconName[3..]);
+        }
+
+        foreach (var dir in searchDirs)
+        {
+            foreach (var sub in FactionSubdirs)
             {
-                using (stream)
-                using (var ms = new MemoryStream())
+                foreach (var name in candidateNames)
                 {
-                    await stream.CopyToAsync(ms, cancellationToken);
-                    var data = ms.ToArray();
-                    _iconCache[cacheKey] = data;
-                    return data;
+                    foreach (var ext in IconExtensions)
+                    {
+                        var relativePath = $"Profiles/{dir}/Icons/{sub}{name}{ext}";
+                        var stream = TryOpenAssetStream(relativePath);
+                        if (stream != null)
+                        {
+                            using (stream)
+                            using (var ms = new MemoryStream())
+                            {
+                                await stream.CopyToAsync(ms, cancellationToken);
+                                var data = ms.ToArray();
+                                _iconCache[cacheKey] = data;
+                                return data;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -234,11 +264,20 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
             return File.OpenRead(fileOnDisk);
         }
 
-        // 3. Try relative to solution directory during development
-        var devPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Assets", "GenHotkeys", relativePath);
-        if (File.Exists(devPath))
+        // 3. Try relative to project/solution directories during development
+        var searchRoots = new[]
         {
-            return File.OpenRead(devPath);
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Assets", "GenHotkeys", relativePath),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "GenHub", "Assets", "GenHotkeys", relativePath),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "GenHub", "GenHub", "Assets", "GenHotkeys", relativePath),
+        };
+
+        foreach (var root in searchRoots)
+        {
+            if (File.Exists(root))
+            {
+                return File.OpenRead(root);
+            }
         }
 
         return null;

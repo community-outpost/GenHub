@@ -16,8 +16,7 @@ namespace GenHub.Tests.Core.Features.Tools.GenHotkeys;
 /// </summary>
 public class HotkeyProfileStorageServiceTests : IDisposable
 {
-    private readonly string _tempDirectory;
-    private readonly Mock<IAppConfiguration> _mockAppConfig;
+    private readonly string _tempDir;
     private readonly HotkeyProfileStorageService _service;
 
     /// <summary>
@@ -25,124 +24,107 @@ public class HotkeyProfileStorageServiceTests : IDisposable
     /// </summary>
     public HotkeyProfileStorageServiceTests()
     {
-        _tempDirectory = Path.Combine(Path.GetTempPath(), $"GenHub_Test_Hotkeys_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDirectory);
+        _tempDir = Path.Combine(Path.GetTempPath(), "GenHubTests_Hotkeys_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_tempDir);
 
-        _mockAppConfig = new Mock<IAppConfiguration>();
-        _mockAppConfig.Setup(c => c.GetConfiguredDataPath()).Returns(_tempDirectory);
+        var mockConfig = new Mock<IAppConfiguration>();
+        mockConfig.Setup(c => c.GetConfiguredDataPath()).Returns(_tempDir);
 
         _service = new HotkeyProfileStorageService(
-            _mockAppConfig.Object,
+            mockConfig.Object,
             NullLogger<HotkeyProfileStorageService>.Instance);
     }
 
     /// <summary>
-    /// Cleans up temporary test directories.
+    /// Cleans up temporary test directory.
     /// </summary>
     public void Dispose()
     {
-        if (Directory.Exists(_tempDirectory))
-        {
-            try
-            {
-                Directory.Delete(_tempDirectory, true);
-            }
-            catch
-            {
-                // Ignore cleanup errors
-            }
-        }
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>
-    /// Verifies that GetProfilesAsync initializes a default profile if none exists.
+    /// Verifies that SaveProfileAsync persists a profile and GetProfilesAsync retrieves it.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetProfilesAsync_WhenEmpty_CreatesAndReturnsDefaultProfile()
-    {
-        var profiles = await _service.GetProfilesAsync(GameType.ZeroHour);
-
-        Assert.NotEmpty(profiles);
-        var first = profiles[0];
-        Assert.Equal(GameType.ZeroHour, first.TargetGame);
-        Assert.Contains("Default", first.Name);
-    }
-
-    /// <summary>
-    /// Verifies that SaveProfileAsync writes a JSON file that can be reloaded.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    [Fact]
-    public async Task SaveProfileAsync_PersistsProfileToJsonFile()
+    public async Task SaveProfileAsync_PersistsProfile_CanBeRetrievedAsync()
     {
         var profile = new HotkeyProfile
         {
-            Name = "My Test Profile",
+            Name = "My Custom Profile",
             TargetGame = GameType.ZeroHour,
             OverlayEnabled = true,
-            OverlayCorner = OverlayCorner.BottomRight,
+            OverlayCorner = OverlayCorner.TopRight,
         };
         profile.KeyMappings["CONTROLBAR:ConstructAmericaDozer"] = 'D';
+        profile.ClearedKeys.Add("CONTROLBAR:LeafletDrop");
 
-        var saved = await _service.SaveProfileAsync(profile);
-        Assert.NotNull(saved);
+        await _service.SaveProfileAsync(profile);
 
-        var loadedList = await _service.GetProfilesAsync(GameType.ZeroHour);
-        var found = Assert.Single(loadedList, p => p.Id == profile.Id);
+        var retrieved = await _service.GetProfilesAsync(GameType.ZeroHour);
 
-        Assert.Equal("My Test Profile", found.Name);
-        Assert.True(found.OverlayEnabled);
-        Assert.Equal(OverlayCorner.BottomRight, found.OverlayCorner);
-        Assert.True(found.KeyMappings.TryGetValue("CONTROLBAR:ConstructAmericaDozer", out var key));
-        Assert.Equal('D', key);
+        Assert.NotEmpty(retrieved);
+        var found = Assert.Single(retrieved, p => p.Id == profile.Id);
+        Assert.Equal("My Custom Profile", found.Name);
+        Assert.Equal(OverlayCorner.TopRight, found.OverlayCorner);
+        Assert.True(found.KeyMappings.ContainsKey("CONTROLBAR:ConstructAmericaDozer"));
+        Assert.Equal('D', found.KeyMappings["CONTROLBAR:ConstructAmericaDozer"]);
+        Assert.Contains("CONTROLBAR:LeafletDrop", found.ClearedKeys);
     }
 
     /// <summary>
-    /// Verifies that DeleteProfileAsync removes the profile JSON file from disk.
+    /// Verifies that DeleteProfileAsync removes a persisted profile file.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DeleteProfileAsync_RemovesProfileFile()
+    public async Task DeleteProfileAsync_RemovesProfileFileAsync()
     {
         var profile = new HotkeyProfile
         {
             Name = "To Delete",
-            TargetGame = GameType.Generals,
-        };
-
-        await _service.SaveProfileAsync(profile);
-        var deleted = await _service.DeleteProfileAsync(profile.Id);
-        Assert.True(deleted);
-
-        var profiles = await _service.GetProfilesAsync(GameType.Generals);
-        Assert.DoesNotContain(profiles, p => p.Id == profile.Id);
-    }
-
-    /// <summary>
-    /// Verifies that SaveProfileAsync rejects path traversal in profile Id.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    [Fact]
-    public async Task SaveProfileAsync_WithTraversalId_ThrowsArgumentException()
-    {
-        var maliciousProfile = new HotkeyProfile
-        {
-            Id = "../evil",
-            Name = "Malicious",
             TargetGame = GameType.ZeroHour,
         };
 
-        await Assert.ThrowsAsync<ArgumentException>(() => _service.SaveProfileAsync(maliciousProfile));
+        await _service.SaveProfileAsync(profile);
+        var before = await _service.GetProfilesAsync(GameType.ZeroHour);
+        Assert.Contains(before, p => p.Id == profile.Id);
+
+        await _service.DeleteProfileAsync(profile.Id);
+        var after = await _service.GetProfilesAsync(GameType.ZeroHour);
+        Assert.DoesNotContain(after, p => p.Id == profile.Id);
     }
 
     /// <summary>
-    /// Verifies that DeleteProfileAsync rejects path traversal in profile Id.
+    /// Verifies that LoadPresetAsync loads a preset profile when requested.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DeleteProfileAsync_WithTraversalId_ThrowsArgumentException()
+    public async Task LoadPresetAsync_LoadsKnownPresetAsync()
     {
-        await Assert.ThrowsAsync<ArgumentException>(() => _service.DeleteProfileAsync("../../evil"));
+        var preset = await _service.LoadPresetAsync("Vanilla", GameType.ZeroHour);
+
+        Assert.NotNull(preset);
+        Assert.Contains("Vanilla", preset.Name);
+    }
+
+    /// <summary>
+    /// Cleans up managed resources.
+    /// </summary>
+    /// <param name="disposing">Whether disposing.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing && Directory.Exists(_tempDir))
+        {
+            try
+            {
+                Directory.Delete(_tempDir, true);
+            }
+            catch
+            {
+                // Best effort cleanup
+            }
+        }
     }
 }

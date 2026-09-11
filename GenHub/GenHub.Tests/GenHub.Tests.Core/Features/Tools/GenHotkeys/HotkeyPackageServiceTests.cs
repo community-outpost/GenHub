@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Tools.GenHotkeys;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -43,8 +44,7 @@ public class HotkeyPackageServiceTests
 
         var mockScope = new Mock<IServiceScope>();
         var mockServiceProvider = new Mock<IServiceProvider>();
-        mockServiceProvider
-            .Setup(sp => sp.GetService(typeof(ILocalContentService)))
+        mockServiceProvider.Setup(sp => sp.GetService(typeof(ILocalContentService)))
             .Returns(_mockLocalContent.Object);
         mockScope.Setup(s => s.ServiceProvider).Returns(mockServiceProvider.Object);
 
@@ -63,7 +63,7 @@ public class HotkeyPackageServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateHotkeysAddonAsync_WithNullProfile_ThrowsArgumentNullException()
+    public async Task CreateHotkeysAddonAsync_WithNullProfile_ThrowsArgumentNullExceptionAsync()
     {
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
             _service.CreateHotkeysAddonAsync(null!));
@@ -74,7 +74,7 @@ public class HotkeyPackageServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateHotkeysAddonAsync_WhenSuccessful_ReturnsManifest()
+    public async Task CreateHotkeysAddonAsync_WhenSuccessful_ReturnsManifestAsync()
     {
         var profile = new HotkeyProfile
         {
@@ -114,12 +114,12 @@ public class HotkeyPackageServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateHotkeysAddonAsync_WhenManifestCreationFails_ReturnsFailure()
+    public async Task CreateHotkeysAddonAsync_WhenManifestCreationFails_ReturnsFailureAsync()
     {
         var profile = new HotkeyProfile
         {
-            Name = "Failing Profile",
-            TargetGame = GameType.Generals,
+            Name = "Failed Profile",
+            TargetGame = GameType.ZeroHour,
             OverlayEnabled = false,
         };
 
@@ -127,17 +127,17 @@ public class HotkeyPackageServiceTests
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 ContentType.Addon,
-                GameType.Generals,
+                GameType.ZeroHour,
                 It.IsAny<string?>(),
                 It.IsAny<IProgress<ContentStorageProgress>?>(),
                 It.IsAny<CancellationToken>(),
                 It.IsAny<string?>()))
-            .ReturnsAsync(OperationResult<ContentManifest>.CreateFailure("Manifest generation error"));
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateFailure("Storage full"));
 
         var result = await _service.CreateHotkeysAddonAsync(profile);
 
         Assert.False(result.Success);
-        Assert.Contains("Failed to register hotkey addon", result.Errors[0]);
+        Assert.Contains("Storage full", string.Join(", ", result.Errors));
     }
 
     /// <summary>
@@ -145,7 +145,7 @@ public class HotkeyPackageServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateHotkeysAddonAsync_WithClearedKeys_SkipsOverlayForClearedActions()
+    public async Task CreateHotkeysAddonAsync_WithClearedKeys_SkipsOverlayForClearedActionsAsync()
     {
         var profile = new HotkeyProfile
         {
@@ -160,41 +160,33 @@ public class HotkeyPackageServiceTests
             new()
             {
                 ShortName = "USA",
-                DisplayName = "USA",
+                DisplayName = "America",
                 GameObjects =
-                [
+                {
                     new HotkeyGameObject
                     {
-                        Name = "AmericaCommandCenter",
-                        Category = HotkeyCategory.Buildings,
+                        Name = "CommandCenter",
                         KeyboardLayouts =
-                        [
-                            [
-                                new HotkeyAction
+                        {
+                            new List<HotkeyAction>
+                            {
+                                new()
                                 {
-                                    IconName = "USADozer",
+                                    IconName = "SADozer",
                                     HotkeyString = "CONTROLBAR:ConstructAmericaDozer",
                                     DefaultHotkey = 'D',
-                                    Hotkey = null,
                                 },
-                            ],
-                        ],
+                            },
+                        },
                     },
-                ],
+                },
             },
         };
 
         _mockTechTree.Setup(t => t.LoadTechTreeAsync(GameType.ZeroHour, It.IsAny<CancellationToken>()))
             .ReturnsAsync(factions);
 
-        var expectedManifest = new ContentManifest
-        {
-            Id = ManifestId.Create("1.0.local.addon.hotkeys-cleared-test"),
-            Name = "Custom Hotkeys: Cleared Keys Profile",
-            ContentType = ContentType.Addon,
-            TargetGame = GameType.ZeroHour,
-        };
-
+        var manifestCreated = false;
         _mockLocalContent.Setup(l => l.CreateLocalContentManifestAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
@@ -204,13 +196,27 @@ public class HotkeyPackageServiceTests
                 It.IsAny<IProgress<ContentStorageProgress>?>(),
                 It.IsAny<CancellationToken>(),
                 It.IsAny<string?>()))
-            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(expectedManifest));
+            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?>((stagingDir, _, _, _, _, _, _, _) =>
+                {
+                    // Verify that no TGA was generated for the cleared action
+                    var tgaPath = Path.Combine(stagingDir, "Art", "Textures", "SADozer.tga");
+                    Assert.False(File.Exists(tgaPath), "Overlay TGA should not be generated for cleared hotkeys.");
+                    manifestCreated = true;
+                })
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.local.addon.hotkeys-cleared"),
+                Name = "Custom Hotkeys: Cleared",
+                ContentType = ContentType.Addon,
+                TargetGame = GameType.ZeroHour,
+            }));
 
         var result = await _service.CreateHotkeysAddonAsync(profile);
 
         Assert.True(result.Success);
+        Assert.True(manifestCreated);
 
-        // Verify overlay service was never invoked for the cleared hotkey action
+        // Verify that GenerateOverlayTgaAsync was NEVER called for the cleared key
         _mockOverlay.Verify(
             o => o.GenerateOverlayTgaAsync(
                 It.IsAny<byte[]>(),

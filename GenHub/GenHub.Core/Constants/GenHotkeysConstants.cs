@@ -17,6 +17,15 @@ public static class GenHotkeysConstants
     /// <summary>Tool plugin version.</summary>
     public const string PluginVersion = "1.0.0";
 
+    /// <summary>Vanilla preset name.</summary>
+    public const string PresetVanilla = "Vanilla";
+
+    /// <summary>Legionnaire preset name.</summary>
+    public const string PresetLegionnaire = "Legionnaire";
+
+    /// <summary>Leikeze preset name.</summary>
+    public const string PresetLeikeze = "Leikeze";
+
     /// <summary>Storage directory name for user hotkey profiles.</summary>
     public const string HotkeysStorageDirectory = "Hotkeys";
 
@@ -38,8 +47,8 @@ public static class GenHotkeysConstants
     /// <summary>Tech tree relative path for Zero Hour.</summary>
     public const string TechTreeGeneralsZh = "Profiles/GeneralsZH/TechTree.json";
 
-    /// <summary>Naming format for generated hotkey .big files: !Hotkeys_{Game}_{ProfileName}.big.</summary>
-    public const string BigFileNamePattern = "!Hotkeys_{0}_{1}.big";
+    /// <summary>Naming format for generated hotkey .big files (prefixed with zzz so SAGE engine loads it last to override default game assets): zzz_Hotkeys_{0}_{1}.big.</summary>
+    public const string BigFileNamePattern = "zzz_Hotkeys_{0}_{1}.big";
 
     /// <summary>Target directory in .big for localized CSF files.</summary>
     public const string DataEnglishDirectory = "Data/English";
@@ -52,13 +61,4 @@ public static class GenHotkeysConstants
 
     /// <summary>Command CSF key prefix.</summary>
     public const string CsfCommandPrefix = "COMMAND:";
-
-    /// <summary>Vanilla preset name.</summary>
-    public const string PresetVanilla = "Vanilla";
-
-    /// <summary>Legionnaire preset name.</summary>
-    public const string PresetLegionnaire = "Legionnaire";
-
-    /// <summary>Leikeze preset name.</summary>
-    public const string PresetLeikeze = "Leikeze";
 }
