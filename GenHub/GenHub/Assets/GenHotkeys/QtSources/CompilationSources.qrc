@@ -1,0 +1,16 @@
+<RCC>
+    <qresource prefix="icons">
+        <file>EditorIconSmall.webp</file>
+        <file>EditorIconBig.webp</file>
+        <file>NoImageSmall.webp</file>
+        <file>Buildings.png</file>
+        <file>Infantry.png</file>
+        <file>Vehicles.png</file>
+        <file>Aircrafts.png</file>
+        <file>Buildings.webp</file>
+        <file>Infantry.webp</file>
+        <file>Vehicles.webp</file>
+        <file>Aircrafts.webp</file>
+        <file>Gears.webp</file>
+    </qresource>
+</RCC>

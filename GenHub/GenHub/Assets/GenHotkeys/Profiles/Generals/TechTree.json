@@ -1,0 +1,1168 @@
+{
+    "TechTree" :
+    [
+        {
+            "ShortName"              : "USA",
+            "DisplayName"            : "USA",
+            "DisplayNameDescription" : "United Stated Of America",
+
+            "Buildings" : 
+            [
+                {
+                    "Name"            : "USACommandCenter",
+                    "IngameName"      : "OBJECT:CommandCenter",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "USADozer",                       "HotkeyString" : "CONTROLBAR:ConstructAmericaDozer"},
+                            {"IconName" : "USAA10ThunderboltMissileStrike", "HotkeyString" : "CONTROLBAR:A10ThunderboltMissileStrike"},
+                            {"IconName" : "Paradrop",                       "HotkeyString" : "CONTROLBAR:Paradrop"},
+                            {"IconName" : "USADrone",                       "HotkeyString" : "CONTROLBAR:SpyDrone"},
+                            {"IconName" : "EmergencyRepair",                "HotkeyString" : "CONTROLBAR:EmergencyRepair"},
+                            {"IconName" : "USADaisyCutter",                 "HotkeyString" : "CONTROLBAR:DaisyCutter"},
+                            {"IconName" : "USASpySattelite",                "HotkeyString" : "CONTROLBAR:SpySatellite"},
+                            {"IconName" : "RallyPoint",                     "HotkeyString" : "CONTROLBAR:SetRallyPoint"},
+                            {"IconName" : "Sell",                           "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "USAColdFusionReactor",
+                    "IngameName"      : "OBJECT:ColdFusionReactor",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "USAControlRods", "HotkeyString" : "CONTROLBAR:UpgradeAmericaAdvancedControlRods"},
+                            {"IconName" : "Sell",           "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "USABarracks",
+                    "IngameName"      : "OBJECT:Barracks",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "USARanger",          "HotkeyString" : "CONTROLBAR:ConstructAmericaInfantryRanger"},
+                            {"IconName" : "USAMissileDefender", "HotkeyString" : "CONTROLBAR:ConstructAmericaInfantryMissileDefender"},
+                            {"IconName" : "USABurton",          "HotkeyString" : "CONTROLBAR:ConstructAmericaInfantryColonelBurton"},
+                            {"IconName" : "USAPathfinder",      "HotkeyString" : "CONTROLBAR:ConstructAmericaInfantryPathfinder"},
+                            {"IconName" : "USAFlashbangs",      "HotkeyString" : "CONTROLBAR:UpgradeAmericaFlashBangGrenade"},
+                            {"IconName" : "CaptureBuilding",    "HotkeyString" : "CONTROLBAR:UpgradeAmericaRangerCaptureBuilding"},
+                            {"IconName" : "RallyPoint",         "HotkeyString" : "CONTROLBAR:SetRallyPoint"},
+                            {"IconName" : "Sell",               "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "USASupplyCenter",
+                    "IngameName"      : "OBJECT:SupplyCenter",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "USAChinook", "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleChinook"},
+                            {"IconName" : "RallyPoint", "HotkeyString" : "CONTROLBAR:SetRallyPoint"},
+                            {"IconName" : "Sell",       "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "USAPatriot",
+                    "IngameName"      : "OBJECT:PatriotBattery",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "Stop", "HotkeyString" : "CONTROLBAR:Stop"},
+                            {"IconName" : "Sell", "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "USAWarFactory",
+                    "IngameName"      : "OBJECT:WarFactory",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "USACrusaderTank",     "HotkeyString" : "CONTROLBAR:ConstructAmericaTankCrusader"},
+                            {"IconName" : "USAHumvee",           "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleHumvee"},
+                            {"IconName" : "USAPaladinTank",      "HotkeyString" : "CONTROLBAR:ConstructAmericaTankPaladin"},
+                            {"IconName" : "USATomahawkLauncher", "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleTomahawk"},
+                            {"IconName" : "USAAmbulance",        "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleMedic"},
+                            {"IconName" : "USATOWMissile",       "HotkeyString" : "CONTROLBAR:UpgradeAmericaTOWMissile"},
+                            {"IconName" : "RallyPoint",          "HotkeyString" : "CONTROLBAR:SetRallyPoint"},
+                            {"IconName" : "Sell",                "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "USAAirfield",
+                    "IngameName"      : "OBJECT:Airfield",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "USARaptor",              "HotkeyString" : "CONTROLBAR:ConstructAmericaJetRaptor"},
+                            {"IconName" : "USAAurora",              "HotkeyString" : "CONTROLBAR:ConstructAmericaJetAurora"},
+                            {"IconName" : "USAComanche",            "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleComanche"},
+                            {"IconName" : "USAStealthFighter",      "HotkeyString" : "CONTROLBAR:ConstructAmericaJetStealthFighter"},
+                            {"IconName" : "USARocketPods",          "HotkeyString" : "CONTROLBAR:UpgradeComancheRocketPods"},
+                            {"IconName" : "USALaserGuidedMissiles", "HotkeyString" : "CONTROLBAR:UpgradeAmericaLaserMissiles"},
+                            {"IconName" : "RallyPoint",             "HotkeyString" : "CONTROLBAR:SetRallyPoint"},
+                            {"IconName" : "Sell",                   "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "USAStrategyCenter",
+                    "IngameName"      : "OBJECT:StrategyCenter",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "USABombardment",      "HotkeyString" : "CONTROLBAR:InitiateBattlePlanBombardment"},
+                            {"IconName" : "USAHoldTheLine",      "HotkeyString" : "CONTROLBAR:InitiateBattlePlanHoldTheLine"},
+                            {"IconName" : "USASearchAndDestroy", "HotkeyString" : "CONTROLBAR:InitiateBattlePlanSearchAndDestroy"},
+                            {"IconName" : "USAAdvancedTraining", "HotkeyString" : "CONTROLBAR:UpgradeAmericaAdvancedTraining"},
+                            {"IconName" : "USACompositeArmour",  "HotkeyString" : "CONTROLBAR:UpgradeAmericaCompositeArmor"},
+                            {"IconName" : "USADroneArmor",       "HotkeyString" : "CONTROLBAR:UpgradeAmericaDroneArmor"},
+                            {"IconName" : "Stop",                "HotkeyString" : "CONTROLBAR:Stop"},
+                            {"IconName" : "Sell",                "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "USADetentionCamp",
+                    "IngameName"      : "OBJECT:DetentionCamp",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "USAIntelligence", "HotkeyString" : "CONTROLBAR:CIAIntelligence"},
+                            {"IconName" : "Sell",            "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "USADropZone",
+                    "IngameName"      : "OBJECT:AmericaSupplyDropZone",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "Sell", "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "USAParticleCannon",
+                    "IngameName"      : "OBJECT:ParticleCannon",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "USAParticleCannonFire", "HotkeyString" : "CONTROLBAR:FireParticleUplinkCannon"},
+                            {"IconName" : "Sell",                  "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                }
+            ],
+            "Infantry" : 
+            [
+                {
+                    "Name"            : "USARanger",
+                    "IngameName"      : "OBJECT:Ranger",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "CaptureBuilding",     "HotkeyString" : "CONTROLBAR:CaptureBuilding"},
+                            {"IconName" : "USARangerMachineGun", "HotkeyString" : "CONTROLBAR:RangerMachineGun"},
+                            {"IconName" : "USAFlashbangs",       "HotkeyString" : "CONTROLBAR:FlashBangGrenadeMode"},
+                            {"IconName" : "AttackMove",          "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",               "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",                "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "USAMissileDefender",
+                    "IngameName"      : "OBJECT:MissileTeam",
+                    "KeyboardLayouts"    :
+                    [
+                        [
+                            {"IconName" : "USALaserLock", "HotkeyString" : "CONTROLBAR:LaserMissileAttack"},
+                            {"IconName" : "AttackMove",   "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",        "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",         "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "USAPathfinder",
+                    "IngameName"      : "OBJECT:Pathfinder",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",      "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",       "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "USABurton",
+                    "IngameName"      : "OBJECT:ColonelBurton",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "USAKnifeAttack",      "HotkeyString" : "CONTROLBAR:KnifeAttack"},
+                            {"IconName" : "USATimedDemoCharge",  "HotkeyString" : "CONTROLBAR:TimedDemoCharge"},
+                            {"IconName" : "USARemoteDemoCharge", "HotkeyString" : "CONTROLBAR:RemoteDemoCharge"},
+                            {"IconName" : "USADetonateCharges",  "HotkeyString" : "CONTROLBAR:DetonateCharges"},
+                            {"IconName" : "AttackMove",          "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",               "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",                "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                }
+            ],
+            "Vehicles" : 
+            [
+                {
+                    "Name"            : "USADozer",
+                    "IngameName"      : "OBJECT:Dozer",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "USAColdFusionReactor",    "HotkeyString" : "CONTROLBAR:ConstructAmericaPowerPlant"},
+                            {"IconName" : "USABarracks",             "HotkeyString" : "CONTROLBAR:ConstructAmericaBarracks"},
+                            {"IconName" : "USASupplyCenter",         "HotkeyString" : "CONTROLBAR:ConstructAmericaSupplyCenter"},
+                            {"IconName" : "USAPatriot",              "HotkeyString" : "CONTROLBAR:ConstructAmericaPatriotBattery"},
+                            {"IconName" : "USAWarFactory",           "HotkeyString" : "CONTROLBAR:ConstructAmericaWarFactory"},
+                            {"IconName" : "USAAirfield",             "HotkeyString" : "CONTROLBAR:ConstructAmericaAirfield"},
+                            {"IconName" : "USAStrategyCenter",       "HotkeyString" : "CONTROLBAR:ConstructAmericaStrategyCenter"},
+                            {"IconName" : "USASupplyDropZone",       "HotkeyString" : "CONTROLBAR:ConstructAmericaSupplyDropZone"},
+                            {"IconName" : "USADetentionCamp",        "HotkeyString" : "CONTROLBAR:ConstructAmericaDetentionCamp"},
+                            {"IconName" : "USAParticleCannon",       "HotkeyString" : "CONTROLBAR:ConstructAmericaParticleCannonUplink"},
+                            {"IconName" : "USACommandCenter",        "HotkeyString" : "CONTROLBAR:ConstructAmericaCommandCenter"},
+                            {"IconName" : "DisarmMinesAtPosition",   "HotkeyString" : "CONTROLBAR:DisarmMinesAtPosition"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "USACrusaderTank",
+                    "IngameName"      : "OBJECT:Crusader",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "USABattleDrone",   "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleBattleDrone"},
+                            {"IconName" : "USADrone",         "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleScoutDrone"},
+                            {"IconName" : "AttackMove",       "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",            "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",             "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "USAPaladinTank",
+                    "IngameName"      : "OBJECT:Paladin",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "USABattleDrone",   "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleBattleDrone"},
+                            {"IconName" : "USADrone",         "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleScoutDrone"},
+                            {"IconName" : "AttackMove",       "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",            "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",             "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "USATomahawkLauncher",
+                    "IngameName"      : "OBJECT:Tomahawk",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "USABattleDrone",   "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleBattleDrone"},
+                            {"IconName" : "USADrone",         "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleScoutDrone"},
+                            {"IconName" : "AttackMove",       "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",            "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",             "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "USAHumvee",
+                    "IngameName"      : "OBJECT:Humvee",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "USAEvacuate",      "HotkeyString" : "CONTROLBAR:Evacuate"},
+                            {"IconName" : "USABattleDrone",   "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleBattleDrone"},
+                            {"IconName" : "USADrone",         "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleScoutDrone"},
+                            {"IconName" : "AttackMove",       "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",            "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",             "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "USAAmbulance",
+                    "IngameName"      : "OBJECT:Ambulance",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "USAEvacuate",             "HotkeyString" : "CONTROLBAR:Evacuate"},
+                            {"IconName" : "USAAmbulanceCleanupArea", "HotkeyString" : "CONTROLBAR:AmbulanceCleanupArea"},
+                            {"IconName" : "USABattleDrone",          "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleBattleDrone"},
+                            {"IconName" : "USADrone",                "HotkeyString" : "CONTROLBAR:ConstructAmericaVehicleScoutDrone"},
+                            {"IconName" : "AttackMove",              "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",                   "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",                    "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                }
+            ],
+            "Aircrafts" : 
+            [
+                {
+                    "Name"            : "USAChinook",
+                    "IngameName"      : "OBJECT:Chinook",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "USAEvacuate",   "HotkeyString" : "CONTROLBAR:Evacuate"},
+                            {"IconName" : "USACombatDrop", "HotkeyString" : "CONTROLBAR:CombatDrop"},
+                            {"IconName" : "Stop",          "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "USAComanche",
+                    "IngameName"      : "OBJECT:Comanche",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "USAFireRocketPods", "HotkeyString" : "CONTROLBAR:FireRocketPods"},
+                            {"IconName" : "AttackMove",        "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",             "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",              "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "USAStealthFighter",
+                    "IngameName"      : "OBJECT:StealthFighter",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",      "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",       "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "USARaptor",
+                    "IngameName"      : "OBJECT:Raptor",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "AirGuard",   "HotkeyString" : "CONTROLBAR:GuardFlyingUnitsOnly"},
+                            {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",      "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",       "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "USAAurora",
+                    "IngameName"      : "OBJECT:Aurora",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",      "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",       "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                }
+            ]
+        },
+
+        {
+            "ShortName"               : "PRC",
+            "DisplayName"             : "CHINA",
+            "DisplayNameDescription"  : "China",
+            
+            "Buildings"               : 
+            [
+                {
+                    "Name"            : "PRCNuclearReactor",
+                    "IngameName"      : "OBJECT:NuclearReactor",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "PRCOvercharge",   "HotkeyString" : "CONTROLBAR:Overcharge"},
+                            {"IconName" : "PRCLandMine",     "HotkeyString" : "CONTROLBAR:UpgradeChinaMines"},
+                            {"IconName" : "Sell",            "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "PRCBarracks",
+                    "IngameName"      : "OBJECT:Barracks",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "PRCRedGuard",     "HotkeyString" : "CONTROLBAR:ConstructChinaInfantryRedguard"},
+                            {"IconName" : "PRCTankHunter",   "HotkeyString" : "CONTROLBAR:ConstructChinaInfantryTankHunter"},
+                            {"IconName" : "PRCHacker",       "HotkeyString" : "CONTROLBAR:ConstructChinaInfantryHacker"},
+                            {"IconName" : "PRCBlackLotus",   "HotkeyString" : "CONTROLBAR:ConstructChinaInfantryBlackLotus"},
+                            {"IconName" : "CaptureBuilding", "HotkeyString" : "CONTROLBAR:UpgradeChinaRedguardCaptureBuilding"},
+                            {"IconName" : "PRCLandMine",     "HotkeyString" : "CONTROLBAR:UpgradeChinaMines"},
+                            {"IconName" : "RallyPoint",      "HotkeyString" : "CONTROLBAR:SetRallyPoint"},
+                            {"IconName" : "Sell",            "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "PRCSupplyCenter",
+                    "IngameName"      : "OBJECT:SupplyCenter",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "PRCSupplyTruck",  "HotkeyString" : "CONTROLBAR:ConstructChinaVehicleSupplyTruck"},
+                            {"IconName" : "PRCLandMine",     "HotkeyString" : "CONTROLBAR:UpgradeChinaMines"},
+                            {"IconName" : "RallyPoint",      "HotkeyString" : "CONTROLBAR:SetRallyPoint"},
+                            {"IconName" : "Sell",            "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "PRCBunker",
+                    "IngameName"      : "OBJECT:Bunker",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "PRCLandMine",     "HotkeyString" : "CONTROLBAR:UpgradeChinaMines"},
+                            {"IconName" : "Evacuate",        "HotkeyString" : "CONTROLBAR:Evacuate"},
+                            {"IconName" : "Sell",            "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "PRCGattlingCannon",
+                    "IngameName"      : "OBJECT:GattlingCannon",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "PRCLandMine",     "HotkeyString" : "CONTROLBAR:UpgradeChinaMines"},
+                            {"IconName" : "Stop",            "HotkeyString" : "CONTROLBAR:Stop"},
+                            {"IconName" : "Sell",            "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "PRCWarFactory",
+                    "IngameName"      : "OBJECT:WarFactory",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "PRCBattlemaster",  "HotkeyString" : "CONTROLBAR:ConstructGLATankBattleMaster"},
+                            {"IconName" : "PRCTroopCrawler",  "HotkeyString" : "CONTROLBAR:ConstructChinaVehicleTroopCrawler"},
+                            {"IconName" : "PRCGattlingTank",  "HotkeyString" : "CONTROLBAR:ConstructChinaTankGattling"},
+                            {"IconName" : "PRCDragonTank",    "HotkeyString" : "CONTROLBAR:ConstructChinaTankDragon"},
+                            {"IconName" : "PRCInfernoCannon", "HotkeyString" : "CONTROLBAR:ConstructChinaVehicleInfernoCannon"},
+                            {"IconName" : "PRCOverlordTank",  "HotkeyString" : "CONTROLBAR:ConstructChinaTankOverlord"},
+                            {"IconName" : "PRCNukeCannon",    "HotkeyString" : "CONTROLBAR:ConstructChinaVehicleNukeLauncher"},
+                            {"IconName" : "PRCChainguns",     "HotkeyString" : "CONTROLBAR:UpgradeChinaChainGuns"},
+                            {"IconName" : "PRCBlackNapalm",   "HotkeyString" : "CONTROLBAR:UpgradeChinaBlackNapalm"},
+                            {"IconName" : "RallyPoint",       "HotkeyString" : "CONTROLBAR:SetRallyPoint"},
+                            {"IconName" : "PRCLandMine",      "HotkeyString" : "CONTROLBAR:UpgradeChinaMines"},
+                            {"IconName" : "Sell",             "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "PRCAirfield",
+                    "IngameName"      : "OBJECT:Airfield",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "PRCMIG",          "HotkeyString" : "CONTROLBAR:ConstructChinaJetMIG"},
+                            {"IconName" : "PRCMiGArmour",    "HotkeyString" : "CONTROLBAR:UpgradeChinaAircraftArmor"},
+                            {"IconName" : "PRCLandMine",     "HotkeyString" : "CONTROLBAR:UpgradeChinaMines"},
+                            {"IconName" : "Sell",            "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "PRCPropagandaCenter",
+                    "IngameName"      : "OBJECT:PropagandaCenter",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "PRCNationalismIcon",     "HotkeyString" : "CONTROLBAR:UpgradeChinaFanaticism"},
+                            {"IconName" : "PRCSubliminalMessaging", "HotkeyString" : "CONTROLBAR:UpgradeChinaSubliminalMessaging"},
+                            {"IconName" : "PRCLandMine",            "HotkeyString" : "CONTROLBAR:UpgradeChinaMines"},
+                            {"IconName" : "Sell",                   "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "PRCSpeakerTower",
+                    "IngameName"      : "OBJECT:SpeakerTower",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "Sell", "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "PRCNuclearMissileSilo",
+                    "IngameName"      : "OBJECT:NeutronMissile",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "PRCNuclearMissile", "HotkeyString" : "CONTROLBAR:NeutronMissile"},
+                            {"IconName" : "PRCUraniumShells",  "HotkeyString" : "CONTROLBAR:UpgradeChinaUraniumShells"},
+                            {"IconName" : "PRCNuclearTanks",   "HotkeyString" : "CONTROLBAR:UpgradeChinaNuclearTanks"},
+                            {"IconName" : "PRCLandMine",       "HotkeyString" : "CONTROLBAR:UpgradeChinaMines"},
+                            {"IconName" : "Sell",              "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "PRCCommandCenter",
+                    "IngameName"      : "OBJECT:CommandCenter",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "PRCDozer",              "HotkeyString" : "CONTROLBAR:ConstructChinaDozer"},
+                            {"IconName" : "PRCRadarUpgrade",       "HotkeyString" : "CONTROLBAR:UpgradeChinaRadar"},
+                            {"IconName" : "PRCBlackLotusCashHack", "HotkeyString" : "CONTROLBAR:StealCashHack"},
+                            {"IconName" : "EmergencyRepair",       "HotkeyString" : "CONTROLBAR:EmergencyRepair"},
+                            {"IconName" : "PRCClusterMine",        "HotkeyString" : "CONTROLBAR:ClusterMines"},
+                            {"IconName" : "PRCArtilleryBarrage",   "HotkeyString" : "CONTROLBAR:ArtilleryBarrage"},
+                            {"IconName" : "PRCEMPPulse",           "HotkeyString" : "CONTROLBAR:EMPPulse"},
+                            {"IconName" : "PRCLandMine",           "HotkeyString" : "CONTROLBAR:UpgradeChinaMines"},
+                            {"IconName" : "RallyPoint",            "HotkeyString" : "CONTROLBAR:SetRallyPoint"},
+                            {"IconName" : "Sell",                  "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                }
+            ],
+            "Infantry"                : 
+            [
+                {
+                    "Name"            : "PRCRedGuard",
+                    "IngameName"      : "OBJECT:Redguard",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "CaptureBuilding", "HotkeyString" : "CONTROLBAR:CaptureBuilding"},
+                            {"IconName" : "AttackMove",      "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",           "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",            "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "PRCTankHunter",
+                    "IngameName"      : "OBJECT:TankHunter",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "PRCTNTAttack", "HotkeyString" : "CONTROLBAR:TNTAttack"},
+                            {"IconName" : "AttackMove",   "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",        "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",         "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "PRCHacker",
+                    "IngameName"      : "OBJECT:Hacker",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "PRCDisableBuilding", "HotkeyString" : "CONTROLBAR:DisableBuildingHack"},
+                            {"IconName" : "PRCHackInternet",    "HotkeyString" : "CONTROLBAR:InternetHack"},
+                            {"IconName" : "Stop",               "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "PRCBlackLotus",
+                    "IngameName"      : "OBJECT:BlackLotus",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "PRCBlackLotusCaptureBuilding", "HotkeyString" : "CONTROLBAR:CaptureBuilding"},
+                            {"IconName" : "PRCBlackLotusDisableVehicle",  "HotkeyString" : "CONTROLBAR:DisableVehicleHack"},
+                            {"IconName" : "PRCBlackLotusCashHack",        "HotkeyString" : "CONTROLBAR:CashHack"},
+                            {"IconName" : "Stop",                         "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                }
+            ],
+            "Vehicles"                : 
+            [
+                {
+                    "Name"            : "PRCBattlemaster",
+                    "IngameName"      : "OBJECT:BattleMaster",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",      "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",       "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "PRCInfernoCannon",
+                    "IngameName"      : "OBJECT:InfernoCannon",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",      "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",       "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "PRCGattlingTank",
+                    "IngameName"      : "OBJECT:GattlingTank",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",      "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",       "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "PRCDragonTank",
+                    "IngameName"      : "OBJECT:Dragon",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "PRCFireWall", "HotkeyString" : "CONTROLBAR:FireWall"},
+                            {"IconName" : "AttackMove",  "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",       "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",        "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "PRCTroopCrawler",
+                    "IngameName"      : "OBJECT:TroopCrawler",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "Evacuate",   "HotkeyString" : "CONTROLBAR:Evacuate"},
+                            {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Stop",       "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "PRCOverlordTank",
+                    "IngameName"      : "OBJECT:Overlord",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "PRCOverlordBattleBunker",    "HotkeyString" : "CONTROLBAR:UpgradeChinaOverlordBattleBunker"},
+                            {"IconName" : "PRCOverlordGatlingCannon",   "HotkeyString" : "CONTROLBAR:UpgradeChinaOverlordGattlingCannon"},
+                            {"IconName" : "PRCOverlordPropagandaTower", "HotkeyString" : "CONTROLBAR:UpgradeChinaOverlordPropagandaTower"},
+                            {"IconName" : "AttackMove",                 "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",                      "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",                       "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "PRCNukeCannon",
+                    "IngameName"      : "OBJECT:NukeLauncher",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "AttackMove",       "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",            "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",             "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "PRCDozer",
+                    "IngameName"      : "OBJECT:Dozer",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "PRCNuclearReactor",     "HotkeyString" : "CONTROLBAR:ConstructChinaPowerPlant"},
+                            {"IconName" : "PRCBarracks",           "HotkeyString" : "CONTROLBAR:ConstructChinaBarracks"},
+                            {"IconName" : "PRCSupplyCenter",       "HotkeyString" : "CONTROLBAR:ConstructChinaSupplyCenter"},
+                            {"IconName" : "PRCBunker",             "HotkeyString" : "CONTROLBAR:ConstructChinaBunker"},
+                            {"IconName" : "PRCGattlingCannon",     "HotkeyString" : "CONTROLBAR:ConstructChinaGattlingCannon"},
+                            {"IconName" : "PRCWarFactory",         "HotkeyString" : "CONTROLBAR:ConstructChinaWarFactory"},
+                            {"IconName" : "PRCAirfield",           "HotkeyString" : "CONTROLBAR:ConstructChinaAirfield"},
+                            {"IconName" : "PRCPropagandaCenter",   "HotkeyString" : "CONTROLBAR:ConstructChinaPropagandaCenter"},
+                            {"IconName" : "PRCSpeakerTower",       "HotkeyString" : "CONTROLBAR:ConstructChinaSpeakerTower"},
+                            {"IconName" : "PRCNuclearMissileSilo", "HotkeyString" : "CONTROLBAR:ConstructChinaNuclearMissileLauncher"},
+                            {"IconName" : "PRCCommandCenter",      "HotkeyString" : "CONTROLBAR:ConstructChinaCommandCenter"},
+                            {"IconName" : "DisarmMinesAtPosition", "HotkeyString" : "CONTROLBAR:DisarmMinesAtPosition"}
+                        ]
+                    ]
+                }
+            ],
+            "Aircrafts"                : 
+            [
+                {
+                    "Name"            : "PRCMIG",
+                    "IngameName"      : "OBJECT:MIG",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "AirGuard",   "HotkeyString" : "CONTROLBAR:GuardFlyingUnitsOnly"},
+                            {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",      "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",       "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                }
+            ]
+        },
+
+        {
+            "ShortName"               : "GLA",
+            "DisplayName"             : "GLA",
+            "DisplayNameDescription"  : "Global Liberation Army",
+
+            "Buildings"               : 
+            [
+                {
+                    "Name"            : "GLASupplyStash",
+                    "IngameName"      : "OBJECT:SupplyStash",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "GLAWorker",  "HotkeyString" : "CONTROLBAR:ConstructGLAWorker"},
+                            {"IconName" : "RallyPoint", "HotkeyString" : "CONTROLBAR:SetRallyPoint"},
+                            {"IconName" : "Sell",       "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLABarracks",
+                    "IngameName"      : "OBJECT:Barracks",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "GLARebel",        "HotkeyString" : "CONTROLBAR:ConstructGLAInfantryRebel"},
+                            {"IconName" : "GLATerrorist",    "HotkeyString" : "CONTROLBAR:ConstructGLAInfantryTerrorist"},
+                            {"IconName" : "GLAHijacker",     "HotkeyString" : "CONTROLBAR:ConstructGLAInfantryHijacker"},
+                            {"IconName" : "GLARPGTrooper",   "HotkeyString" : "CONTROLBAR:ConstructGLAInfantryRPGTrooper"},
+                            {"IconName" : "GLAAngryMob",     "HotkeyString" : "CONTROLBAR:ConstructGLAInfantryAngryMob"},
+                            {"IconName" : "GLAJarmenKell",   "HotkeyString" : "CONTROLBAR:ConstructGLAInfantryJarmenKell"},
+                            {"IconName" : "CaptureBuilding", "HotkeyString" : "CONTROLBAR:UpgradeGLARebelCaptureBuilding"},
+                            {"IconName" : "RallyPoint",      "HotkeyString" : "CONTROLBAR:SetRallyPoint"},
+                            {"IconName" : "Sell",            "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLAStingerSite",
+                    "IngameName"      : "OBJECT:StingerSite",
+                    "KeyboardLayouts" : 
+                    [
+                          [
+                            {"IconName" : "Stop",           "HotkeyString" : "CONTROLBAR:Stop"},
+                            {"IconName" : "Sell",           "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLATunnelNetwork",
+                    "IngameName"      : "OBJECT:TunnelNetwork",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "Evacuate",       "HotkeyString" : "CONTROLBAR:Evacuate"},
+                            {"IconName" : "RallyPoint",     "HotkeyString" : "CONTROLBAR:SetRallyPoint"},
+                            {"IconName" : "Sell",           "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLAArmsDealer",
+                    "IngameName"      : "OBJECT:ArmsDealer",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "GLAScorpionTank",   "HotkeyString" : "CONTROLBAR:ConstructGLATankScorpion"},
+                            {"IconName" : "GLARadarVan",       "HotkeyString" : "CONTROLBAR:ConstructGLAVehicleRadarVan"},
+                            {"IconName" : "GLAToxinTractor",   "HotkeyString" : "CONTROLBAR:ConstructGLAVehicleToxinTruck"},
+                            {"IconName" : "GLAMarauderTank",   "HotkeyString" : "CONTROLBAR:ConstructGLATankMarauder"},
+                            {"IconName" : "GLAScudLauncher",   "HotkeyString" : "CONTROLBAR:ConstructGLAVehicleScudLauncher"},
+                            {"IconName" : "GLATechnical",      "HotkeyString" : "CONTROLBAR:ConstructGLAVehicleTechnical"},
+                            {"IconName" : "GLAQuadCannon",     "HotkeyString" : "CONTROLBAR:ConstructGLAVehicleQuadCannon"},
+                            {"IconName" : "GLARocketBuggy",    "HotkeyString" : "CONTROLBAR:ConstructGLAVehicleRocketBuggy"},
+                            {"IconName" : "GLABombTruck",      "HotkeyString" : "CONTROLBAR:ConstructGLAVehicleBombTruck"},
+                            {"IconName" : "GLAScorpionRocket", "HotkeyString" : "CONTROLBAR:UpgradeGLAScorpionRocket"},
+                            {"IconName" : "RallyPoint",        "HotkeyString" : "CONTROLBAR:SetRallyPoint"},
+                            {"IconName" : "Sell",              "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLADemoTrap",
+                    "IngameName"      : "OBJECT:DemoTrap",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "GLAProximityFuse", "HotkeyString" : "CONTROLBAR:ProximityFuse"},
+                            {"IconName" : "GLAManualControl", "HotkeyString" : "CONTROLBAR:ManualControl"},
+                            {"IconName" : "GLADetonate",      "HotkeyString" : "CONTROLBAR:Detonate"},
+                            {"IconName" : "Sell",             "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLAPalace",
+                    "IngameName"      : "OBJECT:Palace",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "GLACamouflage",         "HotkeyString" : "CONTROLBAR:UpgradeGLACamouflage"},
+                            {"IconName" : "GLAAnthraxBeta",        "HotkeyString" : "CONTROLBAR:UpgradeGLAAnthraxBeta"},
+                            {"IconName" : "GLAAnthraxShells",      "HotkeyString" : "CONTROLBAR:UpgradeGLAToxinShells"},
+                            {"IconName" : "GLAArmTheMob",          "HotkeyString" : "CONTROLBAR:UpgradeGLAArmTheMob"},
+                            {"IconName" : "Evacuate",              "HotkeyString" : "CONTROLBAR:Evacuate"},
+                            {"IconName" : "Sell",                  "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLABlackMarket",
+                    "IngameName"      : "OBJECT:BlackMarket",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "GLAAPBullets",       "HotkeyString" : "CONTROLBAR:UpgradeGLAAPBullets"},
+                            {"IconName" : "GLAJunkRepair",      "HotkeyString" : "CONTROLBAR:UpgradeGLAJunkRepair"},
+                            {"IconName" : "GLARadarVanScan",    "HotkeyString" : "CONTROLBAR:UpgradeGLARadarVanScan"},
+                            {"IconName" : "GLAAPRockets",       "HotkeyString" : "CONTROLBAR:UpgradeGLAAPRockets"},
+                            {"IconName" : "GLARocketBuggyAmmo", "HotkeyString" : "CONTROLBAR:UpgradeGLABuggyAmmo"},
+                            {"IconName" : "Sell",               "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLAScudStorm",
+                    "IngameName"      : "OBJECT:ScudStorm",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "GLAScudStormLaunch", "HotkeyString" : "CONTROLBAR:ScudStorm"},
+                            {"IconName" : "Sell",               "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLACommandCenter",
+                    "IngameName"      : "OBJECT:CommandCenter",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "GLAWorker",       "HotkeyString" : "CONTROLBAR:ConstructGLAWorker"},
+                            {"IconName" : "GLARebelAmbush",  "HotkeyString" : "CONTROLBAR:Ambush"},
+                            {"IconName" : "GLAAnthraxBomb",  "HotkeyString" : "CONTROLBAR:AnthraxBomb"},
+                            {"IconName" : "EmergencyRepair", "HotkeyString" : "CONTROLBAR:EmergencyRepair"},
+                            {"IconName" : "RallyPoint",      "HotkeyString" : "CONTROLBAR:SetRallyPoint"},
+                            {"IconName" : "Sell",            "HotkeyString" : "CONTROLBAR:Sell"}
+                        ]
+                    ]
+                }
+            ],
+            "Infantry"                : 
+            [
+                {
+                    "Name"            : "GLARebel",
+                    "IngameName"      : "OBJECT:Rebel",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "CaptureBuilding", "HotkeyString" : "CONTROLBAR:CaptureBuilding"},
+                            {"IconName" : "AttackMove",      "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",           "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",            "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLARPGTrooper",
+                    "IngameName"      : "OBJECT:TunnelDefender",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",      "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",       "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLATerrorist",
+                    "IngameName"      : "OBJECT:Terrorist",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "GLACarBomb", "HotkeyString" : "CONTROLBAR:CarBomb"},
+                            {"IconName" : "Guard",      "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",       "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLAJarmenKell",
+                    "IngameName"      : "OBJECT:JarmenKell",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "GLAPilotKill", "HotkeyString" : "CONTROLBAR:SniperAttack"},
+                            {"IconName" : "AttackMove",   "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",        "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",         "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLAAngryMob",
+                    "IngameName"      : "OBJECT:AngryMob",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",      "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",       "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLAHijacker",
+                    "IngameName"      : "OBJECT:Hijacker",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "GLAHijack", "HotkeyString" : "CONTROLBAR:Hijack"},
+                            {"IconName" : "Stop",      "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLAWorker",
+                    "IngameName"      : "OBJECT:Worker",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "GLASupplyStash",        "HotkeyString" : "CONTROLBAR:ConstructGLASupplyStash"},
+                            {"IconName" : "GLABarracks",           "HotkeyString" : "CONTROLBAR:ConstructGLABarracks"},
+                            {"IconName" : "GLAStingerSite",        "HotkeyString" : "CONTROLBAR:ConstructGLAStingerSite"},
+                            {"IconName" : "GLATunnelNetwork",      "HotkeyString" : "CONTROLBAR:ConstructGLATunnelNetwork"},
+                            {"IconName" : "GLAArmsDealer",         "HotkeyString" : "CONTROLBAR:ConstructGLAArmsDealer"},
+                            {"IconName" : "GLADemoTrap",           "HotkeyString" : "CONTROLBAR:ConstructGLADemoTrap"},
+                            {"IconName" : "GLAPalace",             "HotkeyString" : "CONTROLBAR:ConstructGLAPalace"},
+                            {"IconName" : "GLABlackMarket",        "HotkeyString" : "CONTROLBAR:ConstructGLABlackMarket"},
+                            {"IconName" : "GLAScudStorm",          "HotkeyString" : "CONTROLBAR:ConstructGLAScudStorm"},
+                            {"IconName" : "GLACommandCenter",      "HotkeyString" : "CONTROLBAR:ConstructGLACommandCenter"},
+                            {"IconName" : "DisarmMinesAtPosition", "HotkeyString" : "CONTROLBAR:DisarmMinesAtPosition"}
+                        ]
+                    ]
+                }
+            ],
+            "Vehicles"                : 
+            [
+                {
+                    "Name"            : "GLAScorpionTank",
+                    "IngameName"      : "OBJECT:Scorpion",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",      "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",       "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLATechnical",
+                    "IngameName"      : "OBJECT:Technical",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "Evacuate",   "HotkeyString" : "CONTROLBAR:Evacuate"},
+                            {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",      "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",       "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLAQuadCannon",
+                    "IngameName"      : "OBJECT:QuadCannon",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",      "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",       "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLARocketBuggy",
+                    "IngameName"      : "OBJECT:RocketBuggy",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",      "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",       "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLAMarauderTank",
+                    "IngameName"      : "OBJECT:Marauder",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "AttackMove", "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",      "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",       "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLAToxinTractor",
+                    "IngameName"      : "OBJECT:ToxinTruck",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "GLAContaminate", "HotkeyString" : "CONTROLBAR:Contaminate"},
+                            {"IconName" : "AttackMove",     "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",          "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",           "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLAScudLauncher",
+                    "IngameName"      : "OBJECT:ScudLauncher",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "GLAExplosiveWarhead", "HotkeyString" : "CONTROLBAR:ExplosiveWarhead"},
+                            {"IconName" : "GLAAnthraxWarhead",   "HotkeyString" : "CONTROLBAR:AnthraxWarhead"},
+                            {"IconName" : "AttackMove",          "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",               "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",                "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLABombTruck",
+                    "IngameName"      : "OBJECT:BombTruck",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "GLADisguise",          "HotkeyString" : "CONTROLBAR:DisguiseAsVehicle"},
+                            {"IconName" : "GLACarBomb",           "HotkeyString" : "CONTROLBAR:DetonateBombTruck"},
+                            {"IconName" : "GLABioBomb",           "HotkeyString" : "CONTROLBAR:UpgradeGLABombTruckBioBomb"},
+                            {"IconName" : "GLAHighExplosiveBomb", "HotkeyString" : "CONTROLBAR:UpgradeGLABombTruckHighExplosiveBomb"},
+                            {"IconName" : "AttackMove",           "HotkeyString" : "CONTROLBAR:AttackMove"},
+                            {"IconName" : "Guard",                "HotkeyString" : "CONTROLBAR:Guard"},
+                            {"IconName" : "Stop",                 "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                },
+
+                {
+                    "Name"            : "GLARadarVan",
+                    "IngameName"      : "OBJECT:RadarVan",
+                    "KeyboardLayouts" : 
+                    [
+                        [
+                            {"IconName" : "GLARadarVanScan", "HotkeyString" : "CONTROLBAR:RadarVanScan"},
+                            {"IconName" : "Stop",            "HotkeyString" : "CONTROLBAR:Stop"}
+                        ]
+                    ]
+                }
+            ],
+            "Aircrafts"                : []
+        }
+    ]
+}

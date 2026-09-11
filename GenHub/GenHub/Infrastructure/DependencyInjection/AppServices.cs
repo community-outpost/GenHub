@@ -1,6 +1,6 @@
+using System;
 using GenHub.Features.Tools.ReplayManager;
 using Microsoft.Extensions.DependencyInjection;
-using System;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -48,6 +48,7 @@ public static class AppServices
         services.AddUploadThingServices(); // Shared cloud upload service
         services.AddReplayManagerServices();
         services.AddMapManager();
+        services.AddGenHotkeys();
 
         // Register Notification services
         services.AddNotificationModule();
