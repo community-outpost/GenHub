@@ -244,9 +244,18 @@ public class InstallationPathResolver(
 
     private static async Task<string> ComputeFileHashAsync(string filePath, CancellationToken cancellationToken)
     {
-        using var stream = File.OpenRead(filePath);
+        var options = new FileStreamOptions
+        {
+            Mode = FileMode.Open,
+            Access = FileAccess.Read,
+            Share = FileShare.Read,
+            BufferSize = IoConstants.FileHashBufferSize,
+            Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
+        };
+
+        await using var stream = new FileStream(filePath, options);
         var hashBytes = await SHA256.HashDataAsync(stream, cancellationToken);
-        return BitConverter.ToString(hashBytes).Replace("-", string.Empty).ToLowerInvariant();
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
     }
 
     private async Task<string?> SearchDirectoryForInstallationAsync(

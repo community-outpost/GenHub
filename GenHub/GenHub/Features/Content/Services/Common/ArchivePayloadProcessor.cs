@@ -560,7 +560,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         try
         {
             using var archive = ArchiveFactory.OpenArchive(archivePath);
-            ExtractSharpCompressArchive(archive, archivePath, extractPath, progress, logger, cancellationToken);
+            ExtractSharpCompressArchive(archive, Path.GetFullPath(archivePath), extractPath, progress, logger, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -578,7 +578,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
     private static void ExtractSharpCompressArchive(
         IArchive archive,
-        string archivePath,
+        string fullArchivePath,
         string extractPath,
         IProgress<ContentAcquisitionProgress>? progress,
         ILogger logger,
@@ -587,7 +587,6 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         var entryCount = 0;
         long totalUncompressedSize = 0;
         var extractRoot = Path.GetFullPath(extractPath);
-        var fullArchivePath = Path.GetFullPath(archivePath);
         var entries = archive.Entries.Where(e => !e.IsDirectory && !string.IsNullOrEmpty(e.Key)).ToList();
         var totalEntries = entries.Count;
 
@@ -621,7 +620,8 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 throw new InvalidDataException($"Archive entry could not be resolved: {entryKey}");
             }
 
-            if (string.Equals(destinationPath, fullArchivePath, StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrEmpty(fullArchivePath) &&
+                string.Equals(destinationPath, fullArchivePath, StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidDataException($"Archive entry cannot overwrite the archive itself: {entryKey}");
             }
@@ -813,7 +813,8 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         }
 
         var destinationPath = pathResult.Data ?? string.Empty;
-        if (string.Equals(destinationPath, fullArchivePath, StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrEmpty(fullArchivePath) &&
+            string.Equals(destinationPath, fullArchivePath, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidDataException($"Archive entry cannot overwrite the archive itself: {entry.FullName}");
         }
@@ -892,7 +893,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             stream.Position = offset;
             using var subStream = new SubStream(stream, offset, stream.Length - offset);
             using var archive = ArchiveFactory.OpenArchive(subStream);
-            ExtractSharpCompressArchive(archive, archivePath, extractPath, progress, logger, cancellationToken);
+            ExtractSharpCompressArchive(archive, Path.GetFullPath(archivePath), extractPath, progress, logger, cancellationToken);
             return true;
         }
         catch (OperationCanceledException)
@@ -1192,6 +1193,119 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         return names;
     }
 
+    private static void SkipModernSmartInstallMakerStream0(
+        Stream stream,
+        long payloadOffset,
+        ILogger logger)
+    {
+        stream.Position = payloadOffset;
+        var stream0ExceededCap = false;
+        try
+        {
+            using var nonDisp = new NonDisposingStream(stream);
+            using var z0 = new SharpCompress.Compressors.Deflate.ZlibStream(nonDisp, SharpCompress.Compressors.CompressionMode.Decompress);
+            var buf0 = new byte[8192];
+            var stream0Bytes = 0L;
+            int r0 = 0;
+            while ((r0 = z0.Read(buf0, 0, buf0.Length)) > 0)
+            {
+                stream0Bytes += r0;
+                if (stream0Bytes > CatalogConstants.MaxCatalogSizeBytes)
+                {
+                    stream0ExceededCap = true;
+                    break;
+                }
+            }
+
+            if (!stream0ExceededCap)
+            {
+                stream.Position = payloadOffset + z0.TotalIn;
+            }
+        }
+        catch (Exception ex)
+        {
+            // If stream 0 decompression fails, reset to payloadOffset
+            logger.LogDebug(ex, "Failed to decompress Smart Install Maker stream 0 script");
+            stream.Position = payloadOffset;
+        }
+
+        if (stream0ExceededCap)
+        {
+            throw new InvalidDataException("Smart Install Maker stream 0 script exceeds maximum allowed size.");
+        }
+    }
+
+    private static void CopyStreamWithCap(Stream source, Stream destination, byte[] copyBuffer, ref long totalBytesWritten)
+    {
+        int read = 0;
+        while ((read = source.Read(copyBuffer, 0, copyBuffer.Length)) > 0)
+        {
+            totalBytesWritten += read;
+            if (totalBytesWritten > CatalogConstants.MaxZipUncompressedSizeBytes)
+            {
+                throw new InvalidDataException($"Archive exceeds maximum uncompressed size of {CatalogConstants.MaxZipUncompressedSizeBytes} bytes");
+            }
+
+            destination.Write(copyBuffer, 0, read);
+        }
+    }
+
+    private static void DecompressModernSimEntry(
+        Stream stream,
+        Stream outStream,
+        byte[] copyBuffer,
+        ref long totalBytesWritten,
+        int byte0,
+        int byte1,
+        long streamStartPos)
+    {
+        if (byte0 == 0x78)
+        {
+            // ZLib stream
+            using var nonDisp = new NonDisposingStream(stream);
+            using var z = new SharpCompress.Compressors.Deflate.ZlibStream(nonDisp, SharpCompress.Compressors.CompressionMode.Decompress);
+            CopyStreamWithCap(z, outStream, copyBuffer, ref totalBytesWritten);
+            stream.Position = streamStartPos + z.TotalIn;
+        }
+        else if (byte0 == 0x42 && byte1 == 0x5A)
+        {
+            // BZip2 stream ('BZ')
+            using var bz = SharpCompress.Compressors.BZip2.BZip2Stream.Create(
+                stream,
+                SharpCompress.Compressors.CompressionMode.Decompress,
+                decompressConcatenated: false,
+                leaveOpen: true);
+            CopyStreamWithCap(bz, outStream, copyBuffer, ref totalBytesWritten);
+        }
+        else if (byte0 == 2)
+        {
+            // Legacy SIM BZip2 with prefix
+            stream.Position = streamStartPos + 1;
+            using var bz = SharpCompress.Compressors.BZip2.BZip2Stream.Create(
+                stream,
+                SharpCompress.Compressors.CompressionMode.Decompress,
+                decompressConcatenated: false,
+                leaveOpen: true);
+            CopyStreamWithCap(bz, outStream, copyBuffer, ref totalBytesWritten);
+        }
+        else if (byte0 == 1)
+        {
+            // Legacy SIM ZLib with prefix
+            stream.Position = streamStartPos + 1;
+            using var nonDisp = new NonDisposingStream(stream);
+            using var z = new SharpCompress.Compressors.Deflate.ZlibStream(nonDisp, SharpCompress.Compressors.CompressionMode.Decompress);
+            CopyStreamWithCap(z, outStream, copyBuffer, ref totalBytesWritten);
+            stream.Position = streamStartPos + 1 + z.TotalIn;
+        }
+        else
+        {
+            // Raw uncompressed copy. Modern SIM headers do not provide per-entry uncompressed lengths,
+            // so stored (uncompressed) entries copy to EOF under the format invariant that any stored payload
+            // is the final or sole file in the archive.
+            CopyStreamWithCap(stream, outStream, copyBuffer, ref totalBytesWritten);
+        }
+    }
+
     private static int ExtractModernSmartInstallMakerPayload(
         Stream stream,
         long payloadOffset,
@@ -1202,29 +1316,10 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         CancellationToken cancellationToken)
     {
         var extractedCount = 0;
-        stream.Position = payloadOffset;
-
-        // Skip stream 0 (uninstaller info script)
-        try
-        {
-            var nonDisp = new NonDisposingStream(stream);
-            var z0 = new SharpCompress.Compressors.Deflate.ZlibStream(nonDisp, SharpCompress.Compressors.CompressionMode.Decompress);
-            var buf0 = new byte[8192];
-            while (z0.Read(buf0, 0, buf0.Length) > 0)
-            {
-                // Discard decompressed uninstaller info script stream bytes until EOF.
-            }
-
-            stream.Position = payloadOffset + z0.TotalIn;
-        }
-        catch (Exception ex)
-        {
-            // If stream 0 decompression fails, reset to payloadOffset
-            logger.LogDebug(ex, "Failed to decompress Smart Install Maker stream 0 script");
-            stream.Position = payloadOffset;
-        }
+        SkipModernSmartInstallMakerStream0(stream, payloadOffset, logger);
 
         var copyBuffer = new byte[65536];
+        long totalBytesWritten = 0;
         var totalFiles = fileNames.Count;
         for (var fileIdx = 0; fileIdx < totalFiles && stream.Position < stream.Length - 4; fileIdx++)
         {
@@ -1272,77 +1367,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
             stream.Position = streamStartPos;
             using var outStream = File.Create(destinationPath);
-
-            if (byte0 == 0x78)
-            {
-                // ZLib stream
-                var nonDisp = new NonDisposingStream(stream);
-                var z = new SharpCompress.Compressors.Deflate.ZlibStream(nonDisp, SharpCompress.Compressors.CompressionMode.Decompress);
-
-                var rZ = 0;
-                while ((rZ = z.Read(copyBuffer, 0, copyBuffer.Length)) > 0)
-                {
-                    outStream.Write(copyBuffer, 0, rZ);
-                }
-
-                stream.Position = streamStartPos + z.TotalIn;
-            }
-            else if (byte0 == 0x42 && byte1 == 0x5A)
-            {
-                // BZip2 stream ('BZ')
-                using var bz = SharpCompress.Compressors.BZip2.BZip2Stream.Create(
-                    stream,
-                    SharpCompress.Compressors.CompressionMode.Decompress,
-                    decompressConcatenated: false,
-                    leaveOpen: true);
-
-                var rBz = 0;
-                while ((rBz = bz.Read(copyBuffer, 0, copyBuffer.Length)) > 0)
-                {
-                    outStream.Write(copyBuffer, 0, rBz);
-                }
-            }
-            else if (byte0 == 2)
-            {
-                // Legacy SIM BZip2 with prefix
-                stream.Position = streamStartPos + 1;
-                using var bz = SharpCompress.Compressors.BZip2.BZip2Stream.Create(
-                    stream,
-                    SharpCompress.Compressors.CompressionMode.Decompress,
-                    decompressConcatenated: false,
-                    leaveOpen: true);
-
-                var rBz = 0;
-                while ((rBz = bz.Read(copyBuffer, 0, copyBuffer.Length)) > 0)
-                {
-                    outStream.Write(copyBuffer, 0, rBz);
-                }
-            }
-            else if (byte0 == 1)
-            {
-                // Legacy SIM ZLib with prefix
-                stream.Position = streamStartPos + 1;
-                var nonDisp = new NonDisposingStream(stream);
-                var z = new SharpCompress.Compressors.Deflate.ZlibStream(nonDisp, SharpCompress.Compressors.CompressionMode.Decompress);
-
-                var rZ = 0;
-                while ((rZ = z.Read(copyBuffer, 0, copyBuffer.Length)) > 0)
-                {
-                    outStream.Write(copyBuffer, 0, rZ);
-                }
-
-                stream.Position = streamStartPos + 1 + z.TotalIn;
-            }
-            else
-            {
-                // Fallback for raw uncompressed copy. Modern Smart Install Maker entries are compressed using ZLib or BZip2.
-                // Uncompressed payloads only occur as terminal streams reading to EOF or when no further compression headers exist.
-                int rRaw = 0;
-                while ((rRaw = stream.Read(copyBuffer, 0, copyBuffer.Length)) > 0)
-                {
-                    outStream.Write(copyBuffer, 0, rRaw);
-                }
-            }
+            DecompressModernSimEntry(stream, outStream, copyBuffer, ref totalBytesWritten, byte0, byte1, streamStartPos);
 
             outStream.Flush();
             var fileLength = new FileInfo(destinationPath).Length;
@@ -1999,14 +2024,6 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             if (GameContentConstants.IsRecognizedGameDirectory(dirName))
             {
                 logger.LogInformation("Preserving canonical game root directory: {SingleDir}", singleDir);
-                break;
-            }
-
-            // If the single directory is a game-specific directory (e.g. ZH, Zero Hour), preserve it for game routing.
-            if (GameContentConstants.ZeroHourSubfolderAliases.Contains(dirName, StringComparer.OrdinalIgnoreCase) ||
-                GameContentConstants.GeneralsSubfolderAliases.Contains(dirName, StringComparer.OrdinalIgnoreCase))
-            {
-                logger.LogInformation("Preserving game-specific directory: {SingleDir}", singleDir);
                 break;
             }
 

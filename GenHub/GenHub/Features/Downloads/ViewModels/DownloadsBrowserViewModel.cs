@@ -12,6 +12,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -39,7 +40,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// Downloads browser: built-in publishers plus user-subscribed GenHub catalogs.
 /// </summary>
 /// <remarks>
-/// Built-in entries (GeneralsOnline, ModDB, …) use specialized discoverers.
+/// Built-in entries (GeneralsOnline, TheSuperHackers, CommunityOutpost, GitHub) use specialized discoverers.
 /// Subscribed entries come from <see cref="IPublisherSubscriptionStore"/> and use
 /// <see cref="GenericCatalogDiscoverer"/> so any schema-valid <c>catalog.json</c> is browsable
 /// without a custom publisher class. After <c>genhub://subscribe</c> confirms,
@@ -58,15 +59,77 @@ public sealed partial class DownloadsBrowserViewModel(
     IGameProfileManager profileManager,
     INotificationService notificationService,
     ILoggerFactory loggerFactory,
-    IPublisherSubscriptionStore subscriptionStore) : ObservableObject, IDisposable
+    IPublisherSubscriptionStore subscriptionStore,
+    IContentDownloadCoordinator? downloadCoordinator = null,
+    IPublisherReconcilerRegistry? reconcilerRegistry = null) : ObservableObject, IDisposable
 {
-    private const string CategoryStatic = "static";
-    private const string CategoryDynamic = "dynamic";
+    /// <summary>
+    /// Tracks an in-flight background default browse operation so switching away
+    /// allows the fetch to complete into cache, and switching back can attach to it.
+    /// </summary>
+    internal sealed class PublisherInFlightOperation(
+        string publisherId,
+        ContentSearchQuery query,
+        CancellationTokenSource cts)
+    {
+        /// <summary>Gets the publisher identifier.</summary>
+        public string PublisherId { get; } = publisherId;
+
+        /// <summary>Gets the search query used for this operation.</summary>
+        public ContentSearchQuery Query { get; } = query;
+
+        /// <summary>Gets the cancellation token source for this operation.</summary>
+        public CancellationTokenSource Cts { get; } = cts;
+
+        /// <summary>Gets the sync root for thread-safe list operations.</summary>
+        public object SyncRoot { get; } = new();
+
+        /// <summary>Gets the list of items resolved so far.</summary>
+        public List<ContentGridItemViewModel> ResolvedItems { get; } = [];
+
+        /// <summary>Gets or sets a value indicating whether the operation has completed.</summary>
+        public bool IsCompleted { get; set; }
+
+        /// <summary>Gets or sets a value indicating whether more items are available from the provider.</summary>
+        public bool HasMoreItems { get; set; }
+
+        /// <summary>Gets or sets the current UI request ID attached to this in-flight operation.</summary>
+        public int ActiveRequestId { get; set; }
+    }
+
+    /// <summary>
+    /// Snapshot of a publisher's browse state so switching back does not re-run discovery.
+    /// </summary>
+    private sealed class PublisherBrowseState
+    {
+        /// <summary>Gets or sets the grid item view models that were displayed.</summary>
+        public List<ContentGridItemViewModel> Items { get; set; } = [];
+
+        /// <summary>Gets or sets the page counter at the time of the snapshot.</summary>
+        public int CurrentPage { get; set; } = 1;
+
+        /// <summary>Gets or sets a value indicating whether more items could be loaded.</summary>
+        public bool CanLoadMore { get; set; }
+
+        /// <summary>Gets or sets the search term for this publisher.</summary>
+        public string SearchTerm { get; set; } = string.Empty;
+
+        /// <summary>Gets or sets a value indicating whether a custom search query was active.</summary>
+        public bool HasCustomQuery { get; set; }
+
+        /// <summary>Gets or sets the active detail view model for this publisher.</summary>
+        public ContentDetailViewModel? ActiveDetailViewModel { get; set; }
+    }
 
     private readonly Dictionary<string, IFilterPanelViewModel> _filterViewModels = [];
     private readonly Dictionary<string, PublisherBrowseState> _browseCache = [];
     private readonly Dictionary<string, PublisherInFlightOperation> _inFlightOperations = [];
     private readonly object _cacheLock = new();
+    private readonly IContentDownloadCoordinator? _downloadCoordinator =
+        downloadCoordinator ?? serviceProvider.GetService<IContentDownloadCoordinator>();
+
+    private readonly IPublisherReconcilerRegistry? _reconcilerRegistry =
+        reconcilerRegistry ?? serviceProvider.GetService<IPublisherReconcilerRegistry>();
 
     // GenericCatalogDiscoverer instances mapped by publisher ID for subscriber feeds.
     private readonly Dictionary<string, GenericCatalogDiscoverer> _subscribedDiscoverers =
@@ -77,7 +140,6 @@ public sealed partial class DownloadsBrowserViewModel(
     private int _activeRequestId;
     private string? _lastPopulatedPublisherId;
     private bool _hasCustomQuery;
-    private bool _suppressPublisherAutoRefresh;
     private bool _disposed;
     private bool _builtInPublishersInitialized;
 
@@ -96,10 +158,31 @@ public sealed partial class DownloadsBrowserViewModel(
     [ObservableProperty]
     private bool _isLoading;
 
+    private PublisherItemViewModel? _selectedPublisher;
+
     [ObservableProperty]
     private ObservableCollection<PublisherItemViewModel> _publishers = [];
 
-    private PublisherItemViewModel? _selectedPublisher;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanShowFilters))]
+    [NotifyPropertyChangedFor(nameof(CanSearchOrFilter))]
+    private IFilterPanelViewModel? _currentFilterViewModel;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDetailViewVisible))]
+    private ContentDetailViewModel? _selectedContent;
+
+    [ObservableProperty]
+    private ObservableCollection<ContentGridItemViewModel> _contentItems = [];
+
+    [ObservableProperty]
+    private int _currentPage = 1;
+
+    [ObservableProperty]
+    private bool _canLoadMore;
+
+    [ObservableProperty]
+    private int _pageSize = 24;
 
     /// <summary>
     /// Gets or sets the currently selected publisher.
@@ -124,11 +207,6 @@ public sealed partial class DownloadsBrowserViewModel(
         }
     }
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanShowFilters))]
-    [NotifyPropertyChangedFor(nameof(CanSearchOrFilter))]
-    private IFilterPanelViewModel? _currentFilterViewModel;
-
     /// <summary>
     /// Gets a value indicating whether filters are available for the current publisher.
     /// </summary>
@@ -149,26 +227,15 @@ public sealed partial class DownloadsBrowserViewModel(
     /// </summary>
     public bool CanSearchOrFilter => CanSearch || CanShowFilters;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsDetailViewVisible))]
-    private ContentDetailViewModel? _selectedContent;
-
-    [ObservableProperty]
-    private ObservableCollection<ContentGridItemViewModel> _contentItems = [];
-
-    [ObservableProperty]
-    private int _currentPage = 1;
-
-    [ObservableProperty]
-    private bool _canLoadMore;
-
     /// <summary>
     /// Gets a value indicating whether the detail view is currently visible.
     /// </summary>
     public bool IsDetailViewVisible => SelectedContent != null;
 
-    [ObservableProperty]
-    private int _pageSize = 24;
+    /// <summary>
+    /// Gets the current active request ID (for testing).
+    /// </summary>
+    internal int ActiveRequestId => _activeRequestId;
 
     /// <summary>
     /// Ensures built-in publishers exist, then reloads subscribed catalogs from disk.
@@ -184,6 +251,7 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             Publishers = CreateBuiltInPublishers();
             InitializeFilterViewModels();
+            contentStateService.ContentStateChanged += OnContentStateChanged;
             _builtInPublishersInitialized = true;
         }
 
@@ -222,6 +290,11 @@ public sealed partial class DownloadsBrowserViewModel(
         if (!_disposed)
         {
             // Unsubscribe from event handlers
+            if (_builtInPublishersInitialized)
+            {
+                contentStateService.ContentStateChanged -= OnContentStateChanged;
+            }
+
             if (CurrentFilterViewModel != null)
             {
                 CurrentFilterViewModel.FiltersApplied -= OnFiltersApplied;
@@ -238,8 +311,24 @@ public sealed partial class DownloadsBrowserViewModel(
             {
                 foreach (var op in _inFlightOperations.Values)
                 {
-                    op.Cts.Cancel();
-                    op.Cts.Dispose();
+                    try
+                    {
+                        op.Cts.Cancel();
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // In-flight operation CTS already cancelled/disposed.
+                    }
+
+                    try
+                    {
+                        op.Cts.Dispose();
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // In-flight operation CTS already disposed.
+                    }
+
                     foreach (var item in op.ResolvedItems)
                     {
                         item.Dispose();
@@ -277,15 +366,231 @@ public sealed partial class DownloadsBrowserViewModel(
     }
 
     /// <summary>
-    /// Gets the number of cached items for a given publisher.
+    /// Reconciles the update and download states across multiple releases belonging to the same content family.
+    /// In multi-release feeds, the prospective newest release is marked NotDownloaded (showing only Download),
+    /// while older downloaded releases are marked UpdateAvailable targeting the newest release.
     /// </summary>
-    /// <param name="publisherId">The publisher ID.</param>
-    /// <returns>The number of items cached for the publisher.</returns>
-    internal int GetCachedItemCount(string publisherId)
+    /// <param name="items">The collection of content grid items to reconcile.</param>
+    internal static void ReconcileReleaseUpdateStates(IReadOnlyCollection<ContentGridItemViewModel> items)
+    {
+        if (items.Count <= 1)
+        {
+            return;
+        }
+
+        var contentFamilies = items.GroupBy(GetContentFamilyKey, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var family in contentFamilies)
+        {
+            if (string.IsNullOrEmpty(family.Key))
+            {
+                continue;
+            }
+
+            var familyItems = family
+                .OrderByDescending(it => it.SearchResult.LastUpdated ?? DateTime.MinValue)
+                .ThenByDescending(it => it.SearchResult.Version, Comparer<string?>.Create(ContentStateService.CompareVersions))
+                .ToList();
+            if (familyItems.Count <= 1)
+            {
+                continue;
+            }
+
+            var installedItems = new HashSet<ContentGridItemViewModel>();
+            foreach (var item in familyItems)
+            {
+                if (item.CurrentState == ContentState.Downloaded ||
+                    item.Variants.Any(v => v.CurrentState == ContentState.Downloaded) ||
+                    item.UpdateTargetVm != null)
+                {
+                    installedItems.Add(item);
+                }
+            }
+
+            ResetUninstalledFamilyItems(familyItems, installedItems);
+            ReconcileInstalledFamilyItems(familyItems, installedItems, familyItems[0]);
+        }
+    }
+
+    /// <summary>
+    /// Gets the unique family key used to group releases of the same content across versions.
+    /// </summary>
+    /// <param name="vm">The content grid item view model.</param>
+    /// <returns>A string identifying the content family, or null if it cannot be grouped.</returns>
+    internal static string? GetContentFamilyKey(ContentGridItemViewModel vm)
+    {
+        if (vm.SearchResult.ResolverMetadata?.TryGetValue(GitHubConstants.OwnerMetadataKey, out var owner) == true &&
+            vm.SearchResult.ResolverMetadata.TryGetValue(GitHubConstants.RepoMetadataKey, out var repo) &&
+            !string.IsNullOrWhiteSpace(owner) && !string.IsNullOrWhiteSpace(repo))
+        {
+            return $"{owner}/{repo}/{vm.SearchResult.ContentType}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(vm.SearchResult.ProviderName))
+        {
+            var effectiveName = !string.IsNullOrWhiteSpace(vm.SearchResult.VariantFamilyName)
+                ? vm.SearchResult.VariantFamilyName
+                : vm.SearchResult.Name;
+
+            if (!string.IsNullOrWhiteSpace(effectiveName))
+            {
+                var baseName = effectiveName.Split('—')[0].Trim();
+                return $"{vm.SearchResult.ProviderName}/{vm.SearchResult.ContentType}/{baseName}";
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Cleans up in-flight browse operations and disposes un-retained items.
+    /// </summary>
+    /// <param name="publisherId">The publisher ID whose in-flight operation completed or faulted.</param>
+    /// <param name="inFlightOp">The in-flight operation context.</param>
+    internal void CleanupInFlight(string publisherId, PublisherInFlightOperation? inFlightOp)
+    {
+        if (inFlightOp != null)
+        {
+            lock (_cacheLock)
+            {
+                if (_inFlightOperations.TryGetValue(publisherId, out var current) && ReferenceEquals(current, inFlightOp))
+                {
+                    _inFlightOperations.Remove(publisherId);
+                }
+
+                var retainedItems = new HashSet<ContentGridItemViewModel>(_browseCache.Values.SelectMany(s => s.Items));
+                foreach (var item in ContentItems)
+                {
+                    retainedItems.Add(item);
+                }
+
+                foreach (var item in inFlightOp.ResolvedItems.Where(item => !retainedItems.Contains(item)))
+                {
+                    item.Dispose();
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Injects an in-flight operation for unit testing.
+    /// </summary>
+    /// <param name="publisherId">The publisher ID to attach.</param>
+    /// <param name="inFlightOp">The in-flight operation context.</param>
+    internal void SetInFlightOperationForTesting(string publisherId, PublisherInFlightOperation inFlightOp)
     {
         lock (_cacheLock)
         {
-            return _browseCache.TryGetValue(publisherId, out var state) ? state.Items.Count : 0;
+            _inFlightOperations[publisherId] = inFlightOp;
+        }
+    }
+
+    private static void ResetUninstalledFamilyItems(
+        IEnumerable<ContentGridItemViewModel> items,
+        HashSet<ContentGridItemViewModel> installedItems)
+    {
+        foreach (var item in items)
+        {
+            if (installedItems.Contains(item))
+            {
+                continue;
+            }
+
+            foreach (var variant in item.Variants)
+            {
+                if (variant.CurrentState is ContentState.UpdateAvailable or ContentState.Downloaded)
+                {
+                    variant.CurrentState = ContentState.NotDownloaded;
+                }
+            }
+
+            if (item.CurrentState is ContentState.UpdateAvailable or ContentState.Downloaded)
+            {
+                if (item.SelectedVariant != null)
+                {
+                    item.CurrentState = item.SelectedVariant.CurrentState;
+                    item.IsDownloaded = item.SelectedVariant.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable;
+                }
+                else
+                {
+                    item.CurrentState = ContentState.NotDownloaded;
+                    item.IsDownloaded = false;
+                }
+            }
+
+            item.UpdateTargetVm = null;
+            item.NotifyStateChanged();
+        }
+    }
+
+    private static void ReconcileInstalledFamilyItems(
+        IEnumerable<ContentGridItemViewModel> items,
+        HashSet<ContentGridItemViewModel> installedItems,
+        ContentGridItemViewModel newestItem)
+    {
+        bool newestNeedsDownload = !installedItems.Contains(newestItem);
+
+        foreach (var item in items)
+        {
+            if (!installedItems.Contains(item))
+            {
+                continue;
+            }
+
+            if (newestNeedsDownload && item != newestItem)
+            {
+                // An update to newestItem is available for this installed older release.
+                foreach (var variant in item.Variants)
+                {
+                    if (variant.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable)
+                    {
+                        variant.CurrentState = ContentState.UpdateAvailable;
+                    }
+                }
+
+                if (item.SelectedVariant != null)
+                {
+                    item.CurrentState = item.SelectedVariant.CurrentState;
+                    item.IsDownloaded = item.SelectedVariant.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable;
+                }
+                else
+                {
+                    item.CurrentState = ContentState.UpdateAvailable;
+                    item.IsDownloaded = true;
+                }
+
+                item.UpdateTargetVm = item.CurrentState == ContentState.UpdateAvailable ? newestItem : null;
+                item.NotifyStateChanged();
+            }
+            else
+            {
+                // Either newestItem is already installed or this item IS the newest item.
+                // No update can be offered.
+                foreach (var variant in item.Variants)
+                {
+                    if (variant.CurrentState == ContentState.UpdateAvailable)
+                    {
+                        variant.CurrentState = ContentState.Downloaded;
+                    }
+                }
+
+                if (item.CurrentState == ContentState.UpdateAvailable)
+                {
+                    if (item.SelectedVariant != null)
+                    {
+                        item.CurrentState = item.SelectedVariant.CurrentState;
+                        item.IsDownloaded = item.SelectedVariant.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable;
+                    }
+                    else
+                    {
+                        item.CurrentState = ContentState.Downloaded;
+                        item.IsDownloaded = true;
+                    }
+                }
+
+                item.UpdateTargetVm = null;
+                item.NotifyStateChanged();
+            }
         }
     }
 
@@ -330,7 +635,8 @@ public sealed partial class DownloadsBrowserViewModel(
             i.Variants?.Any(v => v.IsDefault && (v.ManifestId == i.Id || i.Id?.EndsWith($".{v.ManifestId}", StringComparison.OrdinalIgnoreCase) == true)) == true)
             ?? groupItems.FirstOrDefault(i =>
                 i.ContentType == ContentType.GameClient &&
-                (i.ProviderName?.Contains("SuperHacker", StringComparison.OrdinalIgnoreCase) == true || i.ResolverId?.Contains("github", StringComparison.OrdinalIgnoreCase) == true) &&
+                (i.ProviderName?.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) == true ||
+                 i.ResolverId?.Contains(PublisherTypeConstants.GitHub, StringComparison.OrdinalIgnoreCase) == true) &&
                 i.TargetGame == GameType.ZeroHour)
             ?? groupItems.FirstOrDefault(i => i.Variants?.Any(v => v.IsDefault) == true)
             ?? primaryItem;
@@ -341,21 +647,52 @@ public sealed partial class DownloadsBrowserViewModel(
         ContentSearchResult primaryItem,
         IList<ContentVariantInfo> singleVariants)
     {
-        var lastSegment = primaryItem.Id?.Split('.').LastOrDefault() ?? "content";
+        var lastSegment = primaryItem.Id?.Split('.', StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+        if (string.IsNullOrWhiteSpace(lastSegment))
+        {
+            lastSegment = ContentConstants.DefaultContentFallbackId;
+        }
+
         foreach (var v in singleVariants)
         {
-            var manifestId = !string.IsNullOrEmpty(v.ManifestId)
-                ? v.ManifestId
-                : $"1.0.{primaryItem.ProviderName.ToLowerInvariant()}.{primaryItem.ContentType.ToString().ToLowerInvariant()}.{lastSegment}-{v.Id}";
+            var provider = !string.IsNullOrWhiteSpace(primaryItem.ProviderName) ? primaryItem.ProviderName : ContentConstants.DefaultContentFallbackId;
+            var variantId = !string.IsNullOrWhiteSpace(v.Id) ? v.Id : ContentConstants.DefaultContentFallbackId;
+            var composedName = $"{lastSegment}-{variantId}";
+            if (composedName.All(c => !char.IsLetterOrDigit(c)))
+            {
+                composedName = $"{lastSegment}-{ContentConstants.DefaultContentFallbackId}";
+            }
+
+            string manifestId;
+            if (!string.IsNullOrEmpty(v.ManifestId))
+            {
+                manifestId = v.ManifestId;
+            }
+            else
+            {
+                try
+                {
+                    manifestId = ManifestIdGenerator.GeneratePublisherContentId(provider, primaryItem.ContentType, composedName, 0);
+                }
+                catch (ArgumentException)
+                {
+                    manifestId = $"{ManifestConstants.DefaultManifestFormatVersion}.0.{ContentConstants.DefaultContentFallbackId}.{primaryItem.ContentType.ToManifestIdString()}.{ContentConstants.DefaultContentFallbackId}";
+                }
+            }
+
+            var baseName = !string.IsNullOrEmpty(primaryItem.VariantFamilyName) ? primaryItem.VariantFamilyName : primaryItem.Name;
+            var variantName = !string.IsNullOrEmpty(v.Name) && v.Name.StartsWith(baseName, StringComparison.OrdinalIgnoreCase)
+                ? v.Name
+                : $"{baseName} - {v.Name}";
 
             var variantSr = new ContentSearchResult
             {
                 Id = manifestId,
-                Name = string.IsNullOrEmpty(primaryItem.VariantFamilyName) ? $"{primaryItem.Name} - {v.Name}" : $"{primaryItem.VariantFamilyName} - {v.Name}",
+                Name = variantName,
                 Description = primaryItem.Description,
                 Version = primaryItem.Version,
                 ContentType = primaryItem.ContentType,
-                TargetGame = primaryItem.TargetGame,
+                TargetGame = v.TargetGame ?? primaryItem.TargetGame,
                 ProviderName = primaryItem.ProviderName,
                 AuthorName = primaryItem.AuthorName,
                 IconUrl = primaryItem.IconUrl,
@@ -373,9 +710,11 @@ public sealed partial class DownloadsBrowserViewModel(
                 variantSr.ResolverMetadata[kvp.Key] = kvp.Value;
             }
 
+            variantSr.ResolverMetadata[CatalogConstants.SelectedVariantMetadataKey] = v.Id;
+
             var installable = new InstallableVariant
             {
-                Name = VariantSwap.ResolveDisplayName(variantSr, v),
+                Name = !string.IsNullOrWhiteSpace(v.Name) ? v.Name : VariantSwap.ResolveDisplayName(variantSr, v),
                 ManifestId = VariantSwap.ResolveCatalogKey(variantSr, v),
                 IconUrl = primaryItem.IconUrl ?? string.Empty,
                 VariantType = v.VariantType ?? string.Empty,
@@ -394,7 +733,9 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             var variantInfo = sibling.Variants?.FirstOrDefault(v =>
                 string.Equals(v.Id, sibling.Id, StringComparison.OrdinalIgnoreCase) ||
-                (!string.IsNullOrEmpty(v.Id) && sibling.Id?.EndsWith($".{v.Id}", StringComparison.OrdinalIgnoreCase) == true));
+                string.Equals(v.ManifestId, sibling.Id, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrEmpty(v.Id) && sibling.Id?.EndsWith($".{v.Id}", StringComparison.OrdinalIgnoreCase) == true) ||
+                (!string.IsNullOrEmpty(v.Id) && sibling.Id?.EndsWith($"-{v.Id}", StringComparison.OrdinalIgnoreCase) == true));
 
             var info = variantInfo ?? new ContentVariantInfo
             {
@@ -402,12 +743,17 @@ public sealed partial class DownloadsBrowserViewModel(
                 Name = sibling.Name ?? sibling.Id ?? "Unknown",
                 ManifestId = sibling.Id ?? string.Empty,
                 IsDefault = sibling == defaultVariant,
+                VariantType = sibling.Variants?.FirstOrDefault(v => !string.IsNullOrEmpty(v.VariantType))?.VariantType ?? string.Empty,
             };
 
             var catalogKey = VariantSwap.ResolveCatalogKey(sibling, info);
+            var displayName = !string.IsNullOrWhiteSpace(info.Name)
+                ? info.Name
+                : VariantSwap.ResolveDisplayName(sibling, info);
+
             var installable = new InstallableVariant
             {
-                Name = VariantSwap.ResolveDisplayName(sibling, info),
+                Name = displayName,
                 ManifestId = catalogKey,
                 IconUrl = sibling.IconUrl ?? string.Empty,
                 VariantType = info.VariantType ?? string.Empty,
@@ -468,39 +814,24 @@ public sealed partial class DownloadsBrowserViewModel(
         [
             new PublisherItemViewModel(
                 PublisherTypeConstants.GeneralsOnline,
-                "Generals Online",
-                "avares://GenHub/Assets/Logos/generalsonline-logo.png",
-                CategoryStatic),
+                PublisherInfoConstants.GeneralsOnline.Name,
+                PublisherInfoConstants.GeneralsOnline.LogoSource,
+                ContentConstants.CategoryStatic),
             new PublisherItemViewModel(
                 PublisherTypeConstants.TheSuperHackers,
-                "TheSuperHackers",
-                "avares://GenHub/Assets/Logos/thesuperhackers-logo.png",
-                CategoryStatic),
+                PublisherInfoConstants.TheSuperHackers.Name,
+                PublisherInfoConstants.TheSuperHackers.LogoSource,
+                ContentConstants.CategoryStatic),
             new PublisherItemViewModel(
                 CommunityOutpostConstants.PublisherType,
-                "CommunityOutpost",
-                "avares://GenHub/Assets/Logos/communityoutpost-logo.png",
-                CategoryStatic),
-            new PublisherItemViewModel(
-                ModDBConstants.PublisherType,
-                "ModDB",
-                "avares://GenHub/Assets/Logos/moddb-logo.png",
-                CategoryDynamic),
-            new PublisherItemViewModel(
-                CNCLabsConstants.PublisherType,
-                "CNC Labs",
-                "avares://GenHub/Assets/Logos/cnclabs-logo.png",
-                CategoryDynamic),
+                PublisherInfoConstants.CommunityOutpost.Name,
+                PublisherInfoConstants.CommunityOutpost.LogoSource,
+                ContentConstants.CategoryStatic),
             new PublisherItemViewModel(
                 GitHubTopicsConstants.PublisherType,
-                "GitHub",
-                "avares://GenHub/Assets/Logos/github-logo.png",
-                CategoryDynamic),
-            new PublisherItemViewModel(
-                AODMapsConstants.PublisherType,
-                "AOD Maps",
-                "avares://GenHub/Assets/Logos/aodmaps-logo.png",
-                CategoryDynamic),
+                PublisherInfoConstants.GitHub.Name,
+                PublisherInfoConstants.GitHub.LogoSource,
+                ContentConstants.CategoryDynamic),
         ];
     }
 
@@ -516,10 +847,22 @@ public sealed partial class DownloadsBrowserViewModel(
         }
     }
 
+    private static List<ContentGridItemViewModel> SnapshotInFlight(PublisherInFlightOperation inFlight)
+    {
+        lock (inFlight.SyncRoot)
+        {
+            return inFlight.ResolvedItems.ToList();
+        }
+    }
+
     private void HandleSelectedPublisherChanged(PublisherItemViewModel? value)
     {
         if (value == null)
         {
+            Interlocked.Increment(ref _activeRequestId);
+            _searchCts?.Cancel();
+            _searchCts?.Dispose();
+            _searchCts = null;
             return;
         }
 
@@ -551,13 +894,6 @@ public sealed partial class DownloadsBrowserViewModel(
             if (_browseCache.TryGetValue(value.PublisherId, out var cached))
             {
                 // Cache hit: restore full dataset instantly without network discovery
-                foreach (var item in cached.Items)
-                {
-                    item.ClearInactiveDownloadStatus();
-                    _ = item.RefreshVariantStatesAsync();
-                    _ = item.EnsureIconsLoadedAsync();
-                }
-
                 ContentItems = new ObservableCollection<ContentGridItemViewModel>(cached.Items);
                 CurrentPage = cached.CurrentPage;
                 CanLoadMore = cached.CanLoadMore;
@@ -566,6 +902,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 SelectedContent = cached.ActiveDetailViewModel;
                 _lastPopulatedPublisherId = value.PublisherId;
                 IsLoading = false;
+                _ = RefreshAndReconcileItemsAsync(cached.Items, value.PublisherId);
                 logger.LogInformation(
                     "Restored {Count} cached items for {Publisher} (no refresh needed)",
                     cached.Items.Count,
@@ -576,12 +913,11 @@ public sealed partial class DownloadsBrowserViewModel(
             if (_inFlightOperations.TryGetValue(value.PublisherId, out var inFlight))
             {
                 // Attach UI to ongoing in-flight background operation
-                var itemsSoFar = inFlight.ResolvedItems.ToList();
-                foreach (var item in itemsSoFar)
+                List<ContentGridItemViewModel> itemsSoFar = [];
+                lock (inFlight.SyncRoot)
                 {
-                    item.ClearInactiveDownloadStatus();
-                    _ = item.RefreshVariantStatesAsync();
-                    _ = item.EnsureIconsLoadedAsync();
+                    inFlight.ActiveRequestId = _activeRequestId;
+                    itemsSoFar = [.. inFlight.ResolvedItems];
                 }
 
                 ContentItems = new ObservableCollection<ContentGridItemViewModel>(itemsSoFar);
@@ -592,23 +928,13 @@ public sealed partial class DownloadsBrowserViewModel(
                 SelectedContent = null;
                 _lastPopulatedPublisherId = value.PublisherId;
                 IsLoading = !inFlight.IsCompleted;
+                _ = RefreshAndReconcileItemsAsync(itemsSoFar, value.PublisherId);
                 logger.LogInformation(
                     "Attached to in-flight operation for {Publisher} ({Count} items loaded so far)",
                     value.PublisherId,
                     itemsSoFar.Count);
                 return;
             }
-        }
-
-        if (_suppressPublisherAutoRefresh)
-        {
-            _hasCustomQuery = false;
-            SearchTerm = string.Empty;
-            CurrentPage = 1;
-            CanLoadMore = false;
-            SelectedContent = null;
-            _lastPopulatedPublisherId = value.PublisherId;
-            return;
         }
 
         _hasCustomQuery = false;
@@ -638,6 +964,15 @@ public sealed partial class DownloadsBrowserViewModel(
                 outgoingState.CanLoadMore = CanLoadMore;
                 if (_hasCustomQuery)
                 {
+                    if (outgoingState.Items.Count > 0)
+                    {
+                        var activeItemSet = new HashSet<ContentGridItemViewModel>(ContentItems);
+                        foreach (var oldItem in outgoingState.Items.Where(oldItem => !activeItemSet.Contains(oldItem)))
+                        {
+                            oldItem.Dispose();
+                        }
+                    }
+
                     outgoingState.Items = [.. ContentItems];
                 }
             }
@@ -670,10 +1005,7 @@ public sealed partial class DownloadsBrowserViewModel(
             CurrentFilterViewModel = filterVm;
             CurrentFilterViewModel.FiltersApplied += OnFiltersApplied;
             CurrentFilterViewModel.FiltersCleared += OnFiltersCleared;
-            IsFilterPanelVisible = string.Equals(
-                publisherId,
-                AODMapsConstants.PublisherType,
-                StringComparison.OrdinalIgnoreCase);
+            IsFilterPanelVisible = false;
         }
         else
         {
@@ -686,6 +1018,7 @@ public sealed partial class DownloadsBrowserViewModel(
     {
         // Clearing filters re-runs a default query, which re-populates the cache.
         _hasCustomQuery = !string.IsNullOrWhiteSpace(SearchTerm);
+        CurrentPage = 1;
         Interlocked.Increment(ref _activeRequestId);
         _ = RefreshContentAsync();
     }
@@ -699,35 +1032,14 @@ public sealed partial class DownloadsBrowserViewModel(
         _ = RefreshContentAsync();
     }
 
+    private void OnContentStateChanged(object? sender, ContentStateChangedEventArgs e)
+    {
+        RunOnUi(() => ReconcileReleaseUpdateStates(ContentItems));
+    }
+
     [RelayCommand]
     private async Task SearchAsync()
     {
-        if (ModDBDiscoverer.TryNormalizeModDBUrl(SearchTerm, out _) &&
-            SelectedPublisher?.PublisherId != PublisherTypeConstants.ModDB)
-        {
-            var moddbPublisher = Publishers.FirstOrDefault(p => p.PublisherId == PublisherTypeConstants.ModDB);
-            if (moddbPublisher != null)
-            {
-                var targetUrl = SearchTerm;
-                _suppressPublisherAutoRefresh = true;
-                try
-                {
-                    SelectedPublisher = moddbPublisher;
-                }
-                finally
-                {
-                    _suppressPublisherAutoRefresh = false;
-                }
-
-                SearchTerm = targetUrl;
-                _hasCustomQuery = true;
-                CurrentPage = 1;
-                Interlocked.Increment(ref _activeRequestId);
-                await RefreshContentAsync();
-                return;
-            }
-        }
-
         _hasCustomQuery = !string.IsNullOrWhiteSpace(SearchTerm) || (CurrentFilterViewModel != null && CurrentFilterViewModel.HasActiveFilters);
         CurrentPage = 1;
         Interlocked.Increment(ref _activeRequestId);
@@ -739,15 +1051,37 @@ public sealed partial class DownloadsBrowserViewModel(
     {
         if (CanLoadMore && !IsLoading)
         {
-            CurrentPage++;
+            var targetPublisherId = SelectedPublisher?.PublisherId;
+            if (string.IsNullOrEmpty(targetPublisherId))
+            {
+                return;
+            }
+
+            var attemptedPage = ++CurrentPage;
             logger.LogInformation(
                 "Loading more content for {Publisher}, page {Page}",
-                SelectedPublisher?.PublisherId ?? "Unknown",
-                CurrentPage);
+                targetPublisherId,
+                attemptedPage);
             var success = await RefreshContentAsync(append: true);
             if (!success)
             {
-                CurrentPage--;
+                if (string.Equals(SelectedPublisher?.PublisherId, targetPublisherId, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (CurrentPage == attemptedPage && CurrentPage > 1)
+                    {
+                        CurrentPage--;
+                    }
+                }
+                else
+                {
+                    lock (_cacheLock)
+                    {
+                        if (_browseCache.TryGetValue(targetPublisherId, out var cachedState) && cachedState.CurrentPage > 1)
+                        {
+                            cachedState.CurrentPage--;
+                        }
+                    }
+                }
             }
         }
     }
@@ -783,7 +1117,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 SearchTerm = SearchTerm,
                 Take = effectivePageSize,
                 Page = CurrentPage,
-                TargetGame = GameType.ZeroHour, // Global default
+                TargetGame = ContentConstants.DefaultGameType,
             };
 
             // Apply active filters from filter panel
@@ -847,7 +1181,28 @@ public sealed partial class DownloadsBrowserViewModel(
                 {
                     oldInFlight.Cts.Cancel();
                     oldInFlight.Cts.Dispose();
-                    foreach (var item in oldInFlight.ResolvedItems)
+                    List<ContentGridItemViewModel> oldSnapshot = [];
+                    lock (oldInFlight.SyncRoot)
+                    {
+                        oldSnapshot = oldInFlight.ResolvedItems.ToList();
+                    }
+
+                    foreach (var item in oldSnapshot)
+                    {
+                        item.Dispose();
+                    }
+                }
+
+                var retainedItems = new HashSet<ContentGridItemViewModel>(_browseCache.Values.SelectMany(s => s.Items));
+                foreach (var inFlight in _inFlightOperations.Values)
+                {
+                    var inFlightSnapshot = SnapshotInFlight(inFlight);
+                    retainedItems.UnionWith(inFlightSnapshot);
+                }
+
+                foreach (var item in ContentItems)
+                {
+                    if (!retainedItems.Contains(item))
                     {
                         item.Dispose();
                     }
@@ -865,21 +1220,22 @@ public sealed partial class DownloadsBrowserViewModel(
         bool isCustomQuery,
         bool append)
     {
+        var (opCts, inFlightOp) = SetupFetchOperation(publisherId, query, isCustomQuery, append, requestId);
+
         var discoverer = GetDiscovererForPublisher(publisherId);
         if (discoverer == null)
         {
             logger.LogWarning("No discoverer found for publisher {Publisher}", publisherId);
+            CleanupInFlight(publisherId, inFlightOp);
             RunOnUi(() =>
             {
-                if (_activeRequestId == requestId && SelectedPublisher?.PublisherId == publisherId)
+                if (IsCurrentActiveOperation(requestId, publisherId, inFlightOp))
                 {
                     IsLoading = false;
                 }
             });
             return false;
         }
-
-        var (opCts, inFlightOp) = SetupFetchOperation(publisherId, query, isCustomQuery, append);
 
         try
         {
@@ -909,9 +1265,15 @@ public sealed partial class DownloadsBrowserViewModel(
 
                 CommitBrowseResultsToCache(publisherId, query, result.Data.HasMoreItems, isCustomQuery, append, inFlightOp, newVms);
 
+                if (isCustomQuery && (_activeRequestId != requestId || SelectedPublisher?.PublisherId != publisherId))
+                {
+                    CleanupInFlight(publisherId, inFlightOp);
+                    return false;
+                }
+
                 RunOnUi(() =>
                 {
-                    if (_activeRequestId == requestId && SelectedPublisher?.PublisherId == publisherId)
+                    if (IsCurrentActiveOperation(requestId, publisherId, inFlightOp))
                     {
                         CanLoadMore = result.Data.HasMoreItems;
                         IsLoading = false;
@@ -927,15 +1289,6 @@ public sealed partial class DownloadsBrowserViewModel(
                                 .Where(a => !string.IsNullOrWhiteSpace(a))
                                 .Distinct(StringComparer.OrdinalIgnoreCase);
                             ghFilter.UpdateAvailableAuthors(authors);
-                        }
-
-                        // Cloudflare notice for ModDB
-                        if (result.Data.ChallengeDetected)
-                        {
-                            notificationService.ShowInfo(
-                                "ModDB is waiting for verification",
-                                "A browser window opened for ModDB's bot check. Complete it, then press Search to load the full catalogue.",
-                                autoDismissMs: 8000);
                         }
                     }
                 });
@@ -955,22 +1308,33 @@ public sealed partial class DownloadsBrowserViewModel(
 
             RunOnUi(() =>
             {
-                if (_activeRequestId == requestId && SelectedPublisher?.PublisherId == publisherId)
+                if (IsCurrentActiveOperation(requestId, publisherId, inFlightOp))
                 {
                     CanLoadMore = false;
                     IsLoading = false;
 
-                    if (result.Data?.ChallengeDetected == true)
+                    if (ContentItems.Count == 0)
                     {
-                        notificationService.ShowWarning(
-                            "ModDB is waiting for verification",
-                            "A browser window opened for ModDB's bot check. Click \"I am not a robot\" in that window, then open ModDB again. You only need to do this once.");
+                        if (!result.Success)
+                        {
+                            var errorMsg = result.FirstError ?? "Check your connection and try again.";
+                            notificationService.ShowWarning(
+                                "Discovery Failed",
+                                $"{publisherId} discovery failed: {errorMsg}");
+                        }
+                        else
+                        {
+                            notificationService.ShowInfo(
+                                "No content loaded",
+                                $"{publisherId} returned no content.");
+                        }
                     }
-                    else if (ContentItems.Count == 0)
+                    else if (!result.Success)
                     {
-                        notificationService.ShowInfo(
-                            "No content loaded",
-                            $"{publisherId} returned no content. Check your connection and try again.");
+                        var errorMsg = result.FirstError ?? "Check your connection and try again.";
+                        notificationService.ShowWarning(
+                            "Failed to Load More",
+                            $"Could not load more content for {publisherId}: {errorMsg}");
                     }
                 }
             });
@@ -983,7 +1347,7 @@ public sealed partial class DownloadsBrowserViewModel(
             CleanupInFlight(publisherId, inFlightOp);
             RunOnUi(() =>
             {
-                if (_activeRequestId == requestId && SelectedPublisher?.PublisherId == publisherId)
+                if (IsCurrentActiveOperation(requestId, publisherId, inFlightOp))
                 {
                     IsLoading = false;
                 }
@@ -996,7 +1360,7 @@ public sealed partial class DownloadsBrowserViewModel(
             CleanupInFlight(publisherId, inFlightOp);
             RunOnUi(() =>
             {
-                if (_activeRequestId == requestId && SelectedPublisher?.PublisherId == publisherId)
+                if (IsCurrentActiveOperation(requestId, publisherId, inFlightOp))
                 {
                     IsLoading = false;
                 }
@@ -1010,7 +1374,8 @@ public sealed partial class DownloadsBrowserViewModel(
         string publisherId,
         ContentSearchQuery query,
         bool isCustomQuery,
-        bool append)
+        bool append,
+        int requestId)
     {
         CancellationTokenSource opCts = _vmCts;
         PublisherInFlightOperation? inFlightOp = null;
@@ -1026,7 +1391,10 @@ public sealed partial class DownloadsBrowserViewModel(
                 }
 
                 opCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token);
-                inFlightOp = new PublisherInFlightOperation(publisherId, query, opCts);
+                inFlightOp = new PublisherInFlightOperation(publisherId, query, opCts)
+                {
+                    ActiveRequestId = requestId,
+                };
                 _inFlightOperations[publisherId] = inFlightOp;
             }
         }
@@ -1035,9 +1403,26 @@ public sealed partial class DownloadsBrowserViewModel(
             _searchCts?.Cancel();
             _searchCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token);
             opCts = _searchCts;
+            inFlightOp = new PublisherInFlightOperation(publisherId, query, opCts)
+            {
+                ActiveRequestId = requestId,
+            };
         }
 
         return (opCts, inFlightOp);
+    }
+
+    private bool IsCurrentActiveOperation(
+        int requestId,
+        string publisherId,
+        PublisherInFlightOperation? inFlightOp = null)
+    {
+        if (SelectedPublisher?.PublisherId != publisherId)
+        {
+            return false;
+        }
+
+        return _activeRequestId == requestId || inFlightOp?.ActiveRequestId == _activeRequestId;
     }
 
     private HashSet<string> CollectExistingContentIds()
@@ -1106,7 +1491,8 @@ public sealed partial class DownloadsBrowserViewModel(
 
             RunOnUi(() =>
             {
-                if (_activeRequestId == requestId && SelectedPublisher?.PublisherId == publisherId)
+                if (IsCurrentActiveOperation(requestId, publisherId, inFlightOp) &&
+                    ContentItems.All(existing => !string.Equals(existing.Id, vm.Id, StringComparison.OrdinalIgnoreCase)))
                 {
                     ContentItems.Add(vm);
                 }
@@ -1115,6 +1501,14 @@ public sealed partial class DownloadsBrowserViewModel(
             // Delay briefly to let the UI thread layout and render each card progressively one by one
             await Task.Delay(UiConstants.ProgressiveItemRenderDelayMs, ct);
         }
+
+        RunOnUi(() =>
+        {
+            if (IsCurrentActiveOperation(requestId, publisherId, inFlightOp))
+            {
+                ReconcileReleaseUpdateStates(ContentItems);
+            }
+        });
 
         return newVms;
     }
@@ -1128,6 +1522,12 @@ public sealed partial class DownloadsBrowserViewModel(
         PublisherInFlightOperation? inFlightOp,
         List<ContentGridItemViewModel> newVms)
     {
+        if (inFlightOp != null)
+        {
+            inFlightOp.IsCompleted = true;
+            inFlightOp.HasMoreItems = hasMoreItems;
+        }
+
         if (isCustomQuery)
         {
             return;
@@ -1135,11 +1535,42 @@ public sealed partial class DownloadsBrowserViewModel(
 
         lock (_cacheLock)
         {
+            var isPublisherKnown = Publishers.Any(p => string.Equals(p.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase));
+            if (!isPublisherKnown)
+            {
+                foreach (var vm in newVms)
+                {
+                    vm.Dispose();
+                }
+
+                if (_inFlightOperations.TryGetValue(publisherId, out var currentOp) && ReferenceEquals(currentOp, inFlightOp))
+                {
+                    _inFlightOperations.Remove(publisherId);
+                }
+
+                return;
+            }
+
             if (_browseCache.TryGetValue(publisherId, out var existingState))
             {
                 if (append)
                 {
                     existingState.Items.AddRange(newVms);
+                    existingState.CurrentPage = query.Page ?? existingState.CurrentPage;
+                    existingState.CanLoadMore = hasMoreItems;
+                }
+                else
+                {
+                    var newVmSet = new HashSet<ContentGridItemViewModel>(newVms);
+                    foreach (var oldItem in existingState.Items.Where(item => !newVmSet.Contains(item)))
+                    {
+                        oldItem.Dispose();
+                    }
+
+                    existingState.Items.Clear();
+                    existingState.Items.AddRange(newVms);
+                    existingState.CurrentPage = query.Page ?? 1;
+                    existingState.CanLoadMore = hasMoreItems;
                 }
             }
             else
@@ -1152,27 +1583,9 @@ public sealed partial class DownloadsBrowserViewModel(
                 };
             }
 
-            if (inFlightOp != null)
-            {
-                inFlightOp.IsCompleted = true;
-                inFlightOp.HasMoreItems = hasMoreItems;
-                _inFlightOperations.Remove(publisherId);
-            }
-        }
-    }
-
-    private void CleanupInFlight(string publisherId, PublisherInFlightOperation? inFlightOp)
-    {
-        if (inFlightOp != null)
-        {
-            lock (_cacheLock)
+            if (_inFlightOperations.TryGetValue(publisherId, out var currentInFlight) && ReferenceEquals(currentInFlight, inFlightOp))
             {
                 _inFlightOperations.Remove(publisherId);
-            }
-
-            foreach (var item in inFlightOp.ResolvedItems)
-            {
-                item.Dispose();
             }
         }
     }
@@ -1182,37 +1595,171 @@ public sealed partial class DownloadsBrowserViewModel(
         ContentSearchResult primaryItem,
         CancellationToken ct)
     {
-        if (groupItems.Count == 1 && string.IsNullOrEmpty(primaryItem.VariantGroupId))
+        if (groupItems.Count == 1 &&
+            string.IsNullOrEmpty(primaryItem.VariantGroupId) &&
+            (primaryItem.Variants == null || primaryItem.Variants.Count <= 1))
         {
             return await CreateSingletonItemViewModelAsync(primaryItem, ct);
         }
 
         var defaultVariant = ResolveDefaultVariant(groupItems, primaryItem);
         var variantVm = CreateBaseGridItemViewModel(defaultVariant);
-
-        if (groupItems.Count == 1 && primaryItem.Variants is { Count: > 0 } singleVariants)
+        try
         {
-            PopulateSynthesizedVariants(variantVm, primaryItem, singleVariants);
+            if (groupItems.Count == 1 && primaryItem.Variants is { Count: > 0 } singleVariants)
+            {
+                PopulateSynthesizedVariants(variantVm, primaryItem, singleVariants);
+            }
+            else
+            {
+                PopulateSiblingVariants(variantVm, groupItems, defaultVariant);
+            }
+
+            SelectDefaultVariant(variantVm, groupItems, primaryItem, defaultVariant);
+
+            await variantVm.RefreshVariantStatesAsync();
+            variantVm.CurrentState = await contentStateService.GetStateAsync(defaultVariant, ct);
+
+            return variantVm;
         }
-        else
+        catch
         {
-            PopulateSiblingVariants(variantVm, groupItems, defaultVariant);
+            variantVm.Dispose();
+            throw;
         }
-
-        SelectDefaultVariant(variantVm, groupItems, primaryItem, defaultVariant);
-
-        await variantVm.RefreshVariantStatesAsync();
-        variantVm.CurrentState = await contentStateService.GetStateAsync(defaultVariant, ct);
-
-        return variantVm;
     }
 
     private async Task<ContentGridItemViewModel> CreateSingletonItemViewModelAsync(ContentSearchResult primaryItem, CancellationToken ct)
     {
         var vm = CreateBaseGridItemViewModel(primaryItem);
-        var singletonState = await contentStateService.GetStateAsync(primaryItem, ct);
-        vm.CurrentState = singletonState;
-        return vm;
+        try
+        {
+            var singletonState = await contentStateService.GetStateAsync(primaryItem, ct);
+            vm.CurrentState = singletonState;
+            return vm;
+        }
+        catch
+        {
+            vm.Dispose();
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Updates the specified content item to its prospective newer version.
+    /// </summary>
+    [RelayCommand]
+    private async Task<bool> UpdateContentAsync(ContentGridItemViewModel? item, CancellationToken cancellationToken = default)
+    {
+        if (item == null)
+        {
+            logger.LogWarning("UpdateContentAsync called with null item");
+            return false;
+        }
+
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token, cancellationToken);
+        var ct = linkedCts.Token;
+
+        var targetItem = item.UpdateTargetVm ?? item;
+        var publisherId = item.SearchResult?.ProviderName;
+        if ((string.IsNullOrEmpty(publisherId) || ContentStateService.IsGitHubPublisher(publisherId)) &&
+            item.SearchResult?.ResolverMetadata != null &&
+            item.SearchResult.ResolverMetadata.TryGetValue(GitHubConstants.OwnerMetadataKey, out var owner) &&
+            !string.IsNullOrWhiteSpace(owner))
+        {
+            publisherId = owner;
+        }
+
+        publisherId ??= targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId;
+
+        var registry = _reconcilerRegistry ?? serviceProvider.GetService<IPublisherReconcilerRegistry>();
+        var reconciler = !string.IsNullOrEmpty(publisherId) ? registry?.GetReconciler(publisherId) : null;
+
+        if (reconciler != null)
+        {
+            var result = await reconciler.CheckAndReconcileIfNeededAsync(string.Empty, ct);
+            if (result.Success && result.Data)
+            {
+                if (SelectedPublisher != null)
+                {
+                    await RefreshAndReconcileItemsAsync(ContentItems, SelectedPublisher.PublisherId);
+                }
+
+                return true;
+            }
+
+            if (!result.Success)
+            {
+                logger.LogWarning("Reconciler failed for {PublisherId}: {Error}", publisherId, result.FirstError);
+            }
+        }
+
+        return await DownloadContentAsync(targetItem, ct);
+    }
+
+    private async Task RefreshAndReconcileItemsAsync(IReadOnlyList<ContentGridItemViewModel> items, string publisherId)
+    {
+        if (_disposed || _vmCts.IsCancellationRequested)
+        {
+            return;
+        }
+
+        using var throttler = new SemaphoreSlim(4);
+        var tasks = items.Select(async item =>
+        {
+            if (_disposed || _vmCts.IsCancellationRequested)
+            {
+                return;
+            }
+
+            try
+            {
+                await throttler.WaitAsync(_vmCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            try
+            {
+                item.ClearInactiveDownloadStatus();
+                try
+                {
+                    await item.RefreshVariantStatesAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug(ex, "Failed to refresh variant states for item {Id}", item.Id);
+                }
+            }
+            finally
+            {
+                throttler.Release();
+            }
+        });
+
+        try
+        {
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        RunOnUi(() =>
+        {
+            if (!_disposed && !_vmCts.IsCancellationRequested && SelectedPublisher?.PublisherId == publisherId)
+            {
+                foreach (var item in items)
+                {
+                    _ = item.EnsureIconsLoadedAsync();
+                }
+
+                ReconcileReleaseUpdateStates(ContentItems);
+            }
+        });
     }
 
     private ContentGridItemViewModel CreateBaseGridItemViewModel(ContentSearchResult item)
@@ -1220,12 +1767,13 @@ public sealed partial class DownloadsBrowserViewModel(
         var vm = new ContentGridItemViewModel(
             item,
             contentStateService,
-            loggerFactory.CreateLogger<ContentGridItemViewModel>())
+            loggerFactory.CreateLogger<ContentGridItemViewModel>(),
+            _downloadCoordinator)
         {
             ViewCommand = ViewContentCommand,
             DownloadCommand = DownloadContentCommand,
             AddToProfileCommand = AddContentToProfileCommand,
-            UpdateCommand = DownloadContentCommand,
+            UpdateCommand = UpdateContentCommand,
         };
 
         vm.Initialize();
@@ -1240,10 +1788,7 @@ public sealed partial class DownloadsBrowserViewModel(
             PublisherTypeConstants.GeneralsOnline => contentDiscoverers.OfType<GeneralsOnlineDiscoverer>().FirstOrDefault(),
             PublisherTypeConstants.TheSuperHackers => contentDiscoverers.OfType<GenHub.Features.Content.Services.GitHub.GitHubReleasesDiscoverer>().FirstOrDefault(),
             CommunityOutpostConstants.PublisherType => contentDiscoverers.OfType<GenHub.Features.Content.Services.CommunityOutpost.CommunityOutpostDiscoverer>().FirstOrDefault(),
-            ModDBConstants.PublisherType => contentDiscoverers.OfType<GenHub.Features.Content.Services.ContentDiscoverers.ModDBDiscoverer>().FirstOrDefault(),
-            CNCLabsConstants.PublisherType => contentDiscoverers.OfType<GenHub.Features.Content.Services.ContentDiscoverers.CNCLabsMapDiscoverer>().FirstOrDefault(),
             GitHubTopicsConstants.PublisherType => contentDiscoverers.OfType<GenHub.Features.Content.Services.ContentDiscoverers.GitHubTopicsDiscoverer>().FirstOrDefault(),
-            AODMapsConstants.PublisherType => contentDiscoverers.OfType<GenHub.Features.Content.Services.ContentDiscoverers.AODMapsDiscoverer>().FirstOrDefault(),
 
             // User-subscribed GenHub catalogs (and later definition-resolved endpoints)
             _ => _subscribedDiscoverers.TryGetValue(publisherId, out var subscribed) ? subscribed : null,
@@ -1261,8 +1806,10 @@ public sealed partial class DownloadsBrowserViewModel(
             var parsers = (serviceProvider.GetService(typeof(IEnumerable<IWebPageParser>)) as IEnumerable<IWebPageParser> ?? []).ToList();
             var tabProviderRegistry = serviceProvider.GetService(typeof(ITabProviderRegistry)) as ITabProviderRegistry
                 ?? throw new InvalidOperationException("ITabProviderRegistry not registered");
-            var downloadCoordinator = serviceProvider.GetRequiredService<IContentDownloadCoordinator>();
+            var coordinator = _downloadCoordinator ?? serviceProvider.GetRequiredService<IContentDownloadCoordinator>();
             var manifestPool = serviceProvider.GetRequiredService<IContentManifestPool>();
+
+            var selectedVariantId = item.SelectedVariant?.ManifestId ?? item.SelectedVariant?.Name;
 
             var vm = new ContentDetailViewModel(
                 item.SearchResult,
@@ -1272,23 +1819,34 @@ public sealed partial class DownloadsBrowserViewModel(
                 notificationService,
                 tabProviderRegistry,
                 contentStateService,
-                downloadCoordinator,
+                coordinator,
                 manifestPool,
                 loggerFactory,
                 contentLogger,
                 CloseDetail,
-                item.VariantSearchResults);
+                item.VariantSearchResults,
+                updateTargetSearchResult: item.UpdateTargetVm?.SearchResult,
+                updateAction: ct => UpdateContentAsync(item, ct),
+                isUpdateAvailable: item.CurrentState == ContentState.UpdateAvailable,
+                initialVariantManifestId: selectedVariantId);
 
             if (item.HasBundleComponents)
             {
                 vm.AttachBundleComponents(item.BundleComponents);
             }
 
+            if (item.IsDownloading)
+            {
+                vm.IsDownloading = true;
+                vm.DownloadProgress = item.DownloadProgress;
+                vm.DownloadStatusMessage = item.DownloadStatus;
+            }
+
             vm.Initialize();
 
-            if (item.SelectedVariant != null && !string.IsNullOrEmpty(item.SelectedVariant.ManifestId))
+            if (!string.IsNullOrEmpty(selectedVariantId))
             {
-                vm.SelectVariantByManifestId(item.SelectedVariant.ManifestId);
+                vm.SelectVariantByManifestId(selectedVariantId);
             }
 
             SelectedContent?.Dispose();
@@ -1328,7 +1886,14 @@ public sealed partial class DownloadsBrowserViewModel(
 
         if (viewedSearchResult != null)
         {
-            var match = ContentItems.FirstOrDefault(i => ReferenceEquals(i.SearchResult, viewedSearchResult) || i.SearchResult.Id == viewedSearchResult.Id);
+            var match = ContentItems.FirstOrDefault(i =>
+                ReferenceEquals(i.SearchResult, viewedSearchResult) ||
+                i.SearchResult.Id == viewedSearchResult.Id ||
+                (!string.IsNullOrEmpty(i.SearchResult?.VariantGroupId) && !string.IsNullOrEmpty(viewedSearchResult?.VariantGroupId) &&
+                 string.Equals(i.SearchResult.VariantGroupId, viewedSearchResult.VariantGroupId, StringComparison.OrdinalIgnoreCase)) ||
+                (i.VariantSearchResults != null && !string.IsNullOrEmpty(selectedVariantId) &&
+                 i.VariantSearchResults.ContainsKey(selectedVariantId)));
+
             if (match != null && !string.IsNullOrWhiteSpace(selectedVariantId))
             {
                 match.SelectVariantByManifestId(selectedVariantId);
@@ -1385,6 +1950,21 @@ public sealed partial class DownloadsBrowserViewModel(
             {
                 Publishers.Remove(item);
                 _subscribedDiscoverers.Remove(item.PublisherId);
+
+                lock (_cacheLock)
+                {
+                    if (_inFlightOperations.Remove(item.PublisherId, out var inFlight))
+                    {
+                        inFlight.Cts.Cancel();
+                        var inFlightSnapshot = SnapshotInFlight(inFlight);
+
+                        foreach (var vm in inFlightSnapshot)
+                        {
+                            vm.Dispose();
+                        }
+                    }
+                }
+
                 if (_browseCache.Remove(item.PublisherId, out var removedState))
                 {
                     removedState.ActiveDetailViewModel?.Dispose();
@@ -1397,6 +1977,11 @@ public sealed partial class DownloadsBrowserViewModel(
 
                 if (SelectedPublisher?.PublisherId == item.PublisherId)
                 {
+                    if (_searchCts != null)
+                    {
+                        await _searchCts.CancelAsync();
+                    }
+
                     foreach (var contentItem in ContentItems)
                     {
                         contentItem.Dispose();
@@ -1434,11 +2019,23 @@ public sealed partial class DownloadsBrowserViewModel(
 
                 if (_browseCache.Remove(subscription.PublisherId, out var oldState))
                 {
-                    oldState.ActiveDetailViewModel?.Dispose();
-                    oldState.ActiveDetailViewModel = null;
-                    foreach (var oldVm in oldState.Items)
+                    var isCurrentlySelected = string.Equals(SelectedPublisher?.PublisherId, subscription.PublisherId, StringComparison.OrdinalIgnoreCase);
+                    if (!isCurrentlySelected)
                     {
-                        oldVm.Dispose();
+                        oldState.ActiveDetailViewModel?.Dispose();
+                        oldState.ActiveDetailViewModel = null;
+                        foreach (var oldVm in oldState.Items)
+                        {
+                            oldVm.Dispose();
+                        }
+                    }
+                    else
+                    {
+                        var activeItemSet = new HashSet<ContentGridItemViewModel>(ContentItems);
+                        foreach (var oldVm in oldState.Items.Where(oldVm => !activeItemSet.Contains(oldVm)))
+                        {
+                            oldVm.Dispose();
+                        }
                     }
                 }
             }
@@ -1456,32 +2053,30 @@ public sealed partial class DownloadsBrowserViewModel(
     private void InitializeFilterViewModels()
     {
         // Dynamic publisher filters
-        _filterViewModels[ModDBConstants.PublisherType] = new ModDBFilterViewModel();
-        _filterViewModels[CNCLabsConstants.PublisherType] = new CNCLabsFilterViewModel();
         _filterViewModels[GitHubTopicsConstants.PublisherType] = new GitHubFilterViewModel();
-        _filterViewModels[AODMapsConstants.PublisherType] = new AODMapsFilterViewModel();
     }
 
     [RelayCommand]
-    private async Task DownloadContentAsync(ContentGridItemViewModel item)
+    private async Task<bool> DownloadContentAsync(ContentGridItemViewModel item, CancellationToken cancellationToken = default)
     {
         if (item == null || item.IsDownloading)
         {
-            return;
+            return false;
         }
 
-        var cancellationToken = _vmCts.Token;
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _vmCts.Token);
+        var effectiveToken = linkedCts.Token;
 
         try
         {
             item.IsDownloading = true;
             item.DownloadProgress = 0;
-            item.DownloadStatus = "Starting download...";
+            item.DownloadStatus = ContentConstants.StartingDownloadStatusMessage;
 
             if (item.HasBundleComponents)
             {
-                await DownloadBundleComponentsAsync(item, cancellationToken);
-                return;
+                await DownloadBundleComponentsAsync(item, effectiveToken);
+                return item.AreBundleComponentsReadyForProfile;
             }
 
             logger.LogInformation("Starting download for content: {Name} ({Provider})", item.Name, item.ProviderName);
@@ -1504,28 +2099,32 @@ public sealed partial class DownloadsBrowserViewModel(
                 });
             });
 
-            var result = await contentOrchestrator.AcquireContentAsync(item.SearchResult, progress, cancellationToken);
+            var result = _downloadCoordinator != null
+                ? await _downloadCoordinator.DownloadContentAsync(item.SearchResult, progress, effectiveToken)
+                : await contentOrchestrator.AcquireContentAsync(item.SearchResult, progress, effectiveToken);
 
             if (result.Success && result.Data != null)
             {
                 await HandleSuccessfulAcquisitionAsync(item, result.Data);
+                return true;
             }
-            else
-            {
-                var errorMsg = result.FirstError ?? "Unknown error";
-                logger.LogError("Failed to download {ItemName}: {Error}", item.Name, errorMsg);
-                item.DownloadStatus = $"Error: {errorMsg}";
-            }
+
+            var errorMsg = result.FirstError ?? "Unknown error";
+            logger.LogError("Failed to download {ItemName}: {Error}", item.Name, errorMsg);
+            item.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{errorMsg}";
+            return false;
         }
         catch (OperationCanceledException ex)
         {
             logger.LogInformation(ex, "Download cancelled for: {Name}", item.Name);
-            item.DownloadStatus = "Download cancelled";
+            item.DownloadStatus = ContentConstants.DownloadCancelledStatusMessage;
+            return false;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error downloading content: {Name}", item.Name);
-            item.DownloadStatus = "Download failed due to an unexpected error";
+            item.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{ex.Message}";
+            return false;
         }
         finally
         {
@@ -1542,7 +2141,7 @@ public sealed partial class DownloadsBrowserViewModel(
         logger.LogInformation("Successfully downloaded and stored content: {ManifestId}", manifest.Id.Value);
 
         item.DownloadProgress = 100;
-        item.DownloadStatus = "Download complete!";
+        item.DownloadStatus = string.Empty;
 
         // Remember the pre-download catalog ID before rewriting SearchResult.Id so
         // variant dropdown matching and ContentStateService session maps stay keyed
@@ -1566,19 +2165,22 @@ public sealed partial class DownloadsBrowserViewModel(
         // Re-read every sibling so checkmarks stay accurate if acquisition produced
         // a different on-disk identity than the catalog key (e.g. SuperHackers).
         await item.RefreshVariantStatesAsync();
+        RunOnUi(() => ReconcileReleaseUpdateStates(ContentItems));
 
-        // Notify other components that content was acquired
-        try
+        if (_downloadCoordinator == null)
         {
-            var message = new ContentAcquiredMessage(manifest);
-            WeakReferenceMessenger.Default.Send(message);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to send ContentAcquiredMessage");
-        }
+            try
+            {
+                var message = new ContentAcquiredMessage(manifest);
+                WeakReferenceMessenger.Default.Send(message);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to send ContentAcquiredMessage");
+            }
 
-        notificationService.ShowSuccess("Download Complete", $"Downloaded {item.Name}");
+            notificationService.ShowSuccess("Download Complete", $"Downloaded {item.Name}");
+        }
     }
 
     /// <summary>
@@ -1591,7 +2193,7 @@ public sealed partial class DownloadsBrowserViewModel(
         var targets = BundleComponentViewModel.GetRequiredDownloadTargets(item.BundleComponents);
         if (targets.Count == 0)
         {
-            item.DownloadStatus = "All selected content is already downloaded";
+            item.DownloadStatus = ContentConstants.AllSelectedContentLoadedStatusMessage;
             await item.RefreshBundleComponentStatesAsync();
             return;
         }
@@ -1605,7 +2207,7 @@ public sealed partial class DownloadsBrowserViewModel(
         foreach (var target in targets)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            item.DownloadStatus = $"Downloading {target.Name} ({completed + 1}/{targets.Count})...";
+            item.DownloadStatus = $"{ContentConstants.DownloadingStatusPrefix}{target.Name} ({completed + 1}/{targets.Count})...";
             item.DownloadProgress = (int)(completed * 100.0 / targets.Count);
 
             var progress = new Progress<ContentAcquisitionProgress>(p =>
@@ -1623,17 +2225,19 @@ public sealed partial class DownloadsBrowserViewModel(
                 });
             });
 
-            var result = await contentOrchestrator.AcquireContentAsync(target, progress, cancellationToken);
+            var originalContentId = target.Id ?? string.Empty;
+            var result = _downloadCoordinator != null
+                ? await _downloadCoordinator.DownloadContentAsync(target, progress, cancellationToken)
+                : await contentOrchestrator.AcquireContentAsync(target, progress, cancellationToken);
             if (!result.Success || result.Data == null)
             {
                 var errorMsg = result.FirstError ?? "Unknown error";
                 logger.LogError("Failed to download bundle member {ItemName}: {Error}", target.Name, errorMsg);
-                item.DownloadStatus = $"Error: {errorMsg}";
+                item.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{errorMsg}";
                 notificationService.ShowError("Download Failed", $"Failed to download {target.Name}: {errorMsg}");
                 return;
             }
 
-            var originalContentId = target.Id ?? string.Empty;
             target.UpdateId(result.Data.Id.Value);
             foreach (var component in item.BundleComponents)
             {
@@ -1647,7 +2251,7 @@ public sealed partial class DownloadsBrowserViewModel(
         await item.RefreshBundleComponentStatesAsync();
         item.DownloadProgress = 100;
         item.DownloadStatus = item.AreBundleComponentsReadyForProfile
-            ? "Download complete!"
+            ? ContentConstants.DownloadCompleteStatusMessage
             : "Downloaded selected content";
 
         if (item.AreBundleComponentsReadyForProfile)
@@ -1668,6 +2272,14 @@ public sealed partial class DownloadsBrowserViewModel(
             return;
         }
 
+        if (!item.EffectiveIsDownloaded && item.EffectiveCurrentState is not (ContentState.Downloaded or ContentState.UpdateAvailable))
+        {
+            item.DownloadStatus = ContentConstants.PleaseDownloadFirstStatusMessage;
+            notificationService.ShowError("Cannot Add to Profile", "Please download the content first before adding it to a profile.");
+            logger.LogWarning("Cannot add content to profile: content '{Name}' is not downloaded", item.Name);
+            return;
+        }
+
         try
         {
             string? manifestId;
@@ -1678,10 +2290,10 @@ public sealed partial class DownloadsBrowserViewModel(
                 var bundleIds = await BundleComponentViewModel.GetRequiredProfileManifestIdsAsync(
                     item.BundleComponents,
                     contentStateService,
-                    CancellationToken.None);
+                    _vmCts.Token);
                 if (bundleIds.Count == 0)
                 {
-                    item.DownloadStatus = "Please download first";
+                    item.DownloadStatus = ContentConstants.PleaseDownloadFirstStatusMessage;
                     notificationService.ShowError(
                         "Cannot Add to Profile",
                         "Download every selected bundle item (including the chosen variants) before adding them to a profile.");
@@ -1705,18 +2317,18 @@ public sealed partial class DownloadsBrowserViewModel(
                 // before trusting the ID; otherwise fall back to the provenance-aware pool lookup.
                 var trustSearchResultId = !string.IsNullOrEmpty(manifestId)
                     && ManifestIdValidator.IsValid(manifestId, out _)
-                    && await contentStateService.GetStateByManifestIdAsync(manifestId, CancellationToken.None) == ContentState.Downloaded;
+                    && await contentStateService.GetStateByManifestIdAsync(manifestId, _vmCts.Token) == ContentState.Downloaded;
 
                 if (!trustSearchResultId)
                 {
                     logger.LogDebug("SearchResult ID '{Id}' is not an acquired manifest, looking up from pool", manifestId);
-                    manifestId = await contentStateService.GetLocalManifestIdAsync(item.SearchResult, CancellationToken.None);
+                    manifestId = await contentStateService.GetLocalManifestIdAsync(item.SearchResult, _vmCts.Token);
                 }
 
                 if (string.IsNullOrEmpty(manifestId))
                 {
                     // Content hasn't been downloaded yet
-                    item.DownloadStatus = "Please download first";
+                    item.DownloadStatus = ContentConstants.PleaseDownloadFirstStatusMessage;
                     notificationService.ShowError("Cannot Add to Profile", "Please download the content first before adding it to a profile.");
                     logger.LogWarning("Cannot add content to profile: no manifest found for '{ContentName}'", item.Name);
                     return;
@@ -1726,12 +2338,12 @@ public sealed partial class DownloadsBrowserViewModel(
             logger.LogInformation("Adding content '{ContentName}' (Manifest: {ManifestId}) to profile", item.Name, manifestId);
 
             // Show profile selection dialog
-            item.DownloadStatus = "Selecting profile...";
+            item.DownloadStatus = ContentConstants.SelectingProfileStatusMessage;
 
             var manifestPool = serviceProvider.GetRequiredService(typeof(IContentManifestPool)) as IContentManifestPool
                 ?? throw new InvalidOperationException("IContentManifestPool service not found");
 
-            var profileSelectionVm = new ProfileSelectionViewModel(
+            using var profileSelectionVm = new ProfileSelectionViewModel(
                 serviceProvider.GetService(typeof(ILogger<ProfileSelectionViewModel>)) as ILogger<ProfileSelectionViewModel>
                     ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ProfileSelectionViewModel>.Instance,
                 profileManager,
@@ -1745,7 +2357,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 manifestId,
                 item.Name,
                 additionalManifestIds,
-                CancellationToken.None);
+                _vmCts.Token);
 
             // Show the dialog
             var dialog = new Views.ProfileSelectionView(profileSelectionVm);
@@ -1762,14 +2374,14 @@ public sealed partial class DownloadsBrowserViewModel(
             else
             {
                 logger.LogWarning("No main window found to show profile selection dialog");
-                item.DownloadStatus = "Error: No window";
+                item.DownloadStatus = ContentConstants.ErrorNoWindowStatusMessage;
                 return;
             }
 
             // Check the result
             if (profileSelectionVm.WasSuccessful && !string.IsNullOrEmpty(profileSelectionVm.SelectedProfileName))
             {
-                item.DownloadStatus = $"Added to {profileSelectionVm.SelectedProfileName}";
+                item.DownloadStatus = $"{ContentConstants.AddedToProfileStatusPrefix}{profileSelectionVm.SelectedProfileName}";
                 notificationService.ShowSuccess(
                     "Added to Profile",
                     $"'{item.Name}' has been added to profile '{profileSelectionVm.SelectedProfileName}'.");
@@ -1791,9 +2403,9 @@ public sealed partial class DownloadsBrowserViewModel(
                     logger.LogWarning(ex, "Failed to send ProfileUpdatedMessage");
                 }
             }
-            else if (!profileSelectionVm.WasSuccessful && !string.IsNullOrEmpty(profileSelectionVm.ErrorMessage))
+            else if (!profileSelectionVm.WasSuccessful && !profileSelectionVm.WasCancelled && !string.IsNullOrEmpty(profileSelectionVm.ErrorMessage))
             {
-                item.DownloadStatus = $"Failed: {profileSelectionVm.ErrorMessage}";
+                item.DownloadStatus = $"{ContentConstants.FailedStatusPrefix}{profileSelectionVm.ErrorMessage}";
                 notificationService.ShowError(
                     "Failed to Add to Profile",
                     profileSelectionVm.ErrorMessage);
@@ -1808,9 +2420,13 @@ public sealed partial class DownloadsBrowserViewModel(
                 logger.LogInformation("User cancelled profile selection for '{ContentName}'", item.Name);
             }
         }
+        catch (OperationCanceledException) when (_vmCts.IsCancellationRequested)
+        {
+            // View disposal/cancellation is expected.
+        }
         catch (Exception ex)
         {
-            item.DownloadStatus = $"Error: {ex.Message}";
+            item.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{ex.Message}";
             notificationService.ShowError(
                 "Error Adding to Profile",
                 $"An unexpected error occurred: {ex.Message}");
@@ -1849,60 +2465,5 @@ public sealed partial class DownloadsBrowserViewModel(
             logger.LogError(ex, "Failed to open manifests directory");
             notificationService.ShowError("Error", $"Failed to open manifests directory: {ex.Message}", 5000);
         }
-    }
-
-    /// <summary>
-    /// Tracks an in-flight background default browse operation so switching away
-    /// allows the fetch to complete into cache, and switching back can attach to it.
-    /// </summary>
-    private sealed class PublisherInFlightOperation(
-        string publisherId,
-        ContentSearchQuery query,
-        CancellationTokenSource cts)
-    {
-        /// <summary>Gets the publisher identifier.</summary>
-        public string PublisherId { get; } = publisherId;
-
-        /// <summary>Gets the search query used for this operation.</summary>
-        public ContentSearchQuery Query { get; } = query;
-
-        /// <summary>Gets the cancellation token source for this operation.</summary>
-        public CancellationTokenSource Cts { get; } = cts;
-
-        /// <summary>Gets the sync root for thread-safe list operations.</summary>
-        public object SyncRoot { get; } = new();
-
-        /// <summary>Gets the list of items resolved so far.</summary>
-        public List<ContentGridItemViewModel> ResolvedItems { get; } = [];
-
-        /// <summary>Gets or sets a value indicating whether the operation has completed.</summary>
-        public bool IsCompleted { get; set; }
-
-        /// <summary>Gets or sets a value indicating whether more items are available from the provider.</summary>
-        public bool HasMoreItems { get; set; }
-    }
-
-    /// <summary>
-    /// Snapshot of a publisher's browse state so switching back does not re-run discovery.
-    /// </summary>
-    private sealed class PublisherBrowseState
-    {
-        /// <summary>Gets or sets the grid item view models that were displayed.</summary>
-        public List<ContentGridItemViewModel> Items { get; set; } = [];
-
-        /// <summary>Gets or sets the page counter at the time of the snapshot.</summary>
-        public int CurrentPage { get; set; } = 1;
-
-        /// <summary>Gets or sets a value indicating whether more items could be loaded.</summary>
-        public bool CanLoadMore { get; set; }
-
-        /// <summary>Gets or sets the search term for this publisher.</summary>
-        public string SearchTerm { get; set; } = string.Empty;
-
-        /// <summary>Gets or sets a value indicating whether a custom search query was active.</summary>
-        public bool HasCustomQuery { get; set; }
-
-        /// <summary>Gets or sets the active detail view model for this publisher.</summary>
-        public ContentDetailViewModel? ActiveDetailViewModel { get; set; }
     }
 }

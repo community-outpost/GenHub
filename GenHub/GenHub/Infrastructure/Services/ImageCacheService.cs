@@ -43,19 +43,16 @@ public sealed class ImageCacheService : IImageCacheService
     {
         get
         {
-            if (instance == null)
+            lock (InstanceLock)
             {
-                lock (InstanceLock)
+                if (instance == null)
                 {
-                    if (instance == null)
-                    {
-                        var resolved = AppLocator.GetServiceOrDefault<IImageCacheService>();
-                        instance = resolved ?? new ImageCacheService();
-                    }
+                    var resolved = AppLocator.GetServiceOrDefault<IImageCacheService>();
+                    instance = resolved ?? new ImageCacheService();
                 }
-            }
 
-            return instance;
+                return instance;
+            }
         }
 
         set
@@ -867,7 +864,7 @@ public sealed class ImageCacheService : IImageCacheService
         using var ms = new MemoryStream();
         var buffer = new byte[81920];
         long totalBytesRead = 0;
-        int read;
+        int read = 0;
 
         while ((read = await responseStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false)) > 0)
         {

@@ -1,10 +1,13 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Validation;
 using GenHub.Features.Manifest;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -22,6 +25,11 @@ namespace GenHub.Tests.Core.Features.Manifest;
 /// </summary>
 public class ManifestGenerationServiceTests : IDisposable
 {
+    private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
+    {
+        public void Report(T value) => handler(value);
+    }
+
     private readonly Mock<IFileHashProvider> _hashProviderMock;
     private readonly Mock<IManifestIdService> _manifestIdServiceMock;
     private readonly Mock<IDownloadService> _downloadServiceMock;
@@ -878,6 +886,372 @@ public class ManifestGenerationServiceTests : IDisposable
                 File.SetUnixFileMode(inaccessibleFile, UnixFileMode.UserRead | UnixFileMode.UserWrite);
             }
         }
+    }
+
+    /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync reports progress through IProgress.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_ReportsProgressAsync()
+    {
+        // Arrange
+        var installationPath = Path.Combine(_tempDirectory, "ProgressTestInstall");
+        Directory.CreateDirectory(installationPath);
+
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "generals.exe"), "zh exe");
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "AudioZH.big"), "zh audio");
+
+        var progressReports = new List<ValidationProgress>();
+        var progress = new SynchronousProgress<ValidationProgress>(progressReports.Add);
+
+        // Act
+        var builder = await _service.CreateGameInstallationManifestAsync(
+            installationPath,
+            GameType.ZeroHour,
+            GameInstallationType.Steam,
+            "1.04",
+            "EN",
+            progress);
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        Assert.NotEmpty(progressReports);
+        var last = progressReports.Last();
+        Assert.True(last.Total > 0);
+        Assert.True(last.Processed > 0);
+    }
+
+    /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync shows info on start and success when no required files are missing.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_WhenAllRequiredFilesPresent_DispatchesSuccessNotificationAsync()
+    {
+        // Arrange
+        var notificationServiceMock = new Mock<INotificationService>();
+        var serviceWithNotifications = new ManifestGenerationService(
+            NullLogger<ManifestGenerationService>.Instance,
+            _hashProviderMock.Object,
+            _manifestIdServiceMock.Object,
+            _downloadServiceMock.Object,
+            _configProviderServiceMock.Object,
+            notificationService: notificationServiceMock.Object);
+
+        var installationPath = Path.Combine(_tempDirectory, "NotificationSuccessInstall");
+        Directory.CreateDirectory(installationPath);
+
+        // game.dat is the required file in ZeroHour catalog
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "game.dat"), "game dat content");
+
+        // Act
+        var builder = await serviceWithNotifications.CreateGameInstallationManifestAsync(
+            installationPath,
+            GameType.ZeroHour,
+            GameInstallationType.Steam,
+            "1.04",
+            "EN");
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        notificationServiceMock.Verify(
+            n => n.Show(It.Is<NotificationMessage>(m =>
+                m.Title == ManifestConstants.IndexingNotificationTitle &&
+                m.AutoDismissMilliseconds == null &&
+                m.IsPersistent)),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.Dismiss(It.IsAny<Guid>()),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.ShowSuccess(ManifestConstants.IndexedNotificationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync shows warning notification when required files are missing.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_WhenRequiredFilesMissing_DispatchesWarningNotificationAsync()
+    {
+        // Arrange
+        var notificationServiceMock = new Mock<INotificationService>();
+        var serviceWithNotifications = new ManifestGenerationService(
+            NullLogger<ManifestGenerationService>.Instance,
+            _hashProviderMock.Object,
+            _manifestIdServiceMock.Object,
+            _downloadServiceMock.Object,
+            _configProviderServiceMock.Object,
+            notificationService: notificationServiceMock.Object);
+
+        var installationPath = Path.Combine(_tempDirectory, "NotificationMissingInstall");
+        Directory.CreateDirectory(installationPath);
+
+        // Missing game.dat (required file)
+
+        // Act
+        var builder = await serviceWithNotifications.CreateGameInstallationManifestAsync(
+            installationPath,
+            GameType.ZeroHour,
+            GameInstallationType.Steam,
+            "1.04",
+            "EN");
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        notificationServiceMock.Verify(
+            n => n.Show(It.Is<NotificationMessage>(m =>
+                m.Title == ManifestConstants.IndexingNotificationTitle &&
+                m.AutoDismissMilliseconds == null &&
+                m.IsPersistent)),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.Dismiss(It.IsAny<Guid>()),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.ShowWarning(ManifestConstants.IncompleteInstallationNotificationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync shows warning notification and suppresses success when a required file is skipped due to access failure.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_WhenRequiredFileSkippedDueToAccessFailure_DispatchesWarningNotificationAsync()
+    {
+        // Arrange
+        var notificationServiceMock = new Mock<INotificationService>();
+        var failingHashProviderMock = new Mock<IFileHashProvider>();
+        failingHashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string path, CancellationToken ct) => $"hash_{Path.GetFileName(path)}");
+        failingHashProviderMock.Setup(x => x.ComputeFileHashAsync(It.Is<string>(p => p.Contains("game.dat")), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("Simulated I/O failure on required file"));
+
+        var serviceWithNotifications = new ManifestGenerationService(
+            NullLogger<ManifestGenerationService>.Instance,
+            failingHashProviderMock.Object,
+            _manifestIdServiceMock.Object,
+            _downloadServiceMock.Object,
+            _configProviderServiceMock.Object,
+            notificationService: notificationServiceMock.Object);
+
+        var installationPath = Path.Combine(_tempDirectory, "NotificationRequiredSkippedInstall");
+        Directory.CreateDirectory(installationPath);
+
+        // game.dat is the required file in ZeroHour catalog
+        var requiredFile = Path.Combine(installationPath, "game.dat");
+        await File.WriteAllTextAsync(requiredFile, "game dat content");
+
+        // Act
+        var builder = await serviceWithNotifications.CreateGameInstallationManifestAsync(
+            installationPath,
+            GameType.ZeroHour,
+            GameInstallationType.Steam,
+            "1.04",
+            "EN");
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        notificationServiceMock.Verify(
+            n => n.Show(It.Is<NotificationMessage>(m =>
+                m.Title == ManifestConstants.IndexingNotificationTitle &&
+                m.AutoDismissMilliseconds == null &&
+                m.IsPersistent)),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.Dismiss(It.IsAny<Guid>()),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.ShowWarning(ManifestConstants.IncompleteInstallationNotificationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Tests that GetIncompleteInstallationWarningMessage formats a combined message when files are both missing and skipped, including truncation.
+    /// </summary>
+    [Fact]
+    public void GetIncompleteInstallationWarningMessage_WhenBothMissingAndSkipped_FormatsCombinedMessageWithTruncation()
+    {
+        // Arrange
+        var missingFiles = new[] { "file1.dat", "file2.dat", "file3.dat", "file4.dat", "file5.dat", "file6.dat" };
+        var skippedFiles = new[] { "skip1.dat", "skip2.dat" };
+
+        // Act
+        var message = ManifestGenerationService.GetIncompleteInstallationWarningMessage(GameType.ZeroHour, missingFiles, skippedFiles);
+
+        // Assert
+        Assert.Contains("ZeroHour has 6 missing required file(s)", message);
+        Assert.Contains("and 1 more", message);
+        Assert.Contains("and 2 unreadable/skipped file(s)", message);
+        Assert.Contains("skip1.dat, skip2.dat", message);
+    }
+
+    /// <summary>
+    /// Tests that fallback directory scan shows info and success notifications when completing normally.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_DirectoryScanFallback_DispatchesStartAndSuccessNotificationsAsync()
+    {
+        // Arrange
+        var notificationServiceMock = new Mock<INotificationService>();
+        var serviceWithNotifications = new ManifestGenerationService(
+            NullLogger<ManifestGenerationService>.Instance,
+            _hashProviderMock.Object,
+            _manifestIdServiceMock.Object,
+            _downloadServiceMock.Object,
+            _configProviderServiceMock.Object,
+            notificationService: notificationServiceMock.Object);
+
+        var installationPath = Path.Combine(_tempDirectory, "FallbackNotificationInstall");
+        Directory.CreateDirectory(installationPath);
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "generals.exe"), "generals exe content");
+
+        // Act - Unsupported version forces directory scan fallback
+        var builder = await serviceWithNotifications.CreateGameInstallationManifestAsync(
+            installationPath,
+            GameType.Generals,
+            GameInstallationType.Steam,
+            "9.99",
+            "EN");
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        notificationServiceMock.Verify(
+            n => n.Show(It.Is<NotificationMessage>(m =>
+                m.Title == ManifestConstants.IndexingNotificationTitle &&
+                m.AutoDismissMilliseconds == null &&
+                m.IsPersistent)),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.Dismiss(It.IsAny<Guid>()),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.ShowSuccess(ManifestConstants.IndexedNotificationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Tests that fallback directory scan shows warning notification and suppresses success when file enumeration fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_DirectoryScanFallback_WhenEnumerationFails_DispatchesWarningNotificationAsync()
+    {
+        // Arrange
+        var notificationServiceMock = new Mock<INotificationService>();
+        var serviceWithNotifications = new ManifestGenerationService(
+            NullLogger<ManifestGenerationService>.Instance,
+            _hashProviderMock.Object,
+            _manifestIdServiceMock.Object,
+            _downloadServiceMock.Object,
+            _configProviderServiceMock.Object,
+            notificationService: notificationServiceMock.Object);
+
+        // A non-existent directory triggers DirectoryNotFoundException (IOException) during Directory.EnumerateFiles
+        var nonExistentPath = Path.Combine(_tempDirectory, "NonExistentDirectoryForScanFailure");
+
+        // Act - Unsupported version forces directory scan fallback on non-existent path
+        var builder = await serviceWithNotifications.CreateGameInstallationManifestAsync(
+            nonExistentPath,
+            GameType.Generals,
+            GameInstallationType.Steam,
+            "9.99",
+            "EN");
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        notificationServiceMock.Verify(
+            n => n.Show(It.Is<NotificationMessage>(m =>
+                m.Title == ManifestConstants.IndexingNotificationTitle &&
+                m.AutoDismissMilliseconds == null &&
+                m.IsPersistent)),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.Dismiss(It.IsAny<Guid>()),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.ShowWarning(ManifestConstants.DirectoryScanWarningNotificationTitle, It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync updates the persistent notification with file details when hashing large files.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_WhenProcessingLargeFiles_UpdatesProgressNotificationWithDetailsAsync()
+    {
+        // Arrange
+        var notificationServiceMock = new Mock<INotificationService>();
+        var serviceWithNotifications = new ManifestGenerationService(
+            NullLogger<ManifestGenerationService>.Instance,
+            _hashProviderMock.Object,
+            _manifestIdServiceMock.Object,
+            _downloadServiceMock.Object,
+            _configProviderServiceMock.Object,
+            notificationService: notificationServiceMock.Object);
+
+        var installationPath = Path.Combine(_tempDirectory, "NotificationLargeFileInstall");
+        Directory.CreateDirectory(installationPath);
+
+        // Create game.dat with size >= LargeFileProgressThresholdBytes (5 MB)
+        var largeFilePath = Path.Combine(installationPath, "game.dat");
+        using (var fs = new FileStream(largeFilePath, System.IO.FileMode.Create, System.IO.FileAccess.Write))
+        {
+            fs.SetLength(ManifestConstants.LargeFileProgressThresholdBytes + 1024);
+        }
+
+        // Act
+        var builder = await serviceWithNotifications.CreateGameInstallationManifestAsync(
+            installationPath,
+            GameType.ZeroHour,
+            GameInstallationType.Steam,
+            "1.04",
+            "EN");
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        notificationServiceMock.Verify(
+            n => n.Show(It.Is<NotificationMessage>(m =>
+                m.Title == ManifestConstants.IndexingNotificationTitle &&
+                m.AutoDismissMilliseconds == null &&
+                m.IsPersistent)),
+            Times.Once);
+        notificationServiceMock.Verify(
+            n => n.Update(
+                It.IsAny<Guid>(),
+                It.Is<string>(msg => msg.Contains("Calculating SHA-256") && msg.Contains("game.dat")),
+                ManifestConstants.IndexingNotificationTitle),
+            Times.AtLeastOnce);
+        notificationServiceMock.Verify(
+            n => n.Dismiss(It.IsAny<Guid>()),
+            Times.Once);
     }
 
     /// <summary>

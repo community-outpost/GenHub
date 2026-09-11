@@ -18,6 +18,9 @@ public static class GameClientConstants
     /// <summary>Game engine executable filename.</summary>
     public const string GameExecutable = "game.exe";
 
+    /// <summary>Child game process name (without extension).</summary>
+    public const string GameProcessName = "game";
+
     /// <summary>Steam game.dat executable (primary for Steam installations, avoids launcher stubs).</summary>
     public const string SteamGameDatExecutable = "game.dat";
 
@@ -63,6 +66,15 @@ public static class GameClientConstants
 
     /// <summary>Standard retail Zero Hour directory name.</summary>
     public const string ZeroHourRetailDirectoryName = "Command & Conquer Generals Zero Hour";
+
+    /// <summary>Directory marker for Zero Hour's Generals installation link.</summary>
+    public const string ZhGeneralsDirectory = "ZH_Generals";
+
+    /// <summary>Directory containing activation DLLs for modern Steam and EA App releases.</summary>
+    public const string CoreDirectory = "Core";
+
+    /// <summary>Directory marker used by Steam DRM wrapper installations.</summary>
+    public const string SteamDrmMarkerDirectory = "__Installer";
 
     // ===== Core Game Archives =====
 
@@ -165,6 +177,9 @@ public static class GameClientConstants
     /// <summary>dbghelp.dll backup filename.</summary>
     public const string DbgHelpDllBak = "dbghelp.dll.bak";
 
+    /// <summary>Direct3D 8 wrapper DLL filename.</summary>
+    public const string Direct3D8WrapperDll = "d3d8.dll";
+
     /// <summary>
     /// DLLs required for standard game installations.
     /// </summary>
@@ -213,9 +228,7 @@ public static class GameClientConstants
 
     // ===== Configuration Files =====
 
-    /// <summary>
-    /// Configuration files used by game installations.
-    /// </summary>
+    /// <summary>Configuration files used by game installations.</summary>
     public static readonly string[] ConfigFiles =
     [
         "options.ini",     // Legacy game options

@@ -11,6 +11,12 @@ public static class IoConstants
     public const int DefaultFileBufferSize = 4096;
 
     /// <summary>
+    /// Buffer size used for computing file hashes (256KB).
+    /// Optimized for high-throughput sequential reads of large game archives while minimizing OS syscall overhead.
+    /// </summary>
+    public const int FileHashBufferSize = 256 * 1024;
+
+    /// <summary>
     /// Buffer size used when scanning binary streams for embedded signatures (8KB).
     /// </summary>
     public const int SignatureScanBufferSize = 8192;

@@ -190,13 +190,6 @@ public static class CatalogManifestIdentity
     {
         ArgumentNullException.ThrowIfNull(dependency);
 
-        if (!string.IsNullOrWhiteSpace(dependency.ContentType) &&
-            Enum.TryParse<ContentType>(dependency.ContentType, ignoreCase: true, out var declared) &&
-            declared == ContentType.GameInstallation)
-        {
-            return true;
-        }
-
         var publisher = dependency.PublisherId ?? string.Empty;
         var contentId = dependency.ContentId ?? string.Empty;
         var isEaOrAny = publisher.Equals("ea", StringComparison.OrdinalIgnoreCase) ||
@@ -208,6 +201,32 @@ public static class CatalogManifestIdentity
 
         return contentId.Equals("zerohour", StringComparison.OrdinalIgnoreCase) ||
                contentId.Equals("generals", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Attempts to parse a declared content type string into a valid <see cref="ContentType"/> member.
+    /// Rejects null/whitespace, strings starting with non-ASCII-letter characters (such as digits or sign prefixes),
+    /// and undefined enum values.
+    /// </summary>
+    /// <param name="rawContentType">The raw content type string to parse.</param>
+    /// <param name="contentType">When this method returns, contains the parsed <see cref="ContentType"/> if valid; otherwise, the default value.</param>
+    /// <returns><c>true</c> if successfully parsed to a defined content type; otherwise, <c>false</c>.</returns>
+    public static bool TryParseDeclaredContentType(string? rawContentType, out ContentType contentType)
+    {
+        if (!string.IsNullOrWhiteSpace(rawContentType))
+        {
+            var rawType = rawContentType.Trim();
+            if (char.IsAsciiLetter(rawType[0]) &&
+                Enum.TryParse<ContentType>(rawType, ignoreCase: true, out var declared) &&
+                Enum.IsDefined(declared))
+            {
+                contentType = declared;
+                return true;
+            }
+        }
+
+        contentType = default;
+        return false;
     }
 
     /// <summary>
@@ -225,15 +244,14 @@ public static class CatalogManifestIdentity
         ArgumentNullException.ThrowIfNull(dependency);
         ArgumentNullException.ThrowIfNull(parent);
 
-        if (!string.IsNullOrWhiteSpace(dependency.ContentType) &&
-            Enum.TryParse<ContentType>(dependency.ContentType, ignoreCase: true, out var declared))
-        {
-            return declared;
-        }
-
         if (IsBaseGameDependency(dependency))
         {
             return ContentType.GameInstallation;
+        }
+
+        if (TryParseDeclaredContentType(dependency.ContentType, out var declared))
+        {
+            return declared;
         }
 
         if (catalogItems != null &&

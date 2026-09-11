@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -13,6 +14,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services.ContentDiscoverers;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Downloads.Services;
@@ -32,7 +34,9 @@ public sealed partial class ContentStateService(
     ILogger<ContentStateService> logger) : IContentStateService
 {
     private const string GitHubPublisher = "github";
-    private const string FileSchemePrefix = "file:";
+    private const string GitHubTopicsNormalized = "githubtopic";
+    private const string UnknownSegment = "unknown";
+    private const string FileSchemePrefix = ContentConstants.FileContentIdPrefix;
     private const int MaxSessionDownloadsEntries = 1000;
 
     /// <summary>Matches any non-alphanumeric character, mirroring ManifestIdGenerator.Normalize.</summary>
@@ -95,7 +99,7 @@ public sealed partial class ContentStateService(
 
         var (prospectiveId, releaseDate, hasRealDate) = DetermineProspectiveManifestId(item);
 
-        logger.LogInformation(
+        logger.LogDebug(
             "Generated prospective manifest ID: {ManifestId} for content: {ContentName} (hasRealDate: {HasDate})",
             prospectiveId,
             item.Name,
@@ -108,9 +112,9 @@ public sealed partial class ContentStateService(
         }
 
         var isAcquiredResult = await manifestPool.IsManifestAcquiredAsync(prospectiveId, cancellationToken);
-        if (isAcquiredResult.Success && isAcquiredResult.Data)
+        if (isAcquiredResult?.Success == true && isAcquiredResult.Data)
         {
-            logger.LogInformation("Content {ContentName} is downloaded (exact match found)", item.Name);
+            logger.LogDebug("Content {ContentName} is downloaded (exact match found)", item.Name);
             return ContentState.Downloaded;
         }
 
@@ -118,7 +122,7 @@ public sealed partial class ContentStateService(
                         !string.IsNullOrWhiteSpace(item.SelectedDownloadUrl);
         if (isFileRow)
         {
-            logger.LogInformation("Content {ContentName} is not downloaded (file row with no exact manifest match)", item.Name);
+            logger.LogDebug("Content {ContentName} is not downloaded (file row with no exact manifest match)", item.Name);
             return ContentState.NotDownloaded;
         }
 
@@ -134,7 +138,7 @@ public sealed partial class ContentStateService(
             return await EvaluateMatchingManifestStateAsync(matchingManifest, prospectiveId, isNewerAvailable, isOlderAvailable, item, cancellationToken);
         }
 
-        logger.LogInformation("Content {ContentName} is not downloaded", item.Name);
+        logger.LogDebug("Content {ContentName} is not downloaded", item.Name);
         return ContentState.NotDownloaded;
     }
 
@@ -183,7 +187,7 @@ public sealed partial class ContentStateService(
 
         // Fast-path: exact match.
         var isAcquiredResult = await manifestPool.IsManifestAcquiredAsync(prospectiveId, cancellationToken);
-        if (isAcquiredResult.Success && isAcquiredResult.Data)
+        if (isAcquiredResult?.Success == true && isAcquiredResult.Data)
         {
             return prospectiveId;
         }
@@ -237,12 +241,50 @@ public sealed partial class ContentStateService(
             return true;
         }
 
-        if (p1.StartsWith(GitHubPublisher, StringComparison.OrdinalIgnoreCase) && p2.StartsWith(GitHubPublisher, StringComparison.OrdinalIgnoreCase))
+        // Allow cross-alias between "github" and "githubtopics" (normalized to "githubtopic" due to trailing 's' stripping)
+        var isGitHub1 = string.Equals(p1, GitHubPublisher, StringComparison.OrdinalIgnoreCase);
+        var isGitHub2 = string.Equals(p2, GitHubPublisher, StringComparison.OrdinalIgnoreCase);
+        var isGitHubTopics1 = string.Equals(p1, GitHubTopicsNormalized, StringComparison.OrdinalIgnoreCase);
+        var isGitHubTopics2 = string.Equals(p2, GitHubTopicsNormalized, StringComparison.OrdinalIgnoreCase);
+
+        if ((isGitHub1 && isGitHubTopics2) || (isGitHubTopics1 && isGitHub2))
         {
             return true;
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Checks whether the given publisher string corresponds to a generic GitHub hosting forge.
+    /// </summary>
+    /// <param name="publisher">The publisher string to inspect.</param>
+    /// <returns><see langword="true"/> if the publisher represents a GitHub hosting forge; otherwise, <see langword="false"/>.</returns>
+    internal static bool IsGitHubPublisher(string? publisher)
+    {
+        if (string.IsNullOrWhiteSpace(publisher))
+        {
+            return false;
+        }
+
+        var p = NormalizeSegment(publisher);
+        return string.Equals(p, GitHubPublisher, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(p, GitHubTopicsNormalized, StringComparison.OrdinalIgnoreCase) ||
+               IsCompatiblePublisherAlias(p, GitHubPublisher);
+    }
+
+    /// <summary>
+    /// Checks whether the given item originates from a multi-release feed (such as GitHub releases or
+    /// TheSuperHackers weekly builds) where every release has its own discrete card in the UI.
+    /// In such feeds, prospective newer releases are uninstalled items, not update targets on that card.
+    /// </summary>
+    /// <param name="item">The content search result item to check.</param>
+    /// <returns>True if the item originates from a multi-release feed; otherwise, false.</returns>
+    internal static bool IsMultiReleaseItem(ContentSearchResult item)
+    {
+        return IsGitHubPublisher(item.ProviderName) ||
+               string.Equals(item.ProviderName, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+               item.ResolverMetadata?.ContainsKey(GitHubConstants.OwnerMetadataKey) == true;
     }
 
     /// <summary>
@@ -276,6 +318,11 @@ public sealed partial class ContentStateService(
         }
 
         var manifestPublisher = segments[2];
+        if (IsGitHubPublisher(manifestPublisher) || IsGitHubPublisher(expectedPublisher))
+        {
+            return false;
+        }
+
         bool publisherMatches = string.Equals(manifestPublisher, expectedPublisher, StringComparison.OrdinalIgnoreCase) ||
             IsCompatiblePublisherAlias(manifestPublisher, expectedPublisher);
 
@@ -299,8 +346,8 @@ public sealed partial class ContentStateService(
             return false;
         }
 
-        var manifestBase = StripVariantSuffix(NormalizeSegment(segments[4]));
-        var cardBase = StripVariantSuffix(NormalizeSegment(expectedName));
+        var manifestBase = NormalizeSegment(StripVariantSuffix(segments[4]));
+        var cardBase = NormalizeSegment(StripVariantSuffix(expectedName));
 
         if (string.Equals(manifestBase, cardBase, StringComparison.OrdinalIgnoreCase))
         {
@@ -359,6 +406,11 @@ public sealed partial class ContentStateService(
 
         if (int.TryParse(prospectiveVersion, out var pInt) && int.TryParse(localVersion, out var lInt))
         {
+            if (pInt == 0 || lInt == 0)
+            {
+                return false;
+            }
+
             bool pIsDate = prospectiveVersion.Length == 8 && IsDateVersion(pInt);
             bool lIsDate = localVersion.Length == 8 && IsDateVersion(lInt);
 
@@ -373,6 +425,71 @@ public sealed partial class ContentStateService(
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Compares two version strings, returning positive if versionA is newer than versionB,
+    /// negative if older, or zero if equivalent.
+    /// </summary>
+    /// <param name="versionA">First version string.</param>
+    /// <param name="versionB">Second version string.</param>
+    /// <returns>A signed integer indicating the relative order.</returns>
+    internal static int CompareVersions(string? versionA, string? versionB)
+    {
+        if (string.IsNullOrWhiteSpace(versionA) && string.IsNullOrWhiteSpace(versionB))
+        {
+            return 0;
+        }
+
+        if (string.IsNullOrWhiteSpace(versionA))
+        {
+            return -1;
+        }
+
+        if (string.IsNullOrWhiteSpace(versionB))
+        {
+            return 1;
+        }
+
+        var cleanedA = versionA.Trim().TrimStart('v', 'V');
+        var cleanedB = versionB.Trim().TrimStart('v', 'V');
+        if (string.Equals(cleanedA, cleanedB, StringComparison.OrdinalIgnoreCase))
+        {
+            return 0;
+        }
+
+        if (Version.TryParse(cleanedA, out var vA) && Version.TryParse(cleanedB, out var vB))
+        {
+            return vA.CompareTo(vB);
+        }
+
+        var matchA = PrefixedDigitsRegex().Match(cleanedA);
+        var matchB = PrefixedDigitsRegex().Match(cleanedB);
+        if (matchA.Success && matchB.Success)
+        {
+            var prefixA = matchA.Groups[1].Value;
+            var prefixB = matchB.Groups[1].Value;
+            if (string.Equals(prefixA, prefixB, StringComparison.OrdinalIgnoreCase) &&
+                int.TryParse(matchA.Groups[2].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var numA) &&
+                int.TryParse(matchB.Groups[2].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var numB))
+            {
+                return numA.CompareTo(numB);
+            }
+        }
+
+        var aNum = CatalogManifestIdentity.ExtractVersionNumber(versionA);
+        var bNum = CatalogManifestIdentity.ExtractVersionNumber(versionB);
+        if (aNum > 0 && bNum > 0)
+        {
+            bool aIsDate = IsDateVersion(aNum);
+            bool bIsDate = IsDateVersion(bNum);
+            if (aIsDate == bIsDate)
+            {
+                return aNum.CompareTo(bNum);
+            }
+        }
+
+        return string.Compare(cleanedA, cleanedB, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool CompareVersionStrings(
@@ -397,6 +514,21 @@ public sealed partial class ContentStateService(
         {
             isNewer = vP > vL;
             return true;
+        }
+
+        var matchP = PrefixedDigitsRegex().Match(cleanedP);
+        var matchL = PrefixedDigitsRegex().Match(cleanedL);
+        if (matchP.Success && matchL.Success)
+        {
+            var prefixP = matchP.Groups[1].Value;
+            var prefixL = matchL.Groups[1].Value;
+            if (string.Equals(prefixP, prefixL, StringComparison.OrdinalIgnoreCase) &&
+                int.TryParse(matchP.Groups[2].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var numP) &&
+                int.TryParse(matchL.Groups[2].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var numL))
+            {
+                isNewer = numP > numL;
+                return true;
+            }
         }
 
         var pNum = CatalogManifestIdentity.ExtractVersionNumber(prospectiveVersionStr);
@@ -466,8 +598,8 @@ public sealed partial class ContentStateService(
             return false;
         }
 
-        var digits = new string([.. tag.Where(char.IsDigit).Take(9)]);
-        expectedVersion = int.TryParse(digits, out var version) ? version.ToString() : "0";
+        var version = ManifestIdGenerator.ExtractVersionFromTag(tag);
+        expectedVersion = version.ToString();
         return true;
     }
 
@@ -545,7 +677,11 @@ public sealed partial class ContentStateService(
         var candidatePublishers = new List<string>();
         if (!string.IsNullOrWhiteSpace(item.ProviderName))
         {
-            candidatePublishers.Add(NormalizeSegment(item.ProviderName));
+            var provider = NormalizeSegment(item.ProviderName);
+            if (!IsGitHubPublisher(provider))
+            {
+                candidatePublishers.Add(provider);
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(item.AuthorName))
@@ -563,7 +699,7 @@ public sealed partial class ContentStateService(
             if (idSegments.Length == 5)
             {
                 var idPub = NormalizeSegment(idSegments[2]);
-                if (!candidatePublishers.Contains(idPub, StringComparer.OrdinalIgnoreCase))
+                if (!IsGitHubPublisher(idPub) && !candidatePublishers.Contains(idPub, StringComparer.OrdinalIgnoreCase))
                 {
                     candidatePublishers.Add(idPub);
                 }
@@ -675,13 +811,51 @@ public sealed partial class ContentStateService(
     }
 
     /// <summary>
-    /// Extracts a resolution variant token (e.g. 720p, 900p, 1080p, 1440p, 4k) from a string.
+    /// Extracts a variant token (e.g. 720p, 1080p, 4k, english, russian, etc.) from a name or ID string.
     /// </summary>
     private static string? ExtractVariantToken(string? input)
     {
         if (string.IsNullOrWhiteSpace(input))
         {
             return null;
+        }
+
+        // 1. Check for trailing parentheses like "(English)" or "(1080p)"
+        var parenMatch = GitHubTopicsDiscoverer.VariantPatterns.TrailingParenthesesPattern().Match(input);
+        if (parenMatch.Success)
+        {
+            var token = parenMatch.Groups[1].Value.Trim().ToLowerInvariant();
+            if (!string.IsNullOrEmpty(token))
+            {
+                if (GitHubTopicsDiscoverer.VariantPatterns.LanguageDisplayNames.ContainsKey(token))
+                {
+                    return token;
+                }
+
+                if (token switch
+                    {
+                        "720" or "720p" or "900" or "900p" or "1080" or "1080p" or "1440" or "1440p" or "2160" or "4k" or "5k" or "8k" => true,
+                        _ => false,
+                    })
+                {
+                    return token switch
+                    {
+                        "720" => "720p",
+                        "900" => "900p",
+                        "1080" => "1080p",
+                        "1440" => "1440p",
+                        "2160" => "4k",
+                        _ => token,
+                    };
+                }
+            }
+        }
+
+        // 2. Check resolution patterns like 1920x1080 or 1080p
+        var resMatch = GitHubTopicsDiscoverer.VariantPatterns.ResolutionPattern().Match(input);
+        if (resMatch.Success && GitHubTopicsDiscoverer.VariantPatterns.ResolutionDisplayNames.TryGetValue(resMatch.Value, out var disp))
+        {
+            return disp.ToLowerInvariant();
         }
 
         var match = Regex.Match(input, @"\b(720p?|900p?|1080p?|1440p?|2160p?|4k)\b", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
@@ -705,18 +879,42 @@ public sealed partial class ContentStateService(
             return inlineMatch.Value.ToLowerInvariant();
         }
 
+        // 3. Check language patterns (e.g. english, russian, spanish)
+        foreach (var (pattern, _) in GitHubTopicsDiscoverer.VariantPatterns.LanguageDisplayNames)
+        {
+            if (input.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+            {
+                return pattern.ToLowerInvariant();
+            }
+        }
+
         return null;
     }
 
     /// <summary>
-    /// Strips a trailing <c>-suffix</c> variant from a content-name segment (e.g.
-    /// <c>cbpx-720p</c> → <c>cbpx</c>), mirroring how <c>ManifestIdGenerator</c> derives the
-    /// variant's content-name segment from the base content code.
+    /// Strips a trailing recognized variant suffix (such as -720p, -1080p, -4k) from a content-name segment,
+    /// ensuring that hyphenated content names without recognized variant tokens (e.g. generals-gameplay vs generals-tools)
+    /// are not truncated and do not false-match.
     /// </summary>
     private static string StripVariantSuffix(string segment)
     {
-        var dashIndex = segment.IndexOf('-');
-        return dashIndex > 0 ? segment[..dashIndex] : segment;
+        var variantToken = ExtractVariantToken(segment);
+        if (string.IsNullOrEmpty(variantToken))
+        {
+            return segment;
+        }
+
+        var lastDash = segment.LastIndexOf('-');
+        if (lastDash > 0 && lastDash < segment.Length - 1)
+        {
+            var trailing = segment[(lastDash + 1)..];
+            if (string.Equals(ExtractVariantToken(trailing), variantToken, StringComparison.OrdinalIgnoreCase))
+            {
+                return segment[..lastDash];
+            }
+        }
+
+        return segment;
     }
 
     /// <summary>
@@ -770,15 +968,43 @@ public sealed partial class ContentStateService(
 
     private static bool MatchesSourceUrl(ContentManifest manifest, string sourceUrl)
     {
+        if (string.IsNullOrWhiteSpace(sourceUrl))
+        {
+            return false;
+        }
+
         var cleanSource = sourceUrl.TrimEnd('/');
+        if (Uri.TryCreate(cleanSource, UriKind.Absolute, out var sourceUri) &&
+            (string.IsNullOrEmpty(sourceUri.AbsolutePath) || sourceUri.AbsolutePath == "/"))
+        {
+            return false;
+        }
+
+        if (IsGitHubUrl(cleanSource) &&
+            !cleanSource.Contains("/releases/tag/", StringComparison.OrdinalIgnoreCase) &&
+            !cleanSource.Contains("/releases/download/", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
         if (!string.IsNullOrWhiteSpace(manifest.Publisher?.SupportUrl) &&
-            string.Equals(manifest.Publisher.SupportUrl.TrimEnd('/'), cleanSource, StringComparison.OrdinalIgnoreCase))
+            string.Equals(manifest.Publisher.SupportUrl.TrimEnd('/'), cleanSource, StringComparison.OrdinalIgnoreCase) &&
+            Uri.TryCreate(manifest.Publisher.SupportUrl, UriKind.Absolute, out var supportUri) &&
+            !string.IsNullOrEmpty(supportUri.AbsolutePath) && supportUri.AbsolutePath != "/")
         {
             return true;
         }
 
         if (!string.IsNullOrWhiteSpace(manifest.Publisher?.Website) &&
-            string.Equals(manifest.Publisher.Website.TrimEnd('/'), cleanSource, StringComparison.OrdinalIgnoreCase))
+            string.Equals(manifest.Publisher.Website.TrimEnd('/'), cleanSource, StringComparison.OrdinalIgnoreCase) &&
+            Uri.TryCreate(manifest.Publisher.Website, UriKind.Absolute, out var websiteUri) &&
+            !string.IsNullOrEmpty(websiteUri.AbsolutePath) && websiteUri.AbsolutePath != "/")
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(manifest.Publisher?.ContentIndexUrl) &&
+            string.Equals(manifest.Publisher.ContentIndexUrl.TrimEnd('/'), cleanSource, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
@@ -801,15 +1027,19 @@ public sealed partial class ContentStateService(
         }
 
         if (!string.IsNullOrWhiteSpace(item.Id) &&
-            !string.IsNullOrWhiteSpace(manifest.OriginalContentId) &&
-            string.Equals(manifest.OriginalContentId, item.Id, StringComparison.OrdinalIgnoreCase))
+            !string.IsNullOrWhiteSpace(manifest.OriginalContentId) && (
+            string.Equals(manifest.OriginalContentId, item.Id, StringComparison.OrdinalIgnoreCase) ||
+            (item.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentId) == true &&
+             string.Equals(manifest.OriginalContentId, parentId, StringComparison.OrdinalIgnoreCase))))
         {
             return true;
         }
 
-        if (!string.IsNullOrWhiteSpace(item.SelectedDownloadUrl) &&
-            manifest.Files?.Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl) &&
-                                     string.Equals(f.DownloadUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase)) == true)
+        if (!string.IsNullOrWhiteSpace(item.SelectedDownloadUrl) && (
+            (manifest.Files?.Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl) &&
+                                     string.Equals(f.DownloadUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase)) == true) ||
+            (!string.IsNullOrWhiteSpace(manifest.Publisher?.ContentIndexUrl) &&
+             string.Equals(manifest.Publisher.ContentIndexUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase))))
         {
             return true;
         }
@@ -852,8 +1082,8 @@ public sealed partial class ContentStateService(
             return false;
         }
 
-        var manifestBase = StripVariantSuffix(normManifestName);
-        var prospectiveBase = StripVariantSuffix(normProspectiveName);
+        var manifestBase = NormalizeSegment(StripVariantSuffix(manifestSegments[4]));
+        var prospectiveBase = NormalizeSegment(StripVariantSuffix(contentName));
         var rawManifestName = manifestSegments[4];
 
         return manifestBase.Equals(prospectiveBase, StringComparison.OrdinalIgnoreCase) ||
@@ -881,36 +1111,140 @@ public sealed partial class ContentStateService(
         bool hasRealDate = item.LastUpdated.HasValue && item.LastUpdated.Value > DateTime.MinValue;
         var releaseDate = item.LastUpdated ?? DateTime.MinValue;
 
-        var providerName = string.IsNullOrWhiteSpace(item.ProviderName) ? "unknown" : item.ProviderName;
-        var contentName = item.Name;
-        if (string.IsNullOrWhiteSpace(contentName))
+        if (!hasRealDate)
         {
-            contentName = string.IsNullOrWhiteSpace(item.Id) ? "unknown" : item.Id;
+            var candidateDate = TryExtractDateFromContentItem(item);
+            if (candidateDate.HasValue && candidateDate.Value > DateTime.MinValue)
+            {
+                releaseDate = candidateDate.Value;
+                hasRealDate = true;
+            }
         }
 
-        var prospectiveId = hasRealDate
-            ? ManifestIdGenerator.GeneratePublisherContentId(providerName, item.ContentType, contentName, releaseDate)
-            : ManifestIdGenerator.GeneratePublisherContentId(providerName, item.ContentType, contentName, userVersion: 0);
+        var providerName = SanitizeSegmentForManifest(item.ProviderName, UnknownSegment) ?? UnknownSegment;
+        if (IsGitHubPublisher(providerName))
+        {
+            if (item.ResolverMetadata?.TryGetValue(GitHubConstants.OwnerMetadataKey, out var owner) == true &&
+                !string.IsNullOrWhiteSpace(owner))
+            {
+                providerName = SanitizeSegmentForManifest(owner, providerName) ?? providerName;
+            }
+            else if (!string.IsNullOrWhiteSpace(item.AuthorName))
+            {
+                providerName = SanitizeSegmentForManifest(item.AuthorName, providerName) ?? providerName;
+            }
+        }
+
+        var contentName = SanitizeSegmentForManifest(item.Name, null)
+            ?? SanitizeSegmentForManifest(item.Id, UnknownSegment)
+            ?? UnknownSegment;
+
+        string prospectiveId = string.Empty;
+        try
+        {
+            prospectiveId = hasRealDate
+                ? ManifestIdGenerator.GeneratePublisherContentId(providerName, item.ContentType, contentName, releaseDate)
+                : ManifestIdGenerator.GeneratePublisherContentId(providerName, item.ContentType, contentName, userVersion: 0);
+        }
+        catch (ArgumentException)
+        {
+            prospectiveId = $"1.0.{providerName}.{item.ContentType.ToString().ToLowerInvariant()}.{contentName}";
+        }
 
         return (prospectiveId, releaseDate, hasRealDate);
+    }
+
+    [GeneratedRegex(@"\b(\d{4})[-.](\d{2})[-.](\d{2})\b", RegexOptions.CultureInvariant)]
+    private static partial Regex IsoDateRegex();
+
+    [GeneratedRegex(@"^([a-zA-Z]+)[._-]?(\d+)$")]
+    private static partial Regex PrefixedDigitsRegex();
+
+    private static DateTime? TryExtractDateFromContentItem(ContentSearchResult item)
+    {
+        if (item.ResolverMetadata?.TryGetValue(GitHubConstants.TagMetadataKey, out var tag) == true &&
+            TryExtractDateFromString(tag) is { } tagDate)
+        {
+            return tagDate;
+        }
+
+        return TryExtractDateFromString(item.Version)
+            ?? TryExtractDateFromString(item.Name)
+            ?? TryExtractDateFromString(item.Id);
+    }
+
+    private static DateTime? TryExtractDateFromString(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return null;
+        }
+
+        var match = IsoDateRegex().Match(input);
+        if (match.Success &&
+            int.TryParse(match.Groups[1].Value, out var y) &&
+            int.TryParse(match.Groups[2].Value, out var m) &&
+            int.TryParse(match.Groups[3].Value, out var d) &&
+            m >= 1 && m <= 12 && d >= 1 && d <= 31)
+        {
+            return new DateTime(y, m, d, 0, 0, 0, DateTimeKind.Utc);
+        }
+
+        var versionNum = SuperHackersConstants.ExtractVersionFromReleaseTag(input);
+        if (versionNum is >= 19900101 and <= 21001231)
+        {
+            var year = versionNum / 10000;
+            var month = (versionNum % 10000) / 100;
+            var day = versionNum % 100;
+            if (month is >= 1 and <= 12 && day is >= 1 and <= 31)
+            {
+                return new DateTime(year, month, day, 0, 0, 0, DateTimeKind.Utc);
+            }
+        }
+
+        return null;
+    }
+
+    private static string? SanitizeSegmentForManifest(string? input, string? fallback)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return fallback;
+        }
+
+        var hasAlphaNumeric = input.Any(char.IsLetterOrDigit);
+        if (!hasAlphaNumeric)
+        {
+            return fallback;
+        }
+
+        return input;
     }
 
     private static ContentManifest? FindDirectFileMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item)
     {
         return manifests.FirstOrDefault(manifest =>
-            (!string.IsNullOrEmpty(manifest.OriginalContentId) && string.Equals(manifest.OriginalContentId, item.Id, StringComparison.Ordinal)) ||
-            (!string.IsNullOrWhiteSpace(item.SelectedDownloadUrl) && manifest.Files != null && manifest.Files.Any(file =>
-                !string.IsNullOrWhiteSpace(file.DownloadUrl) &&
-                string.Equals(file.DownloadUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase))));
+            (!string.IsNullOrEmpty(manifest.OriginalContentId) && (
+                string.Equals(manifest.OriginalContentId, item.Id, StringComparison.OrdinalIgnoreCase) ||
+                (item.ResolverMetadata?.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var parentId) == true &&
+                 string.Equals(manifest.OriginalContentId, parentId, StringComparison.OrdinalIgnoreCase)))) ||
+            (!string.IsNullOrWhiteSpace(item.SelectedDownloadUrl) && (
+                (manifest.Files?.Any(file =>
+                    !string.IsNullOrWhiteSpace(file.DownloadUrl) &&
+                    string.Equals(file.DownloadUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase)) == true) ||
+                (!string.IsNullOrWhiteSpace(manifest.Publisher?.ContentIndexUrl) &&
+                    string.Equals(manifest.Publisher.ContentIndexUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase)))));
     }
 
     private static ContentManifest? FindOriginMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item)
     {
+        bool isGitHub = IsGitHubPublisher(item.ProviderName);
+
         return manifests.FirstOrDefault(manifest =>
             (string.Equals(manifest.OriginalProviderName, item.ProviderName, StringComparison.OrdinalIgnoreCase) ||
              IsCompatiblePublisherAlias(manifest.OriginalProviderName ?? string.Empty, item.ProviderName)) &&
             (string.Equals(manifest.OriginalContentId, item.Id, StringComparison.Ordinal) ||
-             ContentNameMatches(manifest, item.ProviderName, item.ContentType.ToString(), item.TargetGame, item.Name)));
+             (!isGitHub && ContentNameMatches(manifest, item.ProviderName, item.ContentType.ToString(), item.TargetGame, item.Name))));
     }
 
     private static ContentManifest? FindGitHubRepoMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item)
@@ -937,34 +1271,80 @@ public sealed partial class ContentStateService(
             return false;
         }
 
-        var website = manifest.Publisher?.Website;
-        var supportUrl = manifest.Publisher?.SupportUrl;
-        var changelog = manifest.Metadata?.ChangelogUrl;
-        var cleanSource = (item.SourceUrl ?? string.Empty).TrimEnd('/');
-
-        bool urlMatches = (!string.IsNullOrEmpty(website) && string.Equals(website.TrimEnd('/'), cleanSource, StringComparison.OrdinalIgnoreCase)) ||
-                          (!string.IsNullOrEmpty(supportUrl) && string.Equals(supportUrl.TrimEnd('/'), cleanSource, StringComparison.OrdinalIgnoreCase)) ||
-                          (!string.IsNullOrEmpty(changelog) && changelog.StartsWith(cleanSource, StringComparison.OrdinalIgnoreCase));
-
-        if (!urlMatches)
+        if (!IsGitHubAuthorCompatible(manifest, item))
         {
             return false;
         }
 
+        if (!IsGitHubUrlMatch(manifest, item.SourceUrl))
+        {
+            return false;
+        }
+
+        return IsGitHubVariantMatch(manifest, item);
+    }
+
+    private static bool IsGitHubAuthorCompatible(ContentManifest manifest, ContentSearchResult item)
+    {
+        var manifestAuthor = manifest.Publisher?.Name;
+        var itemAuthor = item.AuthorName;
+        if (item.ResolverMetadata?.TryGetValue(GitHubConstants.OwnerMetadataKey, out var metadataOwner) == true &&
+            !string.IsNullOrWhiteSpace(metadataOwner))
+        {
+            itemAuthor = metadataOwner;
+        }
+
+        return string.IsNullOrWhiteSpace(manifestAuthor) ||
+               string.IsNullOrWhiteSpace(itemAuthor) ||
+               string.Equals(manifestAuthor, itemAuthor, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsGitHubUrlMatch(ContentManifest manifest, string? sourceUrl)
+    {
+        var website = NormalizeGitHubUrl(manifest.Publisher?.Website);
+        var supportUrl = NormalizeGitHubUrl(manifest.Publisher?.SupportUrl);
+        var changelog = NormalizeGitHubUrl(manifest.Metadata?.ChangelogUrl);
+        var cleanSource = NormalizeGitHubUrl(sourceUrl);
+
+        return (!string.IsNullOrEmpty(website) && string.Equals(website, cleanSource, StringComparison.OrdinalIgnoreCase)) ||
+               (!string.IsNullOrEmpty(supportUrl) && string.Equals(supportUrl, cleanSource, StringComparison.OrdinalIgnoreCase)) ||
+               (!string.IsNullOrEmpty(changelog) && (changelog.Equals(cleanSource, StringComparison.OrdinalIgnoreCase) || changelog.StartsWith(cleanSource.TrimEnd('/') + "/", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private static bool IsGitHubVariantMatch(ContentManifest manifest, ContentSearchResult item)
+    {
         var itemVariant = ExtractVariantToken(item.Name) ?? ExtractVariantToken(item.Id);
         var manifestVariant = ExtractVariantToken(manifest.Name) ?? ExtractVariantToken(manifest.Id.Value);
+
+        if (string.IsNullOrEmpty(manifestVariant) && !string.IsNullOrEmpty(itemVariant) && manifest.Files?.Count > 0)
+        {
+            manifestVariant = manifest.Files
+                .Select(f => ExtractVariantToken(f.RelativePath))
+                .FirstOrDefault(v => !string.IsNullOrEmpty(v));
+        }
 
         if (!string.IsNullOrEmpty(itemVariant) && !string.IsNullOrEmpty(manifestVariant))
         {
             return string.Equals(itemVariant, manifestVariant, StringComparison.OrdinalIgnoreCase);
         }
 
-        if (!string.IsNullOrEmpty(itemVariant) || !string.IsNullOrEmpty(manifestVariant))
+        return string.IsNullOrEmpty(itemVariant) && string.IsNullOrEmpty(manifestVariant);
+    }
+
+    private static string NormalizeGitHubUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
         {
-            return false;
+            return string.Empty;
         }
 
-        return true;
+        var clean = url.Trim().TrimEnd('/');
+        if (clean.EndsWith(".git", StringComparison.OrdinalIgnoreCase))
+        {
+            clean = clean[..^4];
+        }
+
+        return clean;
     }
 
     private static ContentManifest? FindDownloadUrlMatch(IReadOnlyList<ContentManifest> manifests, string? selectedDownloadUrl)
@@ -1044,10 +1424,21 @@ public sealed partial class ContentStateService(
             return ContentState.Downloaded;
         }
 
-        if (hasRealDate &&
-            releaseDate > DateTime.MinValue &&
+        bool canCompareVersion = (hasRealDate && releaseDate > DateTime.MinValue) ||
+                                 (!string.IsNullOrWhiteSpace(item.Version) && !string.IsNullOrWhiteSpace(persistedManifest.Version));
+
+        if (canCompareVersion &&
             IsNewerVersion(prospectiveId, persistedManifest.Id.Value, item.Version, persistedManifest.Version))
         {
+            if (IsMultiReleaseItem(item))
+            {
+                logger.LogInformation(
+                    "Content {ContentName} is not downloaded (multi-release prospective release; local persisted: {LocalId})",
+                    item.Name,
+                    persistedManifest.Id.Value);
+                return ContentState.NotDownloaded;
+            }
+
             logger.LogInformation(
                 "Content {ContentName} has an update available (local persisted: {LocalId})",
                 item.Name,
@@ -1055,12 +1446,11 @@ public sealed partial class ContentStateService(
             return ContentState.UpdateAvailable;
         }
 
-        if (hasRealDate &&
-            releaseDate > DateTime.MinValue &&
+        if (canCompareVersion &&
             IsNewerVersion(persistedManifest.Id.Value, prospectiveId, persistedManifest.Version, item.Version))
         {
             var exactResult = await manifestPool.IsManifestAcquiredAsync(prospectiveId, cancellationToken);
-            if (exactResult.Success && exactResult.Data)
+            if (exactResult?.Success == true && exactResult.Data)
             {
                 return ContentState.Downloaded;
             }
@@ -1095,6 +1485,15 @@ public sealed partial class ContentStateService(
 
         if (isNewerAvailable)
         {
+            if (IsMultiReleaseItem(item))
+            {
+                logger.LogInformation(
+                    "Content {ContentName} is not downloaded (multi-release prospective release; older local: {LocalId})",
+                    item.Name,
+                    matchingManifest.Id.Value);
+                return ContentState.NotDownloaded;
+            }
+
             logger.LogInformation(
                 "Content {ContentName} has an update available (local: {LocalId})",
                 item.Name,

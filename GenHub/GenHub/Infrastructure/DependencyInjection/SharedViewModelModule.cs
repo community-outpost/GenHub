@@ -10,9 +10,11 @@ using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Models.GameProfiles;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
+using GenHub.Features.Info.ViewModels;
 using GenHub.Features.Notifications.ViewModels;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Features.Tools.ViewModels;
@@ -22,32 +24,24 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Infrastructure.DependencyInjection;
 
 /// <summary>
-/// Registers shared ViewModels and Services for DI.
+/// Provides extension methods for registering shared ViewModels in the dependency injection container.
 /// </summary>
 public static class SharedViewModelModule
 {
     /// <summary>
-    /// Adds shared view model services to the service collection.
+    /// Registers shared ViewModels and their dependencies with the service collection.
     /// </summary>
-    /// <param name="services">The service collection.</param>
-    /// <returns>The updated service collection.</returns>
+    /// <param name="services">The service collection to add services to.</param>
+    /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddSharedViewModelModule(this IServiceCollection services)
     {
-        // Register MainViewModel (critical for app startup)
+        // Register ViewModels as transient (unless singleton is explicitly required)
         services.AddSingleton<MainViewModel>();
-
-        // Register NotificationFeedViewModel (required by MainViewModel)
-        services.AddSingleton<NotificationFeedViewModel>();
-
-        // Register tab ViewModels
         services.AddSingleton<GameProfileLauncherViewModel>();
         services.AddSingleton<DownloadsBrowserViewModel>();
         services.AddSingleton<ToolsViewModel>();
-
-        // The token store is resolved with GetService, not GetRequiredService: only Windows
-        // registers one, and SettingsViewModel already takes it as optional. Requiring it
-        // here crashed Linux and macOS at startup while MainView was being constructed,
-        // well past the point where the error is legible.
+        services.AddSingleton<InfoViewModel>();
+        services.AddSingleton<NotificationManagerViewModel>();
         services.AddSingleton<SettingsViewModel>(sp => new SettingsViewModel(
             sp.GetRequiredService<IUserSettingsService>(),
             sp.GetRequiredService<ILogger<SettingsViewModel>>(),
@@ -66,6 +60,7 @@ public static class SharedViewModelModule
             sp.GetRequiredService<IUserDataTracker>(),
             sp.GetRequiredService<IDialogService>(),
             sp.GetService<IThemeService>(),
+            /* Optional dependencies that can be null if GitHub integration is not configured */
             sp.GetService<IGitHubTokenStorage>(),
             sp.GetService<IGitHubApiClient>()));
         services.AddSingleton<GameProfileSettingsViewModel>();

@@ -47,7 +47,14 @@ public class GenericCatalogManifestFactory(
         return CreateManifestsFromExtractedContentAsync(originalManifest, extractedDirectory, progress: null, cancellationToken);
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Creates manifests from extracted content directory.
+    /// </summary>
+    /// <param name="originalManifest">The original manifest.</param>
+    /// <param name="extractedDirectory">The directory containing extracted files.</param>
+    /// <param name="progress">Optional progress reporter.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A list of generated content manifests.</returns>
     public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Features.GameProfiles.ViewModels;
@@ -75,9 +76,9 @@ public sealed partial class ProfileOptionViewModel : ProfilePickerItemViewModel
         ? Profile.ThemeColor
         : GameType switch
         {
-            GameType.ZeroHour => "#14B8A6",
-            GameType.Generals => "#3B82F6",
-            _ => "#8B5CF6",
+            GameType.ZeroHour => ThemeConstants.TealTheme.PrimaryHex,
+            GameType.Generals => ThemeConstants.CobaltTheme.PrimaryHex,
+            _ => ThemeConstants.DefaultTheme.PrimaryHex,
         };
 
     /// <summary>

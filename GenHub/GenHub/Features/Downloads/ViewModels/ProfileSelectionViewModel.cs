@@ -35,8 +35,11 @@ public sealed partial class ProfileSelectionViewModel(
     IGameProfileManager profileManager,
     IProfileContentService profileContentService,
     IContentManifestPool manifestPool,
-    INotificationService notificationService) : ObservableObject
+    INotificationService notificationService) : ObservableObject, IDisposable
 {
+    private readonly CancellationTokenSource _cts = new();
+    private bool _disposed;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasCompatibleProfiles))]
     [NotifyPropertyChangedFor(nameof(HasAnyProfiles))]
@@ -71,6 +74,8 @@ public sealed partial class ProfileSelectionViewModel(
     public IReadOnlyList<string> ContentManifestIds { get; private set; } = [];
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AddToProfileTooltip))]
+    [NotifyPropertyChangedFor(nameof(CreateProfileTooltip))]
     private string? _contentName;
 
     [ObservableProperty]
@@ -81,6 +86,9 @@ public sealed partial class ProfileSelectionViewModel(
 
     [ObservableProperty]
     private bool _wasSuccessful;
+
+    [ObservableProperty]
+    private bool _wasCancelled;
 
     [ObservableProperty]
     private string? _selectedProfileName;
@@ -105,6 +113,20 @@ public sealed partial class ProfileSelectionViewModel(
     /// (i.e. only incompatible profiles are available).
     /// </summary>
     public bool HasOnlyIncompatibleProfiles => OtherProfiles.Count > 0 && CompatibleProfiles.Count == 0;
+
+    /// <summary>
+    /// Gets the tooltip text for adding content to a profile.
+    /// </summary>
+    public string AddToProfileTooltip => !string.IsNullOrWhiteSpace(ContentName)
+        ? $"Add {ContentName} to this profile"
+        : "Add this content to this profile";
+
+    /// <summary>
+    /// Gets the tooltip text for creating a new profile with this content.
+    /// </summary>
+    public string CreateProfileTooltip => !string.IsNullOrWhiteSpace(ContentName)
+        ? $"Create a new profile with {ContentName}"
+        : "Create a new profile with this content";
 
     /// <summary>
     /// Gets a summary of the profile counts.
@@ -235,6 +257,27 @@ public sealed partial class ProfileSelectionViewModel(
         }
     }
 
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        try
+        {
+            _cts.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Ignore if CTS is already disposed.
+        }
+
+        _cts.Dispose();
+    }
+
     /// <summary>
     /// Determines if a profile is compatible with the target game type.
     /// </summary>
@@ -309,56 +352,21 @@ public sealed partial class ProfileSelectionViewModel(
                 ContentManifestId,
                 profile.Name);
 
-            var manifestResult = await manifestPool.GetManifestAsync(
-                ManifestId.Create(ContentManifestId),
-                CancellationToken.None);
-            var selectedManifest = manifestResult.Success ? manifestResult.Data : null;
-
-            var selectedManifestId = selectedManifest?.Id.Value ?? ContentManifestId;
-            var selectedContentName = selectedManifest?.Name ?? ContentName;
-            IReadOnlyList<string> idsToAdd;
-            if (ContentManifestIds.Count > 0)
-            {
-                idsToAdd = ContentManifestIds;
-            }
-            else
-            {
-                idsToAdd = string.IsNullOrEmpty(selectedManifestId) ? [] : [selectedManifestId];
-            }
+            var (selectedManifestId, selectedContentName, idsToAdd) = await ResolveContentToAddAsync();
 
             var result = idsToAdd.Count > 1
                 ? await profileContentService.AddContentToProfileAsync(
                     profile.Id,
                     idsToAdd,
-                    CancellationToken.None)
+                    _cts.Token)
                 : await profileContentService.AddContentToProfileAsync(
                     profile.Id,
                     selectedManifestId ?? string.Empty,
-                    CancellationToken.None);
+                    _cts.Token);
 
             if (result.Success)
             {
-                if (result.WasContentSwapped)
-                {
-                    logger.LogInformation(
-                        "Content swap: replaced {OldContent} with {NewContent} in profile {ProfileName}",
-                        result.SwappedContentName,
-                        selectedContentName,
-                        profile.Name);
-                }
-                else
-                {
-                    logger.LogInformation("Successfully added content to profile '{ProfileName}'", profile.Name);
-
-                    // Show success notification for new content addition
-                    notificationService.ShowSuccess(
-                        "Content Added",
-                        $"Added '{selectedContentName}' to profile '{profile.Name}'");
-                }
-
-                SelectedProfileName = profile.Name;
-                WasSuccessful = true;
-                RequestClose?.Invoke(this, EventArgs.Empty);
+                HandleAddContentSuccess(profile, selectedContentName, result);
             }
             else
             {
@@ -369,6 +377,12 @@ public sealed partial class ProfileSelectionViewModel(
                 ErrorMessage = result.FirstError ?? "Failed to add content to profile";
                 WasSuccessful = false;
             }
+        }
+        catch (OperationCanceledException ex) when (_cts.IsCancellationRequested)
+        {
+            WasCancelled = true;
+            WasSuccessful = false;
+            logger.LogInformation(ex, "Adding content to profile '{ProfileName}' was cancelled", profile.Name);
         }
         catch (System.Exception ex)
         {
@@ -384,8 +398,18 @@ public sealed partial class ProfileSelectionViewModel(
     [RelayCommand]
     private void Cancel()
     {
+        WasCancelled = true;
         WasSuccessful = false;
         SelectedProfileName = null;
+        try
+        {
+            _cts.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Ignore if CTS is already disposed.
+        }
+
         RequestClose?.Invoke(this, EventArgs.Empty);
     }
 
@@ -411,7 +435,7 @@ public sealed partial class ProfileSelectionViewModel(
             // Check whether this content is a member of a downloaded variant family.
             var manifestResult = await manifestPool.GetManifestAsync(
                 ManifestId.Create(ContentManifestId),
-                CancellationToken.None);
+                _cts.Token);
 
             var (selectedManifestId, selectedContentName) = manifestResult.Success && manifestResult.Data != null
                 ? (manifestResult.Data.Id.Value, manifestResult.Data.Name)
@@ -433,11 +457,11 @@ public sealed partial class ProfileSelectionViewModel(
                 ? await profileContentService.CreateProfileWithContentAsync(
                     profileName,
                     idsToEnable,
-                    CancellationToken.None)
+                    _cts.Token)
                 : await profileContentService.CreateProfileWithContentAsync(
                     profileName,
                     selectedManifestId,
-                    CancellationToken.None);
+                    _cts.Token);
 
             if (result.Success && result.Data != null)
             {
@@ -459,6 +483,12 @@ public sealed partial class ProfileSelectionViewModel(
                 WasSuccessful = false;
             }
         }
+        catch (OperationCanceledException ex) when (_cts.IsCancellationRequested)
+        {
+            WasCancelled = true;
+            WasSuccessful = false;
+            logger.LogInformation(ex, "Profile creation with content was cancelled");
+        }
         catch (System.Exception ex)
         {
             logger.LogError(ex, "Exception creating profile with content");
@@ -474,7 +504,7 @@ public sealed partial class ProfileSelectionViewModel(
     {
         var selectedManifestResult = await manifestPool.GetManifestAsync(
             ManifestId.Create(selectedManifestId),
-            CancellationToken.None);
+            _cts.Token);
         var selectedManifest = selectedManifestResult.Success ? selectedManifestResult.Data : null;
         string baseName;
         if (selectedManifest?.ContentType == ContentType.GameClient &&
@@ -506,13 +536,75 @@ public sealed partial class ProfileSelectionViewModel(
     /// <returns>True if a profile exists, otherwise false.</returns>
     private async Task<bool> ProfileExistsAsync(string profileName)
     {
-        var profilesResult = await profileManager.GetAllProfilesAsync(CancellationToken.None);
+        var profilesResult = await profileManager.GetAllProfilesAsync(_cts.Token);
         if (profilesResult.Success && profilesResult.Data != null)
         {
             return profilesResult.Data.Any(p =>
                 string.Equals(p.Name, profileName, StringComparison.OrdinalIgnoreCase));
         }
 
+        if (!profilesResult.Success)
+        {
+            logger.LogWarning(
+                "Failed to retrieve profiles when checking for profile name collision: {Error}",
+                profilesResult.FirstError);
+        }
+
         return false;
+    }
+
+    private async Task<(string? SelectedManifestId, string SelectedContentName, IReadOnlyList<string> IdsToAdd)> ResolveContentToAddAsync()
+    {
+        ContentManifest? selectedManifest = null;
+        if (!string.IsNullOrWhiteSpace(ContentManifestId) && ManifestId.TryCreate(ContentManifestId, out var parsedManifestId))
+        {
+            var manifestResult = await manifestPool.GetManifestAsync(
+                parsedManifestId,
+                _cts.Token);
+            selectedManifest = manifestResult?.Success == true ? manifestResult.Data : null;
+        }
+
+        var selectedManifestId = selectedManifest?.Id.Value ?? ContentManifestId;
+        var selectedContentName = selectedManifest?.Name ?? ContentName ?? string.Empty;
+        IReadOnlyList<string> idsToAdd;
+        if (ContentManifestIds.Count > 0)
+        {
+            idsToAdd = ContentManifestIds;
+        }
+        else if (!string.IsNullOrEmpty(selectedManifestId))
+        {
+            idsToAdd = [selectedManifestId];
+        }
+        else
+        {
+            idsToAdd = [];
+        }
+
+        return (selectedManifestId, selectedContentName, idsToAdd);
+    }
+
+    private void HandleAddContentSuccess(GameProfile profile, string selectedContentName, AddToProfileResult result)
+    {
+        if (result.WasContentSwapped)
+        {
+            logger.LogInformation(
+                "Content swap: replaced {OldContent} with {NewContent} in profile {ProfileName}",
+                result.SwappedContentName,
+                selectedContentName,
+                profile.Name);
+        }
+        else
+        {
+            logger.LogInformation("Successfully added content to profile '{ProfileName}'", profile.Name);
+
+            // Show success notification for new content addition
+            notificationService.ShowSuccess(
+                "Content Added",
+                $"Added '{selectedContentName}' to profile '{profile.Name}'");
+        }
+
+        SelectedProfileName = profile.Name;
+        WasSuccessful = true;
+        RequestClose?.Invoke(this, EventArgs.Empty);
     }
 }

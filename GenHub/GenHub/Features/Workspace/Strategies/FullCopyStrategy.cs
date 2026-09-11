@@ -14,7 +14,6 @@ namespace GenHub.Features.Workspace.Strategies;
 
 /// <summary>
 /// Workspace strategy that creates complete copies of all game files.
-/// Provides maximum compatibility and complete isolation at the cost of disk space.
 /// </summary>
 /// <remarks>
 /// Initializes a new instance of the <see cref="FullCopyStrategy"/> class.
@@ -87,17 +86,10 @@ public sealed class FullCopyStrategy(
             cancellationToken.ThrowIfCancellationRequested();
 
             // Clean existing workspace if force recreate is requested
-            if (Directory.Exists(workspacePath) && configuration.ForceRecreate)
+            if (configuration.ForceRecreate)
             {
                 Logger.LogDebug("Removing existing workspace directory: {WorkspacePath}", workspacePath);
-                try
-                {
-                    Directory.Delete(workspacePath, true);
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogWarning(ex, "Could not delete workspace directory {WorkspacePath}, overwriting files in-place", workspacePath);
-                }
+                FileOperationsService.DeleteDirectoryIfExists(workspacePath);
             }
 
             // Create workspace directory
@@ -163,11 +155,7 @@ public sealed class FullCopyStrategy(
 
                         try
                         {
-                            if ((item.File.SourceType == ContentSourceType.ContentAddressable ||
-                                 (!string.IsNullOrEmpty(item.File.Hash) &&
-                                  item.File.SourceType != ContentSourceType.GameInstallation &&
-                                  item.File.SourceType != ContentSourceType.LocalFile)) &&
-                                !string.IsNullOrEmpty(item.File.Hash))
+                            if (item.File.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(item.File.Hash))
                             {
                                 // Use CAS content
                                 await CreateCasLinkAsync(item.File.Hash, destinationPath, item.Manifest.ContentType, ct);

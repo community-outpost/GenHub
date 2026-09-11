@@ -408,7 +408,10 @@ public sealed partial class BundleComponentViewModel : ObservableObject
         CatalogBundleComponentVariantDescriptor variant,
         string? publisherJson)
     {
-        Enum.TryParse<ContentType>(descriptor.ContentType, ignoreCase: true, out var contentType);
+        if (!Enum.TryParse<ContentType>(descriptor.ContentType, ignoreCase: true, out var contentType))
+        {
+            contentType = ContentType.UnknownContentType;
+        }
 
         var (version, lastUpdated) = ResolveReleaseTiming(bundleResult, variant.ReleaseJson);
         var targetGame = ResolveVariantGameType(bundleResult, variant);

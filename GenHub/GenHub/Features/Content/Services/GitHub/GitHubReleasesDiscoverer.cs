@@ -5,12 +5,14 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GitHub;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Helpers;
@@ -60,23 +62,22 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
             .Where(t => !string.IsNullOrEmpty(t.Owner) && !string.IsNullOrEmpty(t.Repo))
             .ToList();
 
-        // Determine whether to load all releases or just the latest
-        // Page 1 with default Take = load only latest releases (1 per repo) to conserve API calls
-        // LoadMore (page > 1 or explicitly requesting all) = load additional releases
-        bool loadOnlyLatest = (query.Page ?? 1) == 1 && query.Take <= relevantRepos.Count;
-
         foreach (var (owner, repo) in relevantRepos)
         {
             try
             {
                 var repository = await gitHubClient.GetRepositoryAsync(owner, repo, cancellationToken);
                 var topics = repository?.Topics ?? [];
-                var releases = await FetchReleasesForRepoAsync(owner, repo, loadOnlyLatest, cancellationToken);
+                var releases = await FetchReleasesForRepoAsync(owner, repo, cancellationToken);
 
                 foreach (var release in releases)
                 {
                     ProcessRelease(release, owner, repo, topics, query, results);
                 }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -102,41 +103,26 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
 
         var paginatedResults = results.Skip(skip).Take(pageSize).ToList();
 
-        // HasMoreItems is true if we loaded only latest releases (user can request more)
-        // or if there are more items in the paginated results
-        var hasMoreItems = totalItems > 0 && (loadOnlyLatest || (skip + paginatedResults.Count < totalItems));
+        var hasMoreItems = totalItems > 0 && (skip + paginatedResults.Count < totalItems);
 
         logger.LogInformation(
-            "GitHubReleasesDiscoverer: Returning page {Page}, {ReturnCount} items of {TotalCount} total. HasMore: {HasMore}, LoadedOnlyLatest: {LoadedOnlyLatest}",
+            "GitHubReleasesDiscoverer: Returning page {Page}, {ReturnCount} items of {TotalCount} total. HasMore: {HasMore}",
             query.Page,
             paginatedResults.Count,
             totalItems,
-            hasMoreItems,
-            loadOnlyLatest);
-
-        int reportedTotalItems;
-        if (totalItems == 0)
-        {
-            reportedTotalItems = 0;
-        }
-        else if (loadOnlyLatest)
-        {
-            reportedTotalItems = -1;
-        }
-        else
-        {
-            reportedTotalItems = totalItems;
-        }
+            hasMoreItems);
 
         return errors.Count > 0 && paginatedResults.Count == 0
             ? OperationResult<ContentDiscoveryResult>.CreateFailure(errors)
             : OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
             {
                 Items = paginatedResults,
-                TotalItems = reportedTotalItems,
+                TotalItems = totalItems,
                 HasMoreItems = hasMoreItems,
             });
     }
+
+    private static string StripVersionPrefix(string? tag) => GameVersionHelper.StripVersionPrefix(tag);
 
     private static bool IsPureVersionString(string? text, string? tagName)
     {
@@ -149,7 +135,7 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
         if (!string.IsNullOrWhiteSpace(tagName) &&
             (trimmed.Equals(tagName.Trim(), StringComparison.OrdinalIgnoreCase) ||
              trimmed.Equals($"v{tagName.Trim()}", StringComparison.OrdinalIgnoreCase) ||
-             trimmed.TrimStart('v', 'V').Equals(tagName.Trim().TrimStart('v', 'V'), StringComparison.OrdinalIgnoreCase)))
+             StripVersionPrefix(trimmed).Equals(StripVersionPrefix(tagName), StringComparison.OrdinalIgnoreCase)))
         {
             return true;
         }
@@ -260,7 +246,7 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
     /// </summary>
     /// <param name="request">Variant card request parameters.</param>
     /// <returns>A content search result for one variant.</returns>
-    private ContentSearchResult BuildSuperHackersVariantCard(SuperHackersCardRequest request)
+    private static ContentSearchResult BuildSuperHackersVariantCard(SuperHackersCardRequest request)
     {
         var suffix = request.GameType == GameType.Generals
             ? SuperHackersConstants.GeneralsSuffix
@@ -273,7 +259,7 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
             Description = string.IsNullOrEmpty(request.Release.Body)
                 ? $"{request.GameDisplayName} game client from TheSuperHackers."
                 : ReleaseDescriptionHelper.ToFormattedText(request.Release.Body),
-            Version = request.Release.TagName.TrimStart('v', 'V'),
+            Version = StripVersionPrefix(request.Release.TagName),
             AuthorName = !string.IsNullOrWhiteSpace(request.Release.Author) ? request.Release.Author : SuperHackersConstants.PublisherName,
             ContentType = ContentType.GameClient,
             TargetGame = request.GameType,
@@ -283,7 +269,7 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
             ResolverId = ContentSourceNames.GitHubResolverId,
             SourceUrl = request.Release.HtmlUrl,
             IconUrl = PublisherInfoConstants.TheSuperHackers.LogoSource,
-            LastUpdated = request.Release.PublishedAt?.DateTime ?? request.Release.CreatedAt.DateTime,
+            LastUpdated = ResolveReleaseDate(request.Release),
             DownloadSize = request.TotalSize,
             ResolverMetadata =
             {
@@ -295,16 +281,23 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
             },
         };
 
-        // A release can contain a separate archive for each game.  Record the exact asset on
+        // A release can contain a separate archive for each game. Record the exact asset on
         // the card so resolving a single variant never downloads its siblings.
         var assetName = FindSuperHackersAssetName(request.Release.Assets, request.GameType);
         if (!string.IsNullOrEmpty(assetName))
         {
             result.ResolverMetadata["asset-name"] = assetName;
+            var matchingAsset = request.Release.Assets?.FirstOrDefault(a =>
+                string.Equals(a.Name, assetName, StringComparison.OrdinalIgnoreCase));
+            if (matchingAsset?.Size > 0)
+            {
+                result.DownloadSize = matchingAsset.Size;
+            }
         }
 
         // Declare the variant group so the downloads browser collapses both game-type
         // cards into a single card with a variant picker.
+        var userVersion = SuperHackersConstants.ExtractVersionFromReleaseTag(request.Release.TagName);
         result.VariantGroupId = request.VariantGroupId;
         result.VariantFamilyName = request.BaseName;
         result.Variants =
@@ -313,38 +306,174 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
             {
                 Id = $"github.{request.Owner}.{request.Repo}.{request.Release.TagName}.{SuperHackersConstants.ZeroHourSuffix}",
                 Name = $"{request.BaseName} — {SuperHackersConstants.ZeroHourDisplayName}",
-                ManifestId = $"github.{request.Owner}.{request.Repo}.{request.Release.TagName}.{SuperHackersConstants.ZeroHourSuffix}",
+                ManifestId = ManifestIdGenerator.GeneratePublisherContentId(
+                    PublisherTypeConstants.TheSuperHackers,
+                    ContentType.GameClient,
+                    SuperHackersConstants.ZeroHourSuffix,
+                    userVersion),
                 VariantType = "game-type",
                 IsDefault = true,
+                TargetGame = GameType.ZeroHour,
             },
             new ContentVariantInfo
             {
                 Id = $"github.{request.Owner}.{request.Repo}.{request.Release.TagName}.{SuperHackersConstants.GeneralsSuffix}",
                 Name = $"{request.BaseName} — {SuperHackersConstants.GeneralsDisplayName}",
-                ManifestId = $"github.{request.Owner}.{request.Repo}.{request.Release.TagName}.{SuperHackersConstants.GeneralsSuffix}",
+                ManifestId = ManifestIdGenerator.GeneratePublisherContentId(
+                    PublisherTypeConstants.TheSuperHackers,
+                    ContentType.GameClient,
+                    SuperHackersConstants.GeneralsSuffix,
+                    userVersion),
                 VariantType = "game-type",
                 IsDefault = false,
+                TargetGame = GameType.Generals,
             },
         ];
 
         return result;
     }
 
+    private static bool MatchesSearchTerm(
+        string term,
+        GitHubRelease release,
+        string repo,
+        string cardName,
+        bool isSuperHackersGameClient)
+    {
+        if (release.Name?.Contains(term, StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(release.TagName) && release.TagName.Contains(term, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (repo.Contains(term, StringComparison.OrdinalIgnoreCase) || cardName.Contains(term, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return isSuperHackersGameClient && (
+            SuperHackersConstants.GeneralsDisplayName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+            SuperHackersConstants.ZeroHourDisplayName.Contains(term, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string ResolveIconUrl(bool isSuperHackers, GitHubRelease release, string owner)
+    {
+        if (isSuperHackers)
+        {
+            return PublisherInfoConstants.TheSuperHackers.LogoSource;
+        }
+
+        var author = !string.IsNullOrWhiteSpace(release.Author) ? release.Author : owner;
+        return $"https://github.com/{author}.png";
+    }
+
+    private static ContentSearchResult BuildStandardSearchResult(StandardSearchResultRequest request)
+    {
+        return new ContentSearchResult
+        {
+            Id = $"github.{request.Owner}.{request.Repo}.{request.Release.TagName}",
+            Name = request.BaseName,
+            Description = string.IsNullOrEmpty(request.Release.Body)
+                ? "GitHub release - full details available after resolution"
+                : ReleaseDescriptionHelper.ToFormattedText(request.Release.Body),
+            Version = StripVersionPrefix(request.Release.TagName),
+            AuthorName = request.Release.Author,
+            ContentType = request.ContentType,
+            TargetGame = request.GameType,
+            IsInferred = request.IsTypeInferred || request.IsGameInferred,
+            ProviderName = request.ProviderName,
+            RequiresResolution = true,
+            ResolverId = ContentSourceNames.GitHubResolverId,
+            SourceUrl = request.Release.HtmlUrl,
+            IconUrl = request.IconUrl,
+            LastUpdated = ResolveReleaseDate(request.Release),
+            DownloadSize = request.TotalSize,
+            ResolverMetadata =
+            {
+                [GitHubConstants.OwnerMetadataKey] = request.Owner,
+                [GitHubConstants.RepoMetadataKey] = request.Repo,
+                [GitHubConstants.TagMetadataKey] = request.Release.TagName,
+                ["VariantCount"] = request.VariantCount.ToString(),
+            },
+        };
+    }
+
+    [GeneratedRegex(@"\b(\d{4})[-.](\d{2})[-.](\d{2})\b", RegexOptions.CultureInvariant)]
+    private static partial Regex IsoDateRegex();
+
+    private static DateTime ResolveReleaseDate(GitHubRelease release)
+    {
+        if (release.PublishedAt.HasValue && release.PublishedAt.Value.DateTime > DateTime.MinValue)
+        {
+            return release.PublishedAt.Value.DateTime;
+        }
+
+        if (release.CreatedAt != default && release.CreatedAt.DateTime > DateTime.MinValue)
+        {
+            return release.CreatedAt.DateTime;
+        }
+
+        return TryExtractDateFromTagOrName(release.TagName)
+            ?? TryExtractDateFromTagOrName(release.Name)
+            ?? DateTime.MinValue;
+    }
+
+    private static DateTime? TryExtractDateFromTagOrName(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return null;
+        }
+
+        var match = IsoDateRegex().Match(input);
+        if (match.Success &&
+            int.TryParse(match.Groups[1].Value, out var y) &&
+            int.TryParse(match.Groups[2].Value, out var m) &&
+            int.TryParse(match.Groups[3].Value, out var d) &&
+            m >= 1 && m <= 12 && d >= 1 && d <= 31)
+        {
+            return new DateTime(y, m, d, 0, 0, 0, DateTimeKind.Utc);
+        }
+
+        var versionNum = SuperHackersConstants.ExtractVersionFromReleaseTag(input);
+        if (versionNum is >= 19900101 and <= 21001231)
+        {
+            var year = versionNum / 10000;
+            var month = (versionNum % 10000) / 100;
+            var day = versionNum % 100;
+            if (month is >= 1 and <= 12 && day is >= 1 and <= 31)
+            {
+                return new DateTime(year, month, day, 0, 0, 0, DateTimeKind.Utc);
+            }
+        }
+
+        return null;
+    }
+
     private async Task<IEnumerable<GitHubRelease>> FetchReleasesForRepoAsync(
         string owner,
         string repo,
-        bool loadOnlyLatest,
         CancellationToken cancellationToken)
     {
-        if (loadOnlyLatest)
+        if (gitHubClient.IsRateLimited)
         {
-            logger.LogDebug("Fetching only latest release for {Owner}/{Repo}", owner, repo);
+            throw new InvalidOperationException(
+                "GitHub API rate limit exceeded. Configure a GitHub Personal Access Token in Settings to increase limit.");
+        }
+
+        logger.LogDebug("Fetching releases for {Owner}/{Repo}", owner, repo);
+        var releases = await gitHubClient.GetReleasesAsync(owner, repo, cancellationToken);
+        if (releases == null || !releases.Any())
+        {
             var latestRelease = await gitHubClient.GetLatestReleaseAsync(owner, repo, cancellationToken);
             return latestRelease != null ? [latestRelease] : [];
         }
 
-        logger.LogDebug("Fetching all releases for {Owner}/{Repo}", owner, repo);
-        return (await gitHubClient.GetReleasesAsync(owner, repo, cancellationToken)) ?? [];
+        return releases;
     }
 
     private void ProcessRelease(
@@ -355,8 +484,18 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
         ContentSearchQuery query,
         List<ContentSearchResult> results)
     {
+        var (contentType, gameType, isTypeInferred, isGameInferred) = InferTypes(topics, repo, release.Name);
+
+        var isSuperHackers = owner.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
+
+        var isSuperHackersGameClient = isSuperHackers &&
+            (contentType == ContentType.GameClient ||
+             repo.Equals(SuperHackersConstants.GeneralsGameCodeRepo, StringComparison.OrdinalIgnoreCase));
+
+        var cardName = ResolveCardName(isSuperHackers, repo, release);
+
         if (!string.IsNullOrWhiteSpace(query.SearchTerm) &&
-            release.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) != true)
+            !MatchesSearchTerm(query.SearchTerm, release, repo, cardName, isSuperHackersGameClient))
         {
             return;
         }
@@ -364,19 +503,13 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
         var totalSize = release.Assets?.Sum(a => a.Size) ?? 0;
         var variantCount = release.Assets?.Count ?? 0;
 
-        var (contentType, gameType, isTypeInferred, isGameInferred) = InferTypes(topics, repo, release.Name);
-
-        var isSuperHackers = owner.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-                             owner.Equals(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase);
-
-        var isSuperHackersGameClient = contentType == ContentType.GameClient
-            && !isTypeInferred
-            && isSuperHackers;
-
         if (isSuperHackersGameClient)
         {
-            var baseName = release.Name ?? $"{repo} {release.TagName}";
-            var variantGroupId = $"{owner}.{ContentType.GameClient.ToString().ToLowerInvariant()}.{release.TagName}";
+            var baseName = !string.IsNullOrWhiteSpace(release.Name) && !IsPureVersionString(release.Name, release.TagName)
+                ? release.Name
+                : cardName;
+            var tag = release.TagName ?? "latest";
+            var variantGroupId = SuperHackersConstants.GetGameClientVariantGroupId(tag);
             results.Add(BuildSuperHackersVariantCard(new SuperHackersCardRequest(owner, repo, release, baseName, totalSize, variantCount, GameType.Generals, SuperHackersConstants.GeneralsDisplayName, variantGroupId)));
             results.Add(BuildSuperHackersVariantCard(new SuperHackersCardRequest(owner, repo, release, baseName, totalSize, variantCount, GameType.ZeroHour, SuperHackersConstants.ZeroHourDisplayName, variantGroupId)));
         }
@@ -386,43 +519,9 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
                 ? PublisherTypeConstants.TheSuperHackers
                 : SourceName;
 
-            var iconUrl = isSuperHackers
-                ? PublisherInfoConstants.TheSuperHackers.LogoSource
-                : (PublisherInfoConstants.GetPublisherLogo(owner, repo) ?? PublisherInfoConstants.GitHub.LogoSource);
+            var iconUrl = ResolveIconUrl(isSuperHackers, release, owner);
 
-            var cardName = ResolveCardName(isSuperHackers, repo, release);
             results.Add(BuildStandardSearchResult(new StandardSearchResultRequest(release, owner, repo, cardName, contentType, gameType, isTypeInferred, isGameInferred, totalSize, variantCount, providerName, iconUrl)));
         }
-    }
-
-    private ContentSearchResult BuildStandardSearchResult(StandardSearchResultRequest request)
-    {
-        return new ContentSearchResult
-        {
-            Id = $"github.{request.Owner}.{request.Repo}.{request.Release.TagName}",
-            Name = request.BaseName,
-            Description = string.IsNullOrEmpty(request.Release.Body)
-                ? "GitHub release - full details available after resolution"
-                : ReleaseDescriptionHelper.ToFormattedText(request.Release.Body),
-            Version = request.Release.TagName.TrimStart('v', 'V'),
-            AuthorName = request.Release.Author,
-            ContentType = request.ContentType,
-            TargetGame = request.GameType,
-            IsInferred = request.IsTypeInferred || request.IsGameInferred,
-            ProviderName = request.ProviderName,
-            RequiresResolution = true,
-            ResolverId = ContentSourceNames.GitHubResolverId,
-            SourceUrl = request.Release.HtmlUrl,
-            IconUrl = request.IconUrl,
-            LastUpdated = request.Release.PublishedAt?.DateTime ?? request.Release.CreatedAt.DateTime,
-            DownloadSize = request.TotalSize,
-            ResolverMetadata =
-            {
-                [GitHubConstants.OwnerMetadataKey] = request.Owner,
-                [GitHubConstants.RepoMetadataKey] = request.Repo,
-                [GitHubConstants.TagMetadataKey] = request.Release.TagName,
-                ["VariantCount"] = request.VariantCount.ToString(),
-            },
-        };
     }
 }

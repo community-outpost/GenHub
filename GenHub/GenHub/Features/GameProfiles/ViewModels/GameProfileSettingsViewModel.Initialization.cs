@@ -140,6 +140,7 @@ public partial class GameProfileSettingsViewModel
 
             if (_gameProfileManager == null)
             {
+                _logger?.LogWarning("Failed to load profile {ProfileId}: GameProfileManager is null", profileId);
                 StatusMessage = "Error loading profile";
                 LoadingError = true;
                 return;
@@ -272,6 +273,11 @@ public partial class GameProfileSettingsViewModel
 
     private async Task SaveDefaultGameSettingsAsync(string profileId)
     {
+        if (_gameProfileManager == null)
+        {
+            return;
+        }
+
         var gameSettings = GameSettingsViewModel.GetProfileSettings();
         var updateRequest = new UpdateProfileRequest();
         PopulateGameSettings(updateRequest, gameSettings);

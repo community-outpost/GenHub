@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameProfiles;
@@ -154,10 +155,17 @@ public partial class GameProfileSettingsViewModel
     [RelayCommand]
     private void SelectContentEditorCategory(ContentEditorCategory category)
     {
+        System.Diagnostics.Debug.WriteLine($"[ViewModel] SelectContentEditorCategory called with category: {category}");
+        System.Diagnostics.Debug.WriteLine($"[ViewModel] ScrollToSectionRequested is null: {ScrollToSectionRequested == null}");
+
         SelectedContentEditorCategory = category;
 
         var sectionName = category.ToString() + "Section";
+        System.Diagnostics.Debug.WriteLine($"[ViewModel] Invoking ScrollToSectionRequested with: {sectionName}");
+
         ScrollToSectionRequested?.Invoke(sectionName);
+
+        System.Diagnostics.Debug.WriteLine("[ViewModel] ScrollToSectionRequested invoked");
     }
 
     [RelayCommand]
@@ -208,25 +216,8 @@ public partial class GameProfileSettingsViewModel
             itemToRemove.IsEnabled = false;
             EnabledContent.Remove(itemToRemove);
 
-            if (itemToRemove.ContentType == SelectedContentType && itemToRemove.GameType == GameTypeFilter)
-            {
-                var alreadyInAvailable = AvailableContent.FirstOrDefault(a => a.ManifestId.Value == itemToRemove.ManifestId.Value);
-                if (alreadyInAvailable == null)
-                {
-                    AvailableContent.Add(itemToRemove);
-                }
-                else
-                {
-                    alreadyInAvailable.IsEnabled = false;
-                }
-            }
-
-            if (itemToRemove.ContentType == ContentType.GameInstallation &&
-                SelectedGameInstallation?.ManifestId.Value == itemToRemove.ManifestId.Value)
-            {
-                SelectedGameInstallation = null;
-                _logger?.LogInformation("Cleared SelectedGameInstallation");
-            }
+            UpdateAvailableContentOnDisable(itemToRemove);
+            UpdateSelectedInstallationOnDisable(itemToRemove);
 
             StatusMessage = $"Disabled {itemToRemove.DisplayName}";
             _logger?.LogInformation("Disabled content {ContentName} from profile", itemToRemove.DisplayName);
@@ -238,6 +229,41 @@ public partial class GameProfileSettingsViewModel
         }
 
         await Task.CompletedTask;
+    }
+
+    private void UpdateAvailableContentOnDisable(ContentDisplayItem itemToRemove)
+    {
+        if (itemToRemove.ContentType != SelectedContentType || itemToRemove.GameType != GameTypeFilter)
+        {
+            return;
+        }
+
+        var alreadyInAvailable = AvailableContent.FirstOrDefault(a => a.ManifestId.Value == itemToRemove.ManifestId.Value);
+        if (alreadyInAvailable == null)
+        {
+            AvailableContent.Add(itemToRemove);
+        }
+        else
+        {
+            alreadyInAvailable.IsEnabled = false;
+        }
+    }
+
+    private void UpdateSelectedInstallationOnDisable(ContentDisplayItem itemToRemove)
+    {
+        if (itemToRemove.ContentType == ContentType.GameInstallation &&
+            SelectedGameInstallation?.ManifestId.Value == itemToRemove.ManifestId.Value)
+        {
+            SelectedGameInstallation = null;
+            _logger?.LogInformation("Cleared SelectedGameInstallation");
+        }
+        else if (itemToRemove.ContentType is ContentType.GameClient or ContentType.Mod &&
+                 SelectedGameInstallation != null &&
+                 EnabledContent.All(e => e.ContentType is not (ContentType.GameClient or ContentType.Mod)))
+        {
+            SelectedGameInstallation = null;
+            _logger?.LogInformation("Auto-disabled SelectedGameInstallation as no GameClient or Mod remains enabled");
+        }
     }
 
     [RelayCommand]
@@ -326,16 +352,59 @@ public partial class GameProfileSettingsViewModel
             IsSaving = true;
             StatusMessage = "Saving profile...";
 
-            if (!ValidateSavePreconditions())
+            if (_gameProfileManager == null)
             {
+                StatusMessage = "Profile manager not available";
                 return;
             }
 
-            var enabledContentIds = CollectEnabledContentIds();
+            var enabledItems = EnabledContent.Where(c => c.IsEnabled).ToList();
+            var isStandaloneProfile = ToolProfileHelper.IsToolProfile(
+                enabledItems.Select(c => (c.ManifestId.Value, c.ContentType)));
 
-            if (!await ValidateDependenciesAsync(enabledContentIds))
+            if (SelectedGameInstallation == null && !isStandaloneProfile)
             {
+                StatusMessage = "Please select a game installation";
                 return;
+            }
+
+            if (string.IsNullOrWhiteSpace(Name))
+            {
+                StatusMessage = "Please enter a profile name";
+                return;
+            }
+
+            var hasLaunchableContent = enabledItems.Any(c =>
+                c.ContentType == ContentType.GameInstallation ||
+                c.ContentType == ContentType.GameClient ||
+                c.ContentType == ContentType.Executable ||
+                c.ContentType == ContentType.ModdingTool);
+
+            if (!hasLaunchableContent)
+            {
+                StatusMessage = "Error: A Game, Executable, or Tool must be enabled.";
+                _localNotificationService.ShowError(
+                    "Missing Launchable Content",
+                    "Please enable a Game, Executable, or Tool before saving.");
+                _logger?.LogWarning("Profile save blocked: No launchable content enabled");
+                return;
+            }
+
+            var enabledContentIds = enabledItems.Select(c => c.ManifestId.Value).ToList();
+
+            if (_manifestPool != null)
+            {
+                var validationErrors = await ValidateAllDependenciesAsync(enabledContentIds);
+                if (validationErrors.Count > 0)
+                {
+                    var errorMessage = string.Join("\n", validationErrors);
+                    StatusMessage = "Error: Missing required dependencies";
+                    _localNotificationService.ShowError(
+                        "Missing Dependencies",
+                        $"Cannot save profile with missing dependencies:\n\n{errorMessage}");
+                    _logger?.LogWarning("Profile save blocked: {Errors}", errorMessage);
+                    return;
+                }
             }
 
             _logger?.LogInformation(
@@ -363,89 +432,6 @@ public partial class GameProfileSettingsViewModel
         }
     }
 
-    private bool ValidateSavePreconditions()
-    {
-        if (_gameProfileManager == null)
-        {
-            StatusMessage = "Profile manager not available";
-            return false;
-        }
-
-        if (SelectedGameInstallation == null)
-        {
-            StatusMessage = "Please select a game installation";
-            return false;
-        }
-
-        if (string.IsNullOrWhiteSpace(Name))
-        {
-            StatusMessage = "Please enter a profile name";
-            return false;
-        }
-
-        var hasLaunchableContent = EnabledContent.Any(c =>
-            c.IsEnabled &&
-            (c.ContentType == ContentType.GameInstallation ||
-             c.ContentType == ContentType.GameClient ||
-             c.ContentType == ContentType.Executable ||
-             c.ContentType == ContentType.ModdingTool));
-
-        if (!hasLaunchableContent)
-        {
-            StatusMessage = "Error: A Game, Executable, or Tool must be enabled.";
-            _localNotificationService.ShowError(
-                "Missing Launchable Content",
-                "Please enable a Game, Executable, or Tool before saving.");
-            _logger?.LogWarning("Profile save blocked: No launchable content enabled");
-            return false;
-        }
-
-        return true;
-    }
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Accesses SelectedGameInstallation and instance collections in partial view model")]
-    private List<string> CollectEnabledContentIds()
-    {
-        var enabledContentIds = EnabledContent.Where(c => c.IsEnabled).Select(c => c.ManifestId.Value).ToList();
-
-        if (SelectedGameInstallation != null)
-        {
-            if (!string.IsNullOrEmpty(SelectedGameInstallation.GameClientId) &&
-                !enabledContentIds.Contains(SelectedGameInstallation.GameClientId, StringComparer.OrdinalIgnoreCase))
-            {
-                enabledContentIds.Add(SelectedGameInstallation.GameClientId);
-            }
-
-            if (!string.IsNullOrEmpty(SelectedGameInstallation.ManifestId.Value) &&
-                !enabledContentIds.Contains(SelectedGameInstallation.ManifestId.Value, StringComparer.OrdinalIgnoreCase))
-            {
-                enabledContentIds.Add(SelectedGameInstallation.ManifestId.Value);
-            }
-        }
-
-        return enabledContentIds;
-    }
-
-    private async Task<bool> ValidateDependenciesAsync(List<string> enabledContentIds)
-    {
-        if (_manifestPool != null)
-        {
-            var validationErrors = await ValidateAllDependenciesAsync(enabledContentIds);
-            if (validationErrors.Count > 0)
-            {
-                var errorMessage = string.Join("\n", validationErrors);
-                StatusMessage = "Error: Missing required dependencies";
-                _localNotificationService.ShowError(
-                    "Missing Dependencies",
-                    $"Cannot save profile with missing dependencies:\n\n{errorMessage}");
-                _logger?.LogWarning("Profile save blocked: {Errors}", errorMessage);
-                return false;
-            }
-        }
-
-        return true;
-    }
-
     private async Task CreateProfileAsync(List<string> enabledContentIds, CancellationToken cancellationToken = default)
     {
         if (_gameProfileManager == null)
@@ -453,12 +439,15 @@ public partial class GameProfileSettingsViewModel
             return;
         }
 
+        var isStandaloneProfile = ToolProfileHelper.IsToolProfile(
+            EnabledContent.Where(c => c.IsEnabled).Select(c => (c.ManifestId.Value, c.ContentType)));
+
         var createRequest = new CreateProfileRequest
         {
             Name = Name,
             Description = Description,
-            GameInstallationId = SelectedGameInstallation?.SourceId,
-            GameClientId = SelectedGameInstallation?.GameClientId,
+            GameInstallationId = isStandaloneProfile ? null : SelectedGameInstallation?.SourceId,
+            GameClientId = isStandaloneProfile ? null : SelectedGameInstallation?.GameClientId,
             WorkspaceStrategy = SelectedWorkspaceStrategy,
             EnabledContentIds = enabledContentIds,
             CommandLineArguments = CommandLineArguments,
@@ -700,12 +689,15 @@ public partial class GameProfileSettingsViewModel
 
     private UpdateProfileRequest BuildUpdateRequest(List<string> enabledContentIds, UpdateProfileRequest? gameSettings)
     {
+        var isStandaloneProfile = ToolProfileHelper.IsToolProfile(
+            EnabledContent.Where(c => c.IsEnabled).Select(c => (c.ManifestId.Value, c.ContentType)));
+
         var updateRequest = new UpdateProfileRequest
         {
             Name = Name,
             Description = Description,
             ThemeColor = ColorValue,
-            GameInstallationId = SelectedGameInstallation?.SourceId,
+            GameInstallationId = isStandaloneProfile ? null : SelectedGameInstallation?.SourceId,
             WorkspaceStrategy = OriginalWorkspaceStrategy.HasValue && SelectedWorkspaceStrategy != OriginalWorkspaceStrategy.Value
                 ? SelectedWorkspaceStrategy
                 : null,
@@ -736,7 +728,11 @@ public partial class GameProfileSettingsViewModel
         StatusMessage = "Profile updated successfully";
         _logger?.LogInformation("Updated profile {ProfileId} with {ContentCount} enabled content items", CurrentProfileId, enabledContentIds.Count);
 
-        WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(result.Data));
+        if (result.Data != null)
+        {
+            WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(result.Data));
+        }
+
         ExecuteCancel();
     }
 
@@ -1128,7 +1124,6 @@ public partial class GameProfileSettingsViewModel
                 _contentStorageService,
                 _genLauncherNormalizationService,
                 _dialogService,
-                _archivePayloadProcessor,
                 null);
             var window = new Views.AddLocalContentWindow
             {
@@ -1197,7 +1192,6 @@ public partial class GameProfileSettingsViewModel
                 _contentStorageService,
                 _genLauncherNormalizationService,
                 _dialogService,
-                _archivePayloadProcessor,
                 null);
             await vm.LoadFromManifestAsync(contentItem);
 
@@ -1275,8 +1269,8 @@ public partial class GameProfileSettingsViewModel
 
         if (string.IsNullOrWhiteSpace(LocalContentDirectoryPath))
         {
-             _localNotificationService.ShowWarning("Validation Error", "Please select a folder for the content.");
-             return;
+            _localNotificationService.ShowWarning("Validation Error", "Please select a folder for the content.");
+            return;
         }
 
         try
@@ -1291,14 +1285,14 @@ public partial class GameProfileSettingsViewModel
 
             if (result.Success)
             {
-                 IsAddLocalContentDialogOpen = false;
+                IsAddLocalContentDialogOpen = false;
 
-                 // Refresh filters and content to ensure new type appears and list updates
-                 await RefreshFiltersAndContentAsync();
+                // Refresh filters and content to ensure new type appears and list updates
+                await RefreshFiltersAndContentAsync();
 
-                 // If the added item matches current filter, ensure it's selected/visible (handled by LoadAvailableContent)
-                 // If the item introduced a new filter, user might want to switch to it.
-                 // For now, just refreshing ensures it's reachable.
+                // If the added item matches current filter, ensure it's selected/visible (handled by LoadAvailableContent)
+                // If the item introduced a new filter, user might want to switch to it.
+                // For now, just refreshing ensures it's reachable.
             }
             else
             {

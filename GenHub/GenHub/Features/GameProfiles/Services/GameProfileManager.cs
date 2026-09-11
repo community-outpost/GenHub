@@ -68,7 +68,7 @@ public class GameProfileManager(
                 }
 
                 // Set toolContentId to the single ModdingTool content ID
-                toolContentId = request.EnabledContentIds?.FirstOrDefault();
+                toolContentId = request.EnabledContentIds!.First();
 
                 logger.LogInformation(
                     "Detected Tool profile creation for tool: {ToolContentId}",

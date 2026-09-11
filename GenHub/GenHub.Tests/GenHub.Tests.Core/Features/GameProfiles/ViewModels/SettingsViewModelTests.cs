@@ -458,23 +458,16 @@ public class SettingsViewModelTests
             .Setup(x => x.RunGarbageCollectionAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CasGarbageCollectionResult.CreateDisabled());
 
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockSubscriptionStore.Object,
-            _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object);
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteCasStorageConfirmationTitle,
+                AppConstants.DeleteCasStorageConfirmationMessage,
+                AppConstants.DeleteCasStorageConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
 
         // Act
         await viewModel.DeleteCasStorageCommand.ExecuteAsync(null);
@@ -505,23 +498,16 @@ public class SettingsViewModelTests
     public async Task UninstallGenHubCommand_CallsServiceAsync()
     {
         // Arrange
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockSubscriptionStore.Object,
-            _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object);
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.UninstallGenHubConfirmationTitle,
+                AppConstants.UninstallGenHubConfirmationMessage,
+                AppConstants.UninstallGenHubConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
 
         // Act
         await viewModel.UninstallGenHubCommand.ExecuteAsync(null);

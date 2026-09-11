@@ -19,14 +19,7 @@ public class ProfileSelectionConverter : IMultiValueConverter
     /// </summary>
     public static ProfileSelectionConverter Instance { get; } = new();
 
-    /// <summary>
-    /// Converts multiple values to a single value.
-    /// </summary>
-    /// <param name="values">The values to convert.</param>
-    /// <param name="targetType">The target type.</param>
-    /// <param name="parameter">The converter parameter.</param>
-    /// <param name="culture">The culture to use.</param>
-    /// <returns>The converted value.</returns>
+    /// <inheritdoc/>
     public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
     {
         if (values.Count >= 2 && values[1] is GameProfile profile)
@@ -36,7 +29,8 @@ public class ProfileSelectionConverter : IMultiValueConverter
             {
                 return new object[] { contentItem, profile };
             }
-            else if (values[0] is Core.Models.Manifest.ContentManifest manifest)
+
+            if (values[0] is Core.Models.Manifest.ContentManifest manifest)
             {
                 return new object[] { manifest, profile };
             }

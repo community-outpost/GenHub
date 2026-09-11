@@ -10,6 +10,8 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Parsers;
 
@@ -19,8 +21,10 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// Generic base view model for downloadable rows (releases, addons, custom publisher content) with expandable details.
 /// </summary>
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Properties access CommunityToolkit MVVM generated instance properties.")]
-public abstract partial class DownloadableItemViewModel : ObservableObject, IDownloadableRowViewModel
+public abstract partial class DownloadableItemViewModel : ObservableObject, IDownloadableRowViewModel, IDisposable
 {
+    private CancellationTokenSource? _fetchCts;
+
     /// <summary>
     /// Gets the unique identifier for the downloadable item.
     /// </summary>
@@ -162,6 +166,7 @@ public abstract partial class DownloadableItemViewModel : ObservableObject, IDow
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasDownloadUrl))]
+    [NotifyPropertyChangedFor(nameof(FormattedFullDescription))]
     private string? _downloadUrl;
 
     /// <summary>
@@ -174,6 +179,7 @@ public abstract partial class DownloadableItemViewModel : ObservableObject, IDow
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasDetailsUrl))]
+    [NotifyPropertyChangedFor(nameof(FormattedFullDescription))]
     private string? _detailsUrl;
 
     /// <summary>
@@ -204,12 +210,45 @@ public abstract partial class DownloadableItemViewModel : ObservableObject, IDow
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasMd5Hash))]
+    [NotifyPropertyChangedFor(nameof(HasChecksum))]
+    [NotifyPropertyChangedFor(nameof(ChecksumTitle))]
+    [NotifyPropertyChangedFor(nameof(ChecksumDisplay))]
     private string? _md5Hash;
 
     /// <summary>
     /// Gets a value indicating whether an MD5 checksum hash is present.
     /// </summary>
     public bool HasMd5Hash => !string.IsNullOrWhiteSpace(Md5Hash);
+
+    /// <summary>
+    /// Gets or sets the SHA-256 checksum hash.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSha256Hash))]
+    [NotifyPropertyChangedFor(nameof(HasChecksum))]
+    [NotifyPropertyChangedFor(nameof(ChecksumTitle))]
+    [NotifyPropertyChangedFor(nameof(ChecksumDisplay))]
+    private string? _sha256Hash;
+
+    /// <summary>
+    /// Gets a value indicating whether a SHA-256 checksum hash is present.
+    /// </summary>
+    public bool HasSha256Hash => !string.IsNullOrWhiteSpace(Sha256Hash);
+
+    /// <summary>
+    /// Gets a value indicating whether any checksum hash (MD5 or SHA-256) is present.
+    /// </summary>
+    public bool HasChecksum => HasSha256Hash || HasMd5Hash;
+
+    /// <summary>
+    /// Gets the display title for the checksum.
+    /// </summary>
+    public string ChecksumTitle => HasSha256Hash ? ContentConstants.Sha256ChecksumTitle : ContentConstants.Md5ChecksumTitle;
+
+    /// <summary>
+    /// Gets the checksum string to display.
+    /// </summary>
+    public string? ChecksumDisplay => string.IsNullOrWhiteSpace(Sha256Hash) ? Md5Hash : Sha256Hash;
 
     /// <summary>
     /// Gets or sets the download count.
@@ -241,7 +280,14 @@ public abstract partial class DownloadableItemViewModel : ObservableObject, IDow
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasDescription))]
     [NotifyPropertyChangedFor(nameof(Description))]
+    [NotifyPropertyChangedFor(nameof(FormattedFullDescription))]
     private string? _fullDescription;
+
+    /// <summary>
+    /// Gets the formatted markdown description with clickable links.
+    /// </summary>
+    public string FormattedFullDescription =>
+        MarkdownLinkFormatter.FormatLinks(FullDescription, DetailsUrl ?? DownloadUrl);
 
     /// <summary>
     /// Gets or sets the short summary or description of the item.
@@ -403,15 +449,28 @@ public abstract partial class DownloadableItemViewModel : ObservableObject, IDow
 
         if (IsExpanded && !IsDetailsLoaded && FetchDetailsAsync != null)
         {
+            if (_fetchCts != null)
+            {
+                await _fetchCts.CancelAsync();
+                _fetchCts.Dispose();
+            }
+
+            _fetchCts = new CancellationTokenSource();
+            var ct = _fetchCts.Token;
+
             try
             {
                 IsLoadingDetails = true;
                 HasDetailsError = false;
                 DetailsErrorMessage = null;
 
-                await FetchDetailsAsync(this, CancellationToken.None);
+                await FetchDetailsAsync(this, ct);
 
                 IsDetailsLoaded = true;
+            }
+            catch (OperationCanceledException)
+            {
+                // Operation cancelled on collapse or disposal
             }
             catch (Exception ex)
             {
@@ -423,16 +482,21 @@ public abstract partial class DownloadableItemViewModel : ObservableObject, IDow
                 IsLoadingDetails = false;
             }
         }
+        else if (!IsExpanded && _fetchCts != null)
+        {
+            await _fetchCts.CancelAsync();
+        }
     }
 
     /// <summary>
-    /// Copies the MD5 hash to the system clipboard.
+    /// Copies the checksum (SHA-256 or MD5) to the system clipboard.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [RelayCommand]
-    public async Task CopyMd5Async()
+    public async Task CopyChecksumAsync()
     {
-        if (string.IsNullOrEmpty(Md5Hash))
+        var hash = ChecksumDisplay;
+        if (string.IsNullOrEmpty(hash))
         {
             return;
         }
@@ -444,7 +508,7 @@ public abstract partial class DownloadableItemViewModel : ObservableObject, IDow
                 var topLevel = TopLevel.GetTopLevel(desktop.MainWindow);
                 if (topLevel?.Clipboard != null)
                 {
-                    await topLevel.Clipboard.SetTextAsync(Md5Hash);
+                    await topLevel.Clipboard.SetTextAsync(hash);
                 }
             }
         }
@@ -481,6 +545,27 @@ public abstract partial class DownloadableItemViewModel : ObservableObject, IDow
         catch
         {
             // Clipboard access fallback ignored
+        }
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases unmanaged and managed resources.
+    /// </summary>
+    /// <param name="disposing">True if disposing managed resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _fetchCts?.Cancel();
+            _fetchCts?.Dispose();
+            _fetchCts = null;
         }
     }
 

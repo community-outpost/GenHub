@@ -8,6 +8,8 @@
              xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls;assembly=GenHub"
              xmlns:parsers="clr-namespace:GenHub.Core.Models.Parsers;assembly=GenHub.Core"
              xmlns:content="clr-namespace:GenHub.Core.Models.Content;assembly=GenHub.Core"
+             xmlns:md="https://github.com/whistyun/Markdown.Avalonia"
+             xmlns:markdown="clr-namespace:GenHub.Infrastructure.Markdown;assembly=GenHub"
              mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
              x:Class="GenHub.Features.Downloads.Views.ContentDetailView"
              x:DataType="vm:ContentDetailViewModel"
@@ -22,6 +24,8 @@
         <converters:ContentTypeToBrushConverter x:Key="ContentTypeToBrushConverter" />
         <converters:ContentTypeToBadgeBackgroundConverter x:Key="ContentTypeToBadgeBackgroundConverter" />
         <converters:ContentTypeDisplayConverter x:Key="ContentTypeDisplayConverter" />
+        <markdown:SafeMarkdownHyperlinkCommand x:Key="SafeMarkdownHyperlinkCommand" />
+        <markdown:SafeMarkdownPathResolver x:Key="SafeMarkdownPathResolver" />
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -262,11 +266,20 @@
                                 <!-- Description -->
                                 <StackPanel Spacing="12">
                                     <TextBlock Text="About" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
-                                    <TextBlock Text="{Binding Description}"
-                                               Foreground="{DynamicResource TextSecondary}"
-                                               FontSize="15"
-                                               LineHeight="24"
-                                               TextWrapping="Wrap" />
+                                    <md:MarkdownScrollViewer Markdown="{Binding FormattedDescription}">
+                                        <md:MarkdownScrollViewer.Plugins>
+                                            <md:MdAvPlugins HyperlinkCommand="{StaticResource SafeMarkdownHyperlinkCommand}"
+                                                            PathResolver="{StaticResource SafeMarkdownPathResolver}" />
+                                        </md:MarkdownScrollViewer.Plugins>
+                                        <md:MarkdownScrollViewer.Styles>
+                                            <Style Selector="TextBlock">
+                                                <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+                                                <Setter Property="FontSize" Value="15"/>
+                                                <Setter Property="LineHeight" Value="24"/>
+                                                <Setter Property="TextWrapping" Value="Wrap"/>
+                                            </Style>
+                                        </md:MarkdownScrollViewer.Styles>
+                                    </md:MarkdownScrollViewer>
                                 </StackPanel>
                             </StackPanel>
                         </ScrollViewer>
@@ -375,6 +388,10 @@
                                                                 <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" VerticalAlignment="Center" Margin="0,0,6,2"
                                                                         IsVisible="{Binding HasVersion}">
                                                                     <TextBlock Text="{Binding Version}" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                </Border>
+                                                                <Border Background="{DynamicResource WarningBrush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center" Margin="0,0,6,2"
+                                                                        IsVisible="{Binding IsUpdateAvailable}">
+                                                                    <TextBlock Text="Update Available" FontSize="11" Foreground="{DynamicResource WarningForegroundBrush}" FontWeight="SemiBold" />
                                                                 </Border>
                                                             </WrapPanel>
 
@@ -594,12 +611,12 @@
                                                                     </StackPanel>
 
                                                                     <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,0,0,0"
-                                                                                IsVisible="{Binding HasMd5Hash}">
-                                                                        <TextBlock Text="MD5 Checksum" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                                IsVisible="{Binding HasChecksum}">
+                                                                        <TextBlock Text="{Binding ChecksumTitle}" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
                                                                         <StackPanel Orientation="Horizontal" Spacing="8">
-                                                                            <TextBlock Text="{Binding Md5Hash}" FontSize="12" FontFamily="Consolas, Monospace" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="140"/>
-                                                                            <Button Content="Copy" Command="{Binding CopyMd5Command}" Padding="6,2" FontSize="10"
-                                                                                    Background="{DynamicResource SurfaceElevatedBrush}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Cursor="Hand" ToolTip.Tip="Copy MD5 hash"/>
+                                                                            <TextBlock Text="{Binding ChecksumDisplay}" FontSize="12" FontFamily="Consolas, Monospace" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="140"/>
+                                                                            <Button Content="Copy" Command="{Binding CopyChecksumCommand}" Padding="6,2" FontSize="10"
+                                                                                    Background="{DynamicResource SurfaceElevatedBrush}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Cursor="Hand" ToolTip.Tip="Copy checksum"/>
                                                                         </StackPanel>
                                                                     </StackPanel>
                                                                 </Grid>
@@ -613,8 +630,20 @@
                                                                     <TextBlock Text="Readme &amp; Release Notes" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                                                                 </StackPanel>
                                                                 <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
-                                                                    <TextBlock Text="{Binding FullDescription}"
-                                                                               Foreground="{DynamicResource TextSecondary}" FontSize="13" LineHeight="22" TextWrapping="Wrap" />
+                                                                    <md:MarkdownScrollViewer Markdown="{Binding FormattedFullDescription}">
+                                                                        <md:MarkdownScrollViewer.Plugins>
+                                                                            <md:MdAvPlugins HyperlinkCommand="{StaticResource SafeMarkdownHyperlinkCommand}"
+                                                                                            PathResolver="{StaticResource SafeMarkdownPathResolver}" />
+                                                                        </md:MarkdownScrollViewer.Plugins>
+                                                                        <md:MarkdownScrollViewer.Styles>
+                                                                            <Style Selector="TextBlock">
+                                                                                <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+                                                                                <Setter Property="FontSize" Value="13"/>
+                                                                                <Setter Property="LineHeight" Value="22"/>
+                                                                                <Setter Property="TextWrapping" Value="Wrap"/>
+                                                                            </Style>
+                                                                        </md:MarkdownScrollViewer.Styles>
+                                                                    </md:MarkdownScrollViewer>
                                                                 </Border>
                                                             </StackPanel>
 
@@ -950,12 +979,12 @@
                                                                     </StackPanel>
 
                                                                     <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,0,0,0"
-                                                                                IsVisible="{Binding HasMd5Hash}">
-                                                                        <TextBlock Text="MD5 Checksum" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                                                                IsVisible="{Binding HasChecksum}">
+                                                                        <TextBlock Text="{Binding ChecksumTitle}" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
                                                                         <StackPanel Orientation="Horizontal" Spacing="8">
-                                                                            <TextBlock Text="{Binding Md5Hash}" FontSize="12" FontFamily="Consolas, Monospace" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="140"/>
-                                                                            <Button Content="Copy" Command="{Binding CopyMd5Command}" Padding="6,2" FontSize="10"
-                                                                                    Background="{DynamicResource SurfaceElevatedBrush}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Cursor="Hand" ToolTip.Tip="Copy MD5 hash"/>
+                                                                            <TextBlock Text="{Binding ChecksumDisplay}" FontSize="12" FontFamily="Consolas, Monospace" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="140"/>
+                                                                            <Button Content="Copy" Command="{Binding CopyChecksumCommand}" Padding="6,2" FontSize="10"
+                                                                                    Background="{DynamicResource SurfaceElevatedBrush}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Cursor="Hand" ToolTip.Tip="Copy checksum"/>
                                                                         </StackPanel>
                                                                     </StackPanel>
                                                                 </Grid>
@@ -969,8 +998,20 @@
                                                                     <TextBlock Text="Readme &amp; Release Notes" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                                                                 </StackPanel>
                                                                 <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
-                                                                    <TextBlock Text="{Binding FullDescription}"
-                                                                               Foreground="{DynamicResource TextSecondary}" FontSize="13" LineHeight="22" TextWrapping="Wrap" />
+                                                                    <md:MarkdownScrollViewer Markdown="{Binding FormattedFullDescription}">
+                                                                        <md:MarkdownScrollViewer.Plugins>
+                                                                            <md:MdAvPlugins HyperlinkCommand="{StaticResource SafeMarkdownHyperlinkCommand}"
+                                                                                            PathResolver="{StaticResource SafeMarkdownPathResolver}" />
+                                                                        </md:MarkdownScrollViewer.Plugins>
+                                                                        <md:MarkdownScrollViewer.Styles>
+                                                                            <Style Selector="TextBlock">
+                                                                                <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+                                                                                <Setter Property="FontSize" Value="13"/>
+                                                                                <Setter Property="LineHeight" Value="22"/>
+                                                                                <Setter Property="TextWrapping" Value="Wrap"/>
+                                                                            </Style>
+                                                                        </md:MarkdownScrollViewer.Styles>
+                                                                    </md:MarkdownScrollViewer>
                                                                 </Border>
                                                             </StackPanel>
 
@@ -1281,7 +1322,7 @@
                                     FontSize="15"
                                     FontWeight="SemiBold"
                                     IsVisible="{Binding ShowDownloadButton}"
-                                    IsEnabled="{Binding !IsDownloading}"
+                                    IsEnabled="{Binding CanDownload}"
                                     Command="{Binding DownloadCommand}"
                                     Cursor="Hand"
                                     Padding="20,0">
@@ -1311,12 +1352,12 @@
                             <Button HorizontalAlignment="Stretch"
                                     Height="48"
                                     Background="{DynamicResource WarningBrush}"
-                                    Foreground="White"
+                                    Foreground="{DynamicResource WarningForegroundBrush}"
                                     CornerRadius="8"
                                     FontSize="15"
                                     FontWeight="SemiBold"
                                     IsVisible="{Binding ShowUpdateButton}"
-                                    IsEnabled="{Binding !IsDownloading}"
+                                    IsEnabled="{Binding CanUpdate}"
                                     Command="{Binding UpdateCommand}"
                                     Cursor="Hand"
                                     Padding="20,0">
@@ -1338,7 +1379,7 @@
                                 <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
                                     <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
                                               Width="18" Height="18"
-                                              Foreground="White"/>
+                                              Foreground="{DynamicResource WarningForegroundBrush}"/>
                                     <TextBlock Text="Update Available" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
@@ -1498,15 +1539,28 @@
                                     <TextBlock Grid.Column="1" Text="{Binding LastUpdatedDisplay}" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Right"/>
                                 </Grid>
 
-                                <!-- Content type can be corrected before download when a mixed or
-                                     generic publisher cannot classify an item reliably. -->
+                                <!-- Content type can only be corrected before download for generic GitHub items.
+                                     Official providers (Generals Online, Community Outpost, The Super Hackers) are locked. -->
                                 <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
-                                    <TextBlock Grid.Column="0" Text="Type" Foreground="{DynamicResource TextSecondary}"/>
+                                    <TextBlock Grid.Column="0" Text="Type" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
                                     <ComboBox Grid.Column="1"
                                               ItemsSource="{Binding ContentTypeOptions}"
                                               SelectedItem="{Binding SelectedContentType}"
                                               HorizontalAlignment="Right"
-                                              MinWidth="130" />
+                                              MinWidth="130"
+                                              IsVisible="{Binding CanChangeContentType}">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Converter={StaticResource ContentTypeDisplayConverter}}" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}"
+                                               Foreground="{DynamicResource TextPrimary}"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Center"
+                                               IsVisible="{Binding !CanChangeContentType}" />
                                 </Grid>
 
                                 <!-- Version - only show if not empty -->

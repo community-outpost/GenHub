@@ -310,6 +310,77 @@ public sealed class ReleaseVariantSelectionTests
         Assert.Equal("thesuperhackers.gameclient.weekly-2026-07-17", zeroHourCard.VariantGroupId);
     }
 
+    /// <summary>
+    /// Verifies that VariantSwap.FindMatchingVariant resolves variants using the multi-tier heuristic.
+    /// </summary>
+    [Fact]
+    public void VariantSwap_FindMatchingVariant_ResolvesAcrossTiers()
+    {
+        var v1 = new InstallableVariant { Name = "Control Bar 1080p (Recommended)", ManifestId = "1.0.addon.cbpx-1080p" };
+        var v2 = new InstallableVariant { Name = "Control Bar 4K", ManifestId = "1.0.addon.cbpx-4k" };
+        var v3 = new InstallableVariant { Name = "Russian Language Pack", ManifestId = "1.0.addon.lang-ru" };
+        var list = new[] { v1, v2, v3 };
+
+        // 1. Exact manifest ID
+        Assert.Same(v1, VariantSwap.FindMatchingVariant(list, "1.0.addon.cbpx-1080p"));
+
+        // 2. Exact name
+        Assert.Same(v2, VariantSwap.FindMatchingVariant(list, "Control Bar 4K"));
+
+        // 3. ManifestId suffix
+        Assert.Same(v1, VariantSwap.FindMatchingVariant(list, "1080p"));
+        Assert.Same(v3, VariantSwap.FindMatchingVariant(list, "ru"));
+
+        // 4. Identifier suffix
+        Assert.Same(v2, VariantSwap.FindMatchingVariant(list, "prefix.1.0.addon.cbpx-4k"));
+
+        // 5. Name contains
+        Assert.Same(v3, VariantSwap.FindMatchingVariant(list, "Russian"));
+
+        // Edge cases
+        Assert.Null(VariantSwap.FindMatchingVariant(list, null));
+        Assert.Null(VariantSwap.FindMatchingVariant(list, string.Empty));
+        Assert.Null(VariantSwap.FindMatchingVariant(list, "nonexistent"));
+        Assert.Null(VariantSwap.FindMatchingVariant(null, "1080p"));
+    }
+
+    /// <summary>
+    /// Verifies that normalized synthesized manifest IDs without hyphens match hyphenated or bare identifiers,
+    /// while rejecting mismatched package/version prefixes.
+    /// </summary>
+    [Fact]
+    public void VariantSwap_FindMatchingVariant_SynthesizedManifestIdWithoutHyphens()
+    {
+        var v1 = new InstallableVariant { Name = "Control Bar 1080p", ManifestId = "1.0.ea.gameinstallation.cbpx1080p" };
+        var v2 = new InstallableVariant { Name = "Control Bar 4K", ManifestId = "1.0.ea.gameinstallation.cbpx4k" };
+        var list = new[] { v1, v2 };
+
+        Assert.Same(v1, VariantSwap.FindMatchingVariant(list, "1080p"));
+        Assert.Same(v1, VariantSwap.FindMatchingVariant(list, "cbpx-1080p"));
+        Assert.Same(v2, VariantSwap.FindMatchingVariant(list, "4k"));
+        Assert.Same(v2, VariantSwap.FindMatchingVariant(list, "cbpx-4k"));
+
+        // Does not match across mismatched version prefixes
+        Assert.Null(VariantSwap.FindMatchingVariant(list, "1.10.ea.gameinstallation.cbpx-1080p"));
+    }
+
+    /// <summary>
+    /// Verifies that short identifiers (e.g. 'ru') exercise the name-scoring tier without resolving earlier
+    /// manifest ID suffix tiers, and do not select unrelated names containing the substring (e.g. 'Belarusian').
+    /// </summary>
+    [Fact]
+    public void VariantSwap_FindMatchingVariant_ShortLanguageIdentifier_DoesNotCollideWithSubstring()
+    {
+        // Manifest IDs avoid ending with .ru or .be so resolution exercises the Tier 6 name scoring path
+        var vBelarusian = new InstallableVariant { Name = "Belarusian Language Pack", ManifestId = "1.0.addon.belarusian-lang" };
+        var vRussian = new InstallableVariant { Name = "Russian Language Pack", ManifestId = "1.0.addon.russian-lang" };
+        var list = new[] { vBelarusian, vRussian };
+
+        // Should resolve Russian via token-prefix score, not Belarusian (even though Belarusian contains 'ru' and is first in list)
+        Assert.Same(vRussian, VariantSwap.FindMatchingVariant(list, "ru"));
+        Assert.Same(vBelarusian, VariantSwap.FindMatchingVariant(list, "be"));
+    }
+
     private static (ContentSearchResult Generals, ContentSearchResult ZeroHour, ContentVariantInfo[] Variants) CreateSuperHackersPair()
     {
         var generalsCard = new ContentSearchResult

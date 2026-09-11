@@ -238,7 +238,7 @@
                                             CommandParameter="{Binding}"
                                             Width="360" Height="236"
                                             Margin="0,0,16,10"
-                                            ToolTip.Tip="Add this content to this profile">
+                                            ToolTip.Tip="{Binding $parent[Window].((vm:ProfileSelectionViewModel)DataContext).AddToProfileTooltip}">
                                         <Grid>
                                             <profileViews:GameProfileCardView DataContext="{Binding ProfileCard}" IsHitTestVisible="False" />
                                             <Border Classes="action-badge" IsHitTestVisible="False" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="14" CornerRadius="14" Background="{DynamicResource AccentBrush}" Padding="10,5">
@@ -252,7 +252,7 @@
                                             Command="{Binding $parent[Window].((vm:ProfileSelectionViewModel)DataContext).CreateNewProfileCommand}"
                                             Width="360" Height="236"
                                             Margin="0,0,16,10"
-                                            ToolTip.Tip="Create a new profile with this content">
+                                            ToolTip.Tip="{Binding $parent[Window].((vm:ProfileSelectionViewModel)DataContext).CreateProfileTooltip}">
                                         <Border Classes="add-profile-card" Margin="6">
                                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
                                                 <TextBlock Text="+" FontSize="42" FontWeight="Light" Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Center" />
@@ -282,7 +282,7 @@
                                             CommandParameter="{Binding}"
                                             Width="360" Height="236"
                                             Margin="0,0,16,10"
-                                            ToolTip.Tip="Add this content to this profile">
+                                            ToolTip.Tip="{Binding $parent[Window].((vm:ProfileSelectionViewModel)DataContext).AddToProfileTooltip}">
                                         <Grid>
                                             <profileViews:GameProfileCardView DataContext="{Binding ProfileCard}" IsHitTestVisible="False" />
                                             <Border Classes="action-badge" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="14" CornerRadius="12" Background="{DynamicResource WarningBrush}" Padding="9,5">

@@ -106,7 +106,7 @@ public static class GenPatcherDependencyBuilder
         {
             // Semantic ID indicates what this dependency represents
             // Matching is done via DependencyType + CompatibleGameTypes + MinVersion
-            Id = ManifestId.Create("1.104.any.gameinstallation.zerohour"),
+            Id = ManifestId.Create(ManifestConstants.ZeroHourGameInstallationManifestId),
             Name = GameClientConstants.ZeroHourInstallationDependencyName,
             DependencyType = ContentType.GameInstallation,
             MinVersion = ManifestConstants.ZeroHourManifestVersion, // "1.04"
@@ -129,7 +129,7 @@ public static class GenPatcherDependencyBuilder
     {
         return new ContentDependency
         {
-            Id = ManifestId.Create("1.108.any.gameinstallation.generals"),
+            Id = ManifestId.Create(ManifestConstants.GeneralsGameInstallationManifestId),
             Name = "Generals 1.08 Installation (Required)",
             DependencyType = ContentType.GameInstallation,
             MinVersion = ManifestConstants.GeneralsManifestVersion, // "1.08"

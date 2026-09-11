@@ -17,13 +17,6 @@ public class DefaultInfoContentProvider : IInfoContentProvider
 {
     private readonly List<InfoSection> _sections = CreateContent();
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="DefaultInfoContentProvider"/> class.
-    /// </summary>
-    public DefaultInfoContentProvider()
-    {
-    }
-
     /// <inheritdoc/>
     public Task<IEnumerable<InfoSection>> GetAllSectionsAsync()
     {

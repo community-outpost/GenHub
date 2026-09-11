@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Downloads.Services;
@@ -223,6 +224,62 @@ public class ContentStateServiceTests
 
         Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(item));
         Assert.Equal(storedVariant.Id.Value, await service.GetLocalManifestIdAsync(item));
+    }
+
+    /// <summary>
+    /// A synthetic file row created for a Generals Online release carries parentContentId and
+    /// SelectedDownloadUrl. It must resolve as downloaded against the installed manifest.
+    /// </summary>
+    /// <returns>A completed task.</returns>
+    [Fact]
+    public async Task GetStateAsync_GeneralsOnlineSyntheticFileRow_MatchesInstalledManifestViaParentContentIdAsync()
+    {
+        var fileRowItem = new ContentSearchResult
+        {
+            Id = "file:https://www.playgenerals.online/#download",
+            Name = "Generals Online",
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            SelectedDownloadUrl = "https://www.playgenerals.online/unrelated-installer.exe",
+            ResolverMetadata =
+            {
+                [ContentConstants.ParentContentIdMetadataKey] = "GeneralsOnline_082826_QFE1",
+            },
+        };
+
+        var storedVariant = new ContentManifest
+        {
+            Id = ManifestId.Create("1.828261.generalsonline.gameclient.60hz"),
+            OriginalContentId = "GeneralsOnline_082826_QFE1",
+            OriginalProviderName = PublisherTypeConstants.GeneralsOnline,
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo
+            {
+                Name = "Generals Online Team",
+                ContentIndexUrl = "https://www.playgenerals.online/#download",
+            },
+            Files =
+            [
+                new ManifestFile
+                {
+                    RelativePath = "GeneralsOnline_portable_082826_QFE1.zip",
+                    DownloadUrl = "https://cdn.playgenerals.online/releases/GeneralsOnline_portable_082826_QFE1.zip",
+                },
+            ],
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>.CreateSuccess([storedVariant]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(fileRowItem));
+        Assert.Equal(storedVariant.Id.Value, await service.GetLocalManifestIdAsync(fileRowItem));
     }
 
     /// <summary>
@@ -502,6 +559,48 @@ public class ContentStateServiceTests
     }
 
     /// <summary>
+    /// Verifies that distinct GitHub content sharing an initial hyphen-delimited token does not false-match as downloaded.
+    /// </summary>
+    /// <returns>A completed task.</returns>
+    [Fact]
+    public async Task GetStateAsync_DistinctGitHubContentSharingFirstToken_StaysNotDownloadedAndReturnsNoManifestIdAsync()
+    {
+        var installedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.github.mod.generalsgameplay"),
+            Name = "generals-gameplay",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo
+            {
+                PublisherType = "github",
+            },
+        };
+
+        var distinctCard = new ContentSearchResult
+        {
+            Id = "1.0.github.mod.generalstools",
+            Name = "generals-tools",
+            ProviderName = "github",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>.CreateSuccess([installedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(installedManifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.Is<ManifestId>(m => m.Value != installedManifest.Id.Value), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        Assert.Equal(ContentState.NotDownloaded, await service.GetStateAsync(distinctCard));
+        Assert.Null(await service.GetLocalManifestIdAsync(distinctCard));
+    }
+
+    /// <summary>
     /// Verifies that discovering a newer release date for an installed ModDB mod reports update available.
     /// </summary>
     /// <returns>A completed task.</returns>
@@ -534,6 +633,8 @@ public class ContentStateServiceTests
         var pool = new Mock<IContentManifestPool>();
         pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>.CreateSuccess([storedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
         pool.Setup(p => p.IsManifestAcquiredAsync(storedManifest.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
         pool.Setup(p => p.IsManifestAcquiredAsync(It.Is<ManifestId>(m => m.Value != storedManifest.Id.Value), It.IsAny<CancellationToken>()))
@@ -1039,6 +1140,364 @@ public class ContentStateServiceTests
         // The downloaded full version row must be reported as Downloaded with its on-disk manifest ID.
         Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(fullRow));
         Assert.Equal(storedFullManifest.Id.Value, await service.GetLocalManifestIdAsync(fullRow));
+    }
+
+    /// <summary>
+    /// Verifies that GitHub Topics matching does not falsely match repositories whose names
+    /// start with the prefix of another repository (e.g. GeneralsGamePatch matching Generals).
+    /// </summary>
+    /// <returns>A completed task.</returns>
+    [Fact]
+    public async Task GetStateAsync_GitHubRepoPrefixCollision_DoesNotMatchDifferentRepoWithSamePrefixAsync()
+    {
+        var storedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.thesuperhackers.patch.generalsgamepatch"),
+            Name = "Generals Game Patch",
+            ContentType = ContentType.Patch,
+            TargetGame = GameType.Generals,
+            OriginalProviderName = "github",
+            Publisher = new PublisherInfo
+            {
+                PublisherType = "github",
+                Website = "https://github.com/TheSuperHackers/GeneralsGamePatch",
+            },
+            Metadata = new ContentMetadata
+            {
+                ChangelogUrl = "https://github.com/TheSuperHackers/GeneralsGamePatch/releases/tag/v1.0",
+            },
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([storedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(storedManifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        var prefixCard = new ContentSearchResult
+        {
+            Id = "thesuperhackers/generals",
+            Name = "Generals",
+            ProviderName = "github",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.Generals,
+            SourceUrl = "https://github.com/TheSuperHackers/Generals",
+        };
+
+        var exactCard = new ContentSearchResult
+        {
+            Id = "thesuperhackers/generalsgamepatch",
+            Name = "Generals Game Patch",
+            ProviderName = "github",
+            ContentType = ContentType.Patch,
+            TargetGame = GameType.Generals,
+            SourceUrl = "https://github.com/TheSuperHackers/GeneralsGamePatch",
+        };
+
+        // Prefix match should NOT match
+        Assert.Equal(ContentState.NotDownloaded, await service.GetStateAsync(prefixCard));
+        Assert.Null(await service.GetLocalManifestIdAsync(prefixCard));
+
+        // Exact match SHOULD match
+        Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(exactCard));
+        Assert.Equal(storedManifest.Id.Value, await service.GetLocalManifestIdAsync(exactCard));
+    }
+
+    /// <summary>
+    /// Verifies that when an older prospective release has no LastUpdated date but has a date in its release tag,
+    /// ContentStateService extracts the date and determines NotDownloaded against a newer installed release.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetStateAsync_OlderReleaseWithoutLastUpdated_ExtractsDateFromTag_ReturnsNotDownloadedAsync()
+    {
+        // Arrange: Installed release is 2026-08-28
+        var installedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.20260828.thesuperhackers.gameclient.zerohour"),
+            Name = "GeneralsGameCode weekly-2026-08-28 — Zero Hour",
+            Version = "weekly-2026-08-28",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = PublisherTypeConstants.TheSuperHackers,
+            Publisher = new PublisherInfo
+            {
+                PublisherType = PublisherTypeConstants.TheSuperHackers,
+                Website = "https://github.com/TheSuperHackers/GeneralsGameCode",
+            },
+        };
+
+        // Item being checked is older release 2026-08-07, with null LastUpdated
+        var item = new ContentSearchResult
+        {
+            Id = "1.0.thesuperhackers.gameclient.generalsgamecodeweekly20260807zerohour",
+            Name = "GeneralsGameCode weekly-2026-08-07 — Zero Hour",
+            ProviderName = PublisherTypeConstants.TheSuperHackers,
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Version = "weekly-2026-08-07",
+            LastUpdated = null,
+            ResolverMetadata =
+            {
+                [GitHubConstants.OwnerMetadataKey] = "TheSuperHackers",
+                [GitHubConstants.RepoMetadataKey] = "GeneralsGameCode",
+                [GitHubConstants.TagMetadataKey] = "weekly-2026-08-07",
+            },
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([installedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ManifestId id, CancellationToken _) => OperationResult<bool>.CreateSuccess(id == installedManifest.Id));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        // Act
+        var state = await service.GetStateAsync(item);
+
+        // Assert: Must be NotDownloaded, NEVER Downloaded!
+        Assert.Equal(ContentState.NotDownloaded, state);
+    }
+
+    /// <summary>
+    /// Verifies that when a newer SuperHackers release is discovered against an older installed release,
+    /// ContentStateService correctly returns NotDownloaded because in multi-release feeds, each release is its own card
+    /// and the prospective uninstalled card must not display UpdateAvailable.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetStateAsync_NewerSuperHackersRelease_ReturnsNotDownloadedAsync()
+    {
+        // Arrange: Installed release is weekly-2026-08-21
+        var installedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.082126.thesuperhackers.gameclient.zerohour"),
+            Name = "GeneralsGameCode weekly-2026-08-21 — Zero Hour",
+            Version = "weekly-2026-08-21",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = PublisherTypeConstants.TheSuperHackers,
+            Publisher = new PublisherInfo
+            {
+                PublisherType = PublisherTypeConstants.TheSuperHackers,
+                Website = "https://github.com/TheSuperHackers/GeneralsGameCode",
+            },
+        };
+
+        // Prospective release is newer: weekly-2026-08-28
+        var item = new ContentSearchResult
+        {
+            Id = "github.TheSuperHackers.GeneralsGameCode.weekly-2026-08-28.zerohour",
+            Name = "GeneralsGameCode weekly-2026-08-28 — Zero Hour",
+            ProviderName = PublisherTypeConstants.TheSuperHackers,
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Version = "weekly-2026-08-28",
+            LastUpdated = new DateTime(2026, 8, 28, 0, 0, 0, DateTimeKind.Utc),
+            ResolverMetadata =
+            {
+                [GitHubConstants.OwnerMetadataKey] = "TheSuperHackers",
+                [GitHubConstants.RepoMetadataKey] = "GeneralsGameCode",
+                [GitHubConstants.TagMetadataKey] = "weekly-2026-08-28",
+            },
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([installedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ManifestId id, CancellationToken _) => OperationResult<bool>.CreateSuccess(id == installedManifest.Id));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        // Act
+        var state = await service.GetStateAsync(item);
+
+        // Assert: Uninstalled prospective card must be NotDownloaded, never UpdateAvailable
+        Assert.Equal(ContentState.NotDownloaded, state);
+    }
+
+    /// <summary>
+    /// Verifies that when a newer Generals Online release is discovered against an older installed release,
+    /// ContentStateService correctly returns UpdateAvailable rather than Downloaded.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetStateAsync_NewerGeneralsOnlineRelease_ReturnsUpdateAvailableAsync()
+    {
+        // Arrange: Installed release is 081326
+        var installedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.813262.generalsonline.gameclient.generalsonline"),
+            Name = "Generals Online 081326",
+            Version = "081326",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            OriginalProviderName = PublisherTypeConstants.GeneralsOnline,
+            OriginalContentId = "generalsonline-081326",
+            Publisher = new PublisherInfo
+            {
+                PublisherType = PublisherTypeConstants.GeneralsOnline,
+                Website = "https://www.playgenerals.online",
+                SupportUrl = "https://www.playgenerals.online/support",
+            },
+        };
+
+        // Discovered release is 082826
+        var item = new ContentSearchResult
+        {
+            Id = "1.828260.generalsonline.gameclient.generalsonline",
+            Name = "Generals Online 082826",
+            Version = "082826",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+            SourceUrl = "https://www.playgenerals.online",
+            LastUpdated = new DateTime(2026, 8, 28, 0, 0, 0, DateTimeKind.Utc),
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([installedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ManifestId id, CancellationToken _) => OperationResult<bool>.CreateSuccess(id == installedManifest.Id));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        // Act
+        var state = await service.GetStateAsync(item);
+
+        // Assert
+        Assert.Equal(ContentState.UpdateAvailable, state);
+    }
+
+    /// <summary>
+    /// Verifies that CompareVersions correctly orders semantic versions with unequal segment counts (e.g. 1.10 > 1.9).
+    /// </summary>
+    [Fact]
+    public void CompareVersions_DottedSemver_CorrectlyComparesNumericSegments()
+    {
+        Assert.True(ContentStateService.CompareVersions("1.10", "1.9") > 0);
+        Assert.True(ContentStateService.CompareVersions("1.9", "1.10") < 0);
+        Assert.Equal(0, ContentStateService.CompareVersions("1.9.0", "v1.9.0"));
+    }
+
+    /// <summary>
+    /// Verifies that CompareVersions correctly orders multi-digit suffixes (e.g. QFE10 > QFE2 and QFE10 > QFE9).
+    /// </summary>
+    [Fact]
+    public void CompareVersions_PrefixedOrSuffixedNumericVersions_OrdersNumerically()
+    {
+        Assert.True(ContentStateService.CompareVersions("QFE10", "QFE2") > 0);
+        Assert.True(ContentStateService.CompareVersions("QFE2", "QFE10") < 0);
+        Assert.True(ContentStateService.CompareVersions("QFE10", "QFE9") > 0);
+        Assert.True(ContentStateService.CompareVersions("QFE9", "QFE10") < 0);
+        Assert.Equal(0, ContentStateService.CompareVersions("beta2", "beta.2"));
+        Assert.Equal(0, ContentStateService.CompareVersions("beta2", "beta-2"));
+        Assert.True(ContentStateService.CompareVersions("beta.10", "beta2") > 0);
+        Assert.True(ContentStateService.CompareVersions("beta2", "beta.10") < 0);
+    }
+
+    /// <summary>
+    /// Verifies that distinct alpha prefixes do not collapse onto the same numeric version segment in CatalogManifestIdentity.
+    /// </summary>
+    [Fact]
+    public void ExtractVersionNumber_DistinctAlphaPrefixes_DoNotCollideOntoSameNumericValue()
+    {
+        var idBeta2 = CatalogManifestIdentity.ExtractVersionNumber("beta2");
+        var idRc2 = CatalogManifestIdentity.ExtractVersionNumber("rc2");
+        var id2 = CatalogManifestIdentity.ExtractVersionNumber("2");
+
+        Assert.Equal(2, id2);
+        Assert.NotEqual(id2, idBeta2);
+        Assert.NotEqual(id2, idRc2);
+        Assert.NotEqual(idBeta2, idRc2);
+    }
+
+    /// <summary>
+    /// Verifies that CompareVersions treats null or empty versions as lesser than non-empty versions.
+    /// </summary>
+    [Fact]
+    public void CompareVersions_NullOrEmptyVersions_OrdersEmptyBeforeNonEmpty()
+    {
+        Assert.True(ContentStateService.CompareVersions("1.0", null) > 0);
+        Assert.True(ContentStateService.CompareVersions(null, "1.0") < 0);
+        Assert.Equal(0, ContentStateService.CompareVersions(null, string.Empty));
+    }
+
+    /// <summary>
+    /// Verifies that when a GitHub release with language variants (e.g. ImprovedMenus) has only one
+    /// language variant installed (e.g. English), only the English card is marked Downloaded, while
+    /// the Russian and Spanish sibling cards remain NotDownloaded.
+    /// </summary>
+    /// <returns>A completed task.</returns>
+    [Fact]
+    public async Task GetStateAsync_WhenGitHubLanguageVariantDownloaded_OnlyMatchesMatchingVariantAsync()
+    {
+        // Stored manifest for English variant (manifest relative path has English)
+        var manifestEnglish = new ContentManifest
+        {
+            Id = ManifestId.Create("1.1.github.addon.improvedmenusenglish"),
+            Name = "ImprovedMenus (English)",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo
+            {
+                PublisherType = "github",
+                Website = "https://github.com/ElTioRata/ImprovedMenus",
+            },
+            Files =
+            [
+                new ManifestFile { RelativePath = "ImprovedMenusEnglish.big" },
+            ],
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifestEnglish]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(manifestEnglish.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.Is<ManifestId>(m => m.Value != manifestEnglish.Id.Value), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+
+        var cardEnglish = new ContentSearchResult
+        {
+            Id = "github.eltiorata.improvedmenus.v1.1.english",
+            Name = "ImprovedMenus (English)",
+            ProviderName = "github",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://github.com/ElTioRata/ImprovedMenus",
+        };
+
+        var cardRussian = new ContentSearchResult
+        {
+            Id = "github.eltiorata.improvedmenus.v1.1.russian",
+            Name = "ImprovedMenus (Russian)",
+            ProviderName = "github",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://github.com/ElTioRata/ImprovedMenus",
+        };
+
+        var cardSpanish = new ContentSearchResult
+        {
+            Id = "github.eltiorata.improvedmenus.v1.1.spanish",
+            Name = "ImprovedMenus (Spanish)",
+            ProviderName = "github",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://github.com/ElTioRata/ImprovedMenus",
+        };
+
+        Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(cardEnglish));
+        Assert.Equal(ContentState.NotDownloaded, await service.GetStateAsync(cardRussian));
+        Assert.Equal(ContentState.NotDownloaded, await service.GetStateAsync(cardSpanish));
     }
 
     private static ContentSearchResult CreateSuperHackersCard(GameType gameType)

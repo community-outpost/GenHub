@@ -1,3 +1,5 @@
+using GenHub.Core.Models.Enums;
+
 namespace GenHub.Core.Models.Results.Content;
 
 /// <summary>
@@ -32,4 +34,9 @@ public class ContentVariantInfo
     /// Gets or sets a value indicating whether this is the recommended/default variant.
     /// </summary>
     public bool IsDefault { get; set; }
+
+    /// <summary>
+    /// Gets or sets the optional target game for this variant (e.g. Generals vs Zero Hour).
+    /// </summary>
+    public GameType? TargetGame { get; set; }
 }

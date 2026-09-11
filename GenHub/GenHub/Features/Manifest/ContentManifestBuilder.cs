@@ -787,10 +787,15 @@ public partial class ContentManifestBuilder(
     }
 
     /// <inheritdoc/>
-    public IContentManifestBuilder WithEntryPoint(string entryPoint)
+    public IContentManifestBuilder WithEntryPoint(string? entryPoint)
     {
+        if (string.IsNullOrWhiteSpace(entryPoint))
+        {
+            return this;
+        }
+
         _manifest.EntryPoint = entryPoint;
-        logger.LogDebug("Set manifest entry point to {EntryPoint}", entryPoint);
+        logger.LogDebug("Set declared entry point: {EntryPoint}", entryPoint);
         return this;
     }
 
@@ -965,7 +970,7 @@ public partial class ContentManifestBuilder(
             manifestFile.Hash = options.Hash;
         }
 
-        if (!string.IsNullOrEmpty(options.SourcePath) && File.Exists(options.SourcePath))
+        if (!string.IsNullOrEmpty(options.SourcePath) && (!options.Size.HasValue || string.IsNullOrEmpty(manifestFile.Hash)) && File.Exists(options.SourcePath))
         {
             var fileInfo = new FileInfo(options.SourcePath);
             if (!options.Size.HasValue)

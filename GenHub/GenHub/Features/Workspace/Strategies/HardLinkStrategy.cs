@@ -71,17 +71,10 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             cancellationToken.ThrowIfCancellationRequested();
 
             // Clean existing workspace if force recreate is requested
-            if (Directory.Exists(workspacePath) && configuration.ForceRecreate)
+            if (configuration.ForceRecreate)
             {
                 Logger.LogDebug("Removing existing workspace directory: {WorkspacePath}", workspacePath);
-                try
-                {
-                    Directory.Delete(workspacePath, true);
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogWarning(ex, "Could not delete workspace directory {WorkspacePath}, overwriting files in-place", workspacePath);
-                }
+                FileOperationsService.DeleteDirectoryIfExists(workspacePath);
             }
 
             // Create workspace directory
@@ -124,11 +117,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
 
                 try
                 {
-                    if ((file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable ||
-                         (!string.IsNullOrEmpty(file.Hash) &&
-                          file.SourceType != Core.Models.Enums.ContentSourceType.GameInstallation &&
-                          file.SourceType != Core.Models.Enums.ContentSourceType.LocalFile)) &&
-                        !string.IsNullOrEmpty(file.Hash))
+                    if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                     {
                         var (linked, bytes) = await ProcessCasFileAsync(file, manifest, destinationPath, cancellationToken);
                         if (linked)

@@ -92,6 +92,35 @@ public static class UiConstants
     /// </summary>
     public const string CardUnselectedBackgroundColor = "#252525";
 
+    // Content type colors
+
+    /// <summary>Color used for GameClient content type badge and stripe.</summary>
+    public const string ContentTypeGameClientColor = "#06B6D4";
+
+    /// <summary>Color used for Mod content type badge and stripe.</summary>
+    public const string ContentTypeModColor = "#A855F7";
+
+    /// <summary>Color used for Patch content type badge and stripe.</summary>
+    public const string ContentTypePatchColor = "#F59E0B";
+
+    /// <summary>Color used for Map and MapPack content type badge and stripe.</summary>
+    public const string ContentTypeMapColor = "#10B981";
+
+    /// <summary>Color used for Addon content type badge and stripe.</summary>
+    public const string ContentTypeAddonColor = "#EC4899";
+
+    /// <summary>Color used for ModdingTool and Executable content type badge and stripe.</summary>
+    public const string ContentTypeToolColor = "#38BDF8";
+
+    /// <summary>Color used for ContentBundle content type badge and stripe.</summary>
+    public const string ContentTypeBundleColor = "#6366F1";
+
+    /// <summary>Color used for Mission content type badge and stripe.</summary>
+    public const string ContentTypeMissionColor = "#F97316";
+
+    /// <summary>Color used for Skin and LanguagePack content type badge and stripe.</summary>
+    public const string ContentTypeSkinColor = "#8B5CF6";
+
     /// <summary>
     /// SVG path data for transparent checkmark icon.
     /// </summary>

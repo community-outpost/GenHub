@@ -44,7 +44,7 @@ public class CommunityOutpostResolver(
     }
 
     /// <inheritdoc/>
-    public Task<OperationResult<ContentManifest>> ResolveAsync(
+    public async Task<OperationResult<ContentManifest>> ResolveAsync(
         ProviderDefinition? provider,
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken = default)
@@ -60,8 +60,8 @@ public class CommunityOutpostResolver(
             provider ??= providerLoader.GetProvider(CommunityOutpostConstants.PublisherId);
             if (provider == null)
             {
-                return Task.FromResult(OperationResult<ContentManifest>.CreateFailure(
-                    $"Provider definition '{CommunityOutpostConstants.PublisherId}' not found. Ensure communityoutpost.provider.json exists."));
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Provider definition '{CommunityOutpostConstants.PublisherId}' not found. Ensure communityoutpost.provider.json exists.");
             }
 
             // Get configuration from provider definition
@@ -129,11 +129,11 @@ public class CommunityOutpostResolver(
                 websiteUrl,
                 patchPageUrl);
 
-            manifest.AddRemoteFileAsync(
+            await manifest.AddRemoteFileAsync(
                 filename,
                 downloadUri.AbsoluteUri,
                 ContentSourceType.RemoteDownload,
-                isExecutable: false).Wait(cancellationToken);
+                isExecutable: false);
 
             var builtManifest = manifest.Build();
 
@@ -154,13 +154,17 @@ public class CommunityOutpostResolver(
                 contentCode,
                 category);
 
-            return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(builtManifest));
+            return OperationResult<ContentManifest>.CreateSuccess(builtManifest);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to resolve Community Outpost content: {Name}", discoveredItem.Name);
-            return Task.FromResult(OperationResult<ContentManifest>.CreateFailure(
-                $"Failed to resolve content: {ex.Message}"));
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Failed to resolve content: {ex.Message}");
         }
     }
 
@@ -286,7 +290,7 @@ public class CommunityOutpostResolver(
         GenPatcherContentMetadata contentMetadata)
     {
         var idParts = discoveredItem.Id?.Split('.') ?? [];
-        if (idParts.Length >= 5 && int.TryParse(idParts[1], out _))
+        if (idParts.Length >= 5 && int.TryParse(idParts[1], out var parsedVer) && parsedVer > 0)
         {
             return idParts[1];
         }
@@ -478,9 +482,25 @@ public class CommunityOutpostResolver(
     /// </summary>
     private static string? TryExtractVariantSuffix(ContentSearchResult item, GenPatcherContentMetadata metadata)
     {
-        return TryExtractVariantFromResolverMetadata(item.ResolverMetadata)
+        if (metadata.Variants is not { Count: > 0 })
+        {
+            return null;
+        }
+
+        var candidate = TryExtractVariantFromResolverMetadata(item.ResolverMetadata)
             ?? TryExtractVariantFromId(item.Id, metadata)
             ?? TryExtractVariantFromName(item.Name, metadata);
+
+        if (string.IsNullOrEmpty(candidate))
+        {
+            return null;
+        }
+
+        var matching = metadata.Variants.FirstOrDefault(v =>
+            string.Equals(v.Id, candidate, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(v.Id.Replace("-", string.Empty), candidate, StringComparison.OrdinalIgnoreCase));
+
+        return matching?.Id;
     }
 
     private static string? TryExtractVariantFromResolverMetadata(IDictionary<string, string>? resolverMetadata)
@@ -504,31 +524,20 @@ public class CommunityOutpostResolver(
 
     private static string? TryExtractVariantFromId(string? id, GenPatcherContentMetadata metadata)
     {
-        if (string.IsNullOrEmpty(id))
+        if (string.IsNullOrEmpty(id) || metadata.Variants is not { Count: > 0 })
         {
             return null;
         }
 
         var parts = id.Split('.');
         var contentName = parts.Length >= 5 ? parts[4] : id;
-        var dashIndex = contentName.IndexOf('-');
-        if (dashIndex > 0 && dashIndex < contentName.Length - 1)
-        {
-            return contentName[(dashIndex + 1)..];
-        }
 
-        if (metadata.Variants is { Count: > 0 })
-        {
-            var matchingVariant = metadata.Variants.FirstOrDefault(v =>
-                contentName.EndsWith(v.Id, StringComparison.OrdinalIgnoreCase) ||
-                contentName.EndsWith(v.Id.Replace("-", string.Empty), StringComparison.OrdinalIgnoreCase));
-            if (matchingVariant != null)
-            {
-                return matchingVariant.Id;
-            }
-        }
+        var matchingVariant = metadata.Variants.FirstOrDefault(v =>
+            contentName.EndsWith($"-{v.Id}", StringComparison.OrdinalIgnoreCase) ||
+            contentName.EndsWith($"-{v.Id.Replace("-", string.Empty)}", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(contentName, v.Id, StringComparison.OrdinalIgnoreCase));
 
-        return null;
+        return matchingVariant?.Id;
     }
 
     private static string? TryExtractVariantFromName(string? name, GenPatcherContentMetadata metadata)

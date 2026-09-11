@@ -1,10 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using AngleSharp;
 using AngleSharp.Dom;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Info;
 using Microsoft.Extensions.Logging;
 
@@ -17,6 +21,57 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
 {
     private const string BaseUrl = "https://www.playgenerals.online";
     private const string PatchNotesUrl = BaseUrl + "/patchnotes";
+
+    /// <summary>
+    /// Formats patch notes from a parsed HTML document.
+    /// </summary>
+    /// <param name="document">The parsed HTML document.</param>
+    /// <param name="datePart">The date part string.</param>
+    /// <returns>Formatted patch notes string, or null if no changes found.</returns>
+    public static string? FormatPatchNotesDocument(IDocument document, string datePart)
+    {
+        var postText = document.QuerySelector(".blog-read .post-text");
+        var dateElement = document.QuerySelector("#subheader .subtitle") ?? document.QuerySelector(".d-date");
+        var titleElement = document.QuerySelector("#subheader h2") ?? document.QuerySelector("h4");
+
+        var title = titleElement?.TextContent.Trim();
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            title = $"Update {datePart}";
+        }
+
+        var date = dateElement?.TextContent.Trim();
+        var header = !string.IsNullOrEmpty(date) ? $"{title} ({date})" : title;
+
+        var changes = new List<string>();
+        if (postText != null)
+        {
+            var listItems = postText.QuerySelectorAll("ul li");
+            foreach (var li in listItems)
+            {
+                var decoded = WebUtility.HtmlDecode(li.TextContent.Trim());
+                if (!string.IsNullOrEmpty(decoded))
+                {
+                    changes.Add(decoded);
+                }
+            }
+        }
+
+        if (changes.Count == 0)
+        {
+            return null;
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine(header);
+        sb.AppendLine();
+        foreach (var change in changes)
+        {
+            sb.AppendLine($"- {change}");
+        }
+
+        return sb.ToString().TrimEnd();
+    }
 
     /// <inheritdoc/>
     public async Task<IEnumerable<PatchNote>> GetPatchNotesAsync()
@@ -88,7 +143,7 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
                 var listItems = postText.QuerySelectorAll("ul li");
                 foreach (var li in listItems)
                 {
-                    patchNote.Changes.Add(li.TextContent.Trim());
+                    patchNote.Changes.Add(WebUtility.HtmlDecode(li.TextContent.Trim()));
                 }
 
                 patchNote.IsDetailsLoaded = true;
@@ -104,9 +159,43 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
         }
     }
 
+    /// <inheritdoc/>
+    public async Task<string?> GetPatchNotesFormattedAsync(string version, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            return null;
+        }
+
+        var datePart = version.Split('_', StringSplitOptions.TrimEntries)[0];
+        if (datePart.Length != 6 || !datePart.All(char.IsAsciiDigit))
+        {
+            return null;
+        }
+
+        var detailsUrl = $"{PatchNotesUrl}/{datePart}";
+
+        try
+        {
+            using var client = httpClientFactory.CreateClient();
+            AddDefaultHeaders(client);
+            var html = await client.GetStringAsync(detailsUrl, cancellationToken);
+
+            var context = BrowsingContext.New(Configuration.Default);
+            var document = await context.OpenAsync(req => req.Content(html), cancellationToken);
+
+            return FormatPatchNotesDocument(document, datePart);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Error fetching formatted patch notes for version {Version} from {Url}", version, detailsUrl);
+            return null;
+        }
+    }
+
     private static void AddDefaultHeaders(HttpClient client)
     {
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(ApiConstants.BrowserUserAgent);
         client.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8");
         client.DefaultRequestHeaders.Add("Referer", BaseUrl);
     }

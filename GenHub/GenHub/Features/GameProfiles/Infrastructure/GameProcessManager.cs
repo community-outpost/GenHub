@@ -998,7 +998,12 @@ public class GameProcessManager(
         BoundedErrorBuffer capturedErrors,
         CancellationToken cancellationToken)
     {
-        var expectedName = configuration.ExpectedChildProcessName ?? string.Empty;
+        var expectedName = configuration.ExpectedChildProcessName;
+        if (string.IsNullOrWhiteSpace(expectedName))
+        {
+            return OperationResult<GameProcessInfo>.CreateFailure("Expected child process name is not specified.");
+        }
+
         var timeout = configuration.ExpectedChildDiscoveryTimeout
             ?? TimeSpan.FromMilliseconds(ProcessConstants.SpawnedChildDiscoveryTimeoutMs);
         var deadline = DateTime.UtcNow + timeout;
@@ -1011,7 +1016,7 @@ public class GameProcessManager(
             // user already had running, so without it no candidate can ever qualify. Polling that
             // out would repeat the refusal once per interval and then report a discovery timeout,
             // which describes a launcher that was never given the chance to fail.
-            if (!launcherStartTime.HasValue && !launcher.HasExited)
+            if (!launcherStartTime.HasValue)
             {
                 logger.LogError(
                     "[Process] Not waiting for {ExpectedName}: the launcher's start time is unknown, so a process that predates this launch cannot be ruled out",

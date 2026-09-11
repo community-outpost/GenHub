@@ -13,6 +13,7 @@ using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -62,51 +63,10 @@ public partial class GitHubResolver(
                 return OperationResult<ContentManifest>.CreateFailure("Missing required metadata for GitHub resolution");
             }
 
-            // Check if this is a SINGLE ASSET selection (from multi-asset split)
-            if (discoveredItem.ResolverMetadata.TryGetValue("asset-name", out var assetName))
+            if (discoveredItem.ResolverMetadata.TryGetValue("asset-name", out var assetName) &&
+                !string.IsNullOrWhiteSpace(assetName))
             {
-                logger.LogInformation(
-                    "Resolving single asset: {AssetName} from {Owner}/{Repo}:{Tag}",
-                    assetName,
-                    owner,
-                    repo,
-                    tag);
-
-                // Get the asset data from the discovered item
-                var assetData = discoveredItem.GetData<GitHubArtifact>();
-                if (assetData != null)
-                {
-                    return await ResolveSingleAssetAsync(discoveredItem, owner, repo, tag, assetData);
-                }
-
-                // Release cards retain only lightweight metadata; fetch the release and look up
-                // the explicitly selected asset instead of falling through to the full-release
-                // path (which downloads every archive in a multi-variant release).
-                var selectedRelease = await gitHubApiClient.GetReleaseByTagAsync(
-                    owner,
-                    repo,
-                    tag,
-                    cancellationToken);
-                var selectedAsset = selectedRelease?.Assets?.FirstOrDefault(asset =>
-                    string.Equals(asset.Name, assetName, StringComparison.OrdinalIgnoreCase));
-
-                if (selectedAsset == null)
-                {
-                    return OperationResult<ContentManifest>.CreateFailure(
-                        $"Release asset '{assetName}' was not found for {owner}/{repo}:{tag}");
-                }
-
-                return await ResolveSingleAssetAsync(
-                    discoveredItem,
-                    owner,
-                    repo,
-                    tag,
-                    new GitHubArtifact
-                    {
-                        Name = selectedAsset.Name,
-                        DownloadUrl = selectedAsset.BrowserDownloadUrl,
-                        IsRelease = true,
-                    });
+                return await ResolveTargetedAssetAsync(discoveredItem, owner, repo, tag, assetName, cancellationToken);
             }
 
             // Check if this is a SINGLE RELEASE ASSET selection (legacy path)
@@ -119,119 +79,18 @@ public partial class GitHubResolver(
                     repo,
                     tag);
 
-                return await ResolveSingleAssetAsync(discoveredItem, owner, repo, tag, singleAsset);
+                return await ResolveSingleAssetAsync(discoveredItem, owner, repo, tag, singleAsset, cancellationToken);
             }
 
             // Otherwise, fetch the full release and include all assets
             logger.LogInformation("Resolving full release: {Owner}/{Repo}:{Tag}", owner, repo, tag);
-
-            var isLatest = string.IsNullOrEmpty(tag) || tag.Equals("latest", StringComparison.OrdinalIgnoreCase);
-
-            var release = discoveredItem.GetData<GitHubRelease>();
-            if (release == null)
+            var releaseResult = await FetchFullReleaseAsync(discoveredItem, owner, repo, tag, cancellationToken);
+            if (!releaseResult.Success || releaseResult.Data == null)
             {
-                release = isLatest
-                    ? await gitHubApiClient.GetLatestReleaseAsync(
-                        owner,
-                        repo,
-                        cancellationToken)
-                    : await gitHubApiClient.GetReleaseByTagAsync(
-                        owner,
-                        repo,
-                        tag,
-                        cancellationToken);
-
-                // Fallback for repositories that only have pre-releases (GetLatestReleaseAsync returns null on GitHub if no stable release)
-                if (release == null && isLatest)
-                {
-                    logger.LogInformation("Latest stable release not found for {Owner}/{Repo}. Falling back to most recent release (including pre-releases).", owner, repo);
-                    var allReleases = await gitHubApiClient.GetReleasesAsync(owner, repo, cancellationToken);
-                    release = allReleases?.OrderByDescending(r => r.PublishedAt ?? r.CreatedAt).FirstOrDefault();
-                }
+                return OperationResult<ContentManifest>.CreateFailure(releaseResult.FirstError ?? "Failed to fetch release");
             }
 
-            if (release == null)
-            {
-                if (gitHubApiClient.IsRateLimited)
-                {
-                    return OperationResult<ContentManifest>.CreateFailure(
-                        $"GitHub API rate limit exceeded while resolving {owner}/{repo}. Please configure a GitHub Personal Access Token in Settings or try again later.");
-                }
-
-                var errorTag = isLatest ? "latest stable" : $"tag '{tag}'";
-                return OperationResult<ContentManifest>.CreateFailure($"Release not found for {owner}/{repo} with {errorTag}");
-            }
-
-            // Generate proper ManifestId using 5-segment format per manifest-id-system.md
-            // Format: schemaVersion.userVersion.publisher.contentType.contentName
-            var userVersion = ExtractVersionFromReleaseTag(release.TagName);
-
-            // Publisher segment = owner (e.g. "thesuperhackers", "cnclabs")
-            // This matches the ManifestIdGenerator logic and ensures correct attribution
-            var publisherId = owner;
-
-            // Content name = repo name (unique within the publisher/owner namespace)
-            var contentName = repo;
-
-            // Determine publisher type for factory resolution
-            var publisherType = DeterminePublisherType(owner);
-
-            // Create a new manifest builder for each resolve operation to ensure clean state
-            var manifestBuilder = serviceProvider.GetRequiredService<IContentManifestBuilder>();
-
-            var manifest = manifestBuilder
-                .WithBasicInfo(
-                    publisherId, // Publisher = owner
-                    contentName, // Content name = repo
-                    userVersion) // User version extracted from tag (e.g., 20251031)
-                .WithContentType(discoveredItem.ContentType, discoveredItem.TargetGame)
-                .WithPublisher(
-            name: !string.IsNullOrEmpty(release.Author) ? release.Author : owner,
-            website: $"https://github.com/{owner}",
-            publisherType: publisherType)
-                .WithMetadata(
-            release.Body ?? discoveredItem.Description ?? string.Empty,
-            tags: GitHubInferenceHelper.InferTagsFromRelease(release),
-            changelogUrl: release.HtmlUrl ?? string.Empty)
-                .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy);
-
-            // Validate assets collection
-            if (release.Assets == null || release.Assets.Count == 0)
-            {
-                logger.LogWarning("No assets found for release {Owner}/{Repo}:{Tag}", owner, repo, release.TagName);
-                return OperationResult<ContentManifest>.CreateSuccess(manifest.Build());
-            }
-
-            // Add files from GitHub assets
-            logger.LogInformation(
-                "Adding {AssetCount} assets from release {Owner}/{Repo}:{Tag}",
-                release.Assets.Count,
-                owner,
-                repo,
-                release.TagName);
-
-            foreach (var asset in release.Assets)
-            {
-                logger.LogDebug(
-                    "Adding asset: {AssetName} ({AssetUrl})",
-                    asset.Name,
-                    asset.BrowserDownloadUrl);
-
-                await manifest.AddRemoteFileAsync(
-                    asset.Name,
-                    asset.BrowserDownloadUrl,
-                    ContentSourceType.RemoteDownload,
-                    isExecutable: GitHubInferenceHelper.IsExecutableFile(asset.Name));
-            }
-
-            var builtManifest = manifest.Build();
-            if (!string.IsNullOrEmpty(release.TagName))
-            {
-                builtManifest.Version = release.TagName;
-            }
-
-            logger.LogInformation("GitHubResolver: Built manifest with ID: {ManifestId}", builtManifest.Id);
-            return OperationResult<ContentManifest>.CreateSuccess(builtManifest);
+            return await BuildFullReleaseManifestAsync(discoveredItem, owner, repo, releaseResult.Data, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -292,30 +151,7 @@ public partial class GitHubResolver(
     /// </summary>
     private static string ExtractAssetVariant(string assetName)
     {
-        var nameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(assetName);
-
-        // Common language patterns
-        var languagePatterns = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            { "english", "English" },
-            { "russian", "Russian" },
-            { "spanish", "Spanish" },
-            { "french", "French" },
-            { "german", "German" },
-            { "chinese", "Chinese" },
-            { "japanese", "Japanese" },
-            { "korean", "Korean" },
-        };
-
-        // Check if filename contains a language keyword
-        foreach (var (pattern, displayName) in languagePatterns)
-        {
-            if (nameWithoutExt.Contains(pattern, StringComparison.OrdinalIgnoreCase))
-                return displayName;
-        }
-
-        // Fallback: use the filename itself (cleaned up)
-        return nameWithoutExt.Replace("_", " ").Replace("-", " ").Trim();
+        return GitHubTopicsDiscoverer.ExtractAssetVariant(assetName);
     }
 
     private static (ContentType Type, bool IsInferred) InferContentType(string repo, string? releaseName)
@@ -364,16 +200,224 @@ public partial class GitHubResolver(
         return $"fallback:{Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(fallbackData))}";
     }
 
+    private async Task<OperationResult<ContentManifest>> ResolveTargetedAssetAsync(
+        ContentSearchResult discoveredItem,
+        string owner,
+        string repo,
+        string tag,
+        string assetName,
+        CancellationToken cancellationToken)
+    {
+        logger.LogInformation(
+            "Resolving single asset: {AssetName} from {Owner}/{Repo}:{Tag}",
+            assetName,
+            owner,
+            repo,
+            tag);
+
+        var assetData = discoveredItem.GetData<GitHubArtifact>();
+        if (assetData != null)
+        {
+            return await ResolveSingleAssetAsync(discoveredItem, owner, repo, tag, assetData, cancellationToken);
+        }
+
+        var selectedRelease = await gitHubApiClient.GetReleaseByTagAsync(
+            owner,
+            repo,
+            tag,
+            cancellationToken);
+
+        if (selectedRelease == null)
+        {
+            if (gitHubApiClient.IsRateLimited)
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"GitHub API rate limit exceeded while resolving {owner}/{repo}. Please configure a GitHub Personal Access Token in Settings or try again later.");
+            }
+
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Release not found for {owner}/{repo}:{tag}");
+        }
+
+        var selectedAsset = selectedRelease.Assets?.FirstOrDefault(asset =>
+            string.Equals(asset.Name, assetName, StringComparison.OrdinalIgnoreCase));
+
+        if (selectedAsset == null)
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Release asset '{assetName}' was not found for {owner}/{repo}:{tag}");
+        }
+
+        if (string.IsNullOrEmpty(selectedAsset.BrowserDownloadUrl))
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Release asset '{assetName}' has no download URL for {owner}/{repo}:{tag}");
+        }
+
+        return await ResolveSingleAssetAsync(
+            discoveredItem,
+            owner,
+            repo,
+            tag,
+            new GitHubArtifact
+            {
+                Name = selectedAsset.Name,
+                DownloadUrl = selectedAsset.BrowserDownloadUrl,
+                IsRelease = true,
+            },
+            cancellationToken);
+    }
+
+    private async Task<OperationResult<GitHubRelease>> FetchFullReleaseAsync(
+        ContentSearchResult discoveredItem,
+        string owner,
+        string repo,
+        string tag,
+        CancellationToken cancellationToken)
+    {
+        var isLatest = string.IsNullOrEmpty(tag) || tag.Equals("latest", StringComparison.OrdinalIgnoreCase);
+
+        var release = discoveredItem.GetData<GitHubRelease>();
+        if (release == null)
+        {
+            release = isLatest
+                ? await gitHubApiClient.GetLatestReleaseAsync(
+                    owner,
+                    repo,
+                    cancellationToken)
+                : await gitHubApiClient.GetReleaseByTagAsync(
+                    owner,
+                    repo,
+                    tag,
+                    cancellationToken);
+
+            // Fallback for repositories that only have pre-releases
+            if (release == null && isLatest)
+            {
+                logger.LogInformation("Latest stable release not found for {Owner}/{Repo}. Falling back to most recent release (including pre-releases).", owner, repo);
+                var allReleases = await gitHubApiClient.GetReleasesAsync(owner, repo, cancellationToken);
+                release = allReleases?.OrderByDescending(r => r.PublishedAt ?? r.CreatedAt).FirstOrDefault();
+            }
+        }
+
+        if (release == null)
+        {
+            if (gitHubApiClient.IsRateLimited)
+            {
+                return OperationResult<GitHubRelease>.CreateFailure(
+                    $"GitHub API rate limit exceeded while resolving {owner}/{repo}. Please configure a GitHub Personal Access Token in Settings or try again later.");
+            }
+
+            var errorTag = isLatest ? "latest stable" : $"tag '{tag}'";
+            return OperationResult<GitHubRelease>.CreateFailure($"Release not found for {owner}/{repo} with {errorTag}");
+        }
+
+        return OperationResult<GitHubRelease>.CreateSuccess(release);
+    }
+
+    /// <summary>
+    /// Builds a full release manifest including all release assets.
+    /// </summary>
+    /// <param name="discoveredItem">The discovered content search result.</param>
+    /// <param name="owner">The repository owner.</param>
+    /// <param name="repo">The repository name.</param>
+    /// <param name="release">The GitHub release details.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>An <see cref="OperationResult{ContentManifest}"/> containing the built manifest.</returns>
+    private async Task<OperationResult<ContentManifest>> BuildFullReleaseManifestAsync(
+        ContentSearchResult discoveredItem,
+        string owner,
+        string repo,
+        GitHubRelease release,
+        CancellationToken cancellationToken = default)
+    {
+        var userVersion = ExtractVersionFromReleaseTag(release.TagName);
+        var publisherId = owner;
+        var contentName = repo;
+        var publisherType = DeterminePublisherType(owner);
+        var manifestBuilder = serviceProvider.GetRequiredService<IContentManifestBuilder>();
+
+        var manifest = manifestBuilder
+            .WithBasicInfo(
+                publisherId,
+                contentName,
+                userVersion)
+            .WithContentType(discoveredItem.ContentType, discoveredItem.TargetGame)
+            .WithPublisher(
+                name: !string.IsNullOrEmpty(release.Author) ? release.Author : owner,
+                website: $"https://github.com/{owner}",
+                publisherType: publisherType)
+            .WithMetadata(
+                release.Body ?? discoveredItem.Description ?? string.Empty,
+                tags: GitHubInferenceHelper.InferTagsFromRelease(release),
+                changelogUrl: release.HtmlUrl ?? string.Empty)
+            .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy);
+
+        if (release.Assets == null || release.Assets.Count == 0)
+        {
+            logger.LogWarning("No assets found for release {Owner}/{Repo}:{Tag}", owner, repo, release.TagName);
+            return OperationResult<ContentManifest>.CreateSuccess(manifest.Build());
+        }
+
+        logger.LogInformation(
+            "Adding {AssetCount} assets from release {Owner}/{Repo}:{Tag}",
+            release.Assets.Count,
+            owner,
+            repo,
+            release.TagName);
+
+        foreach (var asset in release.Assets)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            logger.LogDebug(
+                "Adding asset: {AssetName} ({AssetUrl})",
+                asset.Name,
+                asset.BrowserDownloadUrl);
+
+            await manifest.AddRemoteFileAsync(
+                asset.Name,
+                asset.BrowserDownloadUrl,
+                ContentSourceType.RemoteDownload,
+                isExecutable: GitHubInferenceHelper.IsExecutableFile(asset.Name));
+        }
+
+        var builtManifest = manifest.Build();
+
+        if (!string.IsNullOrWhiteSpace(discoveredItem.VariantGroupId))
+        {
+            builtManifest.Metadata.VariantGroupId = discoveredItem.VariantGroupId;
+            builtManifest.Metadata.VariantFamilyName = discoveredItem.VariantFamilyName;
+        }
+
+        if (!string.IsNullOrEmpty(release.TagName))
+        {
+            builtManifest.Version = release.TagName;
+        }
+
+        logger.LogInformation("GitHubResolver: Built manifest with ID: {ManifestId}", builtManifest.Id);
+        return OperationResult<ContentManifest>.CreateSuccess(builtManifest);
+    }
+
     /// <summary>
     /// Resolves a single release asset into a ContentManifest.
     /// </summary>
+    /// <param name="discoveredItem">The discovered content search result.</param>
+    /// <param name="owner">The repository owner.</param>
+    /// <param name="repo">The repository name.</param>
+    /// <param name="tag">The release tag.</param>
+    /// <param name="asset">The target release asset.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>An <see cref="OperationResult{ContentManifest}"/> containing the built manifest.</returns>
     private async Task<OperationResult<ContentManifest>> ResolveSingleAssetAsync(
         ContentSearchResult discoveredItem,
         string owner,
         string repo,
         string tag,
-        GitHubArtifact asset)
+        GitHubArtifact asset,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         try
         {
             // Extract variant from asset name (e.g., "English" from "0_ImprovedMenusEnglish.big")

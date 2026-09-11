@@ -92,4 +92,19 @@ public static class CatalogConstants
     /// Resolver metadata key for serialized publisher referrals JSON.
     /// </summary>
     public const string CatalogReferralsJsonMetadataKey = "catalogReferralsJson";
+
+    /// <summary>
+    /// Resolver metadata key for storing the selected variant ID.
+    /// </summary>
+    public const string SelectedVariantMetadataKey = "selectedVariant";
+
+    /// <summary>
+    /// Badge text for subscribed catalog publishers.
+    /// </summary>
+    public const string SubscribedCatalogPublisherBadge = "Subscribed Catalog Publisher";
+
+    /// <summary>
+    /// Badge text for official providers.
+    /// </summary>
+    public const string OfficialProviderBadge = "Official Provider";
 }

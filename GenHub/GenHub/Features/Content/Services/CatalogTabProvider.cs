@@ -30,6 +30,9 @@ public class CatalogTabProvider(
     IHttpClientFactory httpClientFactory,
     ILogger<CatalogTabProvider> logger) : ITabProvider
 {
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(5);
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, (PublisherCatalog Catalog, DateTime CachedAt)> _catalogCache = new(StringComparer.OrdinalIgnoreCase);
+
     /// <inheritdoc/>
     public string ProviderId => "catalog-tabs";
 
@@ -61,18 +64,32 @@ public class CatalogTabProvider(
 
             var subscription = subscriptionResult.Data;
 
-            // Download raw publisher catalog json manifest over http
-            var httpClient = httpClientFactory.CreateClient();
-            var catalogJson = await CatalogDocumentReader.ReadAsync(
-                httpClient,
-                subscription.CatalogUrl,
-                CatalogConstants.MaxCatalogSizeBytes,
-                cancellationToken: cancellationToken);
+            PublisherCatalog? catalog = null;
+            if (_catalogCache.TryGetValue(subscription.CatalogUrl, out var cached) &&
+                DateTime.UtcNow - cached.CachedAt < CacheTtl)
+            {
+                catalog = cached.Catalog;
+            }
+            else
+            {
+                // Download raw publisher catalog json manifest over http
+                var httpClient = httpClientFactory.CreateClient();
+                var catalogJson = await CatalogDocumentReader.ReadAsync(
+                    httpClient,
+                    subscription.CatalogUrl,
+                    CatalogConstants.MaxCatalogSizeBytes,
+                    cancellationToken: cancellationToken);
 
-            // Parse raw json into structured publisher catalog model
-            var catalogResult = await catalogParser.ParseCatalogAsync(catalogJson, cancellationToken);
+                // Parse raw json into structured publisher catalog model
+                var catalogResult = await catalogParser.ParseCatalogAsync(catalogJson, cancellationToken);
+                if (catalogResult.Success && catalogResult.Data != null)
+                {
+                    catalog = catalogResult.Data;
+                    _catalogCache[subscription.CatalogUrl] = (catalog, DateTime.UtcNow);
+                }
+            }
 
-            if (!catalogResult.Success || catalogResult.Data?.CustomTabs == null || catalogResult.Data.CustomTabs.Count == 0)
+            if (catalog?.CustomTabs == null || catalog.CustomTabs.Count == 0)
             {
                 return [];
             }
@@ -83,7 +100,7 @@ public class CatalogTabProvider(
             var contentId = !string.IsNullOrWhiteSpace(catalogContentId) ? catalogContentId : searchResult.Id ?? string.Empty;
             var resultId = searchResult.Id ?? string.Empty;
 
-            foreach (var catalogTab in catalogResult.Data.CustomTabs)
+            foreach (var catalogTab in catalog.CustomTabs)
             {
                 if (!TabAppliesToContent(catalogTab, contentId, resultId))
                 {

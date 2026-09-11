@@ -604,4 +604,412 @@ public class GameProfileSettingsViewModelDependencyTests
         Assert.Single(_viewModel.EnabledContent, c => c.ContentType == ContentType.GameInstallation);
         Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == mapPackManifestId.Value);
     }
+
+    /// <summary>
+    /// Verifies that setting SelectedGameInstallation automatically adds it to EnabledContent and removes previous installations.
+    /// </summary>
+    [Fact]
+    public void SelectedGameInstallation_AutoAddsToEnabledContent_AndReplacesPreviousInstallation()
+    {
+        var install1 = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("1.0.0.gameinstallation.steam-zh"),
+            DisplayName = "Zero Hour Steam",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+        };
+        var install2 = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("1.0.0.gameinstallation.ea-zh"),
+            DisplayName = "Zero Hour EA",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.EaApp,
+        };
+
+        _viewModel.AvailableGameInstallations = [install1, install2];
+
+        // Select first
+        _viewModel.SelectedGameInstallation = install1;
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == install1.ManifestId.Value);
+        Assert.Single(_viewModel.EnabledContent, c => c.ContentType == ContentType.GameInstallation);
+
+        // Select second - replaces first
+        _viewModel.SelectedGameInstallation = install2;
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == install2.ManifestId.Value);
+        Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ManifestId.Value == install1.ManifestId.Value);
+        Assert.Single(_viewModel.EnabledContent, c => c.ContentType == ContentType.GameInstallation);
+
+        // Clear selection
+        _viewModel.SelectedGameInstallation = null;
+        Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ContentType == ContentType.GameInstallation);
+    }
+
+    /// <summary>
+    /// Verifies that enabling content requiring a GameInstallation automatically selects and enables the compatible installation when none was selected.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task EnableContent_GameClient_AutoSelectsCompatibleGameInstallation_WhenNoneSelectedAsync()
+    {
+        var clientManifestId = new ManifestId("1.0.0.gameclient.zerohour");
+        var zhInstallId = new ManifestId("1.0.0.gameinstallation.steam-zh");
+
+        var clientManifest = new ContentManifest
+        {
+            Id = clientManifestId,
+            Name = "Zero Hour Client",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Dependencies =
+            [
+                new()
+                {
+                    DependencyType = ContentType.GameInstallation,
+                    CompatibleGameTypes = [GameType.ZeroHour],
+                },
+            ],
+        };
+
+        _mockManifestPool.Setup(x => x.GetManifestAsync(It.Is<ManifestId>(id => id.Value == clientManifestId.Value), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(clientManifest));
+
+        var zhInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = zhInstallId,
+            DisplayName = "Zero Hour Steam",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+            IsEnabled = false,
+        };
+
+        _viewModel.AvailableGameInstallations = [zhInstall];
+        _viewModel.SelectedGameInstallation = null;
+
+        var clientItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = clientManifestId,
+            DisplayName = "Zero Hour Client",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+            IsEnabled = false,
+        };
+        _viewModel.AvailableContent.Add(clientItem);
+
+        // Act
+        await _viewModel.EnableContentCommand.ExecuteAsync(clientItem);
+
+        // Assert
+        Assert.NotNull(_viewModel.SelectedGameInstallation);
+        Assert.Equal(zhInstallId.Value, _viewModel.SelectedGameInstallation.ManifestId.Value);
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == zhInstallId.Value);
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == clientManifestId.Value);
+    }
+
+    /// <summary>
+    /// Verifies that disabling the last GameClient or Mod auto-disables the SelectedGameInstallation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DisableContent_WhenLastClientOrModRemoved_AutoDisablesSelectedGameInstallationAsync()
+    {
+        var zhInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("1.0.0.gameinstallation.steam-zh"),
+            DisplayName = "Zero Hour Steam",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+            IsEnabled = true,
+        };
+
+        var clientItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("1.0.0.gameclient.zerohour"),
+            DisplayName = "Zero Hour Client",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+            IsEnabled = true,
+        };
+
+        _viewModel.AvailableGameInstallations = [zhInstall];
+        _viewModel.SelectedGameInstallation = zhInstall;
+        _viewModel.EnabledContent.Add(clientItem);
+
+        // Act - disable the only client
+        await _viewModel.DisableContentCommand.ExecuteAsync(clientItem);
+
+        // Assert
+        Assert.Null(_viewModel.SelectedGameInstallation);
+        Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ContentType == ContentType.GameInstallation);
+    }
+
+    /// <summary>
+    /// Verifies that disabling non-client/non-mod content like Addon or Map does not clear SelectedGameInstallation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DisableContent_WhenRemovingAddonOrMap_DoesNotAutoDisableSelectedGameInstallationAsync()
+    {
+        var zhInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("1.0.0.gameinstallation.steam-zh"),
+            DisplayName = "Zero Hour Steam",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+            IsEnabled = true,
+        };
+
+        var addonItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("1.0.0.addon.test"),
+            DisplayName = "Test Addon",
+            ContentType = ContentType.Addon,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+            IsEnabled = true,
+        };
+
+        _viewModel.AvailableGameInstallations = [zhInstall];
+        _viewModel.SelectedGameInstallation = zhInstall;
+        _viewModel.EnabledContent.Add(addonItem);
+
+        // Act - disable the addon
+        await _viewModel.DisableContentCommand.ExecuteAsync(addonItem);
+
+        // Assert - installation remains selected
+        Assert.NotNull(_viewModel.SelectedGameInstallation);
+        Assert.Equal(zhInstall.ManifestId.Value, _viewModel.SelectedGameInstallation.ManifestId.Value);
+    }
+
+    /// <summary>
+    /// Verifies that clearing EnabledContent resets SelectedGameInstallation via collection changed reset action.
+    /// </summary>
+    [Fact]
+    public void EnabledContent_WhenCleared_ResetsSelectedGameInstallation()
+    {
+        var zhInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("1.0.0.gameinstallation.steam-zh"),
+            DisplayName = "Zero Hour Steam",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+            IsEnabled = true,
+        };
+
+        _viewModel.AvailableGameInstallations = [zhInstall];
+        _viewModel.SelectedGameInstallation = zhInstall;
+
+        Assert.NotNull(_viewModel.SelectedGameInstallation);
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == zhInstall.ManifestId.Value);
+
+        // Act - clear EnabledContent raising NotifyCollectionChangedAction.Reset
+        _viewModel.EnabledContent.Clear();
+
+        // Assert - SelectedGameInstallation is cleared
+        Assert.Null(_viewModel.SelectedGameInstallation);
+    }
+
+    /// <summary>
+    /// Verifies that saving a standalone profile (e.g. Executable or ModdingTool) succeeds without SelectedGameInstallation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task Save_WhenStandaloneProfileWithoutGameInstallation_SucceedsAsync()
+    {
+        // Arrange
+        var toolManifestId = new ManifestId("1.0.0.moddingtool.worldbuilder");
+        var toolManifest = new ContentManifest
+        {
+            Id = toolManifestId,
+            Name = "World Builder",
+            ContentType = ContentType.ModdingTool,
+        };
+
+        _mockManifestPool.Setup(x => x.GetManifestAsync(It.Is<ManifestId>(id => id.Value == toolManifestId.Value), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(toolManifest));
+
+        _viewModel.Name = "Standalone Tool Profile";
+        _viewModel.SelectedGameInstallation = null;
+
+        var toolDisplayItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = toolManifestId,
+            DisplayName = "World Builder",
+            ContentType = ContentType.ModdingTool,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Unknown,
+            IsEnabled = true,
+        };
+        _viewModel.EnabledContent.Add(toolDisplayItem);
+
+        _mockGameProfileManager.Setup(x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile()));
+
+        // Act
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockGameProfileManager.Verify(x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that changing SelectedGameInstallation synchronizes IsEnabled flags and replaces the item in EnabledContent.
+    /// </summary>
+    [Fact]
+    public void SelectedGameInstallation_WhenChanged_SynchronizesIsEnabledAndReplacesInEnabledContent()
+    {
+        // Arrange
+        var install1 = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("install-1"),
+            DisplayName = "Zero Hour Install 1",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.EaApp,
+        };
+        var install2 = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("install-2"),
+            DisplayName = "Zero Hour Install 2",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+        };
+
+        _viewModel.AvailableGameInstallations.Add(install1);
+        _viewModel.AvailableGameInstallations.Add(install2);
+
+        // Act 1: select install1
+        _viewModel.SelectedGameInstallation = install1;
+
+        // Assert 1
+        Assert.True(install1.IsEnabled);
+        Assert.False(install2.IsEnabled);
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == install1.ManifestId.Value);
+
+        // Act 2: switch to install2
+        _viewModel.SelectedGameInstallation = install2;
+
+        // Assert 2
+        Assert.False(install1.IsEnabled);
+        Assert.True(install2.IsEnabled);
+        Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ManifestId.Value == install1.ManifestId.Value);
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == install2.ManifestId.Value);
+    }
+
+    /// <summary>
+    /// Verifies that adding a duplicate ManifestId to EnabledContent deduplicates the collection.
+    /// </summary>
+    [Fact]
+    public void EnabledContent_WhenDuplicateItemAdded_DeduplicatesManifestId()
+    {
+        // Arrange
+        var item1 = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("dup-id"),
+            DisplayName = "Mod Item 1",
+            ContentType = ContentType.Mod,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Unknown,
+        };
+        var item2 = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("dup-id"),
+            DisplayName = "Mod Item 2",
+            ContentType = ContentType.Mod,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Unknown,
+        };
+
+        // Act
+        _viewModel.EnabledContent.Add(item1);
+        _viewModel.EnabledContent.Add(item2);
+
+        // Assert
+        Assert.Equal(1, _viewModel.EnabledContent.Count(x => x.ManifestId.Value == "dup-id"));
+    }
+
+    /// <summary>
+    /// Verifies that setting SelectedGameInstallation when the profile is a standalone tool profile
+    /// does not inject the GameInstallation into EnabledContent.
+    /// </summary>
+    [Fact]
+    public void SelectedGameInstallation_WhenStandaloneToolProfile_DoesNotAddInstallationToEnabledContent()
+    {
+        // Arrange
+        var toolDisplayItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("1.0.0.moddingtool.worldbuilder"),
+            DisplayName = "World Builder",
+            ContentType = ContentType.ModdingTool,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Unknown,
+            IsEnabled = true,
+        };
+        _viewModel.EnabledContent.Add(toolDisplayItem);
+
+        var install1 = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("install-1"),
+            DisplayName = "Zero Hour Install",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+        };
+        _viewModel.AvailableGameInstallations.Add(install1);
+
+        // Act
+        _viewModel.SelectedGameInstallation = install1;
+
+        // Assert - tool remains the only enabled content; installation was not injected
+        Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ContentType == ContentType.GameInstallation);
+        Assert.Single(_viewModel.EnabledContent);
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == toolDisplayItem.ManifestId.Value);
+    }
+
+    /// <summary>
+    /// Verifies that executing EnableContentCommand with a GameInstallation on a standalone tool profile
+    /// is rejected and does not add the installation to EnabledContent.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task EnableContentCommand_WhenStandaloneToolProfile_RejectsGameInstallationAsync()
+    {
+        // Arrange
+        var toolDisplayItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("1.0.0.moddingtool.worldbuilder"),
+            DisplayName = "World Builder",
+            ContentType = ContentType.ModdingTool,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Unknown,
+            IsEnabled = true,
+        };
+        _viewModel.EnabledContent.Add(toolDisplayItem);
+
+        var installItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = new ManifestId("1.0.0.gameinstallation.steam-zh"),
+            DisplayName = "Zero Hour Install",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam,
+            IsEnabled = false,
+        };
+        _viewModel.AvailableContent.Add(installItem);
+
+        // Act
+        await _viewModel.EnableContentCommand.ExecuteAsync(installItem);
+
+        // Assert
+        Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ContentType == ContentType.GameInstallation);
+        Assert.Equal("Standalone tool profiles do not require or support game installations", _viewModel.StatusMessage);
+    }
 }

@@ -30,12 +30,14 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="searchResult">The content search result to display.</param>
 /// <param name="contentStateService">The content state service.</param>
 /// <param name="logger">The logger.</param>
+/// <param name="downloadCoordinator">The optional download coordinator.</param>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel instance methods and properties bound to UI and MVVM bindings.")]
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Content grid item VM coordinates download, installation, and multi-component bundle state.")]
 public sealed partial class ContentGridItemViewModel(
     ContentSearchResult searchResult,
     IContentStateService contentStateService,
-    ILogger<ContentGridItemViewModel> logger) : ObservableObject, IDisposable
+    ILogger<ContentGridItemViewModel> logger,
+    IContentDownloadCoordinator? downloadCoordinator = null) : ObservableObject, IDisposable
 {
     private const string UnknownValue = "Unknown";
 
@@ -47,7 +49,25 @@ public sealed partial class ContentGridItemViewModel(
     public ContentSearchResult SearchResult { get; } = searchResult ?? throw new ArgumentNullException(nameof(searchResult));
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanDownload))]
+    [NotifyPropertyChangedFor(nameof(CanUpdate))]
+    [NotifyPropertyChangedFor(nameof(ShowDownloadButton))]
     private bool _isDownloading;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanDownload))]
+    [NotifyPropertyChangedFor(nameof(CanUpdate))]
+    private bool _hasActiveDownloads;
+
+    /// <summary>
+    /// Gets a value indicating whether this item can start a download.
+    /// </summary>
+    public bool CanDownload => !IsDownloading && !HasActiveDownloads;
+
+    /// <summary>
+    /// Gets a value indicating whether this item can start an update.
+    /// </summary>
+    public bool CanUpdate => !IsDownloading && !HasActiveDownloads;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowDownloadButton))]
@@ -86,6 +106,32 @@ public sealed partial class ContentGridItemViewModel(
             this,
             static (recipient, _) => ((ContentGridItemViewModel)recipient).ResetDownloadState());
 
+        WeakReferenceMessenger.Default.Register<ContentDownloadStartedMessage>(
+            this,
+            static (recipient, msg) => ((ContentGridItemViewModel)recipient).OnDownloadStarted(msg));
+
+        WeakReferenceMessenger.Default.Register<ContentDownloadProgressMessage>(
+            this,
+            static (recipient, msg) => ((ContentGridItemViewModel)recipient).OnDownloadProgress(msg));
+
+        WeakReferenceMessenger.Default.Register<ContentDownloadCompletedMessage>(
+            this,
+            static (recipient, msg) => ((ContentGridItemViewModel)recipient).OnDownloadCompleted(msg));
+
+        if (downloadCoordinator != null)
+        {
+            HasActiveDownloads = downloadCoordinator.HasActiveDownloads;
+            if (downloadCoordinator.IsDownloading(searchResult))
+            {
+                IsDownloading = true;
+                if (downloadCoordinator.TryGetDownloadProgress(searchResult, out var pct, out var status))
+                {
+                    DownloadProgress = (int)Math.Round(pct);
+                    DownloadStatus = status;
+                }
+            }
+        }
+
         LoadBundleComponents();
         _ = LoadIconAsync();
         _ = RefreshBundleComponentStatesAsync();
@@ -103,14 +149,14 @@ public sealed partial class ContentGridItemViewModel(
     {
         get
         {
-            if (!string.IsNullOrWhiteSpace(SelectedVariant?.Name))
-            {
-                return SelectedVariant.Name;
-            }
-
             if (!string.IsNullOrWhiteSpace(SearchResult.Name))
             {
                 return SearchResult.Name;
+            }
+
+            if (!string.IsNullOrWhiteSpace(SelectedVariant?.Name))
+            {
+                return SelectedVariant.Name;
             }
 
             return SearchResult.VariantFamilyName ?? UnknownValue;
@@ -338,7 +384,7 @@ public sealed partial class ContentGridItemViewModel(
     /// </summary>
     public bool ShowAddToProfileButton => HasBundleComponents
         ? AreBundleComponentsReadyForProfile
-        : EffectiveCurrentState == ContentState.Downloaded || EffectiveIsDownloaded;
+        : EffectiveCurrentState is ContentState.Downloaded or ContentState.UpdateAvailable;
 
     /// <summary>
     /// Gets the tags associated with this content.
@@ -407,6 +453,11 @@ public sealed partial class ContentGridItemViewModel(
     private Action? _unsubscribeAxisHandlers;
 
     /// <summary>
+    /// Gets a value indicating whether this view model has been disposed.
+    /// </summary>
+    public bool IsDisposed => _disposed;
+
+    /// <summary>
     /// Disposes resources used by the view model.
     /// </summary>
     public void Dispose()
@@ -416,6 +467,9 @@ public sealed partial class ContentGridItemViewModel(
             // Unsubscribe from state changes
             contentStateService.ContentStateChanged -= OnContentStateChanged;
             WeakReferenceMessenger.Default.Unregister<ContentLibraryClearedMessage>(this);
+            WeakReferenceMessenger.Default.Unregister<ContentDownloadStartedMessage>(this);
+            WeakReferenceMessenger.Default.Unregister<ContentDownloadProgressMessage>(this);
+            WeakReferenceMessenger.Default.Unregister<ContentDownloadCompletedMessage>(this);
             _unsubscribeAxisHandlers?.Invoke();
             _unsubscribeAxisHandlers = null;
             foreach (var component in BundleComponents)
@@ -440,6 +494,82 @@ public sealed partial class ContentGridItemViewModel(
         {
             DownloadStatus = string.Empty;
         }
+    }
+
+    private bool IsMatchingDownloadMessage(
+        string contentKey,
+        string? contentId,
+        string? providerName,
+        string? contentName,
+        string? parentContentId = null)
+    {
+        var msg = new ContentDownloadStartedMessage(contentKey, contentId, providerName, contentName, parentContentId);
+        if (msg.Matches(SearchResult))
+        {
+            return true;
+        }
+
+        if (SelectedVariant != null && !string.IsNullOrEmpty(SelectedVariant.ManifestId))
+        {
+            if (!string.IsNullOrEmpty(contentId) && string.Equals(contentId, SelectedVariant.ManifestId, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (!string.IsNullOrEmpty(contentKey) && contentKey.EndsWith($"::{SelectedVariant.ManifestId}", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void OnDownloadStarted(ContentDownloadStartedMessage message)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            HasActiveDownloads = true;
+            if (IsMatchingDownloadMessage(message.ContentKey, message.ContentId, message.ProviderName, message.ContentName, message.ParentContentId))
+            {
+                IsDownloading = true;
+                DownloadProgress = 0;
+                DownloadStatus = ContentConstants.StartingDownloadStatusMessage;
+            }
+        });
+    }
+
+    private void OnDownloadProgress(ContentDownloadProgressMessage message)
+    {
+        if (IsMatchingDownloadMessage(message.ContentKey, message.ContentId, message.ProviderName, message.ContentName, message.ParentContentId))
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                IsDownloading = true;
+                var intPercent = (int)Math.Round(message.ProgressPercentage);
+                if (intPercent >= DownloadProgress)
+                {
+                    DownloadProgress = intPercent;
+                }
+
+                DownloadStatus = message.StatusMessage;
+            });
+        }
+    }
+
+    private void OnDownloadCompleted(ContentDownloadCompletedMessage message)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            HasActiveDownloads = downloadCoordinator?.HasActiveDownloads == true;
+            if (IsMatchingDownloadMessage(message.ContentKey, message.ContentId, message.ProviderName, message.ContentName, message.ParentContentId))
+            {
+                IsDownloading = false;
+                DownloadStatus = !message.Success && !string.IsNullOrEmpty(message.ErrorMessage)
+                    ? $"{ContentConstants.ErrorStatusPrefix}{message.ErrorMessage}"
+                    : string.Empty;
+            }
+        });
     }
 
     private void ResetDownloadState()
@@ -577,9 +707,11 @@ public sealed partial class ContentGridItemViewModel(
 
             if (isForThisContent && !HasBundleComponents)
             {
-                CurrentState = e.NewState;
+                CurrentState = e.NewState == ContentState.Downloaded && UpdateTargetVm != null && !UpdateTargetVm.IsDownloaded
+                    ? ContentState.UpdateAvailable
+                    : e.NewState;
 
-                switch (e.NewState)
+                switch (CurrentState)
                 {
                     case ContentState.Downloaded:
                     case ContentState.UpdateAvailable:
@@ -595,7 +727,7 @@ public sealed partial class ContentGridItemViewModel(
                         break;
                 }
 
-                logger.LogDebug("Content state updated for {ContentId}: {State}", e.ContentId, e.NewState);
+                logger.LogDebug("Content state updated for {ContentId}: {State}", e.ContentId, CurrentState);
             }
         });
     }
@@ -715,8 +847,9 @@ public sealed partial class ContentGridItemViewModel(
     /// downloading a sibling and switching to an undownloaded variant.
     /// </summary>
     public bool EffectiveIsDownloaded => SelectedVariant != null
-        ? SelectedVariant.CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable
-        : IsDownloaded;
+        ? SelectedVariant.CurrentState == ContentState.Downloaded ||
+          (SelectedVariant.CurrentState == ContentState.UpdateAvailable && (IsDownloaded || !string.IsNullOrEmpty(SelectedVariant.ManifestId)))
+        : IsDownloaded || CurrentState is ContentState.Downloaded or ContentState.UpdateAvailable;
 
     /// <summary>
     /// Adds a variant and optionally maps its <see cref="ContentSearchResult"/> for
@@ -807,10 +940,21 @@ public sealed partial class ContentGridItemViewModel(
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task RefreshVariantStatesAsync()
     {
+        var isTargetDownloaded = false;
         try
         {
+            if (UpdateTargetVm != null)
+            {
+                var targetState = await contentStateService.GetStateAsync(UpdateTargetVm.SearchResult);
+                isTargetDownloaded = targetState is ContentState.Downloaded or ContentState.UpdateAvailable;
+                UpdateTargetVm.IsDownloaded = isTargetDownloaded;
+            }
+
             var mainState = await contentStateService.GetStateAsync(SearchResult);
-            CurrentState = mainState;
+            CurrentState = mainState == ContentState.Downloaded && UpdateTargetVm != null && !isTargetDownloaded
+                ? ContentState.UpdateAvailable
+                : mainState;
+
             IsDownloaded = mainState is ContentState.Downloaded or ContentState.UpdateAvailable;
         }
         catch (Exception ex)
@@ -821,8 +965,28 @@ public sealed partial class ContentGridItemViewModel(
         foreach (var variant in Variants)
         {
             await RefreshSingleVariantStateAsync(variant);
+            if (variant.CurrentState == ContentState.Downloaded && UpdateTargetVm != null && !isTargetDownloaded)
+            {
+                variant.CurrentState = ContentState.UpdateAvailable;
+            }
         }
 
+        NotifyStateChanged();
+    }
+
+    /// <summary>
+    /// Gets or sets the target view model to acquire when updating this content.
+    /// Used when a feed contains multiple distinct release cards for the same content.
+    /// </summary>
+    public ContentGridItemViewModel? UpdateTargetVm { get; set; }
+
+    /// <summary>
+    /// Notifies the UI that state properties have changed.
+    /// </summary>
+    public void NotifyStateChanged()
+    {
+        OnPropertyChanged(nameof(CurrentState));
+        OnPropertyChanged(nameof(IsDownloaded));
         OnPropertyChanged(nameof(EffectiveCurrentState));
         OnPropertyChanged(nameof(EffectiveIsDownloaded));
         OnPropertyChanged(nameof(ShowDownloadButton));
@@ -841,7 +1005,8 @@ public sealed partial class ContentGridItemViewModel(
             return;
         }
 
-        var match = Variants.FirstOrDefault(v => string.Equals(v.ManifestId, manifestId, StringComparison.OrdinalIgnoreCase));
+        var match = VariantSwap.FindMatchingVariant(Variants, manifestId);
+
         if (match != null)
         {
             SelectedVariant = match;

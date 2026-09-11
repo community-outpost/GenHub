@@ -498,8 +498,6 @@ public class SuperHackersManifestFactory(
                 VariantGroupId = variantGroupId,
                 VariantFamilyName = variantFamilyName,
             },
-            OriginalProviderName = originalManifest.OriginalProviderName,
-            OriginalContentId = originalManifest.OriginalContentId,
             SourcePath = originalManifest.SourcePath,
             Dependencies = dependencies,
             ContentReferences = originalManifest.ContentReferences,
@@ -507,6 +505,10 @@ public class SuperHackersManifestFactory(
             Files = files,
             RequiredDirectories = originalManifest.RequiredDirectories,
             InstallationInstructions = originalManifest.InstallationInstructions,
+            OriginalContentId = !string.IsNullOrEmpty(originalManifest.OriginalContentId)
+                ? originalManifest.OriginalContentId
+                : originalManifest.Id.Value,
+            OriginalProviderName = PublisherTypeConstants.TheSuperHackers,
         };
 
         return await Task.FromResult(manifest);

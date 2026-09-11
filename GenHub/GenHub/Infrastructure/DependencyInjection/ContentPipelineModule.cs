@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
@@ -28,18 +33,13 @@ using GenHub.Features.Content.Services.Reconciliation;
 using GenHub.Features.Content.Services.SuperHackers;
 using GenHub.Features.Content.Services.Tools;
 using GenHub.Features.Downloads.Services;
-using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GitHub.Services;
 using GenHub.Features.Manifest;
 using GenHub.Features.Storage.Services;
 using GenHub.Infrastructure.Services;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -64,7 +64,6 @@ public static class ContentPipelineModule
         AddCommunityOutpostPipeline(services);
         AddCNCLabsPipeline(services);
         AddModDBPipeline(services);
-        AddAODMapsPipeline(services);
         AddLocalFileSystemPipeline(services);
         AddCsvPipeline(services);
         AddSharedComponents(services);
@@ -156,7 +155,13 @@ public static class ContentPipelineModule
         });
 
         // Register GitHub API client
-        services.AddSingleton<IGitHubApiClient, OctokitGitHubApiClient>();
+        services.AddSingleton<IGitHubApiClient>(sp => new OctokitGitHubApiClient(
+            sp.GetRequiredService<Octokit.IGitHubClient>(),
+            sp.GetRequiredService<IHttpClientFactory>(),
+            sp.GetRequiredService<ILogger<OctokitGitHubApiClient>>(),
+            sp.GetRequiredService<IMemoryCache>(),
+            sp.GetService<IGitHubTokenStorage>(),
+            sp.GetService<GitHubRateLimitTracker>()));
 
         // Register Local Content Service
         services.AddTransient<ILocalContentService, LocalContentService>();
@@ -223,16 +228,14 @@ public static class ContentPipelineModule
         services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<GitHubTopicsDiscoverer>());
 
         // Register GitHub resolver
-        services.AddSingleton<GitHubResolver>();
-        services.AddSingleton<IContentResolver>(sp => sp.GetRequiredService<GitHubResolver>());
+        services.AddTransient<IContentResolver, GitHubResolver>();
 
         // Register GitHub deliverer
-        services.AddSingleton<GitHubContentDeliverer>();
-        services.AddSingleton<IContentDeliverer>(sp => sp.GetRequiredService<GitHubContentDeliverer>());
+        services.AddTransient<IContentDeliverer, GitHubContentDeliverer>();
 
         // Register SuperHackers manifest factory
-        services.AddSingleton<SuperHackersManifestFactory>();
-        services.AddSingleton<IPublisherManifestFactory>(sp => sp.GetRequiredService<SuperHackersManifestFactory>());
+        services.AddTransient<SuperHackersManifestFactory>();
+        services.AddTransient<IPublisherManifestFactory>(sp => sp.GetRequiredService<SuperHackersManifestFactory>());
 
         // Register SuperHackers update service
         services.AddScoped<SuperHackersUpdateService>();
@@ -261,16 +264,15 @@ public static class ContentPipelineModule
         services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<GeneralsOnlineDiscoverer>());
 
         // Register Generals Online resolver (concrete and interface)
-        services.AddSingleton<GeneralsOnlineResolver>();
-        services.AddSingleton<IContentResolver>(sp => sp.GetRequiredService<GeneralsOnlineResolver>());
+        services.AddTransient<GeneralsOnlineResolver>();
+        services.AddTransient<IContentResolver, GeneralsOnlineResolver>();
 
         // Register Generals Online deliverer
-        services.AddSingleton<GeneralsOnlineDeliverer>();
-        services.AddSingleton<IContentDeliverer>(sp => sp.GetRequiredService<GeneralsOnlineDeliverer>());
+        services.AddTransient<IContentDeliverer, GeneralsOnlineDeliverer>();
 
         // Register Generals Online manifest factory
-        services.AddSingleton<GeneralsOnlineManifestFactory>();
-        services.AddSingleton<IPublisherManifestFactory>(sp => sp.GetRequiredService<GeneralsOnlineManifestFactory>());
+        services.AddTransient<GeneralsOnlineManifestFactory>();
+        services.AddTransient<IPublisherManifestFactory>(sp => sp.GetRequiredService<GeneralsOnlineManifestFactory>());
 
         // Register Generals Online update service
         services.AddScoped<GeneralsOnlineUpdateService>();
@@ -296,23 +298,18 @@ public static class ContentPipelineModule
         services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<CommunityOutpostDiscoverer>());
 
         // Register Community Outpost resolver
-        services.AddSingleton<CommunityOutpostResolver>();
-        services.AddSingleton<IContentResolver>(sp => sp.GetRequiredService<CommunityOutpostResolver>());
+        services.AddTransient<CommunityOutpostResolver>();
+        services.AddTransient<IContentResolver, CommunityOutpostResolver>();
 
         // Register compressed image converter (AVIF/WebP to TGA) for GenPatcher content
         services.AddSingleton<CompressedImageToTgaConverter>();
 
-        // Register control bar packaging processor
-        services.AddSingleton<ControlBarPackageProcessor>();
-        services.AddSingleton<IControlBarPackageProcessor>(sp => sp.GetRequiredService<ControlBarPackageProcessor>());
-
         // Register Community Outpost deliverer
-        services.AddSingleton<CommunityOutpostDeliverer>();
-        services.AddSingleton<IContentDeliverer>(sp => sp.GetRequiredService<CommunityOutpostDeliverer>());
+        services.AddTransient<IContentDeliverer, CommunityOutpostDeliverer>();
 
         // Register Community Outpost manifest factory
-        services.AddSingleton<CommunityOutpostManifestFactory>();
-        services.AddSingleton<IPublisherManifestFactory>(sp => sp.GetRequiredService<CommunityOutpostManifestFactory>());
+        services.AddTransient<CommunityOutpostManifestFactory>();
+        services.AddTransient<IPublisherManifestFactory, CommunityOutpostManifestFactory>();
 
         // Register Community Outpost services
         services.AddScoped<CommunityOutpostUpdateService>();
@@ -328,20 +325,18 @@ public static class ContentPipelineModule
     private static void AddCNCLabsPipeline(IServiceCollection services)
     {
         // Register CNCLabs content provider
-        services.AddSingleton<CNCLabsContentProvider>();
-        services.AddSingleton<IContentProvider>(sp => sp.GetRequiredService<CNCLabsContentProvider>());
+        services.AddTransient<IContentProvider, CNCLabsContentProvider>();
 
         // Register CNCLabs discoverer (concrete and interface)
         services.AddSingleton<CNCLabsMapDiscoverer>();
         services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<CNCLabsMapDiscoverer>());
 
         // Register CNCLabs resolver
-        services.AddSingleton<CNCLabsMapResolver>();
-        services.AddSingleton<IContentResolver>(sp => sp.GetRequiredService<CNCLabsMapResolver>());
+        services.AddTransient<IContentResolver, CNCLabsMapResolver>();
 
         // Register CNCLabs manifest factory
-        services.AddSingleton<CNCLabsManifestFactory>();
-        services.AddSingleton<IPublisherManifestFactory>(sp => sp.GetRequiredService<CNCLabsManifestFactory>());
+        services.AddTransient<CNCLabsManifestFactory>();
+        services.AddTransient<IPublisherManifestFactory, CNCLabsManifestFactory>();
     }
 
     /// <summary>
@@ -352,44 +347,27 @@ public static class ContentPipelineModule
         // Register named HTTP client for ModDB
         services.AddHttpClient(ModDBConstants.PublisherPrefix, httpClient =>
         {
-            httpClient.BaseAddress = new Uri(ModDBConstants.BaseUrl);
-            httpClient.Timeout = TimeSpan.FromSeconds(30);
-
-            // Add comprehensive browser headers to bypass 403 Forbidden
-            httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-            httpClient.DefaultRequestHeaders.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8");
-            httpClient.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.9");
-        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
-        {
-            AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate | System.Net.DecompressionMethods.Brotli,
-            CookieContainer = new System.Net.CookieContainer(),
-            UseCookies = true,
+            httpClient.Timeout = TimeSpan.FromSeconds(45); // ModDB can be slower
+            httpClient.DefaultRequestHeaders.Add("User-Agent", ApiConstants.DefaultUserAgent);
         });
 
         // Register Playwright service for web page parsing (singleton for shared browser instance)
         services.AddSingleton<IPlaywrightService, PlaywrightService>();
 
         // Register ModDB page parser (concrete and interface)
-        // Note: Multiple IWebPageParser implementations are registered for IEnumerable<IWebPageParser> injection
         services.AddSingleton<ModDBPageParser>();
         services.AddSingleton<IWebPageParser>(sp => sp.GetRequiredService<ModDBPageParser>());
 
-        // Register ModDB discoverer (concrete and interface) with named HttpClient
         // Register ModDB discoverer (concrete and interface)
         services.AddSingleton<ModDBDiscoverer>();
         services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<ModDBDiscoverer>());
 
         // Register ModDB resolver
-        services.AddSingleton<ModDBResolver>();
-        services.AddSingleton<IContentResolver>(sp => sp.GetRequiredService<ModDBResolver>());
+        services.AddTransient<IContentResolver, ModDBResolver>();
 
         // Register ModDB manifest factory
-        services.AddSingleton<ModDBManifestFactory>();
-        services.AddSingleton<IPublisherManifestFactory>(sp => sp.GetRequiredService<ModDBManifestFactory>());
-
-        // Register ModDB content provider
-        services.AddSingleton<ModDBContentProvider>();
-        services.AddSingleton<IContentProvider>(sp => sp.GetRequiredService<ModDBContentProvider>());
+        services.AddTransient<ModDBManifestFactory>();
+        services.AddTransient<IPublisherManifestFactory, ModDBManifestFactory>();
     }
 
     /// <summary>
@@ -398,55 +376,17 @@ public static class ContentPipelineModule
     private static void AddLocalFileSystemPipeline(IServiceCollection services)
     {
         // Register Local File System content provider
-        services.AddSingleton<LocalFileSystemContentProvider>();
-        services.AddSingleton<IContentProvider>(sp => sp.GetRequiredService<LocalFileSystemContentProvider>());
+        services.AddTransient<IContentProvider, LocalFileSystemContentProvider>();
 
         // Register File System discoverer
         services.AddSingleton<FileSystemDiscoverer>();
         services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<FileSystemDiscoverer>());
 
         // Register Local Manifest resolver
-        services.AddSingleton<LocalManifestResolver>();
-        services.AddSingleton<IContentResolver>(sp => sp.GetRequiredService<LocalManifestResolver>());
+        services.AddTransient<IContentResolver, LocalManifestResolver>();
 
         // Register File System deliverer
-        services.AddSingleton<FileSystemDeliverer>();
-        services.AddSingleton<IContentDeliverer>(sp => sp.GetRequiredService<FileSystemDeliverer>());
-    }
-
-    /// <summary>
-    /// Registers AODMaps content pipeline services.
-    /// </summary>
-    private static void AddAODMapsPipeline(IServiceCollection services)
-    {
-        // Register named HttpClient for AODMaps
-        services.AddHttpClient("AODMaps", client =>
-        {
-            client.BaseAddress = new Uri(AODMapsConstants.BaseUrl);
-            client.Timeout = TimeSpan.FromSeconds(30);
-            client.DefaultRequestHeaders.Add("User-Agent", "GenHub/1.0");
-        });
-
-        // Register AODMaps page parser (concrete and interface)
-        // Note: Multiple IWebPageParser implementations are registered for IEnumerable<IWebPageParser> injection
-        services.AddSingleton<AODMapsPageParser>();
-        services.AddSingleton<IWebPageParser>(sp => sp.GetRequiredService<AODMapsPageParser>());
-
-        // Register AODMaps discoverer
-        services.AddSingleton<AODMapsDiscoverer>();
-        services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<AODMapsDiscoverer>());
-
-        // Register AODMaps resolver
-        services.AddSingleton<AODMapsResolver>();
-        services.AddSingleton<IContentResolver>(sp => sp.GetRequiredService<AODMapsResolver>());
-
-        // Register AODMaps content provider
-        services.AddSingleton<AODMapsContentProvider>();
-        services.AddSingleton<IContentProvider>(sp => sp.GetRequiredService<AODMapsContentProvider>());
-
-        // Register AODMaps manifest factory
-        services.AddSingleton<AODMapsManifestFactory>();
-        services.AddSingleton<IPublisherManifestFactory>(sp => sp.GetRequiredService<AODMapsManifestFactory>());
+        services.AddTransient<IContentDeliverer, FileSystemDeliverer>();
     }
 
     /// <summary>
@@ -454,12 +394,15 @@ public static class ContentPipelineModule
     /// </summary>
     private static void AddCsvPipeline(IServiceCollection services)
     {
-        // Register CSV content provider
-        services.AddTransient<IContentProvider, CsvContentProvider>();
+        services.AddSingleton<CsvCatalogCache>();
 
-        // Register CSV discoverer (concrete and interface)
+        // Register CSV content provider
+        services.AddTransient<CsvContentProvider>();
+        services.AddTransient<IContentProvider>(sp => sp.GetRequiredService<CsvContentProvider>());
+
+        // Register CSV discoverer (concrete and interface). Remote content is cached on disk.
         services.AddTransient<CsvDiscoverer>();
-        services.AddTransient<IContentDiscoverer, CsvDiscoverer>();
+        services.AddTransient<IContentDiscoverer>(sp => sp.GetRequiredService<CsvDiscoverer>());
 
         // Register CSV resolver (concrete and interface)
         services.AddTransient<CsvResolver>();
@@ -493,6 +436,10 @@ public static class ContentPipelineModule
         // Register archive payload processor
         services.AddSingleton<ArchivePayloadProcessor>();
         services.AddSingleton<IArchivePayloadProcessor>(sp => sp.GetRequiredService<ArchivePayloadProcessor>());
+
+        // Register control bar packaging processor
+        services.AddSingleton<ControlBarPackageProcessor>();
+        services.AddSingleton<IControlBarPackageProcessor>(sp => sp.GetRequiredService<ControlBarPackageProcessor>());
 
         // Register collection of all content discoverers for components that need the full list
         services.AddSingleton<IReadOnlyList<IContentDiscoverer>>(sp =>

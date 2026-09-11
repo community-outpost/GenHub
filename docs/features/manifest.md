@@ -502,25 +502,25 @@ The `ContentDependency` class provides sophisticated dependency management with 
 - **exactVersion** (string, optional): Exact version required, overrides min/max.
   - Used for: Critical dependencies requiring specific versions
   - Example: `"1.04"` for Zero Hour, `"1.08"` for Generals
-- **compatibleVersions** (List<string>, optional): List of compatible versions.
+- **compatibleVersions** (`List<string>`, optional): List of compatible versions.
   - Alternative to version ranges for non-sequential versioning
   - Example: `["1.04", "1.04.1", "1.04.2"]`
-- **compatibleGameTypes** (List<GameType>, optional): Restricts which game types satisfy dependency.
+- **compatibleGameTypes** (`List<GameType>`, optional): Restricts which game types satisfy dependency.
   - Used when dependency can be satisfied by multiple game types
   - Example: GeneralsOnline client only compatible with `ZeroHour`
 - **isExclusive** (bool, optional): Whether this dependency cannot coexist with others.
   - Used for: Mutually exclusive content (e.g., different game clients)
   - Example: GeneralsOnline and Gentool cannot both be active
-- **conflictsWith** (List<ManifestId>, optional): Explicit list of conflicting content IDs.
+- **conflictsWith** (`List<ManifestId>`, optional): Explicit list of conflicting content IDs.
   - More granular than `isExclusive`
   - Example: Mod A conflicts with Mod B's specific version
 - **isOptional** (bool, optional): Whether dependency is optional.
   - Optional dependencies enhance functionality but aren't required
   - Example: Mod optionally depends on ControlBar for better UX
-- **requiredPublisherTypes** (List<string>, optional): Whitelist of acceptable publisher types.
+- **requiredPublisherTypes** (`List<string>`, optional): Whitelist of acceptable publisher types.
   - Dependency can only be satisfied by content from these publishers
   - Example: `["steam", "gog"]` excludes EA version
-- **incompatiblePublisherTypes** (List<string>, optional): Blacklist of unacceptable publisher types.
+- **incompatiblePublisherTypes** (`List<string>`, optional): Blacklist of unacceptable publisher types.
   - Content from these publishers cannot satisfy dependency
   - Example: `["ea"]` excludes EA version due to known incompatibilities
 
@@ -609,13 +609,13 @@ Beyond the basic structure shown earlier, `ContentManifest` includes advanced fi
 - **sourcePath** (string, optional): Original source path for local content.
   - Used for: GameInstallation manifests to persist installation paths
   - Example: `"C:/Program Files (x86)/EA Games/Command & Conquer Generals Zero Hour"`
-- **contentReferences** (List<ContentReference>, optional): Cross-publisher content links.
+- **contentReferences** (`List<ContentReference>`, optional): Cross-publisher content links.
   - Used for: Referencing related content from other publishers
   - Enables: Addon chains, recommended content, alternative versions
-- **knownAddons** (List<string>, optional): Manifest IDs of known addons for this content.
+- **knownAddons** (`List<string>`, optional): Manifest IDs of known addons for this content.
   - Manifest-driven addon discovery (not hardcoded)
   - Example: Base mod lists its official addons
-- **requiredDirectories** (List<string>, optional): Directory structure that must exist.
+- **requiredDirectories** (`List<string>`, optional): Directory structure that must exist.
   - Created during workspace preparation
   - Example: `["Data/", "Maps/", "Shaders/"]`
 - **installationInstructions** (InstallationInstructions, optional): Installation behavior and lifecycle hooks.
@@ -660,7 +660,7 @@ The `ContentMetadata` class provides rich metadata for content discovery, presen
 
 **Advanced Field Descriptions**:
 
-- **variants** (List<ContentVariant>, optional): Available variants for this content.
+- **variants** (`List<ContentVariant>`, optional): Available variants for this content.
   - Enables: Resolution variants (ControlBar), language packs, quality settings
   - Each variant defines file filtering patterns
 - **requiresVariantSelection** (bool, optional): Whether user must select a variant before installation.
@@ -679,9 +679,9 @@ The `ContentMetadata` class provides rich metadata for content discovery, presen
 - **value** (string, required): Variant value (e.g., `"1920x1080"`, `"en-US"`, `"high"`).
 - **isDefault** (bool, optional): Whether this is the default variant.
 - **targetGame** (GameType, optional): Target game if different from parent content.
-- **includePatterns** (List<string>, required): File patterns to include for this variant. Supports wildcards.
-- **excludePatterns** (List<string>, optional): File patterns to exclude for this variant.
-- **tags** (List<string>, optional): Tags for filtering and discovery.
+- **includePatterns** (`List<string>`, required): File patterns to include for this variant. Supports wildcards.
+- **excludePatterns** (`List<string>`, optional): File patterns to exclude for this variant.
+- **tags** (`List<string>`, optional): Tags for filtering and discovery.
 
 ### PublisherInfo Advanced Fields
 
@@ -769,10 +769,10 @@ The `InstallationInstructions` class defines installation behavior, lifecycle ho
 
 **Field Descriptions**:
 
-- **preInstallSteps** (List<InstallationStep>, optional): Steps executed before file installation.
+- **preInstallSteps** (`List<InstallationStep>`, optional): Steps executed before file installation.
   - Used for: Validation, backups, prerequisite checks
   - Executed in order, installation aborts if any step fails
-- **postInstallSteps** (List<InstallationStep>, optional): Steps executed after file installation.
+- **postInstallSteps** (`List<InstallationStep>`, optional): Steps executed after file installation.
   - Used for: Configuration, script execution, user notifications
   - Executed in order, errors logged but don't abort installation
 - **workspaceStrategy** (WorkspaceStrategy, optional): Preferred workspace preparation strategy.

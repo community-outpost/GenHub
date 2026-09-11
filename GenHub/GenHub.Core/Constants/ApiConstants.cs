@@ -164,6 +164,13 @@ public static class ApiConstants
     /// </summary>
     public const string GitHubApiWorkflowRunsAllFormat = "https://api.github.com/repos/{0}/{1}/actions/runs?status=success&per_page=20";
 
+    // YouTube
+
+    /// <summary>
+    /// Base watch URL prefix for YouTube videos.
+    /// </summary>
+    public const string YouTubeWatchUrlPrefix = "https://www.youtube.com/watch?v=";
+
     // User agents
 
     /// <summary>

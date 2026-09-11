@@ -3,6 +3,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.Content.Services.Common;
 using Microsoft.Extensions.Logging;
@@ -18,6 +19,11 @@ namespace GenHub.Tests.Core.Features.Content.Common;
 public sealed class ArchivePayloadProcessorTests : IDisposable
 {
     private readonly string _stagingDirectory = Path.Combine(Path.GetTempPath(), "GenHubPayloadTests", Guid.NewGuid().ToString("N"));
+
+    private sealed class SynchronousProgress<T>(Action<T> action) : IProgress<T>
+    {
+        public void Report(T value) => action(value);
+    }
 
     /// <summary>
     /// Verifies that extracting a valid ZIP archive unpacks all entries and removes the archive file.
@@ -54,7 +60,8 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that a nested archive located in a subfolder extracts into that subfolder and not into the payload root.
+    /// Verifies that an archive located in a subfolder extracts its contents into that subfolder,
+    /// rather than flattening into the root payload directory.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
@@ -100,56 +107,6 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
             {
                 archive.CreateEntry($"file_{i}.txt");
             }
-        }
-
-        var processor = CreateProcessor();
-
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidDataException>(() =>
-            processor.ExtractArchivesSafelyAsync(_stagingDirectory));
-    }
-
-    /// <summary>
-    /// Verifies that extracting an archive containing an entry that matches the archive path throws an InvalidDataException to prevent self-clobbering.
-    /// </summary>
-    /// <returns>A task representing the asynchronous unit test.</returns>
-    [Fact]
-    public async Task ExtractArchivesSafelyAsync_WithArchiveContainingSelfEntry_ThrowsInvalidDataExceptionAsync()
-    {
-        // Arrange
-        Directory.CreateDirectory(_stagingDirectory);
-        var zipPath = Path.Combine(_stagingDirectory, "conflict.zip");
-        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
-        {
-            var entry = archive.CreateEntry("conflict.zip");
-            using var writer = new StreamWriter(entry.Open());
-            await writer.WriteAsync("clobber content");
-        }
-
-        var processor = CreateProcessor();
-
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidDataException>(() =>
-            processor.ExtractArchivesSafelyAsync(_stagingDirectory));
-    }
-
-    /// <summary>
-    /// Verifies that an archive with a Zip-Slip path entry targeting outside the extract directory throws InvalidDataException.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
-    [Fact]
-    public async Task ExtractArchivesSafelyAsync_ZipSlipEntry_ThrowsInvalidDataExceptionAsync()
-    {
-        // Arrange
-        Directory.CreateDirectory(_stagingDirectory);
-        var zipPath = Path.Combine(_stagingDirectory, "malicious.zip");
-
-        using (var stream = File.Create(zipPath))
-        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create))
-        {
-            var entry = archive.CreateEntry("../evil.txt");
-            using var writer = new StreamWriter(entry.Open());
-            await writer.WriteAsync("evil content");
         }
 
         var processor = CreateProcessor();
@@ -434,8 +391,8 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         // Arrange
         Directory.CreateDirectory(_stagingDirectory);
         var datArchivePath = Path.Combine(_stagingDirectory, "10zh.dat");
-        using (var archive = ZipFile.Open(datArchivePath, ZipArchiveMode.Create))
         {
+            using var archive = ZipFile.Open(datArchivePath, ZipArchiveMode.Create);
             var entry = archive.CreateEntry("ZH/game.dat");
             using var writer = new StreamWriter(entry.Open());
             await writer.WriteAsync("ZH game binary");
@@ -575,14 +532,11 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
     /// Verifies that Smart Install Maker SFX executables (e.g. ShockWave) are safely extracted and normalized.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
-    [Fact]
+    [Fact(Skip = "Requires local SmartInstallMaker SFX payload fixture from CAS store")]
     public async Task ExtractArchivesSafelyAsync_WithSmartInstallMakerExecutable_ExtractsAndNormalizesSuccessfully()
     {
         var casPath = @"A:\Steam\steamapps\common\.genhub-cas\objects\f4\f45e14d6b4a1e6e6feaa2ad737528b385586ad81ab7535bf9a330972db834c4e";
-        if (!File.Exists(casPath))
-        {
-            return;
-        }
+        Assert.True(File.Exists(casPath), "Expected test CAS object fixture to exist when running local SIM fixture test.");
 
         var testDir = Path.Combine(_stagingDirectory, "sim_test_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(testDir);
@@ -651,6 +605,98 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         // Act & Assert
         await Assert.ThrowsAsync<InvalidDataException>(() =>
             processor.ExtractArchivesSafelyAsync(_stagingDirectory));
+    }
+
+    /// <summary>
+    /// Verifies that archives containing directory traversal entries (Zip Slip) throw <see cref="InvalidDataException"/>.
+    /// </summary>
+    /// <param name="maliciousEntryName">The malicious entry path.</param>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData("../evil.txt")]
+    [InlineData("../../evil.txt")]
+    [InlineData("sub/../../evil.txt")]
+    [InlineData("/evil.txt")]
+    public async Task ExtractArchivesSafelyAsync_WithZipSlipEntry_ThrowsInvalidDataExceptionAsync(string maliciousEntryName)
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var zipPath = Path.Combine(_stagingDirectory, "malicious.zip");
+
+        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            var entry = archive.CreateEntry(maliciousEntryName);
+            using var writer = new StreamWriter(entry.Open());
+            await writer.WriteAsync("malicious content");
+        }
+
+        var processor = CreateProcessor();
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            processor.ExtractArchivesSafelyAsync(_stagingDirectory));
+    }
+
+    /// <summary>
+    /// Verifies that self-extracting zip .exe archives containing directory traversal entries (Zip Slip)
+    /// throw <see cref="InvalidDataException"/> reporting unsafe path.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_SelfExtractingExeWithZipSlipEntry_ThrowsInvalidDataExceptionWithUnsafePathAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var sfxExePath = Path.Combine(_stagingDirectory, "malicious_mod.exe");
+
+        using (var archive = ZipFile.Open(sfxExePath, ZipArchiveMode.Create))
+        {
+            var entry = archive.CreateEntry("../evil.txt");
+            using var writer = new StreamWriter(entry.Open());
+            await writer.WriteAsync("malicious content");
+        }
+
+        var processor = CreateProcessor();
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(() =>
+            processor.ExtractArchivesSafelyAsync(_stagingDirectory, ContentType.Mod));
+        Assert.Contains("unsafe path", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies that cancelling extraction of a self-extracting .exe mid-extraction rethrows <see cref="OperationCanceledException"/>
+    /// rather than converting it to an InvalidDataException.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_SelfExtractingExeWithCancellation_RethrowsOperationCanceledExceptionAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var sfxExePath = Path.Combine(_stagingDirectory, "mod.exe");
+
+        using (var archive = ZipFile.Open(sfxExePath, ZipArchiveMode.Create))
+        {
+            var entry1 = archive.CreateEntry("game1.big");
+            using (var writer1 = new StreamWriter(entry1.Open()))
+            {
+                await writer1.WriteAsync("payload1");
+            }
+
+            var entry2 = archive.CreateEntry("game2.big");
+            using var writer2 = new StreamWriter(entry2.Open());
+            await writer2.WriteAsync("payload2");
+        }
+
+        using var cts = new CancellationTokenSource();
+        var progress = new SynchronousProgress<ContentAcquisitionProgress>(_ => cts.Cancel());
+
+        var processor = CreateProcessor();
+
+        // Act & Assert
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            processor.ExtractArchivesSafelyAsync(_stagingDirectory, ContentType.Mod, progress: progress, cancellationToken: cts.Token));
     }
 
     /// <summary>
@@ -728,7 +774,7 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ExtractArchivesSafelyAsync_WithSyntheticSmartInstallMakerExecutable_ExtractsAndNormalizesSuccessfully()
+    public async Task ExtractArchivesSafelyAsync_WithSyntheticSmartInstallMakerExecutable_ExtractsAndNormalizesSuccessfullyAsync()
     {
         // Arrange
         Directory.CreateDirectory(_stagingDirectory);
@@ -769,6 +815,32 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         Assert.True(File.Exists(Path.Combine(_stagingDirectory, "Contra_Launcher.exe")), "Expected Contra_Launcher.exe to exist");
         Assert.True(File.Exists(Path.Combine(_stagingDirectory, "Data", "INI", "GameData.ini")), "Expected Data/INI/GameData.ini to exist");
         Assert.False(File.Exists(Path.Combine(_stagingDirectory, "ModUninstaller.exe")), "Uninstaller executable should not be extracted");
+    }
+
+    /// <summary>
+    /// Verifies that an archive containing an entry whose resolved destination path matches the archive itself
+    /// throws an InvalidDataException to avoid sharing violations or self-overwrite corruption.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_EntryMatchesArchiveSelfPath_ThrowsInvalidDataExceptionAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var archivePath = Path.Combine(_stagingDirectory, "self.zip");
+        using (var archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+        {
+            var entry = archive.CreateEntry("self.zip");
+            using var writer = new StreamWriter(entry.Open());
+            await writer.WriteAsync("self content");
+        }
+
+        var processor = CreateProcessor();
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(
+            () => processor.ExtractArchivesSafelyAsync(_stagingDirectory));
+        Assert.Contains("cannot overwrite the archive itself", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

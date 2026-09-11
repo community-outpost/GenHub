@@ -1,7 +1,3 @@
-// <copyright file="ContentPathPolicyTests.cs" company="Community Outpost">
-// Copyright (c) Community Outpost. All rights reserved.
-// </copyright>
-
 using GenHub.Core.Helpers;
 
 namespace GenHub.Tests.Core.Helpers;

@@ -81,6 +81,7 @@ public partial class ProfileSelectionView : Window
         if (_viewModel != null)
         {
             _viewModel.RequestClose -= OnRequestClose;
+            _viewModel.Dispose();
             _viewModel = null;
         }
     }
@@ -117,7 +118,14 @@ public partial class ProfileSelectionView : Window
 
     private void CloseButton_Click(object? sender, RoutedEventArgs e)
     {
-        Close();
+        if (_viewModel != null)
+        {
+            _viewModel.CancelCommand.Execute(null);
+        }
+        else
+        {
+            Close();
+        }
     }
 
     private void InitializeComponent()

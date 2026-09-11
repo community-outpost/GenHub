@@ -6,6 +6,62 @@ namespace GenHub.Core.Constants;
 public static class ManifestConstants
 {
     /// <summary>
+    /// Notification title when game file verification/indexing begins.
+    /// </summary>
+    public const string IndexingNotificationTitle = "Indexing Game Files";
+
+    /// <summary>
+    /// Notification title when game file verification completes successfully.
+    /// </summary>
+    public const string IndexedNotificationTitle = "Game Files Indexed";
+
+    /// <summary>
+    /// Notification title when game installation is missing required files.
+    /// </summary>
+    public const string IncompleteInstallationNotificationTitle = "Incomplete Game Installation";
+
+    /// <summary>
+    /// Notification title when directory scan encounters an error.
+    /// </summary>
+    public const string DirectoryScanWarningNotificationTitle = "Directory Scan Warning";
+
+    /// <summary>
+    /// Default auto-dismiss timeout in milliseconds for standard info/success scan notifications.
+    /// </summary>
+    public const int DefaultNotificationAutoDismissMs = 4000;
+
+    /// <summary>
+    /// Auto-dismiss timeout in milliseconds for incomplete installation warning notifications.
+    /// </summary>
+    public const int WarningNotificationAutoDismissMs = 10000;
+
+    /// <summary>
+    /// Frequency interval (number of files processed) for progress log emission during manifest generation.
+    /// </summary>
+    public const int ProgressLoggingThrottleInterval = 25;
+
+    /// <summary>
+    /// Throttle interval in seconds for periodic progress logging during manifest generation.
+    /// </summary>
+    public const int ProgressLogThrottleSeconds = 5;
+
+    /// <summary>
+    /// File size threshold in bytes (5 MB) above which a file is considered large during verification,
+    /// triggering individual hashing progress status reports and notifications.
+    /// </summary>
+    public const long LargeFileProgressThresholdBytes = 5 * 1024 * 1024;
+
+    /// <summary>
+    /// Throttle interval in milliseconds for periodic notification updates during file verification.
+    /// </summary>
+    public const int NotificationUpdateThrottleMs = 500;
+
+    /// <summary>
+    /// Maximum number of missing required files to list in warning notifications before truncating.
+    /// </summary>
+    public const int MaxMissingFilesNotificationDisplayCount = 5;
+
+    /// <summary>
     /// Default manifest format version.
     /// </summary>
     public const int DefaultManifestFormatVersion = 1;
@@ -133,6 +189,26 @@ public static class ManifestConstants
     /// Type-only foundation requirement ID for Generals game installations.
     /// </summary>
     public const string GeneralsFoundationDependencyId = "1.108.any.gameinstallation.generals";
+
+    /// <summary>
+    /// Manifest ID for the Zero Hour game installation dependency.
+    /// </summary>
+    public const string ZeroHourGameInstallationManifestId = "1.104.any.gameinstallation.zerohour";
+
+    /// <summary>
+    /// Manifest ID for the Generals game installation dependency.
+    /// </summary>
+    public const string GeneralsGameInstallationManifestId = "1.108.any.gameinstallation.generals";
+
+    /// <summary>
+    /// Display name for the Zero Hour installation dependency.
+    /// </summary>
+    public const string ZeroHourInstallationName = "Zero Hour Installation";
+
+    /// <summary>
+    /// Display name for the Generals installation dependency.
+    /// </summary>
+    public const string GeneralsInstallationName = "Generals Installation";
 
     /// <summary>Tag for unknown authors.</summary>
     public const string UnknownAuthor = "unknown";

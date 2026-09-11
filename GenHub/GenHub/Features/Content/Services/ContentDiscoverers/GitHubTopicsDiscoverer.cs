@@ -31,6 +31,8 @@ public partial class GitHubTopicsDiscoverer(
     [System.Text.RegularExpressions.GeneratedRegex(@"[^\d]")]
     private static partial System.Text.RegularExpressions.Regex NonDigitRegex();
 
+    private const string ResolutionVariantType = "resolution";
+
     /// <summary>Maximum number of tags to include in search result.</summary>
     private const int MaxTagsToInclude = 10;
 
@@ -51,7 +53,7 @@ public partial class GitHubTopicsDiscoverer(
     /// <summary>
     /// Patterns that indicate variant-based releases that should be split.
     /// </summary>
-    private static partial class VariantPatterns
+    internal static partial class VariantPatterns
     {
         /// <summary>
         /// Regex to match resolution patterns like 1920x1080, 2560x1440, etc.
@@ -60,10 +62,34 @@ public partial class GitHubTopicsDiscoverer(
         public static partial System.Text.RegularExpressions.Regex ResolutionPattern();
 
         /// <summary>
+        /// Regex to match p-suffix resolution patterns like 1080p, 720p, etc.
+        /// </summary>
+        [System.Text.RegularExpressions.GeneratedRegex(@"(\d{3,4})p", System.Text.RegularExpressions.RegexOptions.IgnoreCase, matchTimeoutMilliseconds: 1000)]
+        public static partial System.Text.RegularExpressions.Regex ResolutionHeightPattern();
+
+        /// <summary>
         /// Regex to match non-digit characters.
         /// </summary>
         [System.Text.RegularExpressions.GeneratedRegex(@"[^\d]", System.Text.RegularExpressions.RegexOptions.Compiled)]
         public static partial System.Text.RegularExpressions.Regex NonDigitPattern();
+
+        /// <summary>
+        /// Regex to match dotted numeric or purely numeric version strings.
+        /// </summary>
+        [System.Text.RegularExpressions.GeneratedRegex(@"^\d+(\.\d+)*$", System.Text.RegularExpressions.RegexOptions.Compiled)]
+        public static partial System.Text.RegularExpressions.Regex NumericOrVersionPattern();
+
+        /// <summary>
+        /// Regex to match 2K/4K/5K/8K resolution tokens with non-alphanumeric boundaries.
+        /// </summary>
+        [System.Text.RegularExpressions.GeneratedRegex(@"(?<![A-Za-z0-9])([2458])K(?![A-Za-z0-9])", System.Text.RegularExpressions.RegexOptions.IgnoreCase, matchTimeoutMilliseconds: 1000)]
+        public static partial System.Text.RegularExpressions.Regex KResolutionPattern();
+
+        /// <summary>
+        /// Regex to match trailing parentheses in content names.
+        /// </summary>
+        [System.Text.RegularExpressions.GeneratedRegex(@"\(([^)]+)\)$", System.Text.RegularExpressions.RegexOptions.None, matchTimeoutMilliseconds: 1000)]
+        public static partial System.Text.RegularExpressions.Regex TrailingParenthesesPattern();
 
         /// <summary>
         /// Common resolution display names for user-friendly output.
@@ -204,14 +230,30 @@ public partial class GitHubTopicsDiscoverer(
                             finally
                             {
                                 // Add delay before releasing semaphore to maintain rate limit
-                                await Task.Delay(RateLimitDelay, cancellationToken).ConfigureAwait(false);
+                                try
+                                {
+                                    await Task.Delay(RateLimitDelay, cancellationToken).ConfigureAwait(false);
+                                }
+                                catch (OperationCanceledException)
+                                {
+                                    // Ignore cancellation during the delay so semaphore release executes cleanly
+                                }
+
                                 _rateLimitSemaphore.Release();
                             }
+                        }
+                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                        {
+                            throw;
                         }
                         catch (Exception ex)
                         {
                             logger.LogDebug(ex, "No releases found for {Repo}, will use repo info", repo.FullName);
                         }
+                    }
+                    else
+                    {
+                        logger.LogDebug("GitHub API rate limit exhausted. Skipping release fetch for {Repo}", repo.FullName);
                     }
 
                     // Create search results (may return multiple for multi-asset releases)
@@ -246,6 +288,40 @@ public partial class GitHubTopicsDiscoverer(
             logger.LogError(ex, "GitHub Topics discovery failed");
             return OperationResult<ContentDiscoveryResult>.CreateFailure($"GitHub Topics discovery failed: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Extracts a variant name from an asset filename.
+    /// Detects resolutions (1920x1080 → "1080p"), languages, and version numbers (v1.03).
+    /// </summary>
+    /// <param name="assetName">The asset filename.</param>
+    /// <returns>The extracted variant token.</returns>
+    internal static string ExtractAssetVariant(string assetName)
+    {
+        var nameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(assetName);
+
+        if (nameWithoutExt.EndsWith(".tar", StringComparison.OrdinalIgnoreCase))
+        {
+            nameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(nameWithoutExt);
+        }
+
+        if (TryExtractResolutionVariant(nameWithoutExt, out var resolution))
+        {
+            return resolution;
+        }
+
+        if (TryExtractLanguageVariant(nameWithoutExt, out var language))
+        {
+            return language;
+        }
+
+        var parts = nameWithoutExt.Split(['_', '-', '.'], StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length > 1)
+        {
+            return ExtractVersionOrTokenVariant(parts, nameWithoutExt);
+        }
+
+        return nameWithoutExt;
     }
 
     /// <summary>
@@ -395,38 +471,6 @@ public partial class GitHubTopicsDiscoverer(
         return int.TryParse(digits, out var version) ? version : 0;
     }
 
-    /// <summary>
-    /// Extracts a variant name from an asset filename.
-    /// Detects resolutions (1920x1080 → "1080p"), languages, and version numbers (v1.03).
-    /// </summary>
-    private static string ExtractAssetVariant(string assetName)
-    {
-        var nameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(assetName);
-
-        if (nameWithoutExt.EndsWith(".tar", StringComparison.OrdinalIgnoreCase))
-        {
-            nameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(nameWithoutExt);
-        }
-
-        if (TryExtractResolutionVariant(nameWithoutExt, out var resolution))
-        {
-            return resolution;
-        }
-
-        if (TryExtractLanguageVariant(nameWithoutExt, out var language))
-        {
-            return language;
-        }
-
-        var parts = nameWithoutExt.Split(['_', '-', '.'], StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length > 1)
-        {
-            return ExtractVersionOrTokenVariant(parts, nameWithoutExt);
-        }
-
-        return nameWithoutExt;
-    }
-
     private static bool TryExtractResolutionVariant(string nameWithoutExt, out string resolution)
     {
         var resolutionMatch = VariantPatterns.ResolutionPattern().Match(nameWithoutExt);
@@ -465,43 +509,27 @@ public partial class GitHubTopicsDiscoverer(
             return versionToken;
         }
 
-        for (var i = parts.Length - 1; i >= 0; i--)
-        {
-            if (VariantPatterns.NonDigitPattern().IsMatch(parts[i]))
-            {
-                return parts[i];
-            }
-        }
-
         return fallback;
     }
 
     private static bool TryExtractVersionToken(string[] parts, out string? versionToken)
     {
-        for (var i = parts.Length - 1; i >= 0; i--)
+        for (var i = 0; i < parts.Length; i++)
         {
             var part = parts[i];
             if (part.Length >= 2 &&
                 (part[0] == 'v' || part[0] == 'V') &&
                 char.IsDigit(part[1]))
             {
-                if (i + 1 < parts.Length && !VariantPatterns.NonDigitPattern().IsMatch(parts[i + 1]))
+                var segments = new List<string> { part };
+                var j = i + 1;
+                while (j < parts.Length && !VariantPatterns.NonDigitPattern().IsMatch(parts[j]))
                 {
-                    versionToken = $"{part}.{parts[i + 1]}";
-                    return true;
+                    segments.Add(parts[j]);
+                    j++;
                 }
 
-                versionToken = part;
-                return true;
-            }
-
-            if (i > 0 &&
-                !VariantPatterns.NonDigitPattern().IsMatch(part) &&
-                parts[i - 1].Length >= 2 &&
-                (parts[i - 1][0] == 'v' || parts[i - 1][0] == 'V') &&
-                char.IsDigit(parts[i - 1][1]))
-            {
-                versionToken = $"{parts[i - 1]}.{part}";
+                versionToken = string.Join(".", segments);
                 return true;
             }
         }
@@ -512,7 +540,7 @@ public partial class GitHubTopicsDiscoverer(
 
     /// <summary>
     /// Returns <see langword="true"/> when the variant string looks like a version
-    /// token (e.g. "v1.03", "v2") that carries no meaningful semantic beyond ordering
+    /// token (e.g. "v1.03", "v2", "1.03") that carries no meaningful semantic beyond ordering
     /// and therefore should not be promoted to a visible tag chip on the card.
     /// </summary>
     private static bool IsVersionLikeVariant(string variant)
@@ -520,14 +548,16 @@ public partial class GitHubTopicsDiscoverer(
         if (string.IsNullOrWhiteSpace(variant))
             return false;
 
+        var trimmed = variant.Trim();
+
         // Matches "v1", "v1.03", "v2.0", "V3", etc.
-        if (variant.Length >= 2 &&
-            (variant[0] == 'v' || variant[0] == 'V') &&
-            char.IsDigit(variant[1]))
+        if (trimmed.Length >= 2 &&
+            (trimmed[0] == 'v' || trimmed[0] == 'V') &&
+            char.IsDigit(trimmed[1]))
             return true;
 
-        // Matches purely numeric tokens like "03", "1", "20"
-        return !VariantPatterns.NonDigitPattern().IsMatch(variant);
+        // Matches purely numeric tokens like "03", "1", "20", or dotted numbers like "1.03", "1.2.3"
+        return VariantPatterns.NumericOrVersionPattern().IsMatch(trimmed);
     }
 
     /// <summary>
@@ -535,7 +565,7 @@ public partial class GitHubTopicsDiscoverer(
     /// Selection priority (highest wins):
     /// <list type="number">
     ///   <item>1080p resolution variant — the widely-accepted standard HD target.</item>
-    ///   <item>Any other resolution variant where the display name contains "1080".</item>
+    ///   <item>Any other resolution variant ordered by parsed height descending.</item>
     ///   <item>English language variant.</item>
     ///   <item>Last variant in list — typically the most recently published or highest version.</item>
     /// </list>
@@ -547,15 +577,17 @@ public partial class GitHubTopicsDiscoverer(
 
         // Priority 1: prefer 1080p (standard HD) for resolution-typed variants
         var chosen = variants.FirstOrDefault(v =>
-            v.Name.Contains("1080p", StringComparison.OrdinalIgnoreCase) ||
-            v.Name.Contains("1920x1080", StringComparison.OrdinalIgnoreCase));
+            v.VariantType == ResolutionVariantType &&
+            (v.Name.Contains("1080p", StringComparison.OrdinalIgnoreCase) ||
+             v.Name.Contains("1920x1080", StringComparison.OrdinalIgnoreCase)));
 
         // Priority 2: any other resolution variant (prefer higher resolution before lower)
-        if (chosen == null && variants.Any(v => v.VariantType == "resolution"))
+        if (chosen == null && variants.Any(v => v.VariantType == ResolutionVariantType))
         {
-            // Resolution display names sort lexicographically in a useful order (720p < 900p < 1080p ...)
-            // so picking the last resolution variant gives the highest resolution available.
-            chosen = variants.LastOrDefault(v => v.VariantType == "resolution");
+            chosen = variants
+                .Where(v => v.VariantType == ResolutionVariantType)
+                .OrderByDescending(GetResolutionRank)
+                .FirstOrDefault();
         }
 
         // Priority 3: English for language packs
@@ -568,6 +600,47 @@ public partial class GitHubTopicsDiscoverer(
         chosen.IsDefault = true;
     }
 
+    private static int GetResolutionRank(ContentVariantInfo v)
+    {
+        var kMatches = VariantPatterns.KResolutionPattern().Matches(v.Name);
+        if (kMatches.Count > 0)
+        {
+            var maxKRank = kMatches
+                .Select(m => m.Groups[1].Value.ToUpperInvariant() switch
+                {
+                    "8" => 4320,
+                    "5" => 2880,
+                    "4" => 2160,
+                    "2" => 1440,
+                    _ => 0,
+                })
+                .Max();
+
+            if (maxKRank > 0)
+            {
+                return maxKRank;
+            }
+        }
+
+        var match = VariantPatterns.ResolutionHeightPattern().Match(v.Name);
+        if (match.Success && int.TryParse(match.Groups[1].Value, out var height))
+        {
+            return height;
+        }
+
+        var dimMatch = VariantPatterns.ResolutionPattern().Match(v.Name);
+        if (dimMatch.Success)
+        {
+            var parts = dimMatch.Value.Split('x');
+            if (parts.Length == 2 && int.TryParse(parts[1], out var h))
+            {
+                return h;
+            }
+        }
+
+        return 0;
+    }
+
     /// <summary>
     /// Infers the variant discriminator type from a search result's name or asset metadata.
     /// Returns "resolution" for numeric patterns like 1080p, "language" for known language
@@ -575,12 +648,26 @@ public partial class GitHubTopicsDiscoverer(
     /// </summary>
     private static string InferVariantType(ContentSearchResult result)
     {
-        var name = result.Name ?? string.Empty;
-        var lower = name.ToLowerInvariant();
-
-        if (VariantPatterns.ResolutionPattern().IsMatch(lower))
+        var target = string.Empty;
+        if (result.ResolverMetadata.TryGetValue("asset-name", out var assetNameObj) && assetNameObj is string assetName)
         {
-            return "resolution";
+            target = ExtractAssetVariant(assetName);
+        }
+
+        if (string.IsNullOrEmpty(target))
+        {
+            var match = VariantPatterns.TrailingParenthesesPattern().Match(result.Name ?? string.Empty);
+            target = match.Success ? match.Groups[1].Value : (result.Name ?? string.Empty);
+        }
+
+        var lower = target.ToLowerInvariant();
+
+        if (VariantPatterns.ResolutionPattern().IsMatch(lower) ||
+            lower.Contains("1080p") || lower.Contains("720p") || lower.Contains("1440p") ||
+            lower.Contains("2160p") || lower.Contains("4k") || lower.Contains("5k") ||
+            lower.Contains("8k") || lower.Contains("768p") || lower.Contains("900p"))
+        {
+            return ResolutionVariantType;
         }
 
         var languagePatterns = new[]
@@ -589,7 +676,7 @@ public partial class GitHubTopicsDiscoverer(
             "chinese", "japanese", "korean", "italian", "portuguese",
         };
 
-        if (languagePatterns.Any(lang => lower.Contains(lang)))
+        if (languagePatterns.Any(lower.Contains))
         {
             return "language";
         }
@@ -650,11 +737,12 @@ public partial class GitHubTopicsDiscoverer(
             var variantList = results
                 .Select(r => new ContentVariantInfo
                 {
-                    Id = r.ResolverMetadata.TryGetValue(GitHubTopicsConstants.AssetNameMetadataKey, out var an) ? an : r.Id,
+                    Id = r.Id,
                     Name = r.Name,
                     ManifestId = r.Id,
                     VariantType = InferVariantType(r),
                     IsDefault = false,
+                    TargetGame = r.TargetGame,
                 })
                 .ToList();
 
@@ -667,7 +755,15 @@ public partial class GitHubTopicsDiscoverer(
             {
                 r.VariantGroupId = variantGroupId;
                 r.VariantFamilyName = variantFamilyName;
-                r.Variants = variantList;
+                r.Variants = variantList.Select(v => new ContentVariantInfo
+                {
+                    Id = v.Id,
+                    Name = v.Name,
+                    ManifestId = v.ManifestId,
+                    VariantType = v.VariantType,
+                    IsDefault = v.IsDefault,
+                    TargetGame = v.TargetGame,
+                }).ToList();
             }
         }
         else

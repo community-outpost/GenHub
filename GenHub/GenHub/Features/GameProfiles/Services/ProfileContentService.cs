@@ -798,7 +798,6 @@ public sealed class ProfileContentService(
         }
 
         enabledContentIds = resolution.Data.EnabledContentIds;
-        NotifyNewlyAddedDependencies(enabledContentIds, previousIds, contentName, primaryManifestId, cancellationToken);
 
         if (resolution.Data.RequiredGameType != null)
         {
@@ -834,6 +833,8 @@ public sealed class ProfileContentService(
             logger.LogError("Failed to update profile {ProfileId}: {Error}", profileId, error);
             return AddToProfileResult.CreateFailure(error, sw.Elapsed);
         }
+
+        await NotifyNewlyAddedDependenciesAsync(enabledContentIds, previousIds, contentName, primaryManifestId, cancellationToken);
 
         if (!string.IsNullOrEmpty(swapResult.SwappedContentId))
         {
@@ -899,7 +900,7 @@ public sealed class ProfileContentService(
         return (swappedContentId, swappedContentName, swappedContentType);
     }
 
-    private void NotifyNewlyAddedDependencies(
+    private async Task NotifyNewlyAddedDependenciesAsync(
         List<string> enabledContentIds,
         HashSet<string> previousIds,
         string contentName,
@@ -912,16 +913,22 @@ public sealed class ProfileContentService(
 
         if (newlyAdded.Count > 0)
         {
-            Task.Run(
-                async () =>
-                {
-                    var dependencyNames = await GetDependencyNamesAsync(newlyAdded, cancellationToken);
-                    logger.LogInformation("Resolved {Count} dependencies for {ManifestId}", newlyAdded.Count, primaryManifestId);
-                    notificationService.ShowInfo(
-                        "Dependencies Added",
-                        $"Added required dependencies for '{contentName}': {string.Join(", ", dependencyNames)}");
-                },
-                cancellationToken);
+            try
+            {
+                var dependencyNames = await GetDependencyNamesAsync(newlyAdded, cancellationToken);
+                logger.LogInformation("Resolved {Count} dependencies for {ManifestId}", newlyAdded.Count, primaryManifestId);
+                notificationService.ShowInfo(
+                    "Dependencies Added",
+                    $"Added required dependencies for '{contentName}': {string.Join(", ", dependencyNames)}");
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to resolve dependency names for notification on {ManifestId}", primaryManifestId);
+            }
         }
     }
 
@@ -1428,13 +1435,11 @@ public sealed class ProfileContentService(
             return null;
         }
 
-        var publisher = CommunityOutpostConstants.PublisherType.ToLowerInvariant();
-        var contentType = metadata.ContentType.ToString().ToLowerInvariant();
         var downloadUrl = $"{CommunityOutpostCatalogConstants.DefaultFilesBaseUrl.TrimEnd('/')}/{contentCode}.dat";
 
         var searchResult = new ContentSearchResult
         {
-            Id = $"1.0.{publisher}.{contentType}.{contentCode.ToLowerInvariant()}",
+            Id = ManifestIdGenerator.GeneratePublisherContentId(CommunityOutpostConstants.PublisherType, metadata.ContentType, contentCode, 0),
             Name = metadata.DisplayName,
             Description = metadata.Description ?? string.Empty,
             Version = metadata.Version ?? "1.0",

@@ -17,6 +17,14 @@ public class ContentManifest
     [JsonPropertyName("ManifestVersion")]
     public string SchemaVersion { get; set; } = ManifestConstants.DefaultManifestVersion;
 
+    /// <summary>Gets or sets the manifest format version (alias for SchemaVersion).</summary>
+    [JsonIgnore]
+    public string ManifestVersion
+    {
+        get => SchemaVersion;
+        set => SchemaVersion = value;
+    }
+
     /// <summary>Gets or sets the unique identifier for this content package.</summary>
     public ManifestId Id { get; set; }
 

@@ -82,6 +82,9 @@
         </Style>
 
         <!-- Content Card Styles -->
+        <Style Selector="Grid.content-card">
+            <Setter Property="MaxWidth" Value="240" />
+        </Style>
         <Style Selector="Button.content-card-btn">
             <Setter Property="Background" Value="#08FFFFFF" />
             <Setter Property="BorderBrush" Value="#15FFFFFF" />
@@ -89,7 +92,7 @@
             <Setter Property="CornerRadius" Value="10" />
             <Setter Property="Padding" Value="14" />
             <Setter Property="Margin" Value="4" />
-            <Setter Property="MaxWidth" Value="420" />
+            <Setter Property="MaxWidth" Value="240" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalContentAlignment" Value="Stretch" />
             <Setter Property="Cursor" Value="Hand" />
@@ -229,7 +232,7 @@
                                                 Classes="content-card-btn"
                                                 Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).DisableContentCommand}"
                                                 CommandParameter="{Binding}"
-                                                ToolTip.Tip="Click to remove from profile">
+                                                ToolTip.Tip="{Binding RemoveToolTip}">
                                             <StackPanel Spacing="6" HorizontalAlignment="Left" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13.5" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimary}"/>
                                                 <WrapPanel Orientation="Horizontal" Margin="0,0,8,0">
@@ -338,7 +341,7 @@
                                                 Classes="content-card-btn"
                                                 Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).EnableContentCommand}"
                                                 CommandParameter="{Binding}"
-                                                ToolTip.Tip="Click to add to profile">
+                                                ToolTip.Tip="{Binding AddToolTip}">
                                             <StackPanel Spacing="6" HorizontalAlignment="Left" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13.5" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimary}"/>
                                                 <WrapPanel Orientation="Horizontal" Margin="0,0,8,0">

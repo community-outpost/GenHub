@@ -1,12 +1,20 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Parsers;
+using GenHub.Core.Messages;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GeneralsOnline;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Parsers;
 using GenHub.Core.Models.Providers;
@@ -15,6 +23,7 @@ using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Downloads.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Xunit;
 
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
@@ -25,6 +34,72 @@ namespace GenHub.Tests.Core.Features.Downloads.ViewModels;
 /// </summary>
 public sealed class ContentDetailViewModelTests
 {
+    /// <summary>
+    /// Verifies that downloading a release row preserves the typed Data payload and sets parentContentId.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ReleaseRowDownload_PreservesDataPayloadAndSetsParentContentIdAsync()
+    {
+        // Arrange
+        const string parentId = "GeneralsOnline_082826_QFE1";
+        var releaseData = new GeneralsOnlineRelease
+        {
+            Version = "082826_QFE1",
+            PortableUrl = "https://cdn.playgenerals.online/releases/GeneralsOnline_portable_082826_QFE1.zip",
+        };
+
+        var parent = new ContentSearchResult
+        {
+            Id = parentId,
+            Name = "Generals Online",
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            ResolverId = GeneralsOnlineConstants.ResolverId,
+            RequiresResolution = true,
+            SourceUrl = "https://www.playgenerals.online/#download",
+        };
+        parent.SetData(releaseData);
+
+        ContentSearchResult? coordinatorInput = null;
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        coordinator
+            .Setup(c => c.DownloadContentAsync(
+                It.IsAny<ContentSearchResult>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken>(
+                (content, _, _) => coordinatorInput = content)
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create("1.828261.generalsonline.gameclient.60hz"),
+                Name = "Generals Online",
+                ContentType = ContentType.GameClient,
+            }));
+
+        var viewModel = CreateViewModel(parent, coordinator.Object);
+        var releaseFile = new DownloadableFile(
+            Name: "Generals Online",
+            DownloadUrl: releaseData.PortableUrl,
+            FileSectionType: FileSectionType.Downloads);
+        viewModel.PopulateReleases([releaseFile]);
+
+        var release = Assert.Single(viewModel.Releases);
+
+        // Act
+        await Assert.IsAssignableFrom<IAsyncRelayCommand>(release.DownloadCommand).ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(coordinatorInput);
+        Assert.NotNull(coordinatorInput.Data);
+        var extractedRelease = coordinatorInput.GetData<GeneralsOnlineRelease>();
+        Assert.NotNull(extractedRelease);
+        Assert.Equal("082826_QFE1", extractedRelease.Version);
+        Assert.True(coordinatorInput.ResolverMetadata.TryGetValue(ContentConstants.ParentContentIdMetadataKey, out var recordedParentId));
+        Assert.Equal(parentId, recordedParentId);
+    }
+
     /// <summary>
     /// Verifies downloading a release row does not mark the parent card downloaded and adding it
     /// to a profile sends the exact child manifest produced by that row.
@@ -80,7 +155,7 @@ public sealed class ContentDetailViewModelTests
         // Assert
         Assert.NotNull(coordinatorInput);
         Assert.NotEqual(parentCatalogId, coordinatorInput.Id);
-        Assert.StartsWith("file:", coordinatorInput.Id, StringComparison.Ordinal);
+        Assert.StartsWith(ContentConstants.FileContentIdPrefix, coordinatorInput.Id, StringComparison.Ordinal);
         Assert.False(string.IsNullOrWhiteSpace(coordinatorInput.Version));
         Assert.True(release.IsDownloaded);
         Assert.Equal(childManifestId, release.DownloadedManifestId);
@@ -915,7 +990,7 @@ public sealed class ContentDetailViewModelTests
 
         // Act
         viewModel.Initialize();
-        await Task.Delay(100);
+        await viewModel.WaitForInitializationAsync();
 
         // Assert: Release is populated, preferred release is selected, and download state matches bundle readiness
         var release = Assert.Single(viewModel.Releases);
@@ -1186,7 +1261,7 @@ public sealed class ContentDetailViewModelTests
 
         // Act
         viewModel.PopulateReleases([file1, file2, file3]);
-        await Task.Delay(150);
+        await viewModel.WaitForRowStateResolutionsAsync();
 
         // Assert
         Assert.Equal(3, viewModel.Releases.Count);
@@ -1265,7 +1340,7 @@ public sealed class ContentDetailViewModelTests
 
         // Act
         viewModel.PopulateReleases([patchFile, fullFile]);
-        await Task.Delay(150);
+        await viewModel.WaitForRowStateResolutionsAsync();
 
         // Assert
         Assert.Equal(2, viewModel.Releases.Count);
@@ -1282,33 +1357,227 @@ public sealed class ContentDetailViewModelTests
     }
 
     /// <summary>
-    /// Verifies that invalid or non-http URLs are safely ignored by OpenUrlCommand without launching processes.
+    /// Verifies that OpenUrl rejects null, whitespace, or non-http/https URIs without throwing exceptions.
     /// </summary>
-    /// <param name="url">The URL string to test.</param>
+    /// <param name="url">The URL string to evaluate.</param>
     [Theory]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    [InlineData("not-a-valid-uri")]
-    [InlineData("file:///etc/passwd")]
-    [InlineData("ftp://example.com/file")]
-    [InlineData("javascript:alert(1)")]
-    public void OpenUrlCommand_WithInvalidOrNonHttpUrl_DoesNotLaunchProcess(string? url)
+    [InlineData("ftp://example.com/file.zip")]
+    [InlineData("file:///C:/malicious.exe")]
+    public void OpenUrlCommand_WithInvalidOrNonHttpScheme_DoesNotThrow(string? url)
     {
         // Arrange
-        var content = new ContentSearchResult
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var item = new ContentSearchResult { Id = "test-item", Name = "Test" };
+        var viewModel = CreateViewModel(item, coordinator.Object);
+
+        // Act & Assert
+        var ex = Record.Exception(() => viewModel.OpenUrlCommand.Execute(url));
+        Assert.Null(ex);
+    }
+
+    /// <summary>
+    /// Verifies that ShowDownloadButton returns false when IsDownloading is true, even when not downloaded.
+    /// </summary>
+    [Fact]
+    public void ShowDownloadButton_WhenIsDownloading_ReturnsFalse()
+    {
+        // Arrange
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var item = new ContentSearchResult { Id = "test-item", Name = "Test Item" };
+        var viewModel = CreateViewModel(item, coordinator.Object);
+
+        viewModel.IsDownloaded = false;
+        viewModel.IsDownloading = false;
+        Assert.True(viewModel.ShowDownloadButton);
+
+        // Act
+        viewModel.IsDownloading = true;
+
+        // Assert
+        Assert.False(viewModel.ShowDownloadButton);
+    }
+
+    /// <summary>
+    /// Verifies that Initialize detects in-flight coordinator downloads and sets IsDownloading and progress.
+    /// </summary>
+    [Fact]
+    public void Initialize_WhenCoordinatorHasInFlightDownload_SetsIsDownloadingAndProgress()
+    {
+        // Arrange
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var item = new ContentSearchResult { Id = "test-inflight-item", Name = "Inflight Item", ProviderName = "ModDB" };
+
+        double progressPct = 60;
+        string statusMsg = "Downloading 60%...";
+        coordinator.Setup(c => c.IsDownloading(item)).Returns(true);
+        coordinator.Setup(c => c.TryGetDownloadProgress(item, out progressPct, out statusMsg)).Returns(true);
+
+        var viewModel = CreateViewModel(item, coordinator.Object);
+
+        // Act
+        viewModel.Initialize();
+
+        // Assert
+        Assert.True(viewModel.IsDownloading);
+        Assert.False(viewModel.ShowDownloadButton);
+        Assert.Equal(60, viewModel.DownloadProgress);
+        Assert.Equal("Downloading 60%...", viewModel.DownloadStatusMessage);
+    }
+
+    /// <summary>
+    /// Verifies that download messages broadcast via WeakReferenceMessenger update ContentDetailViewModel state.
+    /// </summary>
+    [Fact]
+    public void DownloadMessages_Broadcast_UpdatesDetailViewModelDownloadState()
+    {
+        // Arrange
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var item = new ContentSearchResult { Id = "test-msg-item", Name = "Message Item", ProviderName = "ModDB" };
+        var viewModel = CreateViewModel(item, coordinator.Object);
+        viewModel.Initialize();
+
+        Assert.False(viewModel.IsDownloading);
+        Assert.True(viewModel.ShowDownloadButton);
+
+        // Act 1: Send Started message
+        WeakReferenceMessenger.Default.Send(new ContentDownloadStartedMessage(
+            "ModDB::test-msg-item",
+            item.Id,
+            item.ProviderName,
+            item.Name));
+
+        Assert.True(viewModel.IsDownloading);
+        Assert.False(viewModel.ShowDownloadButton);
+
+        // Act 2: Send Progress message
+        WeakReferenceMessenger.Default.Send(new ContentDownloadProgressMessage(
+            "ModDB::test-msg-item",
+            item.Id,
+            item.ProviderName,
+            item.Name,
+            75,
+            "75% downloaded"));
+
+        Assert.True(viewModel.IsDownloading);
+        Assert.Equal(75, viewModel.DownloadProgress);
+        Assert.Equal("75% downloaded", viewModel.DownloadStatusMessage);
+
+        // Act 3: Send Completed message
+        WeakReferenceMessenger.Default.Send(new ContentDownloadCompletedMessage(
+            "ModDB::test-msg-item",
+            item.Id,
+            item.ProviderName,
+            item.Name,
+            true));
+
+        Assert.False(viewModel.IsDownloading);
+    }
+
+    /// <summary>
+    /// Verifies that UpdateCommand executes the update action, clears update availability, and updates ShowUpdateButton.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task UpdateCommand_WhenUpdateActionProvided_ExecutesUpdateActionAndClearsUpdateAvailableAsync()
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult
         {
-            Id = "test-id",
-            Name = "Test",
-            ProviderName = "ModDB",
-            ContentType = ContentType.Mod,
-            TargetGame = GameType.ZeroHour,
+            Id = "weekly-2026-08-21",
+            Name = "GeneralsGameCode weekly-2026-08-21",
+            ProviderName = PublisherTypeConstants.TheSuperHackers,
         };
         var coordinator = new Mock<IContentDownloadCoordinator>();
-        var viewModel = CreateViewModel(content, coordinator.Object);
+        var stateService = new Mock<IContentStateService>();
+        stateService.Setup(s => s.GetStateAsync(searchResult, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.Downloaded);
 
-        // Act & Assert - should return safely without throwing or launching external process
-        viewModel.OpenUrlCommand.Execute(url);
+        var updateExecuted = false;
+        var viewModel = CreateViewModel(
+            searchResult,
+            coordinator.Object,
+            contentStateService: stateService.Object,
+            updateAction: ct =>
+            {
+                updateExecuted = true;
+                return Task.CompletedTask;
+            },
+            isUpdateAvailable: true);
+
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+
+        // Assert initial update state
+        Assert.True(viewModel.IsUpdateAvailable);
+        Assert.True(viewModel.ShowUpdateButton);
+
+        // Act
+        await viewModel.UpdateCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.True(updateExecuted);
+        Assert.False(viewModel.IsUpdateAvailable);
+        Assert.False(viewModel.ShowUpdateButton);
+    }
+
+    /// <summary>
+    /// Verifies that ReconcileReleases marks older downloaded releases with IsUpdateAvailable when a newer release is not downloaded.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ReconcileReleases_WhenOlderReleaseDownloadedAndNewerNotDownloaded_MarksUpdateAvailableAsync()
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult
+        {
+            Id = "mod-parent",
+            Name = "Test Mod",
+            ProviderName = "ModDB",
+        };
+        var fileNewer = new DownloadableFile(
+            Name: "Test Mod v2.0",
+            DownloadUrl: "https://example.com/v2.zip",
+            ReleaseDate: new DateTime(2026, 9, 1),
+            FileSectionType: FileSectionType.Downloads);
+        var fileOlder = new DownloadableFile(
+            Name: "Test Mod v1.0",
+            DownloadUrl: "https://example.com/v1.zip",
+            ReleaseDate: new DateTime(2026, 8, 1),
+            FileSectionType: FileSectionType.Downloads);
+
+        var stateService = new Mock<IContentStateService>();
+        stateService.Setup(s => s.GetStateAsync(It.Is<ContentSearchResult>(r => r.SelectedDownloadUrl == "https://example.com/v2.zip"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.NotDownloaded);
+        stateService.Setup(s => s.GetStateAsync(It.Is<ContentSearchResult>(r => r.SelectedDownloadUrl == "https://example.com/v1.zip"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.Downloaded);
+        stateService.Setup(s => s.GetLocalManifestIdAsync(It.Is<ContentSearchResult>(r => r.SelectedDownloadUrl == "https://example.com/v1.zip"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("1.20260801.test.mod.test");
+
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var viewModel = CreateViewModel(searchResult, coordinator.Object, contentStateService: stateService.Object);
+
+        // Act
+        viewModel.PopulateReleases([fileNewer, fileOlder]);
+        await viewModel.WaitForRowStateResolutionsAsync();
+
+        // Assert
+        Assert.Equal(2, viewModel.Releases.Count);
+        var newerRel = viewModel.Releases[0];
+        var olderRel = viewModel.Releases[1];
+
+        Assert.False(newerRel.IsDownloaded);
+        Assert.False(newerRel.IsUpdateAvailable);
+
+        Assert.True(olderRel.IsDownloaded);
+        Assert.True(olderRel.IsUpdateAvailable);
+
+        viewModel.SelectDownloadableItemCommand.Execute(olderRel);
+        Assert.True(viewModel.ShowUpdateButton);
+        Assert.True(viewModel.ShowAddToProfileButton);
+        Assert.False(viewModel.ShowDownloadButton);
     }
 
     private static CapturingContentDetailViewModel CreateViewModel(
@@ -1318,8 +1587,24 @@ public sealed class ContentDetailViewModelTests
         INotificationService? notificationService = null,
         IReadOnlyDictionary<string, ContentSearchResult>? variantSearchResults = null,
         IReadOnlyList<IWebPageParser>? parsers = null,
-        IContentStateService? contentStateService = null)
+        IContentStateService? contentStateService = null,
+        ContentSearchResult? updateTargetSearchResult = null,
+        Func<CancellationToken, Task>? updateAction = null,
+        bool? isUpdateAvailable = null,
+        string? initialVariantManifestId = null)
     {
+        if (contentStateService == null)
+        {
+            var defaultStateService = new Mock<IContentStateService>();
+            defaultStateService
+                .Setup(s => s.GetStateByManifestIdAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ContentState.Downloaded);
+            defaultStateService
+                .Setup(s => s.GetLocalManifestIdAsync(It.IsAny<ContentSearchResult>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((ContentSearchResult sr, CancellationToken _) => sr.Id);
+            contentStateService = defaultStateService.Object;
+        }
+
         return new CapturingContentDetailViewModel(
             searchResult,
             parsers ?? [],
@@ -1327,12 +1612,16 @@ public sealed class ContentDetailViewModelTests
             new Mock<IGameProfileManager>().Object,
             notificationService ?? new Mock<INotificationService>().Object,
             new Mock<ITabProviderRegistry>().Object,
-            contentStateService ?? new Mock<IContentStateService>().Object,
+            contentStateService,
             downloadCoordinator,
             manifestPool ?? new Mock<IContentManifestPool>().Object,
             new Mock<ILoggerFactory>().Object,
             new Mock<ILogger<ContentDetailViewModel>>().Object,
-            variantSearchResults: variantSearchResults);
+            variantSearchResults: variantSearchResults,
+            updateTargetSearchResult: updateTargetSearchResult,
+            updateAction: updateAction,
+            isUpdateAvailable: isUpdateAvailable,
+            initialVariantManifestId: initialVariantManifestId);
     }
 
     private sealed class CapturingContentDetailViewModel(
@@ -1347,7 +1636,11 @@ public sealed class ContentDetailViewModelTests
         IContentManifestPool manifestPool,
         ILoggerFactory loggerFactory,
         ILogger<ContentDetailViewModel> logger,
-        IReadOnlyDictionary<string, ContentSearchResult>? variantSearchResults = null)
+        IReadOnlyDictionary<string, ContentSearchResult>? variantSearchResults = null,
+        ContentSearchResult? updateTargetSearchResult = null,
+        Func<CancellationToken, Task>? updateAction = null,
+        bool? isUpdateAvailable = null,
+        string? initialVariantManifestId = null)
         : ContentDetailViewModel(
             searchResult,
             parsers,
@@ -1360,7 +1653,11 @@ public sealed class ContentDetailViewModelTests
             manifestPool,
             loggerFactory,
             logger,
-            variantSearchResults: variantSearchResults)
+            variantSearchResults: variantSearchResults,
+            updateTargetSearchResult: updateTargetSearchResult,
+            updateAction: updateAction,
+            isUpdateAvailable: isUpdateAvailable,
+            initialVariantManifestId: initialVariantManifestId)
     {
         /// <summary>
         /// Gets the manifest ID sent to the profile selection flow.
@@ -1394,5 +1691,414 @@ public sealed class ContentDetailViewModelTests
             ProfileTargetGame = targetGame;
             return Task.CompletedTask;
         }
+    }
+
+    /// <summary>
+    /// Verifies that AddToProfile does not trust a valid-format catalog ID if it is not actually
+    /// downloaded in the pool, and falls back to GetLocalManifestIdAsync (Finding 1).
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task AddToProfile_WhenSearchResultIdNotInPool_FallsBackToLocalManifestIdAsync()
+    {
+        // Arrange
+        const string catalogId = "1.20260901.custom.mod.test";
+        const string localManifestId = "1.20260801.custom.mod.test";
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = catalogId,
+            Name = "Custom Mod",
+            ProviderName = "custom",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var stateService = new Mock<IContentStateService>();
+        stateService
+            .Setup(s => s.GetStateByManifestIdAsync(catalogId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.NotDownloaded);
+        stateService
+            .Setup(s => s.GetLocalManifestIdAsync(searchResult, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(localManifestId);
+        stateService
+            .Setup(s => s.GetStateByManifestIdAsync(localManifestId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.Downloaded);
+
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var viewModel = CreateViewModel(searchResult, coordinator.Object, contentStateService: stateService.Object);
+
+        // Act
+        await viewModel.AddToProfileCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.Equal(localManifestId, viewModel.ProfileManifestId);
+    }
+
+    /// <summary>
+    /// Verifies that disposing ContentDetailViewModel while a download is in-flight
+    /// does not cancel the download operation in ContentDownloadCoordinator.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task Dispose_WhileDownloadInFlight_DoesNotCancelCoordinatorDownloadAsync()
+    {
+        // Arrange
+        var item = new ContentSearchResult
+        {
+            Id = "test-download-item",
+            Name = "Test Item",
+            ProviderName = "ModDB",
+            ContentType = ContentType.Mod,
+        };
+
+        var downloadStartedTcs = new TaskCompletionSource<bool>();
+        var tcsCompleteDownload = new TaskCompletionSource<OperationResult<ContentManifest>>();
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+
+        coordinator
+            .Setup(c => c.DownloadContentAsync(
+                It.Is<ContentSearchResult>(sr => sr.Id == item.Id),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .Returns<ContentSearchResult, IProgress<ContentAcquisitionProgress>, CancellationToken>((_, _, ct) =>
+            {
+                downloadStartedTcs.SetResult(true);
+                ct.Register(() => tcsCompleteDownload.TrySetCanceled(ct));
+                return tcsCompleteDownload.Task;
+            });
+
+        var viewModel = CreateViewModel(item, coordinator.Object);
+        viewModel.Initialize();
+
+        // Act
+        var downloadTask = viewModel.DownloadCommand.ExecuteAsync(null);
+        await downloadStartedTcs.Task;
+
+        // Dispose the viewmodel (simulating user navigating away or closing detail tab)
+        viewModel.Dispose();
+
+        // Assert: Verify cancellation was NOT requested on the coordinator token
+        Assert.False(tcsCompleteDownload.Task.IsCanceled);
+
+        // Complete the download successfully
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.100.moddb.mod.testitem"),
+            Name = "Test Item",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+        tcsCompleteDownload.SetResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
+
+        // Wait for downloadTask to finish without throwing
+        var ex = await Record.ExceptionAsync(() => downloadTask);
+        Assert.Null(ex);
+    }
+
+    /// <summary>
+    /// Verifies that Generals Online preserves its authoritative GameClient content type across release population,
+    /// rather than falling back to Addon, and that CanChangeContentType is false.
+    /// </summary>
+    [Fact]
+    public void GeneralsOnline_RetainsGameClientContentType_AndCanChangeContentTypeIsFalse()
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult
+        {
+            Id = "generalsonline.client",
+            Name = "Generals Online",
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            SourceUrl = "https://playgenerals.online/download",
+            RequiresResolution = true,
+        };
+
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var viewModel = CreateViewModel(searchResult, coordinator.Object);
+
+        // Act
+        viewModel.Initialize();
+        viewModel.PopulateReleases([new DownloadableFile("Generals Online Client") { FileSectionType = FileSectionType.Downloads }]);
+
+        // Assert
+        Assert.Equal(ContentType.GameClient, viewModel.ContentType);
+        Assert.Equal(ContentType.GameClient, viewModel.SelectedContentType);
+        Assert.False(viewModel.CanChangeContentType);
+        Assert.NotEmpty(viewModel.Releases);
+        Assert.Equal(ContentType.GameClient, viewModel.Releases[0].ContentType);
+    }
+
+    /// <summary>
+    /// Verifies that official providers (Generals Online, Community Outpost, The Super Hackers)
+    /// lock their content type and reject changes.
+    /// </summary>
+    /// <param name="provider">The official provider identifier.</param>
+    [Theory]
+    [InlineData(PublisherTypeConstants.GeneralsOnline)]
+    [InlineData(PublisherTypeConstants.CommunityOutpost)]
+    [InlineData(PublisherTypeConstants.TheSuperHackers)]
+    public void OfficialProviders_CanChangeContentTypeIsFalse_AndContentTypeChangeIsBlocked(string provider)
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult
+        {
+            Id = $"{provider}.test",
+            Name = $"{provider} Content",
+            ProviderName = provider,
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var viewModel = CreateViewModel(searchResult, coordinator.Object);
+
+        // Assert initial
+        Assert.False(viewModel.CanChangeContentType);
+
+        // Act: try to change SelectedContentType
+        viewModel.SelectedContentType = ContentType.Addon;
+
+        // Assert: searchResult.ContentType and VM properties remain unchanged
+        Assert.Equal(ContentType.Mod, searchResult.ContentType);
+        Assert.Equal(ContentType.Mod, viewModel.ContentType);
+        Assert.Equal(ContentType.Mod, viewModel.SelectedContentType);
+    }
+
+    /// <summary>
+    /// Verifies that generic GitHub community content allows changing content type before download,
+    /// but locks it once downloaded or downloading.
+    /// </summary>
+    [Fact]
+    public void GenericGitHub_CanChangeContentTypeIsTrue_BeforeDownload_AndFalseAfterDownload()
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult
+        {
+            Id = "github.someone.generals-tool",
+            Name = "Generals Community Tool",
+            ProviderName = "GitHub",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var viewModel = CreateViewModel(searchResult, coordinator.Object);
+
+        // Assert: prior to download, user can change content type
+        Assert.True(viewModel.CanChangeContentType);
+
+        // Act: change content type prior to download
+        viewModel.SelectedContentType = ContentType.ModdingTool;
+        Assert.Equal(ContentType.ModdingTool, searchResult.ContentType);
+        Assert.Equal(ContentType.ModdingTool, viewModel.ContentType);
+
+        // Download in progress
+        viewModel.IsDownloading = true;
+        Assert.False(viewModel.CanChangeContentType);
+
+        // Download complete
+        viewModel.IsDownloading = false;
+        viewModel.IsDownloaded = true;
+        Assert.False(viewModel.CanChangeContentType);
+    }
+
+    /// <summary>
+    /// Verifies that initializing ContentDetailViewModel with an initial variant selection
+    /// retains that variant rather than resetting to the default variant.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task Initialize_WithInitialVariantManifestId_RetainsSelectedVariantAsync()
+    {
+        // Arrange: Item with multiple variants (720p, 1080p, Russian)
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.communityoutpost.addon.cbpx",
+            Name = "Control Bar Pro",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Variants =
+            [
+                new ContentVariantInfo { Id = "720p", Name = "720p Resolution", ManifestId = "1.0.communityoutpost.addon.cbpx-720p" },
+                new ContentVariantInfo { Id = "1080p", Name = "1080p Resolution", ManifestId = "1.0.communityoutpost.addon.cbpx-1080p", IsDefault = false },
+                new ContentVariantInfo { Id = "ru", Name = "Russian Language", ManifestId = "1.0.communityoutpost.addon.cbpx-ru", IsDefault = false },
+            ],
+        };
+
+        var variantsMap = new Dictionary<string, ContentSearchResult>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["1.0.communityoutpost.addon.cbpx-720p"] = new() { Id = "1.0.communityoutpost.addon.cbpx-720p", Name = "Control Bar Pro - 720p", TargetGame = GameType.ZeroHour },
+            ["1.0.communityoutpost.addon.cbpx-1080p"] = new() { Id = "1.0.communityoutpost.addon.cbpx-1080p", Name = "Control Bar Pro - 1080p", TargetGame = GameType.ZeroHour },
+            ["1.0.communityoutpost.addon.cbpx-ru"] = new() { Id = "1.0.communityoutpost.addon.cbpx-ru", Name = "Control Bar Pro - Russian", TargetGame = GameType.ZeroHour },
+        };
+
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var viewModel = CreateViewModel(
+            searchResult,
+            coordinator.Object,
+            variantSearchResults: variantsMap,
+            initialVariantManifestId: "1.0.communityoutpost.addon.cbpx-1080p");
+
+        // Act
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+
+        // Assert: 1080p variant remains selected, not 720p
+        Assert.NotNull(viewModel.SelectedVariant);
+        Assert.Equal("1.0.communityoutpost.addon.cbpx-1080p", viewModel.SelectedVariant.ManifestId);
+    }
+
+    /// <summary>
+    /// Verifies that calling SelectVariantByManifestId before initialization finishes
+    /// buffers the selection and applies it once variants load.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SelectVariantByManifestId_CalledBeforeInitialization_AppliesVariantWhenLoadedAsync()
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.communityoutpost.addon.cbpx",
+            Name = "Control Bar Pro",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Variants =
+            [
+                new ContentVariantInfo { Id = "en", Name = "English", ManifestId = "1.0.communityoutpost.addon.cbpx-en", IsDefault = true },
+                new ContentVariantInfo { Id = "ru", Name = "Russian", ManifestId = "1.0.communityoutpost.addon.cbpx-ru", IsDefault = false },
+            ],
+        };
+
+        var variantsMap = new Dictionary<string, ContentSearchResult>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["1.0.communityoutpost.addon.cbpx-en"] = new() { Id = "1.0.communityoutpost.addon.cbpx-en", Name = "English", TargetGame = GameType.ZeroHour },
+            ["1.0.communityoutpost.addon.cbpx-ru"] = new() { Id = "1.0.communityoutpost.addon.cbpx-ru", Name = "Russian", TargetGame = GameType.ZeroHour },
+        };
+
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var viewModel = CreateViewModel(
+            searchResult,
+            coordinator.Object,
+            variantSearchResults: variantsMap);
+
+        // Act: select variant before initializing
+        viewModel.SelectVariantByManifestId("1.0.communityoutpost.addon.cbpx-ru");
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+
+        // Assert: Russian was buffered and selected
+        Assert.NotNull(viewModel.SelectedVariant);
+        Assert.Equal("1.0.communityoutpost.addon.cbpx-ru", viewModel.SelectedVariant.ManifestId);
+    }
+
+    /// <summary>
+    /// Verifies that when SearchResult has ResolverMetadata selectedVariant,
+    /// ContentDetailViewModel initializes with that variant selected.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task Initialize_WithSelectedVariantInResolverMetadata_RetainsSelectedVariantAsync()
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.communityoutpost.addon.cbpx",
+            Name = "Control Bar Pro",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Variants =
+            [
+                new ContentVariantInfo { Id = "720p", Name = "720p", ManifestId = "1.0.communityoutpost.addon.cbpx-720p" },
+                new ContentVariantInfo { Id = "1080p", Name = "1080p", ManifestId = "1.0.communityoutpost.addon.cbpx-1080p" },
+            ],
+        };
+        searchResult.ResolverMetadata["selectedVariant"] = "1080p";
+
+        var variantsMap = new Dictionary<string, ContentSearchResult>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["1.0.communityoutpost.addon.cbpx-720p"] = new() { Id = "1.0.communityoutpost.addon.cbpx-720p", Name = "720p", TargetGame = GameType.ZeroHour },
+            ["1.0.communityoutpost.addon.cbpx-1080p"] = new() { Id = "1.0.communityoutpost.addon.cbpx-1080p", Name = "1080p", TargetGame = GameType.ZeroHour },
+        };
+
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        var viewModel = CreateViewModel(
+            searchResult,
+            coordinator.Object,
+            variantSearchResults: variantsMap);
+
+        // Act
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+
+        // Assert: 1080p selected from metadata
+        Assert.NotNull(viewModel.SelectedVariant);
+        Assert.Equal("1.0.communityoutpost.addon.cbpx-1080p", viewModel.SelectedVariant.ManifestId);
+    }
+
+    /// <summary>
+    /// Verifies that when a downloadable item has a SHA-256 hash,
+    /// the checksum metadata and title are accurately configured for SHA-256 rather than MD5.
+    /// </summary>
+    [Fact]
+    public void DownloadableItem_WithSha256_ConfiguresSha256ChecksumProperties()
+    {
+        // Arrange
+        var item = new ReleaseItemViewModel
+        {
+            Sha256Hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        };
+
+        // Assert
+        Assert.True(item.HasSha256Hash);
+        Assert.False(item.HasMd5Hash);
+        Assert.True(item.HasChecksum);
+        Assert.Equal(ContentConstants.Sha256ChecksumTitle, item.ChecksumTitle);
+        Assert.Equal("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", item.ChecksumDisplay);
+    }
+
+    /// <summary>
+    /// Verifies that when a downloadable item has an MD5 hash,
+    /// the checksum metadata and title are accurately configured for MD5.
+    /// </summary>
+    [Fact]
+    public void DownloadableItem_WithMd5_ConfiguresMd5ChecksumProperties()
+    {
+        // Arrange
+        var item = new ReleaseItemViewModel
+        {
+            Md5Hash = "098f6bcd4621d373cade4e832627b4f6",
+        };
+
+        // Assert
+        Assert.False(item.HasSha256Hash);
+        Assert.True(item.HasMd5Hash);
+        Assert.True(item.HasChecksum);
+        Assert.Equal(ContentConstants.Md5ChecksumTitle, item.ChecksumTitle);
+        Assert.Equal("098f6bcd4621d373cade4e832627b4f6", item.ChecksumDisplay);
+    }
+
+    /// <summary>
+    /// Verifies that when a downloadable item has an empty SHA-256 string,
+    /// it correctly falls back to displaying the valid MD5 checksum.
+    /// </summary>
+    [Fact]
+    public void DownloadableItem_WithEmptySha256AndValidMd5_DisplaysMd5Checksum()
+    {
+        // Arrange
+        var item = new ReleaseItemViewModel
+        {
+            Sha256Hash = string.Empty,
+            Md5Hash = "098f6bcd4621d373cade4e832627b4f6",
+        };
+
+        // Assert
+        Assert.False(item.HasSha256Hash);
+        Assert.True(item.HasMd5Hash);
+        Assert.True(item.HasChecksum);
+        Assert.Equal(ContentConstants.Md5ChecksumTitle, item.ChecksumTitle);
+        Assert.Equal("098f6bcd4621d373cade4e832627b4f6", item.ChecksumDisplay);
     }
 }

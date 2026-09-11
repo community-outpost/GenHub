@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using GenHub.Core.Models.Results.Content;
 
 namespace GenHub.Features.Downloads.ViewModels;
@@ -8,6 +10,33 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// </summary>
 public static class VariantSwap
 {
+    private static readonly char[] NameDelimiters = [' ', '-', '_', '(', ')', '[', ']', '/', '\\', ',', '.'];
+
+    /// <summary>
+    /// Finds a variant matching the specified identifier using a multi-tier heuristic
+    /// (exact ManifestId, exact Name, delimited ManifestId suffix, delimited identifier suffix,
+    /// separator-stripped ManifestId suffix for synthesized IDs, and token/score-based Name matching).
+    /// </summary>
+    /// <param name="variants">The collection of candidate variants.</param>
+    /// <param name="identifier">The variant manifest ID, identifier segment, or name to find.</param>
+    /// <returns>The matching <see cref="InstallableVariant"/>, or null if no match was found.</returns>
+    public static InstallableVariant? FindMatchingVariant(
+        IEnumerable<InstallableVariant>? variants,
+        string? identifier)
+    {
+        if (string.IsNullOrWhiteSpace(identifier) || variants == null)
+        {
+            return null;
+        }
+
+        var list = variants as IList<InstallableVariant> ?? variants.ToList();
+
+        return MatchByDirectIdentity(list, identifier)
+            ?? MatchByManifestSuffix(list, identifier)
+            ?? MatchByStrippedManifestId(list, identifier)
+            ?? MatchByNameScore(list, identifier);
+    }
+
     /// <summary>
     /// Creates an independent snapshot of a search result for variant dictionary storage.
     /// The card's own <see cref="ContentSearchResult"/> must not be stored by reference —
@@ -186,6 +215,137 @@ public static class VariantSwap
         target.Variants = variants;
     }
 
+    private static InstallableVariant? MatchByDirectIdentity(IList<InstallableVariant> list, string identifier)
+    {
+        // Tier 1: Exact ManifestId
+        var match = list.FirstOrDefault(v => string.Equals(v.ManifestId, identifier, StringComparison.OrdinalIgnoreCase));
+        if (match != null)
+        {
+            return match;
+        }
+
+        // Tier 2: Exact Name
+        return list.FirstOrDefault(v => string.Equals(v.Name, identifier, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static InstallableVariant? MatchByManifestSuffix(IList<InstallableVariant> list, string identifier)
+    {
+        // Tier 3: Delimited ManifestId suffix
+        var match = list.FirstOrDefault(v => !string.IsNullOrEmpty(v.ManifestId) &&
+            (v.ManifestId.EndsWith($"-{identifier}", StringComparison.OrdinalIgnoreCase) ||
+             v.ManifestId.EndsWith($".{identifier}", StringComparison.OrdinalIgnoreCase)));
+        if (match != null)
+        {
+            return match;
+        }
+
+        // Tier 4: Delimited identifier suffix
+        return list.FirstOrDefault(v => !string.IsNullOrEmpty(v.ManifestId) &&
+            (identifier.EndsWith($"-{v.ManifestId}", StringComparison.OrdinalIgnoreCase) ||
+             identifier.EndsWith($".{v.ManifestId}", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private static InstallableVariant? MatchByStrippedManifestId(IList<InstallableVariant> list, string identifier)
+    {
+        // Tier 5: Separator-stripped ManifestId suffix for synthesized variant IDs (anchored at segment boundaries).
+        var idLastSegment = GetLastDotSegment(identifier);
+        var cleanId = StripSeparators(idLastSegment);
+        if (string.IsNullOrEmpty(cleanId))
+        {
+            return null;
+        }
+
+        var idPrefix = GetDotPrefix(identifier);
+
+        return list
+            .Where(v => !string.IsNullOrEmpty(v.ManifestId))
+            .Select(v => new
+            {
+                Variant = v,
+                CandidatePrefix = GetDotPrefix(v.ManifestId),
+                CleanCandidate = StripSeparators(GetLastDotSegment(v.ManifestId)),
+            })
+            .Where(x => !string.IsNullOrEmpty(x.CleanCandidate) &&
+                        (string.IsNullOrEmpty(idPrefix) || string.IsNullOrEmpty(x.CandidatePrefix) ||
+                         string.Equals(idPrefix, x.CandidatePrefix, StringComparison.OrdinalIgnoreCase)) &&
+                        x.CleanCandidate.EndsWith(cleanId, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(x => x.CleanCandidate.Length - cleanId.Length)
+            .Select(x => x.Variant)
+            .FirstOrDefault();
+    }
+
+    private static string GetLastDotSegment(string input)
+    {
+        var lastDot = input.LastIndexOf('.');
+        return lastDot >= 0 ? input[(lastDot + 1)..] : input;
+    }
+
+    private static string GetDotPrefix(string input)
+    {
+        var lastDot = input.LastIndexOf('.');
+        return lastDot >= 0 ? input[..lastDot] : string.Empty;
+    }
+
+    private static InstallableVariant? MatchByNameScore(IList<InstallableVariant> list, string identifier)
+    {
+        InstallableVariant? bestNameMatch = null;
+        int bestScore = 0;
+
+        foreach (var v in list)
+        {
+            if (string.IsNullOrWhiteSpace(v.Name))
+            {
+                continue;
+            }
+
+            var score = CalculateNameMatchScore(v.Name, identifier);
+            if (score == 3)
+            {
+                return v;
+            }
+
+            if (score > bestScore)
+            {
+                bestNameMatch = v;
+                bestScore = score;
+            }
+        }
+
+        return bestNameMatch;
+    }
+
+    private static int CalculateNameMatchScore(string name, string identifier)
+    {
+        var tokens = name.Split(NameDelimiters, StringSplitOptions.RemoveEmptyEntries);
+
+        // Exact token match (highest priority: score 3)
+        if (tokens.Any(t => string.Equals(t, identifier, StringComparison.OrdinalIgnoreCase)))
+        {
+            return 3;
+        }
+
+        // Token prefix match (e.g. "Russian" starts with "ru", but "Belarusian" does not: score 2)
+        if (tokens.Any(t => t.StartsWith(identifier, StringComparison.OrdinalIgnoreCase)))
+        {
+            return 2;
+        }
+
+        // Name suffix match with word boundary (score 2)
+        if (name.EndsWith($" {identifier}", StringComparison.OrdinalIgnoreCase) ||
+            name.EndsWith($"- {identifier}", StringComparison.OrdinalIgnoreCase))
+        {
+            return 2;
+        }
+
+        // Substring fallback only for identifiers of 3+ characters (score 1)
+        if (identifier.Length >= 3 && name.Contains(identifier, StringComparison.OrdinalIgnoreCase))
+        {
+            return 1;
+        }
+
+        return 0;
+    }
+
     private static string ResolveFromVariantInfo(ContentSearchResult sibling, string infoName)
     {
         if (!string.IsNullOrWhiteSpace(sibling.Name) &&
@@ -215,5 +375,20 @@ public static class VariantSwap
         }
 
         return null;
+    }
+
+    private static string StripSeparators(string input)
+    {
+        Span<char> buffer = input.Length <= 128 ? stackalloc char[input.Length] : new char[input.Length];
+        int count = 0;
+        foreach (char c in input)
+        {
+            if (char.IsLetterOrDigit(c))
+            {
+                buffer[count++] = char.ToLowerInvariant(c);
+            }
+        }
+
+        return new string(buffer[..count]);
     }
 }

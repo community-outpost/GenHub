@@ -27,8 +27,8 @@
         <Style Selector="Border.content-card">
             <Setter Property="Background" Value="{DynamicResource CardBackground}" />
             <Setter Property="CornerRadius" Value="12" />
-            <Setter Property="Width" Value="240" />
-            <Setter Property="Height" Value="340" />
+            <Setter Property="Width" Value="245" />
+            <Setter Property="Height" Value="385" />
             <Setter Property="BoxShadow" Value="0 6 20 0 #40000000" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
@@ -47,7 +47,7 @@
 
         <Style Selector="Border.content-card.bundle-card">
             <Setter Property="Height" Value="NaN" />
-            <Setter Property="MinHeight" Value="340" />
+            <Setter Property="MinHeight" Value="385" />
             <Setter Property="MaxHeight" Value="560" />
         </Style>
 
@@ -59,7 +59,7 @@
 
         <!-- CTAs -->
         <Style Selector="Button.card-button">
-            <Setter Property="Height" Value="34" />
+            <Setter Property="Height" Value="32" />
             <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="CornerRadius" Value="8" />
@@ -172,7 +172,7 @@
                 <ExperimentalAcrylicBorder.Material>
                     <ExperimentalAcrylicMaterial
                         BackgroundSource="Digger"
-                        TintColor="#08080C"
+                        TintColor="{DynamicResource SurfaceBackgroundDark}"
                         TintOpacity="0.85"
                         MaterialOpacity="0.55" />
                 </ExperimentalAcrylicBorder.Material>
@@ -182,8 +182,8 @@
             <Border CornerRadius="12" IsHitTestVisible="False" Opacity="0.6">
                 <Border.Background>
                     <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                        <GradientStop Offset="0" Color="#20181828" />
-                        <GradientStop Offset="1" Color="#D008080C" />
+                        <GradientStop Offset="0" Color="{DynamicResource SurfaceElevatedDark}" />
+                        <GradientStop Offset="1" Color="{DynamicResource SurfaceBackgroundDark}" />
                     </LinearGradientBrush>
                 </Border.Background>
             </Border>
@@ -304,8 +304,8 @@
                     </Border>
 
                     <!-- Content Info -->
-                    <Grid Grid.Row="1" Margin="12,8" Background="Transparent">
-                        <StackPanel Spacing="4">
+                    <Grid Grid.Row="1" RowDefinitions="Auto,*" Margin="12,6,12,6" Background="Transparent" ClipToBounds="True">
+                        <StackPanel Grid.Row="0" Spacing="3">
                             <!-- Title -->
                             <TextBlock Text="{Binding Name}"
                                        FontSize="14"
@@ -548,21 +548,24 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
 
-                        <!-- Short description (full text lives in details) -->
-                        <TextBlock Text="{Binding ShortDescription}"
+                        </StackPanel>
+
+                        <!-- Short description (dynamically fills remaining space, gracefully trimmed on busy cards) -->
+                        <TextBlock Grid.Row="1"
+                                   Text="{Binding ShortDescription}"
                                    FontSize="11"
                                    Foreground="{DynamicResource TextSecondary}"
                                    TextWrapping="Wrap"
                                    TextTrimming="CharacterEllipsis"
-                                   MaxLines="2"
                                    LineHeight="15"
+                                   Margin="0,4,0,0"
+                                   VerticalAlignment="Top"
                                    ToolTip.Tip="{Binding Description}"
                                    IsVisible="{Binding HasShortDescription}" />
-                    </StackPanel>
-                </Grid>
+                    </Grid>
 
                 <!-- Action Area -->
-                <StackPanel Grid.Row="2" Margin="12,0,12,12" Spacing="6">
+                <StackPanel Grid.Row="2" Margin="12,0,12,10" Spacing="5">
                     <!-- Download Progress -->
                     <ProgressBar Value="{Binding DownloadProgress}"
                                  Maximum="100"
@@ -573,12 +576,13 @@
 
                     <!-- Status Text -->
                     <TextBlock Text="{Binding DownloadStatus}"
-                               FontSize="10"
+                               FontSize="10.5"
+                               LineHeight="14"
                                Foreground="{DynamicResource TextSecondary}"
                                HorizontalAlignment="Stretch"
                                TextAlignment="Center"
                                TextWrapping="Wrap"
-                               MaxLines="1"
+                               MaxLines="2"
                                TextTrimming="CharacterEllipsis"
                                ToolTip.Tip="{Binding DownloadStatus}"
                                IsVisible="{Binding DownloadStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
@@ -588,7 +592,7 @@
                             Command="{Binding DownloadCommand}"
                             CommandParameter="{Binding}"
                             IsVisible="{Binding ShowDownloadButton}"
-                            IsEnabled="{Binding !IsDownloading}">
+                            IsEnabled="{Binding CanDownload}">
                         <ToolTip.Tip>Download this content to your library</ToolTip.Tip>
                         <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Path Data="M12 3v9m0 0l-3-3m3 3l3-3M4 15v2a2 2 0 002 2h12a2 2 0 002-2v-2"
@@ -603,7 +607,7 @@
                             Command="{Binding UpdateCommand}"
                             CommandParameter="{Binding}"
                             IsVisible="{Binding ShowUpdateButton}"
-                            IsEnabled="{Binding !IsDownloading}">
+                            IsEnabled="{Binding CanUpdate}">
                         <ToolTip.Tip>A newer version is available. Click to update.</ToolTip.Tip>
                         <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Path Data="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"

@@ -117,12 +117,20 @@ public class SuperHackersProviderTests
         Assert.True(result.Success);
         var items = result.Data?.ToList();
         Assert.NotNull(items);
-        Assert.Equal(2, items.Count);
+        Assert.Equal(3, items.Count);
 
-        var gameCodeItem = items.FirstOrDefault(i => i.ContentType == ContentType.GameClient);
-        Assert.NotNull(gameCodeItem);
-        Assert.Equal("weekly-2026-08-01", gameCodeItem.Version);
-        Assert.Equal(SuperHackersConstants.GeneralsGameCodeRepo, gameCodeItem.ResolverMetadata[GitHubConstants.RepoMetadataKey]);
+        var gameCodeZh = items.FirstOrDefault(i => i.ContentType == ContentType.GameClient && i.TargetGame == GameType.ZeroHour);
+        Assert.NotNull(gameCodeZh);
+        Assert.Equal("weekly-2026-08-01", gameCodeZh.Version);
+        Assert.Equal(SuperHackersConstants.GeneralsGameCodeRepo, gameCodeZh.ResolverMetadata[GitHubConstants.RepoMetadataKey]);
+        Assert.NotNull(gameCodeZh.Variants);
+        Assert.Equal(2, gameCodeZh.Variants.Count);
+        Assert.Equal("thesuperhackers.generalsgamecode.gameclient.weekly-2026-08-01", gameCodeZh.VariantGroupId);
+
+        var gameCodeGen = items.FirstOrDefault(i => i.ContentType == ContentType.GameClient && i.TargetGame == GameType.Generals);
+        Assert.NotNull(gameCodeGen);
+        Assert.Equal("weekly-2026-08-01", gameCodeGen.Version);
+        Assert.Equal("thesuperhackers.generalsgamecode.gameclient.weekly-2026-08-01", gameCodeGen.VariantGroupId);
 
         var gamePatch2Item = items.FirstOrDefault(i => i.ContentType == ContentType.Patch);
         Assert.NotNull(gamePatch2Item);
@@ -241,9 +249,9 @@ public class SuperHackersProviderTests
         Assert.True(result.Success);
         var items = result.Data?.ToList();
         Assert.NotNull(items);
-        Assert.Single(items);
-        Assert.Equal(ContentType.Patch, items[0].ContentType);
-        Assert.Equal(GameType.ZeroHour, items[0].TargetGame);
+        Assert.Equal(2, items.Count);
+        Assert.Contains(items, i => i.ContentType == ContentType.GameClient && i.TargetGame == GameType.ZeroHour);
+        Assert.Contains(items, i => i.ContentType == ContentType.Patch && i.TargetGame == GameType.ZeroHour);
     }
 
     /// <summary>
@@ -369,8 +377,8 @@ public class SuperHackersProviderTests
         Assert.True(result.Success);
         var items = result.Data?.ToList();
         Assert.NotNull(items);
-        Assert.Single(items);
-        Assert.Equal(ContentType.GameClient, items[0].ContentType);
+        Assert.Equal(2, items.Count);
+        Assert.All(items, i => Assert.Equal(ContentType.GameClient, i.ContentType));
     }
 
     /// <summary>

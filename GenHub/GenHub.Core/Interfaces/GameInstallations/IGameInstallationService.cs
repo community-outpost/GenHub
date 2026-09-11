@@ -9,6 +9,12 @@ namespace GenHub.Core.Interfaces.GameInstallations;
 public interface IGameInstallationService
 {
     /// <summary>
+    /// Gets the currently cached game installations if initialized; otherwise <c>null</c>.
+    /// Does not trigger auto-detection or manifest generation.
+    /// </summary>
+    IReadOnlyList<GameInstallation>? CachedInstallations { get; }
+
+    /// <summary>
     /// Gets a game installation by its unique identifier.
     /// </summary>
     /// <param name="installationId">The unique identifier of the installation (a GUID string, e.g., "550e8400-e29b-41d4-a716-446655440000").</param>

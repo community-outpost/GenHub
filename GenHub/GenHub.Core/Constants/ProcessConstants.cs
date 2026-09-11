@@ -125,4 +125,9 @@ public static class ProcessConstants
     /// out <see cref="SpawnedChildDiscoveryTimeoutMs"/> once the launcher is known to be gone.
     /// </summary>
     public const int LauncherExitGracePeriodMs = 1_000;
+
+    /// <summary>
+    /// Timeout in milliseconds when waiting for helper or utility process commands (e.g., junction creation).
+    /// </summary>
+    public const int HelperProcessTimeoutMs = 5_000;
 }

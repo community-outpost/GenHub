@@ -112,7 +112,7 @@ public class InfoTabResponsivenessTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DemoAddLocalContent_AddContentCommand_ExecutesSuccessfully()
+    public async Task DemoAddLocalContent_AddContentCommand_ExecutesSuccessfullyAsync()
     {
         var vm = DemoViewModelFactory.CreateDemoAddLocalContent();
 
@@ -128,7 +128,7 @@ public class InfoTabResponsivenessTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DefaultInfoContentProvider_CreateLocalContentSection_ContainsDetailedUnslopCards()
+    public async Task DefaultInfoContentProvider_CreateLocalContentSection_ContainsDetailedUnslopCardsAsync()
     {
         var provider = new DefaultInfoContentProvider();
         var sections = await provider.GetAllSectionsAsync();

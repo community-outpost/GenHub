@@ -347,6 +347,38 @@ public class CsvResolver(
         return manifest;
     }
 
+    private static CsvContentLoadResult? TryLoadEmbeddedResource(Uri uri)
+    {
+        var unescapedPath = Uri.UnescapeDataString(uri.AbsolutePath);
+        var fileName = Path.GetFileName(unescapedPath);
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return null;
+        }
+
+        var expectedResourceName = $"{CsvConstants.EmbeddedResourceNamespace}.{fileName}";
+        var assembly = typeof(CsvConstants).Assembly;
+        var actualResourceName = assembly.GetManifestResourceNames()
+            .FirstOrDefault(name => string.Equals(name, expectedResourceName, StringComparison.OrdinalIgnoreCase));
+
+        if (actualResourceName == null)
+        {
+            return null;
+        }
+
+        using var stream = assembly.GetManifestResourceStream(actualResourceName);
+        if (stream == null)
+        {
+            return null;
+        }
+
+        using var memoryStream = new MemoryStream();
+        stream.CopyTo(memoryStream);
+        var rawBytes = memoryStream.ToArray();
+        var content = Encoding.UTF8.GetString(rawBytes).TrimStart('\uFEFF');
+        return new CsvContentLoadResult(content, false, rawBytes);
+    }
+
     private async Task<OperationResult<CsvContentLoadResult>> LoadCsvContentAsync(string sourceUrl, CancellationToken cancellationToken)
     {
         if (Uri.TryCreate(sourceUrl, UriKind.Absolute, out var uri) &&
@@ -380,10 +412,29 @@ public class CsvResolver(
                 var content = Encoding.UTF8.GetString(rawBytes).TrimStart('\uFEFF');
                 return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(content, true, rawBytes));
             }
-            catch (Exception ex) when (cached != null && IsRecoverableRemoteFailure(ex, cancellationToken))
+            catch (Exception ex) when (IsRecoverableRemoteFailure(ex, cancellationToken))
             {
-                logger.LogWarning(ex, "Remote CSV catalog {SourceUrl} is unavailable; using stale cached content", sourceUrl);
-                return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(cached.Content, false, cached.RawBytes));
+                if (cached != null)
+                {
+                    logger.LogWarning(ex, "Remote CSV catalog {SourceUrl} is unavailable; using stale cached content", sourceUrl);
+                    return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(cached.Content, false, cached.RawBytes));
+                }
+
+                var embeddedResult = TryLoadEmbeddedResource(uri);
+                if (embeddedResult != null)
+                {
+                    logger.LogWarning(
+                        "Remote CSV catalog {SourceUrl} is unavailable ({Error}); falling back to bundled embedded catalog",
+                        sourceUrl,
+                        ex.Message);
+                    return OperationResult<CsvContentLoadResult>.CreateSuccess(embeddedResult);
+                }
+
+                logger.LogWarning(
+                    ex,
+                    "Remote CSV catalog {SourceUrl} is unavailable and no local cache or embedded fallback was found",
+                    sourceUrl);
+                return OperationResult<CsvContentLoadResult>.CreateFailure($"Failed to load remote CSV catalog: {ex.Message}");
             }
         }
 
@@ -396,8 +447,20 @@ public class CsvResolver(
             return OperationResult<CsvContentLoadResult>.CreateFailure($"CSV file not found at: {resolvedPath}");
         }
 
-        var fileBytes = await File.ReadAllBytesAsync(resolvedPath, cancellationToken);
-        var fileContent = Encoding.UTF8.GetString(fileBytes).TrimStart('\uFEFF');
-        return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(fileContent, false, fileBytes));
+        try
+        {
+            var rawBytes = await File.ReadAllBytesAsync(resolvedPath, cancellationToken);
+            var content = Encoding.UTF8.GetString(rawBytes).TrimStart('\uFEFF');
+            return OperationResult<CsvContentLoadResult>.CreateSuccess(new CsvContentLoadResult(content, false, rawBytes));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogError(ex, "Failed to read CSV catalog file at {FilePath}", resolvedPath);
+            return OperationResult<CsvContentLoadResult>.CreateFailure($"Failed to read CSV catalog file: {ex.Message}");
+        }
     }
 }
