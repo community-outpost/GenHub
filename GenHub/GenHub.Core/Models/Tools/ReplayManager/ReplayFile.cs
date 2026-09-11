@@ -91,9 +91,9 @@ public sealed class ReplayFile : IExportableFile
                 return fps;
             }
 
-            var isGeneralsOnline = (MatchedClient != null && (string.Equals(MatchedClient.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+            var isGeneralsOnline = (MatchedClient != null && (string.Equals(MatchedClient.Publisher, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
                                                              MatchedClient.ManifestId.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
-                                                             MatchedClient.DisplayName.Contains("60Hz", StringComparison.OrdinalIgnoreCase))) ||
+                                                             MatchedClient.Description.Contains("60Hz", StringComparison.OrdinalIgnoreCase))) ||
                                    (Metadata?.VersionString?.Contains("60", StringComparison.OrdinalIgnoreCase) == true) ||
                                    (Metadata?.BuildTimeString?.Contains("60", StringComparison.OrdinalIgnoreCase) == true) ||
                                    (Metadata?.Title?.Contains("60Hz", StringComparison.OrdinalIgnoreCase) == true);

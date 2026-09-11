@@ -1548,9 +1548,9 @@ public partial class ReplayManagerViewModel(
 
         var client = profile.GameClient;
         return string.Equals(client.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
-               (!string.IsNullOrEmpty(client.Executable) && client.Executable.Contains("60", StringComparison.OrdinalIgnoreCase)) ||
+               (!string.IsNullOrEmpty(client.ExecutablePath) && client.ExecutablePath.Contains("60", StringComparison.OrdinalIgnoreCase)) ||
                (!string.IsNullOrEmpty(profile.Name) && profile.Name.Contains("60Hz", StringComparison.OrdinalIgnoreCase)) ||
-               (!string.IsNullOrEmpty(client.DisplayName) && client.DisplayName.Contains("60Hz", StringComparison.OrdinalIgnoreCase));
+               (!string.IsNullOrEmpty(client.Name) && client.Name.Contains("60Hz", StringComparison.OrdinalIgnoreCase));
     }
 
     private void UpdateReplayTimingBounds()
