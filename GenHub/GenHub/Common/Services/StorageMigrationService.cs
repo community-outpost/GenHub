@@ -213,7 +213,11 @@ public class StorageMigrationService(
         {
             return Path.GetRelativePath(sourceRoot, processPath);
         }
-        catch (Exception ex) when (ex is ArgumentException or PathTooLongException)
+        catch (ArgumentException)
+        {
+            return Path.GetFileName(processPath);
+        }
+        catch (PathTooLongException)
         {
             return Path.GetFileName(processPath);
         }
@@ -238,7 +242,15 @@ public class StorageMigrationService(
             var hasAppDirs = Directory.GetDirectories(directoryPath, "app-*").Length > 0;
             return hasUpdateExe || hasPackagesDir || hasAppDirs;
         }
-        catch (Exception)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
         {
             return false;
         }
@@ -286,7 +298,15 @@ public class StorageMigrationService(
                 Directory.Delete(defaultInstallRoot);
             }
         }
-        catch (Exception)
+        catch (IOException)
+        {
+            // Non-fatal cleanup
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Non-fatal cleanup
+        }
+        catch (ArgumentException)
         {
             // Non-fatal cleanup
         }
@@ -326,7 +346,19 @@ public class StorageMigrationService(
             var dirInfo = new DirectoryInfo(directoryPath);
             return dirInfo.EnumerateFiles("*", SearchOption.AllDirectories).Sum(fi => fi.Length);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException)
+        catch (IOException)
+        {
+            return 0;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return 0;
+        }
+        catch (SecurityException)
+        {
+            return 0;
+        }
+        catch (ArgumentException)
         {
             return 0;
         }
@@ -352,7 +384,19 @@ public class StorageMigrationService(
                 }
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException)
+        catch (IOException)
+        {
+            // Ignore exceptions and assume ample space
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Ignore exceptions and assume ample space
+        }
+        catch (SecurityException)
+        {
+            // Ignore exceptions and assume ample space
+        }
+        catch (ArgumentException)
         {
             // Ignore exceptions and assume ample space
         }
@@ -379,7 +423,12 @@ public class StorageMigrationService(
                 Directory.Move(sourceDir, destDir);
                 return;
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // Move across volumes or permissions fallback to copy-then-delete
+                Directory.CreateDirectory(destDir);
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Move across volumes or permissions fallback to copy-then-delete
                 Directory.CreateDirectory(destDir);
@@ -391,7 +440,12 @@ public class StorageMigrationService(
             CopyDirectoryRecursive(sourceDir, destDir);
             FileOperationsService.DeleteDirectoryIfExists(sourceDir);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            TryDeleteDirectory(destDir);
+            throw;
+        }
+        catch (UnauthorizedAccessException)
         {
             TryDeleteDirectory(destDir);
             throw;
@@ -509,7 +563,11 @@ public class StorageMigrationService(
                 Directory.Delete(path, recursive: true);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Suppress cleanup exceptions during rollback
+        }
+        catch (UnauthorizedAccessException)
         {
             // Suppress cleanup exceptions during rollback
         }
@@ -781,7 +839,27 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
                     }
                 }
             }
-            catch (Exception ex) when (ex is IOException or NotSupportedException or InvalidOperationException or SecurityException or BadImageFormatException or FileLoadException)
+            catch (FileLoadException)
+            {
+                // Continue searching other assemblies
+            }
+            catch (BadImageFormatException)
+            {
+                // Continue searching other assemblies
+            }
+            catch (IOException)
+            {
+                // Continue searching other assemblies
+            }
+            catch (NotSupportedException)
+            {
+                // Continue searching other assemblies
+            }
+            catch (InvalidOperationException)
+            {
+                // Continue searching other assemblies
+            }
+            catch (SecurityException)
             {
                 // Continue searching other assemblies
             }
@@ -855,7 +933,19 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
 
                 return true;
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException ex)
+            {
+                if (attempt < maxAttempts)
+                {
+                    logger.LogWarning(ex, "Rollback attempt {Attempt} of {MaxAttempts} failed from {Target} to {Original}. Retrying in 500ms...", attempt, maxAttempts, targetPath, originalPath);
+                    Thread.Sleep(500);
+                }
+                else
+                {
+                    logger.LogCritical(ex, "Failed to rollback directory move from {Target} to {Original} after {MaxAttempts} attempts. Manual recovery may be required.", targetPath, originalPath, maxAttempts);
+                }
+            }
+            catch (UnauthorizedAccessException ex)
             {
                 if (attempt < maxAttempts)
                 {
@@ -1010,7 +1100,15 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
         {
             casPoolManager.ReinitializeInstallationPool();
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to reinitialize CAS installation pool after storage relocation.");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Failed to reinitialize CAS installation pool after storage relocation.");
+        }
+        catch (InvalidOperationException ex)
         {
             logger.LogWarning(ex, "Failed to reinitialize CAS installation pool after storage relocation.");
         }
@@ -1093,7 +1191,15 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
             {
                 casPoolManager.ReinitializeInstallationPool();
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+            catch (IOException ex)
+            {
+                logger.LogWarning(ex, "Failed to reinitialize CAS installation pool after rollback.");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                logger.LogWarning(ex, "Failed to reinitialize CAS installation pool after rollback.");
+            }
+            catch (InvalidOperationException ex)
             {
                 logger.LogWarning(ex, "Failed to reinitialize CAS installation pool after rollback.");
             }
@@ -1144,7 +1250,12 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
             moved = true;
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
+        {
+            logger.LogError(ex, "Failed to migrate storage directory from {Current} to {Target}", currentPath, targetPath);
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogError(ex, "Failed to migrate storage directory from {Current} to {Target}", currentPath, targetPath);
             return false;
@@ -1234,7 +1345,15 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
                     }
                 }
             }
-            catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+            catch (IOException ex)
+            {
+                logger.LogWarning(ex, "Failed to rewrite workspace metadata paths in {MetadataFile}", metadataPath);
+            }
+            catch (JsonException ex)
+            {
+                logger.LogWarning(ex, "Failed to rewrite workspace metadata paths in {MetadataFile}", metadataPath);
+            }
+            catch (UnauthorizedAccessException ex)
             {
                 logger.LogWarning(ex, "Failed to rewrite workspace metadata paths in {MetadataFile}", metadataPath);
             }
@@ -1261,7 +1380,15 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
                                       UnixFileMode.OtherRead | UnixFileMode.OtherExecute;
                 File.SetUnixFileMode(scriptFilePath, filePermissions);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+            catch (IOException ex)
+            {
+                logger.LogWarning(ex, "Failed to set Unix permissions on migration script {Path}", scriptFilePath);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                logger.LogWarning(ex, "Failed to set Unix permissions on migration script {Path}", scriptFilePath);
+            }
+            catch (PlatformNotSupportedException ex)
             {
                 logger.LogWarning(ex, "Failed to set Unix permissions on migration script {Path}", scriptFilePath);
             }
@@ -1319,7 +1446,15 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
         {
             throw;
         }
-        catch (Exception ex) when (ex is Win32Exception or IOException or PlatformNotSupportedException)
+        catch (Win32Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to start helper migration process for '{scriptPath}'.", ex);
+        }
+        catch (IOException ex)
+        {
+            throw new InvalidOperationException($"Failed to start helper migration process for '{scriptPath}'.", ex);
+        }
+        catch (PlatformNotSupportedException ex)
         {
             throw new InvalidOperationException($"Failed to start helper migration process for '{scriptPath}'.", ex);
         }
@@ -1482,7 +1617,11 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
                 }
             });
         }
-        catch (Exception ex) when (ex is InvalidOperationException or NullReferenceException)
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex, "Exception during application lifetime shutdown for migration");
+        }
+        catch (NullReferenceException ex)
         {
             logger.LogWarning(ex, "Exception during application lifetime shutdown for migration");
         }

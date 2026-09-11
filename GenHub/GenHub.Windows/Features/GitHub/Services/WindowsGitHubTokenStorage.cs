@@ -42,7 +42,15 @@ public class WindowsGitHubTokenStorage : IGitHubTokenStorage
                 }
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
+        catch (IOException)
+        {
+            // Non-fatal legacy migration
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Non-fatal legacy migration
+        }
+        catch (SecurityException)
         {
             // Non-fatal legacy migration
         }

@@ -159,7 +159,17 @@ public class LaunchRegistry : ILaunchRegistry
                     {
                         launchInfo.TerminatedAt = runningProcess.ExitTime;
                     }
-                    catch (Exception ex) when (ex is InvalidOperationException or Win32Exception or NotSupportedException)
+                    catch (InvalidOperationException)
+                    {
+                        // Fallback to current time if ExitTime throws
+                        launchInfo.TerminatedAt = DateTime.UtcNow;
+                    }
+                    catch (Win32Exception)
+                    {
+                        // Fallback to current time if ExitTime throws
+                        launchInfo.TerminatedAt = DateTime.UtcNow;
+                    }
+                    catch (NotSupportedException)
                     {
                         // Fallback to current time if ExitTime throws
                         launchInfo.TerminatedAt = DateTime.UtcNow;

@@ -42,101 +42,28 @@ public sealed class InstallationCasPoolService(
             return true;
         }
 
-        var preferredInstallation = installations.Count == 1
-            ? installations[0]
-            : installations.FirstOrDefault(installation => installation.InstallationType == GameInstallationType.Steam)
-                ?? installations.FirstOrDefault(installation => installation.InstallationType == GameInstallationType.EaApp)
-                ?? installations[0];
+        var preferredInstallation = SelectPreferredInstallation(installations);
+        var derivedPaths = CollectDerivedPaths(installations);
 
-        var derivedPaths = installations
-            .Select(GetDerivedPoolPath)
-            .Where(path => !string.IsNullOrWhiteSpace(path))
-            .Select(NormalizePath)
-            .Where(path => !string.IsNullOrWhiteSpace(path))
-            .ToHashSet(PathHelper.PathComparer);
-        var candidatePath = GetDerivedPoolPath(preferredInstallation);
-        if (string.IsNullOrWhiteSpace(candidatePath))
+        if (!TryResolveCandidatePath(preferredInstallation, out var candidatePath))
         {
-            logger.LogWarning(
-                "Preferred installation {InstallationId} has no usable path; the primary CAS pool will be used",
-                preferredInstallation.Id);
-            return true;
-        }
-
-        candidatePath = NormalizePath(candidatePath);
-        if (string.IsNullOrWhiteSpace(candidatePath))
-        {
-            logger.LogWarning("The derived installation CAS pool path is invalid; the primary pool will be used");
             return true;
         }
 
         var currentSettings = userSettingsService.Get();
         var configuredCurrentPath = currentSettings.CasConfiguration.InstallationPoolRootPath;
         var currentPath = NormalizePath(configuredCurrentPath);
-        var historicalAutoDerivedMarker =
-            currentSettings.ExplicitlySetProperties.Contains(ExplicitInstallationPoolPathKey);
 
-        // Older GenHub builds marked their automatically derived installation pool as "explicitly set".
-        // No user-facing setting wrote this nested key, so it is migration provenance rather than user intent.
-        if (!string.IsNullOrWhiteSpace(configuredCurrentPath) &&
-            string.IsNullOrWhiteSpace(currentPath) &&
-            !currentSettings.CasConfiguration.IsInstallationPoolRootPathAutoDerived &&
-            !historicalAutoDerivedMarker)
+        if (ShouldPreserveUserConfiguredPool(currentSettings, configuredCurrentPath, currentPath, derivedPaths))
         {
-            logger.LogWarning(
-                "User-configured installation CAS pool {PoolPath} is invalid; preserving the setting and using the primary pool",
-                configuredCurrentPath);
             return true;
         }
 
-        var currentIsAutoDerived = IsAutoDerived(currentSettings, currentPath, derivedPaths);
-
-        if (!string.IsNullOrWhiteSpace(currentPath) && !currentIsAutoDerived)
-        {
-            if (writabilityProbe.CanCreateStorageAt(currentPath))
-            {
-                logger.LogInformation("Keeping user-configured installation CAS pool {PoolPath}", currentPath);
-            }
-            else
-            {
-                logger.LogWarning(
-                    "User-configured installation CAS pool {PoolPath} is not writable; preserving the setting and using the primary pool",
-                    currentPath);
-            }
-
-            return true;
-        }
-
-        var candidateIsWritable = writabilityProbe.CanCreateStorageAt(candidatePath);
-        if (!candidateIsWritable)
-        {
-            var baseInstallationPath = GetBaseInstallationPath(preferredInstallation);
-            if (!string.IsNullOrWhiteSpace(baseInstallationPath))
-            {
-                foreach (var ancestor in PathHelper.EnumerateSameVolumeAncestors(baseInstallationPath))
-                {
-                    var ancestorCandidate = Path.Combine(ancestor, DirectoryNames.GenHubCasPool);
-                    if (writabilityProbe.CanCreateStorageAt(ancestorCandidate))
-                    {
-                        candidatePath = NormalizePath(ancestorCandidate);
-                        candidateIsWritable = true;
-                        break;
-                    }
-                }
-            }
-        }
-
+        candidatePath = ResolveWritableCandidatePath(preferredInstallation, candidatePath, out var candidateIsWritable);
         var effectivePath = candidateIsWritable ? candidatePath : string.Empty;
         var legacyPaths = SelectLegacyPaths(currentSettings, currentPath, candidatePath, effectivePath);
-        var settingsAlreadyMatch =
-            string.Equals(currentPath, effectivePath, PathHelper.PathComparison) &&
-            currentSettings.CasConfiguration.IsInstallationPoolRootPathAutoDerived == candidateIsWritable &&
-            currentSettings.CasConfiguration.LegacyInstallationPoolRootPaths
-                .Select(NormalizePath)
-                .SequenceEqual(legacyPaths, PathHelper.PathComparer) &&
-            string.Equals(currentSettings.PreferredStorageInstallationId, preferredInstallation.Id, StringComparison.Ordinal) &&
-            !currentSettings.ExplicitlySetProperties.Contains(ExplicitInstallationPoolPathKey);
-        if (settingsAlreadyMatch)
+
+        if (AreSettingsSynchronized(currentSettings, preferredInstallation, currentPath, effectivePath, candidateIsWritable, legacyPaths))
         {
             return true;
         }
@@ -158,22 +85,48 @@ public sealed class InstallationCasPoolService(
             return false;
         }
 
-        if (candidateIsWritable)
-        {
-            logger.LogInformation(
-                "Using same-volume CAS pool {PoolPath} for installation {InstallationId}",
-                candidatePath,
-                preferredInstallation.Id);
-        }
-        else
-        {
-            logger.LogWarning(
-                "Installation-adjacent CAS pool {PoolPath} and same-volume ancestors are not writable; new content will use the primary pool",
-                candidatePath);
-        }
-
+        LogSelectedPoolPath(preferredInstallation, candidatePath, candidateIsWritable);
         casPoolManager.ReinitializeInstallationPool();
         return true;
+    }
+
+    private static GameInstallation SelectPreferredInstallation(IReadOnlyList<GameInstallation> installations)
+    {
+        if (installations.Count == 1)
+        {
+            return installations[0];
+        }
+
+        return installations.FirstOrDefault(installation => installation.InstallationType == GameInstallationType.Steam)
+            ?? installations.FirstOrDefault(installation => installation.InstallationType == GameInstallationType.EaApp)
+            ?? installations[0];
+    }
+
+    private static HashSet<string> CollectDerivedPaths(IReadOnlyList<GameInstallation> installations)
+    {
+        return installations
+            .Select(GetDerivedPoolPath)
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(NormalizePath)
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .ToHashSet(PathHelper.PathComparer);
+    }
+
+    private static bool AreSettingsSynchronized(
+        UserSettings currentSettings,
+        GameInstallation preferredInstallation,
+        string currentPath,
+        string effectivePath,
+        bool candidateIsWritable,
+        IReadOnlyList<string> legacyPaths)
+    {
+        return string.Equals(currentPath, effectivePath, PathHelper.PathComparison) &&
+            currentSettings.CasConfiguration.IsInstallationPoolRootPathAutoDerived == candidateIsWritable &&
+            currentSettings.CasConfiguration.LegacyInstallationPoolRootPaths
+                .Select(NormalizePath)
+                .SequenceEqual(legacyPaths, PathHelper.PathComparer) &&
+            string.Equals(currentSettings.PreferredStorageInstallationId, preferredInstallation.Id, StringComparison.Ordinal) &&
+            !currentSettings.ExplicitlySetProperties.Contains(ExplicitInstallationPoolPathKey);
     }
 
     private static string? GetBaseInstallationPath(GameInstallation installation)
@@ -282,6 +235,114 @@ public sealed class InstallationCasPoolService(
         catch (SecurityException)
         {
             return string.Empty;
+        }
+    }
+
+    private bool TryResolveCandidatePath(GameInstallation preferredInstallation, out string candidatePath)
+    {
+        candidatePath = string.Empty;
+        var derived = GetDerivedPoolPath(preferredInstallation);
+        if (string.IsNullOrWhiteSpace(derived))
+        {
+            logger.LogWarning(
+                "Preferred installation {InstallationId} has no usable path; the primary CAS pool will be used",
+                preferredInstallation.Id);
+            return false;
+        }
+
+        var normalized = NormalizePath(derived);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            logger.LogWarning("The derived installation CAS pool path is invalid; the primary pool will be used");
+            return false;
+        }
+
+        candidatePath = normalized;
+        return true;
+    }
+
+    private bool ShouldPreserveUserConfiguredPool(
+        UserSettings currentSettings,
+        string configuredCurrentPath,
+        string currentPath,
+        HashSet<string> derivedPaths)
+    {
+        var historicalAutoDerivedMarker =
+            currentSettings.ExplicitlySetProperties.Contains(ExplicitInstallationPoolPathKey);
+
+        // Older GenHub builds marked their automatically derived installation pool as "explicitly set".
+        // No user-facing setting wrote this nested key, so it is migration provenance rather than user intent.
+        if (!string.IsNullOrWhiteSpace(configuredCurrentPath) &&
+            string.IsNullOrWhiteSpace(currentPath) &&
+            !currentSettings.CasConfiguration.IsInstallationPoolRootPathAutoDerived &&
+            !historicalAutoDerivedMarker)
+        {
+            logger.LogWarning(
+                "User-configured installation CAS pool {PoolPath} is invalid; preserving the setting and using the primary pool",
+                configuredCurrentPath);
+            return true;
+        }
+
+        var currentIsAutoDerived = IsAutoDerived(currentSettings, currentPath, derivedPaths);
+        if (!string.IsNullOrWhiteSpace(currentPath) && !currentIsAutoDerived)
+        {
+            if (writabilityProbe.CanCreateStorageAt(currentPath))
+            {
+                logger.LogInformation("Keeping user-configured installation CAS pool {PoolPath}", currentPath);
+            }
+            else
+            {
+                logger.LogWarning(
+                    "User-configured installation CAS pool {PoolPath} is not writable; preserving the setting and using the primary pool",
+                    currentPath);
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private string ResolveWritableCandidatePath(GameInstallation preferredInstallation, string candidatePath, out bool isWritable)
+    {
+        if (writabilityProbe.CanCreateStorageAt(candidatePath))
+        {
+            isWritable = true;
+            return candidatePath;
+        }
+
+        var baseInstallationPath = GetBaseInstallationPath(preferredInstallation);
+        if (!string.IsNullOrWhiteSpace(baseInstallationPath))
+        {
+            foreach (var ancestor in PathHelper.EnumerateSameVolumeAncestors(baseInstallationPath))
+            {
+                var ancestorCandidate = Path.Combine(ancestor, DirectoryNames.GenHubCasPool);
+                if (writabilityProbe.CanCreateStorageAt(ancestorCandidate))
+                {
+                    isWritable = true;
+                    return NormalizePath(ancestorCandidate);
+                }
+            }
+        }
+
+        isWritable = false;
+        return candidatePath;
+    }
+
+    private void LogSelectedPoolPath(GameInstallation preferredInstallation, string candidatePath, bool isWritable)
+    {
+        if (isWritable)
+        {
+            logger.LogInformation(
+                "Using same-volume CAS pool {PoolPath} for installation {InstallationId}",
+                candidatePath,
+                preferredInstallation.Id);
+        }
+        else
+        {
+            logger.LogWarning(
+                "Installation-adjacent CAS pool {PoolPath} and same-volume ancestors are not writable; new content will use the primary pool",
+                candidatePath);
         }
     }
 }

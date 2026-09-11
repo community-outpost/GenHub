@@ -508,7 +508,23 @@ public class UserSettingsService : IUserSettingsService
                 }
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
+        catch (IOException ex)
+        {
+            _logger.LogWarning(ex, "Failed to look for pre-upgrade settings, falling back to {DefaultPath}", defaultPath);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Failed to look for pre-upgrade settings, falling back to {DefaultPath}", defaultPath);
+        }
+        catch (SecurityException ex)
+        {
+            _logger.LogWarning(ex, "Failed to look for pre-upgrade settings, falling back to {DefaultPath}", defaultPath);
+        }
+        catch (NotSupportedException ex)
+        {
+            _logger.LogWarning(ex, "Failed to look for pre-upgrade settings, falling back to {DefaultPath}", defaultPath);
+        }
+        catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Failed to look for pre-upgrade settings, falling back to {DefaultPath}", defaultPath);
         }
