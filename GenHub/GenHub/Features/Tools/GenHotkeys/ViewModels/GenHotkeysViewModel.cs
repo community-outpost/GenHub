@@ -450,6 +450,80 @@ public partial class GenHotkeysViewModel(
     }
 
     /// <summary>
+    /// Validates hotkey conflicts within a single layout.
+    /// </summary>
+    /// <param name="layout">The collection of actions in the layout.</param>
+    /// <returns>The number of conflicting actions found.</returns>
+    internal static int ValidateLayoutConflicts(ObservableCollection<HotkeyActionViewModel> layout)
+    {
+        foreach (var action in layout)
+        {
+            action.IsConflict = false;
+            action.ConflictReason = null;
+        }
+
+        var assigned = layout.Where(a => a.Hotkey.HasValue).ToList();
+        var groups = assigned.GroupBy(a => char.ToUpperInvariant(a.Hotkey.GetValueOrDefault()));
+
+        var conflictCount = 0;
+        foreach (var grp in groups)
+        {
+            var actionsInGroup = grp.ToList();
+            if (actionsInGroup.Count <= 1)
+            {
+                continue;
+            }
+
+            foreach (var action in actionsInGroup)
+            {
+                var conflictingOthers = actionsInGroup
+                    .Where(other => other != action && !AreMutuallyExclusive(action, other))
+                    .ToList();
+
+                if (conflictingOthers.Count > 0)
+                {
+                    action.IsConflict = true;
+                    var names = string.Join(", ", conflictingOthers.Select(o => o.DisplayName));
+                    action.ConflictReason = $"Conflicts with: {names}";
+                    conflictCount++;
+                }
+            }
+        }
+
+        return conflictCount;
+    }
+
+    /// <summary>
+    /// Checks whether two actions are mutually exclusive (e.g. an upgrade replacing an earlier ability on the same slot)
+    /// and therefore do not conflict when sharing the same hotkey.
+    /// </summary>
+    /// <param name="a">The first action view model.</param>
+    /// <param name="b">The second action view model.</param>
+    /// <returns><c>true</c> if the actions are mutually exclusive; otherwise, <c>false</c>.</returns>
+    internal static bool AreMutuallyExclusive(HotkeyActionViewModel a, HotkeyActionViewModel b)
+    {
+        // Daisy Cutter (Fuel Air Bomb) is upgraded and replaced by MOAB (Mother of All Bombs)
+        if (IsDaisyCutterOrMoab(a) && IsDaisyCutterOrMoab(b))
+        {
+            return true;
+        }
+
+        // Land Mines are upgraded and replaced by Neutron Mines (EMP Mines) on the same command slot
+        if (IsChinaMines(a) && IsChinaMines(b))
+        {
+            return true;
+        }
+
+        // Satellite Hack 1 is upgraded and replaced by Satellite Hack 2 on the same command slot
+        if (IsSatelliteHack(a) && IsSatelliteHack(b))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Disposes managed resources.
     /// </summary>
     /// <param name="disposing">Whether to dispose managed state.</param>
@@ -481,33 +555,28 @@ public partial class GenHotkeysViewModel(
         return count;
     }
 
-    private static int ValidateLayoutConflicts(ObservableCollection<HotkeyActionViewModel> layout)
+    private static bool IsDaisyCutterOrMoab(HotkeyActionViewModel action)
     {
-        foreach (var action in layout)
-        {
-            action.IsConflict = false;
-            action.ConflictReason = null;
-        }
+        return string.Equals(action.HotkeyString, "CONTROLBAR:DaisyCutter", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(action.HotkeyString, "CONTROLBAR:MOAB", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(action.IconName, "USADaisyCutter", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(action.IconName, "USAMOAB", StringComparison.OrdinalIgnoreCase);
+    }
 
-        var assigned = layout.Where(a => a.Hotkey.HasValue).ToList();
-        var groups = assigned.GroupBy(a => char.ToUpperInvariant(a.Hotkey.GetValueOrDefault()));
+    private static bool IsChinaMines(HotkeyActionViewModel action)
+    {
+        return string.Equals(action.HotkeyString, "CONTROLBAR:UpgradeChinaMines", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(action.HotkeyString, "CONTROLBAR:UpgradeEMPMines", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(action.IconName, "PRCLandMine", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(action.IconName, "PRCNeutronMines", StringComparison.OrdinalIgnoreCase);
+    }
 
-        var conflictCount = 0;
-        foreach (var grp in groups)
-        {
-            if (grp.Count() > 1)
-            {
-                conflictCount += grp.Count();
-                var names = string.Join(", ", grp.Select(a => a.DisplayName));
-                foreach (var conflictAct in grp)
-                {
-                    conflictAct.IsConflict = true;
-                    conflictAct.ConflictReason = $"Conflicts with: {names}";
-                }
-            }
-        }
-
-        return conflictCount;
+    private static bool IsSatelliteHack(HotkeyActionViewModel action)
+    {
+        return string.Equals(action.HotkeyString, "CONTROLBAR:UpgradeChinaSatelliteHackOne", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(action.HotkeyString, "CONTROLBAR:UpgradeChinaSatelliteHackTwo", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(action.IconName, "PRCSatelliteHack1", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(action.IconName, "PRCSatelliteHack2", StringComparison.OrdinalIgnoreCase);
     }
 
     private static char? ResolveCurrentActionHotkey(HotkeyAction action, HotkeyProfile? profile)
