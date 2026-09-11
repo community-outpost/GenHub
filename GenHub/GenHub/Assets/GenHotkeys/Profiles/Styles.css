@@ -1,0 +1,15 @@
+/* See more about Qt .css support in documentation and questions: */
+/* 1. https://doc.qt.io/qt-5/stylesheet-syntax.html */
+/* 2. https://doc.qt.io/qt-5/stylesheet-reference.html */
+/* 3. https://doc.qt.io/qt-5/stylesheet-examples.html */
+/* 4. https://forum.qt.io/topic/40151/solved-scaled-background-image-using-stylesheet/3 */
+/* 5. https://www.qtcentre.org/threads/55152-Is-it-possible-to-logically-combine-dynamic-properties-in-a-Qt-Stylesheet */
+/* 6. https://stackoverflow.com/questions/9536725/css-multiple-attribute-selectors/9536746#9536746 */
+
+/* Global style setting */
+*
+{
+    font-family: Calibri;
+    font-size: 10pt;
+    color: black;
+}

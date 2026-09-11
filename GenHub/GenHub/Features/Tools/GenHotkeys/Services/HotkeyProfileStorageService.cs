@@ -1,0 +1,201 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+using Avalonia.Platform;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Tools.GenHotkeys;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Tools.GenHotkeys;
+using GenHub.Core.Services.Tools.GenHotkeys;
+using Microsoft.Extensions.Logging;
+
+namespace GenHub.Features.Tools.GenHotkeys.Services;
+
+/// <summary>
+/// Service for loading, persisting, and managing hotkey profiles and presets.
+/// </summary>
+public class HotkeyProfileStorageService(
+    IAppConfiguration appConfig,
+    ILogger<HotkeyProfileStorageService> logger) : IHotkeyProfileStorageService
+{
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+    };
+
+    private readonly string _profilesDirectory = Path.Combine(appConfig.GetConfiguredDataPath(), "Hotkeys");
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<HotkeyProfile>> GetProfilesAsync(
+        GameType gameType,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureDirectory();
+
+        var profiles = new List<HotkeyProfile>();
+        var files = Directory.GetFiles(_profilesDirectory, "*.json");
+
+        foreach (var file in files)
+        {
+            try
+            {
+                var json = await File.ReadAllTextAsync(file, cancellationToken);
+                var profile = JsonSerializer.Deserialize<HotkeyProfile>(json);
+                if (profile != null && profile.TargetGame == gameType)
+                {
+                    profiles.Add(profile);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to read hotkey profile from {File}", file);
+            }
+        }
+
+        if (profiles.Count == 0)
+        {
+            var defaultProfile = CreateDefaultProfile(gameType);
+            await SaveProfileAsync(defaultProfile, cancellationToken);
+            profiles.Add(defaultProfile);
+        }
+
+        return profiles.OrderBy(p => p.Name).ToList();
+    }
+
+    /// <inheritdoc />
+    public async Task<HotkeyProfile> SaveProfileAsync(
+        HotkeyProfile profile,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        EnsureDirectory();
+
+        profile.UpdatedAt = DateTime.UtcNow;
+        var filePath = Path.Combine(_profilesDirectory, $"{profile.Id}.json");
+        var json = JsonSerializer.Serialize(profile, JsonOptions);
+        await File.WriteAllTextAsync(filePath, json, cancellationToken);
+        logger.LogInformation("Saved hotkey profile '{Name}' ({Id})", profile.Name, profile.Id);
+
+        return profile;
+    }
+
+    /// <inheritdoc />
+    public Task<bool> DeleteProfileAsync(
+        string profileId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
+
+        var filePath = Path.Combine(_profilesDirectory, $"{profileId}.json");
+        if (File.Exists(filePath))
+        {
+            File.Delete(filePath);
+            logger.LogInformation("Deleted hotkey profile {Id}", profileId);
+            return Task.FromResult(true);
+        }
+
+        return Task.FromResult(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<HotkeyProfile> LoadPresetAsync(
+        string presetName,
+        GameType gameType,
+        CancellationToken cancellationToken = default)
+    {
+        var profile = new HotkeyProfile
+        {
+            Name = $"{presetName} ({gameType})",
+            TargetGame = gameType,
+            OverlayEnabled = true,
+            OverlayCorner = OverlayCorner.TopLeft,
+        };
+
+        if (presetName.Contains("Vanilla", StringComparison.OrdinalIgnoreCase) ||
+            presetName.Contains("Default", StringComparison.OrdinalIgnoreCase))
+        {
+            return profile;
+        }
+
+        // Load corresponding CSF preset
+        var csfFileName = presetName.Contains("Legionnaire", StringComparison.OrdinalIgnoreCase)
+            ? "Presets/LegionnaireRU.csf"
+            : "Presets/LeikezeEN.csf";
+
+        var stream = TryOpenAssetStream(csfFileName);
+        if (stream != null)
+        {
+            using (stream)
+            {
+                var csf = CsfFile.Load(stream);
+                foreach (var (label, value) in csf.Strings)
+                {
+                    if (label.StartsWith("CONTROLBAR:", StringComparison.OrdinalIgnoreCase) ||
+                        label.StartsWith("COMMAND:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var hk = CsfFile.ExtractHotkey(value);
+                        if (hk.HasValue)
+                        {
+                            profile.KeyMappings[label] = hk.Value;
+                        }
+                    }
+                }
+            }
+        }
+
+        return profile;
+    }
+
+    private void EnsureDirectory()
+    {
+        if (!Directory.Exists(_profilesDirectory))
+        {
+            Directory.CreateDirectory(_profilesDirectory);
+        }
+    }
+
+    private HotkeyProfile CreateDefaultProfile(GameType gameType)
+    {
+        return new HotkeyProfile
+        {
+            Name = gameType == GameType.Generals ? "Default Generals Hotkeys" : "Default Zero Hour Hotkeys",
+            TargetGame = gameType,
+            OverlayEnabled = true,
+            OverlayCorner = OverlayCorner.TopLeft,
+        };
+    }
+
+    private Stream? TryOpenAssetStream(string relativePath)
+    {
+        try
+        {
+            var uri = new Uri($"avares://GenHub/Assets/GenHotkeys/{relativePath.Replace('\\', '/')}");
+            if (AssetLoader.Exists(uri))
+            {
+                return AssetLoader.Open(uri);
+            }
+        }
+        catch
+        {
+            // Fall back
+        }
+
+        var fileOnDisk = Path.Combine(AppContext.BaseDirectory, "Assets", "GenHotkeys", relativePath);
+        if (File.Exists(fileOnDisk))
+        {
+            return File.OpenRead(fileOnDisk);
+        }
+
+        var devPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Assets", "GenHotkeys", relativePath);
+        if (File.Exists(devPath))
+        {
+            return File.OpenRead(devPath);
+        }
+
+        return null;
+    }
+}

@@ -1,0 +1,15 @@
+{
+    "DebugConsole"        : false,
+    "StatusBar"           : true,
+    "DiscordRPC"          : true,
+    "ForceSystemLanguage" : true,
+    "SteamAPI"            : true,
+    "Language"            : "en",
+
+    "AllowedHotkeys" :
+    [
+        "R", "T", "Y", "U", "O", "I", "P",
+        "A", "S", "D", "F", "G", "H", "J", "K", "L",
+        "Z", "X", "C", "V", "B", "N", "M"
+    ]
+}

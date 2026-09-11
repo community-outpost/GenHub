@@ -1,0 +1,353 @@
+/* See more about Qt .css support in documentation and questions: */
+/* 1. https://doc.qt.io/qt-5/stylesheet-syntax.html */
+/* 2. https://doc.qt.io/qt-5/stylesheet-reference.html */
+/* 3. https://doc.qt.io/qt-5/stylesheet-examples.html */
+/* 4. https://forum.qt.io/topic/40151/solved-scaled-background-image-using-stylesheet/3 */
+/* 5. https://www.qtcentre.org/threads/55152-Is-it-possible-to-logically-combine-dynamic-properties-in-a-Qt-Stylesheet */
+/* 6. https://stackoverflow.com/questions/9536725/css-multiple-attribute-selectors/9536746#9536746 */
+
+/* Global style setting */
+QLabel, QRadioButton, QCheckBox { color: white; }
+
+QComboBox
+{
+    width: 70px;
+    color: white;
+    background-color: #2e39b3;
+    
+    border-style: outset;
+    border-width: 2px;
+    border-color: #b1b7ff;
+    border-radius: 3px;
+}
+
+QComboBox:checked
+{
+    background-color: #3543e7;
+    color: #baff0c;
+}
+
+QComboBox QAbstractItemView
+{
+    border-width: 2px;
+    border-radius: 3px;
+    border-style: outset;
+    border-color: #b1b7ff;
+    color: white;
+    background-color: #242c88;
+    selection-background-color: #3543e7;
+}
+
+QComboBox::drop-down
+{
+     width: 15px;
+     color: white;
+     border-color: #b1b7ff;
+     border-radius: 3px;
+     padding-left: 10px;
+}
+
+QComboBox::down-arrow { image: url(Resources/QtSources/ScrollArrowDown.webp); }
+QComboBox::up-arrow   { image: url(Resources/QtSources/ScrollArrowUp.webp); }
+
+/* ↓ Doesn't work */
+QComboBox#cmbLanguage { height: 25px; }
+
+QCheckBox::indicator
+{
+    width: 14px;
+    height: 14px;
+    background-color: rgba(177, 183, 255, 0.18);
+    border: 2px solid #b1b7ff;
+}
+
+QCheckBox::indicator:hover
+{
+    background-color: rgba(177, 183, 255, 0.28);
+    border-color: #d8dcff;
+}
+
+QCheckBox::indicator:checked
+{
+    background-color: #d8dcff;
+    border-color: white;
+}
+
+QPushButton
+{
+    font-family: Calibri;
+    font-weight: bold;
+    padding: 10px;
+    
+    color: white;
+    background-color: #181d5a;
+    
+    border-style: outset;
+    border-width: 2px;
+    border-color: #b1b7ff;
+    border-radius: 3px;
+}
+
+QPushButton:hover
+{
+    background-color: #3543e7;
+    color: #baff0c;
+}
+
+/* SelectProfileWindow */
+SelectProfileWindow QPushButton#btnGenerals,
+SelectProfileWindow QPushButton#btnGeneralsZH
+{
+    font-size: 18pt;
+    min-width: 230px;
+    max-width: 230px;
+    min-height: 110px;
+    max-height: 110px;
+    /* margin-top: 2px;
+    margin-right: 40px;
+    margin-bottom: 2px;
+    margin-left: 40px; */
+}
+
+SelectProfileWindow QPushButton#btnCustomProfile
+{
+    font-size: 16pt;
+    min-height: 64px;
+    max-height: 64px;
+    /* margin-top: 2px;
+    margin-right: 40px;
+    margin-bottom: 2px;
+    margin-left: 40px; */
+}
+
+SelectProfileWindow QPushButton#btnSettings
+{
+    border-color: transparent;
+    background-color: transparent;
+}
+
+/* LoadWindow */
+QLineEdit#txtActionName { font-style: italic; }
+
+QPushButton#btnReview
+{
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+QPushButton#btnCancel
+{ 
+    margin-bottom: 40px;
+    padding-right: 10px;
+}
+
+QPushButton#btnOk
+{
+    margin-bottom: 40px;
+    padding-left: 10px;
+}
+
+/* Start widgets and SettingsWindow style settings */
+SetUpWindowsWrapper, SelectProfileWindow, LoadWindow, SettingsWindow, QWidget#pSettingsWindow
+{
+    border-image: url(Resources/Profiles/GeneralsZH/Theme/StartMenuBackground.webp) 0 0 0 0 stretch stretch;
+    background-color: black;
+}
+
+/* Editor window style settings */
+EditorWindow
+{
+    border-image: url(Resources/Profiles/GeneralsZH/Theme/EditorBackground.webp) 0 0 0 0 stretch stretch;
+    background-color: black;
+}
+
+EditorWindow QPushButton
+{
+    font-family: Calibri;
+    font-weight: bold;
+    padding: 10px;
+    
+    background-color: #181d5a;
+    color: white;
+    
+    border-style: outset;
+    border-width: 2px;
+    border-color: #b1b7ff;
+    border-radius: 3px;
+}
+
+EditorWindow QPushButton:hover           { background-color: #3543e7; color: #baff0c; }
+EditorWindow QPushButton:pressed         { background-color: #3543e7; color: white; }
+EditorWindow QPushButton:pressed:hover   { background-color: #3543e7; color: #baff0c; }
+
+QPushButton[faction="GLA"]               { background-color: #185a22; border-color: #b1ffbf; }
+QPushButton[faction="GLA"]:hover         { background-color: #427b32; color: #c9c9c9; }
+QPushButton[faction="GLA"]:pressed       { background-color: #427b32; /*color: black;*/ }
+QPushButton[faction="GLA"]:pressed:hover { background-color: #427b32; color: #c9c9c9; }
+
+QPushButton[faction="PRC"]               { background-color: #5a1f18; border-color: #ffbbb1; }
+QPushButton[faction="PRC"]:hover         { background-color: #e74135; color: #baff0c; }
+QPushButton[faction="PRC"]:pressed       { background-color: #e74135; color: white; }
+QPushButton[faction="PRC"]:pressed:hover { background-color: #e74135; color: #baff0c; }
+
+/* QPushButton[faction="USA"] already defined as basic non-property */
+/* If you want to change -- copy and edit styles down below */
+
+EditorWindow QTreeWidget, EditorWindow QTabWidget, EditorWindow QScrollArea, EditorWindow QStatusBar
+{
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 3px;
+    border-width: 1px;
+    border-style: outset;
+    border-color: white;
+
+    color: white;
+}
+
+QTreeWidget::item
+{
+    min-height: 40px;
+    font-family: "Collibri";
+    font-size: 9pt;
+}
+
+QTreeWidget::item:selected, QTreeWidget::item:selected:!active { background-color: #3543e7; color: white; }
+
+QTreeWidget::branch:open:has-children   { background-image: url(Resources/QtSources/DropArrowDown.webp); }
+QTreeWidget::branch:closed:has-children { background-image: url(Resources/QtSources/DropArrowRight.webp); }
+
+QTabWidget QWidget
+{
+    background: rgba(0, 0, 0, 0);
+    color: white;
+    border: none; 
+}
+
+QTabWidget::pane
+{
+    background: rgba(0, 0, 0, 0);
+    color: white;
+    border: none;
+}
+
+QTabBar::tab
+{
+    background: rgba(0, 0, 0, 0);
+    height: 30px;
+    width: 120px;
+    color: white;
+
+    border-bottom-width: 1px;
+    border-bottom-style: outset;
+    border-bottom-color: white;
+}
+
+QTabBar::tab:first
+{
+    border-right-width: 1px;
+    border-right-style: outset;
+    border-right-color: white;
+}
+
+QTabBar::tab:selected
+{
+    border-right-width: 1px;
+    border-right-style: outset;
+    border-right-color: white;
+
+    background: #3543e7;
+}
+
+QTabBar::tab:selected:hover, QTabBar::tab:hover
+{
+    color: #baff0c;
+}
+
+QTabBar::tab:last
+{
+    border-bottom-right-radius: 3px;
+    border-right-width: 1px;
+    border-right-style: outset;
+    border-right-color: white;
+}
+
+QScrollBar
+{
+    background: rgba(0, 0, 0, 0);
+}
+
+QScrollBar::handle
+{
+    background: white;
+    border-radius: 1px;
+}
+
+QScrollBar::add-line, QScrollBar::sub-line, 
+QScrollBar::up-arrow, QScrollBar::down-arrow,
+QScrollBar::add-page, QScrollBar::sub-page
+{
+    background: none;
+}
+
+QDialog
+{
+    border-image: url(Resources/Profiles/GeneralsZH/Theme/StartMenuBackground.webp) 0 0 0 0 stretch stretch;
+    background-color: black;
+}
+
+QDialog QLabel       { color: white; }
+QDialog QLabel#left  { margin: 0px 0px 0px 60px; }
+QDialog QLabel#right { margin: 30px 40px 30px 0px; }
+
+/* Maybe will be useful in future */
+/* EditorWindow QMenu
+{
+    background: rgba(0, 0, 0, 0);
+    color: white;
+    border: none; 
+} */
+
+QPushButton[unique="true"]#btnHotkey
+{
+    font-weight: bold;
+    padding-left: 30px;
+    padding-right: 30px;
+    background-color: #128d2d;
+}
+
+QPushButton[unique="false"]#btnHotkey
+{
+    font-weight: bold;
+    padding-left: 30px;
+    padding-right: 30px;
+    background-color: #cb0d27;
+}
+
+QScrollArea#Keyboard QPushButton
+{
+    background: rgba(0, 0, 0, 0);
+    color: white;
+    font-size: 9pt;
+
+    border-width: 1px;
+    border-style: outset;
+    border-color: white;
+}
+
+QScrollArea#Keyboard QPushButton:hover          { color: #baff0c; }
+QScrollArea#Keyboard QPushButton[status="good"] { background-color: #128d2d; }
+QScrollArea#Keyboard QPushButton[status="bad"]  { background-color: #cb0d27; }
+QScrollArea#Keyboard QPushButton[status="null"] { background: rgba(0, 0, 0, 0); }
+
+QScrollArea#Keyboard QPushButton[key="null"]
+{
+    background: rgba(0, 0, 0, 0);
+    border-color: rgba(0, 0, 0, 0);
+}
+
+QStatusBar
+{
+    font-family: Calibri;
+    font-weight: bold;
+    padding: 10px;
+}
