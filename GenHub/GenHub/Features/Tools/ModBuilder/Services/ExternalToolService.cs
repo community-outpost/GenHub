@@ -106,7 +106,7 @@ public sealed class ExternalToolService(ILogger<ExternalToolService> logger) : I
                 timeoutCts.CancelAfter(TimeSpan.FromSeconds(ModBuilderConstants.ExternalToolTimeoutSeconds));
                 await process.WaitForExitAsync(timeoutCts.Token).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException ex)
             {
                 try
                 {
@@ -125,7 +125,7 @@ public sealed class ExternalToolService(ILogger<ExternalToolService> logger) : I
                     throw;
                 }
 
-                logger.LogError("Tool execution timed out after {Timeout} seconds: {ToolPath}", ModBuilderConstants.ExternalToolTimeoutSeconds, toolPath);
+                logger.LogError(ex, "Tool execution timed out after {Timeout} seconds: {ToolPath}", ModBuilderConstants.ExternalToolTimeoutSeconds, toolPath);
                 return ToolOperationResult.CreateFailure($"Tool execution timed out after {ModBuilderConstants.ExternalToolTimeoutSeconds} seconds: {toolPath}");
             }
 

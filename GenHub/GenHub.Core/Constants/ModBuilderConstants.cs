@@ -108,6 +108,11 @@ public static class ModBuilderConstants
     public const string FileHashRegistrySubdir = "FileHashRegistry";
 
     /// <summary>
+    /// Default bundle item name for imported game files.
+    /// </summary>
+    public const string DefaultImportedGameFilesItemName = "ImportedGameFiles";
+
+    /// <summary>
     /// Default streaming threshold size in bytes (10MB).
     /// </summary>
     public const long DefaultStreamingThresholdBytes = 10 * 1024 * 1024;

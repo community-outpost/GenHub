@@ -643,44 +643,7 @@ public partial class ConfigEditorViewModel(
         var existingItemsText = File.Exists(itemsPath) ? await File.ReadAllTextAsync(itemsPath, cancellationToken).ConfigureAwait(false) : null;
         if (existingItemsText != null && existingItemsText.Contains("\"BundleItems\"", StringComparison.OrdinalIgnoreCase))
         {
-            var existingMap = new Dictionary<string, SimplifiedBundleItem>(StringComparer.OrdinalIgnoreCase);
-            List<SimplifiedBundleItem>? existingList = null;
-            try
-            {
-                var existingSimplified = System.Text.Json.JsonSerializer.Deserialize<SimplifiedConfigRoot>(existingItemsText);
-                if (existingSimplified?.BundleItems != null)
-                {
-                    existingList = existingSimplified.BundleItems;
-                    foreach (var item in existingSimplified.BundleItems.Where(i => !string.IsNullOrWhiteSpace(i.Name)))
-                    {
-                        existingMap[item.Name!] = item;
-                    }
-                }
-            }
-            catch (System.Text.Json.JsonException ex)
-            {
-                logger.LogWarning(ex, "Could not parse existing ModBundleItems.json at {Path} for preserving custom fields", itemsPath);
-            }
-
-            var canFallbackByIndex = existingList != null && existingList.Count == Configuration.Items.Count;
-            var simplifiedItems = Configuration.Items.Select((item, index) =>
-            {
-                if (!existingMap.TryGetValue(item.Name, out var existing) && canFallbackByIndex)
-                {
-                    logger.LogInformation("Falling back to index matching for bundle item {Name} at index {Index}", item.Name, index);
-                    existing = existingList![index];
-                }
-
-                return new SimplifiedBundleItem
-                {
-                    Name = item.Name,
-                    SourceFiles = item.Files.Select(f => f.AbsSourceFile).ToList(),
-                    Big = item.IsBig,
-                    OutputFormat = existing?.OutputFormat,
-                    Compression = existing?.Compression,
-                    GenerateMipmaps = existing?.GenerateMipmaps ?? false,
-                };
-            }).ToList();
+            var simplifiedItems = BuildSimplifiedBundleItems(existingItemsText, itemsPath);
             var itemsData = new Dictionary<string, object>
             {
                 ["BundleItems"] = simplifiedItems,
@@ -692,6 +655,48 @@ public partial class ConfigEditorViewModel(
             var itemsConfig = new BuildConfiguration { Items = Configuration.Items };
             await AtomicWriteFileAsync(itemsPath, System.Text.Json.JsonSerializer.Serialize(itemsConfig, jsonOptions), cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    private List<SimplifiedBundleItem> BuildSimplifiedBundleItems(string existingItemsText, string itemsPath)
+    {
+        var existingMap = new Dictionary<string, SimplifiedBundleItem>(StringComparer.OrdinalIgnoreCase);
+        List<SimplifiedBundleItem>? existingList = null;
+        try
+        {
+            var existingSimplified = System.Text.Json.JsonSerializer.Deserialize<SimplifiedConfigRoot>(existingItemsText);
+            if (existingSimplified?.BundleItems != null)
+            {
+                existingList = existingSimplified.BundleItems;
+                foreach (var item in existingSimplified.BundleItems.Where(i => !string.IsNullOrWhiteSpace(i.Name)))
+                {
+                    existingMap[item.Name!] = item;
+                }
+            }
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            logger.LogWarning(ex, "Could not parse existing ModBundleItems.json at {Path} for preserving custom fields", itemsPath);
+        }
+
+        var canFallbackByIndex = existingList != null && Configuration != null && existingList.Count == Configuration.Items.Count;
+        return Configuration?.Items.Select((item, index) =>
+        {
+            if (!existingMap.TryGetValue(item.Name, out var existing) && canFallbackByIndex)
+            {
+                logger.LogInformation("Falling back to index matching for bundle item {Name} at index {Index}", item.Name, index);
+                existing = existingList![index];
+            }
+
+            return new SimplifiedBundleItem
+            {
+                Name = item.Name,
+                SourceFiles = item.Files.Select(f => f.AbsSourceFile).ToList(),
+                Big = item.IsBig,
+                OutputFormat = existing?.OutputFormat,
+                Compression = existing?.Compression,
+                GenerateMipmaps = existing?.GenerateMipmaps ?? false,
+            };
+        }).ToList() ?? new List<SimplifiedBundleItem>();
     }
 
     private static void SyncAlternateConfigDirectory(string projectDir, string configDir, string packsPath, string itemsPath)

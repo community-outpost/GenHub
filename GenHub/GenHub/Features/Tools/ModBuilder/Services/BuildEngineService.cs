@@ -1640,21 +1640,17 @@ public sealed class BuildEngineService : IBuildEngineService
     private static Dictionary<string, BundleFile> BuildSourceToBundleFileMap(BuildStructure buildStructure)
     {
         var map = new Dictionary<string, BundleFile>(StringComparer.OrdinalIgnoreCase);
-        if (buildStructure.BundleItems != null)
+        if (buildStructure.BundleItems == null)
         {
-            foreach (var item in buildStructure.BundleItems.Values)
-            {
-                if (item.Files != null)
-                {
-                    foreach (var file in item.Files)
-                    {
-                        if (!string.IsNullOrEmpty(file.AbsSourceFile))
-                        {
-                            map.TryAdd(file.AbsSourceFile, file);
-                        }
-                    }
-                }
-            }
+            return map;
+        }
+
+        foreach (var file in buildStructure.BundleItems.Values
+                     .Where(item => item.Files != null)
+                     .SelectMany(item => item.Files)
+                     .Where(file => !string.IsNullOrEmpty(file.AbsSourceFile)))
+        {
+            map.TryAdd(file.AbsSourceFile, file);
         }
 
         return map;
