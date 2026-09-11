@@ -1,5 +1,7 @@
 using System;
 using System.Globalization;
+using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
 using GenHub.Core.Models.Tools.GenHotkeys;
@@ -11,9 +13,9 @@ namespace GenHub.Features.Tools.GenHotkeys.Converters;
 /// </summary>
 public class FactionToBrushConverter : IValueConverter
 {
-    private static readonly IBrush UsaBrush = new SolidColorBrush(Color.Parse("#3B82F6"));
-    private static readonly IBrush ChinaBrush = new SolidColorBrush(Color.Parse("#EF4444"));
-    private static readonly IBrush GlaBrush = new SolidColorBrush(Color.Parse("#10B981"));
+    private static readonly IBrush DefaultUsaBrush = new SolidColorBrush(Color.Parse("#3B82F6"));
+    private static readonly IBrush DefaultChinaBrush = new SolidColorBrush(Color.Parse("#EF4444"));
+    private static readonly IBrush DefaultGlaBrush = new SolidColorBrush(Color.Parse("#10B981"));
 
     /// <inheritdoc />
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -22,20 +24,35 @@ public class FactionToBrushConverter : IValueConverter
         {
             HotkeyFaction faction => faction.FactionGroup,
             string s => s,
-            _ => "USA",
+            _ => HotkeyFaction.UsaGroup,
         };
 
-        return group switch
+        if (string.Equals(group, HotkeyFaction.ChinaGroup, StringComparison.OrdinalIgnoreCase))
         {
-            "China" => ChinaBrush,
-            "GLA" => GlaBrush,
-            _ => UsaBrush,
-        };
+            return TryGetThemeBrush("ErrorBrush") ?? DefaultChinaBrush;
+        }
+
+        if (string.Equals(group, HotkeyFaction.GlaGroup, StringComparison.OrdinalIgnoreCase))
+        {
+            return TryGetThemeBrush("SuccessBrush") ?? DefaultGlaBrush;
+        }
+
+        return TryGetThemeBrush("ZeroHourAccentBrush") ?? DefaultUsaBrush;
     }
 
     /// <inheritdoc />
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         throw new NotSupportedException();
+    }
+
+    private static IBrush? TryGetThemeBrush(string resourceKey)
+    {
+        if (Application.Current?.TryFindResource(resourceKey, out var resource) == true && resource is IBrush brush)
+        {
+            return brush;
+        }
+
+        return null;
     }
 }

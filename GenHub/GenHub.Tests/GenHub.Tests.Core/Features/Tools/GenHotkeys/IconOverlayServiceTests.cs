@@ -45,5 +45,8 @@ public class IconOverlayServiceTests
         // Bytes 14-15: Height (little-endian 48)
         var height = tgaBytes[14] | (tgaBytes[15] << 8);
         Assert.Equal(48, height);
+
+        // Byte 16: Pixel depth (32 bpp with alpha channel)
+        Assert.Equal(32, tgaBytes[16]);
     }
 }
