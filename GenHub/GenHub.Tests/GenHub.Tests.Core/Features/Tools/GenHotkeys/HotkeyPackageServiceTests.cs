@@ -434,7 +434,7 @@ public class HotkeyPackageServiceTests
                         var offset = (br.ReadByte() << 24) | (br.ReadByte() << 16) | (br.ReadByte() << 8) | br.ReadByte();
                         var size = (br.ReadByte() << 24) | (br.ReadByte() << 16) | (br.ReadByte() << 8) | br.ReadByte();
                         var nameBytes = new List<byte>();
-                        byte b;
+                        byte b = 0;
                         while ((b = br.ReadByte()) != 0)
                         {
                             nameBytes.Add(b);

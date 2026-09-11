@@ -22,6 +22,21 @@ public class CsfFile
 
     private readonly Dictionary<string, string> _strings = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Gets or sets the format version (default 3).</summary>
+    public uint Version { get; set; } = 3;
+
+    /// <summary>Gets or sets the language code (0 = US English).</summary>
+    public uint LanguageCode { get; set; } = 0;
+
+    /// <summary>Gets or sets the unknown/useless bytes header value (default 0).</summary>
+    public uint UselessBytes { get; set; } = 0;
+
+    /// <summary>Gets all label-value pairs.</summary>
+    public IReadOnlyDictionary<string, string> Strings => _strings;
+
+    /// <summary>Gets the count of loaded strings.</summary>
+    public int Count => _strings.Count;
+
     /// <summary>
     /// Loads a CSF file from the specified path.
     /// </summary>
@@ -198,21 +213,6 @@ public class CsfFile
         var clean = HotkeyBracketRegex.Replace(text, string.Empty);
         return clean.Replace("&", string.Empty).Trim();
     }
-
-    /// <summary>Gets or sets the format version (default 3).</summary>
-    public uint Version { get; set; } = 3;
-
-    /// <summary>Gets or sets the language code (0 = US English).</summary>
-    public uint LanguageCode { get; set; } = 0;
-
-    /// <summary>Gets or sets the unknown/useless bytes header value (default 0).</summary>
-    public uint UselessBytes { get; set; } = 0;
-
-    /// <summary>Gets all label-value pairs.</summary>
-    public IReadOnlyDictionary<string, string> Strings => _strings;
-
-    /// <summary>Gets the count of loaded strings.</summary>
-    public int Count => _strings.Count;
 
     /// <summary>
     /// Writes the CSF file to the specified destination path.

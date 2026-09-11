@@ -54,8 +54,8 @@ public class HotkeyPackageService(
             progress?.Report("Preparing customized CSF string table...");
             logger.LogDebug("Generating hotkey addon for profile '{Name}' ({Game})", profile.Name, profile.TargetGame);
 
-            // 1. Build and modify CSF
-            ApplyCsfModifications(profile, stagingDir);
+            // 1. Build and modify CSF asynchronously to avoid blocking the UI thread
+            await Task.Run(() => ApplyCsfModifications(profile, stagingDir), cancellationToken);
 
             // 2. Process Icon Overlays if enabled
             if (profile.OverlayEnabled)
@@ -256,8 +256,7 @@ public class HotkeyPackageService(
             }
         }
 
-        // Return empty CSF if preset not found
-        return new CsfFile { LanguageCode = 0, Version = 3 };
+        throw new FileNotFoundException($"Base CSF preset '{presetFile}' could not be loaded. Ensure GenHotkeys assets are present.");
     }
 
     private static Stream? TryOpenAssetStream(string relativePath)
