@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -66,7 +67,7 @@ public class HotkeyProfileStorageService(
             profiles.Add(defaultProfile);
         }
 
-        return profiles;
+        return profiles.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     /// <inheritdoc />
@@ -100,6 +101,7 @@ public class HotkeyProfileStorageService(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(profile);
+        ArgumentException.ThrowIfNullOrWhiteSpace(profile.Id);
         EnsureDirectory();
 
         profile.UpdatedAt = DateTime.UtcNow;
@@ -137,52 +139,57 @@ public class HotkeyProfileStorageService(
     {
         var profile = new HotkeyProfile
         {
-            Name = $"{presetName} ({gameType})",
+            Name = $"{presetName} Preset",
+            BasePreset = presetName,
             TargetGame = gameType,
             OverlayEnabled = true,
             OverlayCorner = OverlayCorner.TopLeft,
         };
 
-        if (presetName.Contains(GenHotkeysConstants.PresetVanilla, StringComparison.OrdinalIgnoreCase) ||
+        if (string.Equals(presetName, GenHotkeysConstants.PresetVanilla, StringComparison.OrdinalIgnoreCase) ||
             presetName.Contains("Default", StringComparison.OrdinalIgnoreCase))
         {
             return profile;
         }
 
-        // Load corresponding CSF preset
-        var csfFileName = presetName.Contains(GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase)
+        var assetPath = presetName.Contains(GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase)
             ? GenHotkeysConstants.PresetsLegionnaireRu
             : GenHotkeysConstants.PresetsLeikezeEn;
 
-        var stream = TryOpenAssetStream(csfFileName);
-        if (stream != null)
+        var stream = TryOpenAssetStream(assetPath);
+        if (stream == null)
         {
-            using (stream)
+            logger.LogWarning("Preset file not found: {Path}", assetPath);
+            return profile;
+        }
+
+        using (stream)
+        {
+            var csf = CsfFile.Load(stream);
+            foreach (var (label, value) in csf.Strings)
             {
-                var csf = CsfFile.Load(stream);
-                foreach (var (label, value) in csf.Strings)
+                if (label.StartsWith(GenHotkeysConstants.CsfControlBarPrefix, StringComparison.OrdinalIgnoreCase) ||
+                    label.StartsWith(GenHotkeysConstants.CsfCommandPrefix, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (label.StartsWith(GenHotkeysConstants.CsfControlBarPrefix, StringComparison.OrdinalIgnoreCase) ||
-                        label.StartsWith(GenHotkeysConstants.CsfCommandPrefix, StringComparison.OrdinalIgnoreCase))
+                    var hk = CsfFile.ExtractHotkey(value);
+                    if (hk.HasValue)
                     {
-                        var hk = CsfFile.ExtractHotkey(value);
-                        if (hk.HasValue)
-                        {
-                            profile.KeyMappings[label] = hk.Value;
-                        }
+                        profile.KeyMappings[label] = hk.Value;
                     }
                 }
             }
         }
 
-        return profile;
+        return await Task.FromResult(profile);
     }
 
     private static HotkeyProfile CreateDefaultProfile(GameType gameType)
     {
+        var gameTag = gameType == GameType.Generals ? "Generals" : "Zero Hour";
         return new HotkeyProfile
         {
-            Name = gameType == GameType.Generals ? "Default Generals Hotkeys" : "Default Zero Hour Hotkeys",
+            Name = $"Default ({gameTag})",
+            BasePreset = GenHotkeysConstants.PresetVanilla,
             TargetGame = gameType,
             OverlayEnabled = true,
             OverlayCorner = OverlayCorner.TopLeft,
@@ -210,32 +217,18 @@ public class HotkeyProfileStorageService(
             return File.OpenRead(fileOnDisk);
         }
 
-        var devPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Assets", "GenHotkeys", relativePath);
-        if (File.Exists(devPath))
-        {
-            return File.OpenRead(devPath);
-        }
-
         return null;
-    }
-
-    private void EnsureDirectory()
-    {
-        if (!Directory.Exists(ProfilesDirectory))
-        {
-            Directory.CreateDirectory(ProfilesDirectory);
-        }
     }
 
     private string GetSafeProfilePath(string profileId)
     {
         if (string.IsNullOrWhiteSpace(profileId) ||
-            profileId.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
             profileId.Contains("..", StringComparison.Ordinal) ||
             profileId.Contains('/') ||
-            profileId.Contains('\\'))
+            profileId.Contains('\\') ||
+            profileId.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
         {
-            throw new ArgumentException($"Invalid profile ID: '{profileId}'", nameof(profileId));
+            throw new ArgumentException($"Invalid profile identifier: '{profileId}'", nameof(profileId));
         }
 
         var fileName = $"{profileId}.json";
@@ -244,9 +237,17 @@ public class HotkeyProfileStorageService(
 
         if (!fullPath.StartsWith(dirPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
         {
-            throw new UnauthorizedAccessException("Path traversal detected.");
+            throw new ArgumentException("Path traversal detected.", nameof(profileId));
         }
 
         return fullPath;
+    }
+
+    private void EnsureDirectory()
+    {
+        if (!Directory.Exists(ProfilesDirectory))
+        {
+            Directory.CreateDirectory(ProfilesDirectory);
+        }
     }
 }
