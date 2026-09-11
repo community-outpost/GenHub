@@ -437,19 +437,12 @@ public class GameProfileManager(
             // If this is a GeneralsOnline profile, also inherit existing settings.json settings
             if (profile.IsGeneralsOnlineProfile())
             {
-                try
+                logger.LogDebug("Loading existing GeneralsOnline settings.json to populate new profile {ProfileName}", profile.Name);
+                var goLoadResult = await gameSettingsService.LoadGeneralsOnlineSettingsAsync();
+                if (goLoadResult.Success && goLoadResult.Data != null)
                 {
-                    logger.LogDebug("Loading existing GeneralsOnline settings.json to populate new profile {ProfileName}", profile.Name);
-                    var goLoadResult = await gameSettingsService.LoadGeneralsOnlineSettingsAsync();
-                    if (goLoadResult.Success && goLoadResult.Data != null)
-                    {
-                        GameSettingsMapper.ApplyFromGeneralsOnlineSettings(goLoadResult.Data, profile);
-                        logger.LogInformation("Populated profile {ProfileName} with existing GeneralsOnline settings", profile.Name);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to load existing GeneralsOnline settings for profile {ProfileName}", profile.Name);
+                    GameSettingsMapper.ApplyFromGeneralsOnlineSettings(goLoadResult.Data, profile);
+                    logger.LogInformation("Populated profile {ProfileName} with existing GeneralsOnline settings", profile.Name);
                 }
             }
         }

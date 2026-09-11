@@ -72,27 +72,6 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         return true;
     }
 
-    private static bool TryGetCaseInsensitive(Dictionary<string, string> dict, string key, out string value)
-    {
-        if (dict.TryGetValue(key, out var val))
-        {
-            value = val;
-            return true;
-        }
-
-        foreach (var kvp in dict)
-        {
-            if (string.Equals(kvp.Key, key, StringComparison.OrdinalIgnoreCase))
-            {
-                value = kvp.Value;
-                return true;
-            }
-        }
-
-        value = string.Empty;
-        return false;
-    }
-
     private readonly IGameSettingsService? _gameSettingsService = gameSettingsService;
     private readonly ILogger<GameSettingsViewModel> _logger = logger;
 
@@ -1237,21 +1216,21 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
     private void ApplyTshGameplayProperties(Dictionary<string, string> tsh)
     {
-        if (TryGetCaseInsensitive(tsh, "UseDoubleClickAttackMove", out var doubleClick))
+        if (tsh.TryGetCaseInsensitive("UseDoubleClickAttackMove", out var doubleClick))
             UseDoubleClickAttackMove = ParseBool(doubleClick);
-        if (TryGetCaseInsensitive(tsh, "ScrollFactor", out var scroll) && int.TryParse(scroll, NumberStyles.Integer, CultureInfo.InvariantCulture, out var scrollVal))
+        if (tsh.TryGetCaseInsensitive("ScrollFactor", out var scroll) && int.TryParse(scroll, NumberStyles.Integer, CultureInfo.InvariantCulture, out var scrollVal))
             ScrollFactor = scrollVal;
-        if (TryGetCaseInsensitive(tsh, "Retaliation", out var retaliation))
+        if (tsh.TryGetCaseInsensitive("Retaliation", out var retaliation))
             Retaliation = ParseBool(retaliation);
-        if (TryGetCaseInsensitive(tsh, "DynamicLOD", out var dynLOD))
+        if (tsh.TryGetCaseInsensitive("DynamicLOD", out var dynLOD))
             DynamicLOD = ParseBool(dynLOD);
-        if (TryGetCaseInsensitive(tsh, "MaxParticleCount", out var particles) && int.TryParse(particles, NumberStyles.Integer, CultureInfo.InvariantCulture, out var particleVal))
+        if (tsh.TryGetCaseInsensitive("MaxParticleCount", out var particles) && int.TryParse(particles, NumberStyles.Integer, CultureInfo.InvariantCulture, out var particleVal))
             MaxParticleCount = particleVal;
-        if (TryGetCaseInsensitive(tsh, "ArchiveReplays", out var ar)) TshArchiveReplays = ParseBool(ar);
-        if (TryGetCaseInsensitive(tsh, "ShowMoneyPerMinute", out var smpm)) TshShowMoneyPerMinute = ParseBool(smpm);
-        if (TryGetCaseInsensitive(tsh, "PlayerObserverEnabled", out var poe)) TshPlayerObserverEnabled = ParseBool(poe);
-        if (TryGetCaseInsensitive(tsh, "MoneyTransactionVolume", out var mtv) && int.TryParse(mtv, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mtvVal)) TshMoneyTransactionVolume = mtvVal;
-        if (TryGetCaseInsensitive(tsh, GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var gwt))
+        if (tsh.TryGetCaseInsensitive("ArchiveReplays", out var ar)) TshArchiveReplays = ParseBool(ar);
+        if (tsh.TryGetCaseInsensitive("ShowMoneyPerMinute", out var smpm)) TshShowMoneyPerMinute = ParseBool(smpm);
+        if (tsh.TryGetCaseInsensitive("PlayerObserverEnabled", out var poe)) TshPlayerObserverEnabled = ParseBool(poe);
+        if (tsh.TryGetCaseInsensitive("MoneyTransactionVolume", out var mtv) && int.TryParse(mtv, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mtvVal)) TshMoneyTransactionVolume = mtvVal;
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var gwt))
         {
             var parsed = GameSettingsMapper.ParseTransitionSpeedMultiplier(gwt);
             if (parsed.HasValue)
@@ -1263,16 +1242,16 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
     private void ApplyTshUiCursorProperties(Dictionary<string, string> tsh)
     {
-        if (TryGetCaseInsensitive(tsh, "SystemTimeFontSize", out var stfs) && int.TryParse(stfs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var stfsVal)) TshSystemTimeFontSize = stfsVal;
-        if (TryGetCaseInsensitive(tsh, "NetworkLatencyFontSize", out var nlfs) && int.TryParse(nlfs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var nlfsVal)) TshNetworkLatencyFontSize = nlfsVal;
-        if (TryGetCaseInsensitive(tsh, "RenderFpsFontSize", out var rffs) && int.TryParse(rffs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rffsVal)) TshRenderFpsFontSize = rffsVal;
-        if (TryGetCaseInsensitive(tsh, "ResolutionFontAdjustment", out var rfa) && int.TryParse(rfa, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rfaVal)) TshResolutionFontAdjustment = rfaVal;
-        if (TryGetCaseInsensitive(tsh, "CursorCaptureEnabledInFullscreenGame", out var ccefg)) TshCursorCaptureEnabledInFullscreenGame = ParseBool(ccefg);
-        if (TryGetCaseInsensitive(tsh, "CursorCaptureEnabledInFullscreenMenu", out var ccefm)) TshCursorCaptureEnabledInFullscreenMenu = ParseBool(ccefm);
-        if (TryGetCaseInsensitive(tsh, "CursorCaptureEnabledInWindowedGame", out var ccewg)) TshCursorCaptureEnabledInWindowedGame = ParseBool(ccewg);
-        if (TryGetCaseInsensitive(tsh, "CursorCaptureEnabledInWindowedMenu", out var ccewm)) TshCursorCaptureEnabledInWindowedMenu = ParseBool(ccewm);
-        if (TryGetCaseInsensitive(tsh, "ScreenEdgeScrollEnabledInFullscreenApp", out var sesefa)) TshScreenEdgeScrollEnabledInFullscreenApp = ParseBool(sesefa);
-        if (TryGetCaseInsensitive(tsh, "ScreenEdgeScrollEnabledInWindowedApp", out var sesewa)) TshScreenEdgeScrollEnabledInWindowedApp = ParseBool(sesewa);
+        if (tsh.TryGetCaseInsensitive("SystemTimeFontSize", out var stfs) && int.TryParse(stfs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var stfsVal)) TshSystemTimeFontSize = stfsVal;
+        if (tsh.TryGetCaseInsensitive("NetworkLatencyFontSize", out var nlfs) && int.TryParse(nlfs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var nlfsVal)) TshNetworkLatencyFontSize = nlfsVal;
+        if (tsh.TryGetCaseInsensitive("RenderFpsFontSize", out var rffs) && int.TryParse(rffs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rffsVal)) TshRenderFpsFontSize = rffsVal;
+        if (tsh.TryGetCaseInsensitive("ResolutionFontAdjustment", out var rfa) && int.TryParse(rfa, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rfaVal)) TshResolutionFontAdjustment = rfaVal;
+        if (tsh.TryGetCaseInsensitive("CursorCaptureEnabledInFullscreenGame", out var ccefg)) TshCursorCaptureEnabledInFullscreenGame = ParseBool(ccefg);
+        if (tsh.TryGetCaseInsensitive("CursorCaptureEnabledInFullscreenMenu", out var ccefm)) TshCursorCaptureEnabledInFullscreenMenu = ParseBool(ccefm);
+        if (tsh.TryGetCaseInsensitive("CursorCaptureEnabledInWindowedGame", out var ccewg)) TshCursorCaptureEnabledInWindowedGame = ParseBool(ccewg);
+        if (tsh.TryGetCaseInsensitive("CursorCaptureEnabledInWindowedMenu", out var ccewm)) TshCursorCaptureEnabledInWindowedMenu = ParseBool(ccewm);
+        if (tsh.TryGetCaseInsensitive("ScreenEdgeScrollEnabledInFullscreenApp", out var sesefa)) TshScreenEdgeScrollEnabledInFullscreenApp = ParseBool(sesefa);
+        if (tsh.TryGetCaseInsensitive("ScreenEdgeScrollEnabledInWindowedApp", out var sesewa)) TshScreenEdgeScrollEnabledInWindowedApp = ParseBool(sesewa);
     }
 
     private IniOptions CreateOptionsFromViewModel()

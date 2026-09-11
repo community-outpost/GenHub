@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Models.Enums;
@@ -721,7 +722,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
 
         // TheSuperHackers settings
         var tshKvp = options.AdditionalSections.FirstOrDefault(s => string.Equals(s.Key, "TheSuperHackers", StringComparison.OrdinalIgnoreCase));
-        if (tshKvp.Value != null && tshKvp.Value.Count > 0)
+        if (tshKvp.Value is { Count: > 0 })
         {
             lines.Add(string.Empty);
             lines.Add("[TheSuperHackers]");
@@ -759,72 +760,51 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
 
     private static string BoolToString(bool value) => value ? "yes" : "no";
 
-    private static bool TryGetCaseInsensitive(Dictionary<string, string> values, string key, out string value)
-    {
-        if (values.TryGetValue(key, out var val))
-        {
-            value = val;
-            return true;
-        }
-
-        foreach (var kvp in values)
-        {
-            if (string.Equals(kvp.Key, key, StringComparison.OrdinalIgnoreCase))
-            {
-                value = kvp.Value;
-                return true;
-            }
-        }
-
-        value = string.Empty;
-        return false;
-    }
-
     private static void ParseTheSuperHackersSection(TheSuperHackersSettings settings, Dictionary<string, string> values)
     {
-        if (TryGetCaseInsensitive(values, "ArchiveReplays", out var archiveReplays))
+        if (values.TryGetCaseInsensitive("ArchiveReplays", out var archiveReplays))
             settings.ArchiveReplays = ParseBool(archiveReplays);
 
-        if (TryGetCaseInsensitive(values, "CursorCaptureEnabledInFullscreenGame", out var cursorFullscreenGame))
+        if (values.TryGetCaseInsensitive("CursorCaptureEnabledInFullscreenGame", out var cursorFullscreenGame))
             settings.CursorCaptureEnabledInFullscreenGame = ParseBool(cursorFullscreenGame);
 
-        if (TryGetCaseInsensitive(values, "CursorCaptureEnabledInFullscreenMenu", out var cursorFullscreenMenu))
+        if (values.TryGetCaseInsensitive("CursorCaptureEnabledInFullscreenMenu", out var cursorFullscreenMenu))
             settings.CursorCaptureEnabledInFullscreenMenu = ParseBool(cursorFullscreenMenu);
 
-        if (TryGetCaseInsensitive(values, "CursorCaptureEnabledInWindowedGame", out var cursorWindowedGame))
+        if (values.TryGetCaseInsensitive("CursorCaptureEnabledInWindowedGame", out var cursorWindowedGame))
             settings.CursorCaptureEnabledInWindowedGame = ParseBool(cursorWindowedGame);
 
-        if (TryGetCaseInsensitive(values, "CursorCaptureEnabledInWindowedMenu", out var cursorWindowedMenu))
+        if (values.TryGetCaseInsensitive("CursorCaptureEnabledInWindowedMenu", out var cursorWindowedMenu))
             settings.CursorCaptureEnabledInWindowedMenu = ParseBool(cursorWindowedMenu);
 
-        if (TryGetCaseInsensitive(values, "MoneyTransactionVolume", out var moneyVolume) && int.TryParse(moneyVolume, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mv))
+        if (values.TryGetCaseInsensitive("MoneyTransactionVolume", out var moneyVolume) && int.TryParse(moneyVolume, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mv))
             settings.MoneyTransactionVolume = mv;
 
-        if (TryGetCaseInsensitive(values, "NetworkLatencyFontSize", out var netLatencyFont) && int.TryParse(netLatencyFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var nlf))
+        if (values.TryGetCaseInsensitive("NetworkLatencyFontSize", out var netLatencyFont) && int.TryParse(netLatencyFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var nlf))
             settings.NetworkLatencyFontSize = nlf;
 
-        if (TryGetCaseInsensitive(values, "PlayerObserverEnabled", out var playerObserver))
+        if (values.TryGetCaseInsensitive("PlayerObserverEnabled", out var playerObserver))
             settings.PlayerObserverEnabled = ParseBool(playerObserver);
 
-        if (TryGetCaseInsensitive(values, "RenderFpsFontSize", out var fpsFont) && int.TryParse(fpsFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var ff))
+        if (values.TryGetCaseInsensitive("RenderFpsFontSize", out var fpsFont) && int.TryParse(fpsFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var ff))
             settings.RenderFpsFontSize = ff;
 
-        if (TryGetCaseInsensitive(values, "ResolutionFontAdjustment", out var resFontAdj) && int.TryParse(resFontAdj, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rfa))
+        if (values.TryGetCaseInsensitive("ResolutionFontAdjustment", out var resFontAdj) && int.TryParse(resFontAdj, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rfa))
             settings.ResolutionFontAdjustment = rfa;
 
-        if (TryGetCaseInsensitive(values, "ScreenEdgeScrollEnabledInFullscreenApp", out var scrollFullscreen))
+        if (values.TryGetCaseInsensitive("ScreenEdgeScrollEnabledInFullscreenApp", out var scrollFullscreen))
             settings.ScreenEdgeScrollEnabledInFullscreenApp = ParseBool(scrollFullscreen);
 
-        if (TryGetCaseInsensitive(values, "ScreenEdgeScrollEnabledInWindowedApp", out var scrollWindowed))
+        if (values.TryGetCaseInsensitive("ScreenEdgeScrollEnabledInWindowedApp", out var scrollWindowed))
             settings.ScreenEdgeScrollEnabledInWindowedApp = ParseBool(scrollWindowed);
 
-        if (TryGetCaseInsensitive(values, "ShowMoneyPerMinute", out var showMoney))
+        if (values.TryGetCaseInsensitive("ShowMoneyPerMinute", out var showMoney))
             settings.ShowMoneyPerMinute = ParseBool(showMoney);
 
-        if (TryGetCaseInsensitive(values, "SystemTimeFontSize", out var sysTimeFont) && int.TryParse(sysTimeFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var stf))
+        if (values.TryGetCaseInsensitive("SystemTimeFontSize", out var sysTimeFont) && int.TryParse(sysTimeFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var stf))
             settings.SystemTimeFontSize = stf;
 
-        if (TryGetCaseInsensitive(values, GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var speedMult))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var speedMult))
         {
             var parsed = GameSettingsMapper.ParseTransitionSpeedMultiplier(speedMult);
             if (parsed.HasValue)

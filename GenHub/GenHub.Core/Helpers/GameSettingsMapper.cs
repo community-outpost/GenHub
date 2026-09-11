@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameSettings;
@@ -510,100 +511,6 @@ public static class GameSettingsMapper
     }
 
     /// <summary>
-    /// Copies settings from one GameProfile to another.
-    /// </summary>
-    /// <param name="target">The target GameProfile.</param>
-    /// <param name="source">The source GameProfile.</param>
-    public static void CopySettings(GameProfile target, GameProfile source)
-    {
-        target.VideoResolutionWidth = source.VideoResolutionWidth;
-        target.VideoResolutionHeight = source.VideoResolutionHeight;
-        target.VideoWindowed = source.VideoWindowed;
-        target.VideoTextureQuality = source.VideoTextureQuality;
-        target.EnableVideoShadows = source.EnableVideoShadows;
-        target.VideoParticleEffects = source.VideoParticleEffects;
-        target.VideoExtraAnimations = source.VideoExtraAnimations;
-        target.VideoBuildingAnimations = source.VideoBuildingAnimations;
-        target.VideoGamma = source.VideoGamma;
-        target.VideoAlternateMouseSetup = source.VideoAlternateMouseSetup;
-        target.VideoHeatEffects = source.VideoHeatEffects;
-        target.VideoStaticGameLOD = source.VideoStaticGameLOD;
-        target.VideoIdealStaticGameLOD = source.VideoIdealStaticGameLOD;
-        target.VideoUseDoubleClickAttackMove = source.VideoUseDoubleClickAttackMove;
-        target.VideoScrollFactor = source.VideoScrollFactor;
-        target.VideoRetaliation = source.VideoRetaliation;
-        target.VideoDynamicLOD = source.VideoDynamicLOD;
-        target.VideoMaxParticleCount = source.VideoMaxParticleCount;
-        target.VideoAntiAliasing = source.VideoAntiAliasing;
-        target.VideoDrawScrollAnchor = source.VideoDrawScrollAnchor;
-        target.VideoMoveScrollAnchor = source.VideoMoveScrollAnchor;
-        target.VideoGameTimeFontSize = source.VideoGameTimeFontSize;
-        target.GameLanguageFilter = source.GameLanguageFilter;
-        target.NetworkSendDelay = source.NetworkSendDelay;
-        target.VideoShowSoftWaterEdge = source.VideoShowSoftWaterEdge;
-        target.VideoShowTrees = source.VideoShowTrees;
-        target.VideoUseCloudMap = source.VideoUseCloudMap;
-        target.VideoUseLightMap = source.VideoUseLightMap;
-
-        target.AudioSoundVolume = source.AudioSoundVolume;
-        target.AudioThreeDSoundVolume = source.AudioThreeDSoundVolume;
-        target.AudioSpeechVolume = source.AudioSpeechVolume;
-        target.AudioMusicVolume = source.AudioMusicVolume;
-        target.AudioEnabled = source.AudioEnabled;
-        target.AudioNumSounds = source.AudioNumSounds;
-
-        target.TshArchiveReplays = source.TshArchiveReplays;
-        target.TshShowMoneyPerMinute = source.TshShowMoneyPerMinute;
-        target.TshPlayerObserverEnabled = source.TshPlayerObserverEnabled;
-        target.TshSystemTimeFontSize = source.TshSystemTimeFontSize;
-        target.TshNetworkLatencyFontSize = source.TshNetworkLatencyFontSize;
-        target.TshRenderFpsFontSize = source.TshRenderFpsFontSize;
-        target.TshResolutionFontAdjustment = source.TshResolutionFontAdjustment;
-        target.TshCursorCaptureEnabledInFullscreenGame = source.TshCursorCaptureEnabledInFullscreenGame;
-        target.TshCursorCaptureEnabledInFullscreenMenu = source.TshCursorCaptureEnabledInFullscreenMenu;
-        target.TshCursorCaptureEnabledInWindowedGame = source.TshCursorCaptureEnabledInWindowedGame;
-        target.TshCursorCaptureEnabledInWindowedMenu = source.TshCursorCaptureEnabledInWindowedMenu;
-        target.TshScreenEdgeScrollEnabledInFullscreenApp = source.TshScreenEdgeScrollEnabledInFullscreenApp;
-        target.TshScreenEdgeScrollEnabledInWindowedApp = source.TshScreenEdgeScrollEnabledInWindowedApp;
-        target.TshMoneyTransactionVolume = source.TshMoneyTransactionVolume;
-        target.TshGameWindowTransitionSpeedMultiplier = source.TshGameWindowTransitionSpeedMultiplier;
-
-        target.GoShowFps = source.GoShowFps;
-        target.GoShowPing = source.GoShowPing;
-        target.GoShowPlayerRanks = source.GoShowPlayerRanks;
-        target.GoAutoLogin = source.GoAutoLogin;
-        target.GoRememberUsername = source.GoRememberUsername;
-        target.GoEnableNotifications = source.GoEnableNotifications;
-        target.GoEnableSoundNotifications = source.GoEnableSoundNotifications;
-        target.GoChatFontSize = source.GoChatFontSize;
-
-        target.GoCameraMaxHeightOnlyWhenLobbyHost = source.GoCameraMaxHeightOnlyWhenLobbyHost;
-        target.GoCameraMinHeight = source.GoCameraMinHeight;
-        target.GoCameraMoveSpeedRatio = source.GoCameraMoveSpeedRatio;
-
-        target.GoChatDurationSecondsUntilFadeOut = source.GoChatDurationSecondsUntilFadeOut;
-
-        target.GoDebugVerboseLogging = source.GoDebugVerboseLogging;
-
-        target.GoRenderFpsLimit = source.GoRenderFpsLimit;
-        target.GoRenderLimitFramerate = source.GoRenderLimitFramerate;
-        target.GoRenderStatsOverlay = source.GoRenderStatsOverlay;
-
-        target.GoSocialNotificationFriendComesOnlineGameplay = source.GoSocialNotificationFriendComesOnlineGameplay;
-        target.GoSocialNotificationFriendComesOnlineMenus = source.GoSocialNotificationFriendComesOnlineMenus;
-        target.GoSocialNotificationFriendGoesOfflineGameplay = source.GoSocialNotificationFriendGoesOfflineGameplay;
-        target.GoSocialNotificationFriendGoesOfflineMenus = source.GoSocialNotificationFriendGoesOfflineMenus;
-        target.GoSocialNotificationPlayerAcceptsRequestGameplay = source.GoSocialNotificationPlayerAcceptsRequestGameplay;
-        target.GoSocialNotificationPlayerAcceptsRequestMenus = source.GoSocialNotificationPlayerAcceptsRequestMenus;
-        target.GoSocialNotificationPlayerSendsRequestGameplay = source.GoSocialNotificationPlayerSendsRequestGameplay;
-        target.GoSocialNotificationPlayerSendsRequestMenus = source.GoSocialNotificationPlayerSendsRequestMenus;
-
-        target.UseSteamLaunch = source.UseSteamLaunch;
-        target.GameSpyIPAddress = source.GameSpyIPAddress;
-        target.VideoSkipEALogo = source.VideoSkipEALogo;
-    }
-
-    /// <summary>
     /// Normalizes and clamps a transition speed multiplier value to the supported range.
     /// </summary>
     /// <param name="value">The float value.</param>
@@ -685,27 +592,6 @@ public static class GameSettingsMapper
         ApplyTshHierarchicalSettingsFromOptions(options, profile);
     }
 
-    private static bool TryGetSetting(Dictionary<string, string> dict, string key, out string value)
-    {
-        if (dict.TryGetValue(key, out var val))
-        {
-            value = val;
-            return true;
-        }
-
-        foreach (var kvp in dict)
-        {
-            if (string.Equals(kvp.Key, key, StringComparison.OrdinalIgnoreCase))
-            {
-                value = kvp.Value;
-                return true;
-            }
-        }
-
-        value = string.Empty;
-        return false;
-    }
-
     private static void ApplyTshFlatSettingsFromOptions(IniOptions options, GameProfile profile)
     {
         ApplyTshProperties(options.Video.AdditionalProperties, profile);
@@ -715,7 +601,7 @@ public static class GameSettingsMapper
     {
         var tshKvp = options.AdditionalSections.FirstOrDefault(s =>
             string.Equals(s.Key, "TheSuperHackers", StringComparison.OrdinalIgnoreCase));
-        if (tshKvp.Value != null)
+        if (tshKvp.Value is { Count: > 0 })
         {
             ApplyTshProperties(tshKvp.Value, profile);
         }
@@ -723,20 +609,29 @@ public static class GameSettingsMapper
 
     private static void ApplyTshProperties(Dictionary<string, string> tsh, GameProfile profile)
     {
-        if (TryGetSetting(tsh, "UseDoubleClickAttackMove", out var doubleClickTsh))
+        ApplyTshVideoSettings(tsh, profile);
+        ApplyTshFeatureSettings(tsh, profile);
+        ApplyTshFontSettings(tsh, profile);
+        ApplyTshCursorSettings(tsh, profile);
+        ApplyTshScrollAndAudioSettings(tsh, profile);
+    }
+
+    private static void ApplyTshVideoSettings(Dictionary<string, string> tsh, GameProfile profile)
+    {
+        if (tsh.TryGetCaseInsensitive("UseDoubleClickAttackMove", out var doubleClickTsh))
             profile.VideoUseDoubleClickAttackMove = ParseBool(doubleClickTsh);
-        else if (TryGetSetting(tsh, "UseDoubleClick", out var dblTsh))
+        else if (tsh.TryGetCaseInsensitive("UseDoubleClick", out var dblTsh))
             profile.VideoUseDoubleClickAttackMove = ParseBool(dblTsh);
 
-        if (TryGetSetting(tsh, "ScrollFactor", out var scrollTsh) && int.TryParse(scrollTsh, NumberStyles.Integer, CultureInfo.InvariantCulture, out var scrollTshVal))
+        if (tsh.TryGetCaseInsensitive("ScrollFactor", out var scrollTsh) && int.TryParse(scrollTsh, NumberStyles.Integer, CultureInfo.InvariantCulture, out var scrollTshVal))
             profile.VideoScrollFactor = scrollTshVal;
-        if (TryGetSetting(tsh, "Retaliation", out var retaliationTsh))
+        if (tsh.TryGetCaseInsensitive("Retaliation", out var retaliationTsh))
             profile.VideoRetaliation = ParseBool(retaliationTsh);
-        if (TryGetSetting(tsh, "DynamicLOD", out var dynLODTsh))
+        if (tsh.TryGetCaseInsensitive("DynamicLOD", out var dynLODTsh))
             profile.VideoDynamicLOD = ParseBool(dynLODTsh);
-        if (TryGetSetting(tsh, "MaxParticleCount", out var particlesTsh) && int.TryParse(particlesTsh, NumberStyles.Integer, CultureInfo.InvariantCulture, out var particlesTshVal))
+        if (tsh.TryGetCaseInsensitive("MaxParticleCount", out var particlesTsh) && int.TryParse(particlesTsh, NumberStyles.Integer, CultureInfo.InvariantCulture, out var particlesTshVal))
             profile.VideoMaxParticleCount = particlesTshVal;
-        if (TryGetSetting(tsh, GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var speedTsh))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var speedTsh))
         {
             var parsed = ParseTransitionSpeedMultiplier(speedTsh);
             if (parsed.HasValue)
@@ -744,34 +639,49 @@ public static class GameSettingsMapper
                 profile.TshGameWindowTransitionSpeedMultiplier = parsed.Value;
             }
         }
+    }
 
-        if (TryGetSetting(tsh, "ArchiveReplays", out var archiveReplays))
+    private static void ApplyTshFeatureSettings(Dictionary<string, string> tsh, GameProfile profile)
+    {
+        if (tsh.TryGetCaseInsensitive("ArchiveReplays", out var archiveReplays))
             profile.TshArchiveReplays = ParseBool(archiveReplays);
-        if (TryGetSetting(tsh, "ShowMoneyPerMinute", out var showMoney))
+        if (tsh.TryGetCaseInsensitive("ShowMoneyPerMinute", out var showMoney))
             profile.TshShowMoneyPerMinute = ParseBool(showMoney);
-        if (TryGetSetting(tsh, "PlayerObserverEnabled", out var playerObserver))
+        if (tsh.TryGetCaseInsensitive("PlayerObserverEnabled", out var playerObserver))
             profile.TshPlayerObserverEnabled = ParseBool(playerObserver);
-        if (TryGetSetting(tsh, "SystemTimeFontSize", out var sysTimeFont) && int.TryParse(sysTimeFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var stf))
+    }
+
+    private static void ApplyTshFontSettings(Dictionary<string, string> tsh, GameProfile profile)
+    {
+        if (tsh.TryGetCaseInsensitive("SystemTimeFontSize", out var sysTimeFont) && int.TryParse(sysTimeFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var stf))
             profile.TshSystemTimeFontSize = stf;
-        if (TryGetSetting(tsh, "NetworkLatencyFontSize", out var netLatencyFont) && int.TryParse(netLatencyFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var nlf))
+        if (tsh.TryGetCaseInsensitive("NetworkLatencyFontSize", out var netLatencyFont) && int.TryParse(netLatencyFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var nlf))
             profile.TshNetworkLatencyFontSize = nlf;
-        if (TryGetSetting(tsh, "RenderFpsFontSize", out var fpsFont) && int.TryParse(fpsFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var ff))
+        if (tsh.TryGetCaseInsensitive("RenderFpsFontSize", out var fpsFont) && int.TryParse(fpsFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var ff))
             profile.TshRenderFpsFontSize = ff;
-        if (TryGetSetting(tsh, "ResolutionFontAdjustment", out var resFontAdj) && int.TryParse(resFontAdj, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rfa))
+        if (tsh.TryGetCaseInsensitive("ResolutionFontAdjustment", out var resFontAdj) && int.TryParse(resFontAdj, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rfa))
             profile.TshResolutionFontAdjustment = rfa;
-        if (TryGetSetting(tsh, "CursorCaptureEnabledInFullscreenGame", out var cursorFullscreenGame))
+    }
+
+    private static void ApplyTshCursorSettings(Dictionary<string, string> tsh, GameProfile profile)
+    {
+        if (tsh.TryGetCaseInsensitive("CursorCaptureEnabledInFullscreenGame", out var cursorFullscreenGame))
             profile.TshCursorCaptureEnabledInFullscreenGame = ParseBool(cursorFullscreenGame);
-        if (TryGetSetting(tsh, "CursorCaptureEnabledInFullscreenMenu", out var cursorFullscreenMenu))
+        if (tsh.TryGetCaseInsensitive("CursorCaptureEnabledInFullscreenMenu", out var cursorFullscreenMenu))
             profile.TshCursorCaptureEnabledInFullscreenMenu = ParseBool(cursorFullscreenMenu);
-        if (TryGetSetting(tsh, "CursorCaptureEnabledInWindowedGame", out var cursorWindowedGame))
+        if (tsh.TryGetCaseInsensitive("CursorCaptureEnabledInWindowedGame", out var cursorWindowedGame))
             profile.TshCursorCaptureEnabledInWindowedGame = ParseBool(cursorWindowedGame);
-        if (TryGetSetting(tsh, "CursorCaptureEnabledInWindowedMenu", out var cursorWindowedMenu))
+        if (tsh.TryGetCaseInsensitive("CursorCaptureEnabledInWindowedMenu", out var cursorWindowedMenu))
             profile.TshCursorCaptureEnabledInWindowedMenu = ParseBool(cursorWindowedMenu);
-        if (TryGetSetting(tsh, "ScreenEdgeScrollEnabledInFullscreenApp", out var scrollFullscreen))
+    }
+
+    private static void ApplyTshScrollAndAudioSettings(Dictionary<string, string> tsh, GameProfile profile)
+    {
+        if (tsh.TryGetCaseInsensitive("ScreenEdgeScrollEnabledInFullscreenApp", out var scrollFullscreen))
             profile.TshScreenEdgeScrollEnabledInFullscreenApp = ParseBool(scrollFullscreen);
-        if (TryGetSetting(tsh, "ScreenEdgeScrollEnabledInWindowedApp", out var scrollWindowed))
+        if (tsh.TryGetCaseInsensitive("ScreenEdgeScrollEnabledInWindowedApp", out var scrollWindowed))
             profile.TshScreenEdgeScrollEnabledInWindowedApp = ParseBool(scrollWindowed);
-        if (TryGetSetting(tsh, "MoneyTransactionVolume", out var moneyVolume) && int.TryParse(moneyVolume, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mv))
+        if (tsh.TryGetCaseInsensitive("MoneyTransactionVolume", out var moneyVolume) && int.TryParse(moneyVolume, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mv))
             profile.TshMoneyTransactionVolume = mv;
     }
 
