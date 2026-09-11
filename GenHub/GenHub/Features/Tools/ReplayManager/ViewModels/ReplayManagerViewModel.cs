@@ -137,16 +137,56 @@ public partial class ReplayManagerViewModel(
     private ReplaySlotInfo? selectedSlot;
 
     /// <summary>
-    /// Gets or sets the target frame number for minting a new checkpoint.
+    /// Gets or sets the target time in seconds for creating a new checkpoint.
     /// </summary>
     [ObservableProperty]
-    private int targetCheckpointFrame = 12000;
+    private double targetCheckpointTimeSeconds = 60;
 
     /// <summary>
-    /// Gets or sets a value indicating whether a checkpoint is currently being minted.
+    /// Gets or sets the maximum time in seconds for the active replay.
+    /// </summary>
+    [ObservableProperty]
+    private double maxCheckpointSeconds = 600;
+
+    /// <summary>
+    /// Gets or sets the maximum frame number for the active replay.
+    /// </summary>
+    [ObservableProperty]
+    private int maxCheckpointFrames = 18000;
+
+    /// <summary>
+    /// Gets or sets the display text for the selected checkpoint time and frame.
+    /// </summary>
+    [ObservableProperty]
+    private string checkpointTimeDisplay = "01:00 — 60s (1,800 frames)";
+
+    /// <summary>
+    /// Gets or sets the display text for the replay total duration and max frame.
+    /// </summary>
+    [ObservableProperty]
+    private string maxCheckpointTimeDisplay = "10:00 — 600s (18,000 frames)";
+
+    /// <summary>
+    /// Gets or sets the target frame number for creating a new checkpoint.
+    /// </summary>
+    [ObservableProperty]
+    private int targetCheckpointFrame = 1800;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether a checkpoint is currently being created.
     /// </summary>
     [ObservableProperty]
     private bool isMintingCheckpoint;
+
+    partial void OnTargetCheckpointTimeSecondsChanged(double value)
+    {
+        UpdateCheckpointTimingDisplay();
+    }
+
+    partial void OnSelectedCompatibleProfileChanged(GameProfile? value)
+    {
+        UpdateReplayTimingBounds();
+    }
 
     [ObservableProperty]
     private string searchText = string.Empty;
@@ -1311,6 +1351,7 @@ public partial class ReplayManagerViewModel(
         {
             await PopulateCompatibleProfilesAsync(replay);
             await PopulateCheckpointsAndSlotsAsync(replay);
+            UpdateReplayTimingBounds();
             IsCheckpointDrawerOpen = true;
         }
         catch (Exception ex)
@@ -1389,7 +1430,7 @@ public partial class ReplayManagerViewModel(
     }
 
     /// <summary>
-    /// Cancels an active checkpoint minting operation.
+    /// Cancels an active checkpoint creation operation.
     /// </summary>
     [RelayCommand]
     private void CancelMintCheckpoint()
@@ -1397,16 +1438,22 @@ public partial class ReplayManagerViewModel(
         if (IsMintingCheckpoint)
         {
             checkpointService.CancelActiveMint();
-            StatusMessage = "Canceling checkpoint minting...";
+            StatusMessage = "Canceling checkpoint creation...";
         }
     }
 
     /// <summary>
-    /// Mints a new checkpoint save at the target frame for the active replay.
+    /// Alias for CancelMintCheckpointCommand.
+    /// </summary>
+    [RelayCommand]
+    private void CancelCheckpoint() => CancelMintCheckpoint();
+
+    /// <summary>
+    /// Creates a new checkpoint save at the target time and frame for the active replay.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [RelayCommand]
-    private async Task MintCheckpointAsync()
+    private async Task CreateCheckpointAsync()
     {
         if (ActiveCheckpointReplay == null)
         {
@@ -1415,12 +1462,12 @@ public partial class ReplayManagerViewModel(
 
         if (SelectedCompatibleProfile == null)
         {
-            notificationService.ShowWarning("No Profile Selected", "Please select a compatible game profile to mint the checkpoint.");
+            notificationService.ShowWarning("No Profile Selected", "Please select a compatible game profile to create the checkpoint.");
             return;
         }
 
         IsMintingCheckpoint = true;
-        StatusMessage = $"Minting checkpoint at frame {TargetCheckpointFrame}...";
+        StatusMessage = $"Creating checkpoint at {CheckpointTimeDisplay}...";
 
         try
         {
@@ -1435,40 +1482,124 @@ public partial class ReplayManagerViewModel(
                 SelectedCheckpoint = result.Data;
                 notificationService.ShowSuccess(
                     "Checkpoint Created",
-                    $"Minted checkpoint {result.Data.FileName} at frame {result.Data.TargetFrame}.");
+                    $"Created checkpoint {result.Data.FileName} at {CheckpointTimeDisplay}.");
                 StatusMessage = $"Checkpoint {result.Data.FileName} created.";
             }
             else
             {
-                var error = result.FirstError ?? "Failed to mint checkpoint.";
+                var error = result.FirstError ?? "Failed to create checkpoint.";
                 if (string.Equals(error, ReplayManagerConstants.CheckpointMintingCanceledErrorMessage, StringComparison.Ordinal) ||
                     error.Contains("canceled", StringComparison.OrdinalIgnoreCase))
                 {
-                    notificationService.ShowInfo("Minting Canceled", "Checkpoint minting was canceled.");
-                    StatusMessage = "Minting canceled.";
+                    notificationService.ShowInfo("Checkpoint Creation Canceled", "Checkpoint creation was canceled.");
+                    StatusMessage = "Checkpoint creation canceled.";
                 }
                 else
                 {
-                    notificationService.ShowError("Minting Failed", error);
-                    StatusMessage = "Minting failed.";
+                    notificationService.ShowError("Checkpoint Creation Failed", error);
+                    StatusMessage = "Checkpoint creation failed.";
                 }
             }
         }
         catch (OperationCanceledException)
         {
-            notificationService.ShowInfo("Minting Canceled", "Checkpoint minting was canceled.");
-            StatusMessage = "Minting canceled.";
+            notificationService.ShowInfo("Checkpoint Creation Canceled", "Checkpoint creation was canceled.");
+            StatusMessage = "Checkpoint creation canceled.";
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to mint checkpoint at frame {Frame}", TargetCheckpointFrame);
-            notificationService.ShowError("Minting Error", ex.Message);
-            StatusMessage = "Minting error.";
+            logger.LogError(ex, "Failed to create checkpoint at frame {Frame}", TargetCheckpointFrame);
+            notificationService.ShowError("Checkpoint Creation Error", ex.Message);
+            StatusMessage = "Checkpoint creation error.";
         }
         finally
         {
             IsMintingCheckpoint = false;
         }
+    }
+
+    /// <summary>
+    /// Alias for backwards compatibility with MintCheckpointCommand.
+    /// </summary>
+    [RelayCommand]
+    private Task MintCheckpointAsync() => CreateCheckpointAsync();
+
+    private int GetReplayFps()
+    {
+        if (ActiveCheckpointReplay?.Metadata?.FramesPerSecond is { } fps && fps > 0)
+        {
+            return fps;
+        }
+
+        if (IsGeneralsOnlineProfile(SelectedCompatibleProfile))
+        {
+            return 60;
+        }
+
+        return ActiveCheckpointReplay?.FramesPerSecond ?? 30;
+    }
+
+    private static bool IsGeneralsOnlineProfile(GameProfile? profile)
+    {
+        if (profile?.GameClient == null)
+        {
+            return false;
+        }
+
+        var client = profile.GameClient;
+        return string.Equals(client.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+               (!string.IsNullOrEmpty(client.Executable) && client.Executable.Contains("60", StringComparison.OrdinalIgnoreCase)) ||
+               (!string.IsNullOrEmpty(profile.Name) && profile.Name.Contains("60Hz", StringComparison.OrdinalIgnoreCase)) ||
+               (!string.IsNullOrEmpty(client.DisplayName) && client.DisplayName.Contains("60Hz", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void UpdateReplayTimingBounds()
+    {
+        var fps = GetReplayFps();
+        var totalFrames = ActiveCheckpointReplay?.Metadata?.TotalFrames;
+
+        if (totalFrames is > 0)
+        {
+            MaxCheckpointFrames = (int)totalFrames.Value;
+            MaxCheckpointSeconds = Math.Max(1, Math.Round((double)MaxCheckpointFrames / fps));
+        }
+        else if (ActiveCheckpointReplay?.Metadata?.Duration is { } duration && duration.TotalSeconds > 0)
+        {
+            MaxCheckpointSeconds = Math.Max(1, Math.Round(duration.TotalSeconds));
+            MaxCheckpointFrames = (int)Math.Round(MaxCheckpointSeconds * fps);
+        }
+        else
+        {
+            MaxCheckpointSeconds = 600;
+            MaxCheckpointFrames = (int)(600 * fps);
+        }
+
+        var maxTs = TimeSpan.FromSeconds(MaxCheckpointSeconds);
+        var maxClock = maxTs.TotalHours >= 1 ? maxTs.ToString(@"hh\:mm\:ss") : maxTs.ToString(@"mm\:ss");
+        MaxCheckpointTimeDisplay = $"{maxClock} — {MaxCheckpointSeconds:F0}s ({MaxCheckpointFrames:N0} frames)";
+
+        if (TargetCheckpointTimeSeconds > MaxCheckpointSeconds || TargetCheckpointTimeSeconds <= 0)
+        {
+            TargetCheckpointTimeSeconds = Math.Min(120, Math.Max(1, Math.Round(MaxCheckpointSeconds * 0.5)));
+        }
+
+        UpdateCheckpointTimingDisplay();
+    }
+
+    private void UpdateCheckpointTimingDisplay()
+    {
+        var fps = GetReplayFps();
+        var seconds = Math.Max(1, (int)Math.Round(TargetCheckpointTimeSeconds));
+        var frame = Math.Max(1, (int)Math.Round(seconds * (double)fps));
+        if (MaxCheckpointFrames > 0 && frame > MaxCheckpointFrames)
+        {
+            frame = MaxCheckpointFrames;
+        }
+
+        TargetCheckpointFrame = frame;
+        var ts = TimeSpan.FromSeconds(seconds);
+        var clock = ts.TotalHours >= 1 ? ts.ToString(@"hh\:mm\:ss") : ts.ToString(@"mm\:ss");
+        CheckpointTimeDisplay = $"{clock} — {seconds}s ({frame:N0} frames)";
     }
 
     /// <summary>

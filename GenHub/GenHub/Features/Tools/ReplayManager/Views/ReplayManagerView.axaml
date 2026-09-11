@@ -487,46 +487,81 @@
             </Grid>
           </Border>
 
-          <!-- Section: Mint Checkpoint -->
+          <!-- Section: Create Checkpoint Save -->
           <Border Grid.Row="2" Margin="0,0,0,16"
                   Background="{DynamicResource SurfaceElevatedBrush}"
                   BorderBrush="{DynamicResource BorderBrush}"
                   BorderThickness="1"
                   CornerRadius="10"
                   Padding="14,12">
-            <StackPanel Spacing="8">
-              <TextBlock Text="Mint Checkpoint Save"
+            <StackPanel Spacing="10">
+              <TextBlock Text="Create Checkpoint Save"
                          FontSize="13"
                          FontWeight="SemiBold"
                          Foreground="{DynamicResource TextPrimary}"/>
-              <TextBlock Text="Fast-forward the replay to a specific frame number and snapshot game state."
+              <TextBlock Text="GenHub will launch the game to fast-forward through the replay up to your chosen point and snapshot the state. Once the checkpoint is created, the game will automatically save and close itself."
                          FontSize="11"
-                         Foreground="{DynamicResource TextSecondary}"/>
+                         Foreground="{DynamicResource TextSecondary}"
+                         TextWrapping="Wrap"/>
+
+              <!-- Time / Frame Scrubber Slider -->
+              <Grid RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,4">
+                  <TextBlock Grid.Column="0"
+                             Text="Target Point"
+                             FontSize="12"
+                             FontWeight="Medium"
+                             Foreground="{DynamicResource TextSecondary}"
+                             VerticalAlignment="Center"/>
+                  <TextBlock Grid.Column="2"
+                             Text="{Binding CheckpointTimeDisplay}"
+                             FontSize="12"
+                             FontWeight="SemiBold"
+                             Foreground="{DynamicResource AccentBrush}"
+                             VerticalAlignment="Center"/>
+                </Grid>
+
+                <Slider Grid.Row="1"
+                        Minimum="1"
+                        Maximum="{Binding MaxCheckpointSeconds}"
+                        Value="{Binding TargetCheckpointTimeSeconds}"
+                        TickFrequency="1"
+                        IsSnapToTickEnabled="False"
+                        IsEnabled="{Binding !IsMintingCheckpoint}"
+                        Margin="0,2,0,2"/>
+
+                <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto">
+                  <TextBlock Grid.Column="0"
+                             Text="0s (0 frames)"
+                             FontSize="10"
+                             Foreground="{DynamicResource TextMuted}"/>
+                  <TextBlock Grid.Column="2"
+                             Text="{Binding MaxCheckpointTimeDisplay}"
+                             FontSize="10"
+                             Foreground="{DynamicResource TextMuted}"/>
+                </Grid>
+              </Grid>
+
               <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,4,0,0">
-                <TextBox Grid.Column="0"
-                         Text="{Binding TargetCheckpointFrame}"
-                         Watermark="Target Frame (e.g. 12000)"
-                         Margin="0,0,8,0"
-                         VerticalContentAlignment="Center"/>
                 <Button Grid.Column="1"
                         Classes="Secondary"
-                        Command="{Binding MintCheckpointCommand}"
+                        Command="{Binding CreateCheckpointCommand}"
                         IsEnabled="{Binding !IsMintingCheckpoint}"
                         IsVisible="{Binding !IsMintingCheckpoint}"
-                        Padding="12,6">
+                        Padding="14,6">
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <PathIcon Data="{StaticResource ToolIcon.Restore}" Width="14" Height="14" VerticalAlignment="Center"/>
-                    <TextBlock Text="Mint Checkpoint" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"/>
+                    <TextBlock Text="Create Checkpoint" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"/>
                   </StackPanel>
                 </Button>
                 <Button Grid.Column="2"
                         Classes="Secondary"
                         Command="{Binding CancelMintCheckpointCommand}"
                         IsVisible="{Binding IsMintingCheckpoint}"
-                        Padding="12,6">
+                        Padding="14,6">
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <PathIcon Data="{StaticResource ToolIcon.Close}" Width="14" Height="14" VerticalAlignment="Center"/>
-                    <TextBlock Text="Cancel Minting" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"/>
+                    <TextBlock Text="Cancel" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"/>
                   </StackPanel>
                 </Button>
               </Grid>

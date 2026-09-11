@@ -19,6 +19,7 @@ namespace GenHub.Features.Tools.ReplayManager.Services;
 /// </summary>
 public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IReplayHeaderParser
 {
+    private const int ReplayPostHeaderTrailerSizeBytes = 18;
     private static readonly byte[] ExpectedMagic = Encoding.ASCII.GetBytes(ReplayManagerConstants.ReplayHeaderMagic);
 
     /// <inheritdoc />
@@ -127,6 +128,10 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
 
     private static OperationResult<ReplayMetadata> ParseHeaderBuffer(byte[] buffer, int bytesRead)
     {
+        var startTime = bytesRead >= 10 ? BitConverter.ToUInt32(buffer, 6) : 0u;
+        var endTime = bytesRead >= 14 ? BitConverter.ToUInt32(buffer, 10) : 0u;
+        var headerFrameCount = bytesRead >= 18 ? BitConverter.ToUInt32(buffer, 14) : 0u;
+
         var offset = ReplayManagerConstants.ReplayHeaderInitialOffsetBytes;
 
         // 2. Read Replay Title / Name (null-terminated UTF-16LE, written first by engine)
@@ -179,6 +184,18 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         // 8. Extract map name, players, and structured slots from init string if present
         var (mapName, players, slots) = ParseMatchMetadata(initString);
 
+        // 9. Determine tick rate (FPS), total frames, duration, and match date
+        var (totalFrames, fps, duration, gameDate) = ResolveTimingAndDuration(
+            buffer,
+            offset,
+            bytesRead,
+            startTime,
+            endTime,
+            headerFrameCount,
+            versionString,
+            buildTimeString,
+            titleString);
+
         var metadata = new ReplayMetadata
         {
             VersionString = string.IsNullOrWhiteSpace(versionString) ? null : versionString,
@@ -190,10 +207,139 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             MapName = mapName,
             Players = players,
             Slots = slots,
+            TotalFrames = totalFrames,
+            FramesPerSecond = fps,
+            Duration = duration,
+            GameDate = gameDate,
         };
 
         return OperationResult<ReplayMetadata>.CreateSuccess(metadata);
     }
+
+    private static (uint? TotalFrames, int Fps, TimeSpan? Duration, DateTime? GameDate) ResolveTimingAndDuration(
+        byte[] buffer,
+        int offsetAfterInitString,
+        int bytesRead,
+        uint startTime,
+        uint endTime,
+        uint headerFrameCount,
+        string? versionString,
+        string? buildTimeString,
+        string? titleString)
+    {
+        var is60Hz = (versionString?.Contains("60", StringComparison.OrdinalIgnoreCase) == true) ||
+                     (buildTimeString?.Contains("60", StringComparison.OrdinalIgnoreCase) == true) ||
+                     (titleString?.Contains("60Hz", StringComparison.OrdinalIgnoreCase) == true) ||
+                     (versionString?.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase) == true);
+        var fps = is60Hz ? 60 : 30;
+
+        uint? totalFrames = headerFrameCount > 0 ? headerFrameCount : null;
+        if (!totalFrames.HasValue && offsetAfterInitString + ReplayPostHeaderTrailerSizeBytes < bytesRead)
+        {
+            totalFrames = TryScanMaxChunkTimecode(buffer, offsetAfterInitString + ReplayPostHeaderTrailerSizeBytes, bytesRead);
+        }
+
+        TimeSpan? duration = null;
+        if (totalFrames.HasValue && totalFrames.Value > 0)
+        {
+            duration = TimeSpan.FromSeconds((double)totalFrames.Value / fps);
+        }
+        else if (endTime > startTime && startTime > 0)
+        {
+            var seconds = endTime - startTime;
+            duration = TimeSpan.FromSeconds(seconds);
+            totalFrames = (uint)Math.Round(seconds * (double)fps);
+        }
+
+        DateTime? gameDate = null;
+        if (startTime > 0)
+        {
+            try
+            {
+                gameDate = DateTimeOffset.FromUnixTimeSeconds(startTime).UtcDateTime;
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                // Ignore unix timestamp conversion overflow
+            }
+        }
+
+        return (totalFrames, fps, duration, gameDate);
+    }
+
+    private static uint? TryScanMaxChunkTimecode(byte[] buffer, int offset, int bytesRead)
+    {
+        uint maxTimecode = 0;
+        var cur = offset;
+
+        // Each chunk header contains timecode (4), command (4), number (4), ncomms (1) = 13 bytes
+        while (cur + 13 <= bytesRead)
+        {
+            var timecode = BitConverter.ToUInt32(buffer, cur);
+            if (timecode is 0xFFFFFFFF or 0x7FFFFFFF)
+            {
+                break;
+            }
+
+            if (timecode > maxTimecode)
+            {
+                maxTimecode = timecode;
+            }
+
+            cur += 12;
+            var ncomms = buffer[cur++];
+            if (ncomms == 0)
+            {
+                continue;
+            }
+
+            var descriptorBytes = ncomms * 2;
+            if (cur + descriptorBytes > bytesRead)
+            {
+                break;
+            }
+
+            var payloadBytes = 0;
+            var canProceed = true;
+            for (var i = 0; i < ncomms; i++)
+            {
+                var type = buffer[cur + (i * 2)];
+                var nargs = buffer[cur + (i * 2) + 1];
+                var argSize = GetCommandArgSize(type);
+                if (argSize < 0)
+                {
+                    canProceed = false;
+                    break;
+                }
+
+                payloadBytes += nargs * argSize;
+            }
+
+            if (!canProceed)
+            {
+                break;
+            }
+
+            cur += descriptorBytes + payloadBytes;
+        }
+
+        return maxTimecode > 0 ? maxTimecode : null;
+    }
+
+    private static int GetCommandArgSize(byte cmdType) => cmdType switch
+    {
+        0x0 => 4,
+        0x1 => 4,
+        0x2 => 1,
+        0x3 => 4,
+        0x4 => 4,
+        0x6 => 12,
+        0x7 => 12,
+        0x8 => 16,
+        0x9 => 16,
+        0xA => 4,
+        _ => -1,
+    };
 
     private static bool TryReadNullTerminatedUtf16String(byte[] buffer, ref int offset, int maxBytes, out string? value)
     {
