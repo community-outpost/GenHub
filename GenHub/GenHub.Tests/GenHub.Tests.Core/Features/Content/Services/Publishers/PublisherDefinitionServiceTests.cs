@@ -51,7 +51,7 @@ public class PublisherDefinitionServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task FetchDefinitionAsync_ValidUrl_ReturnsDefinition()
+    public async Task FetchDefinitionAsync_ValidUrl_ReturnsDefinitionAsync()
     {
         // Arrange
         var json = "{\"publisher\":{\"id\":\"test\"}, \"catalogUrl\":\"https://test.com/catalog.json\"}";
@@ -73,7 +73,7 @@ public class PublisherDefinitionServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task FetchDefinitionAsync_InvalidUrl_ReturnsFailure()
+    public async Task FetchDefinitionAsync_InvalidUrl_ReturnsFailureAsync()
     {
         // Act
         var result = await _service.FetchDefinitionAsync("invalid-url");
@@ -88,7 +88,7 @@ public class PublisherDefinitionServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task FetchDefinitionAsync_HttpError_ReturnsFailure()
+    public async Task FetchDefinitionAsync_HttpError_ReturnsFailureAsync()
     {
         // Arrange
         SetupHttpResponse(HttpStatusCode.NotFound, string.Empty);
@@ -106,7 +106,7 @@ public class PublisherDefinitionServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckForDefinitionUpdateAsync_CatalogUrlChanged_ReturnsTrue()
+    public async Task CheckForDefinitionUpdateAsync_CatalogUrlChanged_ReturnsTrueAsync()
     {
         // Arrange
         var subscription = new PublisherSubscription
@@ -133,7 +133,7 @@ public class PublisherDefinitionServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckForDefinitionUpdateAsync_NoChange_ReturnsFalse()
+    public async Task CheckForDefinitionUpdateAsync_NoChange_ReturnsFalseAsync()
     {
         // Arrange
         var subscription = new PublisherSubscription
@@ -160,7 +160,7 @@ public class PublisherDefinitionServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckForDefinitionUpdateAsync_NoDefinitionUrl_ReturnsFalse()
+    public async Task CheckForDefinitionUpdateAsync_NoDefinitionUrl_ReturnsFalseAsync()
     {
         // Arrange
         var subscription = new PublisherSubscription

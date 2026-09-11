@@ -121,7 +121,7 @@ public class CrossPublisherDependencyResolver(
             using var stream = await response.Content.ReadAsStreamAsync(ct);
             using var memoryStream = new System.IO.MemoryStream();
             var buffer = new byte[81920];
-            int bytesRead;
+            var bytesRead = 0;
             long totalBytesRead = 0;
             while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, ct)) > 0)
             {

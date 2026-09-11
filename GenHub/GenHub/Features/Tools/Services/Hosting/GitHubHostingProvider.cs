@@ -462,6 +462,7 @@ public class GitHubHostingProvider : IHostingProvider
     }
 
     /// <inheritdoc/>
+    // skipcq: CS-A1000
     public string GetDirectDownloadUrl(string shareUrl)
     {
         // GitHub release assets already have direct download URLs

@@ -292,7 +292,7 @@ public class PublisherDefinitionService(
         {
             var buffer = new byte[HostingConstants.StreamCopyBufferSize];
             long totalRead = 0;
-            int bytesRead;
+            var bytesRead = 0;
 
             while ((bytesRead = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), ct)) > 0)
             {

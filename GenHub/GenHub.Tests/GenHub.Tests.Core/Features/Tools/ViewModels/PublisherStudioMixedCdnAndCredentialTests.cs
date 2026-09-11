@@ -156,13 +156,12 @@ public class PublisherStudioMixedCdnAndCredentialTests
     [Fact]
     public void AddContentDialogViewModel_WhenContentTypeIsGameClient_SetsIsGameClientTypeAndDirectUrl()
     {
+        // Act
         var vm = new AddContentDialogViewModel(_ => { })
         {
             UseDirectUrl = false,
+            SelectedContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
         };
-
-        // Act
-        vm.SelectedContentType = GenHub.Core.Models.Enums.ContentType.GameClient;
 
         // Assert
         Assert.True(vm.IsGameClientType);
@@ -282,7 +281,7 @@ public class PublisherStudioMixedCdnAndCredentialTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task IncompatibleArtifacts_FlaggedWhenBinaryHostingNotSupported()
+    public async Task IncompatibleArtifacts_FlaggedWhenBinaryHostingNotSupportedAsync()
     {
         var project = new PublisherStudioProject();
         var namedCatalog = new NamedCatalog { Name = "Main Catalog" };
@@ -305,9 +304,10 @@ public class PublisherStudioMixedCdnAndCredentialTests
             _mockPublishLogger.Object,
             null,
             _mockHostingStateManager.Object,
-            _mockNotificationService.Object);
-
-        vm.ActiveCatalog = namedCatalog;
+            _mockNotificationService.Object)
+        {
+            ActiveCatalog = namedCatalog,
+        };
 
         // 1 pending artifact
         Assert.Equal(1, vm.PendingArtifactsCount);

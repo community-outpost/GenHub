@@ -401,7 +401,7 @@ public partial class SubscriptionConfirmationViewModel(
         }
 
         var definition = defResult.Data;
-        var hasCatalogs = (definition.Catalogs != null && definition.Catalogs.Count > 0) || !string.IsNullOrWhiteSpace(definition.CatalogUrl);
+        var hasCatalogs = (definition.Catalogs?.Count > 0) || !string.IsNullOrWhiteSpace(definition.CatalogUrl);
         if (!hasCatalogs)
         {
             return (null, null, null);
@@ -438,7 +438,7 @@ public partial class SubscriptionConfirmationViewModel(
                 return (null, null, null);
             }
 
-            var hasCatalogs = (definition.Catalogs != null && definition.Catalogs.Count > 0) || !string.IsNullOrWhiteSpace(definition.CatalogUrl);
+            var hasCatalogs = (definition.Catalogs?.Count > 0) || !string.IsNullOrWhiteSpace(definition.CatalogUrl);
             if (!hasCatalogs)
             {
                 return (null, null, null);

@@ -43,8 +43,9 @@ public class BoolToBrushConverter : IValueConverter
     }
 
     /// <inheritdoc />
+    // skipcq: CS-A1003
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        throw new NotImplementedException();
+        throw new NotSupportedException();
     }
 }

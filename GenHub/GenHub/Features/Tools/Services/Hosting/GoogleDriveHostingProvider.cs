@@ -468,6 +468,7 @@ public class GoogleDriveHostingProvider(
     }
 
     /// <inheritdoc />
+    // skipcq: CS-A1000
     public string GetDirectDownloadUrl(string shareUrl)
     {
         if (shareUrl.Contains("drive.google.com/uc?", StringComparison.OrdinalIgnoreCase))

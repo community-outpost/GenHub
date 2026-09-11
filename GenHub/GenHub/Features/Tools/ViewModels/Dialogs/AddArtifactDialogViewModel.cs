@@ -221,7 +221,11 @@ public partial class AddArtifactDialogViewModel : ObservableValidator
                     }
                 }
             }
-            catch (Exception ex) when (ex is UriFormatException or ArgumentException)
+            catch (UriFormatException)
+            {
+                // Ignore format errors while typing
+            }
+            catch (ArgumentException)
             {
                 // Ignore format errors while typing
             }

@@ -54,7 +54,7 @@ public class CrossPublisherDependencyResolverTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckMissingDependenciesAsync_AllDependenciesInstalled_ReturnsEmpty()
+    public async Task CheckMissingDependenciesAsync_AllDependenciesInstalled_ReturnsEmptyAsync()
     {
         // Arrange
         var resolver = CreateResolver();
@@ -90,7 +90,7 @@ public class CrossPublisherDependencyResolverTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckMissingDependenciesAsync_DependencyNotInstalled_ReturnsMissingDependency()
+    public async Task CheckMissingDependenciesAsync_DependencyNotInstalled_ReturnsMissingDependencyAsync()
     {
         // Arrange
         var resolver = CreateResolver();
@@ -123,7 +123,7 @@ public class CrossPublisherDependencyResolverTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task FindDependencyContentAsync_SubscribedPublisher_ReturnsContent()
+    public async Task FindDependencyContentAsync_SubscribedPublisher_ReturnsContentAsync()
     {
         // Arrange
         var resolver = CreateResolver();
@@ -195,7 +195,7 @@ public class CrossPublisherDependencyResolverTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task FindDependencyContentAsync_NotSubscribed_ReturnsNull()
+    public async Task FindDependencyContentAsync_NotSubscribed_ReturnsNullAsync()
     {
         // Arrange
         var resolver = CreateResolver();
@@ -221,7 +221,7 @@ public class CrossPublisherDependencyResolverTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task FindDependencyContentAsync_InvalidIdFormat_ReturnsFailure()
+    public async Task FindDependencyContentAsync_InvalidIdFormat_ReturnsFailureAsync()
     {
         // Arrange
         var resolver = CreateResolver();
@@ -244,11 +244,9 @@ public class CrossPublisherDependencyResolverTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task FetchExternalCatalogAsync_ValidUrl_ReturnsCatalog()
+    public async Task FetchExternalCatalogAsync_ValidUrl_ReturnsCatalogAsync()
     {
         // Arrange
-        var resolver = CreateResolver();
-        _ = "https://example.com/catalog.json";
         var catalogJson = """
             {
                 "$schemaVersion": 1,
@@ -296,8 +294,6 @@ public class CrossPublisherDependencyResolverTests
 
         // For unit testing purposes, we verify the error handling path exists
         // by checking that the method signature supports cancellation tokens
-        var resolver = CreateResolver();
-
         // Verify the method accepts CancellationToken
         var method = typeof(CrossPublisherDependencyResolver).GetMethod("FetchExternalCatalogAsync");
         Assert.NotNull(method);
@@ -312,7 +308,7 @@ public class CrossPublisherDependencyResolverTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckMissingDependenciesAsync_SetsCanAutoInstallFlag_Correctly()
+    public async Task CheckMissingDependenciesAsync_SetsCanAutoInstallFlag_CorrectlyAsync()
     {
         // Arrange
         var resolver = CreateResolver();
@@ -384,7 +380,7 @@ public class CrossPublisherDependencyResolverTests
 
         // Assert
         Assert.True(result.Success);
-        var missingDep = Assert.Single(result.Data ?? []);
+        Assert.Single(result.Data ?? []);
 
         // The dependency should have ResolvableContent set, making CanAutoInstall true
         // Note: The actual implementation depends on FindDependencyContentAsync being called
@@ -395,7 +391,7 @@ public class CrossPublisherDependencyResolverTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckMissingDependenciesAsync_OptionalDependency_ReturnsCorrectly()
+    public async Task CheckMissingDependenciesAsync_OptionalDependency_ReturnsCorrectlyAsync()
     {
         // Arrange
         var resolver = CreateResolver();
@@ -433,7 +429,7 @@ public class CrossPublisherDependencyResolverTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckMissingDependenciesAsync_MultipleMissing_ReturnsAll()
+    public async Task CheckMissingDependenciesAsync_MultipleMissing_ReturnsAllAsync()
     {
         // Arrange
         var resolver = CreateResolver();

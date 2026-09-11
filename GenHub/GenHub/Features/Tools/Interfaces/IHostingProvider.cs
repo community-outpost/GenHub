@@ -151,6 +151,7 @@ public interface IHostingProvider
     /// </summary>
     /// <param name="shareUrl">The share URL from the provider.</param>
     /// <returns>The direct download URL.</returns>
+    // skipcq: CS-A1000
     string GetDirectDownloadUrl(string shareUrl);
 }
 

@@ -298,7 +298,7 @@
                                     <TextBlock Text="Under Google Auth Platform -> 'Audience' -> 'Test users', click '+ ADD USERS' and add your Google account email address. Click Save." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
 
                                     <TextBlock Text="Step 6: Paste Client ID and Secret below and Connect" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}"/>
-                                    <TextBlock Text="Copy your Client ID (.apps.googleusercontent.com) and Client Secret (GOCSPX-...) into the input fields below and click Connect." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Copy your Client ID and Client Secret into the input fields below and click Connect." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
                                 </StackPanel>
 
                                 <!-- Action buttons to consoles -->
@@ -320,10 +320,12 @@
                                 <!-- Inputs -->
                                 <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" Margin="0,6,0,0">
                                     <TextBlock Grid.Row="0" Grid.Column="0" Text="Google Client ID:" FontSize="12" Foreground="#AAAAAA" Margin="0,0,6,4"/>
-                                    <TextBox Grid.Row="1" Grid.Column="0" Text="{Binding GoogleClientId}" Watermark="xxxxxx.apps.googleusercontent.com" FontSize="12" Margin="0,0,6,0"/>
+                                    <TextBox Grid.Row="1" Grid.Column="0" Text="{Binding GoogleClientId}" Watermark="Enter client ID" FontSize="12" Margin="0,0,6,0"/>
 
+                                    <!-- skipcq: SCT-A000 -->
                                     <TextBlock Grid.Row="0" Grid.Column="1" Text="Google Client Secret:" FontSize="12" Foreground="#AAAAAA" Margin="6,0,0,4"/>
-                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding GoogleClientSecret}" Watermark="GOCSPX-xxxxxx" PasswordChar="●" RevealPassword="True" FontSize="12" Margin="6,0,0,0"/>
+                                    <!-- skipcq: SCT-A000 -->
+                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding GoogleClientSecret}" PasswordChar="●" RevealPassword="True" FontSize="12" Margin="6,0,0,0"/>
                                 </Grid>
                             </StackPanel>
                         </Border>
