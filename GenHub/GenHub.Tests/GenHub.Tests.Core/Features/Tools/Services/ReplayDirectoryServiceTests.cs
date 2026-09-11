@@ -2614,13 +2614,29 @@ public sealed class ReplayDirectoryServiceTests
             CdnUrl = "https://cdn.playgenerals.online/client.zip",
         };
 
+        var knownDataPatch = new CrcMappingEntry
+        {
+            ExeCrc = "0x00000000",
+            IniCrc = "0x81FB5632",
+            ManifestId = "1.828261.generalsonline.patch.gamedata",
+            DataPatchManifestId = "1.828261.generalsonline.patch.gamedata",
+            DataPatchName = "GeneralsOnline GameData Patch",
+            Publisher = "generalsonline",
+            GameType = "ZeroHour",
+            Version = "082826_QFE1",
+        };
+
         CrcMappingEntry? nullEntry = null;
         CrcMappingEntry? outBase = baseClient;
+        CrcMappingEntry? outDataPatch = knownDataPatch;
         _mockCrcRegistry
             .Setup(r => r.TryGetEntry("0xB9DB8815", "0x81FB5632", out nullEntry))
             .Returns(false);
         _mockCrcRegistry
             .Setup(r => r.TryGetEntryByExeCrc("0xB9DB8815", out outBase))
+            .Returns(true);
+        _mockCrcRegistry
+            .Setup(r => r.TryGetEntryByIniCrc("0x81FB5632", out outDataPatch))
             .Returns(true);
 
         var service = new ReplayDirectoryService(

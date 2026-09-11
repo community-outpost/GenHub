@@ -436,10 +436,11 @@ public class SteamLauncher : ISteamLauncher
                 }
                 else
                 {
-                    _logger.LogWarning(
-                        "[SteamLauncher] Target executable {Exe} is neither identical to backup nor identified as proxy; preserving backup at {Backup}",
+                    _logger.LogInformation(
+                        "[SteamLauncher] Target executable {Exe} is already genuine; removing stale backup {Backup}",
                         executableName,
                         backupPath);
+                    File.Delete(backupPath);
                 }
             }
             else

@@ -313,13 +313,16 @@ public class DependencyResolver(
             return false;
         }
 
-        if (string.Equals(name, ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(name, ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase) ||
+            name.StartsWith(ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
         var tokens = name.Split(['.', '-', '_', '/', '\\'], StringSplitOptions.RemoveEmptyEntries);
-        return tokens.Any(t => string.Equals(t, ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase));
+        return tokens.Any(t =>
+            string.Equals(t, ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase) ||
+            t.StartsWith(ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool AreGameVariantsCompatible(string declaredName, string acquiredName)

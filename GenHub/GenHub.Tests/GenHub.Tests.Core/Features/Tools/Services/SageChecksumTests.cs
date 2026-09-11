@@ -40,8 +40,9 @@ public sealed class SageChecksumTests
         var checksum = new LegacyChecksum();
 
         // 0x80000000 shifted left by 1 should rotate high bit to 1
+        // 0x80 is bit 7; after 24 one-bit ROL iterations (24 zero bytes), it reaches bit 31 (0x80000000).
         checksum.Add(new byte[] { 0x80 });
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 24; i++)
         {
             checksum.Add(new byte[] { 0x00 });
         }
