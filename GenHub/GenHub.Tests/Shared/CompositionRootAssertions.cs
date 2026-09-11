@@ -7,6 +7,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Shortcuts;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Settings.ViewModels;
@@ -48,6 +49,7 @@ public static class CompositionRootAssertions
         typeof(IFileOperationsService),
         typeof(IGamePathProvider),
         typeof(IShortcutService),
+        typeof(IStorageMigrationService),
         typeof(ISymlinkCapabilityProvider),
         typeof(IVelopackUpdateManager),
     ];
@@ -101,7 +103,7 @@ public static class CompositionRootAssertions
     [
         ("GenHub.Core.Interfaces.Content.IContentValidator", "GenHub.Core.Interfaces.Workspace.IFileOperationsService"),
         ("GenHub.Core.Interfaces.GameInstallations.IGameInstallationService", "GenHub.Core.Interfaces.Manifest.IManifestGenerationService"),
-        ("GenHub.Core.Interfaces.Launching.ILaunchRegistry", "GenHub.Core.Interfaces.Workspace.IWorkspaceManager"),
+
     ];
 
     private static readonly Regex CaptiveDependencyMessage = new(

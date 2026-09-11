@@ -99,6 +99,12 @@ public sealed class MacOSShortcutService(ILogger<MacOSShortcutService> logger) :
                 "Shortcut creation is not implemented on macOS yet."));
     }
 
+    /// <inheritdoc />
+    public Task<OperationResult<bool>> RepairApplicationShortcutsAsync()
+    {
+        return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
+    }
+
     private static string SanitizeFileName(string fileName)
     {
         var sanitized = new StringBuilder(fileName);

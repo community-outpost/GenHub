@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using GenHub;
+using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using Microsoft.Extensions.Logging;
@@ -124,9 +125,11 @@ public sealed class ImageCacheService : IImageCacheService
             var appDataPath = configurationProvider?.GetApplicationDataPath();
             if (string.IsNullOrWhiteSpace(appDataPath))
             {
-                appDataPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "GenHub");
+                appDataPath = StorageMigrationService.IsCustomInstallRoot()
+                    ? StorageMigrationService.GetSourceRootDirectory()
+                    : Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                        AppConstants.AppName);
             }
 
             cacheDirectory = Path.Combine(appDataPath, "Images");

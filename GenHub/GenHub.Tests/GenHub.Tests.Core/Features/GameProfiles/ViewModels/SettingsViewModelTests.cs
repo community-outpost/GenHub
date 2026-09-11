@@ -13,6 +13,7 @@ using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.CAS;
 using GenHub.Core.Models.Storage;
@@ -42,11 +43,12 @@ public class SettingsViewModelTests
     private readonly Mock<IConfigurationProviderService> _mockConfigurationProvider;
     private readonly Mock<IGameInstallationService> _mockInstallationService;
     private readonly Mock<IStorageLocationService> _mockStorageLocationService;
-    private readonly Mock<IGitHubApiClient> _mockGitHubApiClient;
-    private readonly Mock<IPublisherSubscriptionStore> _mockSubscriptionStore;
-    private readonly Mock<IPublisherCatalogRefreshService> _mockCatalogRefreshService;
     private readonly Mock<IUserDataTracker> _mockUserDataTracker;
     private readonly Mock<IDialogService> _mockDialogService;
+    private readonly Mock<IStorageMigrationService> _mockStorageMigrationService;
+    private readonly Mock<IPublisherSubscriptionStore> _mockSubscriptionStore;
+    private readonly Mock<IPublisherCatalogRefreshService> _mockCatalogRefreshService;
+    private readonly Mock<IGitHubApiClient> _mockGitHubApiClient;
     private readonly UserSettings _defaultSettings;
 
     /// <summary>
@@ -65,11 +67,14 @@ public class SettingsViewModelTests
         _mockConfigurationProvider = new Mock<IConfigurationProviderService>();
         _mockInstallationService = new Mock<IGameInstallationService>();
         _mockStorageLocationService = new Mock<IStorageLocationService>();
-        _mockGitHubApiClient = new Mock<IGitHubApiClient>();
-        _mockSubscriptionStore = new Mock<IPublisherSubscriptionStore>();
-        _mockCatalogRefreshService = new Mock<IPublisherCatalogRefreshService>();
         _mockUserDataTracker = new Mock<IUserDataTracker>();
         _mockDialogService = new Mock<IDialogService>();
+        _mockStorageMigrationService = new Mock<IStorageMigrationService>();
+        _mockSubscriptionStore = new Mock<IPublisherSubscriptionStore>();
+        _mockSubscriptionStore.Setup(x => x.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([]));
+        _mockCatalogRefreshService = new Mock<IPublisherCatalogRefreshService>();
+        _mockGitHubApiClient = new Mock<IGitHubApiClient>();
         _defaultSettings = new UserSettings();
 
         _mockConfigService.Setup(x => x.Get()).Returns(_defaultSettings);
@@ -96,23 +101,7 @@ public class SettingsViewModelTests
         _mockConfigService.Setup(x => x.Get()).Returns(customSettings);
 
         // Act
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockSubscriptionStore.Object,
-            _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object);
+        var viewModel = CreateViewModel();
 
         // Assert
         Assert.Equal("Emerald", viewModel.Theme);
@@ -129,27 +118,9 @@ public class SettingsViewModelTests
     public async Task SaveSettingsCommand_UpdatesUserSettingsServiceAsync()
     {
         // Arrange
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockSubscriptionStore.Object,
-            _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object)
-        {
-            Theme = "Emerald",
-            MaxConcurrentDownloads = 5,
-        };
+        var viewModel = CreateViewModel();
+        viewModel.Theme = "Emerald";
+        viewModel.MaxConcurrentDownloads = 5;
 
         _mockConfigService.Invocations.Clear();
 
@@ -169,28 +140,10 @@ public class SettingsViewModelTests
     public async Task ResetToDefaultsCommand_ResetsAllPropertiesAsync()
     {
         // Arrange
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockSubscriptionStore.Object,
-            _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object)
-        {
-            Theme = "Emerald",
-            MaxConcurrentDownloads = 10,
-            EnableDetailedLogging = true,
-        };
+        var viewModel = CreateViewModel();
+        viewModel.Theme = "Emerald";
+        viewModel.MaxConcurrentDownloads = 10;
+        viewModel.EnableDetailedLogging = true;
 
         // Act
         await Task.Run(() => viewModel.ResetToDefaultsCommand.Execute(null));
@@ -263,27 +216,8 @@ public class SettingsViewModelTests
     public void MaxConcurrentDownloads_SetsValueWithinBounds()
     {
         // Arrange
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockSubscriptionStore.Object,
-            _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object)
-        {
-            // Act & Assert - Test lower bound
-            MaxConcurrentDownloads = 0,
-        };
+        var viewModel = CreateViewModel();
+        viewModel.MaxConcurrentDownloads = 0;
         Assert.Equal(1, viewModel.MaxConcurrentDownloads); // ViewModel clamps to 1
 
         // Act & Assert - Test upper bound
@@ -302,23 +236,7 @@ public class SettingsViewModelTests
     public void AvailableThemes_ReturnsExpectedValues()
     {
         // Arrange
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockSubscriptionStore.Object,
-            _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object);
+        var viewModel = CreateViewModel();
 
         // Act
         var themes = viewModel.AvailableThemes.Select(t => t.Id).ToList();
@@ -336,23 +254,7 @@ public class SettingsViewModelTests
     public void AvailableWorkspaceStrategies_ReturnsAllEnumValues()
     {
         // Arrange
-        _ = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockSubscriptionStore.Object,
-            _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object);
+        _ = CreateViewModel();
 
         // Act
         var strategies = SettingsViewModel.AvailableWorkspaceStrategies.ToList();
@@ -372,23 +274,7 @@ public class SettingsViewModelTests
     {
         // Arrange
         _mockConfigService.Setup(x => x.SaveAsync(default)).ThrowsAsync(new IOException("Disk full"));
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockSubscriptionStore.Object,
-            _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object);
+        var viewModel = CreateViewModel();
 
         // Act
         await Task.Run(() => viewModel.SaveSettingsCommand.Execute(null));
@@ -414,23 +300,7 @@ public class SettingsViewModelTests
         _mockConfigService.Setup(x => x.Get()).Throws(new Exception("Configuration error"));
 
         // Act
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockSubscriptionStore.Object,
-            _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object);
+        var viewModel = CreateViewModel();
 
         // Assert - Should not throw and use defaults
         Assert.Equal("Dark", viewModel.Theme);
@@ -457,7 +327,6 @@ public class SettingsViewModelTests
         _mockCasService
             .Setup(x => x.RunGarbageCollectionAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CasGarbageCollectionResult.CreateDisabled());
-
         _mockDialogService
             .Setup(x => x.ShowConfirmationAsync(
                 AppConstants.DeleteCasStorageConfirmationTitle,
@@ -506,7 +375,6 @@ public class SettingsViewModelTests
                 It.IsAny<string>(),
                 It.IsAny<string?>()))
             .ReturnsAsync(true);
-
         var viewModel = CreateViewModel();
 
         // Act
@@ -514,6 +382,250 @@ public class SettingsViewModelTests
 
         // Assert
         _mockUpdateManager.Verify(x => x.Uninstall(), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that declining the uninstall confirmation cancels the uninstall.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task UninstallGenHubCommand_WhenCancelled_DoesNotUninstallAsync()
+    {
+        // Arrange
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(false);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.UninstallGenHubCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockUpdateManager.Verify(x => x.Uninstall(), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that declining the CAS deletion confirmation does not run garbage collection.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteCasStorageCommand_WhenCancelled_DoesNotRunGarbageCollectionAsync()
+    {
+        // Arrange
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(false);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteCasStorageCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockCasService.Verify(x => x.RunGarbageCollectionAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that accepting the workspace deletion confirmation cleans up workspaces.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteWorkspacesCommand_WhenConfirmed_DeletesWorkspacesAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteWorkspacesConfirmationTitle,
+                AppConstants.DeleteWorkspacesConfirmationMessage,
+                AppConstants.DeleteWorkspacesConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteWorkspacesCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockWorkspaceManager.Verify(x => x.CleanupWorkspaceAsync("workspace-to-delete", It.IsAny<CancellationToken>()), Times.Once);
+        _mockInstallationService.Verify(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that declining the workspace deletion confirmation does not delete workspaces.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteWorkspacesCommand_WhenCancelled_DoesNotDeleteWorkspacesAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(false);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteWorkspacesCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockWorkspaceManager.Verify(x => x.CleanupWorkspaceAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that accepting the manifest deletion confirmation removes all manifests.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteManifestsCommand_WhenConfirmed_DeletesManifestsAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteManifestsConfirmationTitle,
+                AppConstants.DeleteManifestsConfirmationMessage,
+                AppConstants.DeleteManifestsConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteManifestsCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockManifestPool.Verify(x => x.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that declining the manifest deletion confirmation does not remove manifests.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteManifestsCommand_WhenCancelled_DoesNotDeleteManifestsAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(false);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteManifestsCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockManifestPool.Verify(x => x.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that accepting the profile deletion confirmation removes all profiles.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteProfilesCommand_WhenConfirmed_DeletesProfilesAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                AppConstants.DeleteProfilesConfirmationTitle,
+                AppConstants.DeleteProfilesConfirmationMessage,
+                AppConstants.DeleteProfilesConfirmText,
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteProfilesCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockProfileManager.Verify(x => x.DeleteProfileAsync("profile-to-delete", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that declining the profile deletion confirmation does not delete profiles.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteProfilesCommand_WhenCancelled_DoesNotDeleteProfilesAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(false);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteProfilesCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockProfileManager.Verify(x => x.DeleteProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that DeleteAllData does not call GetAllInstallationsAsync on IGameInstallationService,
+    /// which would cause expensive file hashing and manifest recreation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteAllDataCommand_DoesNotCallGetAllInstallationsOnInstallationServiceAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteAllDataCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockInstallationService.Verify(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()), Times.Never);
+        _mockManifestPool.Verify(x => x.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>
@@ -655,6 +767,51 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that when CAS garbage collection is disabled, DeleteAllData reports that CAS cleanup
+    /// was skipped rather than claiming CAS cleanup failed.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteAllDataCommand_WhenCasCleanupDisabled_ReportsSkippedWordingAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+        _mockUserDataTracker
+            .Setup(x => x.DeleteAllUserDataAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _mockCasService
+            .Setup(x => x.RunGarbageCollectionAsync(true, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CasGarbageCollectionResult.CreateDisabled());
+
+        string? capturedWarningMessage = null;
+        _mockNotificationService
+            .Setup(x => x.ShowWarning(
+                "Data Partially Deleted",
+                It.IsAny<string>(),
+                It.IsAny<int?>(),
+                It.IsAny<bool>()))
+            .Callback<string, string, int?, bool>((title, message, duration, closable) => capturedWarningMessage = message);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteAllDataCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(capturedWarningMessage);
+        Assert.Contains("CAS cleanup was skipped (disabled)", capturedWarningMessage);
+        Assert.DoesNotContain("CAS cleanup failed", capturedWarningMessage);
+    }
+
+    /// <summary>
     /// Verifies that the confirmation prompt states the action is irreversible and that game data
     /// backups are discarded, and that it cannot be suppressed by a "do not ask again" preference.
     /// </summary>
@@ -764,9 +921,8 @@ public class SettingsViewModelTests
             _mockConfigurationProvider.Setup(x => x.GetLogsPath()).Returns(tempLogsDir);
             var viewModel = CreateViewModel();
 
-            // Lock logFile2 exclusively
+            // Lock logFile2 exclusively to simulate an in-use file held open during cleanup
             using var lockStream = new FileStream(logFile2, System.IO.FileMode.Open, System.IO.FileAccess.ReadWrite, System.IO.FileShare.None);
-            Assert.NotNull(lockStream);
 
             // Act
             await viewModel.ClearLogsCommand.ExecuteAsync(null);
@@ -776,6 +932,7 @@ public class SettingsViewModelTests
             _mockNotificationService.Verify(
                 x => x.ShowSuccess("Logs Cleared", It.Is<string>(s => s.Contains("1 log file(s)") && s.Contains("1 file(s) skipped")), It.IsAny<int?>(), It.IsAny<bool>()),
                 Times.Once);
+            GC.KeepAlive(lockStream);
         }
         finally
         {
@@ -869,24 +1026,7 @@ public class SettingsViewModelTests
         var mockThemeService = new Mock<IThemeService>();
         mockThemeService.Setup(s => s.AvailableThemes).Returns(ThemeConstants.AllThemes);
 
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockSubscriptionStore.Object,
-            _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object,
-            mockThemeService.Object);
+        var viewModel = CreateViewModel(mockThemeService.Object);
 
         // Act
         await viewModel.SelectColorThemeCommand.ExecuteAsync(ThemeConstants.EmeraldTheme);
@@ -910,27 +1050,8 @@ public class SettingsViewModelTests
         var mockThemeService = new Mock<IThemeService>();
         mockThemeService.Setup(s => s.AvailableThemes).Returns(ThemeConstants.AllThemes);
 
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockSubscriptionStore.Object,
-            _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object,
-            _mockDialogService.Object,
-            mockThemeService.Object)
-        {
-            Theme = "Emerald",
-        };
+        var viewModel = CreateViewModel(mockThemeService.Object);
+        viewModel.Theme = "Emerald";
 
         // Act
         await viewModel.ResetToDefaultsCommand.ExecuteAsync(null);
@@ -954,7 +1075,7 @@ public class SettingsViewModelTests
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([new ContentManifest { Name = "manifest-to-delete" }]));
     }
 
-    private SettingsViewModel CreateViewModel() => new(
+    private SettingsViewModel CreateViewModel(IThemeService? themeService = null) => new(
         _mockConfigService.Object,
         _mockLogger.Object,
         _mockCasService.Object,
@@ -970,5 +1091,7 @@ public class SettingsViewModelTests
         _mockInstallationService.Object,
         _mockStorageLocationService.Object,
         _mockUserDataTracker.Object,
-        _mockDialogService.Object);
+        _mockDialogService.Object,
+        _mockStorageMigrationService.Object,
+        themeService);
 }

@@ -59,6 +59,7 @@ public static class SharedViewModelModule
             sp.GetRequiredService<IStorageLocationService>(),
             sp.GetRequiredService<IUserDataTracker>(),
             sp.GetRequiredService<IDialogService>(),
+            sp.GetRequiredService<IStorageMigrationService>(),
             sp.GetService<IThemeService>(),
             /* Optional dependencies that can be null if GitHub integration is not configured */
             sp.GetService<IGitHubTokenStorage>(),

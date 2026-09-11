@@ -16,7 +16,7 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : BaseActionSet(logger)
 {
-    private readonly string _markerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", ActionSetConstants.Paths.SubActionSetMarkers, "WindowsMediaFeaturePack.done");
+    private readonly string _markerPath = GetMarkerPath("WindowsMediaFeaturePack.done");
 
     /// <inheritdoc/>
     public override string Id => "WindowsMediaFeaturePack";

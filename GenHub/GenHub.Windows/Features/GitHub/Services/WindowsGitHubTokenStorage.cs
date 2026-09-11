@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Features.Workspace;
 
@@ -21,12 +22,38 @@ public class WindowsGitHubTokenStorage : IGitHubTokenStorage
     /// <summary>
     /// Initializes a new instance of the <see cref="WindowsGitHubTokenStorage"/> class.
     /// </summary>
-    public WindowsGitHubTokenStorage()
+    /// <param name="configurationProvider">Optional configuration provider service.</param>
+    public WindowsGitHubTokenStorage(IConfigurationProviderService? configurationProvider = null)
     {
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        var genHubDir = Path.Combine(appData, AppConstants.AppName);
-        Directory.CreateDirectory(genHubDir);
-        _tokenFilePath = Path.Combine(genHubDir, AppConstants.TokenFileName);
+        var appData = configurationProvider?.GetApplicationDataPath()
+            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
+        Directory.CreateDirectory(appData);
+        _tokenFilePath = Path.Combine(appData, AppConstants.TokenFileName);
+
+        try
+        {
+            if (!File.Exists(_tokenFilePath))
+            {
+                var legacyDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppConstants.AppName);
+                var legacyToken = Path.Combine(legacyDir, AppConstants.TokenFileName);
+                if (File.Exists(legacyToken))
+                {
+                    File.Move(legacyToken, _tokenFilePath, overwrite: true);
+                }
+            }
+        }
+        catch (IOException)
+        {
+            // Non-fatal legacy migration
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Non-fatal legacy migration
+        }
+        catch (SecurityException)
+        {
+            // Non-fatal legacy migration
+        }
     }
 
     /// <summary>

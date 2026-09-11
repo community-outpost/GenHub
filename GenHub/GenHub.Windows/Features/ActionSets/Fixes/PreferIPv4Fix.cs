@@ -19,11 +19,7 @@ public class PreferIPv4Fix(
     IRegistryService registryService,
     ILogger<PreferIPv4Fix> logger) : BaseActionSet(logger)
 {
-    private readonly string _backupPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "GenHub",
-        ActionSetConstants.Paths.SubActionSetMarkers,
-        "PreferIPv4Fix.original");
+    private readonly string _backupPath = GetMarkerPath("PreferIPv4Fix.original");
 
     /// <inheritdoc/>
     public override string Id => "PreferIPv4Fix";
@@ -223,7 +219,7 @@ public class PreferIPv4Fix(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error undoing IPv4 preference fix");
+            logger.LogError(ex, "Error removing IPv4 preference fix");
             details.Add($"✗ Error: {ex.Message}");
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }

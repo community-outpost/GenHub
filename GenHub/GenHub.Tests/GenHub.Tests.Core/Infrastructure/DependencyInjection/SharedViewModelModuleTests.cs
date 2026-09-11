@@ -128,6 +128,7 @@ public class SharedViewModelModuleTests
         services.AddUserDataServices();
         services.AddLaunchingServices();
         services.AddToolsServices();
+        services.AddStorageMigrationServices();
         services.AddSharedViewModelModule();
 
         // Register IManifestIdService
