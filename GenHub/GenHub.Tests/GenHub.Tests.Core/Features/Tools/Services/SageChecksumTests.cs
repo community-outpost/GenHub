@@ -38,6 +38,7 @@ public sealed class SageChecksumTests
     public void LegacyChecksum_HighBitRotatesCorrectly()
     {
         var checksum = new LegacyChecksum();
+
         // 0x80000000 shifted left by 1 should rotate high bit to 1
         checksum.Add(new byte[] { 0x80 });
         for (int i = 0; i < 3; i++)
@@ -75,6 +76,7 @@ public sealed class SageChecksumTests
     /// <summary>
     /// Verifies XferChecksum partial tail handling (1, 2, and 3 bytes).
     /// </summary>
+    /// <param name="tailLength">The length of the partial tail chunk.</param>
     [Theory]
     [InlineData(1)]
     [InlineData(2)]
@@ -139,6 +141,7 @@ public sealed class SageChecksumTests
     /// <summary>
     /// Verifies GameCrcCalculatorService returns failure when executable does not exist.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
     public async Task GameCrcCalculatorService_MissingExecutable_ReturnsFailure()
     {
@@ -152,6 +155,7 @@ public sealed class SageChecksumTests
     /// <summary>
     /// Verifies GameCrcCalculatorService returns failure when game root does not exist.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
     public async Task GameCrcCalculatorService_MissingGameRoot_ReturnsFailure()
     {
