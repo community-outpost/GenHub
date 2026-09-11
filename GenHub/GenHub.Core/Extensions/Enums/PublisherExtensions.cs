@@ -17,15 +17,16 @@ public static class PublisherExtensions
     {
         return publisher switch
         {
-            Publisher.Steam => "Steam",
-            Publisher.EaApp => "EA App",
-            Publisher.TheFirstDecade => "The First Decade",
-            Publisher.Wine => "Wine/Proton",
-            Publisher.CdRom => "CD-ROM",
-            Publisher.Retail => "Retail Installation",
+            Publisher.Steam => PublisherInfoConstants.Steam.Name,
+            Publisher.EaApp => PublisherInfoConstants.EaApp.Name,
+            Publisher.TheFirstDecade => PublisherInfoConstants.TheFirstDecade.Name,
+            Publisher.Wine => PublisherInfoConstants.Wine.Name,
+            Publisher.CdRom => PublisherInfoConstants.CdIso.Name,
+            Publisher.Retail => PublisherInfoConstants.Retail.Name,
             Publisher.GeneralsOnline => "GeneralsOnline",
             Publisher.SuperHackers => "TheSuperHackers",
             Publisher.CncLabs => "CNClabs",
+            Publisher.GenHubLocal => PublisherInfoConstants.GenHubLocal.Name,
             _ => GameClientConstants.UnknownVersion,
         };
     }

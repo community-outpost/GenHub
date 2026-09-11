@@ -146,6 +146,7 @@ public static class InstallationExtensions
         var gameInstallation = new GameInstallation(installationPath, installation.InstallationType, logger as ILogger<GameInstallation>)
         {
             Id = installation.Id,
+            DisplayName = installation.DisplayName,
         };
         gameInstallation.SetPaths(installation.GeneralsPath, installation.ZeroHourPath);
         gameInstallation.PopulateGameClients(installation.AvailableGameClients);
@@ -168,12 +169,14 @@ public static class InstallationExtensions
     {
         return installationType switch
         {
-            GameInstallationType.Steam => "Steam",
-            GameInstallationType.EaApp => "EA App",
-            GameInstallationType.TheFirstDecade => "The First Decade",
-            GameInstallationType.CDISO => "CD/ISO",
-            GameInstallationType.Wine => "Wine/Proton",
-            GameInstallationType.Retail => "Retail",
+            GameInstallationType.Steam => PublisherInfoConstants.Steam.Name,
+            GameInstallationType.EaApp => PublisherInfoConstants.EaApp.Name,
+            GameInstallationType.TheFirstDecade => PublisherInfoConstants.TheFirstDecade.Name,
+            GameInstallationType.CDISO => PublisherInfoConstants.CdIso.Name,
+            GameInstallationType.Wine => PublisherInfoConstants.Wine.Name,
+            GameInstallationType.Retail => PublisherInfoConstants.Retail.Name,
+            GameInstallationType.Lutris => PublisherInfoConstants.Lutris.Name,
+            GameInstallationType.Custom => PublisherInfoConstants.GenHubLocal.Name,
             GameInstallationType.Unknown => GameClientConstants.UnknownVersion,
             _ => installationType.ToString(),
         };
@@ -195,6 +198,7 @@ public static class InstallationExtensions
             GameInstallationType.CDISO => "cdiso",
             GameInstallationType.Wine => "wine",
             GameInstallationType.Retail => "retail",
+            GameInstallationType.Custom => "genhublocal",
             GameInstallationType.Unknown => "unknown",
             _ => throw new ArgumentOutOfRangeException(nameof(installationType), installationType, "Unknown installation type"),
         };
@@ -214,6 +218,7 @@ public static class InstallationExtensions
             GameInstallationType.Wine => false,
             GameInstallationType.CDISO => false,
             GameInstallationType.Retail => false,
+            GameInstallationType.Custom => false,
             _ => false,
         };
     }
@@ -226,38 +231,6 @@ public static class InstallationExtensions
     public static bool RequiresWineCompatibility(this GameInstallationType installationType)
     {
         return installationType == GameInstallationType.Wine;
-    }
-
-    /// <summary>
-    /// Validates an installation and logs the result.
-    /// </summary>
-    /// <param name="installation">The installation to validate.</param>
-    /// <param name="logger">Logger instance.</param>
-    /// <returns>True if the installation is valid.</returns>
-    public static bool ValidateInstallation(
-        this IGameInstallation installation,
-        ILogger? logger = null)
-    {
-        logger?.LogDebug(
-            "Validating installation: {InstallationType} at {InstallationPath}",
-            installation.InstallationType,
-            installation.InstallationPath);
-
-        var hasValidGenerals = !installation.HasGenerals ||
-            (!string.IsNullOrEmpty(installation.GeneralsPath) && System.IO.Directory.Exists(installation.GeneralsPath));
-
-        var hasValidZeroHour = !installation.HasZeroHour ||
-            (!string.IsNullOrEmpty(installation.ZeroHourPath) && System.IO.Directory.Exists(installation.ZeroHourPath));
-
-        var isValid = hasValidGenerals && hasValidZeroHour;
-
-        logger?.LogDebug(
-            "Installation validation result: {IsValid} (Generals: {HasValidGenerals}, ZeroHour: {HasValidZeroHour})",
-            isValid,
-            hasValidGenerals,
-            hasValidZeroHour);
-
-        return isValid;
     }
 
     /// <summary>
@@ -276,6 +249,7 @@ public static class InstallationExtensions
             GameInstallationType.Wine => "wine",
             GameInstallationType.CDISO => "cdiso",
             GameInstallationType.Retail => "retail",
+            GameInstallationType.Custom => "genhublocal",
             GameInstallationType.Unknown => "unknown",
             _ => "unknown",
         };
@@ -301,6 +275,7 @@ public static class InstallationExtensions
             GameInstallationType.Wine => "retail",
             GameInstallationType.CDISO => "retail",
             GameInstallationType.Retail => "retail",
+            GameInstallationType.Custom => PublisherTypeConstants.GenHubLocal,
             GameInstallationType.Unknown => "unknown",
             _ => "unknown",
         };

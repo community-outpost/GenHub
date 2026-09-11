@@ -53,6 +53,7 @@ public partial class GameProfileSettingsViewModel
             {
                 SelectedGameInstallation = AvailableGameInstallations
                     .OrderByDescending(i => i.GameType == Core.Models.Enums.GameType.ZeroHour)
+                    .ThenBy(GetInstallationPriority)
                     .First();
 
                 IconPath = NormalizeResourcePath(
@@ -216,6 +217,11 @@ public partial class GameProfileSettingsViewModel
                 availableTypes.Add(ContentType.GameClient);
             }
 
+            if (AvailableGameInstallations.Any(i => i.GameType == GameTypeFilter && i.InstallationType == GameInstallationType.Custom))
+            {
+                availableTypes.Add(ContentType.GameInstallation);
+            }
+
             var newFilters = new List<FilterTypeInfo>();
 
             void AddFilterIfAvailable(ContentType type, string iconData)
@@ -226,6 +232,7 @@ public partial class GameProfileSettingsViewModel
                 }
             }
 
+            AddFilterIfAvailable(ContentType.GameInstallation, "M4,6H20V16H4M20,18A2,2 0 0,0 22,16V6C22,4.89 21.1,4 20,4H4C2.89,4 2,4.89 2,6V16A2,2 0 0,0 4,18H0V20H24V18H20Z");
             AddFilterIfAvailable(ContentType.GameClient, "M20,19V7H4V19H20M20,3A2,2 0 0,1 22,5V19A2,2 0 0,1 20,21H4A2,2 0 0,1 2,19V5C2,3.89 2.9,3 4,3H20");
             AddFilterIfAvailable(ContentType.Mod, "M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5S21.88 11 20.5 11z");
             AddFilterIfAvailable(ContentType.Map, "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z");
