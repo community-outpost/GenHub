@@ -414,7 +414,9 @@ public static class GameSettingsMapper
         target.GoSocialNotificationPlayerSendsRequestGameplay = source.GoSocialNotificationPlayerSendsRequestGameplay;
         target.GoSocialNotificationPlayerSendsRequestMenus = source.GoSocialNotificationPlayerSendsRequestMenus;
 
+        target.UseSteamLaunch = source.UseSteamLaunch;
         target.GameSpyIPAddress = source.GameSpyIPAddress;
+        target.VideoSkipEALogo = source.VideoSkipEALogo;
     }
 
     /// <summary>
@@ -507,7 +509,9 @@ public static class GameSettingsMapper
         target.GoSocialNotificationPlayerSendsRequestGameplay = source.GoSocialNotificationPlayerSendsRequestGameplay;
         target.GoSocialNotificationPlayerSendsRequestMenus = source.GoSocialNotificationPlayerSendsRequestMenus;
 
+        target.UseSteamLaunch = source.UseSteamLaunch;
         target.GameSpyIPAddress = source.GameSpyIPAddress;
+        target.VideoSkipEALogo = source.VideoSkipEALogo;
     }
 
     /// <summary>
@@ -600,7 +604,7 @@ public static class GameSettingsMapper
     private static void ApplyTshHierarchicalSettingsFromOptions(IniOptions options, GameProfile profile)
     {
         var tshKvp = options.AdditionalSections.FirstOrDefault(s =>
-            string.Equals(s.Key, "TheSuperHackers", StringComparison.OrdinalIgnoreCase));
+            string.Equals(s.Key, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase));
         if (tshKvp.Value is { Count: > 0 })
         {
             ApplyTshProperties(tshKvp.Value, profile);
@@ -618,18 +622,18 @@ public static class GameSettingsMapper
 
     private static void ApplyTshVideoSettings(Dictionary<string, string> tsh, GameProfile profile)
     {
-        if (tsh.TryGetCaseInsensitive("UseDoubleClickAttackMove", out var doubleClickTsh))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.UseDoubleClickAttackMoveKey, out var doubleClickTsh))
             profile.VideoUseDoubleClickAttackMove = ParseBool(doubleClickTsh);
-        else if (tsh.TryGetCaseInsensitive("UseDoubleClick", out var dblTsh))
+        else if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.UseDoubleClickKey, out var dblTsh))
             profile.VideoUseDoubleClickAttackMove = ParseBool(dblTsh);
 
-        if (tsh.TryGetCaseInsensitive("ScrollFactor", out var scrollTsh) && int.TryParse(scrollTsh, NumberStyles.Integer, CultureInfo.InvariantCulture, out var scrollTshVal))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ScrollFactorKey, out var scrollTsh) && int.TryParse(scrollTsh, NumberStyles.Integer, CultureInfo.InvariantCulture, out var scrollTshVal))
             profile.VideoScrollFactor = scrollTshVal;
-        if (tsh.TryGetCaseInsensitive("Retaliation", out var retaliationTsh))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.RetaliationKey, out var retaliationTsh))
             profile.VideoRetaliation = ParseBool(retaliationTsh);
-        if (tsh.TryGetCaseInsensitive("DynamicLOD", out var dynLODTsh))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.DynamicLODKey, out var dynLODTsh))
             profile.VideoDynamicLOD = ParseBool(dynLODTsh);
-        if (tsh.TryGetCaseInsensitive("MaxParticleCount", out var particlesTsh) && int.TryParse(particlesTsh, NumberStyles.Integer, CultureInfo.InvariantCulture, out var particlesTshVal))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.MaxParticleCountKey, out var particlesTsh) && int.TryParse(particlesTsh, NumberStyles.Integer, CultureInfo.InvariantCulture, out var particlesTshVal))
             profile.VideoMaxParticleCount = particlesTshVal;
         if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var speedTsh))
         {
@@ -643,45 +647,45 @@ public static class GameSettingsMapper
 
     private static void ApplyTshFeatureSettings(Dictionary<string, string> tsh, GameProfile profile)
     {
-        if (tsh.TryGetCaseInsensitive("ArchiveReplays", out var archiveReplays))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ArchiveReplaysKey, out var archiveReplays))
             profile.TshArchiveReplays = ParseBool(archiveReplays);
-        if (tsh.TryGetCaseInsensitive("ShowMoneyPerMinute", out var showMoney))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ShowMoneyPerMinuteKey, out var showMoney))
             profile.TshShowMoneyPerMinute = ParseBool(showMoney);
-        if (tsh.TryGetCaseInsensitive("PlayerObserverEnabled", out var playerObserver))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.PlayerObserverEnabledKey, out var playerObserver))
             profile.TshPlayerObserverEnabled = ParseBool(playerObserver);
     }
 
     private static void ApplyTshFontSettings(Dictionary<string, string> tsh, GameProfile profile)
     {
-        if (tsh.TryGetCaseInsensitive("SystemTimeFontSize", out var sysTimeFont) && int.TryParse(sysTimeFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var stf))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.SystemTimeFontSizeKey, out var sysTimeFont) && int.TryParse(sysTimeFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var stf))
             profile.TshSystemTimeFontSize = stf;
-        if (tsh.TryGetCaseInsensitive("NetworkLatencyFontSize", out var netLatencyFont) && int.TryParse(netLatencyFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var nlf))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.NetworkLatencyFontSizeKey, out var netLatencyFont) && int.TryParse(netLatencyFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var nlf))
             profile.TshNetworkLatencyFontSize = nlf;
-        if (tsh.TryGetCaseInsensitive("RenderFpsFontSize", out var fpsFont) && int.TryParse(fpsFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var ff))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.RenderFpsFontSizeKey, out var fpsFont) && int.TryParse(fpsFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var ff))
             profile.TshRenderFpsFontSize = ff;
-        if (tsh.TryGetCaseInsensitive("ResolutionFontAdjustment", out var resFontAdj) && int.TryParse(resFontAdj, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rfa))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ResolutionFontAdjustmentKey, out var resFontAdj) && int.TryParse(resFontAdj, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rfa))
             profile.TshResolutionFontAdjustment = rfa;
     }
 
     private static void ApplyTshCursorSettings(Dictionary<string, string> tsh, GameProfile profile)
     {
-        if (tsh.TryGetCaseInsensitive("CursorCaptureEnabledInFullscreenGame", out var cursorFullscreenGame))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenGameKey, out var cursorFullscreenGame))
             profile.TshCursorCaptureEnabledInFullscreenGame = ParseBool(cursorFullscreenGame);
-        if (tsh.TryGetCaseInsensitive("CursorCaptureEnabledInFullscreenMenu", out var cursorFullscreenMenu))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenMenuKey, out var cursorFullscreenMenu))
             profile.TshCursorCaptureEnabledInFullscreenMenu = ParseBool(cursorFullscreenMenu);
-        if (tsh.TryGetCaseInsensitive("CursorCaptureEnabledInWindowedGame", out var cursorWindowedGame))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedGameKey, out var cursorWindowedGame))
             profile.TshCursorCaptureEnabledInWindowedGame = ParseBool(cursorWindowedGame);
-        if (tsh.TryGetCaseInsensitive("CursorCaptureEnabledInWindowedMenu", out var cursorWindowedMenu))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedMenuKey, out var cursorWindowedMenu))
             profile.TshCursorCaptureEnabledInWindowedMenu = ParseBool(cursorWindowedMenu);
     }
 
     private static void ApplyTshScrollAndAudioSettings(Dictionary<string, string> tsh, GameProfile profile)
     {
-        if (tsh.TryGetCaseInsensitive("ScreenEdgeScrollEnabledInFullscreenApp", out var scrollFullscreen))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInFullscreenAppKey, out var scrollFullscreen))
             profile.TshScreenEdgeScrollEnabledInFullscreenApp = ParseBool(scrollFullscreen);
-        if (tsh.TryGetCaseInsensitive("ScreenEdgeScrollEnabledInWindowedApp", out var scrollWindowed))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInWindowedAppKey, out var scrollWindowed))
             profile.TshScreenEdgeScrollEnabledInWindowedApp = ParseBool(scrollWindowed);
-        if (tsh.TryGetCaseInsensitive("MoneyTransactionVolume", out var moneyVolume) && int.TryParse(moneyVolume, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mv))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.MoneyTransactionVolumeKey, out var moneyVolume) && int.TryParse(moneyVolume, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mv))
             profile.TshMoneyTransactionVolume = mv;
     }
 
@@ -790,6 +794,7 @@ public static class GameSettingsMapper
                 TextureQuality.Low => GameSettingsConstants.TextureQuality.TextureReductionLow,
                 TextureQuality.Medium => GameSettingsConstants.TextureQuality.TextureReductionMedium,
                 TextureQuality.High => GameSettingsConstants.TextureQuality.TextureReductionHigh,
+                TextureQuality.VeryHigh => GameSettingsConstants.TextureQuality.TextureReductionVeryHigh,
                 _ => options.Video.TextureReduction,
             };
         }
@@ -852,21 +857,21 @@ public static class GameSettingsMapper
 
         if (profile.VideoUseDoubleClickAttackMove.HasValue)
         {
-            options.Video.AdditionalProperties["UseDoubleClickAttackMove"] = profile.VideoUseDoubleClickAttackMove.Value ? "yes" : "no";
-            options.Video.AdditionalProperties["UseDoubleClick"] = profile.VideoUseDoubleClickAttackMove.Value ? "yes" : "no";
+            options.Video.AdditionalProperties[GameSettingsTheSuperHackersConstants.UseDoubleClickAttackMoveKey] = profile.VideoUseDoubleClickAttackMove.Value ? "yes" : "no";
+            options.Video.AdditionalProperties[GameSettingsTheSuperHackersConstants.UseDoubleClickKey] = profile.VideoUseDoubleClickAttackMove.Value ? "yes" : "no";
         }
 
         if (profile.VideoScrollFactor.HasValue)
-            options.Video.AdditionalProperties["ScrollFactor"] = profile.VideoScrollFactor.Value.ToString();
+            options.Video.AdditionalProperties[GameSettingsTheSuperHackersConstants.ScrollFactorKey] = profile.VideoScrollFactor.Value.ToString();
 
         if (profile.VideoRetaliation.HasValue)
-            options.Video.AdditionalProperties["Retaliation"] = profile.VideoRetaliation.Value ? "yes" : "no";
+            options.Video.AdditionalProperties[GameSettingsTheSuperHackersConstants.RetaliationKey] = profile.VideoRetaliation.Value ? "yes" : "no";
 
         if (profile.VideoDynamicLOD.HasValue)
-            options.Video.AdditionalProperties["DynamicLOD"] = profile.VideoDynamicLOD.Value ? "yes" : "no";
+            options.Video.AdditionalProperties[GameSettingsTheSuperHackersConstants.DynamicLODKey] = profile.VideoDynamicLOD.Value ? "yes" : "no";
 
         if (profile.VideoMaxParticleCount.HasValue)
-            options.Video.AdditionalProperties["MaxParticleCount"] = profile.VideoMaxParticleCount.Value.ToString();
+            options.Video.AdditionalProperties[GameSettingsTheSuperHackersConstants.MaxParticleCountKey] = profile.VideoMaxParticleCount.Value.ToString();
 
         if (profile.VideoSkipEALogo.HasValue)
             options.Video.AdditionalProperties["SkipEALogo"] = profile.VideoSkipEALogo.Value ? "yes" : "no";
@@ -973,7 +978,7 @@ public static class GameSettingsMapper
     private static void ApplyTshToOptions(GameProfile profile, IniOptions options)
     {
         var tshKey = options.AdditionalSections.Keys.FirstOrDefault(k =>
-            string.Equals(k, "TheSuperHackers", StringComparison.OrdinalIgnoreCase)) ?? "TheSuperHackers";
+            string.Equals(k, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase)) ?? GameSettingsTheSuperHackersConstants.SectionName;
 
         Dictionary<string, string> tshDict;
         if (options.AdditionalSections.TryGetValue(tshKey, out var existingTsh) && existingTsh != null)
@@ -992,24 +997,24 @@ public static class GameSettingsMapper
 
     private static void ApplyTshUiSettingsToDict(GameProfile profile, Dictionary<string, string> tshDict)
     {
-        if (profile.TshArchiveReplays.HasValue) tshDict["ArchiveReplays"] = BoolToString(profile.TshArchiveReplays.Value);
-        if (profile.TshShowMoneyPerMinute.HasValue) tshDict["ShowMoneyPerMinute"] = BoolToString(profile.TshShowMoneyPerMinute.Value);
-        if (profile.TshPlayerObserverEnabled.HasValue) tshDict["PlayerObserverEnabled"] = BoolToString(profile.TshPlayerObserverEnabled.Value);
-        if (profile.TshSystemTimeFontSize.HasValue) tshDict["SystemTimeFontSize"] = profile.TshSystemTimeFontSize.Value.ToString();
-        if (profile.TshNetworkLatencyFontSize.HasValue) tshDict["NetworkLatencyFontSize"] = profile.TshNetworkLatencyFontSize.Value.ToString();
-        if (profile.TshRenderFpsFontSize.HasValue) tshDict["RenderFpsFontSize"] = profile.TshRenderFpsFontSize.Value.ToString();
-        if (profile.TshResolutionFontAdjustment.HasValue) tshDict["ResolutionFontAdjustment"] = profile.TshResolutionFontAdjustment.Value.ToString();
+        if (profile.TshArchiveReplays.HasValue) tshDict[GameSettingsTheSuperHackersConstants.ArchiveReplaysKey] = BoolToString(profile.TshArchiveReplays.Value);
+        if (profile.TshShowMoneyPerMinute.HasValue) tshDict[GameSettingsTheSuperHackersConstants.ShowMoneyPerMinuteKey] = BoolToString(profile.TshShowMoneyPerMinute.Value);
+        if (profile.TshPlayerObserverEnabled.HasValue) tshDict[GameSettingsTheSuperHackersConstants.PlayerObserverEnabledKey] = BoolToString(profile.TshPlayerObserverEnabled.Value);
+        if (profile.TshSystemTimeFontSize.HasValue) tshDict[GameSettingsTheSuperHackersConstants.SystemTimeFontSizeKey] = profile.TshSystemTimeFontSize.Value.ToString();
+        if (profile.TshNetworkLatencyFontSize.HasValue) tshDict[GameSettingsTheSuperHackersConstants.NetworkLatencyFontSizeKey] = profile.TshNetworkLatencyFontSize.Value.ToString();
+        if (profile.TshRenderFpsFontSize.HasValue) tshDict[GameSettingsTheSuperHackersConstants.RenderFpsFontSizeKey] = profile.TshRenderFpsFontSize.Value.ToString();
+        if (profile.TshResolutionFontAdjustment.HasValue) tshDict[GameSettingsTheSuperHackersConstants.ResolutionFontAdjustmentKey] = profile.TshResolutionFontAdjustment.Value.ToString();
     }
 
     private static void ApplyTshControlsSettingsToDict(GameProfile profile, Dictionary<string, string> tshDict)
     {
-        if (profile.TshCursorCaptureEnabledInFullscreenGame.HasValue) tshDict["CursorCaptureEnabledInFullscreenGame"] = BoolToString(profile.TshCursorCaptureEnabledInFullscreenGame.Value);
-        if (profile.TshCursorCaptureEnabledInFullscreenMenu.HasValue) tshDict["CursorCaptureEnabledInFullscreenMenu"] = BoolToString(profile.TshCursorCaptureEnabledInFullscreenMenu.Value);
-        if (profile.TshCursorCaptureEnabledInWindowedGame.HasValue) tshDict["CursorCaptureEnabledInWindowedGame"] = BoolToString(profile.TshCursorCaptureEnabledInWindowedGame.Value);
-        if (profile.TshCursorCaptureEnabledInWindowedMenu.HasValue) tshDict["CursorCaptureEnabledInWindowedMenu"] = BoolToString(profile.TshCursorCaptureEnabledInWindowedMenu.Value);
-        if (profile.TshScreenEdgeScrollEnabledInFullscreenApp.HasValue) tshDict["ScreenEdgeScrollEnabledInFullscreenApp"] = BoolToString(profile.TshScreenEdgeScrollEnabledInFullscreenApp.Value);
-        if (profile.TshScreenEdgeScrollEnabledInWindowedApp.HasValue) tshDict["ScreenEdgeScrollEnabledInWindowedApp"] = BoolToString(profile.TshScreenEdgeScrollEnabledInWindowedApp.Value);
-        if (profile.TshMoneyTransactionVolume.HasValue) tshDict["MoneyTransactionVolume"] = profile.TshMoneyTransactionVolume.Value.ToString();
+        if (profile.TshCursorCaptureEnabledInFullscreenGame.HasValue) tshDict[GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenGameKey] = BoolToString(profile.TshCursorCaptureEnabledInFullscreenGame.Value);
+        if (profile.TshCursorCaptureEnabledInFullscreenMenu.HasValue) tshDict[GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenMenuKey] = BoolToString(profile.TshCursorCaptureEnabledInFullscreenMenu.Value);
+        if (profile.TshCursorCaptureEnabledInWindowedGame.HasValue) tshDict[GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedGameKey] = BoolToString(profile.TshCursorCaptureEnabledInWindowedGame.Value);
+        if (profile.TshCursorCaptureEnabledInWindowedMenu.HasValue) tshDict[GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedMenuKey] = BoolToString(profile.TshCursorCaptureEnabledInWindowedMenu.Value);
+        if (profile.TshScreenEdgeScrollEnabledInFullscreenApp.HasValue) tshDict[GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInFullscreenAppKey] = BoolToString(profile.TshScreenEdgeScrollEnabledInFullscreenApp.Value);
+        if (profile.TshScreenEdgeScrollEnabledInWindowedApp.HasValue) tshDict[GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInWindowedAppKey] = BoolToString(profile.TshScreenEdgeScrollEnabledInWindowedApp.Value);
+        if (profile.TshMoneyTransactionVolume.HasValue) tshDict[GameSettingsTheSuperHackersConstants.MoneyTransactionVolumeKey] = profile.TshMoneyTransactionVolume.Value.ToString();
         if (NormalizeTransitionSpeedMultiplier(profile.TshGameWindowTransitionSpeedMultiplier) is { } speedMultiplier)
         {
             tshDict[GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey] = speedMultiplier.ToString(CultureInfo.InvariantCulture);

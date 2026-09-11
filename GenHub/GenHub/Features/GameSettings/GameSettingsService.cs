@@ -166,7 +166,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     /// <inheritdoc/>
     public async Task<OperationResult<TheSuperHackersSettings>> LoadTheSuperHackersSettingsAsync(GameType gameType)
     {
-        using (_logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "TheSuperHackers" }))
+        using (_logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = GameSettingsTheSuperHackersConstants.SectionName }))
         {
             try
             {
@@ -179,7 +179,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 var settings = new TheSuperHackersSettings();
                 var options = optionsResult.Data;
 
-                var tshKvp = options.AdditionalSections.FirstOrDefault(s => string.Equals(s.Key, "TheSuperHackers", StringComparison.OrdinalIgnoreCase));
+                var tshKvp = options.AdditionalSections.FirstOrDefault(s => string.Equals(s.Key, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase));
                 if (tshKvp.Value != null)
                 {
                     ParseTheSuperHackersSection(settings, tshKvp.Value);
@@ -199,7 +199,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     /// <inheritdoc/>
     public async Task<OperationResult<bool>> SaveTheSuperHackersSettingsAsync(GameType gameType, TheSuperHackersSettings settings)
     {
-        using (_logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "TheSuperHackers" }))
+        using (_logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = GameSettingsTheSuperHackersConstants.SectionName }))
         {
             try
             {
@@ -210,7 +210,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 }
 
                 var options = optionsResult.Data;
-                var tshKey = options.AdditionalSections.Keys.FirstOrDefault(k => string.Equals(k, "TheSuperHackers", StringComparison.OrdinalIgnoreCase)) ?? "TheSuperHackers";
+                var tshKey = options.AdditionalSections.Keys.FirstOrDefault(k => string.Equals(k, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase)) ?? GameSettingsTheSuperHackersConstants.SectionName;
                 Dictionary<string, string> tshSection = [];
                 if (options.AdditionalSections.TryGetValue(tshKey, out var existingTsh) && existingTsh != null)
                 {
@@ -454,14 +454,32 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         // TheSuperHackers / GeneralsOnline specific keys that appear in flat format
         var theSuperHackersKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "CursorCaptureEnabledInWindowedMenu", "CursorCaptureEnabledInWindowedGame", "DrawScrollAnchor", "DynamicLOD",
-            "GameTimeFontSize", GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, "LanguageFilter", "MaxParticleCount",
-            "MoneyTransactionVolume", "MoveScrollAnchor", "NetworkLatencyFontSize",
-            "PlayerObserverEnabled", "RenderFpsFontSize", "ResolutionFontAdjustment",
-            "Retaliation", "ScreenEdgeScrollEnabledInFullscreenApp",
-            "ScreenEdgeScrollEnabledInWindowedApp", "ScrollFactor", "SendDelay",
-            "ShowMoneyPerMinute", "ShowSoftWaterEdge", "ShowTrees", "SystemTimeFontSize",
-            "UseCloudMap", "UseDoubleClickAttackMove", "UseLightMap",
+            GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedMenuKey,
+            GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedGameKey,
+            "DrawScrollAnchor",
+            GameSettingsTheSuperHackersConstants.DynamicLODKey,
+            "GameTimeFontSize",
+            GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey,
+            "LanguageFilter",
+            GameSettingsTheSuperHackersConstants.MaxParticleCountKey,
+            GameSettingsTheSuperHackersConstants.MoneyTransactionVolumeKey,
+            "MoveScrollAnchor",
+            GameSettingsTheSuperHackersConstants.NetworkLatencyFontSizeKey,
+            GameSettingsTheSuperHackersConstants.PlayerObserverEnabledKey,
+            GameSettingsTheSuperHackersConstants.RenderFpsFontSizeKey,
+            GameSettingsTheSuperHackersConstants.ResolutionFontAdjustmentKey,
+            GameSettingsTheSuperHackersConstants.RetaliationKey,
+            GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInFullscreenAppKey,
+            GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInWindowedAppKey,
+            GameSettingsTheSuperHackersConstants.ScrollFactorKey,
+            "SendDelay",
+            GameSettingsTheSuperHackersConstants.ShowMoneyPerMinuteKey,
+            "ShowSoftWaterEdge",
+            "ShowTrees",
+            GameSettingsTheSuperHackersConstants.SystemTimeFontSizeKey,
+            "UseCloudMap",
+            GameSettingsTheSuperHackersConstants.UseDoubleClickAttackMoveKey,
+            "UseLightMap",
         };
 
         Dictionary<string, string> audioDict = new(StringComparer.OrdinalIgnoreCase);
@@ -521,7 +539,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
 
         // Store TheSuperHackers settings in AdditionalSections to preserve them
         if (theSuperHackersDict.Count > 0)
-            options.AdditionalSections["TheSuperHackers"] = new Dictionary<string, string>(theSuperHackersDict, StringComparer.OrdinalIgnoreCase);
+            options.AdditionalSections[GameSettingsTheSuperHackersConstants.SectionName] = new Dictionary<string, string>(theSuperHackersDict, StringComparer.OrdinalIgnoreCase);
     }
 
     private static void ProcessSection(IniOptions options, string sectionName, Dictionary<string, string> values)
@@ -721,11 +739,11 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         }
 
         // TheSuperHackers settings
-        var tshKvp = options.AdditionalSections.FirstOrDefault(s => string.Equals(s.Key, "TheSuperHackers", StringComparison.OrdinalIgnoreCase));
+        var tshKvp = options.AdditionalSections.FirstOrDefault(s => string.Equals(s.Key, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase));
         if (tshKvp.Value is { Count: > 0 })
         {
             lines.Add(string.Empty);
-            lines.Add("[TheSuperHackers]");
+            lines.Add($"[{GameSettingsTheSuperHackersConstants.SectionName}]");
             foreach (var kvp in tshKvp.Value)
             {
                 lines.Add($"{kvp.Key} = {kvp.Value}");
@@ -745,7 +763,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         }
 
         // Add any other additional sections with section headers (for future extensibility)
-        foreach (var section in options.AdditionalSections.Where(s => !string.Equals(s.Key, "TheSuperHackers", StringComparison.OrdinalIgnoreCase)))
+        foreach (var section in options.AdditionalSections.Where(s => !string.Equals(s.Key, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase)))
         {
             lines.Add(string.Empty);
             lines.Add($"[{section.Key}]");
@@ -762,46 +780,46 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
 
     private static void ParseTheSuperHackersSection(TheSuperHackersSettings settings, Dictionary<string, string> values)
     {
-        if (values.TryGetCaseInsensitive("ArchiveReplays", out var archiveReplays))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ArchiveReplaysKey, out var archiveReplays))
             settings.ArchiveReplays = ParseBool(archiveReplays);
 
-        if (values.TryGetCaseInsensitive("CursorCaptureEnabledInFullscreenGame", out var cursorFullscreenGame))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenGameKey, out var cursorFullscreenGame))
             settings.CursorCaptureEnabledInFullscreenGame = ParseBool(cursorFullscreenGame);
 
-        if (values.TryGetCaseInsensitive("CursorCaptureEnabledInFullscreenMenu", out var cursorFullscreenMenu))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenMenuKey, out var cursorFullscreenMenu))
             settings.CursorCaptureEnabledInFullscreenMenu = ParseBool(cursorFullscreenMenu);
 
-        if (values.TryGetCaseInsensitive("CursorCaptureEnabledInWindowedGame", out var cursorWindowedGame))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedGameKey, out var cursorWindowedGame))
             settings.CursorCaptureEnabledInWindowedGame = ParseBool(cursorWindowedGame);
 
-        if (values.TryGetCaseInsensitive("CursorCaptureEnabledInWindowedMenu", out var cursorWindowedMenu))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedMenuKey, out var cursorWindowedMenu))
             settings.CursorCaptureEnabledInWindowedMenu = ParseBool(cursorWindowedMenu);
 
-        if (values.TryGetCaseInsensitive("MoneyTransactionVolume", out var moneyVolume) && int.TryParse(moneyVolume, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mv))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.MoneyTransactionVolumeKey, out var moneyVolume) && int.TryParse(moneyVolume, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mv))
             settings.MoneyTransactionVolume = mv;
 
-        if (values.TryGetCaseInsensitive("NetworkLatencyFontSize", out var netLatencyFont) && int.TryParse(netLatencyFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var nlf))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.NetworkLatencyFontSizeKey, out var netLatencyFont) && int.TryParse(netLatencyFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var nlf))
             settings.NetworkLatencyFontSize = nlf;
 
-        if (values.TryGetCaseInsensitive("PlayerObserverEnabled", out var playerObserver))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.PlayerObserverEnabledKey, out var playerObserver))
             settings.PlayerObserverEnabled = ParseBool(playerObserver);
 
-        if (values.TryGetCaseInsensitive("RenderFpsFontSize", out var fpsFont) && int.TryParse(fpsFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var ff))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.RenderFpsFontSizeKey, out var fpsFont) && int.TryParse(fpsFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var ff))
             settings.RenderFpsFontSize = ff;
 
-        if (values.TryGetCaseInsensitive("ResolutionFontAdjustment", out var resFontAdj) && int.TryParse(resFontAdj, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rfa))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ResolutionFontAdjustmentKey, out var resFontAdj) && int.TryParse(resFontAdj, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rfa))
             settings.ResolutionFontAdjustment = rfa;
 
-        if (values.TryGetCaseInsensitive("ScreenEdgeScrollEnabledInFullscreenApp", out var scrollFullscreen))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInFullscreenAppKey, out var scrollFullscreen))
             settings.ScreenEdgeScrollEnabledInFullscreenApp = ParseBool(scrollFullscreen);
 
-        if (values.TryGetCaseInsensitive("ScreenEdgeScrollEnabledInWindowedApp", out var scrollWindowed))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInWindowedAppKey, out var scrollWindowed))
             settings.ScreenEdgeScrollEnabledInWindowedApp = ParseBool(scrollWindowed);
 
-        if (values.TryGetCaseInsensitive("ShowMoneyPerMinute", out var showMoney))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ShowMoneyPerMinuteKey, out var showMoney))
             settings.ShowMoneyPerMinute = ParseBool(showMoney);
 
-        if (values.TryGetCaseInsensitive("SystemTimeFontSize", out var sysTimeFont) && int.TryParse(sysTimeFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var stf))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.SystemTimeFontSizeKey, out var sysTimeFont) && int.TryParse(sysTimeFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var stf))
             settings.SystemTimeFontSize = stf;
 
         if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var speedMult))
@@ -818,21 +836,21 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     {
         return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["ArchiveReplays"] = BoolToString(settings.ArchiveReplays),
-            ["CursorCaptureEnabledInFullscreenGame"] = BoolToString(settings.CursorCaptureEnabledInFullscreenGame),
-            ["CursorCaptureEnabledInFullscreenMenu"] = BoolToString(settings.CursorCaptureEnabledInFullscreenMenu),
-            ["CursorCaptureEnabledInWindowedGame"] = BoolToString(settings.CursorCaptureEnabledInWindowedGame),
-            ["CursorCaptureEnabledInWindowedMenu"] = BoolToString(settings.CursorCaptureEnabledInWindowedMenu),
+            [GameSettingsTheSuperHackersConstants.ArchiveReplaysKey] = BoolToString(settings.ArchiveReplays),
+            [GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenGameKey] = BoolToString(settings.CursorCaptureEnabledInFullscreenGame),
+            [GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenMenuKey] = BoolToString(settings.CursorCaptureEnabledInFullscreenMenu),
+            [GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedGameKey] = BoolToString(settings.CursorCaptureEnabledInWindowedGame),
+            [GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedMenuKey] = BoolToString(settings.CursorCaptureEnabledInWindowedMenu),
             [GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey] = (GameSettingsMapper.NormalizeTransitionSpeedMultiplier(settings.GameWindowTransitionSpeedMultiplier) ?? GameSettingsTheSuperHackersConstants.DefaultGameWindowTransitionSpeedMultiplier).ToString(CultureInfo.InvariantCulture),
-            ["MoneyTransactionVolume"] = settings.MoneyTransactionVolume.ToString(),
-            ["NetworkLatencyFontSize"] = settings.NetworkLatencyFontSize.ToString(),
-            ["PlayerObserverEnabled"] = BoolToString(settings.PlayerObserverEnabled),
-            ["RenderFpsFontSize"] = settings.RenderFpsFontSize.ToString(),
-            ["ResolutionFontAdjustment"] = settings.ResolutionFontAdjustment.ToString(),
-            ["ScreenEdgeScrollEnabledInFullscreenApp"] = BoolToString(settings.ScreenEdgeScrollEnabledInFullscreenApp),
-            ["ScreenEdgeScrollEnabledInWindowedApp"] = BoolToString(settings.ScreenEdgeScrollEnabledInWindowedApp),
-            ["ShowMoneyPerMinute"] = BoolToString(settings.ShowMoneyPerMinute),
-            ["SystemTimeFontSize"] = settings.SystemTimeFontSize.ToString(),
+            [GameSettingsTheSuperHackersConstants.MoneyTransactionVolumeKey] = settings.MoneyTransactionVolume.ToString(),
+            [GameSettingsTheSuperHackersConstants.NetworkLatencyFontSizeKey] = settings.NetworkLatencyFontSize.ToString(),
+            [GameSettingsTheSuperHackersConstants.PlayerObserverEnabledKey] = BoolToString(settings.PlayerObserverEnabled),
+            [GameSettingsTheSuperHackersConstants.RenderFpsFontSizeKey] = settings.RenderFpsFontSize.ToString(),
+            [GameSettingsTheSuperHackersConstants.ResolutionFontAdjustmentKey] = settings.ResolutionFontAdjustment.ToString(),
+            [GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInFullscreenAppKey] = BoolToString(settings.ScreenEdgeScrollEnabledInFullscreenApp),
+            [GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInWindowedAppKey] = BoolToString(settings.ScreenEdgeScrollEnabledInWindowedApp),
+            [GameSettingsTheSuperHackersConstants.ShowMoneyPerMinuteKey] = BoolToString(settings.ShowMoneyPerMinute),
+            [GameSettingsTheSuperHackersConstants.SystemTimeFontSizeKey] = settings.SystemTimeFontSize.ToString(),
         };
     }
 

@@ -20,7 +20,7 @@ public class GameSettingsMapperTests
     [InlineData(TextureQuality.Low, GameSettingsConstants.TextureQuality.TextureReductionLow)]
     [InlineData(TextureQuality.Medium, GameSettingsConstants.TextureQuality.TextureReductionMedium)]
     [InlineData(TextureQuality.High, GameSettingsConstants.TextureQuality.TextureReductionHigh)]
-    [InlineData(TextureQuality.VeryHigh, GameSettingsConstants.TextureQuality.TextureReductionHigh)]
+    [InlineData(TextureQuality.VeryHigh, GameSettingsConstants.TextureQuality.TextureReductionVeryHigh)]
     public void ApplyToOptions_AllTextureQualities_SetsCorrectReduction(TextureQuality quality, int expectedReduction)
     {
         // Arrange
@@ -28,7 +28,10 @@ public class GameSettingsMapperTests
         {
             VideoTextureQuality = quality,
         };
-        var options = new IniOptions();
+        var options = new IniOptions
+        {
+            Video = { TextureReduction = 99 },
+        };
 
         // Act
         GameSettingsMapper.ApplyToOptions(profile, options);
@@ -462,5 +465,68 @@ public class GameSettingsMapperTests
 
         Assert.True(options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshDict));
         Assert.Equal("4", tshDict["GameWindowTransitionSpeedMultiplier"]);
+    }
+
+    /// <summary>
+    /// Verifies that PopulateRequest from UpdateProfileRequest to CreateProfileRequest copies all properties including UseSteamLaunch and VideoSkipEALogo.
+    /// </summary>
+    [Fact]
+    public void PopulateRequest_CreateProfileRequest_CopiesAllSettingsIncludingUseSteamLaunchAndVideoSkipEALogo()
+    {
+        // Arrange
+        var source = new UpdateProfileRequest
+        {
+            UseSteamLaunch = true,
+            VideoSkipEALogo = true,
+            GameSpyIPAddress = "192.168.1.1",
+            VideoResolutionWidth = 1920,
+            VideoResolutionHeight = 1080,
+            TshGameWindowTransitionSpeedMultiplier = 2.5f,
+        };
+        var target = new CreateProfileRequest
+        {
+            Name = "Test",
+        };
+
+        // Act
+        GameSettingsMapper.PopulateRequest(target, source);
+
+        // Assert
+        Assert.True(target.UseSteamLaunch);
+        Assert.True(target.VideoSkipEALogo);
+        Assert.Equal("192.168.1.1", target.GameSpyIPAddress);
+        Assert.Equal(1920, target.VideoResolutionWidth);
+        Assert.Equal(1080, target.VideoResolutionHeight);
+        Assert.Equal(2.5f, target.TshGameWindowTransitionSpeedMultiplier);
+    }
+
+    /// <summary>
+    /// Verifies that PopulateRequest from UpdateProfileRequest to UpdateProfileRequest copies all properties including UseSteamLaunch and VideoSkipEALogo.
+    /// </summary>
+    [Fact]
+    public void PopulateRequest_UpdateProfileRequest_CopiesAllSettingsIncludingUseSteamLaunchAndVideoSkipEALogo()
+    {
+        // Arrange
+        var source = new UpdateProfileRequest
+        {
+            UseSteamLaunch = true,
+            VideoSkipEALogo = true,
+            GameSpyIPAddress = "192.168.1.1",
+            VideoResolutionWidth = 1920,
+            VideoResolutionHeight = 1080,
+            TshGameWindowTransitionSpeedMultiplier = 2.5f,
+        };
+        var target = new UpdateProfileRequest();
+
+        // Act
+        GameSettingsMapper.PopulateRequest(target, source);
+
+        // Assert
+        Assert.True(target.UseSteamLaunch);
+        Assert.True(target.VideoSkipEALogo);
+        Assert.Equal("192.168.1.1", target.GameSpyIPAddress);
+        Assert.Equal(1920, target.VideoResolutionWidth);
+        Assert.Equal(1080, target.VideoResolutionHeight);
+        Assert.Equal(2.5f, target.TshGameWindowTransitionSpeedMultiplier);
     }
 }

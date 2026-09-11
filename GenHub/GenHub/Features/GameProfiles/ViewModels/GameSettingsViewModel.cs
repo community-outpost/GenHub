@@ -1204,7 +1204,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     private void ApplyTshAdditionalProperties(IniOptions options)
     {
         var tshKvp = options.AdditionalSections.FirstOrDefault(s =>
-            string.Equals(s.Key, "TheSuperHackers", StringComparison.OrdinalIgnoreCase));
+            string.Equals(s.Key, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase));
         if (tshKvp.Value == null)
         {
             return;
@@ -1216,20 +1216,20 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
     private void ApplyTshGameplayProperties(Dictionary<string, string> tsh)
     {
-        if (tsh.TryGetCaseInsensitive("UseDoubleClickAttackMove", out var doubleClick))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.UseDoubleClickAttackMoveKey, out var doubleClick))
             UseDoubleClickAttackMove = ParseBool(doubleClick);
-        if (tsh.TryGetCaseInsensitive("ScrollFactor", out var scroll) && int.TryParse(scroll, NumberStyles.Integer, CultureInfo.InvariantCulture, out var scrollVal))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ScrollFactorKey, out var scroll) && int.TryParse(scroll, NumberStyles.Integer, CultureInfo.InvariantCulture, out var scrollVal))
             ScrollFactor = scrollVal;
-        if (tsh.TryGetCaseInsensitive("Retaliation", out var retaliation))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.RetaliationKey, out var retaliation))
             Retaliation = ParseBool(retaliation);
-        if (tsh.TryGetCaseInsensitive("DynamicLOD", out var dynLOD))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.DynamicLODKey, out var dynLOD))
             DynamicLOD = ParseBool(dynLOD);
-        if (tsh.TryGetCaseInsensitive("MaxParticleCount", out var particles) && int.TryParse(particles, NumberStyles.Integer, CultureInfo.InvariantCulture, out var particleVal))
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.MaxParticleCountKey, out var particles) && int.TryParse(particles, NumberStyles.Integer, CultureInfo.InvariantCulture, out var particleVal))
             MaxParticleCount = particleVal;
-        if (tsh.TryGetCaseInsensitive("ArchiveReplays", out var ar)) TshArchiveReplays = ParseBool(ar);
-        if (tsh.TryGetCaseInsensitive("ShowMoneyPerMinute", out var smpm)) TshShowMoneyPerMinute = ParseBool(smpm);
-        if (tsh.TryGetCaseInsensitive("PlayerObserverEnabled", out var poe)) TshPlayerObserverEnabled = ParseBool(poe);
-        if (tsh.TryGetCaseInsensitive("MoneyTransactionVolume", out var mtv) && int.TryParse(mtv, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mtvVal)) TshMoneyTransactionVolume = mtvVal;
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ArchiveReplaysKey, out var ar)) TshArchiveReplays = ParseBool(ar);
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ShowMoneyPerMinuteKey, out var smpm)) TshShowMoneyPerMinute = ParseBool(smpm);
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.PlayerObserverEnabledKey, out var poe)) TshPlayerObserverEnabled = ParseBool(poe);
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.MoneyTransactionVolumeKey, out var mtv) && int.TryParse(mtv, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mtvVal)) TshMoneyTransactionVolume = mtvVal;
         if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var gwt))
         {
             var parsed = GameSettingsMapper.ParseTransitionSpeedMultiplier(gwt);
@@ -1242,16 +1242,16 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
     private void ApplyTshUiCursorProperties(Dictionary<string, string> tsh)
     {
-        if (tsh.TryGetCaseInsensitive("SystemTimeFontSize", out var stfs) && int.TryParse(stfs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var stfsVal)) TshSystemTimeFontSize = stfsVal;
-        if (tsh.TryGetCaseInsensitive("NetworkLatencyFontSize", out var nlfs) && int.TryParse(nlfs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var nlfsVal)) TshNetworkLatencyFontSize = nlfsVal;
-        if (tsh.TryGetCaseInsensitive("RenderFpsFontSize", out var rffs) && int.TryParse(rffs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rffsVal)) TshRenderFpsFontSize = rffsVal;
-        if (tsh.TryGetCaseInsensitive("ResolutionFontAdjustment", out var rfa) && int.TryParse(rfa, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rfaVal)) TshResolutionFontAdjustment = rfaVal;
-        if (tsh.TryGetCaseInsensitive("CursorCaptureEnabledInFullscreenGame", out var ccefg)) TshCursorCaptureEnabledInFullscreenGame = ParseBool(ccefg);
-        if (tsh.TryGetCaseInsensitive("CursorCaptureEnabledInFullscreenMenu", out var ccefm)) TshCursorCaptureEnabledInFullscreenMenu = ParseBool(ccefm);
-        if (tsh.TryGetCaseInsensitive("CursorCaptureEnabledInWindowedGame", out var ccewg)) TshCursorCaptureEnabledInWindowedGame = ParseBool(ccewg);
-        if (tsh.TryGetCaseInsensitive("CursorCaptureEnabledInWindowedMenu", out var ccewm)) TshCursorCaptureEnabledInWindowedMenu = ParseBool(ccewm);
-        if (tsh.TryGetCaseInsensitive("ScreenEdgeScrollEnabledInFullscreenApp", out var sesefa)) TshScreenEdgeScrollEnabledInFullscreenApp = ParseBool(sesefa);
-        if (tsh.TryGetCaseInsensitive("ScreenEdgeScrollEnabledInWindowedApp", out var sesewa)) TshScreenEdgeScrollEnabledInWindowedApp = ParseBool(sesewa);
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.SystemTimeFontSizeKey, out var stfs) && int.TryParse(stfs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var stfsVal)) TshSystemTimeFontSize = stfsVal;
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.NetworkLatencyFontSizeKey, out var nlfs) && int.TryParse(nlfs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var nlfsVal)) TshNetworkLatencyFontSize = nlfsVal;
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.RenderFpsFontSizeKey, out var rffs) && int.TryParse(rffs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rffsVal)) TshRenderFpsFontSize = rffsVal;
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ResolutionFontAdjustmentKey, out var rfa) && int.TryParse(rfa, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rfaVal)) TshResolutionFontAdjustment = rfaVal;
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenGameKey, out var ccefg)) TshCursorCaptureEnabledInFullscreenGame = ParseBool(ccefg);
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenMenuKey, out var ccefm)) TshCursorCaptureEnabledInFullscreenMenu = ParseBool(ccefm);
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedGameKey, out var ccewg)) TshCursorCaptureEnabledInWindowedGame = ParseBool(ccewg);
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedMenuKey, out var ccewm)) TshCursorCaptureEnabledInWindowedMenu = ParseBool(ccewm);
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInFullscreenAppKey, out var scrollApp)) TshScreenEdgeScrollEnabledInFullscreenApp = ParseBool(scrollApp);
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInWindowedAppKey, out var scrollWinApp)) TshScreenEdgeScrollEnabledInWindowedApp = ParseBool(scrollWinApp);
     }
 
     private IniOptions CreateOptionsFromViewModel()
@@ -1317,7 +1317,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
         // TheSuperHackers settings - preserve existing settings, only update the ones we manage
         var tshKey = options.AdditionalSections.Keys.FirstOrDefault(k =>
-            string.Equals(k, "TheSuperHackers", StringComparison.OrdinalIgnoreCase)) ?? "TheSuperHackers";
+            string.Equals(k, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase)) ?? GameSettingsTheSuperHackersConstants.SectionName;
 
         if (!options.AdditionalSections.TryGetValue(tshKey, out var tshDict) || tshDict == null)
         {
@@ -1326,20 +1326,20 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         }
 
         // Update only the remaining settings we know about in the ViewModel, preserve all others
-        tshDict["ArchiveReplays"] = BoolToString(TshArchiveReplays);
-        tshDict["ShowMoneyPerMinute"] = BoolToString(TshShowMoneyPerMinute);
-        tshDict["PlayerObserverEnabled"] = BoolToString(TshPlayerObserverEnabled);
-        tshDict["SystemTimeFontSize"] = TshSystemTimeFontSize.ToString();
-        tshDict["NetworkLatencyFontSize"] = TshNetworkLatencyFontSize.ToString();
-        tshDict["RenderFpsFontSize"] = TshRenderFpsFontSize.ToString();
-        tshDict["ResolutionFontAdjustment"] = TshResolutionFontAdjustment.ToString();
-        tshDict["CursorCaptureEnabledInFullscreenGame"] = BoolToString(TshCursorCaptureEnabledInFullscreenGame);
-        tshDict["CursorCaptureEnabledInFullscreenMenu"] = BoolToString(TshCursorCaptureEnabledInFullscreenMenu);
-        tshDict["CursorCaptureEnabledInWindowedGame"] = BoolToString(TshCursorCaptureEnabledInWindowedGame);
-        tshDict["CursorCaptureEnabledInWindowedMenu"] = BoolToString(TshCursorCaptureEnabledInWindowedMenu);
-        tshDict["ScreenEdgeScrollEnabledInFullscreenApp"] = BoolToString(TshScreenEdgeScrollEnabledInFullscreenApp);
-        tshDict["ScreenEdgeScrollEnabledInWindowedApp"] = BoolToString(TshScreenEdgeScrollEnabledInWindowedApp);
-        tshDict["MoneyTransactionVolume"] = TshMoneyTransactionVolume.ToString();
+        tshDict[GameSettingsTheSuperHackersConstants.ArchiveReplaysKey] = BoolToString(TshArchiveReplays);
+        tshDict[GameSettingsTheSuperHackersConstants.ShowMoneyPerMinuteKey] = BoolToString(TshShowMoneyPerMinute);
+        tshDict[GameSettingsTheSuperHackersConstants.PlayerObserverEnabledKey] = BoolToString(TshPlayerObserverEnabled);
+        tshDict[GameSettingsTheSuperHackersConstants.SystemTimeFontSizeKey] = TshSystemTimeFontSize.ToString();
+        tshDict[GameSettingsTheSuperHackersConstants.NetworkLatencyFontSizeKey] = TshNetworkLatencyFontSize.ToString();
+        tshDict[GameSettingsTheSuperHackersConstants.RenderFpsFontSizeKey] = TshRenderFpsFontSize.ToString();
+        tshDict[GameSettingsTheSuperHackersConstants.ResolutionFontAdjustmentKey] = TshResolutionFontAdjustment.ToString();
+        tshDict[GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenGameKey] = BoolToString(TshCursorCaptureEnabledInFullscreenGame);
+        tshDict[GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenMenuKey] = BoolToString(TshCursorCaptureEnabledInFullscreenMenu);
+        tshDict[GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedGameKey] = BoolToString(TshCursorCaptureEnabledInWindowedGame);
+        tshDict[GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedMenuKey] = BoolToString(TshCursorCaptureEnabledInWindowedMenu);
+        tshDict[GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInFullscreenAppKey] = BoolToString(TshScreenEdgeScrollEnabledInFullscreenApp);
+        tshDict[GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInWindowedAppKey] = BoolToString(TshScreenEdgeScrollEnabledInWindowedApp);
+        tshDict[GameSettingsTheSuperHackersConstants.MoneyTransactionVolumeKey] = TshMoneyTransactionVolume.ToString();
         tshDict[GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey] = (GameSettingsMapper.NormalizeTransitionSpeedMultiplier(TshGameWindowTransitionSpeedMultiplier) ?? GameSettingsTheSuperHackersConstants.DefaultGameWindowTransitionSpeedMultiplier).ToString(CultureInfo.InvariantCulture);
 
         return options;
