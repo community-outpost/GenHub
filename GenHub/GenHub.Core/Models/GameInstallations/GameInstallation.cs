@@ -250,7 +250,19 @@ public class GameInstallation(
                 }
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or ArgumentException or PathTooLongException)
+        catch (IOException)
+        {
+            // Directory probe failure fallback
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Directory probe failure fallback
+        }
+        catch (System.Security.SecurityException)
+        {
+            // Directory probe failure fallback
+        }
+        catch (ArgumentException)
         {
             // Directory probe failure fallback
         }

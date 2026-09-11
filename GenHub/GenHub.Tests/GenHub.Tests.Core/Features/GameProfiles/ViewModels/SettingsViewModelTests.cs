@@ -766,6 +766,7 @@ public class SettingsViewModelTests
 
             // Lock logFile2 exclusively
             using var lockStream = new FileStream(logFile2, System.IO.FileMode.Open, System.IO.FileAccess.ReadWrite, System.IO.FileShare.None);
+            Assert.NotNull(lockStream);
 
             // Act
             await viewModel.ClearLogsCommand.ExecuteAsync(null);
