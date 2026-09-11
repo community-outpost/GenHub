@@ -658,16 +658,15 @@ public sealed class ReplayDirectoryService(
             return true;
         }
 
-        if (profile.EnabledContentIds != null &&
-            profile.EnabledContentIds.Any(id => id.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+        if (profile.EnabledContentIds?.Any(id => id.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
                                                 id.Contains("recovery", StringComparison.OrdinalIgnoreCase) ||
-                                                id.Contains("checkpoint", StringComparison.OrdinalIgnoreCase)))
+                                                id.Contains("checkpoint", StringComparison.OrdinalIgnoreCase)) == true)
         {
             return true;
         }
 
         if (profile.Name.Contains("recovery", StringComparison.OrdinalIgnoreCase) ||
-            (profile.Description != null && profile.Description.Contains("recovery", StringComparison.OrdinalIgnoreCase)))
+            profile.Description?.Contains("recovery", StringComparison.OrdinalIgnoreCase) == true)
         {
             return true;
         }

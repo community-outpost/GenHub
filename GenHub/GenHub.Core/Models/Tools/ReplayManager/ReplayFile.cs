@@ -170,11 +170,23 @@ public sealed class ReplayFile : IExportableFile
     /// <summary>
     /// Gets the tooltip explaining the Checkpoint / Takeover feature availability.
     /// </summary>
-    public string TakeoverButtonTooltip => SupportsCheckpoints
-        ? (!string.IsNullOrEmpty(RecoveryProfileName)
-            ? $"Resume replay from a checkpoint save, or take over and play the match live as any player using profile '{RecoveryProfileName}'."
-            : "Resume replay from a checkpoint save, or take over and play the match live as any player.")
-        : "Checkpoint recovery and match takeover require a game client with checkpoint capabilities (e.g. MP-Recovery or modern community engine).";
+    public string TakeoverButtonTooltip
+    {
+        get
+        {
+            if (!SupportsCheckpoints)
+            {
+                return "Checkpoint recovery and match takeover require a game client with checkpoint capabilities (e.g. MP-Recovery or modern community engine).";
+            }
+
+            if (!string.IsNullOrEmpty(RecoveryProfileName))
+            {
+                return $"Resume replay from a checkpoint save, or take over and play the match live as any player using profile '{RecoveryProfileName}'.";
+            }
+
+            return "Resume replay from a checkpoint save, or take over and play the match live as any player.";
+        }
+    }
 
     private static string FormatFileSize(long bytes) => bytes switch
     {
