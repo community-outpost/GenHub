@@ -190,9 +190,9 @@ main {
 }
 
 .btn-discord {
-    background: rgba(88, 101, 242, 0.12);
-    border: 1px solid rgba(88, 101, 242, 0.35);
-    color: #c7d2fe;
+    background: rgba(88, 101, 242, 0.18);
+    border: 1px solid rgba(88, 101, 242, 0.45);
+    color: #e0e7ff;
 }
 
 .btn-discord:hover {
@@ -462,21 +462,21 @@ main {
 }
 
 .status-ready {
-    background: rgba(16, 185, 129, 0.15);
-    color: #34d399;
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    background: rgba(16, 185, 129, 0.2);
+    color: #6ee7b7;
+    border: 1px solid rgba(16, 185, 129, 0.45);
 }
 
 .status-active {
-    background: rgba(139, 92, 246, 0.2);
-    color: var(--primary-light);
-    border: 1px solid rgba(139, 92, 246, 0.4);
+    background: rgba(139, 92, 246, 0.25);
+    color: #c4b5fd;
+    border: 1px solid rgba(139, 92, 246, 0.45);
 }
 
 .status-update {
-    background: rgba(245, 158, 11, 0.15);
-    color: #fbbf24;
-    border: 1px solid rgba(245, 158, 11, 0.3);
+    background: rgba(245, 158, 11, 0.2);
+    color: #fde68a;
+    border: 1px solid rgba(245, 158, 11, 0.45);
 }
 
 .profile-meta-list {
@@ -645,9 +645,9 @@ main {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    background: rgba(16, 185, 129, 0.15);
-    color: #10b981;
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    background: rgba(16, 185, 129, 0.2);
+    color: #6ee7b7;
+    border: 1px solid rgba(16, 185, 129, 0.45);
 }
 
 .fix-icon-badge svg {
@@ -956,13 +956,13 @@ main {
 }
 
 .card-negative .comparison-icon {
-    background: rgba(239, 68, 68, 0.15);
-    color: #ef4444;
+    background: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
 }
 
 .card-positive .comparison-icon {
-    background: rgba(56, 189, 248, 0.15);
-    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.2);
+    color: #7dd3fc;
 }
 
 .comparison-list {
