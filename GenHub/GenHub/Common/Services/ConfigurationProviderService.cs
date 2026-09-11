@@ -28,7 +28,6 @@ public class ConfigurationProviderService(
         DirectoryNames.Profiles,
         FileTypes.ManifestsDirectory,
         DirectoryNames.UserData,
-        DirectoryNames.CasPool,
     ];
 
     private static readonly string[] LegacySettingsFileNames =
@@ -357,7 +356,8 @@ public class ConfigurationProviderService(
         if (string.IsNullOrWhiteSpace(casConfig.CasRootPath))
         {
             var defaultPath = Path.Combine(
-                GetApplicationDataPath(),
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                AppConstants.AppName,
                 DirectoryNames.CasPool);
 
             var defaultConfig = (CasConfiguration)casConfig.Clone();
@@ -475,8 +475,6 @@ public class ConfigurationProviderService(
                 _logger.LogError(ex, "Failed to migrate legacy file {Source}", source);
             }
         }
-
-        TryDeleteEmptyDirectory(legacyRoot);
     }
 
     private static List<(string Source, string Destination)> ResolveLegacyDirectories(string legacyRoot, string dataRoot) =>
