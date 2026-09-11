@@ -594,6 +594,17 @@ public sealed class PlaywrightService(
         return orderedUnique;
     }
 
+    private static async Task<Task> WaitForCompletionOrCancellationAsync(
+        Task saveTask,
+        TaskCompletionSource<bool> cancelTcs,
+        CancellationToken cancellationToken)
+    {
+        using (cancellationToken.Register(() => cancelTcs.TrySetResult(true)))
+        {
+            return await Task.WhenAny(saveTask, cancelTcs.Task);
+        }
+    }
+
     /// <summary>
     /// A persistent context is only reusable while it is live and still owns at least one open
     /// page. A headed Chromium process exits once its final page closes, after which the cached
@@ -1282,52 +1293,49 @@ public sealed class PlaywrightService(
             return;
         }
 
-        List<IPage> pages = [];
         try
         {
-            pages = [.. _persistentContext.Pages];
+            var pages = _persistentContext.Pages;
+            var blankPages = new List<IPage>();
+            foreach (var existing in pages)
+            {
+                if (existing == keepPage || existing.IsClosed || _inUsePersistentPages.Contains(existing))
+                {
+                    continue;
+                }
+
+                string url = string.Empty;
+                try
+                {
+                    url = existing.Url ?? string.Empty;
+                }
+                catch (PlaywrightException ex) when (IsContextClosedError(ex))
+                {
+                    continue;
+                }
+
+                if (IsBlankStartupUrl(url))
+                {
+                    blankPages.Add(existing);
+                }
+            }
+
+            // Close all orphan blank pages.
+            foreach (var blankPage in blankPages)
+            {
+                try
+                {
+                    await blankPage.CloseAsync();
+                }
+                catch (PlaywrightException ex)
+                {
+                    logger.LogDebug(ex, "Could not close orphan startup page; it may have closed already.");
+                }
+            }
         }
         catch (PlaywrightException ex) when (IsContextClosedError(ex))
         {
             logger.LogDebug(ex, "Persistent context closed while collecting orphan startup pages.");
-            return;
-        }
-
-        var blankPages = new List<IPage>();
-        foreach (var existing in pages)
-        {
-            if (existing == keepPage || existing.IsClosed || _inUsePersistentPages.Contains(existing))
-            {
-                continue;
-            }
-
-            string url = string.Empty;
-            try
-            {
-                url = existing.Url ?? string.Empty;
-            }
-            catch (PlaywrightException ex) when (IsContextClosedError(ex))
-            {
-                continue;
-            }
-
-            if (IsBlankStartupUrl(url))
-            {
-                blankPages.Add(existing);
-            }
-        }
-
-        // Close all orphan blank pages.
-        foreach (var blankPage in blankPages)
-        {
-            try
-            {
-                await blankPage.CloseAsync();
-            }
-            catch (PlaywrightException ex)
-            {
-                logger.LogDebug(ex, "Could not close orphan startup page; it may have closed already.");
-            }
         }
     }
 
@@ -1680,13 +1688,8 @@ public sealed class PlaywrightService(
         }
 
         var cancelTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Task completedTask;
-        Task saveTask;
-        using (linkedCts.Token.Register(() => cancelTcs.TrySetResult(true)))
-        {
-            saveTask = download.SaveAsAsync(configuration.DestinationPath);
-            completedTask = await Task.WhenAny(saveTask, cancelTcs.Task);
-        }
+        var saveTask = download.SaveAsAsync(configuration.DestinationPath);
+        var completedTask = await WaitForCompletionOrCancellationAsync(saveTask, cancelTcs, linkedCts.Token);
 
         if (completedTask != saveTask)
         {

@@ -859,7 +859,13 @@ public class BackgroundUpdateCoordinator(
 
     private async Task CheckForUpdatesOnStartupAsync(CancellationToken cancellationToken)
     {
-        await CheckForUpdatesInBackgroundAsync(cancellationToken);
+        if (!TryGetLifetimeToken(out var lifetimeToken))
+        {
+            return;
+        }
+
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(lifetimeToken, cancellationToken);
+        await CheckForUpdatesInBackgroundAsync(linkedCts.Token);
     }
 
     private async Task CheckForUpdatesInBackgroundAsync(CancellationToken ct)

@@ -380,16 +380,19 @@ public class CommunityOutpostManifestFactory(
                 alwaysIncludeFiles,
                 dependencyBigFiles);
 
-            var fileEntries = await CollectManifestFilesAsync(
-                allFiles,
-                extractedDirectory,
-                contentMetadata,
+            var inclusionContext = new ManifestInclusionContext(
                 variant,
                 isControlBarVariant,
                 hasVariantBigFiles,
                 dependencyBigFiles,
                 alwaysIncludeFiles,
-                controlBarRepackedOutputs,
+                controlBarRepackedOutputs);
+
+            var fileEntries = await CollectManifestFilesAsync(
+                allFiles,
+                extractedDirectory,
+                contentMetadata,
+                inclusionContext,
                 cancellationToken);
 
             var (manifestId, manifestName) = ResolveVariantIdentity(originalManifest, variant, fileEntries.Count);
@@ -447,12 +450,7 @@ public class CommunityOutpostManifestFactory(
         string[] allFiles,
         string extractedDirectory,
         GenPatcherContentMetadata contentMetadata,
-        ContentVariant? variant,
-        bool isControlBarVariant,
-        bool hasVariantBigFiles,
-        HashSet<string> dependencyBigFiles,
-        HashSet<string> alwaysIncludeFiles,
-        HashSet<string> controlBarRepackedOutputs,
+        ManifestInclusionContext inclusionContext,
         CancellationToken cancellationToken)
     {
         var fileEntries = new List<ManifestFile>();
@@ -461,14 +459,7 @@ public class CommunityOutpostManifestFactory(
             cancellationToken.ThrowIfCancellationRequested();
 
             var relativePath = Path.GetRelativePath(extractedDirectory, fullPath);
-            if (!ShouldIncludeFile(
-                relativePath,
-                variant,
-                isControlBarVariant,
-                hasVariantBigFiles,
-                dependencyBigFiles,
-                alwaysIncludeFiles,
-                controlBarRepackedOutputs))
+            if (!ShouldIncludeFile(relativePath, inclusionContext))
             {
                 continue;
             }
@@ -598,37 +589,32 @@ public class CommunityOutpostManifestFactory(
 
     private bool ShouldIncludeFile(
         string relativePath,
-        ContentVariant? variant,
-        bool isControlBarVariant,
-        bool hasVariantBigFiles,
-        HashSet<string> dependencyBigFiles,
-        HashSet<string> alwaysIncludeFiles,
-        HashSet<string> controlBarRepackedOutputs)
+        ManifestInclusionContext context)
     {
         var fileName = Path.GetFileName(relativePath);
         var normalizedPath = relativePath.Replace('\\', '/').ToLowerInvariant();
-        var isDependencyBig = dependencyBigFiles.Contains(fileName);
-        var isAlwaysInclude = alwaysIncludeFiles.Contains(fileName);
-        var isRepackedOutput = controlBarRepackedOutputs.Contains(fileName);
+        var isDependencyBig = context.DependencyBigFiles.Contains(fileName);
+        var isAlwaysInclude = context.AlwaysIncludeFiles.Contains(fileName);
+        var isRepackedOutput = context.ControlBarRepackedOutputs.Contains(fileName);
 
-        if (isControlBarVariant && controlBarRepackedOutputs.Count > 0 && !isRepackedOutput && !isDependencyBig && !isAlwaysInclude)
+        if (context.IsControlBarVariant && context.ControlBarRepackedOutputs.Count > 0 && !isRepackedOutput && !isDependencyBig && !isAlwaysInclude)
         {
             logger.LogDebug("Skipping file {File} because control bar variant is repacked into Art/Data BIG files", relativePath);
             return false;
         }
 
-        if (isControlBarVariant && hasVariantBigFiles && !fileName.EndsWith(".big", StringComparison.OrdinalIgnoreCase))
+        if (context.IsControlBarVariant && context.HasVariantBigFiles && !fileName.EndsWith(".big", StringComparison.OrdinalIgnoreCase))
         {
-            logger.LogDebug("Skipping non-BIG file {File} for control bar variant {Variant}", relativePath, variant?.Name);
+            logger.LogDebug("Skipping non-BIG file {File} for control bar variant {Variant}", relativePath, context.Variant?.Name);
             return false;
         }
 
-        if (variant != null)
+        if (context.Variant != null)
         {
-            if (variant.IncludePatterns is { Count: > 0 })
+            if (context.Variant.IncludePatterns is { Count: > 0 })
             {
                 bool matchesInclude = false;
-                foreach (var pattern in variant.IncludePatterns)
+                foreach (var pattern in context.Variant.IncludePatterns)
                 {
                     var regex = GetCachedRegex(pattern);
                     if (regex.IsMatch(fileName) || regex.IsMatch(normalizedPath))
@@ -640,15 +626,15 @@ public class CommunityOutpostManifestFactory(
 
                 if (!matchesInclude && !isDependencyBig && !isAlwaysInclude)
                 {
-                    logger.LogDebug("Skipping file {File} - does not match variant {Variant} include patterns", relativePath, variant.Name);
+                    logger.LogDebug("Skipping file {File} - does not match variant {Variant} include patterns", relativePath, context.Variant.Name);
                     return false;
                 }
             }
 
-            if (variant.ExcludePatterns is { Count: > 0 })
+            if (context.Variant.ExcludePatterns is { Count: > 0 })
             {
                 bool matchesExclude = false;
-                foreach (var pattern in variant.ExcludePatterns)
+                foreach (var pattern in context.Variant.ExcludePatterns)
                 {
                     var regex = GetCachedRegex(pattern);
                     if (regex.IsMatch(fileName) || regex.IsMatch(normalizedPath))
@@ -660,7 +646,7 @@ public class CommunityOutpostManifestFactory(
 
                 if (matchesExclude && !isDependencyBig && !isAlwaysInclude)
                 {
-                    logger.LogDebug("Skipping file {File} - matches variant {Variant} exclude pattern", relativePath, variant.Name);
+                    logger.LogDebug("Skipping file {File} - matches variant {Variant} exclude pattern", relativePath, context.Variant.Name);
                     return false;
                 }
             }
@@ -668,4 +654,12 @@ public class CommunityOutpostManifestFactory(
 
         return true;
     }
+
+    private sealed record ManifestInclusionContext(
+        ContentVariant? Variant,
+        bool IsControlBarVariant,
+        bool HasVariantBigFiles,
+        HashSet<string> DependencyBigFiles,
+        HashSet<string> AlwaysIncludeFiles,
+        HashSet<string> ControlBarRepackedOutputs);
 }
