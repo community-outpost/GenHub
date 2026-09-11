@@ -241,7 +241,7 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
                 nextLayout.Select(a => a.HotkeyString ?? a.IconName),
                 StringComparer.OrdinalIgnoreCase);
 
-            var commonCount = nextKeys.Count(k => currentKeys.Contains(k));
+            var commonCount = nextKeys.Count(currentKeys.Contains);
             var overlapRatio = (double)commonCount / Math.Min(currentKeys.Count, nextKeys.Count);
 
             // If more than 40% of actions are shared, this is an upgrade variant of the same command set
