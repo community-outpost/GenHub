@@ -74,6 +74,10 @@ public sealed class ReplayHeaderParserTests
         Assert.Equal("0x27533BB0", result.Data.FormattedExeCrc);
         Assert.Equal("0x76B251A3", result.Data.FormattedIniCrc);
         Assert.Equal("defcon6", result.Data.MapName);
+        Assert.Equal(300u, result.Data.TotalFrames);
+        Assert.Equal(30, result.Data.FramesPerSecond);
+        Assert.NotNull(result.Data.Duration);
+        Assert.Equal(TimeSpan.FromSeconds(10), result.Data.Duration.Value);
         Assert.NotNull(result.Data.Players);
         Assert.Equal(3, result.Data.Players.Count);
         Assert.Contains("PlayerOne", result.Data.Players);
@@ -259,6 +263,46 @@ public sealed class ReplayHeaderParserTests
         Assert.NotNull(result.Data.Players);
         Assert.Single(result.Data.Players);
         Assert.Equal("Hank", result.Data.Players[0]);
+    }
+
+    /// <summary>
+    /// Verifies that a GeneralsOnline 60Hz replay stream correctly detects 60 FPS tick rate and computes duration accordingly.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ParseHeaderAsync_GeneralsOnline60HzReplayStream_Extracts60FpsAndDurationAsync()
+    {
+        using var stream = new MemoryStream();
+        using var writer = new BinaryWriter(stream, Encoding.ASCII, leaveOpen: true);
+
+        writer.Write(Encoding.ASCII.GetBytes("GENREP"));
+        writer.Write(1000u);
+        writer.Write(1100u);
+        writer.Write(6000u);
+        writer.Write((byte)1);
+        writer.Write((byte)2);
+        writer.Write(new byte[8]);
+
+        writer.Write(Encoding.Unicode.GetBytes("GeneralsOnline Match" + char.MinValue));
+        writer.Write(new byte[16]);
+        writer.Write(Encoding.Unicode.GetBytes("GeneralsOnline 1.04 (60Hz)" + char.MinValue));
+        writer.Write(Encoding.Unicode.GetBytes("Aug 21 2026" + char.MinValue));
+        writer.Write(20260821u);
+        writer.Write(0x27533BB0u);
+        writer.Write(0x76B251A3u);
+        writer.Write(Encoding.ASCII.GetBytes("M=maps/defcon6/defcon6.map;H=PlayerOne;" + char.MinValue));
+
+        writer.Flush();
+        stream.Position = 0;
+
+        var result = await _parser.ParseHeaderAsync(stream);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        Assert.NotNull(result.Data);
+        Assert.Equal(6000u, result.Data.TotalFrames);
+        Assert.Equal(60, result.Data.FramesPerSecond);
+        Assert.NotNull(result.Data.Duration);
+        Assert.Equal(TimeSpan.FromSeconds(100), result.Data.Duration.Value);
     }
 
     /// <summary>

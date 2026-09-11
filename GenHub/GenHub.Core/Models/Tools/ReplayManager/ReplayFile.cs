@@ -110,12 +110,32 @@ public sealed class ReplayFile : IExportableFile
     public bool IsOrphaned => CompatibilityStatus == ReplayCompatibilityStatus.Orphaned;
 
     /// <summary>
-    /// Gets the user-facing display text for the game client and data patch version.
-    /// </summary>
-    /// <summary>
     /// Gets or sets the recognized data patch or INI configuration name (e.g., "Vanilla 1.04 INI", "CommunityPatch Core INI (81FB5632)").
     /// </summary>
     public string? MatchedIniPatchName { get; set; }
+
+    /// <summary>
+    /// Gets the estimated frame rate in frames per second (e.g. 60 for GeneralsOnline, 30 for classic/retail).
+    /// </summary>
+    public int FramesPerSecond
+    {
+        get
+        {
+            if (Metadata?.FramesPerSecond is { } fps && fps > 0)
+            {
+                return fps;
+            }
+
+            var isGeneralsOnline = (MatchedClient != null && (string.Equals(MatchedClient.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+                                                             MatchedClient.ManifestId.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+                                                             MatchedClient.DisplayName.Contains("60Hz", StringComparison.OrdinalIgnoreCase))) ||
+                                   (Metadata?.VersionString?.Contains("60", StringComparison.OrdinalIgnoreCase) == true) ||
+                                   (Metadata?.BuildTimeString?.Contains("60", StringComparison.OrdinalIgnoreCase) == true) ||
+                                   (Metadata?.Title?.Contains("60Hz", StringComparison.OrdinalIgnoreCase) == true);
+
+            return isGeneralsOnline ? 60 : 30;
+        }
+    }
 
     /// <summary>
     /// Gets the user-facing display text for the game client and data patch version.
