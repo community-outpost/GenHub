@@ -65,6 +65,11 @@ public class ProfileLauncherFacade(
         public void Report(T value) => handler(value);
     }
 
+    private sealed class WorkspaceNotificationTracker
+    {
+        public Guid? NotificationId { get; set; }
+    }
+
     /// <inheritdoc/>
     public async Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(string profileId, bool skipUserDataCleanup = false, CancellationToken cancellationToken = default)
     {
@@ -2085,10 +2090,5 @@ public class ProfileLauncherFacade(
         }
 
         return null;
-    }
-
-    private sealed class WorkspaceNotificationTracker
-    {
-        public Guid? NotificationId { get; set; }
     }
 }
