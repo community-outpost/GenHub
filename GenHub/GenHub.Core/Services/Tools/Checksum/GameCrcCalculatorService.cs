@@ -92,15 +92,14 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
             {
                 ct.ThrowIfCancellationRequested();
 
-                byte[] exeBytes;
-                try
+                var readResult = ReadExecutableBytes(executablePath);
+                if (!readResult.Success || readResult.Data == null)
                 {
-                    exeBytes = File.ReadAllBytes(executablePath);
+                    var errorMessage = readResult.Errors.Count > 0 ? readResult.Errors[0] : "Failed to read executable.";
+                    return OperationResult<string>.CreateFailure(errorMessage);
                 }
-                catch (Exception ex)
-                {
-                    return OperationResult<string>.CreateFailure($"Failed to read executable: {ex.Message}");
-                }
+
+                var exeBytes = readResult.Data;
 
                 var crc = new LegacyChecksum();
                 crc.Add(exeBytes);
@@ -158,6 +157,22 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
                 return OperationResult<string>.CreateSuccess($"0x{crc.Value:X8}");
             },
             ct);
+    }
+
+    private static OperationResult<byte[]> ReadExecutableBytes(string executablePath)
+    {
+        try
+        {
+            return OperationResult<byte[]>.CreateSuccess(File.ReadAllBytes(executablePath));
+        }
+        catch (IOException ex)
+        {
+            return OperationResult<byte[]>.CreateFailure($"Failed to read executable: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return OperationResult<byte[]>.CreateFailure($"Failed to read executable: {ex.Message}");
+        }
     }
 
     private static (int Major, int Minor) ResolveVersion(byte[] exeBytes, string executablePath, int? major, int? minor)
