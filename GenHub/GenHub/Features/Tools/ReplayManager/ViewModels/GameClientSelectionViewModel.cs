@@ -68,7 +68,7 @@ public sealed partial class GameClientCardViewModel : ObservableObject
     public IRelayCommand SelectCommand { get; }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref=\"GameClientCardViewModel\"/> class.
+    /// Initializes a new instance of the <see cref="GameClientCardViewModel"/> class.
     /// </summary>
     public GameClientCardViewModel(
         GameClient client,
@@ -142,9 +142,9 @@ public sealed partial class GameClientSelectionViewModel(
     /// <summary>
     /// Loads all available game clients for the specified game type and replay.
     /// </summary>
-    /// <param name=\"targetGame\">The game type (Generals or Zero Hour).</param>
-    /// <param name=\"replayFileName\">The name of the replay file.</param>
-    /// <param name=\"ct\">Cancellation token.</param>
+    /// <param name="targetGame">The game type (Generals or Zero Hour).</param>
+    /// <param name="replayFileName">The name of the replay file.</param>
+    /// <param name="ct">Cancellation token.</param>
     public async Task LoadClientsAsync(GameType targetGame, string replayFileName, CancellationToken ct = default)
     {
         TargetGame = targetGame;
@@ -156,7 +156,7 @@ public sealed partial class GameClientSelectionViewModel(
         try
         {
             logger.LogInformation(
-                \"[ReplayManager] Discovering available game clients for {GameType} (Replay: '{ReplayFile}')\",
+                "[ReplayManager] Discovering available game clients for {GameType} (Replay: '{ReplayFile}')",
                 targetGame,
                 replayFileName);
 
@@ -181,7 +181,7 @@ public sealed partial class GameClientSelectionViewModel(
                             : profile.Name;
 
                         var exePath = client.ExecutablePath ?? string.Empty;
-                        var dedupeKey = $\"{clientName}|{exePath}\";
+                        var dedupeKey = $"{clientName}|{exePath}";
 
                         if (!discoveredKeys.Add(dedupeKey))
                         {
@@ -192,18 +192,18 @@ public sealed partial class GameClientSelectionViewModel(
                             client: client,
                             manifestId: client.Id,
                             name: clientName,
-                            version: client.Version ?? \"Custom\",
-                            publisher: client.PublisherType ?? \"Local / Profile\",
-                            category: \"Local Profile / Custom\",
+                            version: client.Version ?? "Custom",
+                            publisher: client.PublisherType ?? "Local / Profile",
+                            category: "Local Profile / Custom",
                             executablePath: exePath,
-                            description: $\"Configured in profile '{profile.Name}'\",
+                            description: $"Configured in profile '{profile.Name}'",
                             onSelect: OnClientSelected));
                     }
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                logger.LogWarning(ex, \"[ReplayManager] Error querying profiles for game clients\");
+                logger.LogWarning(ex, "[ReplayManager] Error querying profiles for game clients");
             }
 
             // 2. Discover clients from detected game installations
@@ -224,10 +224,10 @@ public sealed partial class GameClientSelectionViewModel(
                         {
                             var clientName = !string.IsNullOrWhiteSpace(client.Name)
                                 ? client.Name
-                                : $\"{targetGame} ({install.InstallationType})\";
+                                : $"{targetGame} ({install.InstallationType})";
 
                             var exePath = client.ExecutablePath ?? string.Empty;
-                            var dedupeKey = $\"{clientName}|{exePath}\";
+                            var dedupeKey = $"{clientName}|{exePath}";
 
                             if (!discoveredKeys.Add(dedupeKey))
                             {
@@ -238,11 +238,11 @@ public sealed partial class GameClientSelectionViewModel(
                                 client: client,
                                 manifestId: client.Id,
                                 name: clientName,
-                                version: client.Version ?? \"Retail\",
+                                version: client.Version ?? "Retail",
                                 publisher: client.PublisherType ?? install.InstallationType.ToString(),
-                                category: \"Detected Installation\",
+                                category: "Detected Installation",
                                 executablePath: exePath,
-                                description: $\"Installation at {install.InstallationPath}\",
+                                description: $"Installation at {install.InstallationPath}",
                                 onSelect: OnClientSelected));
                         }
                     }
@@ -250,7 +250,7 @@ public sealed partial class GameClientSelectionViewModel(
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                logger.LogWarning(ex, \"[ReplayManager] Error querying installations for game clients\");
+                logger.LogWarning(ex, "[ReplayManager] Error querying installations for game clients");
             }
 
             // 3. Discover clients from Content Manifest Pool (TheSuperHackers, GeneralsOnline, Community Outpost, etc.)
@@ -270,7 +270,7 @@ public sealed partial class GameClientSelectionViewModel(
                             continue;
                         }
 
-                        var dedupeKey = $\"{manifest.Name}|{manifest.Id.Value}\";
+                        var dedupeKey = $"{manifest.Name}|{manifest.Id.Value}";
                         if (!discoveredKeys.Add(dedupeKey))
                         {
                             continue;
@@ -297,20 +297,20 @@ public sealed partial class GameClientSelectionViewModel(
                             name: manifest.Name,
                             version: manifest.Version.ToString(),
                             publisher: manifest.Publisher,
-                            category: \"Catalog Manifest\",
+                            category: "Catalog Manifest",
                             executablePath: relExePath,
-                            description: manifest.Description ?? $\"Manifest {manifest.Id.Value}\",
+                            description: manifest.Description ?? $"Manifest {manifest.Id.Value}",
                             onSelect: OnClientSelected));
                     }
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                logger.LogWarning(ex, \"[ReplayManager] Error querying manifests for game clients\");
+                logger.LogWarning(ex, "[ReplayManager] Error querying manifests for game clients");
             }
 
             logger.LogInformation(
-                \"[ReplayManager] Found {Count} total game clients for {GameType}\",
+                "[ReplayManager] Found {Count} total game clients for {GameType}",
                 _allClients.Count,
                 targetGame);
 
@@ -344,7 +344,7 @@ public sealed partial class GameClientSelectionViewModel(
     private void OnClientSelected(GameClientCardViewModel card)
     {
         logger.LogInformation(
-            \"[ReplayManager] User selected game client '{ClientName}' ({Publisher}, {Category})\",
+            "[ReplayManager] User selected game client '{ClientName}' ({Publisher}, {Category})",
             card.Name,
             card.Publisher,
             card.Category);
