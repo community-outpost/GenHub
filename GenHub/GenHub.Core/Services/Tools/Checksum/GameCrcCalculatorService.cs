@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Interfaces.Tools.Checksum;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
 
