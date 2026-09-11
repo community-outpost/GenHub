@@ -122,6 +122,7 @@ public sealed partial class GameClientSelectionViewModel(
             return publisher.PublisherType;
         }
 
+        logger.LogTrace("[ReplayManager] Publisher info missing name and type; defaulting to 'Catalog'");
         return "Catalog";
     }
 

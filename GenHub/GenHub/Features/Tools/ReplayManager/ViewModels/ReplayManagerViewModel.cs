@@ -1292,6 +1292,7 @@ public partial class ReplayManagerViewModel(
         IServiceProvider sp,
         ReplayFile replay)
     {
+        logger.LogDebug("[ReplayManager] Displaying profile selection dialog for '{FileName}'", replay.FileName);
         var profileVm = ActivatorUtilities.CreateInstance<ProfileSelectionViewModel>(sp);
         profileVm.DialogTitle = $"Select Profile - {replay.FileName}";
         profileVm.HeaderTitle = "Select Profile to Run Replay";

@@ -2017,6 +2017,10 @@ public sealed class ReplayDirectoryService(
         if (gameClient != null && string.IsNullOrWhiteSpace(gameClient.ExecutablePath))
         {
             gameClient.ExecutablePath = GetDefaultExecutableName(gameVersion, publisher);
+            logger.LogDebug(
+                "[ReplayManager] Assigned default executable path '{ExePath}' for game client '{ClientName}'",
+                gameClient.ExecutablePath,
+                gameClient.Name);
         }
 
         return gameClient;
