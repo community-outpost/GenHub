@@ -67,7 +67,7 @@ public class CasService(
 
             if (storedPath == null)
             {
-                return OperationResult<string>.CreateFailure($"Failed to store content in CAS");
+                return OperationResult<string>.CreateFailure("Failed to store content in CAS");
             }
 
             logger.LogInformation("Stored content in CAS: {Hash} from {SourcePath}", hash, sourcePath);
@@ -127,7 +127,7 @@ public class CasService(
 
             if (storedPath == null)
             {
-                return OperationResult<string>.CreateFailure($"Failed to store content in CAS");
+                return OperationResult<string>.CreateFailure("Failed to store content in CAS");
             }
 
             logger.LogInformation("Stored content in CAS: {Hash}", hash);

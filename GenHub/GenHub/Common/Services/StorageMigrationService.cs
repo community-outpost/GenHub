@@ -1621,9 +1621,5 @@ rm -rf ""${{UPDATER_DIR:?}}"" 2>/dev/null || true
         {
             logger.LogWarning(ex, "Exception during application lifetime shutdown for migration");
         }
-        catch (NullReferenceException ex)
-        {
-            logger.LogWarning(ex, "Exception during application lifetime shutdown for migration");
-        }
     }
 }
