@@ -297,7 +297,7 @@ public sealed class ReplayDirectoryService(
                 enabledContentIds.Count,
                 string.Join(", ", enabledContentIds));
 
-            var request = BuildReplayProfileRequest(replay, installation, clientManifestId, gameClient, enabledContentIds, preferredStrategy);
+            var request = BuildReplayProfileRequest(replay, installation, clientManifestId, gameClient, enabledContentIds, preferredStrategy, isCustomGameClient: customGameClient != null);
 
             var createResult = await profileManager.CreateProfileAsync(request, ct);
             if (createResult.Success && createResult.Data != null)
@@ -1119,10 +1119,13 @@ public sealed class ReplayDirectoryService(
         string clientManifestId,
         GameClient gameClient,
         List<string> enabledContentIds,
-        WorkspaceStrategy workspaceStrategy = WorkspaceStrategy.HardLink)
+        WorkspaceStrategy workspaceStrategy = WorkspaceStrategy.HardLink,
+        bool isCustomGameClient = false)
     {
         var isUnmapped = replay.MatchedClient == null;
-        var clientTitle = !string.IsNullOrWhiteSpace(gameClient.Name) ? gameClient.Name : GetReplayClientTitle(replay);
+        var clientTitle = isCustomGameClient && !string.IsNullOrWhiteSpace(gameClient.Name)
+            ? gameClient.Name
+            : GetReplayClientTitle(replay);
 
         var profileName = $"{clientTitle} (Replay: {Path.GetFileNameWithoutExtension(replay.FileName)})";
         var description = isUnmapped
@@ -1260,21 +1263,9 @@ public sealed class ReplayDirectoryService(
         if (replay.MatchedClient != null)
         {
             var isRetail = IsRetailClient(replay.MatchedClient.Publisher, replay.MatchedClient.ManifestId);
-            var standardMatch = isRetail
+            return isRetail
                 ? IsProfileMatchingRetail(profile, replay.MatchedClient.DataPatchManifestId)
                 : IsProfileMatchingThirdParty(profile, replay.MatchedClient.ManifestId, replay.MatchedClient.DataPatchManifestId, replay.MatchedClient.Version);
-
-            if (standardMatch)
-            {
-                return true;
-            }
-
-            if (IsDedicatedToThisReplay(profile, replay, null))
-            {
-                return profile.GameClient.GameType == replay.GameVersion;
-            }
-
-            return false;
         }
 
         return profile.GameClient.GameType == replay.GameVersion;

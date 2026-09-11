@@ -2917,7 +2917,8 @@ public sealed class ReplayDirectoryServiceTests
 
         Assert.True(result.Success);
         Assert.NotNull(capturedRequest);
-        Assert.Equal("Community Patch 1.06", capturedRequest!.GameClient.Name);
+        Assert.NotNull(capturedRequest!.GameClient);
+        Assert.Equal("Community Patch 1.06", capturedRequest.GameClient!.Name);
         Assert.Equal("created-custom-profile-id", replay.MatchingProfileId);
         Assert.Equal(ReplayCompatibilityStatus.Compatible, replay.CompatibilityStatus);
     }
