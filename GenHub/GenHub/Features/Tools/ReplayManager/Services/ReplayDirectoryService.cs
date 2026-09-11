@@ -422,11 +422,6 @@ public sealed class ReplayDirectoryService(
                 return false;
             }
 
-            if (IsDedicatedToThisReplay(p, replay, logger))
-            {
-                return true;
-            }
-
             return isRetailClient
                 ? IsProfileMatchingRetail(p, replay.MatchedClient?.DataPatchManifestId)
                 : IsProfileMatchingThirdParty(p, clientManifestId, replay.MatchedClient?.DataPatchManifestId, replay.MatchedClient?.Version);
@@ -542,11 +537,6 @@ public sealed class ReplayDirectoryService(
             if (p.GameClient?.GameType != gameVersion)
             {
                 return false;
-            }
-
-            if (IsDedicatedToThisReplay(p, replay, logger))
-            {
-                return true;
             }
 
             return isRetailClient
@@ -1908,17 +1898,10 @@ public sealed class ReplayDirectoryService(
             var isCompatible = false;
             if (replay.MatchedClient != null)
             {
-                if (IsDedicatedToThisReplay(profile, replay, logger))
-                {
-                    isCompatible = profile.GameClient?.GameType == replay.GameVersion;
-                }
-                else
-                {
-                    var isRetail = IsRetailClient(replay.MatchedClient.Publisher, replay.MatchedClient.ManifestId);
-                    isCompatible = isRetail
-                        ? IsProfileMatchingRetail(profile, replay.MatchedClient.DataPatchManifestId)
-                        : IsProfileMatchingThirdParty(profile, replay.MatchedClient.ManifestId, replay.MatchedClient.DataPatchManifestId, replay.MatchedClient.Version);
-                }
+                var isRetail = IsRetailClient(replay.MatchedClient.Publisher, replay.MatchedClient.ManifestId);
+                isCompatible = isRetail
+                    ? IsProfileMatchingRetail(profile, replay.MatchedClient.DataPatchManifestId)
+                    : IsProfileMatchingThirdParty(profile, replay.MatchedClient.ManifestId, replay.MatchedClient.DataPatchManifestId, replay.MatchedClient.Version);
             }
             else
             {
