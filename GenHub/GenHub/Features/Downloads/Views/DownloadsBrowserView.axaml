@@ -227,17 +227,28 @@
         </controls:SidebarLayout.Resources>
 
         <controls:SidebarLayout.PaneFooter>
-            <Button Command="{Binding OpenManifestsFolderCommand}"
-                    Classes="pane-footer-btn"
-                    HorizontalAlignment="Stretch"
-                    Margin="8,0,8,12"
-                    ToolTip.Tip="Open Manifests Folder in File Explorer">
-                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                    <PathIcon Data="M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21L4,8V18L6.14,10H23.21L20.93,18.5C20.7,19.37 19.92,20 19,20Z"
-                              Width="16" Height="16" Foreground="{DynamicResource AccentBrush}"/>
-                    <TextBlock Text="Manifests Folder" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimary}" FontSize="13"/>
-                </StackPanel>
-            </Button>
+            <StackPanel Spacing="6" Margin="8,0,8,12">
+                <Button Command="{Binding ImportSubscriptionCommand}"
+                        Classes="pane-footer-btn"
+                        HorizontalAlignment="Stretch"
+                        ToolTip.Tip="Import a publisher definition or catalog via URL or genhub:// link">
+                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                        <PathIcon Data="{DynamicResource CloudIcon}"
+                                  Width="16" Height="16" Foreground="{DynamicResource AccentBrush}"/>
+                        <TextBlock Text="Import / Subscribe" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimary}" FontSize="13"/>
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding OpenManifestsFolderCommand}"
+                        Classes="pane-footer-btn"
+                        HorizontalAlignment="Stretch"
+                        ToolTip.Tip="Open Manifests Folder in File Explorer">
+                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                        <PathIcon Data="M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21L4,8V18L6.14,10H23.21L20.93,18.5C20.7,19.37 19.92,20 19,20Z"
+                                  Width="16" Height="16" Foreground="{DynamicResource AccentBrush}"/>
+                        <TextBlock Text="Manifests Folder" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimary}" FontSize="13"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
         </controls:SidebarLayout.PaneFooter>
 
         <!-- Main Content Area -->
