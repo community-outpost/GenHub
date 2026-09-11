@@ -49,4 +49,33 @@ public class IconOverlayServiceTests
         // Byte 16: Pixel depth (32 bpp with alpha channel)
         Assert.Equal(32, tgaBytes[16]);
     }
+
+    /// <summary>
+    /// Verifies that high-fidelity glyphs (including distinct letters like G, B, R and digits like 8, 0)
+    /// stamp cleanly without throwing across various overlay corners.
+    /// </summary>
+    /// <param name="key">The hotkey character to test.</param>
+    /// <param name="corner">The overlay corner to test.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData('G', OverlayCorner.TopLeft)]
+    [InlineData('B', OverlayCorner.TopRight)]
+    [InlineData('R', OverlayCorner.BottomLeft)]
+    [InlineData('8', OverlayCorner.BottomRight)]
+    [InlineData('0', OverlayCorner.TopLeft)]
+    public async Task GenerateOverlayTgaAsync_WithVariousGlyphsAndCorners_ProducesValidTgaAsync(char key, OverlayCorner corner)
+    {
+        var service = new IconOverlayService(NullLogger<IconOverlayService>.Instance);
+
+        using var testImage = new Image<Rgba32>(60, 48);
+        using var ms = new MemoryStream();
+        await testImage.SaveAsPngAsync(ms);
+        var inputBytes = ms.ToArray();
+
+        var tgaBytes = await service.GenerateOverlayTgaAsync(inputBytes, key, corner);
+
+        Assert.NotNull(tgaBytes);
+        Assert.True(tgaBytes.Length > 18);
+        Assert.Equal(32, tgaBytes[16]); // 32-bit depth
+    }
 }

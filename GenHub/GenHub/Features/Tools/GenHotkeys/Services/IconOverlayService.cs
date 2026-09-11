@@ -17,50 +17,485 @@ namespace GenHub.Features.Tools.GenHotkeys.Services;
 /// </summary>
 public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverlayService
 {
-    private static readonly Rgba32 BadgeBackground = new(18, 22, 28, 225);
-    private static readonly Rgba32 BadgeBorder = new(245, 166, 35, 255);
+    private static readonly Rgba32 BadgeBackground = new(14, 18, 24, 248);
+    private static readonly Rgba32 OuterBorderColor = new(8, 10, 14, 255);
+    private static readonly Rgba32 InnerBorderColor = new(255, 185, 30, 255);
     private static readonly Rgba32 TextColor = new(255, 255, 255, 255);
-    private static readonly Rgba32 ShadowColor = new(0, 0, 0, 180);
+    private static readonly Rgba32 EdgeColor = new(215, 225, 235, 220);
+    private static readonly Rgba32 GlyphShadow = new(0, 0, 0, 240);
+    private static readonly Rgba32 DropShadowColor = new(0, 0, 0, 150);
 
-    // 5x7 bitmap font definitions for letters A-Z and digits 0-9
-    private static readonly Dictionary<char, byte[]> Font5X7 = new()
+    // High-fidelity 8x10 bitmap font with anti-aliased edge smoothing ('+') and solid strokes ('#')
+    private static readonly Dictionary<char, string[]> Font8X10 = new()
     {
-        ['A'] = [0b01110, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001],
-        ['B'] = [0b11110, 0b10001, 0b10001, 0b11110, 0b10001, 0b10001, 0b11110],
-        ['C'] = [0b01111, 0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b01111],
-        ['D'] = [0b11110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b11110],
-        ['E'] = [0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b11111],
-        ['F'] = [0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b10000],
-        ['G'] = [0b01111, 0b10000, 0b10000, 0b10111, 0b10001, 0b10001, 0b01111],
-        ['H'] = [0b10001, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001],
-        ['I'] = [0b01110, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110],
-        ['J'] = [0b00001, 0b00001, 0b00001, 0b00001, 0b10001, 0b10001, 0b01110],
-        ['K'] = [0b10001, 0b10010, 0b10100, 0b11000, 0b10100, 0b10010, 0b10001],
-        ['L'] = [0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b11111],
-        ['M'] = [0b10001, 0b11011, 0b10101, 0b10101, 0b10001, 0b10001, 0b10001],
-        ['N'] = [0b10001, 0b11001, 0b10101, 0b10011, 0b10001, 0b10001, 0b10001],
-        ['O'] = [0b01110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110],
-        ['P'] = [0b11110, 0b10001, 0b10001, 0b11110, 0b10000, 0b10000, 0b10000],
-        ['Q'] = [0b01110, 0b10001, 0b10001, 0b10001, 0b10101, 0b10011, 0b01111],
-        ['R'] = [0b11110, 0b10001, 0b10001, 0b11110, 0b10100, 0b10010, 0b10001],
-        ['S'] = [0b01111, 0b10000, 0b10000, 0b01110, 0b00001, 0b00001, 0b11110],
-        ['T'] = [0b11111, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100],
-        ['U'] = [0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110],
-        ['V'] = [0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01010, 0b00100],
-        ['W'] = [0b10001, 0b10001, 0b10001, 0b10101, 0b10101, 0b11011, 0b10001],
-        ['X'] = [0b10001, 0b10001, 0b01010, 0b00100, 0b01010, 0b10001, 0b10001],
-        ['Y'] = [0b10001, 0b10001, 0b01010, 0b00100, 0b00100, 0b00100, 0b00100],
-        ['Z'] = [0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b10000, 0b11111],
-        ['0'] = [0b01110, 0b10011, 0b10101, 0b10001, 0b10001, 0b10001, 0b01110],
-        ['1'] = [0b00100, 0b01100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110],
-        ['2'] = [0b01110, 0b10001, 0b00001, 0b00010, 0b00100, 0b01000, 0b11111],
-        ['3'] = [0b11111, 0b00010, 0b00100, 0b00010, 0b00001, 0b10001, 0b01110],
-        ['4'] = [0b00010, 0b00110, 0b01010, 0b10010, 0b11111, 0b00010, 0b00010],
-        ['5'] = [0b11111, 0b10000, 0b11110, 0b00001, 0b00001, 0b10001, 0b01110],
-        ['6'] = [0b00110, 0b01000, 0b10000, 0b11110, 0b10001, 0b10001, 0b01110],
-        ['7'] = [0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b01000, 0b01000],
-        ['8'] = [0b01110, 0b10001, 0b10001, 0b01110, 0b10001, 0b10001, 0b01110],
-        ['9'] = [0b01110, 0b10001, 0b10001, 0b01111, 0b00001, 0b00010, 0b01100],
+        ['A'] =
+        [
+            "  ####  ",
+            " +####+ ",
+            " #    # ",
+            " #    # ",
+            " ###### ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            "        ",
+        ],
+        ['B'] =
+        [
+            " #####+ ",
+            " #    # ",
+            " #    # ",
+            " #####+ ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #####+ ",
+            "        ",
+        ],
+        ['C'] =
+        [
+            " +##### ",
+            " #    + ",
+            " #      ",
+            " #      ",
+            " #      ",
+            " #      ",
+            " #      ",
+            " #    + ",
+            " +##### ",
+            "        ",
+        ],
+        ['D'] =
+        [
+            " #####+ ",
+            " #    # ",
+            " #     #",
+            " #     #",
+            " #     #",
+            " #     #",
+            " #     #",
+            " #    # ",
+            " #####+ ",
+            "        ",
+        ],
+        ['E'] =
+        [
+            " ###### ",
+            " #      ",
+            " #      ",
+            " #####  ",
+            " #      ",
+            " #      ",
+            " #      ",
+            " #      ",
+            " ###### ",
+            "        ",
+        ],
+        ['F'] =
+        [
+            " ###### ",
+            " #      ",
+            " #      ",
+            " #####  ",
+            " #      ",
+            " #      ",
+            " #      ",
+            " #      ",
+            " #      ",
+            "        ",
+        ],
+        ['G'] =
+        [
+            " +##### ",
+            " #    + ",
+            " #      ",
+            " #      ",
+            " #  ### ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " +####+ ",
+            "        ",
+        ],
+        ['H'] =
+        [
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " ###### ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            "        ",
+        ],
+        ['I'] =
+        [
+            " ###### ",
+            "   ##   ",
+            "   ##   ",
+            "   ##   ",
+            "   ##   ",
+            "   ##   ",
+            "   ##   ",
+            "   ##   ",
+            " ###### ",
+            "        ",
+        ],
+        ['J'] =
+        [
+            "   #### ",
+            "     ## ",
+            "     ## ",
+            "     ## ",
+            "     ## ",
+            "     ## ",
+            " #   ## ",
+            " #   ## ",
+            "  ###+  ",
+            "        ",
+        ],
+        ['K'] =
+        [
+            " #    # ",
+            " #   #  ",
+            " #  #   ",
+            " # #    ",
+            " ##+    ",
+            " # #    ",
+            " #  #   ",
+            " #   #  ",
+            " #    # ",
+            "        ",
+        ],
+        ['L'] =
+        [
+            " #      ",
+            " #      ",
+            " #      ",
+            " #      ",
+            " #      ",
+            " #      ",
+            " #      ",
+            " #      ",
+            " ###### ",
+            "        ",
+        ],
+        ['M'] =
+        [
+            " #    # ",
+            " ##  ## ",
+            " # ## # ",
+            " # ## # ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            "        ",
+        ],
+        ['N'] =
+        [
+            " #    # ",
+            " ##   # ",
+            " ##   # ",
+            " # #  # ",
+            " #  # # ",
+            " #  # # ",
+            " #   ## ",
+            " #   ## ",
+            " #    # ",
+            "        ",
+        ],
+        ['O'] =
+        [
+            " +####+ ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " +####+ ",
+            "        ",
+        ],
+        ['P'] =
+        [
+            " #####+ ",
+            " #    # ",
+            " #    # ",
+            " #####+ ",
+            " #      ",
+            " #      ",
+            " #      ",
+            " #      ",
+            " #      ",
+            "        ",
+        ],
+        ['Q'] =
+        [
+            " +####+ ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #  # # ",
+            " #   ## ",
+            " +####+ ",
+            "       #",
+        ],
+        ['R'] =
+        [
+            " #####+ ",
+            " #    # ",
+            " #    # ",
+            " #####+ ",
+            " #   #  ",
+            " #   #  ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            "        ",
+        ],
+        ['S'] =
+        [
+            " +##### ",
+            " #    + ",
+            " #      ",
+            " +####+ ",
+            "      # ",
+            "      # ",
+            "      # ",
+            " +    # ",
+            " #####+ ",
+            "        ",
+        ],
+        ['T'] =
+        [
+            " ###### ",
+            "   ##   ",
+            "   ##   ",
+            "   ##   ",
+            "   ##   ",
+            "   ##   ",
+            "   ##   ",
+            "   ##   ",
+            "   ##   ",
+            "        ",
+        ],
+        ['U'] =
+        [
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " +####+ ",
+            "        ",
+        ],
+        ['V'] =
+        [
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            "  #  #  ",
+            "  #  #  ",
+            "  #  #  ",
+            "   ##   ",
+            "   ##   ",
+            "   ##   ",
+            "        ",
+        ],
+        ['W'] =
+        [
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " # ## # ",
+            " # ## # ",
+            " ##  ## ",
+            " #    # ",
+            "        ",
+        ],
+        ['X'] =
+        [
+            " #    # ",
+            "  #  #  ",
+            "  #  #  ",
+            "   ##   ",
+            "   ##   ",
+            "  #  #  ",
+            "  #  #  ",
+            " #    # ",
+            " #    # ",
+            "        ",
+        ],
+        ['Y'] =
+        [
+            " #    # ",
+            " #    # ",
+            "  #  #  ",
+            "   ##   ",
+            "   ##   ",
+            "   ##   ",
+            "   ##   ",
+            "   ##   ",
+            "   ##   ",
+            "        ",
+        ],
+        ['Z'] =
+        [
+            " ###### ",
+            "      # ",
+            "     #  ",
+            "    #   ",
+            "   #    ",
+            "  #     ",
+            " #      ",
+            " #      ",
+            " ###### ",
+            "        ",
+        ],
+        ['0'] =
+        [
+            " +####+ ",
+            " #   +# ",
+            " #  +#  ",
+            " # +# # ",
+            " #+#  # ",
+            " +#   # ",
+            " #    # ",
+            " #    # ",
+            " +####+ ",
+            "        ",
+        ],
+        ['1'] =
+        [
+            "   ##   ",
+            " ####   ",
+            "   ##   ",
+            "   ##   ",
+            "   ##   ",
+            "   ##   ",
+            "   ##   ",
+            "   ##   ",
+            " ###### ",
+            "        ",
+        ],
+        ['2'] =
+        [
+            " +####+ ",
+            " #    # ",
+            "      # ",
+            "     #  ",
+            "    #   ",
+            "   #    ",
+            "  #     ",
+            " #      ",
+            " ###### ",
+            "        ",
+        ],
+        ['3'] =
+        [
+            " #####+ ",
+            "      # ",
+            "      # ",
+            "  ####+ ",
+            "      # ",
+            "      # ",
+            "      # ",
+            "      # ",
+            " #####+ ",
+            "        ",
+        ],
+        ['4'] =
+        [
+            " #   #  ",
+            " #   #  ",
+            " #   #  ",
+            " #   #  ",
+            " ###### ",
+            "     #  ",
+            "     #  ",
+            "     #  ",
+            "     #  ",
+            "        ",
+        ],
+        ['5'] =
+        [
+            " ###### ",
+            " #      ",
+            " #      ",
+            " #####+ ",
+            "      # ",
+            "      # ",
+            "      # ",
+            "      # ",
+            " #####+ ",
+            "        ",
+        ],
+        ['6'] =
+        [
+            " +####+ ",
+            " #    + ",
+            " #      ",
+            " #####+ ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " +####+ ",
+            "        ",
+        ],
+        ['7'] =
+        [
+            " ###### ",
+            "      # ",
+            "     #  ",
+            "     #  ",
+            "    #   ",
+            "    #   ",
+            "   #    ",
+            "   #    ",
+            "   #    ",
+            "        ",
+        ],
+        ['8'] =
+        [
+            " +####+ ",
+            " #    # ",
+            " #    # ",
+            " +####+ ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " +####+ ",
+            "        ",
+        ],
+        ['9'] =
+        [
+            " +####+ ",
+            " #    # ",
+            " #    # ",
+            " #    # ",
+            " +##### ",
+            "      # ",
+            "      # ",
+            "      # ",
+            " +####+ ",
+            "        ",
+        ],
     };
 
     /// <inheritdoc />
@@ -91,58 +526,121 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
 
     private static void StampBadge(Image<Rgba32> image, char character, OverlayCorner corner)
     {
-        const int scale = 2; // 2x scale for 5x7 font -> 10x14 character
-        const int paddingX = 4;
-        const int paddingY = 3;
-        const int charWidth = 5 * scale;
-        const int charHeight = 7 * scale;
-        const int badgeWidth = charWidth + (paddingX * 2);
-        const int badgeHeight = charHeight + (paddingY * 2);
+        const int badgeWidth = 16;
+        const int badgeHeight = 16;
+        const int glyphWidth = 8;
+        const int glyphHeight = 10;
 
         var (badgeX, badgeY) = CalculateBadgePosition(image.Width, image.Height, badgeWidth, badgeHeight, corner);
 
-        // 1. Draw Drop Shadow
-        DrawBadgeBox(image, badgeX + 1, badgeY + 1, badgeWidth, badgeHeight, ShadowColor, ShadowColor);
+        // 1. Draw Drop Shadow for the badge
+        DrawBadgeShadow(image, badgeX + 1, badgeY + 1, badgeWidth, badgeHeight);
 
-        // 2. Draw Badge Box & Border
-        DrawBadgeBox(image, badgeX, badgeY, badgeWidth, badgeHeight, BadgeBackground, BadgeBorder);
+        // 2. Draw High-Contrast Dual-Border Badge Box
+        DrawBadgeBox(image, badgeX, badgeY, badgeWidth, badgeHeight);
 
-        // 3. Draw Character Glyph
-        DrawGlyph(image, character, badgeX + paddingX, badgeY + paddingY, scale);
+        // 3. Draw Character Glyph with high-contrast outline
+        var textStartX = badgeX + ((badgeWidth - glyphWidth) / 2);
+        var textStartY = badgeY + ((badgeHeight - glyphHeight) / 2);
+        DrawGlyph(image, character, textStartX, textStartY);
     }
 
-    private static void DrawGlyph(Image<Rgba32> image, char character, int textStartX, int textStartY, int scale)
+    private static void DrawBadgeShadow(Image<Rgba32> image, int startX, int startY, int width, int height)
     {
-        if (!Font5X7.TryGetValue(character, out var glyphRows))
+        for (var y = 0; y < height; y++)
         {
-            return;
-        }
-
-        for (var row = 0; row < 7; row++)
-        {
-            DrawGlyphRow(image, glyphRows[row], textStartX, textStartY + (row * scale), scale);
-        }
-    }
-
-    private static void DrawGlyphRow(Image<Rgba32> image, byte rowBits, int startX, int startY, int scale)
-    {
-        for (var col = 0; col < 5; col++)
-        {
-            var isPixelSet = ((rowBits >> (4 - col)) & 1) == 1;
-            if (isPixelSet)
+            for (var x = 0; x < width; x++)
             {
-                DrawScaledPixel(image, startX + (col * scale), startY, scale);
+                var isOuterEdge = x == width - 1 || y == height - 1;
+                if (isOuterEdge)
+                {
+                    SetPixelSafe(image, startX + x, startY + y, DropShadowColor);
+                }
             }
         }
     }
 
-    private static void DrawScaledPixel(Image<Rgba32> image, int px, int py, int scale)
+    private static void DrawBadgeBox(Image<Rgba32> image, int startX, int startY, int width, int height)
     {
-        for (var dy = 0; dy < scale; dy++)
+        for (var y = 0; y < height; y++)
         {
-            for (var dx = 0; dx < scale; dx++)
+            for (var x = 0; x < width; x++)
             {
-                SetPixelSafe(image, px + dx, py + dy, TextColor);
+                // Round corners: skip the 4 extreme outer corner pixels
+                var isCorner = (x == 0 || x == width - 1) && (y == 0 || y == height - 1);
+                if (isCorner)
+                {
+                    continue;
+                }
+
+                var isOuterBorder = x == 0 || x == width - 1 || y == 0 || y == height - 1;
+                var isInnerBorder = x == 1 || x == width - 2 || y == 1 || y == height - 2;
+
+                Rgba32 pixelColor;
+                if (isOuterBorder)
+                {
+                    pixelColor = OuterBorderColor;
+                }
+                else if (isInnerBorder)
+                {
+                    pixelColor = InnerBorderColor;
+                }
+                else
+                {
+                    pixelColor = BadgeBackground;
+                }
+
+                SetPixelSafe(image, startX + x, startY + y, pixelColor);
+            }
+        }
+    }
+
+    private static void DrawGlyph(Image<Rgba32> image, char character, int startX, int startY)
+    {
+        if (!Font8X10.TryGetValue(character, out var glyphRows))
+        {
+            return;
+        }
+
+        // Pass 1: 8-way Dark Outline / Halo behind the glyph for maximum contrast
+        for (var row = 0; row < glyphRows.Length; row++)
+        {
+            var line = glyphRows[row];
+            for (var col = 0; col < line.Length; col++)
+            {
+                var ch = line[col];
+                if (ch == '#' || ch == '+')
+                {
+                    var px = startX + col;
+                    var py = startY + row;
+
+                    SetPixelSafe(image, px - 1, py, GlyphShadow);
+                    SetPixelSafe(image, px + 1, py, GlyphShadow);
+                    SetPixelSafe(image, px, py - 1, GlyphShadow);
+                    SetPixelSafe(image, px, py + 1, GlyphShadow);
+                    SetPixelSafe(image, px - 1, py - 1, GlyphShadow);
+                    SetPixelSafe(image, px + 1, py - 1, GlyphShadow);
+                    SetPixelSafe(image, px - 1, py + 1, GlyphShadow);
+                    SetPixelSafe(image, px + 1, py + 1, GlyphShadow);
+                }
+            }
+        }
+
+        // Pass 2: High-contrast glyph fill
+        for (var row = 0; row < glyphRows.Length; row++)
+        {
+            var line = glyphRows[row];
+            for (var col = 0; col < line.Length; col++)
+            {
+                var ch = line[col];
+                if (ch == '#')
+                {
+                    SetPixelSafe(image, startX + col, startY + row, TextColor);
+                }
+                else if (ch == '+')
+                {
+                    SetPixelSafe(image, startX + col, startY + row, EdgeColor);
+                }
             }
         }
     }
@@ -162,26 +660,6 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
             OverlayCorner.BottomRight => (imageWidth - badgeWidth - margin, imageHeight - badgeHeight - margin),
             _ => (margin, margin), // TopLeft
         };
-    }
-
-    private static void DrawBadgeBox(
-        Image<Rgba32> image,
-        int startX,
-        int startY,
-        int width,
-        int height,
-        Rgba32 fill,
-        Rgba32 border)
-    {
-        for (var y = 0; y < height; y++)
-        {
-            for (var x = 0; x < width; x++)
-            {
-                var isBorder = x == 0 || x == width - 1 || y == 0 || y == height - 1;
-                var color = isBorder ? border : fill;
-                SetPixelSafe(image, startX + x, startY + y, color);
-            }
-        }
     }
 
     private static void SetPixelSafe(Image<Rgba32> image, int x, int y, Rgba32 color)
