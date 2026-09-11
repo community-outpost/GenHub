@@ -27,6 +27,7 @@ public partial class DownloadsViewModel(
     INotificationService notificationService,
     GitHubTopicsDiscoverer gitHubTopicsDiscoverer) : ViewModelBase
 {
+    private const string UnavailableStatus = "Unavailable";
     [ObservableProperty]
     private string _title = UiConstants.DownloadsTabTitle;
 
@@ -430,7 +431,7 @@ public partial class DownloadsViewModel(
 
                 // Set card metadata - this is an aggregate card showing multiple repos
                 // LatestVersion here represents the count of discovered repositories
-                // TODO: Consider adding a separate Summary property for aggregate cards
+                // Consider adding a separate Summary property for aggregate cards.
                 if (repositories.Count > 0)
                 {
                     card.LatestVersion = $"{repositories.Count} repos";
@@ -469,7 +470,7 @@ public partial class DownloadsViewModel(
             if (serviceProvider.GetService(typeof(GenHub.Features.Content.Services.ContentDiscoverers.CNCLabsMapDiscoverer)) is not GenHub.Features.Content.Services.ContentDiscoverers.CNCLabsMapDiscoverer discoverer)
             {
                 logger.LogWarning("CNCLabsMapDiscoverer not available for CNCLabs card");
-                card.LatestVersion = "Unavailable";
+                card.LatestVersion = UnavailableStatus;
                 return;
             }
 
@@ -535,7 +536,7 @@ public partial class DownloadsViewModel(
             if (serviceProvider.GetService(typeof(GenHub.Features.Content.Services.ContentDiscoverers.ModDBDiscoverer)) is not GenHub.Features.Content.Services.ContentDiscoverers.ModDBDiscoverer discoverer)
             {
                 logger.LogWarning("ModDBDiscoverer not available for ModDB card");
-                card.LatestVersion = "Unavailable";
+                card.LatestVersion = UnavailableStatus;
                 return;
             }
 
@@ -609,7 +610,7 @@ public partial class DownloadsViewModel(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to fetch GeneralsOnline version");
-            GeneralsOnlineVersion = "Unavailable";
+            GeneralsOnlineVersion = UnavailableStatus;
         }
     }
 
@@ -636,7 +637,7 @@ public partial class DownloadsViewModel(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to fetch weekly release version");
-            WeeklyReleaseVersion = "Unavailable";
+            WeeklyReleaseVersion = UnavailableStatus;
         }
     }
 
@@ -657,7 +658,7 @@ public partial class DownloadsViewModel(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to fetch community patch version");
-            CommunityPatchVersion = "Unavailable";
+            CommunityPatchVersion = UnavailableStatus;
         }
     }
 

@@ -21,43 +21,27 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 /// <summary>
 /// Service for managing ModBuilder project configurations (.mbproj files).
 /// </summary>
-public sealed class ProjectConfigService : IProjectConfigService
+/// <param name="logger">The logger.</param>
+/// <param name="configurationProvider">The configuration provider service.</param>
+public sealed class ProjectConfigService(
+    ILogger<ProjectConfigService> logger,
+    IConfigurationProviderService? configurationProvider = null) : IProjectConfigService
 {
-    private const string ProjectFileExtension = ".mbproj";
-    private const string RecentProjectsFileName = "recent_projects.json";
-    private const string ModBuilderDirName = "ModBuilder";
     private const string ProjectPathEmptyError = "Project path cannot be empty";
 
-    private readonly ILogger<ProjectConfigService> _logger;
-    private readonly string _recentProjectsPath;
-    private readonly JsonSerializerOptions _jsonOptions;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ProjectConfigService"/> class.
-    /// </summary>
-    /// <param name="logger">The logger.</param>
-    /// <param name="configurationProvider">The configuration provider service.</param>
-    public ProjectConfigService(
-        ILogger<ProjectConfigService> logger,
-        IConfigurationProviderService? configurationProvider = null)
-    {
-        _logger = logger;
-        var appDataPath = configurationProvider?.GetApplicationDataPath()
+    private readonly string _recentProjectsPath = Path.Combine(
+        configurationProvider?.GetApplicationDataPath()
             ?? Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".genhub");
+                ".genhub"),
+        ModBuilderConstants.ModBuilderDirName,
+        ModBuilderConstants.RecentProjectsFileName);
 
-        _recentProjectsPath = Path.Combine(
-            appDataPath,
-            ModBuilderDirName,
-            RecentProjectsFileName);
-
-        _jsonOptions = new JsonSerializerOptions
-        {
-            WriteIndented = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        };
-    }
+    private readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
 
     /// <inheritdoc />
     public async Task<ProjectOperationResult<ModBuilderProject>> CreateProjectAsync(
@@ -87,9 +71,9 @@ public sealed class ProjectConfigService : IProjectConfigService
             }
 
             // Ensure the path has the correct extension
-            if (!projectPath.EndsWith(ProjectFileExtension, StringComparison.OrdinalIgnoreCase))
+            if (!projectPath.EndsWith(ModBuilderConstants.ProjectFileExtension, StringComparison.OrdinalIgnoreCase))
             {
-                projectPath = Path.ChangeExtension(projectPath, ProjectFileExtension);
+                projectPath = Path.ChangeExtension(projectPath, ModBuilderConstants.ProjectFileExtension);
             }
 
             // Check if project already exists
@@ -156,7 +140,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             // Add to recent projects
             await AddToRecentProjectsAsync(projectPath, cancellationToken).ConfigureAwait(false);
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Created ModBuilder project '{ProjectName}' at {ProjectPath}",
                 projectName,
                 projectPath);
@@ -170,7 +154,7 @@ public sealed class ProjectConfigService : IProjectConfigService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create project at {ProjectPath}", projectPath);
+            logger.LogError(ex, "Failed to create project at {ProjectPath}", projectPath);
             sw.Stop();
             return ProjectOperationResult<ModBuilderProject>.CreateFailure(
                 $"Failed to create project: {ex.Message}",
@@ -242,7 +226,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             // Add to recent projects
             await AddToRecentProjectsAsync(projectPath, cancellationToken).ConfigureAwait(false);
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Loaded ModBuilder project '{ProjectName}' from {ProjectPath}",
                 project.Name,
                 projectPath);
@@ -256,7 +240,7 @@ public sealed class ProjectConfigService : IProjectConfigService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load project from {ProjectPath}", projectPath);
+            logger.LogError(ex, "Failed to load project from {ProjectPath}", projectPath);
             sw.Stop();
             return ProjectOperationResult<ModBuilderProject>.CreateFailure(
                 $"Failed to load project: {ex.Message}",
@@ -300,7 +284,7 @@ public sealed class ProjectConfigService : IProjectConfigService
 
             await AtomicWriteJsonFileAsync(projectPath, project, _jsonOptions, cancellationToken).ConfigureAwait(false);
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Saved ModBuilder project '{ProjectName}' to {ProjectPath}",
                 project.Name,
                 projectPath);
@@ -314,7 +298,7 @@ public sealed class ProjectConfigService : IProjectConfigService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to save project to {ProjectPath}", projectPath);
+            logger.LogError(ex, "Failed to save project to {ProjectPath}", projectPath);
             sw.Stop();
             return ProjectOperationResult<ModBuilderProject>.CreateFailure(
                 $"Failed to save project: {ex.Message}",
@@ -354,7 +338,7 @@ public sealed class ProjectConfigService : IProjectConfigService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to validate project at {ProjectPath}", projectPath);
+            logger.LogError(ex, "Failed to validate project at {ProjectPath}", projectPath);
             sw.Stop();
             return ProjectOperationResult<bool>.CreateFailure(
                 $"Validation failed: {ex.Message}",
@@ -395,11 +379,11 @@ public sealed class ProjectConfigService : IProjectConfigService
             try
             {
                 Directory.CreateDirectory(dir);
-                _logger.LogDebug("Created output directory: {Directory}", dir);
+                logger.LogDebug("Created output directory: {Directory}", dir);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                _logger.LogWarning(ex, "Could not create output directory: {Directory}", dir);
+                logger.LogWarning(ex, "Could not create output directory: {Directory}", dir);
             }
         }
     }
@@ -476,7 +460,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             var configPath = ResolveBundleConfigPath(projectDir, effectiveConfigs, config);
             if (!File.Exists(configPath))
             {
-                _logger.LogWarning("Bundle config file not found: {ConfigPath}", configPath);
+                logger.LogWarning("Bundle config file not found: {ConfigPath}", configPath);
             }
         }
     }
@@ -534,7 +518,7 @@ public sealed class ProjectConfigService : IProjectConfigService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get recent projects from {Path}", _recentProjectsPath);
+            logger.LogError(ex, "Failed to get recent projects from {Path}", _recentProjectsPath);
             sw.Stop();
             return ProjectOperationResult<List<string>>.CreateFailure(
                 $"Failed to get recent projects: {ex.Message}",
@@ -582,7 +566,7 @@ public sealed class ProjectConfigService : IProjectConfigService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to add project to recent projects: {ProjectPath}", projectPath);
+            logger.LogError(ex, "Failed to add project to recent projects: {ProjectPath}", projectPath);
             sw.Stop();
             return ProjectOperationResult<bool>.CreateFailure(
                 $"Failed to add to recent projects: {ex.Message}",
@@ -623,7 +607,7 @@ public sealed class ProjectConfigService : IProjectConfigService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to remove project from recent projects: {ProjectPath}", projectPath);
+            logger.LogError(ex, "Failed to remove project from recent projects: {ProjectPath}", projectPath);
             sw.Stop();
             return ProjectOperationResult<bool>.CreateFailure(
                 $"Failed to remove from recent projects: {ex.Message}",
@@ -778,7 +762,7 @@ public sealed class ProjectConfigService : IProjectConfigService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get bundle configs for project at {ProjectPath}", projectPath);
+            logger.LogError(ex, "Failed to get bundle configs for project at {ProjectPath}", projectPath);
             sw.Stop();
             return ProjectOperationResult<List<string>>.CreateFailure(
                 $"Failed to get bundle configs: {ex.Message}",
@@ -818,7 +802,7 @@ public sealed class ProjectConfigService : IProjectConfigService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to update last build time for project at {ProjectPath}", projectPath);
+            logger.LogError(ex, "Failed to update last build time for project at {ProjectPath}", projectPath);
             sw.Stop();
             return ProjectOperationResult<bool>.CreateFailure(
                 $"Failed to update last build time: {ex.Message}",
@@ -866,7 +850,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             var destinationDir = Path.Combine(projectDir, project?.Directories?.GameFilesEdited ?? ModBuilderConstants.GameFilesEditedDir);
             Directory.CreateDirectory(destinationDir);
 
-            _logger.LogInformation("Importing {Count} BIG file(s) into project {ProjectPath} ({DestDir})", bigList.Count, projectPath, destinationDir);
+            logger.LogInformation("Importing {Count} BIG file(s) into project {ProjectPath} ({DestDir})", bigList.Count, projectPath, destinationDir);
 
             var totalExtracted = await BigFilePacker.UnpackMultipleAsync(
                 bigList,
@@ -881,7 +865,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             }
 
             sw.Stop();
-            _logger.LogInformation("Successfully imported {TotalExtracted} files from {BigCount} BIG archives in {Elapsed}ms", totalExtracted, bigList.Count, sw.ElapsedMilliseconds);
+            logger.LogInformation("Successfully imported {TotalExtracted} files from {BigCount} BIG archives in {Elapsed}ms", totalExtracted, bigList.Count, sw.ElapsedMilliseconds);
             return ProjectOperationResult<int>.CreateSuccess(totalExtracted, sw.Elapsed);
         }
         catch (OperationCanceledException)
@@ -890,7 +874,7 @@ public sealed class ProjectConfigService : IProjectConfigService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to import BIG file(s) into project: {ProjectPath}", projectPath);
+            logger.LogError(ex, "Failed to import BIG file(s) into project: {ProjectPath}", projectPath);
             sw.Stop();
             return ProjectOperationResult<int>.CreateFailure($"Failed to import BIG file(s): {ex.Message}", sw.Elapsed);
         }
@@ -961,7 +945,7 @@ public sealed class ProjectConfigService : IProjectConfigService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create project from BIG files: {ProjectPath}", projectPath);
+            logger.LogError(ex, "Failed to create project from BIG files: {ProjectPath}", projectPath);
             sw.Stop();
             return ProjectOperationResult<ModBuilderProject>.CreateFailure($"Failed to create project from BIG files: {ex.Message}", sw.Elapsed);
         }
@@ -1005,7 +989,7 @@ public sealed class ProjectConfigService : IProjectConfigService
 
         if (itemNames.Count == 0)
         {
-            _logger.LogWarning("Existing ModBundleItems.json at {Path} yielded no bundle item names; ensuring default imported bundle item is defined", itemsPath);
+            logger.LogWarning("Existing ModBundleItems.json at {Path} yielded no bundle item names; ensuring default imported bundle item is defined", itemsPath);
         }
 
         var appended = await EnsureDefaultImportedItemInFileAsync(itemsPath, project, cancellationToken).ConfigureAwait(false);
@@ -1040,7 +1024,7 @@ public sealed class ProjectConfigService : IProjectConfigService
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogWarning(ex, "Could not parse existing ModBundleItems.json at {Path}", itemsPath);
+            logger.LogWarning(ex, "Could not parse existing ModBundleItems.json at {Path}", itemsPath);
         }
 
         return itemNames;
@@ -1079,12 +1063,12 @@ public sealed class ProjectConfigService : IProjectConfigService
                 return await AppendDefaultItemToArrayRootAsync(itemsPath, rootArr, defaultItem, cancellationToken).ConfigureAwait(false);
             }
 
-            _logger.LogWarning("Existing ModBundleItems.json at {Path} is neither an object nor an array; preserving file without changes", itemsPath);
+            logger.LogWarning("Existing ModBundleItems.json at {Path} is neither an object nor an array; preserving file without changes", itemsPath);
             return false;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogWarning(ex, "Failed to append default bundle item to existing {Path}; preserving file without overwriting", itemsPath);
+            logger.LogWarning(ex, "Failed to append default bundle item to existing {Path}; preserving file without overwriting", itemsPath);
             return false;
         }
     }
@@ -1148,7 +1132,7 @@ public sealed class ProjectConfigService : IProjectConfigService
         };
 
         await AtomicWriteJsonFileAsync(itemsPath, bundleItemsConfig, _jsonOptions, cancellationToken).ConfigureAwait(false);
-        _logger.LogDebug("Created ModBundleItems.json for imported BIG files at {Path}", itemsPath);
+        logger.LogDebug("Created ModBundleItems.json for imported BIG files at {Path}", itemsPath);
     }
 
     private async Task EnsureImportedBundlePacksAsync(
@@ -1198,7 +1182,7 @@ public sealed class ProjectConfigService : IProjectConfigService
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogWarning(ex, "Could not parse existing ModBundlePacks.json at {Path}", packsPath);
+            logger.LogWarning(ex, "Could not parse existing ModBundlePacks.json at {Path}", packsPath);
         }
 
         return existingPacks;
@@ -1291,7 +1275,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             BundlePacks = packsToAdd.ToArray(),
         };
         await AtomicWriteJsonFileAsync(packsPath, bundlePacksConfig, _jsonOptions, cancellationToken).ConfigureAwait(false);
-        _logger.LogDebug("Created ModBundlePacks.json for imported BIG files at {Path}", packsPath);
+        logger.LogDebug("Created ModBundlePacks.json for imported BIG files at {Path}", packsPath);
     }
 
     private async Task AppendPacksToExistingBundleFileAsync(string packsPath, List<object> packsToAdd, CancellationToken cancellationToken)
@@ -1310,17 +1294,17 @@ public sealed class ProjectConfigService : IProjectConfigService
             {
                 AppendPacksToJsonObject(rootObj, packsToAdd);
                 await AtomicWriteJsonFileAsync(packsPath, rootObj, _jsonOptions, cancellationToken).ConfigureAwait(false);
-                _logger.LogDebug("Updated ModBundlePacks.json with imported BIG packs at {Path}", packsPath);
+                logger.LogDebug("Updated ModBundlePacks.json with imported BIG packs at {Path}", packsPath);
             }
             else if (node is JsonArray rootArray)
             {
                 AppendPacksToJsonArray(rootArray, packsToAdd);
                 await AtomicWriteJsonFileAsync(packsPath, rootArray, _jsonOptions, cancellationToken).ConfigureAwait(false);
-                _logger.LogDebug("Updated array-root ModBundlePacks.json with imported BIG packs at {Path}", packsPath);
+                logger.LogDebug("Updated array-root ModBundlePacks.json with imported BIG packs at {Path}", packsPath);
             }
             else
             {
-                _logger.LogError("Existing ModBundlePacks.json at {Path} is neither an object nor an array", packsPath);
+                logger.LogError("Existing ModBundlePacks.json at {Path} is neither an object nor an array", packsPath);
                 throw new InvalidDataException($"Existing ModBundlePacks.json at '{packsPath}' has an unsupported JSON root type ({node?.GetType().Name ?? "null"}).");
             }
         }
@@ -1374,7 +1358,7 @@ public sealed class ProjectConfigService : IProjectConfigService
                 }
                 else
                 {
-                    _logger.LogWarning("Duplicate pack name '{PackName}' already exists in bundle packs file; skipping", packName);
+                    logger.LogWarning("Duplicate pack name '{PackName}' already exists in bundle packs file; skipping", packName);
                 }
             }
             else if (packNode != null)
@@ -1412,14 +1396,14 @@ public sealed class ProjectConfigService : IProjectConfigService
             foreach (var dir in dirsToCreate.Where(dir => !Directory.Exists(dir)))
             {
                 Directory.CreateDirectory(dir);
-                _logger.LogDebug("Created directory: {Directory}", dir);
+                logger.LogDebug("Created directory: {Directory}", dir);
             }
 
             return ProjectOperationResult<bool>.CreateSuccess(true);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create project directory structure at {ProjectDir}", projectDir);
+            logger.LogError(ex, "Failed to create project directory structure at {ProjectDir}", projectDir);
             return ProjectOperationResult<bool>.CreateFailure(
                 $"Failed to create directory structure: {ex.Message}");
         }
@@ -1463,7 +1447,7 @@ public sealed class ProjectConfigService : IProjectConfigService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to create sample files");
+            logger.LogWarning(ex, "Failed to create sample files");
         }
     }
 
@@ -1492,7 +1476,7 @@ public sealed class ProjectConfigService : IProjectConfigService
 
             var itemsJson = JsonSerializer.Serialize(bundleItemsConfig, _jsonOptions);
             await File.WriteAllTextAsync(itemsPath, itemsJson, cancellationToken).ConfigureAwait(false);
-            _logger.LogDebug("Created ModBundleItems.json at {Path}", itemsPath);
+            logger.LogDebug("Created ModBundleItems.json at {Path}", itemsPath);
         }
 
         var packsPath = Path.Combine(configsDir, ModBuilderConstants.BundlePacksConfigFileName);
@@ -1517,7 +1501,7 @@ public sealed class ProjectConfigService : IProjectConfigService
 
             var packsJson = JsonSerializer.Serialize(bundlePacksConfig, _jsonOptions);
             await File.WriteAllTextAsync(packsPath, packsJson, cancellationToken).ConfigureAwait(false);
-            _logger.LogDebug("Created ModBundlePacks.json at {Path}", packsPath);
+            logger.LogDebug("Created ModBundlePacks.json at {Path}", packsPath);
         }
 
         // Create sample INI file
@@ -1533,7 +1517,7 @@ public sealed class ProjectConfigService : IProjectConfigService
                                    "  InitialHealth = 1000.0\n" +
                                    "End\n";
             await File.WriteAllTextAsync(sampleIniPath, sampleIniContent, cancellationToken).ConfigureAwait(false);
-            _logger.LogDebug("Created sample INI at {Path}", sampleIniPath);
+            logger.LogDebug("Created sample INI at {Path}", sampleIniPath);
         }
 
         // Create a README in GameFilesEdited
@@ -1546,7 +1530,7 @@ public sealed class ProjectConfigService : IProjectConfigService
                               "Maintain the same folder structure as the game (e.g. Data/INI/, Art/Textures/).\n" +
                               "ModBuilder will automatically pack them into .BIG files when you click Execute Build.\n";
             await File.WriteAllTextAsync(readmePath, readmeContent, cancellationToken).ConfigureAwait(false);
-            _logger.LogDebug("Created README at {Path}", readmePath);
+            logger.LogDebug("Created README at {Path}", readmePath);
         }
     }
 

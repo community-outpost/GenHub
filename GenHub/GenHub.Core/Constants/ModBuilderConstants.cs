@@ -23,6 +23,16 @@ public static class ModBuilderConstants
     public const string ProjectFilePattern = "*.mbproj";
 
     /// <summary>
+    /// File name for recent projects metadata.
+    /// </summary>
+    public const string RecentProjectsFileName = "recent_projects.json";
+
+    /// <summary>
+    /// Directory name for ModBuilder files in application data.
+    /// </summary>
+    public const string ModBuilderDirName = "ModBuilder";
+
+    /// <summary>
     /// Install manifest file name stored in target game directory.
     /// </summary>
     public const string InstallManifestFileName = ".modbuilder_install.json";

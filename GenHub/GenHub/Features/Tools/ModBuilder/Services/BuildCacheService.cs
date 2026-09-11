@@ -154,11 +154,15 @@ public sealed class BuildCacheService(
             }
 
             // Snapshot cache under lock
-            Dictionary<string, BuildFilePathInfo> cacheSnapshot = [];
-            lock (_cacheLock)
+            Dictionary<string, BuildFilePathInfo> GetCacheSnapshot()
             {
-                cacheSnapshot = new Dictionary<string, BuildFilePathInfo>(_newCache, StringComparer.OrdinalIgnoreCase);
+                lock (_cacheLock)
+                {
+                    return new Dictionary<string, BuildFilePathInfo>(_newCache, StringComparer.OrdinalIgnoreCase);
+                }
             }
+
+            var cacheSnapshot = GetCacheSnapshot();
 
             // Save as MessagePack format (10x faster than JSON)
             var msgpackPath = Path.ChangeExtension(cachePath, ".msgpack");

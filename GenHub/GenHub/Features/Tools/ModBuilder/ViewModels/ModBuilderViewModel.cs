@@ -2156,7 +2156,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         if (buildConfig.Packs is { Count: > 0 })
         {
             var matchingPacks = buildConfig.Packs
-                .Where(pack => selectedNames.Contains(pack.Name) || pack.ItemNames?.Any(item => selectedNames.Contains(item)) == true)
+                .Where(pack => selectedNames.Contains(pack.Name) || (pack.ItemNames is { } itemNames && itemNames.Any(selectedNames.Contains)))
                 .Select(pack => pack.Name)
                 .Distinct(StringComparer.OrdinalIgnoreCase);
 
@@ -2928,12 +2928,12 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
         else
         {
-            if (pack.Big == false)
+            if (pack.Big is false)
             {
                 return;
             }
 
-            if (originalStates?.TryGetValue(pack.Name, out var original) == true)
+            if (originalStates is not null && originalStates.TryGetValue(pack.Name, out var original))
             {
                 originalStates.Remove(pack.Name);
                 pack.Big = original.Big;
