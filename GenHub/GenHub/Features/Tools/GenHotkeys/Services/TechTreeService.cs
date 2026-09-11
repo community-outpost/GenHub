@@ -201,7 +201,9 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
             IconName = objJson.Name,
         };
 
-        foreach (var layoutJson in objJson.KeyboardLayouts)
+        var consolidatedLayouts = ConsolidateLayouts(objJson.KeyboardLayouts);
+
+        foreach (var layoutJson in consolidatedLayouts)
         {
             var layout = new List<HotkeyAction>();
             foreach (var actJson in layoutJson)
@@ -213,6 +215,102 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
         }
 
         return gameObj;
+    }
+
+    private static List<List<TechTreeActionJson>> ConsolidateLayouts(List<List<TechTreeActionJson>> layouts)
+    {
+        if (layouts == null || layouts.Count <= 1)
+        {
+            return layouts ?? [];
+        }
+
+        // Check if layouts represent sequential upgrade variants of the same command set
+        // (e.g. Chinese structures where layout 2 duplicates 80-95% of layout 1 except for upgraded mines/hacks).
+        // For distinct multi-page command cards (such as GLAWorker where layout 1 = real buildings and layout 2 = fake buildings),
+        // the overlap is near zero and they remain separate layouts.
+        var consolidated = new List<List<TechTreeActionJson>>();
+        var currentMerged = new List<TechTreeActionJson>(layouts[0]);
+        var currentKeys = new HashSet<string>(
+            layouts[0].Select(a => a.HotkeyString ?? a.IconName),
+            StringComparer.OrdinalIgnoreCase);
+
+        for (var i = 1; i < layouts.Count; i++)
+        {
+            var nextLayout = layouts[i];
+            var nextKeys = new HashSet<string>(
+                nextLayout.Select(a => a.HotkeyString ?? a.IconName),
+                StringComparer.OrdinalIgnoreCase);
+
+            var commonCount = nextKeys.Count(k => currentKeys.Contains(k));
+            var overlapRatio = (double)commonCount / Math.Min(currentKeys.Count, nextKeys.Count);
+
+            // If more than 40% of actions are shared, this is an upgrade variant of the same command set
+            if (overlapRatio > 0.40)
+            {
+                foreach (var act in nextLayout)
+                {
+                    var key = act.HotkeyString ?? act.IconName;
+                    if (currentKeys.Add(key))
+                    {
+                        var insertIndex = FindInsertIndex(currentMerged, act);
+                        if (insertIndex >= 0 && insertIndex < currentMerged.Count)
+                        {
+                            currentMerged.Insert(insertIndex + 1, act);
+                        }
+                        else
+                        {
+                            var sellIndex = currentMerged.FindIndex(a =>
+                                string.Equals(a.HotkeyString, "CONTROLBAR:Sell", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(a.IconName, "Sell", StringComparison.OrdinalIgnoreCase));
+
+                            if (sellIndex >= 0)
+                            {
+                                currentMerged.Insert(sellIndex, act);
+                            }
+                            else
+                            {
+                                currentMerged.Add(act);
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // Distinct layout (e.g. GLA Worker fake structures page)
+                consolidated.Add(currentMerged);
+                currentMerged = new List<TechTreeActionJson>(nextLayout);
+                currentKeys = new HashSet<string>(
+                    nextLayout.Select(a => a.HotkeyString ?? a.IconName),
+                    StringComparer.OrdinalIgnoreCase);
+            }
+        }
+
+        consolidated.Add(currentMerged);
+        return consolidated;
+    }
+
+    private static int FindInsertIndex(List<TechTreeActionJson> list, TechTreeActionJson action)
+    {
+        // Neutron Mines -> right after Land Mines
+        if (string.Equals(action.HotkeyString, "CONTROLBAR:UpgradeEMPMines", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(action.IconName, "PRCNeutronMines", StringComparison.OrdinalIgnoreCase))
+        {
+            return list.FindIndex(a =>
+                string.Equals(a.HotkeyString, "CONTROLBAR:UpgradeChinaMines", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(a.IconName, "PRCLandMine", StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Satellite Hack 2 -> right after Satellite Hack 1
+        if (string.Equals(action.HotkeyString, "CONTROLBAR:UpgradeChinaSatelliteHackTwo", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(action.IconName, "PRCSatelliteHack2", StringComparison.OrdinalIgnoreCase))
+        {
+            return list.FindIndex(a =>
+                string.Equals(a.HotkeyString, "CONTROLBAR:UpgradeChinaSatelliteHackOne", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(a.IconName, "PRCSatelliteHack1", StringComparison.OrdinalIgnoreCase));
+        }
+
+        return -1;
     }
 
     private static HotkeyAction CreateAction(TechTreeActionJson actJson, CsfFile? refCsf)
@@ -283,6 +381,7 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
         {
             Path.Combine(AppContext.BaseDirectory, "..", "..", "..", AssetsFolder, GenHotkeysFolder, relativePath),
             Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "GenHub", AssetsFolder, GenHotkeysFolder, relativePath),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "GenHub", AssetsFolder, GenHotkeysFolder, relativePath),
             Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "GenHub", "GenHub", AssetsFolder, GenHotkeysFolder, relativePath),
         };
 
