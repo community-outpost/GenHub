@@ -262,6 +262,12 @@ public class MockReplayDirectoryService : IReplayDirectoryService
     }
 
     /// <inheritdoc/>
+    public IReadOnlyList<GameProfile> FindRecoveryProfiles(ReplayFile replay, IReadOnlyList<GameProfile> profiles)
+    {
+        return profiles;
+    }
+
+    /// <inheritdoc/>
     public Task<bool> IsProfileRunningAsync(string profileId, CancellationToken ct = default)
     {
         return Task.FromResult(false);
