@@ -289,13 +289,6 @@ public interface IContentManifestBuilder
     IContentManifestBuilder WithContentReferences(IEnumerable<ContentReference> contentReferences);
 
     /// <summary>
-    /// Sets the declared entry point executable for the manifest.
-    /// </summary>
-    /// <param name="entryPoint">The relative path of the entry point executable.</param>
-    /// <returns>The builder instance for chaining.</returns>
-    IContentManifestBuilder WithEntryPoint(string? entryPoint);
-
-    /// <summary>
     /// Adds a file patching operation to the manifest.
     /// </summary>
     /// <param name="targetRelativePath">The relative path of the file in the workspace to be patched.</param>

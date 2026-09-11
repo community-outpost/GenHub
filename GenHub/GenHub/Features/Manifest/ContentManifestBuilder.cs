@@ -772,14 +772,6 @@ public partial class ContentManifestBuilder(
     }
 
     /// <inheritdoc/>
-    public IContentManifestBuilder WithEntryPoint(string? entryPoint)
-    {
-        _manifest.EntryPoint = entryPoint;
-        logger.LogDebug("Set manifest entry point: {EntryPoint}", entryPoint);
-        return this;
-    }
-
-    /// <inheritdoc/>
     public IContentManifestBuilder AddPatchFile(string targetRelativePath, string patchSourceFile)
     {
         var manifestFile = new ManifestFile
