@@ -118,4 +118,31 @@ public class HotkeyProfileStorageServiceTests : IDisposable
         var profiles = await _service.GetProfilesAsync(GameType.Generals);
         Assert.DoesNotContain(profiles, p => p.Id == profile.Id);
     }
+
+    /// <summary>
+    /// Verifies that SaveProfileAsync rejects path traversal in profile Id.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveProfileAsync_WithTraversalId_ThrowsArgumentException()
+    {
+        var maliciousProfile = new HotkeyProfile
+        {
+            Id = "../evil",
+            Name = "Malicious",
+            TargetGame = GameType.ZeroHour,
+        };
+
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.SaveProfileAsync(maliciousProfile));
+    }
+
+    /// <summary>
+    /// Verifies that DeleteProfileAsync rejects path traversal in profile Id.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeleteProfileAsync_WithTraversalId_ThrowsArgumentException()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.DeleteProfileAsync("../../evil"));
+    }
 }

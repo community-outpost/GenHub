@@ -45,7 +45,7 @@
 
   <Grid RowDefinitions="Auto,*,Auto" Margin="12">
     <!-- TOP TOOLBAR / SETTINGS HEADER -->
-    <Border Grid.Row="0" Background="{DynamicResource CardBackground}" CornerRadius="12" Margin="0,0,0,12" Padding="12" BoxShadow="0 4 12 0 #20000000">
+    <Border Grid.Row="0" Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="12" Margin="0,0,0,12" Padding="12">
       <StackPanel Spacing="10">
         <!-- Row 1: Game Switcher, Profile Management, Export Button -->
         <Grid ColumnDefinitions="Auto,*,Auto">
@@ -214,8 +214,8 @@
                                     ToolTip.Tip="{Binding ConflictReason}">
                               <Grid RowDefinitions="Auto,*,Auto" HorizontalAlignment="Center">
                                 <!-- Hotkey Badge -->
-                                <Border Grid.Row="0" Background="#DD222222" CornerRadius="4" Padding="4,1" HorizontalAlignment="Right">
-                                  <TextBlock Text="{Binding HotkeyBadge}" FontSize="11" FontWeight="Bold" Foreground="#FFD700"/>
+                                <Border Grid.Row="0" Background="{DynamicResource SurfaceElevatedDarkBrush}" CornerRadius="4" Padding="4,1" HorizontalAlignment="Right">
+                                  <TextBlock Text="{Binding HotkeyBadge}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource GeneralsAccentBrush}"/>
                                 </Border>
 
                                 <!-- Action Icon -->
@@ -251,8 +251,8 @@
                 <TextBlock Text="{Binding SelectedAction.DisplayName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                 <TextBlock Text="{Binding SelectedAction.HotkeyString}" FontSize="9" Opacity="0.5" TextTrimming="CharacterEllipsis"/>
               </StackPanel>
-              <Border Grid.Column="2" Background="#DD111111" CornerRadius="6" Padding="8,4" VerticalAlignment="Center">
-                <TextBlock Text="{Binding SelectedAction.HotkeyBadge}" FontSize="16" FontWeight="ExtraBold" Foreground="#FFD700"/>
+              <Border Grid.Column="2" Background="{DynamicResource SurfaceElevatedDarkBrush}" CornerRadius="6" Padding="8,4" VerticalAlignment="Center">
+                <TextBlock Text="{Binding SelectedAction.HotkeyBadge}" FontSize="16" FontWeight="ExtraBold" Foreground="{DynamicResource GeneralsAccentBrush}"/>
               </Border>
             </Grid>
           </Border>
@@ -320,11 +320,11 @@
           </StackPanel>
 
           <!-- Conflict Status Panel -->
-          <Border Grid.Row="4" Background="#18FF4444" BorderBrush="#80FF4444" BorderThickness="1" CornerRadius="8" Padding="8" Margin="0,12,0,0"
+          <Border Grid.Row="4" Background="{DynamicResource SurfaceHoverBrush}" BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1" CornerRadius="8" Padding="8" Margin="0,12,0,0"
                   IsVisible="{Binding HasConflicts}">
             <StackPanel Spacing="4">
-              <TextBlock Text="⚠️ Hotkey Conflicts Detected!" FontWeight="Bold" Foreground="#FFFF6666"/>
-              <TextBlock Text="{Binding TotalConflictsCount, StringFormat='{}{0} overlapping buttons share the same hotkey.'}" FontSize="11" TextWrapping="Wrap"/>
+              <TextBlock Text="⚠️ Hotkey Conflicts Detected!" FontWeight="Bold" Foreground="{DynamicResource ErrorBrush}"/>
+              <TextBlock Text="{Binding TotalConflictsCount, StringFormat='{}{0} overlapping buttons share the same hotkey.'}" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondaryBrush}"/>
             </StackPanel>
           </Border>
         </Grid>

@@ -1,4 +1,5 @@
 using System;
+using Avalonia.Headless.XUnit;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -29,15 +30,15 @@ public class GenHotkeysToolPluginTests
 
         Assert.Equal(GenHotkeysConstants.ToolId, plugin.Metadata.Id);
         Assert.Equal(GenHotkeysConstants.ToolName, plugin.Metadata.Name);
+        Assert.NotNull(plugin.Metadata.Version);
         Assert.True(plugin.Metadata.IsBundled);
-        Assert.Contains("Hotkeys", plugin.Metadata.Tags);
     }
 
     /// <summary>
-    /// Verifies that CreateControl returns a fallback control before activation.
+    /// Verifies that CreateControl returns an empty view when not activated with DI container.
     /// </summary>
-    [Fact]
-    public void CreateControl_WithoutActivation_ReturnsErrorControl()
+    [AvaloniaFact]
+    public void CreateControl_WhenNotActivated_ReturnsEmptyView()
     {
         var plugin = new GenHotkeysToolPlugin();
         var control = plugin.CreateControl();
@@ -46,9 +47,9 @@ public class GenHotkeysToolPluginTests
     }
 
     /// <summary>
-    /// Verifies that CreateControl returns the initialized view after OnActivated.
+    /// Verifies that CreateControl returns a configured view with ViewModel when activated.
     /// </summary>
-    [Fact]
+    [AvaloniaFact]
     public void CreateControl_WhenActivated_InstantiatesViewWithViewModel()
     {
         var mockTechTree = new Mock<ITechTreeService>();

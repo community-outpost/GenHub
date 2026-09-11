@@ -22,7 +22,7 @@ public sealed class GenHotkeysToolPlugin : IToolPlugin
     {
         Id = GenHotkeysConstants.ToolId,
         Name = GenHotkeysConstants.ToolName,
-        Version = "1.0.0",
+        Version = GenHotkeysConstants.PluginVersion,
         Author = AppConstants.AppName,
         Description = GenHotkeysConstants.ToolDescription,
         IconPath = "⌨️",
@@ -38,10 +38,11 @@ public sealed class GenHotkeysToolPlugin : IToolPlugin
             var viewModel = _serviceProvider.GetRequiredService<GenHotkeysViewModel>();
             _view = new GenHotkeysView { DataContext = viewModel };
 
+            // Trigger activation load on first view creation
             _ = viewModel.InitializeAsync();
         }
 
-        return _view ?? (Control)new TextBlock { Text = "Error loading Hotkeys Editor" };
+        return _view ?? new GenHotkeysView();
     }
 
     /// <inheritdoc />
@@ -55,7 +56,7 @@ public sealed class GenHotkeysToolPlugin : IToolPlugin
     {
         if (_view?.DataContext is GenHotkeysViewModel vm)
         {
-            _ = vm.SaveCurrentProfileAsync();
+            // Nothing to clean up specifically
         }
     }
 

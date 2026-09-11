@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -6,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Media.Imaging;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Interfaces.Tools.GenHotkeys;
@@ -18,16 +20,17 @@ namespace GenHub.Features.Tools.GenHotkeys.ViewModels;
 /// <summary>
 /// Main ViewModel for the GenHotkeys visual hotkey editor tool.
 /// </summary>
-public partial class GenHotkeysViewModel : ObservableObject
+public partial class GenHotkeysViewModel(
+    ITechTreeService techTreeService,
+    IHotkeyProfileStorageService profileStorageService,
+    IHotkeyPackageService packageService,
+    ILogger<GenHotkeysViewModel> logger) : ObservableObject
 {
-    private readonly ITechTreeService _techTreeService;
-    private readonly IHotkeyProfileStorageService _profileStorageService;
-    private readonly IHotkeyPackageService _packageService;
-    private readonly ILogger<GenHotkeysViewModel> _logger;
-    private readonly Dictionary<string, Bitmap> _bitmapCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, Bitmap> _bitmapCache = new(StringComparer.OrdinalIgnoreCase);
 
     private List<HotkeyFaction> _allFactions = [];
     private bool _isInitializing;
+    private CancellationTokenSource? _reloadCts;
 
     [ObservableProperty]
     private GameType _selectedGame = GameType.ZeroHour;
@@ -70,25 +73,6 @@ public partial class GenHotkeysViewModel : ObservableObject
 
     [ObservableProperty]
     private string _newProfileName = string.Empty;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GenHotkeysViewModel"/> class.
-    /// </summary>
-    /// <param name="techTreeService">Tech tree service for loading factions and units.</param>
-    /// <param name="profileStorageService">Storage service for persisting hotkey profiles.</param>
-    /// <param name="packageService">Packaging service for creating .big addons.</param>
-    /// <param name="logger">Logger instance.</param>
-    public GenHotkeysViewModel(
-        ITechTreeService techTreeService,
-        IHotkeyProfileStorageService profileStorageService,
-        IHotkeyPackageService packageService,
-        ILogger<GenHotkeysViewModel> logger)
-    {
-        _techTreeService = techTreeService ?? throw new ArgumentNullException(nameof(techTreeService));
-        _profileStorageService = profileStorageService ?? throw new ArgumentNullException(nameof(profileStorageService));
-        _packageService = packageService ?? throw new ArgumentNullException(nameof(packageService));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
 
     /// <summary>Gets the list of available profiles for the current game.</summary>
     public ObservableCollection<HotkeyProfile> Profiles { get; } = [];
@@ -138,11 +122,11 @@ public partial class GenHotkeysViewModel : ObservableObject
             IsBusy = true;
             BusyMessage = "Loading hotkey profiles and tech tree...";
 
-            await ReloadAllAsync();
+            await ReloadAllAsync(CancellationToken.None);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to initialize GenHotkeysViewModel");
+            logger.LogError(ex, "Failed to initialize GenHotkeysViewModel");
             StatusMessage = $"Error: {ex.Message}";
         }
         finally
@@ -236,7 +220,7 @@ public partial class GenHotkeysViewModel : ObservableObject
             IsBusy = true;
             BusyMessage = $"Applying preset '{presetName}'...";
 
-            var preset = await _profileStorageService.LoadPresetAsync(presetName, SelectedGame);
+            var preset = await profileStorageService.LoadPresetAsync(presetName, SelectedGame);
             SelectedProfile.KeyMappings.Clear();
             foreach (var (k, v) in preset.KeyMappings)
             {
@@ -251,7 +235,7 @@ public partial class GenHotkeysViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to apply preset {Preset}", presetName);
+            logger.LogError(ex, "Failed to apply preset {Preset}", presetName);
             StatusMessage = $"Failed to apply preset: {ex.Message}";
         }
         finally
@@ -276,7 +260,7 @@ public partial class GenHotkeysViewModel : ObservableObject
             OverlayCorner = SelectedCorner,
         };
 
-        await _profileStorageService.SaveProfileAsync(profile);
+        await profileStorageService.SaveProfileAsync(profile);
         Profiles.Add(profile);
         SelectedProfile = profile;
         NewProfileName = string.Empty;
@@ -298,7 +282,7 @@ public partial class GenHotkeysViewModel : ObservableObject
         }
 
         var toDelete = SelectedProfile;
-        await _profileStorageService.DeleteProfileAsync(toDelete.Id);
+        await profileStorageService.DeleteProfileAsync(toDelete.Id);
         Profiles.Remove(toDelete);
         SelectedProfile = Profiles.FirstOrDefault();
 
@@ -324,7 +308,7 @@ public partial class GenHotkeysViewModel : ObservableObject
             BusyMessage = "Building .big archive and registering GenHub Addon...";
 
             var progress = new Progress<string>(msg => BusyMessage = msg);
-            var result = await _packageService.CreateHotkeysAddonAsync(SelectedProfile, progress);
+            var result = await packageService.CreateHotkeysAddonAsync(SelectedProfile, progress);
 
             if (result.Success && result.Data != null)
             {
@@ -337,7 +321,7 @@ public partial class GenHotkeysViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to export hotkeys addon");
+            logger.LogError(ex, "Failed to export hotkeys addon");
             StatusMessage = $"Export error: {ex.Message}";
         }
         finally
@@ -359,14 +343,17 @@ public partial class GenHotkeysViewModel : ObservableObject
 
         SelectedProfile.OverlayEnabled = OverlayEnabled;
         SelectedProfile.OverlayCorner = SelectedCorner;
-        await _profileStorageService.SaveProfileAsync(SelectedProfile);
+        await profileStorageService.SaveProfileAsync(SelectedProfile);
     }
 
     partial void OnSelectedGameChanged(GameType value)
     {
         if (!_isInitializing)
         {
-            _ = ReloadAllAsync();
+            _reloadCts?.Cancel();
+            _reloadCts = new CancellationTokenSource();
+            var token = _reloadCts.Token;
+            _ = SafeReloadAllAsync(token);
         }
     }
 
@@ -409,10 +396,35 @@ public partial class GenHotkeysViewModel : ObservableObject
         }
     }
 
-    private async Task ReloadAllAsync()
+    private async Task SafeReloadAllAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            IsBusy = true;
+            BusyMessage = "Loading hotkey profiles and tech tree...";
+            await ReloadAllAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when user quickly toggles games
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to reload hotkeys for game {Game}", SelectedGame);
+            StatusMessage = $"Failed to reload: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task ReloadAllAsync(CancellationToken cancellationToken)
     {
         // 1. Load profiles for this game
-        var profiles = await _profileStorageService.GetProfilesAsync(SelectedGame);
+        var profiles = await profileStorageService.GetProfilesAsync(SelectedGame, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+
         Profiles.Clear();
         foreach (var p in profiles)
         {
@@ -422,7 +434,9 @@ public partial class GenHotkeysViewModel : ObservableObject
         SelectedProfile = Profiles.FirstOrDefault();
 
         // 2. Load tech tree
-        _allFactions = (await _techTreeService.LoadTechTreeAsync(SelectedGame)).ToList();
+        _allFactions = (await techTreeService.LoadTechTreeAsync(SelectedGame, cancellationToken)).ToList();
+        cancellationToken.ThrowIfCancellationRequested();
+
         Factions.Clear();
         foreach (var f in _allFactions)
         {
@@ -455,8 +469,9 @@ public partial class GenHotkeysViewModel : ObservableObject
                 DisplayName = obj.DisplayName,
                 Category = obj.Category,
                 IconName = obj.IconName,
-                IconBitmap = GetOrLoadBitmap(obj.IconName),
             };
+
+            LoadBitmapForObject(vm, obj.IconName);
 
             foreach (var layout in obj.KeyboardLayouts)
             {
@@ -478,8 +493,9 @@ public partial class GenHotkeysViewModel : ObservableObject
                         DisplayName = action.DisplayName,
                         DefaultHotkey = action.DefaultHotkey,
                         Hotkey = currentHk,
-                        IconBitmap = GetOrLoadBitmap(action.IconName),
                     };
+
+                    LoadBitmapForAction(actionVm, action.IconName);
 
                     layoutVm.Add(actionVm);
                 }
@@ -492,6 +508,58 @@ public partial class GenHotkeysViewModel : ObservableObject
 
         SelectedGameObject = FilteredGameObjects.FirstOrDefault();
         ValidateConflicts();
+    }
+
+    private void LoadBitmapForObject(HotkeyGameObjectViewModel vm, string iconName)
+    {
+        if (string.IsNullOrWhiteSpace(iconName))
+        {
+            return;
+        }
+
+        if (_bitmapCache.TryGetValue(iconName, out var cached))
+        {
+            vm.IconBitmap = cached;
+            return;
+        }
+
+        _ = LoadBitmapAsync(iconName, SelectedGame, bmp => vm.IconBitmap = bmp);
+    }
+
+    private void LoadBitmapForAction(HotkeyActionViewModel vm, string iconName)
+    {
+        if (string.IsNullOrWhiteSpace(iconName))
+        {
+            return;
+        }
+
+        if (_bitmapCache.TryGetValue(iconName, out var cached))
+        {
+            vm.IconBitmap = cached;
+            return;
+        }
+
+        _ = LoadBitmapAsync(iconName, SelectedGame, bmp => vm.IconBitmap = bmp);
+    }
+
+    private async Task LoadBitmapAsync(string iconName, GameType gameType, Action<Bitmap> onLoaded)
+    {
+        try
+        {
+            var bytes = await techTreeService.GetIconBytesAsync(iconName, gameType).ConfigureAwait(false);
+            if (bytes != null && bytes.Length > 0)
+            {
+                using var ms = new MemoryStream(bytes);
+                var bmp = new Bitmap(ms);
+                _bitmapCache[iconName] = bmp;
+
+                Dispatcher.UIThread.Post(() => onLoaded(bmp));
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to load icon bitmap asynchronously for {Icon}", iconName);
+        }
     }
 
     private void ApplyProfileMappingsToViewModels()
@@ -556,39 +624,5 @@ public partial class GenHotkeysViewModel : ObservableObject
 
         TotalConflictsCount = conflictCount;
         HasConflicts = conflictCount > 0;
-    }
-
-    private Bitmap? GetOrLoadBitmap(string iconName)
-    {
-        if (string.IsNullOrWhiteSpace(iconName))
-        {
-            return null;
-        }
-
-        if (_bitmapCache.TryGetValue(iconName, out var cached))
-        {
-            return cached;
-        }
-
-        try
-        {
-            var task = _techTreeService.GetIconBytesAsync(iconName, SelectedGame);
-            task.Wait(100);
-            var bytes = task.IsCompleted ? task.Result : null;
-
-            if (bytes != null && bytes.Length > 0)
-            {
-                using var ms = new MemoryStream(bytes);
-                var bmp = new Bitmap(ms);
-                _bitmapCache[iconName] = bmp;
-                return bmp;
-            }
-        }
-        catch
-        {
-            // Fall back
-        }
-
-        return null;
     }
 }
