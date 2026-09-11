@@ -47,9 +47,9 @@ public class HotkeyProfileStorageService(
             {
                 var json = await File.ReadAllTextAsync(file, cancellationToken);
                 var profile = JsonSerializer.Deserialize<HotkeyProfile>(json, JsonOptions);
-                if (profile != null && profile.TargetGame == gameType)
+                if (profile is { } p && p.TargetGame == gameType)
                 {
-                    profiles.Add(profile);
+                    profiles.Add(p);
                 }
             }
             catch (Exception ex)
