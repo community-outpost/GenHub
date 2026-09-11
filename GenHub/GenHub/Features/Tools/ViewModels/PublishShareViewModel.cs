@@ -160,12 +160,12 @@ public partial class PublishShareViewModel : ObservableObject
     /// <summary>
     /// Gets a value indicating whether the selected provider requires authentication.
     /// </summary>
-    public bool RequiresAuthentication => SelectedHostingProvider?.RequiresAuthentication == true;
+    public bool RequiresAuthentication => SelectedHostingProvider is { RequiresAuthentication: true };
 
     /// <summary>
     /// Gets a value indicating whether the selected provider is authenticated.
     /// </summary>
-    public bool IsProviderAuthenticated => SelectedHostingProvider?.IsAuthenticated == true;
+    public bool IsProviderAuthenticated => SelectedHostingProvider is { IsAuthenticated: true };
 
     /// <summary>
     /// Gets a value indicating whether authentication is needed (provider requires it but is not authenticated).
@@ -982,7 +982,7 @@ public partial class PublishShareViewModel : ObservableObject
     {
         var hasUrl = !string.IsNullOrWhiteSpace(art.DownloadUrl);
         var localArtifact = ArtifactStatuses.FirstOrDefault(a => a.ArtifactName == art.Filename);
-        var hasLocal = localArtifact?.HasLocalFile == true || !string.IsNullOrWhiteSpace(art.LocalFilePath);
+        var hasLocal = localArtifact is { HasLocalFile: true } || !string.IsNullOrWhiteSpace(art.LocalFilePath);
         var localPath = localArtifact?.LocalFilePath ?? art.LocalFilePath ?? string.Empty;
         var isExternalCdn = hasUrl && (!hasLocal || !IsCloudProviderUrl(art.DownloadUrl));
 

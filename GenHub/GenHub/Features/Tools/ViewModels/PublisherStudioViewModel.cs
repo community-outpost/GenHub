@@ -596,9 +596,12 @@ public partial class PublisherStudioViewModel : ObservableObject
 
             // If this project has previously been published (has catalogs with URLs), prompt recovery
             var hasPublishedUrls = CurrentProject.Catalogs.Any(c =>
-                c?.Catalog?.Content?.Any(item =>
-                    item?.Releases?.Any(r =>
-                        r?.Artifacts?.Any(a => a != null && !string.IsNullOrEmpty(a.DownloadUrl)) == true) == true) == true);
+                c?.Catalog?.Content is { } content &&
+                content.Any(item =>
+                    item?.Releases is { } releases &&
+                    releases.Any(r =>
+                        r?.Artifacts is { } artifacts &&
+                        artifacts.Any(a => a != null && !string.IsNullOrEmpty(a.DownloadUrl)))));
 
             if (hasPublishedUrls)
             {
