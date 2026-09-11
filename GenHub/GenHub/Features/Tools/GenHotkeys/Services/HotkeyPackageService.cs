@@ -116,13 +116,16 @@ public class HotkeyPackageService(
         foreach (var (label, key) in profile.KeyMappings)
         {
             var existing = baseCsf.GetString(label);
-            var updated = CsfFile.SetHotkey(existing, key);
-            baseCsf.SetString(label, updated);
+            if (!string.IsNullOrEmpty(existing))
+            {
+                var updated = CsfFile.SetHotkey(existing, key);
+                baseCsf.SetString(label, updated);
+            }
         }
 
         var englishDir = Path.Combine(stagingDir, GenHotkeysConstants.DataEnglishDirectory);
         Directory.CreateDirectory(englishDir);
-        var csfOutputPath = Path.Combine(englishDir, "generals.csf");
+        var csfOutputPath = Path.Combine(englishDir, GenHotkeysConstants.GeneralsCsfFileName);
         baseCsf.Save(csfOutputPath);
     }
 
@@ -165,6 +168,7 @@ public class HotkeyPackageService(
 
     private static CsfFile LoadBaseCsf(HotkeyProfile profile)
     {
+        var isVanilla = string.Equals(profile.BasePreset, GenHotkeysConstants.PresetVanilla, StringComparison.OrdinalIgnoreCase);
         var presetFile = profile.BasePreset?.Contains(GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase) == true
             ? GenHotkeysConstants.PresetsLegionnaireRu
             : GenHotkeysConstants.PresetsLeikezeEn;
@@ -174,7 +178,21 @@ public class HotkeyPackageService(
         {
             using (stream)
             {
-                return CsfFile.Load(stream);
+                var csf = CsfFile.Load(stream);
+                if (isVanilla)
+                {
+                    foreach (var (label, value) in csf.Strings.ToList())
+                    {
+                        if (label.StartsWith(GenHotkeysConstants.CsfControlBarPrefix, StringComparison.OrdinalIgnoreCase) ||
+                            label.StartsWith(GenHotkeysConstants.CsfCommandPrefix, StringComparison.OrdinalIgnoreCase))
+                        {
+                            var stripped = CsfFile.StripHotkey(value);
+                            csf.SetString(label, stripped);
+                        }
+                    }
+                }
+
+                return csf;
             }
         }
 
@@ -247,14 +265,14 @@ public class HotkeyPackageService(
         var iniContent = sb.ToString();
 
         // 1. Write to Data/INI/MappedImages/HandCreated/Hotkeys.ini (scanned last by SAGE ImageCollection::load)
-        var handCreatedDir = Path.Combine(stagingDir, "Data", "INI", "MappedImages", "HandCreated");
+        var handCreatedDir = Path.Combine(stagingDir, Path.Combine(GenHotkeysConstants.MappedImagesHandCreatedDirectory.Split('/')));
         Directory.CreateDirectory(handCreatedDir);
-        await File.WriteAllTextAsync(Path.Combine(handCreatedDir, "Hotkeys.ini"), iniContent, cancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(handCreatedDir, GenHotkeysConstants.HandCreatedHotkeysIniFileName), iniContent, cancellationToken);
 
         // 2. Write to Data/INI/MappedImages/TextureSize_512/zzHotkeys.ini (alphabetically sorts after retail SA/SN/SU in std::set)
-        var textureSizeDir = Path.Combine(stagingDir, "Data", "INI", "MappedImages", "TextureSize_512");
+        var textureSizeDir = Path.Combine(stagingDir, Path.Combine(GenHotkeysConstants.MappedImagesTextureSize512Directory.Split('/')));
         Directory.CreateDirectory(textureSizeDir);
-        await File.WriteAllTextAsync(Path.Combine(textureSizeDir, "zzHotkeys.ini"), iniContent, cancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(textureSizeDir, GenHotkeysConstants.TextureSize512HotkeysIniFileName), iniContent, cancellationToken);
     }
 
     private static void AppendIconMappedImages(StringBuilder sb, string icon)

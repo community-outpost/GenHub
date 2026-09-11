@@ -425,7 +425,7 @@ public class ContentStorageService : IContentStorageService
             {
                 try
                 {
-                    Directory.Delete(contentDir);
+                    Directory.Delete(contentDir, recursive: true);
                 }
                 catch (Exception deleteEx)
                 {

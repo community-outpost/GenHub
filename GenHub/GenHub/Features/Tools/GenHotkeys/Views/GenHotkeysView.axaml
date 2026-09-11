@@ -39,7 +39,7 @@
       <Setter Property="FontSize" Value="12" />
       <Setter Property="HorizontalContentAlignment" Value="Center" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
-      <Setter Property="Background" Value="{DynamicResource ControlBackground}" />
+      <Setter Property="Background" Value="{DynamicResource CardBackground}" />
       <Setter Property="BorderBrush" Value="{DynamicResource DividerColor}" />
       <Setter Property="BorderThickness" Value="1" />
     </Style>
@@ -53,7 +53,7 @@
       <Setter Property="CornerRadius" Value="8" />
       <Setter Property="BorderThickness" Value="2" />
       <Setter Property="BorderBrush" Value="{DynamicResource DividerColor}" />
-      <Setter Property="Background" Value="{DynamicResource ControlBackground}" />
+      <Setter Property="Background" Value="{DynamicResource CardBackground}" />
       <Setter Property="Padding" Value="4" />
       <Setter Property="HorizontalAlignment" Value="Stretch" />
       <Setter Property="VerticalAlignment" Value="Stretch" />
@@ -290,7 +290,7 @@
             <ItemsControl ItemsSource="{Binding SelectedGameObject.Layouts}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                  <Border Background="{DynamicResource ControlBackground}" CornerRadius="8" Padding="10" Margin="0,0,0,10">
+                  <Border Background="{DynamicResource SurfaceElevatedDarkBrush}" CornerRadius="8" Padding="10" Margin="0,0,0,10">
                     <Grid>
                       <ItemsControl ItemsSource="{Binding}">
                         <ItemsControl.ItemsPanel>
@@ -353,7 +353,7 @@
           <TextBlock Grid.Row="0" Text="Hotkey Assignment" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
 
           <!-- Selected Action Summary Box with Larger Cameo -->
-          <Border Grid.Row="1" Background="{DynamicResource ControlBackground}" CornerRadius="8" Padding="8" Margin="0,0,0,12"
+          <Border Grid.Row="1" Background="{DynamicResource SurfaceElevatedDarkBrush}" CornerRadius="8" Padding="8" Margin="0,0,0,12"
                   IsVisible="{Binding SelectedAction, Converter={StaticResource NotNullConverter}}">
             <Grid ColumnDefinitions="Auto,*,Auto">
               <!-- Live Preview Cameo with superimposed hotkey -->
