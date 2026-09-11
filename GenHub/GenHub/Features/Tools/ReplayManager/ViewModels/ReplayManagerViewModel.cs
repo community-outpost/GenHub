@@ -1524,6 +1524,7 @@ public partial class ReplayManagerViewModel(
     [RelayCommand]
     private Task MintCheckpointAsync() => CreateCheckpointAsync();
 
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates observable instance properties for Avalonia UI data binding")]
     private void UpdateReplayTimingBounds()
     {
         var fps = GetReplayFps(ActiveCheckpointReplay, SelectedCompatibleProfile);
@@ -1557,6 +1558,7 @@ public partial class ReplayManagerViewModel(
         UpdateCheckpointTimingDisplay();
     }
 
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates observable instance properties for Avalonia UI data binding")]
     private void UpdateCheckpointTimingDisplay()
     {
         var fps = GetReplayFps(ActiveCheckpointReplay, SelectedCompatibleProfile);
