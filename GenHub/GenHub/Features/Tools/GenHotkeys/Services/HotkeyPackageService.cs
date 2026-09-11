@@ -65,7 +65,7 @@ public class HotkeyPackageService(
 
             // 3. Pack into .big archive
             progress?.Report("Packing files into .big archive...");
-            await PackBigArchiveAsync(profile, stagingDir, packageDir);
+            await PackBigArchiveAsync(profile, stagingDir, packageDir, cancellationToken);
 
             // 4. Register with GenHub as ContentManifest Addon
             progress?.Report("Registering hotkey addon in GenHub...");
@@ -85,6 +85,10 @@ public class HotkeyPackageService(
                 profile.Name);
 
             return result;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -152,8 +156,10 @@ public class HotkeyPackageService(
     private static async Task<string> PackBigArchiveAsync(
         HotkeyProfile profile,
         string stagingDir,
-        string packageDir)
+        string packageDir,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var sanitizedName = SafeFileNameRegex.Replace(profile.Name, "_");
         if (string.IsNullOrWhiteSpace(sanitizedName))
         {
@@ -165,6 +171,7 @@ public class HotkeyPackageService(
         var bigFilePath = Path.Combine(packageDir, bigFileName);
 
         await BigFilePacker.PackAsync(stagingDir, bigFilePath);
+        cancellationToken.ThrowIfCancellationRequested();
         return bigFilePath;
     }
 
