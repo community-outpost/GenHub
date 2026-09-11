@@ -13,7 +13,9 @@
     <meta property="og:description" content="Fix modern Windows crashes with GenPatcher, isolate mods in zero-conflict workspaces, and auto-update content seamlessly.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://generalshub.com/">
-    <meta name="twitter:card" content="summary_large_image">
+    <meta property="og:image" content="https://generalshub.com/assets/icon.png">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:image" content="https://generalshub.com/assets/icon.png">
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="./assets/icon.png">
@@ -116,10 +118,26 @@
         overflow: hidden;
       }
 
-      .stats-card:hover .stats-tooltip {
+      .stats-card:hover .stats-tooltip,
+      .stats-card:focus-within .stats-tooltip,
+      .stats-card.active .stats-tooltip {
         opacity: 1;
         visibility: visible;
         transform: translateX(-50%) translateY(0);
+      }
+
+      .stats-trigger-btn {
+        background: none;
+        border: none;
+        padding: 0;
+        margin: 0;
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
 
       .tooltip-header {
@@ -312,8 +330,8 @@
 
             <!-- GitHub Stats Live Component -->
             <div id="genhub-stats-widget" class="stats-widget">
-                <div class="stats-card">
-                    <div class="stats-summary">
+                <div class="stats-card" id="gh-stats-card">
+                    <button class="stats-summary stats-trigger-btn" id="gh-stats-trigger" type="button" aria-expanded="false" aria-controls="gh-stats-tooltip" aria-label="Toggle release metrics breakdown">
                         <div class="stat-box">
                             <span class="stat-label">Total Installs</span>
                             <span class="stat-value" id="gh-total-installs">...</span>
@@ -323,9 +341,9 @@
                             <span class="stat-label">Updates Served</span>
                             <span class="stat-value" id="gh-total-updates">...</span>
                         </div>
-                    </div>
+                    </button>
                     
-                    <div class="stats-tooltip" role="tooltip">
+                    <div class="stats-tooltip" id="gh-stats-tooltip" role="region" aria-label="Release Metrics Breakdown">
                         <div class="tooltip-header">
                             <span>Release Metrics Breakdown</span>
                         </div>
@@ -358,23 +376,23 @@
                 </div>
 
                 <!-- Tabs Navigation -->
-                <div class="app-tabs" role="tablist">
-                    <button class="app-tab-btn active" role="tab" aria-selected="true" data-tab="tab-profiles">
+                <div class="app-tabs" role="tablist" aria-label="Showcase Navigation">
+                    <button class="app-tab-btn active" id="tab-btn-profiles" role="tab" aria-selected="true" aria-controls="tab-profiles" tabindex="0" data-tab="tab-profiles">
                         <i data-feather="sliders"></i>
                         <span>Game Profiles</span>
                         <span class="tab-badge">4 Active</span>
                     </button>
-                    <button class="app-tab-btn" role="tab" aria-selected="false" data-tab="tab-genpatcher">
+                    <button class="app-tab-btn" id="tab-btn-genpatcher" role="tab" aria-selected="false" aria-controls="tab-genpatcher" tabindex="-1" data-tab="tab-genpatcher">
                         <i data-feather="shield"></i>
                         <span>GenPatcher Tools</span>
                         <span class="tab-badge badge-emerald-pill">All Fixed</span>
                     </button>
-                    <button class="app-tab-btn" role="tab" aria-selected="false" data-tab="tab-updates">
+                    <button class="app-tab-btn" id="tab-btn-updates" role="tab" aria-selected="false" aria-controls="tab-updates" tabindex="-1" data-tab="tab-updates">
                         <i data-feather="download-cloud"></i>
                         <span>Auto-Update Engine</span>
                         <span class="tab-badge">Delta Sync</span>
                     </button>
-                    <button class="app-tab-btn" role="tab" aria-selected="false" data-tab="tab-replays">
+                    <button class="app-tab-btn" id="tab-btn-replays" role="tab" aria-selected="false" aria-controls="tab-replays" tabindex="-1" data-tab="tab-replays">
                         <i data-feather="film"></i>
                         <span>Replays & Maps</span>
                         <span class="tab-badge">CRC Match</span>
@@ -384,7 +402,7 @@
                 <!-- Tab Body / Screens -->
                 <div class="app-body">
                     <!-- Tab 1: Game Profiles -->
-                    <div class="tab-panel active" id="tab-profiles" role="tabpanel">
+                    <div class="tab-panel active" id="tab-profiles" role="tabpanel" aria-labelledby="tab-btn-profiles">
                         <div class="profile-deck">
                             <!-- Profile 1 -->
                             <div class="profile-card active-profile">
@@ -458,7 +476,7 @@
                     </div>
 
                     <!-- Tab 2: GenPatcher Suite -->
-                    <div class="tab-panel" id="tab-genpatcher" role="tabpanel">
+                    <div class="tab-panel" id="tab-genpatcher" role="tabpanel" aria-labelledby="tab-btn-genpatcher">
                         <div class="genpatcher-panel-header">
                             <div class="genpatcher-intro">
                                 <img src="./assets/images/genpatcher-logo.png" alt="GenPatcher Logo" class="genpatcher-logo-img">
@@ -543,7 +561,7 @@
                     </div>
 
                     <!-- Tab 3: Auto-Update Engine -->
-                    <div class="tab-panel" id="tab-updates" role="tabpanel">
+                    <div class="tab-panel" id="tab-updates" role="tabpanel" aria-labelledby="tab-btn-updates">
                         <div class="updates-panel-view">
                             <div class="update-status-banner">
                                 <div class="update-status-info">
@@ -602,7 +620,7 @@
                     </div>
 
                     <!-- Tab 4: Replays & Maps -->
-                    <div class="tab-panel" id="tab-replays" role="tabpanel">
+                    <div class="tab-panel" id="tab-replays" role="tabpanel" aria-labelledby="tab-btn-replays">
                         <div class="replay-map-grid">
                             <div class="replay-card">
                                 <div class="replay-card-top">
@@ -848,7 +866,7 @@
                 </div>
 
                 <!-- Bento 5: Replay Analyzer (Col-4) -->
-                <div class="bento-card col-span-4">
+                <div class="bento-card col-span-4" id="replay-manager">
                     <div class="bento-header">
                         <div class="card-icon-wrap">
                             <i data-feather="film"></i>
@@ -867,7 +885,7 @@
                 </div>
 
                 <!-- Bento 6: Map Manager (Col-6) -->
-                <div class="bento-card col-span-6">
+                <div class="bento-card col-span-6" id="map-manager">
                     <div class="bento-header">
                         <div class="card-icon-wrap">
                             <i data-feather="map"></i>
@@ -1005,11 +1023,11 @@
 
             <div class="faq-list">
                 <div class="faq-item open">
-                    <button class="faq-question" type="button" aria-expanded="true">
+                    <button class="faq-question" id="faq-btn-1" type="button" aria-expanded="true" aria-controls="faq-ans-1">
                         <span>Does GeneralsHub modify or break my original game files?</span>
                         <i data-feather="chevron-down" class="faq-chevron"></i>
                     </button>
-                    <div class="faq-answer">
+                    <div class="faq-answer" id="faq-ans-1" role="region" aria-labelledby="faq-btn-1" aria-hidden="false">
                         <p>
                             Never. GeneralsHub uses isolated workspace sandboxing powered by Content-Addressed Storage (CAS) and NTFS hardlinks. When you launch a mod or community patch, it runs within its own workspace while leaving your base game installation completely clean and untouched.
                         </p>
@@ -1017,11 +1035,11 @@
                 </div>
 
                 <div class="faq-item">
-                    <button class="faq-question" type="button" aria-expanded="false">
+                    <button class="faq-question" id="faq-btn-2" type="button" aria-expanded="false" aria-controls="faq-ans-2">
                         <span>What are the built-in GenPatcher tools and why do I need them?</span>
                         <i data-feather="chevron-down" class="faq-chevron"></i>
                     </button>
-                    <div class="faq-answer">
+                    <div class="faq-answer" id="faq-ans-2" role="region" aria-labelledby="faq-btn-2" aria-hidden="true">
                         <p>
                             Command & Conquer: Generals and Zero Hour rely on DirectX 8 and legacy runtimes that frequently crash on modern Windows 10 and 11. GeneralsHub integrates the renowned GenPatcher toolset to automatically deploy modern DirectX wrappers, install GenTool v8.7, configure widescreen resolutions (1080p, 1440p, 4K), and resolve firewall/registry permissions in one click.
                         </p>
@@ -1029,11 +1047,11 @@
                 </div>
 
                 <div class="faq-item">
-                    <button class="faq-question" type="button" aria-expanded="false">
+                    <button class="faq-question" id="faq-btn-3" type="button" aria-expanded="false" aria-controls="faq-ans-3">
                         <span>Does GeneralsHub work with the Steam release and EA App?</span>
                         <i data-feather="chevron-down" class="faq-chevron"></i>
                     </button>
-                    <div class="faq-answer">
+                    <div class="faq-answer" id="faq-ans-3" role="region" aria-labelledby="faq-btn-3" aria-hidden="true">
                         <p>
                             Yes! GeneralsHub natively detects the 2024 Steam release of Command & Conquer: Generals and Zero Hour, the EA App / Origin release, The First Decade (TFD), and original disc installations. You can also specify custom directories.
                         </p>
@@ -1041,11 +1059,11 @@
                 </div>
 
                 <div class="faq-item">
-                    <button class="faq-question" type="button" aria-expanded="false">
+                    <button class="faq-question" id="faq-btn-4" type="button" aria-expanded="false" aria-controls="faq-ans-4">
                         <span>How do the automatic content delta updates work?</span>
                         <i data-feather="chevron-down" class="faq-chevron"></i>
                     </button>
-                    <div class="faq-answer">
+                    <div class="faq-answer" id="faq-ans-4" role="region" aria-labelledby="faq-btn-4" aria-hidden="true">
                         <p>
                             GeneralsHub monitors community mod feeds and patches through verified catalog subscriptions. When a mod author publishes an update, GenHub analyzes which specific files have changed and downloads only the modified bytes (delta updates), saving over 90% of bandwidth and disk space compared to downloading whole ZIP files.
                         </p>
@@ -1053,11 +1071,11 @@
                 </div>
 
                 <div class="faq-item">
-                    <button class="faq-question" type="button" aria-expanded="false">
+                    <button class="faq-question" id="faq-btn-5" type="button" aria-expanded="false" aria-controls="faq-ans-5">
                         <span>Can I run GeneralsHub on Linux or the Steam Deck?</span>
                         <i data-feather="chevron-down" class="faq-chevron"></i>
                     </button>
-                    <div class="faq-answer">
+                    <div class="faq-answer" id="faq-ans-5" role="region" aria-labelledby="faq-btn-5" aria-hidden="true">
                         <p>
                             Yes. GeneralsHub includes dedicated Linux support with Proton / Wine compatibility and automatic detection of Steam Flatpak installations, making it fully playable on the Steam Deck and desktop Linux distributions.
                         </p>
@@ -1065,11 +1083,11 @@
                 </div>
 
                 <div class="faq-item">
-                    <button class="faq-question" type="button" aria-expanded="false">
+                    <button class="faq-question" id="faq-btn-6" type="button" aria-expanded="false" aria-controls="faq-ans-6">
                         <span>Is GeneralsHub free and open source?</span>
                         <i data-feather="chevron-down" class="faq-chevron"></i>
                     </button>
-                    <div class="faq-answer">
+                    <div class="faq-answer" id="faq-ans-6" role="region" aria-labelledby="faq-btn-6" aria-hidden="true">
                         <p>
                             Yes, 100%. GeneralsHub is licensed under the GNU General Public License v3.0 (GPL-3.0) and maintained by Community Outpost. The source code is publicly accessible on GitHub for transparent collaboration and community contributions.
                         </p>
@@ -1132,8 +1150,8 @@
                         <li><a href="#genpatcher">GenPatcher Tools</a></li>
                         <li><a href="#auto-updates">Auto-Update Engine</a></li>
                         <li><a href="#workspaces">Isolated Workspaces</a></li>
-                        <li><a href="#features">Replay Manager</a></li>
-                        <li><a href="#features">Map Manager</a></li>
+                        <li><a href="#replay-manager">Replay Manager</a></li>
+                        <li><a href="#map-manager">Map Manager</a></li>
                     </ul>
                 </div>
 
@@ -1203,29 +1221,54 @@
             }
         })();
 
-        // Interactive App Mockup Tab Switching
+        // Interactive App Mockup Tab Switching & Keyboard Navigation
         (function() {
-            const tabButtons = document.querySelectorAll('.app-tab-btn');
-            const tabPanels = document.querySelectorAll('.tab-panel');
+            const tabList = document.querySelector('.app-tabs');
+            const tabButtons = Array.from(document.querySelectorAll('.app-tab-btn'));
+            const tabPanels = Array.from(document.querySelectorAll('.tab-panel'));
 
-            tabButtons.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const targetId = btn.dataset.tab;
-                    
-                    tabButtons.forEach(b => {
-                        b.classList.remove('active');
-                        b.setAttribute('aria-selected', 'false');
-                    });
-                    tabPanels.forEach(p => p.classList.remove('active'));
-
-                    btn.classList.add('active');
-                    btn.setAttribute('aria-selected', 'true');
-                    const activePanel = document.getElementById(targetId);
-                    if (activePanel) {
-                        activePanel.classList.add('active');
+            function activateTab(index, focusTab = true) {
+                tabButtons.forEach((btn, idx) => {
+                    const isSelected = idx === index;
+                    btn.classList.toggle('active', isSelected);
+                    btn.setAttribute('aria-selected', String(isSelected));
+                    btn.setAttribute('tabindex', isSelected ? '0' : '-1');
+                    if (isSelected && focusTab) {
+                        btn.focus();
                     }
                 });
+
+                tabPanels.forEach((panel, idx) => {
+                    panel.classList.toggle('active', idx === index);
+                });
+            }
+
+            tabButtons.forEach((btn, idx) => {
+                btn.addEventListener('click', () => activateTab(idx, false));
             });
+
+            if (tabList) {
+                tabList.addEventListener('keydown', (e) => {
+                    const currentIndex = tabButtons.findIndex(btn => btn === document.activeElement);
+                    if (currentIndex === -1) return;
+
+                    let newIndex = currentIndex;
+                    if (e.key === 'ArrowRight') {
+                        newIndex = (currentIndex + 1) % tabButtons.length;
+                    } else if (e.key === 'ArrowLeft') {
+                        newIndex = (currentIndex - 1 + tabButtons.length) % tabButtons.length;
+                    } else if (e.key === 'Home') {
+                        newIndex = 0;
+                    } else if (e.key === 'End') {
+                        newIndex = tabButtons.length - 1;
+                    } else {
+                        return;
+                    }
+
+                    e.preventDefault();
+                    activateTab(newIndex, true);
+                });
+            }
         })();
 
         // Interactive FAQ Accordion
@@ -1233,25 +1276,30 @@
             const faqItems = document.querySelectorAll('.faq-item');
             faqItems.forEach(item => {
                 const questionBtn = item.querySelector('.faq-question');
-                if (questionBtn) {
+                const answer = item.querySelector('.faq-answer');
+                if (questionBtn && answer) {
                     questionBtn.addEventListener('click', () => {
                         const isOpen = item.classList.contains('open');
                         
-                        // Optional: close other open items for accordion feel
+                        // Close other open items for clean accordion behavior
                         faqItems.forEach(other => {
                             if (other !== item) {
                                 other.classList.remove('open');
                                 const otherBtn = other.querySelector('.faq-question');
+                                const otherAns = other.querySelector('.faq-answer');
                                 if (otherBtn) otherBtn.setAttribute('aria-expanded', 'false');
+                                if (otherAns) otherAns.setAttribute('aria-hidden', 'true');
                             }
                         });
 
                         if (isOpen) {
                             item.classList.remove('open');
                             questionBtn.setAttribute('aria-expanded', 'false');
+                            answer.setAttribute('aria-hidden', 'true');
                         } else {
                             item.classList.add('open');
                             questionBtn.setAttribute('aria-expanded', 'true');
+                            answer.setAttribute('aria-hidden', 'false');
                         }
                     });
                 }
@@ -1271,8 +1319,31 @@
 
             document.addEventListener('DOMContentLoaded', initStats);
 
+            // Keyboard & Touch Accessible Breakdown Interaction
+            const statsTrigger = document.getElementById('gh-stats-trigger');
+            const statsCard = document.getElementById('gh-stats-card');
+            if (statsTrigger && statsCard) {
+                statsTrigger.addEventListener('click', () => {
+                    const isExpanded = statsTrigger.getAttribute('aria-expanded') === 'true';
+                    statsTrigger.setAttribute('aria-expanded', String(!isExpanded));
+                    statsCard.classList.toggle('active', !isExpanded);
+                });
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && statsCard.classList.contains('active')) {
+                        statsCard.classList.remove('active');
+                        statsTrigger.setAttribute('aria-expanded', 'false');
+                        statsTrigger.focus();
+                    }
+                });
+            }
+
             async function initStats() {
-                const cached = sessionStorage.getItem(CONFIG.cacheKey);
+                let cached = null;
+                try {
+                    cached = sessionStorage.getItem(CONFIG.cacheKey);
+                } catch (_storageErr) {
+                    // Continue without cached data when storage is disabled or restricted
+                }
                 if (cached) {
                     try {
                         const parsed = JSON.parse(cached);
