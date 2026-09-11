@@ -1035,48 +1035,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         try
         {
-            var projectDir = Path.GetDirectoryName(path);
-            if (!string.IsNullOrEmpty(projectDir) && Directory.Exists(projectDir))
-            {
-                var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                var specialFolders = new[]
-                {
-                    userProfile,
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-                    Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-                    Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyMusic),
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
-                    Environment.GetFolderPath(Environment.SpecialFolder.MyVideos),
-                    Environment.GetFolderPath(Environment.SpecialFolder.Templates),
-                    !string.IsNullOrEmpty(userProfile) ? Path.Combine(userProfile, "Downloads") : null,
-                    Path.GetPathRoot(projectDir),
-                }.Where(p => !string.IsNullOrEmpty(p))
-                 .Select(p => Path.GetFullPath(p!).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
-                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-                var normalizedProjectDir = Path.GetFullPath(projectDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-
-                if (specialFolders.Contains(normalizedProjectDir) || IsPathInsideAppDirectory(normalizedProjectDir))
-                {
-                    if (File.Exists(path))
-                    {
-                        File.Delete(path);
-                    }
-                }
-                else
-                {
-                    Directory.Delete(projectDir, recursive: true);
-                }
-            }
-            else if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
+            DeleteProjectFilesFromDisk(path);
 
             await _projectConfigService.RemoveFromRecentProjectsAsync(path, CancellationToken.None).ConfigureAwait(false);
 
@@ -1313,6 +1272,56 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         {
             return true;
         }
+    }
+
+    private static void DeleteProjectFilesFromDisk(string path)
+    {
+        var projectDir = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(projectDir) && Directory.Exists(projectDir))
+        {
+            if (IsProtectedProjectDirectory(projectDir))
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+            else
+            {
+                Directory.Delete(projectDir, recursive: true);
+            }
+        }
+        else if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
+    }
+
+    private static bool IsProtectedProjectDirectory(string projectDir)
+    {
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var specialFolders = new[]
+        {
+            userProfile,
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.MyMusic),
+            Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
+            Environment.GetFolderPath(Environment.SpecialFolder.MyVideos),
+            Environment.GetFolderPath(Environment.SpecialFolder.Templates),
+            !string.IsNullOrEmpty(userProfile) ? Path.Combine(userProfile, "Downloads") : null,
+            Path.GetPathRoot(projectDir),
+        }.Where(p => !string.IsNullOrEmpty(p))
+         .Select(p => Path.GetFullPath(p!).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+         .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var normalizedProjectDir = Path.GetFullPath(projectDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return specialFolders.Contains(normalizedProjectDir) || IsPathInsideAppDirectory(normalizedProjectDir);
     }
 
     private static string GetUserModBuilderDirectory()
@@ -2299,9 +2308,15 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         {
             var projectDir = GetEffectiveProjectDir();
             var buildDir = CurrentProject?.Directories?.Build ?? ModBuilderConstants.DefaultBuildDir;
-            var buildPath = Path.IsPathRooted(buildDir)
-                ? buildDir
-                : (!string.IsNullOrEmpty(projectDir) ? Path.Combine(projectDir, buildDir) : null);
+            string? buildPath = null;
+            if (Path.IsPathRooted(buildDir))
+            {
+                buildPath = buildDir;
+            }
+            else if (!string.IsNullOrEmpty(projectDir))
+            {
+                buildPath = Path.Combine(projectDir, buildDir);
+            }
 
             if (!string.IsNullOrEmpty(buildPath) && Directory.Exists(buildPath))
             {

@@ -994,11 +994,11 @@ public sealed class ProjectConfigService : IProjectConfigService
         if (!File.Exists(itemsPath))
         {
             await CreateDefaultImportedBundleItemsFileAsync(itemsPath, project, cancellationToken).ConfigureAwait(false);
-            return new List<string> { "ImportedGameFiles" };
+            return new List<string> { ModBuilderConstants.DefaultImportedGameFilesItemName };
         }
 
         var itemNames = await ReadExistingBundleItemNamesAsync(itemsPath, cancellationToken).ConfigureAwait(false);
-        if (itemNames.Contains("ImportedGameFiles", StringComparer.OrdinalIgnoreCase))
+        if (itemNames.Contains(ModBuilderConstants.DefaultImportedGameFilesItemName, StringComparer.OrdinalIgnoreCase))
         {
             return itemNames;
         }
@@ -1011,7 +1011,7 @@ public sealed class ProjectConfigService : IProjectConfigService
         var appended = await EnsureDefaultImportedItemInFileAsync(itemsPath, project, cancellationToken).ConfigureAwait(false);
         if (appended)
         {
-            itemNames.Add("ImportedGameFiles");
+            itemNames.Add(ModBuilderConstants.DefaultImportedGameFilesItemName);
         }
 
         return itemNames;
@@ -1035,38 +1035,8 @@ public sealed class ProjectConfigService : IProjectConfigService
             using var stream = File.OpenRead(itemsPath);
             using var doc = await JsonDocument.ParseAsync(stream, jsonDocOptions, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-            JsonElement itemsElem;
-            if (doc.RootElement.ValueKind == JsonValueKind.Array)
-            {
-                itemsElem = doc.RootElement;
-            }
-            else if (doc.RootElement.ValueKind == JsonValueKind.Object)
-            {
-                var prop = doc.RootElement.EnumerateObject().FirstOrDefault(p =>
-                    string.Equals(p.Name, "bundleItems", StringComparison.OrdinalIgnoreCase));
-                itemsElem = prop.Value;
-            }
-            else
-            {
-                itemsElem = default;
-            }
-
-            if (itemsElem.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var item in itemsElem.EnumerateArray())
-                {
-                    if (item.ValueKind == JsonValueKind.Object)
-                    {
-                        var nameProp = item.EnumerateObject().FirstOrDefault(p =>
-                            string.Equals(p.Name, "name", StringComparison.OrdinalIgnoreCase));
-                        var nameVal = nameProp.Value.ValueKind == JsonValueKind.String ? nameProp.Value.GetString() : null;
-                        if (!string.IsNullOrWhiteSpace(nameVal))
-                        {
-                            itemNames.Add(nameVal);
-                        }
-                    }
-                }
-            }
+            var itemsElem = ExtractNamedArrayProperty(doc.RootElement, "bundleItems");
+            ExtractNamedEntries(itemsElem, itemNames);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -1084,7 +1054,7 @@ public sealed class ProjectConfigService : IProjectConfigService
         var gameFilesDirName = project?.Directories?.GameFilesEdited ?? ModBuilderConstants.GameFilesEditedDir;
         var defaultItem = new
         {
-            Name = "ImportedGameFiles",
+            Name = ModBuilderConstants.DefaultImportedGameFilesItemName,
             SourceFiles = new[] { $"{gameFilesDirName}/**/*" },
             Description = "Files extracted from imported BIG archive(s)",
         };
@@ -1101,52 +1071,61 @@ public sealed class ProjectConfigService : IProjectConfigService
             var node = JsonNode.Parse(content, jsonNodeOptions, jsonDocumentOptions);
             if (node is JsonObject rootObj)
             {
-                var existingKey = rootObj.Select(kvp => kvp.Key)
-                    .FirstOrDefault(k => string.Equals(k, "bundleItems", StringComparison.OrdinalIgnoreCase)) ?? "BundleItems";
-
-                if (!rootObj.TryGetPropertyValue(existingKey, out var itemsNode) || itemsNode is not JsonArray itemsArr)
-                {
-                    itemsArr = new JsonArray();
-                    rootObj[existingKey] = itemsArr;
-                }
-
-                var alreadyExists = itemsArr.Any(n => n is JsonObject itemObj &&
-                    itemObj.TryGetPropertyValue("name", out var nameVal) &&
-                    string.Equals(nameVal?.ToString(), "ImportedGameFiles", StringComparison.OrdinalIgnoreCase));
-
-                if (!alreadyExists)
-                {
-                    itemsArr.Add(JsonNode.Parse(JsonSerializer.Serialize(defaultItem, _jsonOptions)));
-                    await AtomicWriteJsonFileAsync(itemsPath, rootObj, _jsonOptions, cancellationToken).ConfigureAwait(false);
-                }
-
-                return true;
+                return await AppendDefaultItemToObjectRootAsync(itemsPath, rootObj, defaultItem, cancellationToken).ConfigureAwait(false);
             }
-            else if (node is JsonArray rootArr)
+
+            if (node is JsonArray rootArr)
             {
-                var alreadyExists = rootArr.Any(n => n is JsonObject itemObj &&
-                    itemObj.TryGetPropertyValue("name", out var nameVal) &&
-                    string.Equals(nameVal?.ToString(), "ImportedGameFiles", StringComparison.OrdinalIgnoreCase));
-
-                if (!alreadyExists)
-                {
-                    rootArr.Add(JsonNode.Parse(JsonSerializer.Serialize(defaultItem, _jsonOptions)));
-                    await AtomicWriteJsonFileAsync(itemsPath, rootArr, _jsonOptions, cancellationToken).ConfigureAwait(false);
-                }
-
-                return true;
+                return await AppendDefaultItemToArrayRootAsync(itemsPath, rootArr, defaultItem, cancellationToken).ConfigureAwait(false);
             }
-            else
-            {
-                _logger.LogWarning("Existing ModBundleItems.json at {Path} is neither an object nor an array; preserving file without changes", itemsPath);
-                return false;
-            }
+
+            _logger.LogWarning("Existing ModBundleItems.json at {Path} is neither an object nor an array; preserving file without changes", itemsPath);
+            return false;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogWarning(ex, "Failed to append default bundle item to existing {Path}; preserving file without overwriting", itemsPath);
             return false;
         }
+    }
+
+    private async Task<bool> AppendDefaultItemToObjectRootAsync(
+        string itemsPath,
+        JsonObject rootObj,
+        object defaultItem,
+        CancellationToken cancellationToken)
+    {
+        var existingKey = rootObj.Select(kvp => kvp.Key)
+            .FirstOrDefault(k => string.Equals(k, "bundleItems", StringComparison.OrdinalIgnoreCase)) ?? "BundleItems";
+
+        if (!rootObj.TryGetPropertyValue(existingKey, out var itemsNode) || itemsNode is not JsonArray itemsArr)
+        {
+            itemsArr = new JsonArray();
+            rootObj[existingKey] = itemsArr;
+        }
+
+        if (!ContainsNamedItem(itemsArr, ModBuilderConstants.DefaultImportedGameFilesItemName))
+        {
+            itemsArr.Add(JsonNode.Parse(JsonSerializer.Serialize(defaultItem, _jsonOptions)));
+            await AtomicWriteJsonFileAsync(itemsPath, rootObj, _jsonOptions, cancellationToken).ConfigureAwait(false);
+        }
+
+        return true;
+    }
+
+    private async Task<bool> AppendDefaultItemToArrayRootAsync(
+        string itemsPath,
+        JsonArray rootArr,
+        object defaultItem,
+        CancellationToken cancellationToken)
+    {
+        if (!ContainsNamedItem(rootArr, ModBuilderConstants.DefaultImportedGameFilesItemName))
+        {
+            rootArr.Add(JsonNode.Parse(JsonSerializer.Serialize(defaultItem, _jsonOptions)));
+            await AtomicWriteJsonFileAsync(itemsPath, rootArr, _jsonOptions, cancellationToken).ConfigureAwait(false);
+        }
+
+        return true;
     }
 
     private async Task CreateDefaultImportedBundleItemsFileAsync(
@@ -1161,7 +1140,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             {
                 new
                 {
-                    Name = "ImportedGameFiles",
+                    Name = ModBuilderConstants.DefaultImportedGameFilesItemName,
                     SourceFiles = new[] { $"{gameFilesDirName}/**/*" },
                     Description = "Files extracted from imported BIG archive(s)",
                 },
@@ -1214,38 +1193,8 @@ public sealed class ProjectConfigService : IProjectConfigService
             using var stream = File.OpenRead(packsPath);
             using var doc = await JsonDocument.ParseAsync(stream, jsonDocOptions, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-            JsonElement packsElem;
-            if (doc.RootElement.ValueKind == JsonValueKind.Array)
-            {
-                packsElem = doc.RootElement;
-            }
-            else if (doc.RootElement.ValueKind == JsonValueKind.Object)
-            {
-                var prop = doc.RootElement.EnumerateObject().FirstOrDefault(p =>
-                    string.Equals(p.Name, "bundlePacks", StringComparison.OrdinalIgnoreCase));
-                packsElem = prop.Value;
-            }
-            else
-            {
-                packsElem = default;
-            }
-
-            if (packsElem.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var pack in packsElem.EnumerateArray())
-                {
-                    if (pack.ValueKind == JsonValueKind.Object)
-                    {
-                        var nameProp = pack.EnumerateObject().FirstOrDefault(p =>
-                            string.Equals(p.Name, "name", StringComparison.OrdinalIgnoreCase));
-                        var nameVal = nameProp.Value.ValueKind == JsonValueKind.String ? nameProp.Value.GetString() : null;
-                        if (!string.IsNullOrWhiteSpace(nameVal))
-                        {
-                            existingPacks.Add(nameVal);
-                        }
-                    }
-                }
-            }
+            var packsElem = ExtractNamedArrayProperty(doc.RootElement, "bundlePacks");
+            ExtractNamedEntries(packsElem, existingPacks);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -1253,6 +1202,54 @@ public sealed class ProjectConfigService : IProjectConfigService
         }
 
         return existingPacks;
+    }
+
+    private static bool ContainsNamedItem(JsonArray array, string itemName)
+    {
+        return array.Any(n => n is JsonObject itemObj &&
+            itemObj.TryGetPropertyValue("name", out var nameVal) &&
+            string.Equals(nameVal?.ToString(), itemName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static JsonElement ExtractNamedArrayProperty(JsonElement root, string propertyName)
+    {
+        if (root.ValueKind == JsonValueKind.Array)
+        {
+            return root;
+        }
+
+        if (root.ValueKind == JsonValueKind.Object)
+        {
+            var prop = root.EnumerateObject().FirstOrDefault(p =>
+                string.Equals(p.Name, propertyName, StringComparison.OrdinalIgnoreCase));
+            return prop.Value;
+        }
+
+        return default;
+    }
+
+    private static void ExtractNamedEntries(JsonElement arrayElem, List<string> targetList)
+    {
+        if (arrayElem.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (var item in arrayElem.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            var nameProp = item.EnumerateObject().FirstOrDefault(p =>
+                string.Equals(p.Name, "name", StringComparison.OrdinalIgnoreCase));
+            var nameVal = nameProp.Value.ValueKind == JsonValueKind.String ? nameProp.Value.GetString() : null;
+            if (!string.IsNullOrWhiteSpace(nameVal))
+            {
+                targetList.Add(nameVal);
+            }
+        }
     }
 
     private static List<object> BuildPacksToAdd(List<string> bigFilePaths, List<string> itemNames, List<string> existingPacks)
