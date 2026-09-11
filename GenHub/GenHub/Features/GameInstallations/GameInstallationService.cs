@@ -30,6 +30,7 @@ namespace GenHub.Features.GameInstallations;
 /// Integrates with <see cref="IManifestGenerationService"/> to automatically generate
 /// content manifests for detected installations and populate their AvailableClients.
 /// </remarks>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "GameInstallationService coordinates game installation detection, client discovery, manifest generation, CAS pooling, and user settings injected via dependency injection.")]
 public class GameInstallationService(
     IGameInstallationDetectionOrchestrator detectionOrchestrator,
     IGameClientDetectionOrchestrator clientOrchestrator,
