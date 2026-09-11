@@ -1309,50 +1309,8 @@ public partial class ReplayManagerViewModel(
 
         try
         {
-            var allProfilesResult = await profileManager.GetAllProfilesAsync();
-            if (allProfilesResult.Success && allProfilesResult.Data != null)
-            {
-                var recoveryProfiles = directoryService.FindRecoveryProfiles(replay, allProfilesResult.Data);
-                if (recoveryProfiles.Count > 0)
-                {
-                    foreach (var p in recoveryProfiles)
-                    {
-                        CompatibleProfiles.Add(p);
-                    }
-                }
-                else
-                {
-                    var compatible = directoryService.FindCompatibleProfiles(replay, allProfilesResult.Data);
-                    foreach (var p in compatible)
-                    {
-                        CompatibleProfiles.Add(p);
-                    }
-                }
-
-                SelectedCompatibleProfile = (!string.IsNullOrEmpty(replay.RecoveryProfileId)
-                    ? CompatibleProfiles.FirstOrDefault(p => p.Id == replay.RecoveryProfileId)
-                    : null)
-                    ?? CompatibleProfiles.FirstOrDefault(p => p.Id == replay.MatchingProfileId)
-                    ?? CompatibleProfiles.FirstOrDefault();
-            }
-
-            var checkpoints = await checkpointService.GetCheckpointsForReplayAsync(replay);
-            foreach (var cp in checkpoints)
-            {
-                AvailableCheckpoints.Add(cp);
-            }
-
-            SelectedCheckpoint = AvailableCheckpoints.LastOrDefault();
-
-            if (replay.Metadata?.Slots != null)
-            {
-                foreach (var slot in replay.Metadata.Slots)
-                {
-                    AvailableSlots.Add(slot);
-                }
-            }
-
-            SelectedSlot = AvailableSlots.FirstOrDefault(s => s.IsHuman) ?? AvailableSlots.FirstOrDefault();
+            await PopulateCompatibleProfilesAsync(replay);
+            await PopulateCheckpointsAndSlotsAsync(replay);
             IsCheckpointDrawerOpen = true;
         }
         catch (Exception ex)
@@ -1360,6 +1318,63 @@ public partial class ReplayManagerViewModel(
             logger.LogError(ex, "Failed to load checkpoint recovery data for replay {FileName}", replay.FileName);
             notificationService.ShowError("Recovery Error", "Failed to load checkpoint data.");
         }
+    }
+
+    private async Task PopulateCompatibleProfilesAsync(ReplayFile replay)
+    {
+        var allProfilesResult = await profileManager.GetAllProfilesAsync();
+        if (!allProfilesResult.Success || allProfilesResult.Data == null)
+        {
+            return;
+        }
+
+        var recoveryProfiles = directoryService.FindRecoveryProfiles(replay, allProfilesResult.Data);
+        var profilesToAdd = recoveryProfiles.Count > 0
+            ? recoveryProfiles
+            : directoryService.FindCompatibleProfiles(replay, allProfilesResult.Data);
+
+        foreach (var profile in profilesToAdd)
+        {
+            CompatibleProfiles.Add(profile);
+        }
+
+        SelectedCompatibleProfile = SelectInitialCompatibleProfile(replay);
+    }
+
+    private GameProfile? SelectInitialCompatibleProfile(ReplayFile replay)
+    {
+        if (!string.IsNullOrEmpty(replay.RecoveryProfileId))
+        {
+            var recoveryProfile = CompatibleProfiles.FirstOrDefault(p => p.Id == replay.RecoveryProfileId);
+            if (recoveryProfile != null)
+            {
+                return recoveryProfile;
+            }
+        }
+
+        return CompatibleProfiles.FirstOrDefault(p => p.Id == replay.MatchingProfileId)
+            ?? CompatibleProfiles.FirstOrDefault();
+    }
+
+    private async Task PopulateCheckpointsAndSlotsAsync(ReplayFile replay)
+    {
+        var checkpoints = await checkpointService.GetCheckpointsForReplayAsync(replay);
+        foreach (var checkpoint in checkpoints)
+        {
+            AvailableCheckpoints.Add(checkpoint);
+        }
+
+        SelectedCheckpoint = AvailableCheckpoints.LastOrDefault();
+
+        if (replay.Metadata?.Slots != null)
+        {
+            foreach (var slot in replay.Metadata.Slots)
+            {
+                AvailableSlots.Add(slot);
+            }
+        }
+
+        SelectedSlot = AvailableSlots.FirstOrDefault(s => s.IsHuman) ?? AvailableSlots.FirstOrDefault();
     }
 
     /// <summary>

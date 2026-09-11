@@ -44,6 +44,8 @@ public sealed class ReplayDirectoryService(
     ILogger<ReplayDirectoryService> logger) : IReplayDirectoryService
 {
     private static readonly TimeSpan ReplayFileNameRegexTimeout = TimeSpan.FromMilliseconds(250);
+    private const string RecoveryKeyword = "recovery";
+    private const string CheckpointKeyword = "checkpoint";
 
     private sealed record ReplayContentResolutionContext(
         IContentManifestPool ManifestPool,
@@ -650,23 +652,23 @@ public sealed class ReplayDirectoryService(
         if (profile.GameClient != null &&
             (string.Equals(profile.GameClient.PublisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
              (!string.IsNullOrEmpty(profile.GameClient.Id) && (profile.GameClient.Id.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-                                                               profile.GameClient.Id.Contains("recovery", StringComparison.OrdinalIgnoreCase) ||
-                                                               profile.GameClient.Id.Contains("checkpoint", StringComparison.OrdinalIgnoreCase))) ||
-             (!string.IsNullOrEmpty(profile.GameClient.Name) && (profile.GameClient.Name.Contains("recovery", StringComparison.OrdinalIgnoreCase) ||
-                                                                 profile.GameClient.Name.Contains("checkpoint", StringComparison.OrdinalIgnoreCase)))))
+                                                               profile.GameClient.Id.Contains(RecoveryKeyword, StringComparison.OrdinalIgnoreCase) ||
+                                                               profile.GameClient.Id.Contains(CheckpointKeyword, StringComparison.OrdinalIgnoreCase))) ||
+             (!string.IsNullOrEmpty(profile.GameClient.Name) && (profile.GameClient.Name.Contains(RecoveryKeyword, StringComparison.OrdinalIgnoreCase) ||
+                                                                 profile.GameClient.Name.Contains(CheckpointKeyword, StringComparison.OrdinalIgnoreCase)))))
         {
             return true;
         }
 
         if (profile.EnabledContentIds?.Any(id => id.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
-                                                id.Contains("recovery", StringComparison.OrdinalIgnoreCase) ||
-                                                id.Contains("checkpoint", StringComparison.OrdinalIgnoreCase)) == true)
+                                                id.Contains(RecoveryKeyword, StringComparison.OrdinalIgnoreCase) ||
+                                                id.Contains(CheckpointKeyword, StringComparison.OrdinalIgnoreCase)) == true)
         {
             return true;
         }
 
-        if (profile.Name.Contains("recovery", StringComparison.OrdinalIgnoreCase) ||
-            profile.Description?.Contains("recovery", StringComparison.OrdinalIgnoreCase) == true)
+        if (profile.Name.Contains(RecoveryKeyword, StringComparison.OrdinalIgnoreCase) ||
+            profile.Description?.Contains(RecoveryKeyword, StringComparison.OrdinalIgnoreCase) == true)
         {
             return true;
         }
@@ -700,15 +702,19 @@ public sealed class ReplayDirectoryService(
         var profilePublisher = profile.GameClient?.PublisherType ?? string.Empty;
         var profileClientId = profile.GameClient?.Id ?? string.Empty;
 
-        if (isGeneralsOnlineReplay && (string.Equals(profilePublisher, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) || profileClientId.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase)))
+        var matchesGeneralsOnline = isGeneralsOnlineReplay &&
+            (string.Equals(profilePublisher, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+             profileClientId.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase));
+
+        var matchesSuperHackers = isSuperHackersReplay &&
+            (string.Equals(profilePublisher, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+             profileClientId.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase));
+
+        if (matchesGeneralsOnline || matchesSuperHackers)
         {
             score += 150;
         }
-        else if (isSuperHackersReplay && (string.Equals(profilePublisher, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) || profileClientId.Contains(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase)))
-        {
-            score += 150;
-        }
-        else if (isRetailReplay && (profileClientId.Contains("recovery", StringComparison.OrdinalIgnoreCase) || profile.Name.Contains("recovery", StringComparison.OrdinalIgnoreCase)))
+        else if (isRetailReplay && (profileClientId.Contains(RecoveryKeyword, StringComparison.OrdinalIgnoreCase) || profile.Name.Contains(RecoveryKeyword, StringComparison.OrdinalIgnoreCase)))
         {
             score += 100;
         }
