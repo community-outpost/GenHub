@@ -160,16 +160,11 @@
                     CommandParameter="Legionnaire"
                     Classes="Secondary" Padding="8,4"
                     ToolTip.Tip="Apply Legionnaire's standard QWERTY grid hotkeys"/>
-            <Button Content="Leikeze"
-                    Command="{Binding ApplyPresetCommand}"
-                    CommandParameter="Leikeze"
-                    Classes="Secondary" Padding="8,4"
-                    ToolTip.Tip="Apply Leikeze standard hotkeys"/>
-            <Button Content="Vanilla"
+            <Button Content="Default (Leikeze)"
                     Command="{Binding ApplyPresetCommand}"
                     CommandParameter="Vanilla"
                     Classes="Secondary" Padding="8,4"
-                    ToolTip.Tip="Reset to original game default hotkeys"/>
+                    ToolTip.Tip="Reset to default English hotkeys (Leikeze reference layout)"/>
           </StackPanel>
 
           <!-- Export Addon (.BIG) Action -->
