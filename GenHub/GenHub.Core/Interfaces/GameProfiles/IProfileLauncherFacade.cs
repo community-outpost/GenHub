@@ -28,14 +28,14 @@ public interface IProfileLauncherFacade
     /// </summary>
     /// <param name="profileId">The unique identifier of the profile to launch.</param>
     /// <param name="skipUserDataCleanup">Whether to skip cleanup of user data files (maps, etc.) from other profiles.</param>
-    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <param name="additionalArguments">Optional transient command line arguments to merge with profile launch options.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <returns>An operation result containing launch information and status.</returns>
     Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(
         string profileId,
         bool skipUserDataCleanup,
-        CancellationToken cancellationToken,
-        IReadOnlyDictionary<string, string>? additionalArguments);
+        IReadOnlyDictionary<string, string>? additionalArguments,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Validates that a profile can be launched successfully.
