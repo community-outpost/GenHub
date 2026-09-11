@@ -609,7 +609,7 @@ public partial class ConfigEditorViewModel(
         }
 
         var existingPacksText = File.Exists(packsPath) ? await File.ReadAllTextAsync(packsPath, cancellationToken).ConfigureAwait(false) : null;
-        if (existingPacksText != null && existingPacksText.Contains("\"BundlePacks\"", StringComparison.OrdinalIgnoreCase))
+        if (existingPacksText?.Contains("\"BundlePacks\"", StringComparison.OrdinalIgnoreCase) == true)
         {
             var simplifiedPacks = Configuration.Packs.Select(p => new
             {
@@ -641,7 +641,7 @@ public partial class ConfigEditorViewModel(
         }
 
         var existingItemsText = File.Exists(itemsPath) ? await File.ReadAllTextAsync(itemsPath, cancellationToken).ConfigureAwait(false) : null;
-        if (existingItemsText != null && existingItemsText.Contains("\"BundleItems\"", StringComparison.OrdinalIgnoreCase))
+        if (existingItemsText?.Contains("\"BundleItems\"", StringComparison.OrdinalIgnoreCase) == true)
         {
             var simplifiedItems = BuildSimplifiedBundleItems(existingItemsText, itemsPath);
             var itemsData = new Dictionary<string, object>
@@ -694,7 +694,7 @@ public partial class ConfigEditorViewModel(
                 Big = item.IsBig,
                 OutputFormat = existing?.OutputFormat,
                 Compression = existing?.Compression,
-                GenerateMipmaps = existing?.GenerateMipmaps ?? false,
+                GenerateMipmaps = existing?.GenerateMipmaps == true,
             };
         }).ToList() ?? new List<SimplifiedBundleItem>();
     }

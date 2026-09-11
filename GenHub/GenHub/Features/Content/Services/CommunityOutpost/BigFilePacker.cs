@@ -118,7 +118,7 @@ public static class BigFilePacker
 
         await using var fs = new FileStream(bigPath, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, useAsync: true);
 
-        List<BigArchiveEntryInfo> entries;
+        List<BigArchiveEntryInfo> entries = [];
         var (reader, entryCount) = ReadAndValidateBigHeader(fs);
         using (reader)
         {
@@ -202,7 +202,7 @@ public static class BigFilePacker
             }
 
             var pathBytes = new List<byte>(64);
-            int b;
+            int b = 0;
             while ((b = fs.ReadByte()) > 0)
             {
                 pathBytes.Add((byte)b);
@@ -621,7 +621,7 @@ public static class BigFilePacker
                 throw new InvalidOperationException($"File '{entry.FullPath}' size changed from {entry.Size} to {fileStream.Length} during packing.");
             }
 
-            int bytesRead;
+            int bytesRead = 0;
             while ((bytesRead = await fileStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false)) > 0)
             {
                 await stream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);

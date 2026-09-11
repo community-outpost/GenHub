@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -19,6 +20,7 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 /// <summary>
 /// Service responsible for managing, discovering, and acquiring sample project assets on-demand.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Sample project download URLs")]
 public class SampleProjectService : ISampleProjectService
 {
     private static readonly string[] SampleProjectNames =
@@ -34,10 +36,14 @@ public class SampleProjectService : ISampleProjectService
     private const string HotkeysName = "Hotkeys";
     private const string CustomIconsName = "CustomIcons";
 
+    private const string UnknownError = "Unknown error";
+
+#pragma warning disable S1075 // URIs should not be hardcoded
     private const string GeneralsGamePatch2Url = "https://github.com/TheSuperHackers/GeneralsGamePatch2/releases/download/1.0.1/500_900_CommunityPatch_CoreINI.zip";
     private const string ImprovedMenusUrl = "https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusEnglish.zip";
     private const string HotkeysHlegUrl = "https://legi.cc/gp2/f/hleg.dat";
     private const string HotkeysHlenUrl = "https://legi.cc/gp2/f/hlen.dat";
+#pragma warning restore S1075
 
     private readonly IDownloadService _downloadService;
     private readonly CompressedImageToTgaConverter _imageConverter;
@@ -253,6 +259,29 @@ public class SampleProjectService : ISampleProjectService
         }
     }
 
+    private async Task<OperationResult<bool>> EnsureAssetDownloadedAsync(
+        string url,
+        string cachePath,
+        long minLength,
+        string assetLabel,
+        CancellationToken cancellationToken)
+    {
+        if (!File.Exists(cachePath) || new FileInfo(cachePath).Length < minLength)
+        {
+            var downloadResult = await _downloadService.DownloadFileAsync(
+                new Uri(url),
+                cachePath,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            if (!downloadResult.Success)
+            {
+                return OperationResult<bool>.CreateFailure($"Failed to download {assetLabel}: {downloadResult.FirstError ?? UnknownError}");
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
     private async Task<OperationResult<bool>> AcquireGeneralsGamePatch2AssetsAsync(
         string gameFilesDir,
         string cacheDir,
@@ -263,17 +292,16 @@ public class SampleProjectService : ISampleProjectService
         _logger.LogInformation("Downloading GeneralsGamePatch2 asset from {Url}", GeneralsGamePatch2Url);
 
         var zipCachePath = Path.Combine(cacheDir, "500_900_CommunityPatch_CoreINI.zip");
-        if (!File.Exists(zipCachePath) || new FileInfo(zipCachePath).Length < 100_000)
-        {
-            var downloadResult = await _downloadService.DownloadFileAsync(
-                new Uri(GeneralsGamePatch2Url),
-                zipCachePath,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
+        var downloadResult = await EnsureAssetDownloadedAsync(
+            GeneralsGamePatch2Url,
+            zipCachePath,
+            100_000,
+            "GeneralsGamePatch2",
+            cancellationToken).ConfigureAwait(false);
 
-            if (!downloadResult.Success)
-            {
-                return OperationResult<bool>.CreateFailure($"Failed to download GeneralsGamePatch2: {downloadResult.FirstError ?? "Unknown error"}");
-            }
+        if (!downloadResult.Success)
+        {
+            return downloadResult;
         }
 
         progress?.Report("Extracting GeneralsGamePatch2 Core INI archive...");
@@ -315,17 +343,16 @@ public class SampleProjectService : ISampleProjectService
         _logger.LogInformation("Downloading ImprovedMenus asset from {Url}", ImprovedMenusUrl);
 
         var zipCachePath = Path.Combine(cacheDir, "0_ImprovedMenusEnglish.zip");
-        if (!File.Exists(zipCachePath) || new FileInfo(zipCachePath).Length < 1_000_000)
-        {
-            var downloadResult = await _downloadService.DownloadFileAsync(
-                new Uri(ImprovedMenusUrl),
-                zipCachePath,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
+        var downloadResult = await EnsureAssetDownloadedAsync(
+            ImprovedMenusUrl,
+            zipCachePath,
+            1_000_000,
+            "ImprovedMenus",
+            cancellationToken).ConfigureAwait(false);
 
-            if (!downloadResult.Success)
-            {
-                return OperationResult<bool>.CreateFailure($"Failed to download ImprovedMenus: {downloadResult.FirstError ?? "Unknown error"}");
-            }
+        if (!downloadResult.Success)
+        {
+            return downloadResult;
         }
 
         progress?.Report("Extracting ImprovedMenus widescreen package...");
@@ -377,31 +404,29 @@ public class SampleProjectService : ISampleProjectService
         _logger.LogInformation("Downloading Hotkeys assets from Community Outpost ({HlegUrl}, {HlenUrl})", HotkeysHlegUrl, HotkeysHlenUrl);
 
         var hlegCachePath = Path.Combine(cacheDir, "hleg.dat");
-        if (!File.Exists(hlegCachePath) || new FileInfo(hlegCachePath).Length < 10_000)
-        {
-            var downloadHleg = await _downloadService.DownloadFileAsync(
-                new Uri(HotkeysHlegUrl),
-                hlegCachePath,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
+        var hlegResult = await EnsureAssetDownloadedAsync(
+            HotkeysHlegUrl,
+            hlegCachePath,
+            10_000,
+            "Hotkeys hleg",
+            cancellationToken).ConfigureAwait(false);
 
-            if (!downloadHleg.Success)
-            {
-                return OperationResult<bool>.CreateFailure($"Failed to download Hotkeys hleg: {downloadHleg.FirstError ?? "Unknown error"}");
-            }
+        if (!hlegResult.Success)
+        {
+            return hlegResult;
         }
 
         var hlenCachePath = Path.Combine(cacheDir, "hlen.dat");
-        if (!File.Exists(hlenCachePath) || new FileInfo(hlenCachePath).Length < 1_000_000)
-        {
-            var downloadHlen = await _downloadService.DownloadFileAsync(
-                new Uri(HotkeysHlenUrl),
-                hlenCachePath,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
+        var hlenResult = await EnsureAssetDownloadedAsync(
+            HotkeysHlenUrl,
+            hlenCachePath,
+            1_000_000,
+            "Hotkeys hlen",
+            cancellationToken).ConfigureAwait(false);
 
-            if (!downloadHlen.Success)
-            {
-                return OperationResult<bool>.CreateFailure($"Failed to download Hotkeys hlen: {downloadHlen.FirstError ?? "Unknown error"}");
-            }
+        if (!hlenResult.Success)
+        {
+            return hlenResult;
         }
 
         progress?.Report("Extracting hotkey overlay textures & definitions...");
@@ -429,23 +454,7 @@ public class SampleProjectService : ISampleProjectService
             var hlegSource = Directory.Exists(hlegBigDir) ? hlegBigDir : tempHlegStaging;
             CopyDirectoryContents(hlegSource, gameFilesDir);
 
-            // If CSF is available, optionally convert to editable STR
-            if (_stringTableConverter != null)
-            {
-                var csfPath = Path.Combine(gameFilesDir, "Data", "English", "generals.csf");
-                var strPath = Path.Combine(gameFilesDir, "Data", "English", "generals.str");
-                if (File.Exists(csfPath) && !File.Exists(strPath))
-                {
-                    try
-                    {
-                        await _stringTableConverter.ConvertCsfToStrAsync(csfPath, strPath, cancellationToken: cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Optional CSF to STR conversion skipped for {Path}", csfPath);
-                    }
-                }
-            }
+            await TryConvertCsfToStrAsync(gameFilesDir, cancellationToken).ConfigureAwait(false);
 
             _logger.LogInformation("Successfully unpacked Hotkeys game files into {Dir}", gameFilesDir);
             return OperationResult<bool>.CreateSuccess(true);
@@ -460,6 +469,28 @@ public class SampleProjectService : ISampleProjectService
             if (Directory.Exists(tempHlegStaging))
             {
                 Directory.Delete(tempHlegStaging, recursive: true);
+            }
+        }
+    }
+
+    private async Task TryConvertCsfToStrAsync(string gameFilesDir, CancellationToken cancellationToken)
+    {
+        if (_stringTableConverter == null)
+        {
+            return;
+        }
+
+        var csfPath = Path.Combine(gameFilesDir, "Data", "English", "generals.csf");
+        var strPath = Path.Combine(gameFilesDir, "Data", "English", "generals.str");
+        if (File.Exists(csfPath) && !File.Exists(strPath))
+        {
+            try
+            {
+                await _stringTableConverter.ConvertCsfToStrAsync(csfPath, strPath, cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Optional CSF to STR conversion skipped for {Path}", csfPath);
             }
         }
     }

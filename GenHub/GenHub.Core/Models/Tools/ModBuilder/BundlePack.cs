@@ -77,7 +77,7 @@ public class BundlePack
     /// Gets a value indicating whether this bundle pack should be packaged into a .big archive.
     /// </summary>
     [JsonIgnore]
-    public bool IsBigPack => Big ?? (OutputFile != null && OutputFile.EndsWith(".big", StringComparison.OrdinalIgnoreCase));
+    public bool IsBigPack => Big ?? OutputFile?.EndsWith(".big", StringComparison.OrdinalIgnoreCase) == true;
 
     /// <summary>
     /// Gets or sets the game language to set on installation.

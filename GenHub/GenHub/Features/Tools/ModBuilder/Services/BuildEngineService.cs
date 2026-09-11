@@ -470,9 +470,7 @@ public sealed class BuildEngineService : IBuildEngineService
                         CancellationToken = cancellationToken,
                     },
                     async (filePath, ct) =>
-                    {
-                        await ProcessSingleFileAsync(filePath, stage, setup, progress, ct).ConfigureAwait(false);
-                    }).ConfigureAwait(false);
+                        await ProcessSingleFileAsync(filePath, stage, setup, progress, ct).ConfigureAwait(false)).ConfigureAwait(false);
                 break;
             default:
                 foreach (var filePath in filesToProcess)
@@ -508,7 +506,7 @@ public sealed class BuildEngineService : IBuildEngineService
         {
             cancellationToken.ThrowIfCancellationRequested();
             currentItem++;
-            await BuildSingleBigBundleItemAsync(item, bundlesDir, progress, cancellationToken, currentItem, totalBigItems)
+            await BuildSingleBigBundleItemAsync(item, bundlesDir, progress, currentItem, totalBigItems, cancellationToken)
                 .ConfigureAwait(false);
         }
     }
@@ -528,9 +526,9 @@ public sealed class BuildEngineService : IBuildEngineService
         BundleItem item,
         string bundlesDir,
         IProgress<BuildProgress>? progress,
-        CancellationToken cancellationToken,
         int currentItem,
-        int totalBigItems)
+        int totalBigItems,
+        CancellationToken cancellationToken)
     {
         var bigFileName = GetBigFileName(item);
         var bigFilePath = Path.Combine(bundlesDir, bigFileName);
@@ -689,7 +687,7 @@ public sealed class BuildEngineService : IBuildEngineService
         }
 
         var packs = candidatePacks.Where(p => p.AllowBuild).ToList();
-        if (setup.SelectedPacks != null && setup.SelectedPacks.Count > 0)
+        if (setup.SelectedPacks is { Count: > 0 })
         {
             var selectedFiltered = packs.Where(p =>
                 setup.SelectedPacks.Contains(p.Name, StringComparer.OrdinalIgnoreCase) ||
@@ -971,7 +969,7 @@ public sealed class BuildEngineService : IBuildEngineService
                     Directory.CreateDirectory(bundlesDir);
                 }
 
-                await BuildSingleBigBundleItemAsync(item, bundlesDir, null, cancellationToken, 1, 1).ConfigureAwait(false);
+                await BuildSingleBigBundleItemAsync(item, bundlesDir, null, 1, 1, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -1153,8 +1151,7 @@ public sealed class BuildEngineService : IBuildEngineService
         var buildDir = setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir;
         string? relPath = null;
 
-        if (_cachedSourceToBundleFileMap != null &&
-            _cachedSourceToBundleFileMap.TryGetValue(sourcePath, out var bundleFile))
+        if (_cachedSourceToBundleFileMap?.TryGetValue(sourcePath, out var bundleFile) == true)
         {
             relPath = GetTargetRelativePath(bundleFile);
         }
@@ -1385,7 +1382,7 @@ public sealed class BuildEngineService : IBuildEngineService
 
             if (item.IsBig)
             {
-                await BuildSingleBigBundleItemAsync(item, bundlesDir, progress, cancellationToken, 1, 1).ConfigureAwait(false);
+                await BuildSingleBigBundleItemAsync(item, bundlesDir, progress, 1, 1, cancellationToken).ConfigureAwait(false);
             }
             else
             {
@@ -1587,7 +1584,19 @@ public sealed class BuildEngineService : IBuildEngineService
             return fullPath.StartsWith(baseDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(fullPath, baseDir, StringComparison.OrdinalIgnoreCase);
         }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException or IOException or System.Security.SecurityException)
+        catch (ArgumentException)
+        {
+            return true;
+        }
+        catch (NotSupportedException)
+        {
+            return true;
+        }
+        catch (IOException)
+        {
+            return true;
+        }
+        catch (System.Security.SecurityException)
         {
             return true;
         }
@@ -1762,7 +1771,11 @@ public sealed class BuildEngineService : IBuildEngineService
                 ProcessDirectoryFilesForHash(current, hashParts);
                 EnqueueSubdirectories(current, dirStack);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // Skip inaccessible folder
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Skip inaccessible folder
             }
@@ -1785,7 +1798,11 @@ public sealed class BuildEngineService : IBuildEngineService
                 var fi = new FileInfo(file);
                 hashParts.Add($"{file}:{fi.LastWriteTimeUtc.Ticks}");
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // Skip locked/unreadable file for hash
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Skip locked/unreadable file for hash
             }

@@ -133,10 +133,10 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedTargetGameChanged(GameType value)
     {
-        if (CurrentProject != null && CurrentProject.TargetGame != value)
+        if (CurrentProject is { } project && project.TargetGame != value)
         {
-            CurrentProject.TargetGame = value;
-            _logger.LogInformation("Project '{Name}' TargetGame changed to {TargetGame}", CurrentProject.Name, value);
+            project.TargetGame = value;
+            _logger.LogInformation("Project '{Name}' TargetGame changed to {TargetGame}", project.Name, value);
         }
     }
 
@@ -161,10 +161,10 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedContentTypeChanged(ContentType value)
     {
-        if (CurrentProject != null && CurrentProject.ContentType != value)
+        if (CurrentProject is { } project && project.ContentType != value)
         {
-            CurrentProject.ContentType = value;
-            _logger.LogInformation("Project '{Name}' ContentType changed to {ContentType}", CurrentProject.Name, value);
+            project.ContentType = value;
+            _logger.LogInformation("Project '{Name}' ContentType changed to {ContentType}", project.Name, value);
         }
     }
 
@@ -623,9 +623,17 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 lastWriteTime = Directory.GetLastWriteTime(path);
             }
         }
-        catch (Exception)
+        catch (IOException)
         {
             // Ignore I/O errors reading timestamp and content type
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Ignore access errors reading timestamp and content type
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            // Ignore JSON errors reading timestamp and content type
         }
 
         return new RecentProjectInfo
@@ -705,41 +713,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
                 if (result.Success && result.Data != null)
                 {
-                    CurrentProject = result.Data;
-                    ProjectPath = projectPath;
-                    ProjectName = projectName;
-                    SelectedContentType = result.Data.ContentType;
-                    IsProjectLoaded = true;
-
-                    // Generate complete project structure
-                    await _projectStructureGenerator.GenerateProjectStructureAsync(
-                        projectPath,
-                        CancellationToken.None).ConfigureAwait(false);
-
-                    var newProjectDir = Path.GetDirectoryName(projectPath);
-                    if (_sampleProjectService != null &&
-                        !string.IsNullOrEmpty(newProjectDir) &&
-                        _sampleProjectService.IsSampleProject(projectPath) &&
-                        !_sampleProjectService.HasSampleAssets(newProjectDir))
-                    {
-                        var progressReporter = new Progress<string>(AppendBuildLog);
-                        await _sampleProjectService.EnsureSampleAssetsAsync(
-                            newProjectDir,
-                            projectName,
-                            progressReporter,
-                            CancellationToken.None).ConfigureAwait(false);
-                    }
-
-                    await LoadProjectDataAsync().ConfigureAwait(false);
-                    await _projectConfigService.AddToRecentProjectsAsync(projectPath, CancellationToken.None).ConfigureAwait(false);
-                    await LoadRecentProjectsAsync().ConfigureAwait(false);
-
-                    _notificationService.ShowSuccess(
-                        "Project Created",
-                        $"Created project: {projectName}\nProject structure ready. Edit files in GameFilesEdited folder.");
-                    AppendBuildLog($"Created new project: {projectPath}");
-                    AppendBuildLog("Generated project structure with folders and config files");
-                    _logger.LogInformation("Project created successfully at {ProjectPath}", projectPath);
+                    await HandleNewProjectCreatedAsync(projectPath, projectName, result.Data).ConfigureAwait(false);
                 }
                 else
                 {
@@ -1303,7 +1277,19 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return fullPath.StartsWith(baseDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(fullPath, baseDir, StringComparison.OrdinalIgnoreCase);
         }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException or IOException or System.Security.SecurityException)
+        catch (ArgumentException)
+        {
+            return true;
+        }
+        catch (NotSupportedException)
+        {
+            return true;
+        }
+        catch (IOException)
+        {
+            return true;
+        }
+        catch (System.Security.SecurityException)
         {
             return true;
         }
@@ -1561,6 +1547,69 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
     private bool CanOpenFileManager() => CurrentProject != null && !IsBuildRunning;
 
+    private async Task HandleNewProjectCreatedAsync(string projectPath, string projectName, ModBuilderProject project)
+    {
+        CurrentProject = project;
+        ProjectPath = projectPath;
+        ProjectName = projectName;
+        SelectedContentType = project.ContentType;
+        IsProjectLoaded = true;
+
+        // Generate complete project structure
+        await _projectStructureGenerator.GenerateProjectStructureAsync(
+            projectPath,
+            CancellationToken.None).ConfigureAwait(false);
+
+        var newProjectDir = Path.GetDirectoryName(projectPath);
+        if (!string.IsNullOrEmpty(newProjectDir))
+        {
+            await EnsureSampleAssetsIfRequiredAsync(projectPath, newProjectDir, projectName).ConfigureAwait(false);
+        }
+
+        await LoadProjectDataAsync().ConfigureAwait(false);
+        await _projectConfigService.AddToRecentProjectsAsync(projectPath, CancellationToken.None).ConfigureAwait(false);
+        await LoadRecentProjectsAsync().ConfigureAwait(false);
+
+        _notificationService.ShowSuccess(
+            "Project Created",
+            $"Created project: {projectName}\nProject structure ready. Edit files in GameFilesEdited folder.");
+        AppendBuildLog($"Created new project: {projectPath}");
+        AppendBuildLog("Generated project structure with folders and config files");
+        _logger.LogInformation("Project created successfully at {ProjectPath}", projectPath);
+    }
+
+    private async Task EnsureSampleAssetsIfRequiredAsync(string projectPath, string projectDir, string projectName)
+    {
+        if (_sampleProjectService is not { } sps ||
+            !sps.IsSampleProject(projectPath) ||
+            sps.HasSampleAssets(projectDir))
+        {
+            return;
+        }
+
+        StatusMessage = $"Acquiring sample assets for {projectName}...";
+        AppendBuildLog($"Sample assets missing for {projectName}. Downloading and extracting authentic game files on-demand...");
+        _notificationService.ShowInfo("Downloading Sample Assets", $"Downloading sample assets for {projectName}...");
+
+        var progressReporter = new Progress<string>(AppendBuildLog);
+        var acquireResult = await sps.EnsureSampleAssetsAsync(
+            projectDir,
+            projectName,
+            progressReporter,
+            CancellationToken.None).ConfigureAwait(false);
+
+        if (acquireResult.Success)
+        {
+            AppendBuildLog($"Successfully acquired sample assets for {projectName}.");
+            _notificationService.ShowSuccess("Sample Assets Ready", "Authentic game files extracted into GameFilesEdited.");
+        }
+        else
+        {
+            AppendBuildLog($"Warning: Failed to acquire sample assets: {acquireResult.FirstError}");
+            _notificationService.ShowWarning("Sample Assets Incomplete", acquireResult.FirstError ?? "Failed to acquire sample assets.");
+        }
+    }
+
     /// <summary>
     /// Loads a project from a specific path.
     /// </summary>
@@ -1603,32 +1652,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 IsProjectLoaded = true;
 
                 var projectDir = Path.GetDirectoryName(projectPath) ?? string.Empty;
-                if (_sampleProjectService != null &&
-                    _sampleProjectService.IsSampleProject(projectPath) &&
-                    !_sampleProjectService.HasSampleAssets(projectDir))
-                {
-                    StatusMessage = $"Acquiring sample assets for {ProjectName}...";
-                    AppendBuildLog($"Sample assets missing for {ProjectName}. Downloading and extracting authentic game files on-demand...");
-                    _notificationService.ShowInfo("Downloading Sample Assets", $"Downloading sample assets for {ProjectName}...");
-
-                    var progressReporter = new Progress<string>(AppendBuildLog);
-                    var acquireResult = await _sampleProjectService.EnsureSampleAssetsAsync(
-                        projectDir,
-                        ProjectName,
-                        progressReporter,
-                        CancellationToken.None).ConfigureAwait(false);
-
-                    if (acquireResult.Success)
-                    {
-                        AppendBuildLog($"Successfully acquired sample assets for {ProjectName}.");
-                        _notificationService.ShowSuccess("Sample Assets Ready", "Authentic game files extracted into GameFilesEdited.");
-                    }
-                    else
-                    {
-                        AppendBuildLog($"Warning: Failed to acquire sample assets: {acquireResult.FirstError}");
-                        _notificationService.ShowWarning("Sample Assets Incomplete", acquireResult.FirstError ?? "Failed to acquire sample assets.");
-                    }
-                }
+                await EnsureSampleAssetsIfRequiredAsync(projectPath, projectDir, ProjectName).ConfigureAwait(false);
 
                 await LoadProjectDataAsync().ConfigureAwait(false);
                 await _projectConfigService.AddToRecentProjectsAsync(projectPath, CancellationToken.None).ConfigureAwait(false);
@@ -2129,10 +2153,10 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         var selectedNames = Bundles.Where(b => b.IsSelected).Select(b => b.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var resolvedPacks = new List<string>();
 
-        if (buildConfig.Packs != null && buildConfig.Packs.Count > 0)
+        if (buildConfig.Packs is { Count: > 0 })
         {
             var matchingPacks = buildConfig.Packs
-                .Where(pack => selectedNames.Contains(pack.Name) || (pack.ItemNames != null && pack.ItemNames.Any(item => selectedNames.Contains(item))))
+                .Where(pack => selectedNames.Contains(pack.Name) || pack.ItemNames?.Any(item => selectedNames.Contains(item)) == true)
                 .Select(pack => pack.Name)
                 .Distinct(StringComparer.OrdinalIgnoreCase);
 
@@ -2200,9 +2224,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 AppendBuildLog("\n=== Manifest Creation Failed ===");
                 AppendBuildLog(result.FirstError ?? UnknownErrorLiteral);
                 await InvokeOnUIThreadAsync(() =>
-                {
-                    _notificationService.ShowError("Manifest Creation Failed", result.FirstError ?? "Failed to create manifest");
-                });
+                    _notificationService.ShowError("Manifest Creation Failed", result.FirstError ?? "Failed to create manifest"));
                 StatusMessage = "Manifest creation failed";
             }
         }
@@ -2217,9 +2239,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             _logger.LogError(ex, "Manifest creation failed");
             AppendBuildLog($"\n=== Manifest Creation Error: {ex.Message} ===");
             await InvokeOnUIThreadAsync(() =>
-            {
-                _notificationService.ShowError("Manifest Creation Error", ex.Message);
-            });
+                _notificationService.ShowError("Manifest Creation Error", ex.Message));
             StatusMessage = "Manifest creation error";
         }
         finally
@@ -2913,7 +2933,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            if (originalStates != null && originalStates.TryGetValue(pack.Name, out var original))
+            if (originalStates?.TryGetValue(pack.Name, out var original) == true)
             {
                 originalStates.Remove(pack.Name);
                 pack.Big = original.Big;
