@@ -1288,7 +1288,7 @@ public partial class ReplayManagerViewModel(
         }
     }
 
-    private static async Task<ProfileSelectionViewModel> ShowProfileSelectionDialogAsync(
+    private async Task<ProfileSelectionViewModel> ShowProfileSelectionDialogAsync(
         IServiceProvider sp,
         ReplayFile replay)
     {

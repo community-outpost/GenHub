@@ -2012,7 +2012,7 @@ public sealed class ReplayDirectoryService(
         return replay;
     }
 
-    private static GameClient? EnsureGameClientExecutable(GameClient? gameClient, GameType gameVersion, string? publisher)
+    private GameClient? EnsureGameClientExecutable(GameClient? gameClient, GameType gameVersion, string? publisher)
     {
         if (gameClient != null && string.IsNullOrWhiteSpace(gameClient.ExecutablePath))
         {

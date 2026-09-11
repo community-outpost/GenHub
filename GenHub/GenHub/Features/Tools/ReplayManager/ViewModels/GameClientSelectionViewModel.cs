@@ -110,7 +110,7 @@ public sealed partial class GameClientSelectionViewModel(
         ApplyFilter();
     }
 
-    private static string GetPublisherDisplayName(PublisherInfo? publisher)
+    private string GetPublisherDisplayName(PublisherInfo? publisher)
     {
         if (!string.IsNullOrWhiteSpace(publisher?.Name))
         {
