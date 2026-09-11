@@ -62,7 +62,7 @@ public class HotkeyPackageService(
 
             // 3. Pack into .big archive
             progress?.Report("Packing files into .big archive...");
-            var bigFilePath = await PackBigArchiveAsync(profile, stagingDir, packageDir);
+            await PackBigArchiveAsync(profile, stagingDir, packageDir);
 
             // 4. Register with GenHub as ContentManifest Addon
             progress?.Report("Registering hotkey addon in GenHub...");
@@ -142,7 +142,7 @@ public class HotkeyPackageService(
         return action.Hotkey;
     }
 
-    private static async Task<string> PackBigArchiveAsync(
+    private static async Task PackBigArchiveAsync(
         HotkeyProfile profile,
         string stagingDir,
         string packageDir)
@@ -158,7 +158,6 @@ public class HotkeyPackageService(
         var bigFilePath = Path.Combine(packageDir, bigFileName);
 
         await BigFilePacker.PackAsync(stagingDir, bigFilePath);
-        return bigFilePath;
     }
 
     private static CsfFile LoadBaseCsf(HotkeyProfile profile)

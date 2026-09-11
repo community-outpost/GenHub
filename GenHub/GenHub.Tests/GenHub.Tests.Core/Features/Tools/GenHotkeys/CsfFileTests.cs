@@ -76,26 +76,21 @@ public class CsfFileTests
         original.SetString("CONTROLBAR:ConstructAmericaRanger", "[&R] Ranger");
         original.SetString("CONTROLBAR:ConstructAmericaTank", "[&T] Crusader Tank");
 
-        byte[] savedBytes;
-        using (var ms = new MemoryStream())
-        {
-            original.Save(ms);
-            savedBytes = ms.ToArray();
-        }
+        using var ms = new MemoryStream();
+        original.Save(ms);
+        var savedBytes = ms.ToArray();
 
         Assert.NotEmpty(savedBytes);
 
-        using (var readStream = new MemoryStream(savedBytes))
-        {
-            var loaded = CsfFile.Load(readStream);
+        using var readStream = new MemoryStream(savedBytes);
+        var loaded = CsfFile.Load(readStream);
 
-            Assert.Equal(3u, loaded.Version);
-            Assert.Equal(0u, loaded.LanguageCode);
-            Assert.Equal(3, loaded.Strings.Count);
+        Assert.Equal(3u, loaded.Version);
+        Assert.Equal(0u, loaded.LanguageCode);
+        Assert.Equal(3, loaded.Strings.Count);
 
-            Assert.Equal("[&D] Dozer", loaded.GetString("CONTROLBAR:ConstructAmericaDozer"));
-            Assert.Equal("[&R] Ranger", loaded.GetString("CONTROLBAR:ConstructAmericaRanger"));
-            Assert.Equal("[&T] Crusader Tank", loaded.GetString("CONTROLBAR:ConstructAmericaTank"));
-        }
+        Assert.Equal("[&D] Dozer", loaded.GetString("CONTROLBAR:ConstructAmericaDozer"));
+        Assert.Equal("[&R] Ranger", loaded.GetString("CONTROLBAR:ConstructAmericaRanger"));
+        Assert.Equal("[&T] Crusader Tank", loaded.GetString("CONTROLBAR:ConstructAmericaTank"));
     }
 }

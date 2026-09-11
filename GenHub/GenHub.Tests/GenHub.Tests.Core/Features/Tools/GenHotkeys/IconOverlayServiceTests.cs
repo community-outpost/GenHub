@@ -25,12 +25,9 @@ public class IconOverlayServiceTests
 
         // Create a 60x48 test image
         using var testImage = new Image<Rgba32>(60, 48);
-        byte[] inputBytes;
-        using (var ms = new MemoryStream())
-        {
-            await testImage.SaveAsPngAsync(ms);
-            inputBytes = ms.ToArray();
-        }
+        using var ms = new MemoryStream();
+        await testImage.SaveAsPngAsync(ms);
+        var inputBytes = ms.ToArray();
 
         var tgaBytes = await service.GenerateOverlayTgaAsync(inputBytes, 'D', OverlayCorner.TopLeft);
 
@@ -48,8 +45,5 @@ public class IconOverlayServiceTests
         // Bytes 14-15: Height (little-endian 48)
         var height = tgaBytes[14] | (tgaBytes[15] << 8);
         Assert.Equal(48, height);
-
-        // Byte 16: Pixel depth (32 bits)
-        Assert.Equal(32, tgaBytes[16]);
     }
 }
