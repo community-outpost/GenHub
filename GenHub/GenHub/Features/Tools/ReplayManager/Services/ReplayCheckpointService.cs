@@ -157,8 +157,8 @@ public sealed partial class ReplayCheckpointService(
         var result = await launcherFacade.LaunchProfileAsync(
             profile.Id,
             skipUserDataCleanup: false,
-            cancellationToken: cancellationToken,
-            additionalArguments: additionalArgs);
+            additionalArguments: additionalArgs,
+            cancellationToken: cancellationToken);
 
         return result;
     }
@@ -203,8 +203,8 @@ public sealed partial class ReplayCheckpointService(
         var result = await launcherFacade.LaunchProfileAsync(
             profile.Id,
             skipUserDataCleanup: false,
-            cancellationToken: cancellationToken,
-            additionalArguments: additionalArgs);
+            additionalArguments: additionalArgs,
+            cancellationToken: cancellationToken);
 
         return result;
     }
@@ -356,8 +356,8 @@ public sealed partial class ReplayCheckpointService(
         return await launcherFacade.LaunchProfileAsync(
             profile.Id,
             skipUserDataCleanup: false,
-            cancellationToken: cancellationToken,
-            additionalArguments: additionalArgs);
+            additionalArguments: additionalArgs,
+            cancellationToken: cancellationToken);
     }
 
     private async Task<ProfileOperationResult<bool>> WaitForMintingProcessExitAsync(

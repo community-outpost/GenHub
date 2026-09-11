@@ -1163,7 +1163,7 @@ public partial class ReplayManagerViewModel(
 
         if (!string.IsNullOrEmpty(replay.MatchingProfileId))
         {
-            bool isRunning;
+            bool isRunning = false;
             lock (_runningProfileIds)
             {
                 isRunning = _runningProfileIds.Contains(replay.MatchingProfileId);

@@ -130,8 +130,8 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
             .Setup(l => l.LaunchProfileAsync(
                 profile.Id,
                 false,
-                It.IsAny<CancellationToken>(),
-                It.IsAny<IReadOnlyDictionary<string, string>>()))
+                It.IsAny<IReadOnlyDictionary<string, string>>(),
+                It.IsAny<CancellationToken>()))
             .Callback(() => File.WriteAllBytes(saveFilePath, [0x01, 0x02, 0x03]))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
             {
@@ -222,9 +222,9 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
             .Setup(l => l.LaunchProfileAsync(
                 profile.Id,
                 false,
-                It.IsAny<CancellationToken>(),
-                It.IsAny<IReadOnlyDictionary<string, string>>()))
-            .Callback<string, bool, CancellationToken, IReadOnlyDictionary<string, string>?>((id, skip, ct, args) => capturedArgs = args)
+                It.IsAny<IReadOnlyDictionary<string, string>>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<string, bool, IReadOnlyDictionary<string, string>?, CancellationToken>((id, skip, args, ct) => capturedArgs = args)
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
             {
                 LaunchId = "launch-1",
@@ -279,9 +279,9 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
             .Setup(l => l.LaunchProfileAsync(
                 profile.Id,
                 false,
-                It.IsAny<CancellationToken>(),
-                It.IsAny<IReadOnlyDictionary<string, string>>()))
-            .Callback<string, bool, CancellationToken, IReadOnlyDictionary<string, string>?>((id, skip, ct, args) => capturedArgs = args)
+                It.IsAny<IReadOnlyDictionary<string, string>>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<string, bool, IReadOnlyDictionary<string, string>?, CancellationToken>((id, skip, args, ct) => capturedArgs = args)
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
             {
                 LaunchId = "launch-2",
@@ -368,8 +368,8 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
             .Setup(l => l.LaunchProfileAsync(
                 profile.Id,
                 false,
-                It.IsAny<CancellationToken>(),
-                It.IsAny<IReadOnlyDictionary<string, string>>()))
+                It.IsAny<IReadOnlyDictionary<string, string>>(),
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
             {
                 LaunchId = "launch-timeout",
@@ -431,8 +431,8 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
             .Setup(l => l.LaunchProfileAsync(
                 profile.Id,
                 false,
-                It.IsAny<CancellationToken>(),
-                It.IsAny<IReadOnlyDictionary<string, string>>()))
+                It.IsAny<IReadOnlyDictionary<string, string>>(),
+                It.IsAny<CancellationToken>()))
             .Callback(() => File.WriteAllBytes(saveFilePath, [0x05, 0x06]))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
             {
@@ -491,8 +491,8 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
             .Setup(l => l.LaunchProfileAsync(
                 profile.Id,
                 false,
-                It.IsAny<CancellationToken>(),
-                It.IsAny<IReadOnlyDictionary<string, string>>()))
+                It.IsAny<IReadOnlyDictionary<string, string>>(),
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
             {
                 LaunchId = "launch-stale",
@@ -608,8 +608,8 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
             .Setup(l => l.LaunchProfileAsync(
                 profile.Id,
                 false,
-                It.IsAny<CancellationToken>(),
-                It.IsAny<IReadOnlyDictionary<string, string>>()))
+                It.IsAny<IReadOnlyDictionary<string, string>>(),
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
             {
                 LaunchId = "launch-timeout-kill",
@@ -665,8 +665,8 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
             .Setup(l => l.LaunchProfileAsync(
                 profile.Id,
                 false,
-                It.IsAny<CancellationToken>(),
-                It.IsAny<IReadOnlyDictionary<string, string>>()))
+                It.IsAny<IReadOnlyDictionary<string, string>>(),
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
             {
                 LaunchId = "launch-legacy-stale",
@@ -714,8 +714,8 @@ public sealed class ReplayCheckpointServiceTests : IDisposable
             .Setup(l => l.LaunchProfileAsync(
                 profile.Id,
                 false,
-                It.IsAny<CancellationToken>(),
-                It.IsAny<IReadOnlyDictionary<string, string>>()))
+                It.IsAny<IReadOnlyDictionary<string, string>>(),
+                It.IsAny<CancellationToken>()))
             .Callback(() => cts.Cancel())
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(new GameLaunchInfo
             {

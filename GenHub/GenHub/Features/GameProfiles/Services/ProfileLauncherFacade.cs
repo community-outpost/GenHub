@@ -62,15 +62,15 @@ public class ProfileLauncherFacade(
         bool skipUserDataCleanup = false,
         CancellationToken cancellationToken = default)
     {
-        return LaunchProfileAsync(profileId, skipUserDataCleanup, cancellationToken, null);
+        return LaunchProfileAsync(profileId, skipUserDataCleanup, null, cancellationToken);
     }
 
     /// <inheritdoc/>
     public async Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(
         string profileId,
         bool skipUserDataCleanup,
-        CancellationToken cancellationToken,
-        IReadOnlyDictionary<string, string>? additionalArguments)
+        IReadOnlyDictionary<string, string>? additionalArguments,
+        CancellationToken cancellationToken = default)
     {
         try
         {
