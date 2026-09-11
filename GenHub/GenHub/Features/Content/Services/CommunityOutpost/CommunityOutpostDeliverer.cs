@@ -69,11 +69,11 @@ public class CommunityOutpostDeliverer(
     {
         // Look for contentCode tag in metadata
         var contentCodeTag = manifest.Metadata?.Tags?
-            .FirstOrDefault(t => t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(t => t.StartsWith("contentCode:", StringComparison.OrdinalIgnoreCase));
 
         if (!string.IsNullOrEmpty(contentCodeTag))
         {
-            return contentCodeTag[ManifestTagConstants.ContentCodePrefix.Length..];
+            return contentCodeTag["contentCode:".Length..];
         }
 
         return "unknown";
@@ -429,13 +429,12 @@ public class CommunityOutpostDeliverer(
             });
 
             logger.LogInformation("Creating manifests for Community Outpost content");
-            var manifestResult = await manifestFactory.CreateManifestsFromExtractedContentAsync(
+            var manifests = await manifestFactory.CreateManifestsFromExtractedContentAsync(
                 packageManifest,
                 extractPath,
                 cancellationToken);
 
-            var manifests = manifestResult.Data ?? [];
-            if (!manifestResult.Success || manifests.Count == 0)
+            if (manifests.Count == 0)
             {
                 // If no specialized manifests were created, create a single manifest from all files
                 logger.LogWarning(
@@ -519,13 +518,10 @@ public class CommunityOutpostDeliverer(
                 CurrentOperation = "Community Outpost content delivered successfully",
             });
 
-            // Return primary manifest matching requested variant if specified, or fallback to first manifest
-            var primaryManifest = ManifestHelper.SelectPrimaryManifest(manifests, packageManifest) ?? packageManifest;
-
+            var primaryManifest = manifests.FirstOrDefault() ?? packageManifest;
             logger.LogInformation(
-                "Successfully delivered Community Outpost content: {ManifestCount} manifest(s) created, returning primary manifest {PrimaryManifestId}",
-                manifests.Count,
-                primaryManifest.Id);
+                "Successfully delivered Community Outpost content: {ManifestCount} manifest(s) created",
+                manifests.Count);
 
             return OperationResult<ContentManifest>.CreateSuccess(primaryManifest);
         }
@@ -739,7 +735,11 @@ public class CommunityOutpostDeliverer(
             logger.LogInformation("Converted {Converted} compressed image files to TGA", convertedCount);
         }
 
-        await BigFilePacker.PackAsync(sourceDir, destinationPath, cancellationToken);
+        var duplicateCount = await BigFilePacker.PackAsync(sourceDir, destinationPath, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (duplicateCount > 0)
+        {
+            logger.LogWarning("Dropped {Count} duplicate or colliding entries while packing {Path}", duplicateCount, destinationPath);
+        }
     }
 
     /// <summary>
@@ -1061,7 +1061,7 @@ public class CommunityOutpostDeliverer(
                     TargetGame = depMetadata.TargetGame,
                     Metadata = new ContentMetadata
                     {
-                        Tags = [$"{ManifestTagConstants.ContentCodePrefix}{actualContentCode}"],
+                        Tags = [$"contentCode:{actualContentCode}"],
                     },
                 };
 

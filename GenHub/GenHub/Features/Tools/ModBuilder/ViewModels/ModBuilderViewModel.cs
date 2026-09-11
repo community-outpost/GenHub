@@ -54,7 +54,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<ModBuilderViewModel> _logger;
     private readonly Stopwatch _buildStopwatch = new();
-    private readonly HashSet<string> _packsPromotedToBig = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, (bool? Big, string? OutputFile)> _originalPackStates = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<RecentProjectInfo> _allRecentProjects = [];
     private CancellationTokenSource? _buildCancellationTokenSource;
     private bool _isPopulatingBundles;
@@ -1164,8 +1164,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var sampleDir = Path.GetDirectoryName(samplePath);
             if (!string.IsNullOrEmpty(sampleDir))
             {
-                var sampleEditedDir = CurrentProject?.Directories?.GameFilesEdited;
-                await EnsureSampleTgaExistsAsync(sampleDir, sampleEditedDir).ConfigureAwait(false);
+                await EnsureSampleTgaExistsAsync(sampleDir).ConfigureAwait(false);
             }
 
             await LoadProjectFromPathAsync(samplePath).ConfigureAwait(false);
@@ -1764,6 +1763,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
+        _originalPackStates.Clear();
         await InvokeOnUIThreadAsync(() =>
         {
             CurrentProject = null;
@@ -2061,7 +2061,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
             if (result.Success)
             {
-                var totalProcessed = result.FilesProcessed > 0 ? result.FilesProcessed : fileCount;
+                var totalProcessed = result.FilesProcessed;
                 var totalBundles = selectedPacks.Count;
                 await HandleBuildSuccessAsync(totalProcessed, totalBundles).ConfigureAwait(false);
             }
@@ -2297,11 +2297,11 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         try
         {
-            var projectDir = !string.IsNullOrEmpty(ProjectPath) ? Path.GetDirectoryName(ProjectPath) : null;
-            var buildDir = CurrentProject.Directories.Build ?? ModBuilderConstants.DefaultBuildDir;
-            var buildPath = Path.IsPathRooted(buildDir) || string.IsNullOrEmpty(projectDir)
+            var projectDir = GetEffectiveProjectDir();
+            var buildDir = CurrentProject?.Directories?.Build ?? ModBuilderConstants.DefaultBuildDir;
+            var buildPath = Path.IsPathRooted(buildDir)
                 ? buildDir
-                : Path.Combine(projectDir, buildDir);
+                : (!string.IsNullOrEmpty(projectDir) ? Path.Combine(projectDir, buildDir) : null);
 
             if (!string.IsNullOrEmpty(buildPath) && Directory.Exists(buildPath))
             {
@@ -2590,6 +2590,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
     private void PopulateProjectBundlesAndProperties(BuildConfiguration? config)
     {
+        _originalPackStates.Clear();
         Bundles.Clear();
 
         if (config?.Packs != null && config.Packs.Count > 0)
@@ -2613,7 +2614,6 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
             try
             {
-                _packsPromotedToBig.Clear();
                 _isPopulatingBundles = true;
                 SingleBigPackMode = anyBig;
             }
@@ -2852,19 +2852,22 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         foreach (var pack in packs)
         {
-            ApplyPackSingleBigMode(pack, singleBigMode, _packsPromotedToBig);
+            ApplyPackSingleBigMode(pack, singleBigMode, _originalPackStates);
         }
     }
 
-    private static void ApplyPackSingleBigMode(BundlePack pack, bool singleBigMode, ISet<string>? promotedPacks = null)
+    private static void ApplyPackSingleBigMode(
+        BundlePack pack,
+        bool singleBigMode,
+        IDictionary<string, (bool? Big, string? OutputFile)>? originalStates = null)
     {
         if (singleBigMode)
         {
             if (pack.Big != false)
             {
-                if (!pack.IsBigPack && promotedPacks != null)
+                if (originalStates != null && !originalStates.ContainsKey(pack.Name))
                 {
-                    promotedPacks.Add(pack.Name);
+                    originalStates[pack.Name] = (pack.Big, pack.OutputFile);
                 }
 
                 pack.Big = true;
@@ -2878,13 +2881,13 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            if (promotedPacks != null && promotedPacks.Contains(pack.Name))
+            if (originalStates != null && originalStates.TryGetValue(pack.Name, out var original))
             {
-                promotedPacks.Remove(pack.Name);
-                pack.Big = null;
-                pack.OutputFile = ReplaceExtension(pack.OutputFile, ".big", ".zip");
+                originalStates.Remove(pack.Name);
+                pack.Big = original.Big;
+                pack.OutputFile = original.OutputFile;
             }
-            else if (promotedPacks == null && pack.IsBigPack)
+            else if (pack.IsBigPack)
             {
                 pack.Big = null;
                 pack.OutputFile = ReplaceExtension(pack.OutputFile, ".big", ".zip");

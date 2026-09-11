@@ -43,6 +43,7 @@ public sealed class BuildEngineService : IBuildEngineService
     private bool _isRunning;
     private BuildStructure? _cachedBuildStructure;
     private string? _cachedConfigHash;
+    private Dictionary<string, BundleFile>? _cachedSourceToBundleFileMap;
     private int _filesProcessed;
     private int _filesSkipped;
     private int _filesFailed;
@@ -183,6 +184,7 @@ public sealed class BuildEngineService : IBuildEngineService
         _logger.LogDebug("Invalidating build structure cache");
         _cachedBuildStructure = null;
         _cachedConfigHash = null;
+        _cachedSourceToBundleFileMap = null;
     }
 
     private async Task<bool> RunAsync(
@@ -306,7 +308,7 @@ public sealed class BuildEngineService : IBuildEngineService
     {
         cancellationToken.ThrowIfCancellationRequested();
         _logger.LogInformation("PreBuild stage started (using cached build structure)");
-        progress?.Report(new BuildProgress { CurrentStep = "PreBuild: Initializing build structure" });
+        progress?.Report(new BuildProgress { CurrentStage = BuildStage.Loading, CurrentStep = "PreBuild: Initializing build structure" });
 
         FireBundleEvent(BundleEventType.OnPreBuild, null);
 
@@ -330,7 +332,7 @@ public sealed class BuildEngineService : IBuildEngineService
     {
         cancellationToken.ThrowIfCancellationRequested();
         _logger.LogInformation("Clean stage started");
-        progress?.Report(new BuildProgress { CurrentStep = "Cleaning build directories" });
+        progress?.Report(new BuildProgress { CurrentStage = BuildStage.Loading, CurrentStep = "Cleaning build directories" });
 
         var buildDir = setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir;
         var releaseDir = setup.Folders?.AbsReleaseDir ?? ModBuilderConstants.DefaultReleaseDir;
@@ -389,8 +391,14 @@ public sealed class BuildEngineService : IBuildEngineService
         CancellationToken cancellationToken)
     {
         _logger.LogInformation("Building stage: {Stage}", stage);
+        var currentBuildStage = stage switch
+        {
+            BuildIndex.BigBundleItem or BuildIndex.ReleaseBundlePack => BuildStage.Archiving,
+            _ => BuildStage.Processing,
+        };
         progress?.Report(new BuildProgress
         {
+            CurrentStage = currentBuildStage,
             CurrentIndex = stage,
             CurrentStep = $"Building {stage}",
         });
@@ -570,6 +578,8 @@ public sealed class BuildEngineService : IBuildEngineService
 
                 progress?.Report(new BuildProgress
                 {
+                    CurrentStage = BuildStage.Archiving,
+                    CurrentFile = Path.GetFileName(sourceFile),
                     CurrentIndex = BuildIndex.BigBundleItem,
                     CurrentStep = $"Packing {item.Name} ({currentFile}/{totalFiles}): {Path.GetFileName(sourceFile)}",
                     ProcessedFiles = currentFile,
@@ -584,6 +594,8 @@ public sealed class BuildEngineService : IBuildEngineService
                 var overallProgress = ((currentItem - 1) + p) / totalBigItems;
                 progress?.Report(new BuildProgress
                 {
+                    CurrentStage = BuildStage.Archiving,
+                    CurrentFile = $"{item.Name}.big",
                     CurrentIndex = BuildIndex.BigBundleItem,
                     CurrentStep = $"Compressing {item.Name}.big ({p:P0})",
                     ProcessedFiles = Volatile.Read(ref _filesProcessed),
@@ -742,6 +754,8 @@ public sealed class BuildEngineService : IBuildEngineService
 
             progress?.Report(new BuildProgress
             {
+                CurrentStage = BuildStage.Archiving,
+                CurrentFile = pack.Name,
                 CurrentIndex = BuildIndex.ReleaseBundlePack,
                 CurrentStep = $"Packaging release {pack.Name}",
                 ProcessedFiles = Volatile.Read(ref _filesProcessed),
@@ -752,6 +766,8 @@ public sealed class BuildEngineService : IBuildEngineService
                 {
                     progress?.Report(new BuildProgress
                     {
+                        CurrentStage = BuildStage.Archiving,
+                        CurrentFile = packFileName,
                         CurrentIndex = BuildIndex.ReleaseBundlePack,
                         CurrentStep = $"Packing {packFileName} ({p:P0})",
                         ProcessedFiles = Volatile.Read(ref _filesProcessed),
@@ -822,7 +838,17 @@ public sealed class BuildEngineService : IBuildEngineService
         string sourcePath,
         string targetExtension)
     {
+        if (Path.IsPathRooted(targetRelPath))
+        {
+            return null;
+        }
+
         var convertedRel = Path.ChangeExtension(targetRelPath, targetExtension);
+        if (Path.IsPathRooted(convertedRel))
+        {
+            return null;
+        }
+
         var subPath = Path.Combine(rawDir, convertedRel);
         if (IsSubpathOf(rawDir, subPath) && File.Exists(subPath))
         {
@@ -830,13 +856,13 @@ public sealed class BuildEngineService : IBuildEngineService
         }
 
         var flatSource = Path.Combine(rawDir, Path.ChangeExtension(Path.GetFileName(sourcePath), targetExtension));
-        if (File.Exists(flatSource))
+        if (IsSubpathOf(rawDir, flatSource) && File.Exists(flatSource))
         {
             return (flatSource, convertedRel);
         }
 
         var flatTarget = Path.Combine(rawDir, Path.GetFileName(convertedRel));
-        if (File.Exists(flatTarget))
+        if (IsSubpathOf(rawDir, flatTarget) && File.Exists(flatTarget))
         {
             return (flatTarget, convertedRel);
         }
@@ -1042,8 +1068,12 @@ public sealed class BuildEngineService : IBuildEngineService
             _cacheService.AddFile(filePath, mtime, currentMd5);
 
             Interlocked.Increment(ref _filesProcessed);
+            var fileExt = Path.GetExtension(filePath).ToLowerInvariant();
+            var stageType = fileExt is ".tga" or ".png" or ".bmp" or ".dds" ? BuildStage.Converting : BuildStage.Processing;
             progress?.Report(new BuildProgress
             {
+                CurrentStage = stageType,
+                CurrentFile = Path.GetFileName(filePath),
                 CurrentIndex = stage,
                 CurrentStep = $"Processed {Path.GetFileName(filePath)}",
                 ProcessedFiles = Volatile.Read(ref _filesProcessed),
@@ -1123,14 +1153,19 @@ public sealed class BuildEngineService : IBuildEngineService
         var buildDir = setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir;
         string? relPath = null;
 
-        if (_cachedBuildStructure?.BundleItems != null)
+        if (_cachedSourceToBundleFileMap != null &&
+            _cachedSourceToBundleFileMap.TryGetValue(sourcePath, out var bundleFile))
         {
-            var bundleFile = _cachedBuildStructure.BundleItems.Values
+            relPath = GetTargetRelativePath(bundleFile);
+        }
+        else if (_cachedBuildStructure?.BundleItems != null)
+        {
+            var fallbackFile = _cachedBuildStructure.BundleItems.Values
                 .SelectMany(i => i.Files)
                 .FirstOrDefault(f => string.Equals(f.AbsSourceFile, sourcePath, StringComparison.OrdinalIgnoreCase));
-            if (bundleFile != null)
+            if (fallbackFile != null)
             {
-                relPath = GetTargetRelativePath(bundleFile);
+                relPath = GetTargetRelativePath(fallbackFile);
             }
         }
 
@@ -1169,7 +1204,7 @@ public sealed class BuildEngineService : IBuildEngineService
     {
         cancellationToken.ThrowIfCancellationRequested();
         _logger.LogInformation("PostBuild stage started");
-        progress?.Report(new BuildProgress { CurrentStep = "PostBuild: Finalizing build" });
+        progress?.Report(new BuildProgress { CurrentStage = BuildStage.Complete, CurrentStep = "PostBuild: Finalizing build" });
 
         FireBundleEvent(BundleEventType.OnPostBuild, null);
 
@@ -1182,6 +1217,7 @@ public sealed class BuildEngineService : IBuildEngineService
         _logger.LogInformation("Release stage started");
         progress?.Report(new BuildProgress
         {
+            CurrentStage = BuildStage.Archiving,
             CurrentIndex = BuildIndex.ReleaseBundlePack,
             CurrentStep = "Creating release archives",
         });
@@ -1282,6 +1318,7 @@ public sealed class BuildEngineService : IBuildEngineService
         _logger.LogInformation("CreateManifest stage started");
         progress?.Report(new BuildProgress
         {
+            CurrentStage = BuildStage.Archiving,
             CurrentIndex = BuildIndex.CreateManifest,
             CurrentStep = "Creating local ContentManifest and storing in CAS",
         });
@@ -1418,6 +1455,7 @@ public sealed class BuildEngineService : IBuildEngineService
 
             progress?.Report(new BuildProgress
             {
+                CurrentStage = BuildStage.Complete,
                 CurrentIndex = BuildIndex.CreateManifest,
                 CurrentStep = $"Local manifest {manifest?.Id} created and saved to manifest.json",
             });
@@ -1594,8 +1632,32 @@ public sealed class BuildEngineService : IBuildEngineService
 
         _cachedBuildStructure = buildStructure;
         _cachedConfigHash = configHash;
+        _cachedSourceToBundleFileMap = BuildSourceToBundleFileMap(buildStructure);
 
         return buildStructure;
+    }
+
+    private static Dictionary<string, BundleFile> BuildSourceToBundleFileMap(BuildStructure buildStructure)
+    {
+        var map = new Dictionary<string, BundleFile>(StringComparer.OrdinalIgnoreCase);
+        if (buildStructure.BundleItems != null)
+        {
+            foreach (var item in buildStructure.BundleItems.Values)
+            {
+                if (item.Files != null)
+                {
+                    foreach (var file in item.Files)
+                    {
+                        if (!string.IsNullOrEmpty(file.AbsSourceFile))
+                        {
+                            map.TryAdd(file.AbsSourceFile, file);
+                        }
+                    }
+                }
+            }
+        }
+
+        return map;
     }
 
     private async Task<string> ComputeConfigHashAsync(
