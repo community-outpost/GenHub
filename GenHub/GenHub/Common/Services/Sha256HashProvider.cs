@@ -21,7 +21,16 @@ public class Sha256HashProvider() : IFileHashProvider, IStreamHashProvider
     /// <returns>The SHA256 hash as a lowercase hex string.</returns>
     public async Task<string> ComputeFileHashAsync(string filePath, CancellationToken cancellationToken = default)
     {
-        await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, IoConstants.DefaultFileBufferSize, useAsync: true);
+        var options = new FileStreamOptions
+        {
+            Mode = FileMode.Open,
+            Access = FileAccess.Read,
+            Share = FileShare.Read,
+            BufferSize = IoConstants.FileHashBufferSize,
+            Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
+        };
+
+        await using var stream = new FileStream(filePath, options);
         using var sha256 = SHA256.Create();
         var hashBytes = await sha256.ComputeHashAsync(stream, cancellationToken);
         return Convert.ToHexString(hashBytes).ToLowerInvariant();

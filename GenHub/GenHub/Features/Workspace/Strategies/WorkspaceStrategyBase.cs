@@ -150,13 +150,13 @@ public abstract class WorkspaceStrategyBase<T>(
         }
 
         // Essential directories - always copy content from these
-        if (EssentialDirectories.Any(dir => directory.Contains(dir)))
+        if (EssentialDirectories.Any(directory.Contains))
         {
             return true;
         }
 
         // Essential file patterns
-        if (EssentialPatterns.Any(pattern => fileName.Contains(pattern)))
+        if (EssentialPatterns.Any(fileName.Contains))
         {
             return true;
         }
@@ -314,6 +314,8 @@ public abstract class WorkspaceStrategyBase<T>(
         {
             logger.LogDebug("No GameClient configuration or manifest available - executable path not set");
         }
+
+        WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(workspaceInfo, configuration, logger);
     }
 
     /// <summary>
@@ -342,39 +344,7 @@ public abstract class WorkspaceStrategyBase<T>(
     /// <returns>The resolved absolute source path.</returns>
     protected string ResolveSourcePath(ManifestFile file, ContentManifest manifest, WorkspaceConfiguration configuration)
     {
-        // Use file's SourcePath if already an absolute path
-        if (!string.IsNullOrEmpty(file.SourcePath) && Path.IsPathRooted(file.SourcePath))
-        {
-            return file.SourcePath;
-        }
-
-        // Look up manifest-specific source path from configuration (if manifest has an ID)
-        // Note: manifest.Id could be default (empty struct) in tests, so check the value
-        var manifestIdValue = manifest.Id.Value;
-        if (!string.IsNullOrEmpty(manifestIdValue) &&
-            configuration.ManifestSourcePaths != null &&
-            configuration.ManifestSourcePaths.TryGetValue(manifestIdValue, out var manifestSourcePath))
-        {
-            // If file has a relative SourcePath, combine it with manifest's source directory
-            var relativePath = !string.IsNullOrEmpty(file.SourcePath) ? file.SourcePath : file.RelativePath;
-            return Path.Combine(manifestSourcePath, relativePath);
-        }
-
-        // Fallback to BaseInstallationPath for GameInstallation manifests
-        if (manifest.ContentType == ContentType.GameInstallation)
-        {
-            var relativePath = !string.IsNullOrEmpty(file.SourcePath) ? file.SourcePath : file.RelativePath;
-            return Path.Combine(configuration.BaseInstallationPath, relativePath);
-        }
-
-        // If file has SourcePath, treat as relative to BaseInstallationPath
-        if (!string.IsNullOrEmpty(file.SourcePath))
-        {
-            return Path.Combine(configuration.BaseInstallationPath, file.SourcePath);
-        }
-
-        // Final fallback - use RelativePath with BaseInstallationPath
-        return Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
+        return WorkspaceCompatibilityHelper.ResolveSourcePath(file, manifest, configuration);
     }
 
     /// <summary>
@@ -558,10 +528,11 @@ public abstract class WorkspaceStrategyBase<T>(
     /// <param name="configuration">The workspace configuration.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
+    /// <exception cref="NotSupportedException">Thrown when the strategy does not support processing game installation files.</exception>
     protected virtual Task ProcessGameInstallationFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
-        // Default: throw if not implemented
-        throw new NotImplementedException("ProcessGameInstallationFileAsync must be implemented in the strategy if used.");
+        // Default: throw if not supported by strategy
+        throw new NotSupportedException("ProcessGameInstallationFileAsync must be implemented in the strategy if used.");
     }
 
     /// <summary>
@@ -573,10 +544,11 @@ public abstract class WorkspaceStrategyBase<T>(
     /// <param name="configuration">The workspace configuration.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
+    /// <exception cref="NotSupportedException">Thrown when the strategy does not support processing local files.</exception>
     protected virtual Task ProcessLocalFileAsync(ManifestFile file, ContentManifest manifest, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
-        // Default: throw if not implemented
-        throw new NotImplementedException("ProcessLocalFileAsync must be implemented in the strategy if used.");
+        // Default: throw if not supported by strategy
+        throw new NotSupportedException("ProcessLocalFileAsync must be implemented in the strategy if used.");
     }
 
     /// <summary>

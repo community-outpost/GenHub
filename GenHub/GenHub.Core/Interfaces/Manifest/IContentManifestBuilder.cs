@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -291,6 +293,13 @@ public interface IContentManifestBuilder
     /// <param name="patchSourceFile">The path to the patch file, relative to the mod's content root.</param>
     /// <returns>The builder instance for chaining.</returns>
     IContentManifestBuilder AddPatchFile(string targetRelativePath, string patchSourceFile);
+
+    /// <summary>
+    /// Sets the declared entry point executable for this manifest.
+    /// </summary>
+    /// <param name="entryPoint">The relative path of the entry point file.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithEntryPoint(string? entryPoint);
 
     /// <summary>
     /// Builds the final ContentManifest.

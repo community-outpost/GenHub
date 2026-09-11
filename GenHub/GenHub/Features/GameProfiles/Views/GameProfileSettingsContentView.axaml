@@ -263,7 +263,7 @@
             <Setter Property="CornerRadius" Value="8" />
             <Setter Property="Padding" Value="12" />
             <Setter Property="Margin" Value="4" />
-            <Setter Property="MaxWidth" Value="400" />
+            <Setter Property="MaxWidth" Value="240" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalContentAlignment" Value="Stretch" />
             <Setter Property="Cursor" Value="Hand" />
@@ -338,7 +338,9 @@
                     <TextBlock Text="{Binding Name, Mode=OneWay, FallbackValue='New Profile'}"
                                Foreground="White"
                                FontSize="16"
-                               FontWeight="SemiBold" />
+                               FontWeight="SemiBold"
+                               TextTrimming="CharacterEllipsis"
+                               ToolTip.Tip="{Binding Name, Mode=OneWay, FallbackValue='New Profile'}" />
                     <TextBlock Text="{Binding Description, Mode=OneWay, FallbackValue=''}"
                                Foreground="White"
                                Opacity="0.75"
