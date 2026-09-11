@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Platform;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Tools.GenHotkeys;
 using GenHub.Core.Models.Content;
@@ -57,7 +59,7 @@ public class HotkeyPackageService(
                 baseCsf.SetString(label, updated);
             }
 
-            var englishDir = Path.Combine(stagingDir, "Data", "English");
+            var englishDir = Path.Combine(stagingDir, GenHotkeysConstants.DataEnglishDirectory);
             Directory.CreateDirectory(englishDir);
             var csfOutputPath = Path.Combine(englishDir, "generals.csf");
             baseCsf.Save(csfOutputPath);
@@ -70,13 +72,13 @@ public class HotkeyPackageService(
             progress?.Report("Configuring CommandMap.ini...");
             var iniDir = Path.Combine(stagingDir, "Data", "INI");
             Directory.CreateDirectory(iniDir);
-            var commandMapStream = TryOpenAssetStream("Presets/CommandMap.ini");
+            var commandMapStream = TryOpenAssetStream(GenHotkeysConstants.PresetsCommandMap);
             if (commandMapStream != null)
             {
                 using (commandMapStream)
                 {
                     var cmdMap = CommandMapFile.Load(commandMapStream);
-                    cmdMap.Save(Path.Combine(iniDir, "CommandMap.ini"));
+                    cmdMap.Save(Path.Combine(iniDir, GenHotkeysConstants.CommandMapFileName));
                 }
             }
 
@@ -84,11 +86,11 @@ public class HotkeyPackageService(
             if (profile.OverlayEnabled)
             {
                 progress?.Report("Rendering hotkey badge overlays on unit icons...");
-                var texturesDir = Path.Combine(stagingDir, "Art", "Textures");
+                var texturesDir = Path.Combine(stagingDir, GenHotkeysConstants.ArtTexturesDirectory);
                 Directory.CreateDirectory(texturesDir);
 
                 var factions = await techTreeService.LoadTechTreeAsync(profile.TargetGame, cancellationToken);
-                var processedIcons = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var processedIcons = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 foreach (var faction in factions)
                 {
@@ -156,7 +158,7 @@ public class HotkeyPackageService(
             }
 
             var gameTag = profile.TargetGame == GameType.Generals ? "Gen" : "ZH";
-            var bigFileName = $"!Hotkeys_{sanitizedName}_{gameTag}.big";
+            var bigFileName = string.Format(GenHotkeysConstants.BigFileNamePattern, sanitizedName, gameTag);
             var bigFilePath = Path.Combine(packageDir, bigFileName);
 
             await BigFilePacker.PackAsync(stagingDir, bigFilePath);
@@ -204,7 +206,7 @@ public class HotkeyPackageService(
 
     private static async Task<CsfFile> LoadBaseCsfAsync(GameType gameType, CancellationToken cancellationToken)
     {
-        var stream = TryOpenAssetStream("Presets/LeikezeEN.csf");
+        var stream = TryOpenAssetStream(GenHotkeysConstants.PresetsLeikezeEn);
         if (stream != null)
         {
             using (stream)
@@ -258,7 +260,7 @@ public class HotkeyPackageService(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Could not delete temporary folder {Path}", path);
+            logger.LogWarning(ex, "Failed to clean up temporary directory {Path}", path);
         }
     }
 }

@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Platform;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools.GenHotkeys;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.GenHotkeys;
@@ -32,8 +33,11 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
             return cached;
         }
 
-        var folder = gameType == GameType.Generals ? "Generals" : "GeneralsZH";
-        var json = await LoadAssetStringAsync($"Profiles/{folder}/TechTree.json", cancellationToken);
+        var techTreePath = gameType == GameType.Generals
+            ? GenHotkeysConstants.TechTreeGenerals
+            : GenHotkeysConstants.TechTreeGeneralsZh;
+
+        var json = await LoadAssetStringAsync(techTreePath, cancellationToken);
         if (string.IsNullOrEmpty(json))
         {
             logger.LogWarning("Failed to load TechTree.json for {GameType}", gameType);
@@ -235,8 +239,7 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
     {
         try
         {
-            // First try preset LeikezeEN.csf
-            var stream = TryOpenAssetStream("Presets/LeikezeEN.csf");
+            var stream = TryOpenAssetStream(GenHotkeysConstants.PresetsLeikezeEn);
             if (stream != null)
             {
                 using (stream)
