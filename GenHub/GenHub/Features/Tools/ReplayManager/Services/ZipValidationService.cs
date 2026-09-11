@@ -44,7 +44,7 @@ public sealed class ZipValidationService(ILogger<ZipValidationService> logger) :
             foreach (var entry in nonDirEntries)
             {
                 var segments = entry.FullName.Split(PathSeparators, StringSplitOptions.RemoveEmptyEntries);
-                if (segments.Any(s => s == "." || s == ".." || s.Contains(':') || Path.IsPathRooted(s)))
+                if (segments.Any(s => s == "." || s == ".." || s.Contains(':')))
                 {
                     return (false, $"ZIP contains invalid path traversal segment in '{entry.FullName}'.");
                 }
@@ -52,7 +52,7 @@ public sealed class ZipValidationService(ILogger<ZipValidationService> logger) :
                 var fileName = Path.GetFileName(entry.FullName);
 
                 // Check extension
-                if (!fileName.EndsWith(".rep", StringComparison.OrdinalIgnoreCase))
+                if (!fileName.EndsWith(FileTypes.ReplayFileExtension, StringComparison.OrdinalIgnoreCase))
                 {
                     return (false, $"ZIP contains non-replay file: {fileName}. Only .rep files are allowed.");
                 }
@@ -120,15 +120,15 @@ public sealed class ZipValidationService(ILogger<ZipValidationService> logger) :
             {
                 var entryKey = entry.Key ?? string.Empty;
                 var segments = entryKey.Split(PathSeparators, StringSplitOptions.RemoveEmptyEntries);
-                if (segments.Any(s => s == "." || s == ".." || s.Contains(':') || Path.IsPathRooted(s)))
+                if (segments.Any(s => s == "." || s == ".." || s.Contains(':')))
                 {
                     return (false, $"Archive contains invalid path traversal segment in '{entryKey}'.");
                 }
 
                 var fileName = Path.GetFileName(entryKey);
-                if (!fileName.EndsWith(".rep", StringComparison.OrdinalIgnoreCase))
+                if (!fileName.EndsWith(FileTypes.ReplayFileExtension, StringComparison.OrdinalIgnoreCase))
                 {
-                    return (false, $"Archive contains non-replay file: {fileName}. Only .rep files are allowed.");
+                    return (false, $"Archive contains non-replay file: {fileName}. Only {FileTypes.ReplayFileExtension} files are allowed.");
                 }
 
                 replayCount++;
@@ -136,6 +136,13 @@ public sealed class ZipValidationService(ILogger<ZipValidationService> logger) :
                 if (entry.Size > ReplayManagerConstants.MaxReplaySizeBytes)
                 {
                     return (false, $"File {fileName} in archive exceeds {ReplayManagerConstants.MaxReplaySizeBytes / ConversionConstants.BytesPerMegabyte} MB limit.");
+                }
+
+                // Check compression ratio
+                if (entry.CompressedSize > 0 &&
+                    ((double)entry.Size / entry.CompressedSize) > ReplayManagerConstants.MaxCompressionRatio)
+                {
+                    return (false, $"File {fileName} exceeds maximum compression ratio (potential zip bomb).");
                 }
 
                 totalUncompressedBytes += entry.Size;

@@ -81,6 +81,39 @@ public sealed class CrcMappingRegistryTests
     }
 
     /// <summary>
+    /// Verifies that TryGetEntryByIniCrc finds known entries and data patches by INI CRC.
+    /// </summary>
+    [Fact]
+    public void TryGetEntryByIniCrc_FindsEntry_Successfully()
+    {
+        var registry = new CrcMappingRegistry();
+        var entry = new CrcMappingEntry
+        {
+            ExeCrc = "0xB9DB8815",
+            IniCrc = "0x81FB5632",
+            ManifestId = "1.828261.generalsonline.gameclient.zerohour",
+            DataPatchManifestId = "1.828261.generalsonline.patch.gamedata",
+            DataPatchName = "CommunityPatch Core INI (81FB5632)",
+            Publisher = "generalsonline",
+            GameType = "ZeroHour",
+            Version = "082826_QFE1",
+        };
+
+        registry.RegisterEntry(entry);
+
+        Assert.True(registry.TryGetEntryByIniCrc("0x81FB5632", out var foundWithPrefix));
+        Assert.NotNull(foundWithPrefix);
+        Assert.Equal("1.828261.generalsonline.patch.gamedata", foundWithPrefix.DataPatchManifestId);
+
+        Assert.True(registry.TryGetEntryByIniCrc("81fb5632", out var foundWithoutPrefix));
+        Assert.NotNull(foundWithoutPrefix);
+        Assert.Equal("1.828261.generalsonline.patch.gamedata", foundWithoutPrefix.DataPatchManifestId);
+
+        Assert.False(registry.TryGetEntryByIniCrc("0x11111111", out _));
+        Assert.False(registry.TryGetEntryByIniCrc(string.Empty, out _));
+    }
+
+    /// <summary>
     /// Verifies that loading a catalog populates all entries and replaces previous state.
     /// </summary>
     [Fact]

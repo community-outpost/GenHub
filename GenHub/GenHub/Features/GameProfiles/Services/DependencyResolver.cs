@@ -206,11 +206,23 @@ public class DependencyResolver(
                                 warnings.Add(circularWarning);
                                 logger.LogWarning("Circular dependency detected: {ContentId} is already in the resolution path", dep.Id.Value);
                             }
-                            else if (!resolvedIds.Contains(dep.Id.Value) && !visited.Contains(dep.Id.Value))
+                            else if (!resolvedIds.Contains(dep.Id.Value))
                             {
-                                var depAncestors = new HashSet<string>(currentChain, StringComparer.OrdinalIgnoreCase) { contentId };
-                                ancestorMap[dep.Id.Value] = depAncestors;
-                                toProcess.Enqueue(dep.Id.Value);
+                                if (!ancestorMap.TryGetValue(dep.Id.Value, out var existingAncestors))
+                                {
+                                    var depAncestors = new HashSet<string>(currentChain, StringComparer.OrdinalIgnoreCase) { contentId };
+                                    ancestorMap[dep.Id.Value] = depAncestors;
+                                }
+                                else
+                                {
+                                    existingAncestors.UnionWith(currentChain);
+                                    existingAncestors.Add(contentId);
+                                }
+
+                                if (!visited.Contains(dep.Id.Value))
+                                {
+                                    toProcess.Enqueue(dep.Id.Value);
+                                }
                             }
                         }
                     }
@@ -301,17 +313,13 @@ public class DependencyResolver(
             return false;
         }
 
-        if (string.Equals(name, ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase) ||
-            name.StartsWith(ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase) ||
-            name.Contains(ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(name, ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
-        var tokens = name.Split(ManifestConstants.VariantSeparator);
-        return tokens.Any(t =>
-            string.Equals(t, ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase) ||
-            t.StartsWith(ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase));
+        var tokens = name.Split(['.', '-', '_', '/', '\\', ManifestConstants.VariantSeparator], StringSplitOptions.RemoveEmptyEntries);
+        return tokens.Any(t => string.Equals(t, ManifestConstants.GeneralsContentName, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool AreGameVariantsCompatible(string declaredName, string acquiredName)

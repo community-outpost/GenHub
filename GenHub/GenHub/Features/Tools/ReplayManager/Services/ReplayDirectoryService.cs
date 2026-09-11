@@ -485,6 +485,43 @@ public sealed class ReplayDirectoryService(
     /// <param name="clientManifest">The client content manifest, if available.</param>
     /// <param name="replay">The replay file context.</param>
     /// <returns>The resolved relative executable path, or default executable name if uncontained.</returns>
+    private static bool TryGetContainedRelativePath(string workingDir, string candidatePath, out string relativePath)
+    {
+        relativePath = string.Empty;
+        if (string.IsNullOrWhiteSpace(workingDir) || string.IsNullOrWhiteSpace(candidatePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            var fullWorkingDir = Path.GetFullPath(workingDir);
+            var fullCandidatePath = Path.IsPathRooted(candidatePath)
+                ? Path.GetFullPath(candidatePath)
+                : Path.GetFullPath(Path.Combine(fullWorkingDir, candidatePath));
+
+            var rel = Path.GetRelativePath(fullWorkingDir, fullCandidatePath);
+            var isContained = !string.IsNullOrWhiteSpace(rel) &&
+                              rel != "." &&
+                              !string.Equals(rel, "..", StringComparison.Ordinal) &&
+                              !rel.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) &&
+                              !rel.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal) &&
+                              !Path.IsPathRooted(rel);
+
+            if (isContained)
+            {
+                relativePath = rel;
+                return true;
+            }
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            // Invalid or unparseable path
+        }
+
+        return false;
+    }
+
     internal static string ResolveThirdPartyRelativeExePath(
         GameClient? targetClient,
         string workingDir,
@@ -494,41 +531,20 @@ public sealed class ReplayDirectoryService(
         if (clientManifest != null)
         {
             var entryResolution = ManifestVariantResolver.ResolveEntryPoint(clientManifest);
-            if (entryResolution.Success && !string.IsNullOrWhiteSpace(entryResolution.RelativePath))
+            if (entryResolution.Success &&
+                !string.IsNullOrWhiteSpace(entryResolution.RelativePath) &&
+                TryGetContainedRelativePath(workingDir, entryResolution.RelativePath, out var manifestRelPath))
             {
-                return entryResolution.RelativePath.Replace('/', Path.DirectorySeparatorChar);
+                return manifestRelPath;
             }
         }
 
         if (targetClient != null &&
             string.Equals(targetClient.PublisherType, replay.MatchedClient?.Publisher, StringComparison.OrdinalIgnoreCase) &&
             !string.IsNullOrWhiteSpace(targetClient.ExecutablePath) &&
-            !string.IsNullOrWhiteSpace(workingDir))
+            TryGetContainedRelativePath(workingDir, targetClient.ExecutablePath, out var clientRelPath))
         {
-            try
-            {
-                var fullWorkingDir = Path.GetFullPath(workingDir);
-                var fullExePath = Path.IsPathRooted(targetClient.ExecutablePath)
-                    ? Path.GetFullPath(targetClient.ExecutablePath)
-                    : Path.GetFullPath(Path.Combine(fullWorkingDir, targetClient.ExecutablePath));
-
-                var relPath = Path.GetRelativePath(fullWorkingDir, fullExePath);
-                var isContained = !string.IsNullOrWhiteSpace(relPath) &&
-                                  relPath != "." &&
-                                  !string.Equals(relPath, "..", StringComparison.Ordinal) &&
-                                  !relPath.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) &&
-                                  !relPath.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal) &&
-                                  !Path.IsPathRooted(relPath);
-
-                if (isContained)
-                {
-                    return relPath;
-                }
-            }
-            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
-            {
-                // Invalid or unparseable executable path; fall back to default executable name.
-            }
+            return clientRelPath;
         }
 
         return GetDefaultExecutableName(replay.GameVersion, replay.MatchedClient?.Publisher);
@@ -554,11 +570,55 @@ public sealed class ReplayDirectoryService(
         if (crcMappingRegistry.TryGetEntry(exeCrcStr, iniCrcStr, out var match) && match != null)
         {
             ResolveMatchedClientCompatibility(replay, match, acquiredIds, profiles, logger);
+            return;
         }
-        else
+
+        // Secondary resolution: When exact (exeCRC, iniCRC) pair is not in catalog, check if base client matches
+        if (crcMappingRegistry.TryGetEntryByExeCrc(exeCrcStr, out var baseClient) && baseClient != null)
         {
-            ResolveUnmappedClientCompatibility(replay, profiles);
+            var normalizedIni = NormalizeCrcHex(iniCrcStr);
+
+            // Step 1: Check if user has a corresponding local ContentManifest matching the INI CRC (e.g. 1.828261.generalsonline.patch.gamedata)
+            var localMatchingManifestId = acquiredIds.FirstOrDefault(id =>
+                id.Contains(normalizedIni, StringComparison.OrdinalIgnoreCase) ||
+                (crcMappingRegistry.TryGetEntryByIniCrc(iniCrcStr, out var knownEntry) &&
+                 !string.IsNullOrEmpty(knownEntry?.DataPatchManifestId) &&
+                 (string.Equals(id, knownEntry.DataPatchManifestId, StringComparison.OrdinalIgnoreCase) ||
+                  HasMatchingDataPatchId(knownEntry.DataPatchManifestId, id))));
+
+            if (!string.IsNullOrEmpty(localMatchingManifestId))
+            {
+                crcMappingRegistry.TryGetEntryByIniCrc(iniCrcStr, out var knownEntry);
+                var resolvedEntry = baseClient with
+                {
+                    IniCrc = iniCrcStr,
+                    DataPatchManifestId = localMatchingManifestId,
+                    DataPatchName = knownEntry?.DataPatchName ?? $"Local Game Data ({normalizedIni})",
+                    DataPatchCdnUrl = knownEntry?.DataPatchCdnUrl,
+                };
+
+                ResolveMatchedClientCompatibility(replay, resolvedEntry, acquiredIds, profiles, logger);
+                return;
+            }
+
+            // Step 2: Check if catalog has a known data patch mapping for this INI CRC (e.g. TheSuperHackers 1.0.0/1.0.1 or GeneralsOnline)
+            if (crcMappingRegistry.TryGetEntryByIniCrc(iniCrcStr, out var catalogEntry) &&
+                !string.IsNullOrEmpty(catalogEntry?.DataPatchManifestId))
+            {
+                var resolvedEntry = baseClient with
+                {
+                    IniCrc = iniCrcStr,
+                    DataPatchManifestId = catalogEntry.DataPatchManifestId,
+                    DataPatchName = catalogEntry.DataPatchName,
+                    DataPatchCdnUrl = catalogEntry.DataPatchCdnUrl,
+                };
+
+                ResolveMatchedClientCompatibility(replay, resolvedEntry, acquiredIds, profiles, logger);
+                return;
+            }
         }
+
+        ResolveUnmappedClientCompatibility(replay, profiles);
     }
 
     private static int ScoreCandidateProfile(
@@ -1096,6 +1156,22 @@ public sealed class ReplayDirectoryService(
         return false;
     }
 
+    private static string NormalizeCrcHex(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = value.Trim();
+        if (trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            trimmed = trimmed[2..];
+        }
+
+        return trimmed.ToUpperInvariant();
+    }
+
     private static string GetDefaultExecutableName(GameType gameVersion, string? publisher)
     {
         if (gameVersion == GameType.Generals)
@@ -1111,7 +1187,7 @@ public sealed class ReplayDirectoryService(
         return GameClientConstants.ZeroHourExecutable;
     }
 
-    private static bool IsClientManifestInstalled(CrcMappingEntry match, GameType gameVersion, HashSet<string> acquiredIds)
+    internal static bool IsClientManifestInstalled(CrcMappingEntry match, GameType gameVersion, HashSet<string> acquiredIds)
     {
         if (!string.IsNullOrEmpty(match.ManifestId) && acquiredIds.Contains(match.ManifestId))
         {
@@ -1142,7 +1218,7 @@ public sealed class ReplayDirectoryService(
         return false;
     }
 
-    private static ReplayCompatibilityStatus DetermineUnconfiguredStatus(CrcMappingEntry match, bool isInstalled)
+    internal static ReplayCompatibilityStatus DetermineUnconfiguredStatus(CrcMappingEntry match, bool isInstalled)
     {
         if (isInstalled)
         {
@@ -1186,7 +1262,7 @@ public sealed class ReplayDirectoryService(
         }
     }
 
-    private static void ResolveMatchedClientCompatibility(
+    internal static void ResolveMatchedClientCompatibility(
         ReplayFile replay,
         CrcMappingEntry match,
         HashSet<string> acquiredIds,
@@ -1323,7 +1399,11 @@ public sealed class ReplayDirectoryService(
         }
     }
 
-    private static async Task AcquireGeneralsOnlineMapPacksAsync(IContentOrchestrator? contentOrchestrator, IContentManifestPool manifestPool, CancellationToken ct)
+    private static async Task AcquireGeneralsOnlineMapPacksAsync(
+        IContentOrchestrator? contentOrchestrator,
+        IContentManifestPool manifestPool,
+        GameType targetGame,
+        CancellationToken ct)
     {
         if (contentOrchestrator == null)
         {
@@ -1333,6 +1413,7 @@ public sealed class ReplayDirectoryService(
         var allManifests = await manifestPool.GetAllManifestsAsync(ct);
         if (allManifests.Success && allManifests.Data != null &&
             allManifests.Data.Any(m => m.ContentType == ContentType.MapPack &&
+                                       (m.GameType == targetGame || m.GameType == null) &&
                                        (string.Equals(m.Publisher?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase) ||
                                         m.Id.Value.Contains("." + GeneralsOnlineConstants.PublisherType + ".", StringComparison.OrdinalIgnoreCase))))
         {
@@ -1343,7 +1424,7 @@ public sealed class ReplayDirectoryService(
         {
             ProviderName = GeneralsOnlineConstants.PublisherType,
             ContentType = ContentType.MapPack,
-            TargetGame = GameType.ZeroHour,
+            TargetGame = targetGame,
         };
         var mapPackResult = await contentOrchestrator.SearchAsync(mapPackQuery, ct);
         if (mapPackResult != null && mapPackResult.Success && mapPackResult.Data != null)
@@ -1561,9 +1642,19 @@ public sealed class ReplayDirectoryService(
         IEnumerable<ContentSearchResult> items,
         CrcMappingEntry matchedClient)
     {
-        return items.FirstOrDefault(c =>
-            string.Equals(c.Id, matchedClient.ManifestId, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(c.Version, matchedClient.Version, StringComparison.OrdinalIgnoreCase));
+        var itemList = items as IList<ContentSearchResult> ?? items.ToList();
+
+        var exactMatch = itemList.FirstOrDefault(c =>
+            string.Equals(c.Id, matchedClient.ManifestId, StringComparison.OrdinalIgnoreCase));
+        if (exactMatch != null)
+        {
+            return exactMatch;
+        }
+
+        return itemList.FirstOrDefault(c =>
+            string.Equals(c.Version, matchedClient.Version, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(c.Publisher, matchedClient.Publisher, StringComparison.OrdinalIgnoreCase) &&
+            c.Type is ContentType.GameClient or ContentType.Mod);
     }
 
     private static (GameClient? TargetClient, string WorkingDir) ResolveGameInstallationContext(
@@ -1673,7 +1764,7 @@ public sealed class ReplayDirectoryService(
         // If GeneralsOnline, also ensure MapPack is acquired if missing
         if (string.Equals(matchedClient.Publisher, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
         {
-            await AcquireGeneralsOnlineMapPacksAsync(contentOrchestrator, manifestPool, ct);
+            await AcquireGeneralsOnlineMapPacksAsync(contentOrchestrator, manifestPool, gameVersion, ct);
         }
     }
 
@@ -1763,13 +1854,29 @@ public sealed class ReplayDirectoryService(
         IReadOnlyList<GameProfile> existingProfiles,
         CancellationToken ct)
     {
-        var info = new FileInfo(file);
+        long sizeInBytes = 0;
+        DateTime lastModified = DateTime.MinValue;
+
+        try
+        {
+            var info = new FileInfo(file);
+            if (info.Exists)
+            {
+                sizeInBytes = info.Length;
+                lastModified = info.LastWriteTime;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(ex, "Could not access FileInfo for {File}", file);
+        }
+
         var replay = new ReplayFile
         {
             FullPath = file,
             FileName = Path.GetFileName(file),
-            SizeInBytes = info.Length,
-            LastModified = info.LastWriteTime,
+            SizeInBytes = sizeInBytes,
+            LastModified = lastModified,
             GameVersion = version,
         };
 

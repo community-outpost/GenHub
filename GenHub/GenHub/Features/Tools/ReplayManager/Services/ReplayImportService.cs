@@ -208,7 +208,7 @@ public sealed class ReplayImportService(
         {
             using var archive = ZipFile.OpenRead(zipPath);
             var entries = archive.Entries
-                .Where(e => !string.IsNullOrEmpty(e.Name) && e.Name.EndsWith(".rep", StringComparison.OrdinalIgnoreCase))
+                .Where(e => !string.IsNullOrEmpty(e.Name) && e.Name.EndsWith(FileTypes.ReplayFileExtension, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
             if (entries.Count == 0)
@@ -308,9 +308,9 @@ public sealed class ReplayImportService(
         try
         {
             var ext = Path.GetExtension(filePath);
-            if (ext.Equals(".zip", StringComparison.OrdinalIgnoreCase) ||
-                ext.Equals(".7z", StringComparison.OrdinalIgnoreCase) ||
-                ext.Equals(".rar", StringComparison.OrdinalIgnoreCase))
+            if (ext.Equals(FileTypes.ZipFileExtension, StringComparison.OrdinalIgnoreCase) ||
+                ext.Equals(FileTypes.SevenZipFileExtension, StringComparison.OrdinalIgnoreCase) ||
+                ext.Equals(FileTypes.RarFileExtension, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -401,7 +401,7 @@ public sealed class ReplayImportService(
         }
     }
 
-    private static async Task<long> TryExtractEntryWithSharpCompressAsync(
+    private static async Task<long?> TryExtractEntryWithSharpCompressAsync(
         string archivePath,
         string entryFullName,
         string destinationPath,
@@ -412,13 +412,13 @@ public sealed class ReplayImportService(
         using var archive = ArchiveFactory.OpenArchive(archivePath);
         var entryName = Path.GetFileName(entryFullName);
         var entry = archive.Entries.FirstOrDefault(e =>
-            !e.IsDirectory &&
-            (string.Equals(e.Key, entryFullName, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(Path.GetFileName(e.Key), entryName, StringComparison.OrdinalIgnoreCase)));
+            !e.IsDirectory && string.Equals(e.Key, entryFullName, StringComparison.OrdinalIgnoreCase))
+            ?? archive.Entries.FirstOrDefault(e =>
+            !e.IsDirectory && string.Equals(Path.GetFileName(e.Key), entryName, StringComparison.OrdinalIgnoreCase));
 
         if (entry == null)
         {
-            return 0;
+            return null;
         }
 
         using var entryStream = entry.OpenEntryStream();
@@ -551,9 +551,9 @@ public sealed class ReplayImportService(
                 ReplayManagerConstants.MaxAggregateUncompressedBytes - currentExpandedBytes,
                 context.CancellationToken);
 
-            if (written > 0)
+            if (written.HasValue)
             {
-                context.OnBytesExpanded(written);
+                context.OnBytesExpanded(written.Value);
                 context.Imported.Add(targetPath);
             }
             else
@@ -584,7 +584,7 @@ public sealed class ReplayImportService(
             using var archive = ArchiveFactory.OpenArchive(archivePath);
             var entries = archive.Entries
                 .Where(e => !e.IsDirectory && !string.IsNullOrEmpty(e.Key) &&
-                            Path.GetFileName(e.Key).EndsWith(".rep", StringComparison.OrdinalIgnoreCase))
+                            Path.GetFileName(e.Key).EndsWith(FileTypes.ReplayFileExtension, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
             int total = entries.Count;

@@ -110,6 +110,13 @@
                              Margin="8,0,4,0"/>
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
+              <DataGridTemplateColumn.CellEditingTemplate>
+                <DataTemplate>
+                  <TextBox Text="{Binding FileName}"
+                           VerticalAlignment="Center"
+                           Margin="4,0"/>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellEditingTemplate>
             </DataGridTemplateColumn>
             <DataGridTemplateColumn Header="Map" Width="120" MaxWidth="160">
               <DataGridTemplateColumn.CellTemplate>
@@ -167,6 +174,7 @@
                     <Button Classes="Primary" Padding="8,4"
                             Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).LaunchReplayCommand}"
                             CommandParameter="{Binding}"
+                            IsEnabled="{Binding !$parent[UserControl].((vm:ReplayManagerViewModel)DataContext).IsBusy}"
                             IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Compatible}}"
                             ToolTip.Tip="{Binding PlayButtonTooltip}">
                       <StackPanel Orientation="Horizontal" Spacing="4">
@@ -179,6 +187,7 @@
                     <Button Classes="Primary" Padding="8,4"
                             Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).CreateProfileForReplayCommand}"
                             CommandParameter="{Binding}"
+                            IsEnabled="{Binding !$parent[UserControl].((vm:ReplayManagerViewModel)DataContext).IsBusy}"
                             IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.RequiresProfile}}"
                             ToolTip.Tip="Create a dedicated game profile configured with matching game client and data patch">
                       <StackPanel Orientation="Horizontal" Spacing="4">
@@ -191,6 +200,7 @@
                     <Button Classes="Secondary" Padding="8,4"
                             Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).CreateProfileForReplayCommand}"
                             CommandParameter="{Binding}"
+                            IsEnabled="{Binding !$parent[UserControl].((vm:ReplayManagerViewModel)DataContext).IsBusy}"
                             IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Downloadable}}"
                             ToolTip.Tip="Download required game client and data patch, then create profile">
                       <StackPanel Orientation="Horizontal" Spacing="4">
@@ -203,6 +213,7 @@
                     <Button Classes="icon-subtle" Padding="6,4"
                             Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).CreateProfileForReplayCommand}"
                             CommandParameter="{Binding}"
+                            IsEnabled="{Binding !$parent[UserControl].((vm:ReplayManagerViewModel)DataContext).IsBusy}"
                             IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Orphaned}}"
                             ToolTip.Tip="Create a profile using your base game installation to watch this custom replay">
                       <StackPanel Orientation="Horizontal" Spacing="4">
@@ -453,7 +464,7 @@
     <Style Selector="ToggleButton.SplitRight">
       <Setter Property="CornerRadius" Value="0,6,6,0" />
       <Setter Property="BorderThickness" Value="1,0,0,0" />
-      <Setter Property="BorderBrush" Value="#40FFFFFF" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
       <Setter Property="Padding" Value="7,0" />
       <Setter Property="Margin" Value="0" />
     </Style>

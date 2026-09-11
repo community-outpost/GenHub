@@ -22,6 +22,7 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
     private sealed record RegistryState(
         ImmutableDictionary<string, CrcMappingEntry> PairMap,
         ImmutableDictionary<string, CrcMappingEntry> ExeMap,
+        ImmutableDictionary<string, CrcMappingEntry> IniMap,
         ImmutableDictionary<string, CrcMappingEntry> ShaMap,
         ImmutableList<CrcMappingEntry> AllEntries);
 
@@ -60,6 +61,21 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
         var state = _state;
         var normalized = NormalizeHex(exeCrc);
         if (state.ExeMap.TryGetValue(normalized, out var found))
+        {
+            entry = found;
+            return true;
+        }
+
+        entry = null;
+        return false;
+    }
+
+    /// <inheritdoc />
+    public bool TryGetEntryByIniCrc(string iniCrc, out CrcMappingEntry? entry)
+    {
+        var state = _state;
+        var normalized = NormalizeHex(iniCrc);
+        if (state.IniMap.TryGetValue(normalized, out var found))
         {
             entry = found;
             return true;
@@ -113,7 +129,8 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
         {
             var current = _state;
             var existingIndex = current.AllEntries.FindIndex(e =>
-                string.Equals(e.ManifestId, entry.ManifestId, StringComparison.OrdinalIgnoreCase));
+                string.Equals(NormalizeHex(e.ExeCrc), NormalizeHex(entry.ExeCrc), StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(NormalizeHex(e.IniCrc), NormalizeHex(entry.IniCrc), StringComparison.OrdinalIgnoreCase));
 
             var allEntries = existingIndex >= 0
                 ? current.AllEntries.SetItem(existingIndex, entry)
@@ -152,6 +169,7 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
     {
         var pairBuilder = ImmutableDictionary.CreateBuilder<string, CrcMappingEntry>(StringComparer.OrdinalIgnoreCase);
         var exeBuilder = ImmutableDictionary.CreateBuilder<string, CrcMappingEntry>(StringComparer.OrdinalIgnoreCase);
+        var iniBuilder = ImmutableDictionary.CreateBuilder<string, CrcMappingEntry>(StringComparer.OrdinalIgnoreCase);
         var shaBuilder = ImmutableDictionary.CreateBuilder<string, CrcMappingEntry>(StringComparer.OrdinalIgnoreCase);
         var allList = new List<CrcMappingEntry>();
 
@@ -172,6 +190,14 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
                 exeBuilder[normalizedExe] = entry;
             }
 
+            var normalizedIni = NormalizeHex(entry.IniCrc);
+            if (!string.IsNullOrEmpty(normalizedIni) &&
+                (!iniBuilder.TryGetValue(normalizedIni, out _) ||
+                 !string.IsNullOrEmpty(entry.DataPatchManifestId)))
+            {
+                iniBuilder[normalizedIni] = entry;
+            }
+
             if (!string.IsNullOrWhiteSpace(entry.Sha256))
             {
                 shaBuilder[entry.Sha256.Trim()] = entry;
@@ -183,11 +209,13 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
         return new RegistryState(
             pairBuilder.ToImmutable(),
             exeBuilder.ToImmutable(),
+            iniBuilder.ToImmutable(),
             shaBuilder.ToImmutable(),
             allList.ToImmutableList());
     }
 
     private static RegistryState CreateEmptyState() => new(
+        ImmutableDictionary<string, CrcMappingEntry>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
         ImmutableDictionary<string, CrcMappingEntry>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
         ImmutableDictionary<string, CrcMappingEntry>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
         ImmutableDictionary<string, CrcMappingEntry>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
@@ -224,6 +252,11 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
     private static RegistryState InitializeRegistryState(ILogger<CrcMappingRegistry>? logger)
     {
         var catalog = TryLoadEmbeddedCatalog(logger);
-        return catalog?.Mappings != null ? BuildState(catalog.Mappings) : CreateEmptyState();
+        if (catalog != null && catalog.Mappings.Count > 0)
+        {
+            return BuildState(catalog.Mappings);
+        }
+
+        return CreateEmptyState();
     }
 }

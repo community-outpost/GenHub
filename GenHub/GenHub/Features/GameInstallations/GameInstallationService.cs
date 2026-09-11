@@ -38,8 +38,8 @@ IContentManifestPool? contentManifestPool = null,
 IInstallationPathResolver? pathResolver = null,
 IUserSettingsService? userSettingsService = null) : IGameInstallationService, IDisposable
 {
-    private const string ZeroHourContentName = "zerohour";
-    private const string GeneralsContentName = "generals";
+    private const string ZeroHourContentName = ManifestConstants.ZeroHourContentName;
+    private const string GeneralsContentName = ManifestConstants.GeneralsContentName;
 
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
     private ReadOnlyCollection<GameInstallation>? _cachedInstallations;
@@ -437,14 +437,19 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
     }
 
     /// <summary>
+    /// Gets the manifest content name corresponding to the specified game type.
+    /// </summary>
+    /// <param name="gameType">The game type.</param>
+    /// <returns>The manifest content name string.</returns>
+    private static string GetGameTypeContentName(GameType gameType) =>
+        gameType == GameType.ZeroHour ? ZeroHourContentName : GeneralsContentName;
+
+    /// <summary>
     /// Parses a version string into an integer for manifest ID generation.
     /// Examples: "1.08" -> 108, "1.04" -> 104, "2.0" -> 200, "5" -> 5, null -> 0.
     /// </summary>
     /// <param name="version">The version string to parse.</param>
     /// <returns>The parsed integer version.</returns>
-    private static string GetGameTypeContentName(GameType gameType) =>
-        gameType == GameType.ZeroHour ? ZeroHourContentName : GeneralsContentName;
-
     private static int ParseVersionStringToInt(string? version) => GameVersionHelper.NormalizeVersion(version);
 
     /// <summary>
@@ -804,6 +809,15 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
                     normalizedVersion);
 
                 var defaultExe = gameType == GameType.ZeroHour ? GameClientConstants.ZeroHourExecutable : GameClientConstants.GeneralsExecutable;
+                if (installation.InstallationType is GameInstallationType.Steam or GameInstallationType.Wine or GameInstallationType.Lutris)
+                {
+                    var steamDatPath = Path.Combine(gamePath, GameClientConstants.SteamGameDatExecutable);
+                    if (File.Exists(steamDatPath))
+                    {
+                        defaultExe = GameClientConstants.SteamGameDatExecutable;
+                    }
+                }
+
                 var exePath = Path.Combine(gamePath, defaultExe);
 
                 // Create a game client from the manifest
@@ -1083,7 +1097,7 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
                 logger.LogWarning("Failed to pool GameClient manifest {Id}: {Error}", clientManifestId, string.Join(", ", addResult?.Errors ?? []));
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "Error ensuring GameClient manifest for {GameType} in {InstallationId}", gameType, installation.Id);
         }

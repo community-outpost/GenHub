@@ -26,6 +26,14 @@ public interface ICrcMappingRegistry
     bool TryGetEntryByExeCrc(string exeCrc, out CrcMappingEntry? entry);
 
     /// <summary>
+    /// Tries to get any mapping entry or data patch matching a configuration INI CRC.
+    /// </summary>
+    /// <param name="iniCrc">The configuration INI CRC in hex format.</param>
+    /// <param name="entry">The found mapping entry, or null if not found.</param>
+    /// <returns>True if a match was found; otherwise false.</returns>
+    bool TryGetEntryByIniCrc(string iniCrc, out CrcMappingEntry? entry);
+
+    /// <summary>
     /// Tries to get the mapping entry matching an executable SHA-256 hash.
     /// </summary>
     /// <param name="sha256">The SHA-256 hash string.</param>

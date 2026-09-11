@@ -470,7 +470,7 @@
     <Style Selector="ToggleButton.SplitRight">
       <Setter Property="CornerRadius" Value="0,6,6,0" />
       <Setter Property="BorderThickness" Value="1,0,0,0" />
-      <Setter Property="BorderBrush" Value="#40FFFFFF" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
       <Setter Property="Padding" Value="7,0" />
       <Setter Property="Margin" Value="0" />
     </Style>

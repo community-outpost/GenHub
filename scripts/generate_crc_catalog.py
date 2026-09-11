@@ -7,6 +7,7 @@ Crawls TheSuperHackers (GitHub Releases) and GeneralsOnline (CDN) to build and u
 import argparse
 import concurrent.futures
 import datetime
+import http.client
 import hashlib
 import io
 import json
@@ -194,9 +195,44 @@ def normalize_hex(val: str) -> str:
     return f"0x{val.upper()}"
 
 
+def compute_sage_legacy_crc(data: bytes) -> str:
+    """Computes SAGE engine 32-bit ROL-1 byte-by-byte checksum (exeCRC)."""
+    val = 0
+    for b in data:
+        val = ((val << 1) + b + (val >> 31)) & 0xFFFFFFFF
+    return f"0x{val:08X}"
+
+
+def compute_sage_xfer_crc(data: bytes) -> str:
+    """Computes SAGE network transfer checksum (iniCRC) on normalized INI lines."""
+    val = 0
+    i = 0
+    n = len(data)
+    while n - i >= 4:
+        chunk = (data[i] << 24) | (data[i + 1] << 16) | (data[i + 2] << 8) | data[i + 3]
+        val = ((val << 1) + chunk + (val >> 31)) & 0xFFFFFFFF
+        i += 4
+    rem = n - i
+    if rem == 1:
+        chunk = data[i]
+        val = ((val << 1) + chunk + (val >> 31)) & 0xFFFFFFFF
+    elif rem == 2:
+        chunk = data[i] | (data[i + 1] << 8)
+        val = ((val << 1) + chunk + (val >> 31)) & 0xFFFFFFFF
+    elif rem == 3:
+        chunk = data[i] | (data[i + 1] << 8) | (data[i + 2] << 16)
+        val = ((val << 1) + chunk + (val >> 31)) & 0xFFFFFFFF
+
+    bswap = (((val & 0xFF000000) >> 24) |
+             ((val & 0x00FF0000) >> 8) |
+             ((val & 0x0000FF00) << 8) |
+             ((val & 0x000000FF) << 24))
+    return f"0x{bswap:08X}"
+
+
 def compute_buffer_crc(data: bytes) -> str:
-    """Computes CRC-32 for raw binary data and formats as uppercase hex string."""
-    return f"0x{zlib.crc32(data) & 0xFFFFFFFF:08X}"
+    """Computes SAGE legacy checksum for raw binary data and formats as uppercase hex string."""
+    return compute_sage_legacy_crc(data)
 
 
 def compute_buffer_sha256(data: bytes) -> str:
@@ -240,7 +276,7 @@ def inspect_archive_binary(download_url: str, binary_patterns: list[str]) -> tup
                     ini_crc = compute_buffer_crc(ini_bytes)
 
             return exe_crc, sha256, ini_crc
-    except (OSError, zipfile.BadZipFile) as e:
+    except (OSError, zipfile.BadZipFile, http.client.HTTPException, zlib.error, EOFError) as e:
         print(f"Warning: could not inspect archive {download_url}: {e}", file=sys.stderr)
         return "", "", ""
 
@@ -406,6 +442,7 @@ def filter_available_candidates(candidates: list[tuple[str, str, str, str]]) -> 
                     valid_candidates.append(cand)
             except OSError as e:
                 print(f"Warning: error probing candidate {cand[3]}: {e}", file=sys.stderr)
+    valid_candidates.sort(key=lambda c: (c[0], c[1], c[3]))
     return valid_candidates
 
 
@@ -480,12 +517,10 @@ def _has_partial_crc_match(item_exe: str, item_ini: str, ex_exe: str, ex_ini: st
 
 
 def _has_same_cdn_url(item: dict, existing_entry: dict) -> bool:
-    """Returns True if both entries share the same CDN URL, the item has a sha256, and the existing entry lacks one."""
-    return bool(
-        not existing_entry.get("sha256")
-        and item.get("sha256")
-        and existing_entry.get("cdnUrl") == item.get("cdnUrl")
-    )
+    """Returns True if both entries share the same non-empty CDN URL."""
+    item_url = item.get("cdnUrl")
+    ex_url = existing_entry.get("cdnUrl")
+    return bool(item_url and ex_url and item_url == ex_url)
 
 
 def _check_catalog_entry_match(
@@ -557,10 +592,12 @@ def merge_catalogs(existing: list[dict], crawled: list[dict]) -> list[dict]:
 
     merged = {}
     for entry in existing:
-        if "manifestId" in entry:
-            entry_copy = dict(entry)
-            entry_copy["manifestId"] = normalize_manifest_id(entry_copy["manifestId"])
-            merged[entry_key(entry_copy)] = entry_copy
+        if not entry.get("manifestId"):
+            print(f"Validation warning: skipping existing catalog entry without manifestId: {entry}", file=sys.stderr)
+            continue
+        entry_copy = dict(entry)
+        entry_copy["manifestId"] = normalize_manifest_id(entry_copy["manifestId"])
+        merged[entry_key(entry_copy)] = entry_copy
 
     for item in crawled:
         m_id = item.get("manifestId")
@@ -610,17 +647,27 @@ def _validate_crc_fields(m_id: str, entry: dict) -> bool:
 
 
 def _validate_seen_manifest(m_id: str, entry: dict, seen_manifests: dict) -> bool:
-    """Checks for duplicate or conflicting exeCrc for previously seen manifest IDs."""
+    """Checks for duplicate or conflicting exeCrc / iniCrc / cdnUrl for previously seen manifest IDs."""
     new_exe = (entry.get("exeCrc") or "").lower()
+    new_ini = (entry.get("iniCrc") or "").lower()
+    new_cdn = entry.get("cdnUrl")
+
     if m_id not in seen_manifests:
         seen_manifests[m_id] = entry
         return True
 
     existing_entry = seen_manifests[m_id]
     ex_exe = (existing_entry.get("exeCrc") or "").lower()
-    if not ex_exe and new_exe:
-        seen_manifests[m_id] = entry
-        return True
+    ex_ini = (existing_entry.get("iniCrc") or "").lower()
+    ex_cdn = existing_entry.get("cdnUrl")
+
+    if ex_cdn and new_cdn and ex_cdn == new_cdn:
+        if (ex_exe and new_exe and ex_exe != new_exe) or (ex_ini and new_ini and ex_ini != new_ini):
+            print(
+                f"Validation error at {m_id}: conflicting CRCs ({new_exe}/{new_ini} vs {ex_exe}/{ex_ini}) for same cdnUrl {new_cdn}",
+                file=sys.stderr,
+            )
+            return False
 
     if ex_exe and new_exe and ex_exe != new_exe:
         print(
@@ -687,8 +734,10 @@ def _load_existing_mappings(output_path: str, base_mappings: list[dict]) -> list
     try:
         with open(output_path, "r", encoding="utf-8") as f:
             loaded = json.load(f)
-            if isinstance(loaded, dict) and "mappings" in loaded:
+            if isinstance(loaded, dict) and "mappings" in loaded and isinstance(loaded["mappings"], list):
                 return merge_catalogs(base_mappings, loaded["mappings"])
+            else:
+                print(f"Warning: existing catalog at {output_path} is not an object containing a 'mappings' list; falling back to base mappings.", file=sys.stderr)
     except CatalogConflictError as e:
         print(f"Error: Catalog conflict detected in existing catalog: {e}", file=sys.stderr)
         sys.exit(1)
@@ -702,10 +751,15 @@ def _crawl_and_merge(existing_mappings: list[dict], inspect_binaries: bool) -> l
     """Crawls upstream release feeds and merges into existing mappings."""
     try:
         sh_crawled = crawl_superhackers_releases(inspect_binaries=inspect_binaries)
+        go_crawled = crawl_generalsonline_releases(inspect_binaries=inspect_binaries)
+
+        if not sh_crawled and not go_crawled:
+            print("Error: crawl failed to discover any entries from upstream sources; aborting generation to prevent publishing a stale catalog.", file=sys.stderr)
+            sys.exit(1)
+
         if sh_crawled:
             existing_mappings = merge_catalogs(existing_mappings, sh_crawled)
 
-        go_crawled = crawl_generalsonline_releases(inspect_binaries=inspect_binaries)
         if go_crawled:
             existing_mappings = merge_catalogs(existing_mappings, go_crawled)
         return existing_mappings

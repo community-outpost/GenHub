@@ -392,8 +392,8 @@ public class SteamLauncher : ISteamLauncher
 
             var description = versionInfo.FileDescription;
             if (!string.IsNullOrEmpty(description) &&
-                description.Contains("GenHub", StringComparison.OrdinalIgnoreCase) &&
-                description.Contains("Proxy", StringComparison.OrdinalIgnoreCase))
+                description.Contains(SteamConstants.AppNameToken, StringComparison.OrdinalIgnoreCase) &&
+                description.Contains(SteamConstants.ProxyDescriptionToken, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -436,11 +436,10 @@ public class SteamLauncher : ISteamLauncher
                 }
                 else
                 {
-                    _logger.LogInformation(
-                        "[SteamLauncher] Target executable {Exe} is already genuine; removing stale backup {Backup}",
+                    _logger.LogWarning(
+                        "[SteamLauncher] Target executable {Exe} is neither identical to backup nor identified as proxy; preserving backup at {Backup}",
                         executableName,
                         backupPath);
-                    File.Delete(backupPath);
                 }
             }
             else

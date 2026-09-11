@@ -44,4 +44,14 @@ public static class SteamConstants
     /// The product and internal name of the proxy launcher.
     /// </summary>
     public const string ProxyLauncherName = "GenHub.ProxyLauncher";
+
+    /// <summary>
+    /// The application name token used for identifying proxy launchers.
+    /// </summary>
+    public const string AppNameToken = "GenHub";
+
+    /// <summary>
+    /// The proxy description token used for identifying proxy launchers.
+    /// </summary>
+    public const string ProxyDescriptionToken = "Proxy";
 }

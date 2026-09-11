@@ -219,7 +219,7 @@ public partial class GameProfileLauncherViewModel(
                 {
                     try
                     {
-                        var activeLaunches = await launchRegistry.GetAllActiveLaunchesAsync();
+                        var activeLaunches = await Task.Run(() => launchRegistry.GetAllActiveLaunchesAsync());
                         var activeLaunchDict = activeLaunches
                             .GroupBy(l => l.ProfileId, StringComparer.OrdinalIgnoreCase)
                             .ToDictionary(
@@ -389,6 +389,13 @@ public partial class GameProfileLauncherViewModel(
                     (message.ProcessId > 0 && p.ProcessId == message.ProcessId));
                 if (profile != null)
                 {
+                    if (message.ProcessId > 0 && profile.ProcessId > 0 && message.ProcessId != profile.ProcessId)
+                    {
+                        logger.LogDebug("Ignoring stale stop message for {ProfileId} (Msg PID: {MsgPid}, Current PID: {CurrentPid})",
+                            message.ProfileId, message.ProcessId, profile.ProcessId);
+                        return;
+                    }
+
                     profile.IsProcessRunning = false;
                     profile.ProcessId = 0;
                     profile.NotifyCanLaunchChanged();

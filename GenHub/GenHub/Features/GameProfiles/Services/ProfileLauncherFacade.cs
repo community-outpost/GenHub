@@ -1837,7 +1837,11 @@ public class ProfileLauncherFacade(
     {
         if (installationCasPoolService != null && installation != null)
         {
-            await installationCasPoolService.EnsurePoolPathAsync([installation], cancellationToken);
+            var ensured = await installationCasPoolService.EnsurePoolPathAsync([installation], cancellationToken);
+            if (!ensured)
+            {
+                logger.LogWarning("Failed to ensure CAS pool path for installation {InstallationId} ({InstallationPath})", installation.Id, installation.InstallationPath);
+            }
         }
     }
 

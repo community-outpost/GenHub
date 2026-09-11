@@ -167,4 +167,179 @@ public sealed class CrcCatalogUpdateServiceTests : IDisposable
         Assert.NotNull(found);
         Assert.Equal("1.213262.generalsonline.gameclient.zerohour", found.ManifestId);
     }
+
+    /// <summary>
+    /// Verifies that when cancellation is requested by the caller, OperationCanceledException is rethrown.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckForUpdatesAsync_WhenCancelledByCaller_RethrowsOperationCanceledExceptionAsync()
+    {
+        var httpHandlerMock = new Mock<HttpMessageHandler>();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        httpHandlerMock
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ThrowsAsync(new OperationCanceledException(cts.Token));
+
+        var httpClient = new HttpClient(httpHandlerMock.Object);
+        var registry = new CrcMappingRegistry();
+        var dynamicCacheMock = new Mock<IDynamicContentCache>();
+        var configProviderMock = new Mock<IConfigurationProviderService>();
+        configProviderMock.Setup(c => c.GetApplicationDataPath()).Returns(_tempAppDataPath);
+
+        var service = new CrcCatalogUpdateService(
+            httpClient,
+            registry,
+            dynamicCacheMock.Object,
+            configProviderMock.Object,
+            NullLogger<CrcCatalogUpdateService>.Instance);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.CheckForUpdatesAsync(cts.Token));
+    }
+
+    /// <summary>
+    /// Verifies that when remote responds with malformed JSON, the service falls back to local catalog.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckForUpdatesAsync_WhenRemoteReturnsMalformedJson_FallsBackToLocalCatalogAsync()
+    {
+        var localCatalog = new CrcCatalog
+        {
+            SchemaVersion = 1,
+            TotalEntries = 1,
+            Mappings =
+            [
+                new()
+                {
+                    ExeCrc = "0x8B75EFD4",
+                    IniCrc = "0x5CB7992C",
+                    ManifestId = "1.213262.generalsonline.gameclient.zerohour",
+                    Publisher = "generalsonline",
+                    GameType = "ZeroHour",
+                    Version = "021326_QFE2",
+                },
+            ],
+        };
+
+        var fallbackPath = Path.Combine(_tempAppDataPath, ReplayManagerConstants.CrcCatalogLocalFileName);
+        await File.WriteAllTextAsync(fallbackPath, JsonSerializer.Serialize(localCatalog));
+
+        var httpHandlerMock = new Mock<HttpMessageHandler>();
+        httpHandlerMock
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent("{ not valid json at all ..."),
+            });
+
+        var httpClient = new HttpClient(httpHandlerMock.Object);
+        var registry = new CrcMappingRegistry();
+        var dynamicCacheMock = new Mock<IDynamicContentCache>();
+        var configProviderMock = new Mock<IConfigurationProviderService>();
+        configProviderMock.Setup(c => c.GetApplicationDataPath()).Returns(_tempAppDataPath);
+
+        var service = new CrcCatalogUpdateService(
+            httpClient,
+            registry,
+            dynamicCacheMock.Object,
+            configProviderMock.Object,
+            NullLogger<CrcCatalogUpdateService>.Instance);
+
+        var result = await service.CheckForUpdatesAsync(CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.True(registry.TryGetEntry("0x8B75EFD4", "0x5CB7992C", out var found));
+        Assert.NotNull(found);
+        Assert.Equal("1.213262.generalsonline.gameclient.zerohour", found.ManifestId);
+    }
+
+    /// <summary>
+    /// Verifies that when remote responds with an unsupported schema version, the service falls back to local catalog.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckForUpdatesAsync_WhenRemoteHasUnsupportedSchemaVersion_FallsBackToLocalCatalogAsync()
+    {
+        var localCatalog = new CrcCatalog
+        {
+            SchemaVersion = 1,
+            TotalEntries = 1,
+            Mappings =
+            [
+                new()
+                {
+                    ExeCrc = "0x8B75EFD4",
+                    IniCrc = "0x5CB7992C",
+                    ManifestId = "1.213262.generalsonline.gameclient.zerohour",
+                    Publisher = "generalsonline",
+                    GameType = "ZeroHour",
+                    Version = "021326_QFE2",
+                },
+            ],
+        };
+
+        var fallbackPath = Path.Combine(_tempAppDataPath, ReplayManagerConstants.CrcCatalogLocalFileName);
+        await File.WriteAllTextAsync(fallbackPath, JsonSerializer.Serialize(localCatalog));
+
+        var remoteCatalog = new CrcCatalog
+        {
+            SchemaVersion = 999,
+            TotalEntries = 1,
+            Mappings =
+            [
+                new()
+                {
+                    ExeCrc = "0x99999999",
+                    IniCrc = "0x99999999",
+                    ManifestId = "future.manifest",
+                },
+            ],
+        };
+
+        var httpHandlerMock = new Mock<HttpMessageHandler>();
+        httpHandlerMock
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent(JsonSerializer.Serialize(remoteCatalog)),
+            });
+
+        var httpClient = new HttpClient(httpHandlerMock.Object);
+        var registry = new CrcMappingRegistry();
+        var dynamicCacheMock = new Mock<IDynamicContentCache>();
+        var configProviderMock = new Mock<IConfigurationProviderService>();
+        configProviderMock.Setup(c => c.GetApplicationDataPath()).Returns(_tempAppDataPath);
+
+        var service = new CrcCatalogUpdateService(
+            httpClient,
+            registry,
+            dynamicCacheMock.Object,
+            configProviderMock.Object,
+            NullLogger<CrcCatalogUpdateService>.Instance);
+
+        var result = await service.CheckForUpdatesAsync(CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.True(registry.TryGetEntry("0x8B75EFD4", "0x5CB7992C", out var found));
+        Assert.NotNull(found);
+        Assert.Equal("1.213262.generalsonline.gameclient.zerohour", found.ManifestId);
+        Assert.False(registry.TryGetEntry("0x99999999", "0x99999999", out _));
+    }
 }

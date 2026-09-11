@@ -2432,6 +2432,286 @@ public sealed class ReplayDirectoryServiceTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Verifies that ResolveCompatibility resolves to RequiresProfile when the client manifest is installed in acquiredIds but no profile exists.
+    /// </summary>
+    [Fact]
+    public void ResolveCompatibility_WhenClientInstalledButNoProfile_ResolvesToRequiresProfile()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "MatchInstalled.rep",
+            FullPath = "/replays/MatchInstalled.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0x27533BB0,
+                IniCrc = 0x76B251A3,
+            },
+        };
+
+        var entry = new CrcMappingEntry
+        {
+            ExeCrc = "0x27533BB0",
+            IniCrc = "0x76B251A3",
+            ManifestId = "1.20260821.thesuperhackers.gameclient.zerohour",
+            Publisher = "thesuperhackers",
+            GameType = "ZeroHour",
+            Version = "2026-08-21",
+        };
+
+        CrcMappingEntry? outEntry = entry;
+        _mockCrcRegistry
+            .Setup(r => r.TryGetEntry("0x27533BB0", "0x76B251A3", out outEntry))
+            .Returns(true);
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var acquiredIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "1.20260821.thesuperhackers.gameclient.zerohour",
+        };
+
+        service.ResolveCompatibility(replay, acquiredIds, []);
+
+        Assert.Equal(ReplayCompatibilityStatus.RequiresProfile, replay.CompatibilityStatus);
+        Assert.Null(replay.MatchingProfileId);
+        Assert.Equal("Profile Needed", replay.CompatibilityBadgeText);
+    }
+
+    /// <summary>
+    /// Verifies that ResolveCompatibility resolves to Downloadable when client is not installed but has a CDN URL or third-party manifest ID.
+    /// </summary>
+    [Fact]
+    public void ResolveCompatibility_WhenNotInstalledAndHasCdnUrlOrNonRetailManifest_ResolvesToDownloadable()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "MatchDownloadable.rep",
+            FullPath = "/replays/MatchDownloadable.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0x6DBF4405,
+                IniCrc = 0x51ACED23,
+            },
+        };
+
+        var entry = new CrcMappingEntry
+        {
+            ExeCrc = "0x6DBF4405",
+            IniCrc = "0x51ACED23",
+            ManifestId = "1.82826.generalsonline.gameclient.zerohour",
+            CdnUrl = "https://cdn.playgenerals.online/GeneralsOnline_portable_081326_QFE3.zip",
+            Publisher = "generalsonline",
+            GameType = "ZeroHour",
+            Version = "082826",
+        };
+
+        CrcMappingEntry? outEntry = entry;
+        _mockCrcRegistry
+            .Setup(r => r.TryGetEntry("0x6DBF4405", "0x51ACED23", out outEntry))
+            .Returns(true);
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        service.ResolveCompatibility(replay, new HashSet<string>(), []);
+
+        Assert.Equal(ReplayCompatibilityStatus.Downloadable, replay.CompatibilityStatus);
+        Assert.Null(replay.MatchingProfileId);
+        Assert.Equal("Download Required", replay.CompatibilityBadgeText);
+    }
+
+    /// <summary>
+    /// Verifies that ResolveCompatibility resolves to Orphaned when a retail client is not installed on the system and has no CDN URL.
+    /// </summary>
+    [Fact]
+    public void ResolveCompatibility_WhenRetailClientNotInstalled_ResolvesToOrphaned()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "MatchRetailOrphaned.rep",
+            FullPath = "/replays/MatchRetailOrphaned.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0xDA2B4B18,
+                IniCrc = 0xFEAAE3F3,
+            },
+        };
+
+        var entry = new CrcMappingEntry
+        {
+            ExeCrc = "0xDA2B4B18",
+            IniCrc = "0xFEAAE3F3",
+            ManifestId = "1.104.retail.gameclient.zerohour",
+            Publisher = "retail",
+            GameType = "ZeroHour",
+            Version = "1.04",
+            CdnUrl = null,
+        };
+
+        CrcMappingEntry? outEntry = entry;
+        _mockCrcRegistry
+            .Setup(r => r.TryGetEntry("0xDA2B4B18", "0xFEAAE3F3", out outEntry))
+            .Returns(true);
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        service.ResolveCompatibility(replay, new HashSet<string>(), []);
+
+        Assert.Equal(ReplayCompatibilityStatus.Orphaned, replay.CompatibilityStatus);
+        Assert.Null(replay.MatchingProfileId);
+        Assert.Equal("Custom / Unmapped", replay.CompatibilityBadgeText);
+    }
+
+    /// <summary>
+    /// Verifies that when an exact pair is missing, but base client is known and user has a local acquired manifest matching the INI CRC, compatibility is resolved.
+    /// </summary>
+    [Fact]
+    public void ResolveCompatibility_WhenExactPairMissing_MatchesLocalAcquiredManifest_ResolvesSuccessfully()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "LocalPatchMatch.rep",
+            FullPath = "/replays/LocalPatchMatch.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0xB9DB8815,
+                IniCrc = 0x81FB5632,
+            },
+        };
+
+        var baseClient = new CrcMappingEntry
+        {
+            ExeCrc = "0xB9DB8815",
+            IniCrc = "0x5CB7992C",
+            ManifestId = "1.828261.generalsonline.gameclient.zerohour",
+            Publisher = "generalsonline",
+            GameType = "ZeroHour",
+            Version = "082826_QFE1",
+            CdnUrl = "https://cdn.playgenerals.online/client.zip",
+        };
+
+        CrcMappingEntry? nullEntry = null;
+        CrcMappingEntry? outBase = baseClient;
+        _mockCrcRegistry
+            .Setup(r => r.TryGetEntry("0xB9DB8815", "0x81FB5632", out nullEntry))
+            .Returns(false);
+        _mockCrcRegistry
+            .Setup(r => r.TryGetEntryByExeCrc("0xB9DB8815", out outBase))
+            .Returns(true);
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var acquiredIds = new HashSet<string>
+        {
+            "1.828261.generalsonline.gameclient.zerohour",
+            "1.828261.generalsonline.patch.gamedata",
+        };
+
+        service.ResolveCompatibility(replay, acquiredIds, []);
+
+        Assert.Equal(ReplayCompatibilityStatus.RequiresProfile, replay.CompatibilityStatus);
+        Assert.NotNull(replay.MatchedClient);
+        Assert.Equal("1.828261.generalsonline.patch.gamedata", replay.MatchedClient.DataPatchManifestId);
+    }
+
+    /// <summary>
+    /// Verifies that when an exact pair is missing, but base client and catalog data patch are known, resolves to Downloadable.
+    /// </summary>
+    [Fact]
+    public void ResolveCompatibility_WhenExactPairMissing_MatchesCatalogDataPatch_ResolvesToDownloadable()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "CatalogPatchMatch.rep",
+            FullPath = "/replays/CatalogPatchMatch.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0xB9DB8815,
+                IniCrc = 0x81FB5632,
+            },
+        };
+
+        var baseClient = new CrcMappingEntry
+        {
+            ExeCrc = "0xB9DB8815",
+            IniCrc = "0x5CB7992C",
+            ManifestId = "1.828261.generalsonline.gameclient.zerohour",
+            Publisher = "generalsonline",
+            GameType = "ZeroHour",
+            Version = "082826_QFE1",
+            CdnUrl = "https://cdn.playgenerals.online/client.zip",
+        };
+
+        var catalogPatch = new CrcMappingEntry
+        {
+            ExeCrc = "0x00000000",
+            IniCrc = "0x81FB5632",
+            ManifestId = "1.101.thesuperhackers.patch.gamedata",
+            DataPatchManifestId = "1.101.thesuperhackers.patch.gamedata",
+            DataPatchName = "CommunityPatch Core INI 1.0.1 (81FB5632)",
+            DataPatchCdnUrl = "https://github.com/TheSuperHackers/GeneralsGamePatch2/releases/download/1.0.1/500_900_CommunityPatch_CoreINI.zip",
+            Publisher = "thesuperhackers",
+            GameType = "ZeroHour",
+            Version = "1.0.1",
+        };
+
+        CrcMappingEntry? nullEntry = null;
+        CrcMappingEntry? outBase = baseClient;
+        CrcMappingEntry? outPatch = catalogPatch;
+        _mockCrcRegistry
+            .Setup(r => r.TryGetEntry("0xB9DB8815", "0x81FB5632", out nullEntry))
+            .Returns(false);
+        _mockCrcRegistry
+            .Setup(r => r.TryGetEntryByExeCrc("0xB9DB8815", out outBase))
+            .Returns(true);
+        _mockCrcRegistry
+            .Setup(r => r.TryGetEntryByIniCrc("0x81FB5632", out outPatch))
+            .Returns(true);
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        service.ResolveCompatibility(replay, new HashSet<string>(), []);
+
+        Assert.Equal(ReplayCompatibilityStatus.Downloadable, replay.CompatibilityStatus);
+        Assert.NotNull(replay.MatchedClient);
+        Assert.Equal("1.101.thesuperhackers.patch.gamedata", replay.MatchedClient.DataPatchManifestId);
+    }
+
     private static ReplayFile CreateTestReplayForPathResolution(string publisher) => new()
     {
         FileName = "Test.rep",

@@ -10,12 +10,12 @@ public static class ReplayManagerConstants
     /// <summary>
     /// File extension for Command &amp; Conquer Generals replay files.
     /// </summary>
-    public const string ReplayFileExtension = ".rep";
+    public const string ReplayFileExtension = FileTypes.ReplayFileExtension;
 
     /// <summary>
     /// File extension for ZIP archive files.
     /// </summary>
-    public const string ZipFileExtension = ".zip";
+    public const string ZipFileExtension = FileTypes.ZipFileExtension;
 
     /// <summary>
     /// Environment variable name to override the default community CRC mapping catalog endpoint.
@@ -139,12 +139,6 @@ public static class ReplayManagerConstants
     public const string DefaultCrcCatalogUrl = "https://raw.githubusercontent.com/community-outpost/GenHub/development/GenHub/GenHub/Resources/crc-mapping.json";
 
     /// <summary>
-    /// Fallback alias for backward compatibility.
-    /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official GenHub endpoint for community gameclient CRC catalog.")]
-    public const string DefaultCrcCatalogGistUrl = DefaultCrcCatalogUrl;
-
-    /// <summary>
     /// Cache key for storing the parsed CRC catalog in the dynamic content cache.
     /// </summary>
     public const string CrcCatalogCacheKey = "ReplayManager:CrcCatalog";
@@ -153,21 +147,6 @@ public static class ReplayManagerConstants
     /// Local offline fallback file name for storing cached CRC mappings in app data directory.
     /// </summary>
     public const string CrcCatalogLocalFileName = "crc-mapping.json";
-
-    /// <summary>
-    /// Manifest segment indicating official retail distribution.
-    /// </summary>
-    public const string RetailManifestSegment = ".retail.";
-
-    /// <summary>
-    /// Manifest segment pattern indicating Steam distribution.
-    /// </summary>
-    public const string SteamManifestSegment = ".steam.";
-
-    /// <summary>
-    /// Manifest segment pattern indicating EA App distribution.
-    /// </summary>
-    public const string EaAppManifestSegment = ".eaapp.";
 
     /// <summary>
     /// Default integer version number for Command &amp; Conquer Generals: Zero Hour retail manifests (1.04).

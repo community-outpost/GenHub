@@ -228,16 +228,16 @@ public partial class ReplayManagerViewModel(
             _runningProfileIds.Remove(message.ProfileId);
         }
 
-        foreach (var replay in GeneralsReplays.Concat(ZeroHourReplays)
-                     .Where(replay => string.Equals(replay.MatchingProfileId, message.ProfileId, StringComparison.OrdinalIgnoreCase)))
-        {
-            replay.MatchingProfileId = null;
-            replay.MatchingProfileName = null;
-            replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
-        }
-
         Dispatcher.UIThread.Post(async () =>
         {
+            foreach (var replay in GeneralsReplays.Concat(ZeroHourReplays)
+                         .Where(replay => string.Equals(replay.MatchingProfileId, message.ProfileId, StringComparison.OrdinalIgnoreCase)))
+            {
+                replay.MatchingProfileId = null;
+                replay.MatchingProfileName = null;
+                replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
+            }
+
             try
             {
                 await LoadReplaysAsync();
@@ -1053,7 +1053,7 @@ public partial class ReplayManagerViewModel(
     [RelayCommand]
     private async Task CreateProfileForReplayAsync(ReplayFile replay)
     {
-        if (replay == null)
+        if (replay == null || IsBusy)
         {
             return;
         }
@@ -1108,7 +1108,7 @@ public partial class ReplayManagerViewModel(
     [RelayCommand]
     private async Task LaunchReplayAsync(ReplayFile replay)
     {
-        if (replay == null)
+        if (replay == null || IsBusy)
         {
             return;
         }
