@@ -1,4 +1,3 @@
-using System;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -7,7 +6,9 @@ using GenHub.Features.Tools.GenHotkeys.ViewModels;
 namespace GenHub.Features.Tools.GenHotkeys.Views;
 
 /// <summary>
-/// Interaction logic for GenHotkeysView.axaml.
+/// Code-behind for the GenHotkeys main tool view.
+/// Supports keyboard-based hotkey assignment: when an action is selected,
+/// pressing an alphanumeric key immediately assigns it, Backspace/Delete clears it.
 /// </summary>
 public partial class GenHotkeysView : UserControl
 {
@@ -17,18 +18,26 @@ public partial class GenHotkeysView : UserControl
     public GenHotkeysView()
     {
         InitializeComponent();
+        AddHandler(KeyDownEvent, OnRootKeyDown, RoutingStrategies.Tunnel);
     }
 
     private void OnKeyButtonClicked(object? sender, RoutedEventArgs e)
     {
-        if (sender is Button { Tag: string tag } && tag.Length > 0 && DataContext is GenHotkeysViewModel vm)
+        if (sender is Button btn && btn.Content is string text && text.Length == 1 &&
+            DataContext is GenHotkeysViewModel vm)
         {
-            _ = vm.AssignHotkeyAsync(tag[0]);
+            vm.AssignHotkey(text[0]);
         }
     }
 
     private void OnRootKeyDown(object? sender, KeyEventArgs e)
     {
+        // Ignore key combinations with modifiers (Ctrl, Alt, Shift, Meta) so app shortcuts aren't swallowed
+        if (e.KeyModifiers != KeyModifiers.None)
+        {
+            return;
+        }
+
         // Do not intercept keystrokes when the user is typing in a text input field (e.g. naming/renaming a profile)
         if (e.Source is TextBox or AutoCompleteBox ||
             TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() is TextBox or AutoCompleteBox)

@@ -325,12 +325,20 @@ public partial class GenHotkeysViewModel(
             OverlayCorner = SelectedCorner,
         };
 
-        await profileStorageService.SaveProfileAsync(profile, CancellationToken.None);
-        Profiles.Add(profile);
-        SelectedProfile = profile;
-        NewProfileName = string.Empty;
+        try
+        {
+            await profileStorageService.SaveProfileAsync(profile, CancellationToken.None);
+            Profiles.Add(profile);
+            SelectedProfile = profile;
+            NewProfileName = string.Empty;
 
-        StatusMessage = $"Created profile '{name}'.";
+            StatusMessage = $"Created profile '{name}'.";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to create profile '{Name}'", name);
+            StatusMessage = $"Failed to create profile: {ex.Message}";
+        }
     }
 
     /// <summary>
@@ -385,11 +393,19 @@ public partial class GenHotkeysViewModel(
         }
 
         var toDelete = SelectedProfile;
-        await profileStorageService.DeleteProfileAsync(toDelete.Id, CancellationToken.None);
-        Profiles.Remove(toDelete);
-        SelectedProfile = Profiles.FirstOrDefault();
+        try
+        {
+            await profileStorageService.DeleteProfileAsync(toDelete.Id, CancellationToken.None);
+            Profiles.Remove(toDelete);
+            SelectedProfile = Profiles.FirstOrDefault();
 
-        StatusMessage = $"Deleted profile '{toDelete.Name}'.";
+            StatusMessage = $"Deleted profile '{toDelete.Name}'.";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to delete profile '{Name}'", toDelete.Name);
+            StatusMessage = $"Failed to delete profile: {ex.Message}";
+        }
     }
 
     /// <summary>
@@ -446,6 +462,11 @@ public partial class GenHotkeysViewModel(
             SelectedProfile.OverlayEnabled = OverlayEnabled;
             SelectedProfile.OverlayCorner = SelectedCorner;
             await profileStorageService.SaveProfileAsync(SelectedProfile, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to save profile '{Name}'", SelectedProfile.Name);
+            StatusMessage = $"Failed to save profile: {ex.Message}";
         }
         finally
         {
