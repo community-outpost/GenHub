@@ -775,8 +775,8 @@ public class ControlBarPackageProcessor(
             var tempArtBig = Path.Combine(tempRoot, "temp_art.big");
             var tempDataBig = Path.Combine(tempRoot, "temp_data.big");
 
-            await BigFilePacker.PackAsync(artPackRoot, tempArtBig);
-            await BigFilePacker.PackAsync(dataPackRoot, tempDataBig);
+            await BigFilePacker.PackAsync(artPackRoot, tempArtBig, cancellationToken);
+            await BigFilePacker.PackAsync(dataPackRoot, tempDataBig, cancellationToken);
 
             File.Move(tempArtBig, artBigPath, overwrite: true);
             File.Move(tempDataBig, dataBigPath, overwrite: true);

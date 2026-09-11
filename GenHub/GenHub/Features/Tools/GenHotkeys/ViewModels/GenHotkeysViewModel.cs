@@ -611,26 +611,26 @@ public partial class GenHotkeysViewModel(
 
     private static bool IsDaisyCutterOrMoab(HotkeyActionViewModel action)
     {
-        return string.Equals(action.HotkeyString, "CONTROLBAR:DaisyCutter", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(action.HotkeyString, "CONTROLBAR:MOAB", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(action.IconName, "USADaisyCutter", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(action.IconName, "USAMOAB", StringComparison.OrdinalIgnoreCase);
+        return string.Equals(action.HotkeyString, GenHotkeysConstants.CsfLabels.DaisyCutter, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(action.HotkeyString, GenHotkeysConstants.CsfLabels.Moab, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(action.IconName, GenHotkeysConstants.IconNames.UsaDaisyCutter, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(action.IconName, GenHotkeysConstants.IconNames.UsaMoab, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsChinaMines(HotkeyActionViewModel action)
     {
-        return string.Equals(action.HotkeyString, "CONTROLBAR:UpgradeChinaMines", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(action.HotkeyString, "CONTROLBAR:UpgradeEMPMines", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(action.IconName, "PRCLandMine", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(action.IconName, "PRCNeutronMines", StringComparison.OrdinalIgnoreCase);
+        return string.Equals(action.HotkeyString, GenHotkeysConstants.CsfLabels.UpgradeChinaMines, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(action.HotkeyString, GenHotkeysConstants.CsfLabels.UpgradeEmpMines, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(action.IconName, GenHotkeysConstants.IconNames.PrcLandMine, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(action.IconName, GenHotkeysConstants.IconNames.PrcNeutronMines, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsSatelliteHack(HotkeyActionViewModel action)
     {
-        return string.Equals(action.HotkeyString, "CONTROLBAR:UpgradeChinaSatelliteHackOne", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(action.HotkeyString, "CONTROLBAR:UpgradeChinaSatelliteHackTwo", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(action.IconName, "PRCSatelliteHack1", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(action.IconName, "PRCSatelliteHack2", StringComparison.OrdinalIgnoreCase);
+        return string.Equals(action.HotkeyString, GenHotkeysConstants.CsfLabels.UpgradeChinaSatelliteHackOne, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(action.HotkeyString, GenHotkeysConstants.CsfLabels.UpgradeChinaSatelliteHackTwo, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(action.IconName, GenHotkeysConstants.IconNames.PrcSatelliteHack1, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(action.IconName, GenHotkeysConstants.IconNames.PrcSatelliteHack2, StringComparison.OrdinalIgnoreCase);
     }
 
     private static char? ResolveCurrentActionHotkey(HotkeyAction action, HotkeyProfile? profile)
