@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Platform;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools.GenHotkeys;
 using GenHub.Core.Models.Enums;
@@ -27,7 +28,7 @@ public class HotkeyProfileStorageService(
         WriteIndented = true,
     };
 
-    private readonly string _profilesDirectory = Path.Combine(appConfig.GetConfiguredDataPath(), "Hotkeys");
+    private readonly string _profilesDirectory = Path.Combine(appConfig.GetConfiguredDataPath(), GenHotkeysConstants.HotkeysStorageDirectory);
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<HotkeyProfile>> GetProfilesAsync(
@@ -75,7 +76,7 @@ public class HotkeyProfileStorageService(
         EnsureDirectory();
 
         profile.UpdatedAt = DateTime.UtcNow;
-        var filePath = Path.Combine(_profilesDirectory, $"{profile.Id}.json");
+        var filePath = GetSafeProfilePath(profile.Id);
         var json = JsonSerializer.Serialize(profile, JsonOptions);
         await File.WriteAllTextAsync(filePath, json, cancellationToken);
         logger.LogInformation("Saved hotkey profile '{Name}' ({Id})", profile.Name, profile.Id);
@@ -90,7 +91,7 @@ public class HotkeyProfileStorageService(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
 
-        var filePath = Path.Combine(_profilesDirectory, $"{profileId}.json");
+        var filePath = GetSafeProfilePath(profileId);
         if (File.Exists(filePath))
         {
             File.Delete(filePath);
@@ -115,16 +116,16 @@ public class HotkeyProfileStorageService(
             OverlayCorner = OverlayCorner.TopLeft,
         };
 
-        if (presetName.Contains("Vanilla", StringComparison.OrdinalIgnoreCase) ||
+        if (presetName.Contains(GenHotkeysConstants.PresetVanilla, StringComparison.OrdinalIgnoreCase) ||
             presetName.Contains("Default", StringComparison.OrdinalIgnoreCase))
         {
             return profile;
         }
 
         // Load corresponding CSF preset
-        var csfFileName = presetName.Contains("Legionnaire", StringComparison.OrdinalIgnoreCase)
-            ? "Presets/LegionnaireRU.csf"
-            : "Presets/LeikezeEN.csf";
+        var csfFileName = presetName.Contains(GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase)
+            ? GenHotkeysConstants.PresetsLegionnaireRu
+            : GenHotkeysConstants.PresetsLeikezeEn;
 
         var stream = TryOpenAssetStream(csfFileName);
         if (stream != null)
@@ -134,8 +135,8 @@ public class HotkeyProfileStorageService(
                 var csf = CsfFile.Load(stream);
                 foreach (var (label, value) in csf.Strings)
                 {
-                    if (label.StartsWith("CONTROLBAR:", StringComparison.OrdinalIgnoreCase) ||
-                        label.StartsWith("COMMAND:", StringComparison.OrdinalIgnoreCase))
+                    if (label.StartsWith(GenHotkeysConstants.CsfControlBarPrefix, StringComparison.OrdinalIgnoreCase) ||
+                        label.StartsWith(GenHotkeysConstants.CsfCommandPrefix, StringComparison.OrdinalIgnoreCase))
                     {
                         var hk = CsfFile.ExtractHotkey(value);
                         if (hk.HasValue)
@@ -148,6 +149,27 @@ public class HotkeyProfileStorageService(
         }
 
         return profile;
+    }
+
+    private string GetSafeProfilePath(string profileId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
+
+        var safeId = Path.GetFileName(profileId);
+        if (!string.Equals(safeId, profileId, StringComparison.Ordinal) ||
+            safeId.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+        {
+            throw new ArgumentException("Invalid profile ID: path traversal or invalid characters detected.", nameof(profileId));
+        }
+
+        var fullPath = Path.GetFullPath(Path.Combine(_profilesDirectory, $"{safeId}.json"));
+        var basePathWithSeparator = Path.GetFullPath(_profilesDirectory) + Path.DirectorySeparatorChar;
+        if (!fullPath.StartsWith(basePathWithSeparator, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Profile path escapes allowed profiles directory.", nameof(profileId));
+        }
+
+        return fullPath;
     }
 
     private void EnsureDirectory()
