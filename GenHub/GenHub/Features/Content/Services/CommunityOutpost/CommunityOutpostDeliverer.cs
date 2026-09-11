@@ -709,7 +709,7 @@ public class CommunityOutpostDeliverer(
             logger.LogInformation("Converted {Converted} compressed image files to TGA", convertedCount);
         }
 
-        await BigFilePacker.PackAsync(sourceDir, destinationPath);
+        await BigFilePacker.PackAsync(sourceDir, destinationPath, cancellationToken);
     }
 
     /// <summary>

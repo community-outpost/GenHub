@@ -55,10 +55,12 @@ public class HotkeyPackageService(
             // 1. Build and modify CSF asynchronously to avoid blocking the UI thread
             await Task.Run(() => ApplyCsfModifications(profile, stagingDir), cancellationToken);
 
-            // 2. Process Icon Overlays if enabled
+            // 2. Process Icon Overlays if enabled asynchronously to avoid blocking the UI thread
             if (profile.OverlayEnabled)
             {
-                await GenerateOverlayTexturesAsync(profile, stagingDir, progress, cancellationToken);
+                await Task.Run(
+                    () => GenerateOverlayTexturesAsync(profile, stagingDir, progress, cancellationToken),
+                    cancellationToken);
             }
 
             // 3. Pack into .big archive
@@ -229,7 +231,7 @@ public class HotkeyPackageService(
         var bigFileName = string.Format(GenHotkeysConstants.BigFileNamePattern, sanitizedName, gameTag);
         var bigFilePath = Path.Combine(packageDir, bigFileName);
 
-        await BigFilePacker.PackAsync(stagingDir, bigFilePath);
+        await BigFilePacker.PackAsync(stagingDir, bigFilePath, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         return bigFilePath;
     }
