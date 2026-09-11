@@ -10,8 +10,7 @@
              mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="750"
              x:Class="GenHub.Features.Tools.GenHotkeys.Views.GenHotkeysView"
              x:DataType="vm:GenHotkeysViewModel"
-             Focusable="True"
-             KeyDown="OnRootKeyDown">
+             Focusable="True">
 
   <UserControl.Resources>
     <ResourceDictionary>

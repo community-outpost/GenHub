@@ -297,6 +297,10 @@ public partial class GenHotkeysViewModel(
 
             StatusMessage = $"Applied '{presetName}' preset successfully.";
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to apply preset {Preset}", presetName);
@@ -333,6 +337,10 @@ public partial class GenHotkeysViewModel(
             NewProfileName = string.Empty;
 
             StatusMessage = $"Created profile '{name}'.";
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -401,6 +409,10 @@ public partial class GenHotkeysViewModel(
 
             StatusMessage = $"Deleted profile '{toDelete.Name}'.";
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to delete profile '{Name}'", toDelete.Name);
@@ -433,6 +445,10 @@ public partial class GenHotkeysViewModel(
                 ? $"Success! Addon '{result.Data.Name}' ({result.Data.Id}) registered in GenHub!"
                 : $"Export failed: {string.Join(", ", result.Errors)}";
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to export hotkeys addon");
@@ -462,6 +478,10 @@ public partial class GenHotkeysViewModel(
             SelectedProfile.OverlayEnabled = OverlayEnabled;
             SelectedProfile.OverlayCorner = SelectedCorner;
             await profileStorageService.SaveProfileAsync(SelectedProfile, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
