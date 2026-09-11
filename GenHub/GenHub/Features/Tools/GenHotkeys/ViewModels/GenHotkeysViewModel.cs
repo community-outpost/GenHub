@@ -73,7 +73,13 @@ public partial class GenHotkeysViewModel(
     private int _totalConflictsCount;
 
     [ObservableProperty]
+    private string _conflictSummary = string.Empty;
+
+    [ObservableProperty]
     private string _newProfileName = string.Empty;
+
+    [ObservableProperty]
+    private string _renameProfileText = string.Empty;
 
     /// <summary>Gets the list of available profiles for the current game.</summary>
     public ObservableCollection<HotkeyProfile> Profiles { get; } = [];
@@ -262,11 +268,21 @@ public partial class GenHotkeysViewModel(
         try
         {
             IsBusy = true;
-            BusyMessage = $"Applying preset '{presetName}'...";
+            BusyMessage = $"Applying '{presetName}' preset...";
 
             var preset = await profileStorageService.LoadPresetAsync(presetName, SelectedGame, CancellationToken.None);
-            SelectedProfile.BasePreset = presetName;
+            if (preset == null)
+            {
+                StatusMessage = $"Failed to load preset '{presetName}'.";
+                return;
+            }
+
             SelectedProfile.ClearedKeys.Clear();
+            foreach (var k in preset.ClearedKeys)
+            {
+                SelectedProfile.ClearedKeys.Add(k);
+            }
+
             SelectedProfile.KeyMappings.Clear();
             foreach (var (k, v) in preset.KeyMappings)
             {
@@ -312,6 +328,44 @@ public partial class GenHotkeysViewModel(
         NewProfileName = string.Empty;
 
         StatusMessage = $"Created profile '{name}'.";
+    }
+
+    /// <summary>
+    /// Renames the currently selected profile.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    public async Task RenameCurrentProfileAsync()
+    {
+        if (SelectedProfile == null)
+        {
+            StatusMessage = "No profile selected to rename.";
+            return;
+        }
+
+        var newName = RenameProfileText?.Trim();
+        if (string.IsNullOrWhiteSpace(newName))
+        {
+            StatusMessage = "Profile name cannot be empty.";
+            return;
+        }
+
+        if (string.Equals(SelectedProfile.Name, newName, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var oldName = SelectedProfile.Name;
+        SelectedProfile.Name = newName;
+        await profileStorageService.SaveProfileAsync(SelectedProfile, CancellationToken.None);
+
+        var index = Profiles.IndexOf(SelectedProfile);
+        if (index >= 0)
+        {
+            Profiles[index] = SelectedProfile;
+        }
+
+        StatusMessage = $"Renamed profile '{oldName}' to '{newName}'.";
     }
 
     /// <summary>
@@ -472,10 +526,15 @@ public partial class GenHotkeysViewModel(
     {
         if (value != null)
         {
+            RenameProfileText = value.Name;
             OverlayEnabled = value.OverlayEnabled;
             SelectedCorner = value.OverlayCorner;
             ApplyProfileMappingsToViewModels();
             ValidateConflicts();
+        }
+        else
+        {
+            RenameProfileText = string.Empty;
         }
     }
 
@@ -649,7 +708,7 @@ public partial class GenHotkeysViewModel(
     private void LoadBitmapForObject(
         HotkeyGameObjectViewModel vm,
         string iconName,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(iconName))
         {
@@ -669,7 +728,7 @@ public partial class GenHotkeysViewModel(
     private void LoadBitmapForAction(
         HotkeyActionViewModel vm,
         string iconName,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(iconName))
         {
@@ -761,10 +820,15 @@ public partial class GenHotkeysViewModel(
 
         foreach (var obj in FilteredGameObjects)
         {
-            conflictCount += ValidateGameObjectConflicts(obj);
+            var objConflicts = ValidateGameObjectConflicts(obj);
+            obj.HasConflicts = objConflicts > 0;
+            conflictCount += objConflicts;
         }
 
         HasConflicts = conflictCount > 0;
         TotalConflictsCount = conflictCount;
+        ConflictSummary = conflictCount > 0
+            ? $"{conflictCount} commands have overlapping hotkeys on the same unit/structure. In-game, pressing a shared key triggers multiple commands simultaneously or causes collision. Conflicting buttons are highlighted with a red warning border."
+            : string.Empty;
     }
 }
