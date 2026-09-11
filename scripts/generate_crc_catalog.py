@@ -22,6 +22,7 @@ SUPERHACKERS_REPO = "TheSuperHackers/GeneralsGameCode"
 GENERALSONLINE_CDN = "https://cdn.playgenerals.online"
 GENERALSONLINE_KNOWN_DATES = ("021326", "032926", "042826", "060526", "062026", "081326")
 RETAIL_ZERO_HOUR_MANIFEST_ID = "1.104.retail.gameclient.zerohour"
+VANILLA_104_INI = "Vanilla 1.04 INI"
 DEFAULT_OUTPUT_PATH = os.path.join(
     os.path.dirname(__file__), "..", "GenHub", "GenHub", "Resources", "crc-mapping.json"
 )
@@ -38,7 +39,7 @@ BASELINE_ENTRIES = [
         "sha256": None,
         "manifestId": RETAIL_ZERO_HOUR_MANIFEST_ID,
         "dataPatchManifestId": None,
-        "dataPatchName": "Vanilla 1.04 INI",
+        "dataPatchName": VANILLA_104_INI,
         "publisher": "ea",
         "gameType": "ZeroHour",
         "version": "1.04",
@@ -53,7 +54,7 @@ BASELINE_ENTRIES = [
         "sha256": None,
         "manifestId": RETAIL_ZERO_HOUR_MANIFEST_ID,
         "dataPatchManifestId": None,
-        "dataPatchName": "Vanilla 1.04 INI",
+        "dataPatchName": VANILLA_104_INI,
         "publisher": "ea",
         "gameType": "ZeroHour",
         "version": "1.04",
@@ -128,7 +129,7 @@ BASELINE_ENTRIES = [
         "sha256": "e03e98227249ee5ad4236f2b61f3ae6eeda2765dcb95b9c6b5090919e563c89e",
         "manifestId": "1.329261.generalsonline.gameclient.zerohour",
         "dataPatchManifestId": None,
-        "dataPatchName": "Vanilla 1.04 INI",
+        "dataPatchName": VANILLA_104_INI,
         "publisher": "generalsonline",
         "gameType": "ZeroHour",
         "version": "032926_QFE1",
@@ -143,7 +144,7 @@ BASELINE_ENTRIES = [
         "sha256": "ff240ed786c8a524c45a03f8c70be687cff6aae1bc05156f2b64cfe6c366549d",
         "manifestId": "1.329262.generalsonline.gameclient.zerohour",
         "dataPatchManifestId": None,
-        "dataPatchName": "Vanilla 1.04 INI",
+        "dataPatchName": VANILLA_104_INI,
         "publisher": "generalsonline",
         "gameType": "ZeroHour",
         "version": "032926_QFE2",
@@ -158,7 +159,7 @@ BASELINE_ENTRIES = [
         "sha256": "cfaba92da40f476fc7c99696d569d0f802a493651774a441ec952b23b89e528b",
         "manifestId": "1.329263.generalsonline.gameclient.zerohour",
         "dataPatchManifestId": None,
-        "dataPatchName": "Vanilla 1.04 INI",
+        "dataPatchName": VANILLA_104_INI,
         "publisher": "generalsonline",
         "gameType": "ZeroHour",
         "version": "032926_QFE3",
@@ -173,7 +174,7 @@ BASELINE_ENTRIES = [
         "sha256": "123ad03667cc45f1f89811ca9705abfca6104673af85c646adeb50595ab89f41",
         "manifestId": "1.213262.generalsonline.gameclient.zerohour",
         "dataPatchManifestId": None,
-        "dataPatchName": "Vanilla 1.04 INI",
+        "dataPatchName": VANILLA_104_INI,
         "publisher": "generalsonline",
         "gameType": "ZeroHour",
         "version": "021326_QFE2",

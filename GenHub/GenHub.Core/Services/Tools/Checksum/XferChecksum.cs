@@ -42,6 +42,9 @@ public sealed class XferChecksum
             case 3:
                 AddBe((uint)data[0] | ((uint)data[1] << 8) | ((uint)data[2] << 16));
                 break;
+            default:
+                // No remaining bytes to process.
+                break;
         }
     }
 

@@ -144,7 +144,7 @@ public sealed class SageChecksumTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task GameCrcCalculatorService_MissingExecutable_ReturnsFailure()
+    public async Task GameCrcCalculatorService_MissingExecutable_ReturnsFailureAsync()
     {
         var service = new GameCrcCalculatorService();
         var result = await service.CalculateExeCrcAsync("non_existent_file.exe");
@@ -158,7 +158,7 @@ public sealed class SageChecksumTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task GameCrcCalculatorService_MissingGameRoot_ReturnsFailure()
+    public async Task GameCrcCalculatorService_MissingGameRoot_ReturnsFailureAsync()
     {
         var service = new GameCrcCalculatorService();
         var result = await service.CalculateIniCrcAsync("non_existent_dir", GameType.ZeroHour);

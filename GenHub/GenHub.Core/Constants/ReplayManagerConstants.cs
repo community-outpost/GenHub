@@ -159,6 +159,26 @@ public static class ReplayManagerConstants
     public const int DefaultGeneralsVersionNumber = 108;
 
     /// <summary>
+    /// Hexadecimal CRC representing the English vanilla Zero Hour 1.04 INI.
+    /// </summary>
+    public const string VanillaZeroHourIniCrcEnglish = "FEAAE3F3";
+
+    /// <summary>
+    /// Hexadecimal CRC representing the German/European vanilla Zero Hour 1.04 INI.
+    /// </summary>
+    public const string VanillaZeroHourIniCrcGerman = "76B251A3";
+
+    /// <summary>
+    /// Hexadecimal CRC representing the German/European Generals 1.08 INI.
+    /// </summary>
+    public const string VanillaGeneralsIniCrcGerman = "5CB7992C";
+
+    /// <summary>
+    /// Display name for the default Vanilla 1.04 INI data patch.
+    /// </summary>
+    public const string Vanilla104IniName = "Vanilla 1.04 INI";
+
+    /// <summary>
     /// Default update polling interval for checking new CRC catalog releases (24 hours).
     /// </summary>
     public static readonly TimeSpan DefaultCatalogUpdateInterval = TimeSpan.FromHours(24);

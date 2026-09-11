@@ -54,8 +54,8 @@ public sealed class CrcCatalogUpdateService(
             }
 
             // 2. Fetch fresh catalog from remote repository
-            var catalogUrl = GetCatalogUrl();
-            var response = await httpClient.GetAsync(catalogUrl, cancellationToken);
+            var catalogUri = GetCatalogUrl();
+            var response = await httpClient.GetAsync(catalogUri, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("Remote CRC catalog fetch returned status {StatusCode}. Attempting local fallback.", response.StatusCode);
@@ -99,10 +99,11 @@ public sealed class CrcCatalogUpdateService(
         }
     }
 
-    private static string GetCatalogUrl()
+    private static Uri GetCatalogUrl()
     {
         var envUrl = Environment.GetEnvironmentVariable(ReplayManagerConstants.CrcCatalogUrlEnvironmentVariable);
-        return !string.IsNullOrWhiteSpace(envUrl) ? envUrl : ReplayManagerConstants.DefaultCrcCatalogUrl;
+        var urlString = !string.IsNullOrWhiteSpace(envUrl) ? envUrl : ReplayManagerConstants.DefaultCrcCatalogUrl;
+        return new Uri(urlString, UriKind.Absolute);
     }
 
     private async Task<ContentUpdateCheckResult> LoadLocalFallbackAsync(CancellationToken cancellationToken)

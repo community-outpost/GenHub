@@ -398,9 +398,17 @@ public class SteamLauncher : ISteamLauncher
                 return true;
             }
         }
-        catch (Exception ex) when (ex is FileNotFoundException or ArgumentException or UnauthorizedAccessException)
+        catch (FileNotFoundException)
         {
-            // Ignore expected version info inspection errors for missing, invalid, or inaccessible executables
+            // Ignore expected version info inspection errors for missing executables
+        }
+        catch (ArgumentException)
+        {
+            // Ignore expected version info inspection errors for invalid paths
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Ignore expected version info inspection errors for inaccessible executables
         }
 
         return false;

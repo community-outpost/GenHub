@@ -92,7 +92,7 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
             {
                 ct.ThrowIfCancellationRequested();
 
-                byte[] exeBytes = [];
+                byte[] exeBytes;
                 try
                 {
                     exeBytes = File.ReadAllBytes(executablePath);

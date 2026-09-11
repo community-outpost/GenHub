@@ -2187,7 +2187,7 @@ public sealed class ReplayDirectoryServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateProfileForReplayAsync_WhenMultipleInstallationsExist_PrioritizesPublisherMatch()
+    public async Task CreateProfileForReplayAsync_WhenMultipleInstallationsExist_PrioritizesPublisherMatchAsync()
     {
         var replay = new ReplayFile
         {
