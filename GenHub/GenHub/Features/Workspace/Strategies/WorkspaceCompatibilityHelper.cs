@@ -297,7 +297,7 @@ public static class WorkspaceCompatibilityHelper
 
         var manifestDirs = configuration.Manifests
             .Where(m => m.ContentType is ContentType.GameClient or ContentType.GameInstallation)
-            .SelectMany(m => ManifestVariantResolver.ResolveFiles(m)
+            .SelectMany(m => (ManifestVariantResolver.ResolveFiles(m) ?? [])
                 .Select(f => Path.GetDirectoryName(ResolveSourcePath(f, m, configuration))))
             .Where(d => !string.IsNullOrEmpty(d))
             .Distinct(StringComparer.OrdinalIgnoreCase);

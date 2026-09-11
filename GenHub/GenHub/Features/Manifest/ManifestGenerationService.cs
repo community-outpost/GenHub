@@ -1117,10 +1117,10 @@ public class ManifestGenerationService(
 
                     processedEntries[i] = processed;
 
-                    var completed = Interlocked.Increment(ref processedCount);
-
                     lock (progressLock)
                     {
+                        var completed = ++processedCount;
+
                         UpdateVerificationNotification(
                             progressNotificationId,
                             gameType,
@@ -1158,14 +1158,24 @@ public class ManifestGenerationService(
 
                 if (processed.Status is AuthoritativeFileStatus.AddedMatching or AuthoritativeFileStatus.AddedDiffering)
                 {
-                    await builder.AddGameInstallationFileAsync(
-                        processed.Entry.RelativePath,
-                        processed.SourcePath!,
-                        processed.IsExecutable,
-                        permissions: null,
-                        hash: processed.ComputedHash,
-                        size: processed.FileLength,
-                        isRequired: processed.Entry.IsRequired);
+                    try
+                    {
+                        await builder.AddGameInstallationFileAsync(
+                            processed.Entry.RelativePath,
+                            processed.SourcePath!,
+                            processed.IsExecutable,
+                            permissions: null,
+                            hash: processed.ComputedHash,
+                            size: processed.FileLength,
+                            isRequired: processed.Entry.IsRequired);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        logger.LogWarning(
+                            ex,
+                            "Failed to add authoritative vanilla file {RelativePath} to manifest",
+                            processed.Entry.RelativePath);
+                    }
                 }
             }
         }
@@ -1518,8 +1528,6 @@ public class ManifestGenerationService(
                 ReportLargeFileHashProgress(
                     entry.RelativePath,
                     fileInfo.Length,
-                    currentIndex,
-                    totalEntries,
                     progressNotificationId);
             }
 
@@ -1557,7 +1565,7 @@ public class ManifestGenerationService(
         {
             logger.LogWarning(
                 ex,
-                "Failed to add authoritative vanilla file {RelativePath} to manifest",
+                "Failed to inspect authoritative vanilla file {RelativePath}",
                 entry.RelativePath);
             return new ProcessedAuthoritativeEntry(AuthoritativeFileStatus.Skipped, entry, null, 0, null, false);
         }
@@ -1566,25 +1574,19 @@ public class ManifestGenerationService(
     private void ReportLargeFileHashProgress(
         string relativePath,
         long length,
-        int currentIndex,
-        int totalEntries,
         Guid? progressNotificationId)
     {
         var sizeMb = length / (1024.0 * 1024.0);
-        var percent = (double)currentIndex / totalEntries * 100;
         logger.LogInformation(
-            "Calculating SHA-256 for {RelativePath} ({SizeMB:F1} MB) [{Current}/{Total} ({Percent:F0}%)]...",
+            "Calculating SHA-256 for {RelativePath} ({SizeMB:F1} MB)...",
             relativePath,
-            sizeMb,
-            currentIndex,
-            totalEntries,
-            percent);
+            sizeMb);
 
         if (progressNotificationId.HasValue)
         {
             notificationService?.Update(
                 progressNotificationId.Value,
-                $"Calculating SHA-256 for {relativePath} ({sizeMb:F1} MB) - {currentIndex}/{totalEntries} ({percent:F0}%)",
+                $"Calculating SHA-256 for {relativePath} ({sizeMb:F1} MB)",
                 ManifestConstants.IndexingNotificationTitle);
         }
     }

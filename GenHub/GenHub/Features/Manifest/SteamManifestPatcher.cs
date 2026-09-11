@@ -98,6 +98,12 @@ public class SteamManifestPatcher(
                     gameDat.IsExecutable = false;
                     changed = true;
                 }
+
+                if (manifest.EntryPoint != null && generalsExe != null && !string.Equals(manifest.EntryPoint, generalsExe.RelativePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    manifest.EntryPoint = generalsExe.RelativePath;
+                    changed = true;
+                }
             }
             else
             {
@@ -115,12 +121,24 @@ public class SteamManifestPatcher(
                         generalsExe.IsExecutable = false;
                         changed = true;
                     }
+
+                    if (manifest.EntryPoint != null && !string.Equals(manifest.EntryPoint, gameDat.RelativePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        manifest.EntryPoint = gameDat.RelativePath;
+                        changed = true;
+                    }
                 }
                 else if (generalsExe != null && !generalsExe.IsExecutable)
                 {
                     // If no game.dat, generals.exe must be the executable
                     generalsExe.IsExecutable = true;
                     changed = true;
+
+                    if (manifest.EntryPoint != null && !string.Equals(manifest.EntryPoint, generalsExe.RelativePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        manifest.EntryPoint = generalsExe.RelativePath;
+                        changed = true;
+                    }
                 }
             }
 

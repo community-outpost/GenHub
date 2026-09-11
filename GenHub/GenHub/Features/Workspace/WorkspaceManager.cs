@@ -484,7 +484,7 @@ public class WorkspaceManager(
                         configuration.Id);
                     return OperationResult<WorkspaceInfo>.CreateSuccess(workspace);
                 }
-                catch (Exception ex) when (ex is InvalidOperationException or IOException)
+                catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or ArgumentException)
                 {
                     logger.LogWarning(
                         ex,

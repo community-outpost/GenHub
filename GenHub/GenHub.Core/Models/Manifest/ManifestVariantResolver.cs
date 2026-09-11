@@ -42,10 +42,10 @@ public static class ManifestVariantResolver
 
         if (variant is not null)
         {
-            return variant.Files;
+            return variant.Files ?? [];
         }
 
-        return manifest.Variants.Count == 0 ? manifest.Files : [];
+        return manifest.Variants.Count == 0 ? (manifest.Files ?? []) : [];
     }
 
     /// <summary>

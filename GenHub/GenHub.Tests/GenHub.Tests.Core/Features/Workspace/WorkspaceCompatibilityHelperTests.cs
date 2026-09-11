@@ -187,7 +187,7 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
 
         if (OperatingSystem.IsWindows())
         {
-            Directory.Exists(Path.Combine(_workspaceDir, GameClientConstants.CoreDirectory)).Should().BeTrue();
+            Directory.Exists(Path.Combine(_workspaceDir, GameClientConstants.ZhGeneralsDirectory)).Should().BeTrue();
         }
     }
 
@@ -237,6 +237,11 @@ public class WorkspaceCompatibilityHelperTests : IDisposable
             NullLogger.Instance);
 
         act.Should().NotThrow();
+
+        if (OperatingSystem.IsWindows())
+        {
+            Directory.Exists(Path.Combine(_workspaceDir, GameClientConstants.CoreDirectory)).Should().BeTrue();
+        }
     }
 
     /// <summary>

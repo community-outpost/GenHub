@@ -514,7 +514,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates SelectedGameInstallation and instance collections in partial view model")]
     private void HandleContentAdded(System.Collections.IList newItems)
     {
         foreach (ContentDisplayItem newItem in newItems)
@@ -549,7 +548,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates SelectedGameInstallation and instance collections in partial view model")]
     private void HandleContentRemoved(System.Collections.IList oldItems)
     {
         foreach (ContentDisplayItem oldItem in oldItems)
@@ -586,7 +584,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         {
             _logger?.LogInformation("SelectedGameInstallation ignored because profile is a standalone tool profile");
             value.IsEnabled = false;
-            ClearInstallationSelection();
+            SelectedGameInstallation = null;
             return;
         }
 
@@ -618,7 +616,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates SelectedGameInstallation and instance collections in partial view model")]
     private void ClearInstallationSelection()
     {
         foreach (var item in AvailableGameInstallations)
@@ -888,7 +885,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates SelectedGameInstallation and instance collections in partial view model")]
     private bool IsGameInstallationDependencySatisfied(ContentDependency dependency)
     {
         var isDefaultDep = dependency.Id.ToString() == ManifestConstants.DefaultContentDependencyId;
@@ -903,7 +899,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                selectedInst.ManifestId.Value == dependency.Id.ToString();
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates SelectedGameInstallation and instance collections in partial view model")]
     private void EnsureSelectedInstallationEnabled()
     {
         if (SelectedGameInstallation != null &&
@@ -914,7 +909,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates SelectedGameInstallation and instance collections in partial view model")]
     private ContentDisplayItem? FindCompatibleGameInstallation(
         ContentDisplayItem contentItem,
         ContentDependency dependency)
