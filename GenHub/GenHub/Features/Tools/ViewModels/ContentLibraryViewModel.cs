@@ -53,9 +53,9 @@ public partial class ContentLibraryViewModel : ObservableObject
             var query = SearchText.Trim();
             return new ObservableCollection<CatalogContentItem>(
                 ContentItems.Where(item =>
-                    (item.Name?.Contains(query, StringComparison.OrdinalIgnoreCase) == true) ||
-                    (item.Id?.Contains(query, StringComparison.OrdinalIgnoreCase) == true) ||
-                    (item.Description?.Contains(query, StringComparison.OrdinalIgnoreCase) == true)));
+                    (item.Name is { } name && name.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
+                    (item.Id is { } id && id.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
+                    (item.Description is { } desc && desc.Contains(query, StringComparison.OrdinalIgnoreCase))));
         }
     }
 
