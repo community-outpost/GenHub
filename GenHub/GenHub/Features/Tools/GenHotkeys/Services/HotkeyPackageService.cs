@@ -15,6 +15,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.GenHotkeys;
 using GenHub.Core.Services.Tools.GenHotkeys;
 using GenHub.Features.Content.Services.CommunityOutpost;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Tools.GenHotkeys.Services;
@@ -26,7 +27,7 @@ namespace GenHub.Features.Tools.GenHotkeys.Services;
 public class HotkeyPackageService(
     ITechTreeService techTreeService,
     IIconOverlayService iconOverlayService,
-    ILocalContentService localContentService,
+    IServiceScopeFactory scopeFactory,
     ILogger<HotkeyPackageService> logger) : IHotkeyPackageService
 {
     private static readonly Regex SafeFileNameRegex = new("[^a-zA-Z0-9_-]", RegexOptions.Compiled);
@@ -166,6 +167,9 @@ public class HotkeyPackageService(
 
             // 5. Register with GenHub as ContentManifest Addon
             progress?.Report("Registering hotkey addon in GenHub...");
+            using var scope = scopeFactory.CreateScope();
+            var localContentService = scope.ServiceProvider.GetRequiredService<ILocalContentService>();
+
             var manifestDisplayName = $"Hotkeys - {profile.Name} ({gameTag})";
             var result = await localContentService.CreateLocalContentManifestAsync(
                 directoryPath: packageDir,
