@@ -122,6 +122,30 @@ public partial class App : Application
         mainViewModel.GameProfilesViewModel.ErrorMessage = error;
     }
 
+    private static async Task RepairProfileShortcutsAsync(
+        IShortcutService shortcutService,
+        IGameProfileManager profileManager,
+        ILogger<App>? logger)
+    {
+        var profilesResult = await profileManager.GetAllProfilesAsync();
+        if (!profilesResult.Success || profilesResult.Data == null)
+        {
+            return;
+        }
+
+        foreach (var profile in profilesResult.Data)
+        {
+            if (await shortcutService.ShortcutExistsAsync(profile))
+            {
+                var result = await shortcutService.CreateDesktopShortcutAsync(profile);
+                if (!result.Success)
+                {
+                    logger?.LogWarning("Failed to repair desktop shortcut for profile {ProfileName}: {Error}", profile.Name, result.FirstError);
+                }
+            }
+        }
+    }
+
     private void ApplyWindowSettings(MainWindow mainWindow)
     {
         if (_configurationProvider == null)
@@ -399,30 +423,6 @@ public partial class App : Application
         catch (Exception ex)
         {
             logger?.LogWarning(ex, "Failed to repair desktop shortcuts during startup");
-        }
-    }
-
-    private async Task RepairProfileShortcutsAsync(
-        IShortcutService shortcutService,
-        IGameProfileManager profileManager,
-        ILogger<App>? logger)
-    {
-        var profilesResult = await profileManager.GetAllProfilesAsync();
-        if (!profilesResult.Success || profilesResult.Data == null)
-        {
-            return;
-        }
-
-        foreach (var profile in profilesResult.Data)
-        {
-            if (await shortcutService.ShortcutExistsAsync(profile))
-            {
-                var result = await shortcutService.CreateDesktopShortcutAsync(profile);
-                if (!result.Success)
-                {
-                    logger?.LogWarning("Failed to repair desktop shortcut for profile {ProfileName}: {Error}", profile.Name, result.FirstError);
-                }
-            }
         }
     }
 }
