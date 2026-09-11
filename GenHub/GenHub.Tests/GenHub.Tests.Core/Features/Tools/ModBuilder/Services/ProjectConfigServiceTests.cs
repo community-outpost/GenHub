@@ -456,7 +456,7 @@ public sealed class ProjectConfigServiceTests : IDisposable
         var projectDir = Path.Combine(_tempDirectory, "SampleIconsProject");
         Directory.CreateDirectory(projectDir);
         var projectPath = Path.Combine(projectDir, "SampleIconsProject.mbproj");
-        var createResult = await _service.CreateProjectAsync(projectPath, "SampleIconsProject", template: ProjectTemplate.CustomIcons);
+        var createResult = await _service.CreateProjectAsync(projectPath, "SampleIconsProject", template: ProjectTemplate.Hotkeys);
         createResult.Success.Should().BeTrue();
         var project = createResult.Data!;
 

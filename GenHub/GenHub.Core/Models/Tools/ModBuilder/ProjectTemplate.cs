@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace GenHub.Core.Models.Tools.ModBuilder;
 
 /// <summary>
@@ -19,12 +22,12 @@ public class ProjectTemplate
     };
 
     /// <summary>
-    /// Gets the basic mod template.
+    /// Gets the Generals Community Patch 2.0 template.
     /// </summary>
-    public static ProjectTemplate BasicMod => new()
+    public static ProjectTemplate GeneralsGamePatch2 => new()
     {
-        Name = "Basic Mod",
-        Description = "Basic mod project with standard configurations",
+        Name = "Generals Game Patch 2",
+        Description = "TheSuperHackers Community Patch 2.0 with full balance and bugfix INI rules",
         DefaultBundleConfigs = new List<string>
         {
             DefaultBundleItemsConfig,
@@ -34,12 +37,12 @@ public class ProjectTemplate
     };
 
     /// <summary>
-    /// Gets the custom icons and hotkeys template.
+    /// Gets the hotkeys template.
     /// </summary>
-    public static ProjectTemplate CustomIcons => new()
+    public static ProjectTemplate Hotkeys => new()
     {
-        Name = "Custom Icons & Hotkeys",
-        Description = "Custom unit cameo icons, Legionnaire QWERTY hotkeys, and indicator overlays",
+        Name = "Hotkeys",
+        Description = "Legionnaire QWERTY hotkey layout and control bar indicator overlays",
         DefaultBundleConfigs = new List<string>
         {
             DefaultBundleItemsConfig,
@@ -62,6 +65,18 @@ public class ProjectTemplate
         },
         CreateSampleFiles = true,
     };
+
+    /// <summary>
+    /// Gets the custom icons and hotkeys template (alias for Hotkeys).
+    /// </summary>
+    [Obsolete("Use Hotkeys instead.")]
+    public static ProjectTemplate CustomIcons => Hotkeys;
+
+    /// <summary>
+    /// Gets the basic mod template (alias for GeneralsGamePatch2).
+    /// </summary>
+    [Obsolete("Use GeneralsGamePatch2 instead.")]
+    public static ProjectTemplate BasicMod => GeneralsGamePatch2;
 
     /// <summary>
     /// Gets the imported BIG archive project template.

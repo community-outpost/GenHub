@@ -7,9 +7,11 @@
         "MenuMappedImages",
         "MenuTextures"
       ],
-      "OutputFile": ".Release/!ImprovedMenus.big",
-      "Description": "Complete 16:9 widescreen menu overhaul package for C&C Generals: Zero Hour",
-      "AllowBuild": true
+      "OutputFile": ".Release/0_ImprovedMenusEnglish.big",
+      "Big": true,
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Complete 16:9 widescreen menu overhaul package for C&C Generals: Zero Hour"
     }
   ]
 }
