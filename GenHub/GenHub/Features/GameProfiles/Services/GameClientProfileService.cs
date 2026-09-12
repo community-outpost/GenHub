@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -35,6 +36,7 @@ public class GameClientProfileService(
         GameClient gameClient,
         string? iconPath = null,
         string? coverPath = null,
+        string? themeColor = null,
         CancellationToken cancellationToken = default)
     {
         if (installation == null)
@@ -50,7 +52,7 @@ public class GameClientProfileService(
 
         try
         {
-            var profileName = $"{installation.InstallationType} {gameClient.Name}";
+            var profileName = gameClient.Name;
 
             if (await ProfileExistsAsync(profileName, installation.Id, gameClient.Id, cancellationToken))
             {
@@ -84,11 +86,12 @@ public class GameClientProfileService(
                 GameClientId = gameClient.Id,
                 GameClient = gameClient,
                 Description = $"Auto-created profile for {installation.InstallationType} {gameClient.Name}",
-                PreferredStrategy = preferredStrategy,
+                WorkspaceStrategy = preferredStrategy,
                 EnabledContentIds = enabledContentIds,
-                ThemeColor = GetThemeColorForGameType(gameClient.GameType),
+                ThemeColor = themeColor ?? GetThemeColorForGameType(gameClient.GameType, gameClient),
                 IconPath = !string.IsNullOrEmpty(iconPath) ? iconPath : GetIconPathForGame(gameClient.GameType),
-                CoverPath = !string.IsNullOrEmpty(coverPath) ? coverPath : GetCoverPathForGame(gameClient.GameType),
+                CoverPath = !string.IsNullOrEmpty(coverPath) ? coverPath : GetCoverPathForGame(gameClient.GameType, gameClient),
+                UseSteamLaunch = installation.InstallationType == GameInstallationType.Steam,
             };
 
             var profileResult = await profileManager.CreateProfileAsync(createRequest, cancellationToken);
@@ -130,6 +133,7 @@ public class GameClientProfileService(
         GameClient gameClient,
         string? iconPath = null,
         string? coverPath = null,
+        string? themeColor = null,
         CancellationToken cancellationToken = default)
     {
         var results = new List<ProfileOperationResult<GameProfile>>();
@@ -151,12 +155,13 @@ public class GameClientProfileService(
         {
             // With the new detection pipeline, GameClients are already resolved to valid variants.
             // We no longer need to handle "placeholders" that expand into multiple profiles.
-            // Each content variant (e.g., 30Hz, 60Hz) is detected as a separate GameClient.
+            // Each content variant (e.g., 60Hz) is detected as a separate GameClient.
             var singleResult = await CreateProfileForGameClientAsync(
                 installation,
                 gameClient,
                 iconPath,
                 coverPath,
+                themeColor,
                 cancellationToken);
             results.Add(singleResult);
             return results;
@@ -221,7 +226,7 @@ public class GameClientProfileService(
             // Create a GameClient object from the manifest
             // Extract executable path from manifest files
             var executableFile = manifest.Files?.FirstOrDefault(f =>
-                f.RelativePath != null && f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
+                f.RelativePath?.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) == true);
 
             if (executableFile == null)
             {
@@ -253,6 +258,7 @@ public class GameClientProfileService(
                 Version = manifest.Version,
                 GameType = manifest.TargetGame,
                 SourceType = ContentType.GameClient,
+                PublisherType = manifest.Publisher?.PublisherType,
                 ExecutablePath = Path.Combine(installationPath, executableFile.RelativePath),
                 WorkingDirectory = installationPath,
                 InstallationId = matchingInstallation.Id,
@@ -263,6 +269,7 @@ public class GameClientProfileService(
                 gameClient,
                 manifest.Metadata.IconUrl,
                 manifest.Metadata.CoverUrl,
+                manifest.Metadata.ThemeColor,
                 cancellationToken);
         }
         catch (Exception ex)
@@ -330,30 +337,53 @@ public class GameClientProfileService(
     private static int CalculateManifestVersion(GameClient gameClient)
     {
         if (string.IsNullOrEmpty(gameClient.Version) ||
-            gameClient.Version.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
+            gameClient.Version.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
             gameClient.Version.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
             gameClient.Version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase))
         {
-            var fallbackVersion = gameClient.GameType == GameType.ZeroHour
-                ? ManifestConstants.ZeroHourManifestVersion
-                : ManifestConstants.GeneralsManifestVersion;
-
-            var normalizedFallback = fallbackVersion.Replace(".", string.Empty);
-            return int.TryParse(normalizedFallback, out var v) ? v : 0;
+            // If version is unknown, use the default version for the game type (1.04/1.08)
+            // This ensures we match the ID generated during initial scan for standard installations
+            return GetDefaultVersion(gameClient.GameType);
         }
 
-        if (gameClient.Version.Contains('.'))
-        {
-            var normalized = gameClient.Version.Replace(".", string.Empty);
-            return int.TryParse(normalized, out var v) ? v : 0;
-        }
-
-        return int.TryParse(gameClient.Version, out var parsed) ? parsed : 0;
+        return GameVersionHelper.NormalizeVersion(gameClient.Version);
     }
 
-    private static string GetThemeColorForGameType(GameType gameType)
+    private static int GetDefaultVersion(GameType gameType)
     {
-        return gameType == GameType.Generals ? "#BD5A0F" : "#1B6575";
+        var fallbackVersion = gameType == GameType.ZeroHour
+            ? ManifestConstants.ZeroHourManifestVersion
+            : ManifestConstants.GeneralsManifestVersion;
+
+        return GameVersionHelper.NormalizeVersion(fallbackVersion);
+    }
+
+    private static string? GetThemeColorForGameType(GameType gameType, GameClient? gameClient = null)
+    {
+        if (gameClient != null)
+        {
+            // TheSuperHackers gets special colors
+            if (gameClient.PublisherType == PublisherTypeConstants.TheSuperHackers)
+            {
+                return gameType == GameType.ZeroHour ? SuperHackersConstants.ZeroHourThemeColor : SuperHackersConstants.GeneralsThemeColor;
+            }
+
+            // GeneralsOnline gets dark blue
+            if (gameClient.PublisherType == PublisherTypeConstants.GeneralsOnline)
+            {
+                return GeneralsOnlineConstants.ThemeColor;
+            }
+
+            // CommunityOutpost gets green
+            if (gameClient.PublisherType == CommunityOutpostConstants.PublisherType)
+            {
+                return CommunityOutpostConstants.ThemeColor;
+            }
+        }
+
+        // For auto-detected profiles without publisher type, return null to use manifest color
+        // Manifest factories will set their own colors (CommunityOutpost=green, GeneralsOnline=dark blue)
+        return null;
     }
 
     private static string GetIconPathForGame(GameType gameType)
@@ -362,16 +392,34 @@ public class GameClientProfileService(
             ? UriConstants.GeneralsIconFilename
             : UriConstants.ZeroHourIconFilename;
 
-        return $"{UriConstants.IconsBasePath}/{gameIcon}";
+        return $"{UriConstants.AvarUriScheme}GenHub{UriConstants.IconsBasePath}/{gameIcon}";
     }
 
-    private static string GetCoverPathForGame(GameType gameType)
+    private static string GetCoverPathForGame(GameType gameType, GameClient? gameClient = null)
     {
+        if (gameClient != null)
+        {
+            if (gameClient.PublisherType == PublisherTypeConstants.TheSuperHackers)
+            {
+                return $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversBasePath}/china-cover.png";
+            }
+
+            if (gameClient.PublisherType == CommunityOutpostConstants.PublisherType)
+            {
+                return $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversBasePath}/gla-cover.png";
+            }
+
+            if (gameClient.PublisherType == PublisherTypeConstants.GeneralsOnline)
+            {
+                return $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversBasePath}/usa-cover.png";
+            }
+        }
+
         var gameCover = gameType == GameType.Generals
             ? UriConstants.GeneralsCoverFilename
             : UriConstants.ZeroHourCoverFilename;
 
-        return $"{UriConstants.CoversBasePath}/{gameCover}";
+        return $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversBasePath}/{gameCover}";
     }
 
     /// <summary>
@@ -383,14 +431,11 @@ public class GameClientProfileService(
         ContentManifest? providedManifest,
         CancellationToken cancellationToken)
     {
-        var enabledContentIds = new List<string>();
-
-        // Always add the game client itself
-        enabledContentIds.Add(gameClient.Id);
+        var enabledContentIds = new List<string> { gameClient.Id };
 
         // Use provided manifest if available, otherwise try to get from pool
         ContentManifest? manifest = providedManifest;
-        if (manifest == null)
+        if (manifest == null && manifestPool != null)
         {
             var manifestResult = await manifestPool.GetManifestAsync(
                 ManifestId.Create(gameClient.Id), cancellationToken);
@@ -415,11 +460,11 @@ public class GameClientProfileService(
         }
 
         // Process each dependency from the manifest
-        if (manifest.Dependencies != null && manifest.Dependencies.Count > 0)
+        if (manifest.Dependencies is { Count: > 0 })
         {
             foreach (var dependency in manifest.Dependencies)
             {
-                var resolvedId = ResolveDependencyToContentId(dependency, installation, gameClient.GameType);
+                var resolvedId = await ResolveDependencyToContentIdAsync(dependency, installation, gameClient.GameType, cancellationToken);
                 if (!string.IsNullOrEmpty(resolvedId) && !enabledContentIds.Contains(resolvedId))
                 {
                     enabledContentIds.Add(resolvedId);
@@ -448,41 +493,101 @@ public class GameClientProfileService(
     }
 
     /// <summary>
-    /// Resolves a content dependency to an actual content ID.
+    /// Resolves a content dependency to an actual content ID by querying the manifest pool.
     /// </summary>
-    private string? ResolveDependencyToContentId(
+    private async Task<string?> ResolveDependencyToContentIdAsync(
         ContentDependency dependency,
         GameInstallation installation,
-        GameType gameType)
+        GameType gameType,
+        CancellationToken cancellationToken)
     {
         if (dependency.DependencyType == ContentType.GameInstallation)
         {
-            // For game installation dependencies, resolve to the actual installation manifest ID
-            var targetGameType = dependency.CompatibleGameTypes?.FirstOrDefault() ?? gameType;
+            return await ResolveGameInstallationDependencyAsync(dependency, installation, gameType, cancellationToken);
+        }
 
-            // Find the base game client for the target game type
-            var baseGameClient = installation.AvailableGameClients
-                .FirstOrDefault(c => c.GameType == targetGameType && IsStandardGameClient(c));
+        return await ResolveCatalogDependencyAsync(dependency, cancellationToken);
+    }
 
-            if (baseGameClient != null)
-            {
-                var version = CalculateManifestVersion(baseGameClient);
-                var installId = ManifestIdGenerator.GenerateGameInstallationId(
-                    installation, targetGameType, version);
-                return installId;
-            }
+    private async Task<string?> ResolveGameInstallationDependencyAsync(
+        ContentDependency dependency,
+        GameInstallation installation,
+        GameType gameType,
+        CancellationToken cancellationToken)
+    {
+        // For game installation dependencies, query the manifest pool for the actual manifest
+        var targetGameType = dependency.CompatibleGameTypes?.FirstOrDefault() ?? gameType;
 
+        // Find the base game client for the target game type to calculate version
+        var baseGameClient = installation.AvailableGameClients
+            .FirstOrDefault(c => c.GameType == targetGameType && IsStandardGameClient(c));
+
+        if (baseGameClient == null)
+        {
             logger.LogWarning(
                 "Could not find base game client for {GameType} to resolve dependency {DependencyName}",
                 targetGameType,
                 dependency.Name);
             return null;
         }
-        else
+
+        // Generate the expected GameInstallation manifest ID
+        var version = CalculateManifestVersion(baseGameClient);
+        var expectedInstallId = ManifestIdGenerator.GenerateGameInstallationId(
+            installation, targetGameType, version);
+
+        // Verify this manifest actually exists in the pool
+        var manifestResult = await manifestPool.GetManifestAsync(
+            ManifestId.Create(expectedInstallId), cancellationToken);
+
+        if (manifestResult.Success && manifestResult.Data != null)
         {
-            // For non-installation dependencies (MapPack, etc.), use the dependency ID directly
-            return dependency.Id.Value;
+            logger.LogDebug(
+                "Resolved GameInstallation dependency '{DependencyName}' to manifest ID: {ManifestId}",
+                dependency.Name,
+                expectedInstallId);
+            return expectedInstallId;
         }
+
+        logger.LogWarning(
+            "GameInstallation manifest {ManifestId} for {GameType} not found in pool for dependency {DependencyName}",
+            expectedInstallId,
+            targetGameType,
+            dependency.Name);
+        return null;
+    }
+
+    private async Task<string?> ResolveCatalogDependencyAsync(
+        ContentDependency dependency,
+        CancellationToken cancellationToken)
+    {
+        // For non-installation dependencies (MapPack, Patches, etc.), verify against the manifest pool
+        var exactResult = await manifestPool.GetManifestAsync(dependency.Id, cancellationToken);
+        if (exactResult.Success && exactResult.Data != null)
+        {
+            return exactResult.Data.Id.Value;
+        }
+
+        // Fallback: search pool for a catalog-compatible manifest
+        var allResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
+        if (allResult.Success && allResult.Data != null)
+        {
+            var compatible = allResult.Data.FirstOrDefault(m =>
+                DependencyResolver.HasCompatibleCatalogIdentity(dependency.Id.Value, m.Id.Value));
+
+            if (compatible != null)
+            {
+                logger.LogInformation(
+                    "Resolved dependency '{DependencyName}' (ID: {DeclaredId}) to compatible pooled manifest {ResolvedId}",
+                    dependency.Name,
+                    dependency.Id.Value,
+                    compatible.Id.Value);
+                return compatible.Id.Value;
+            }
+        }
+
+        // If not found in pool, return the declared ID directly as fallback
+        return dependency.Id.Value;
     }
 
     private async Task<bool> ProfileExistsAsync(
@@ -499,7 +604,7 @@ public class GameClientProfileService(
 
         var profileExists = profilesResult.Data.Any(p =>
             p.Name.Equals(profileName, StringComparison.OrdinalIgnoreCase) &&
-            p.GameInstallationId.Equals(installationId, StringComparison.OrdinalIgnoreCase));
+            string.Equals(p.GameInstallationId, installationId, StringComparison.OrdinalIgnoreCase));
 
         if (profileExists)
         {
@@ -509,6 +614,6 @@ public class GameClientProfileService(
         return profilesResult.Data.Any(p =>
             p.Name.Equals(profileName, StringComparison.OrdinalIgnoreCase) &&
             p.GameClient != null &&
-            p.GameClient.Id.Equals(gameClientId, StringComparison.OrdinalIgnoreCase));
+            string.Equals(p.GameClient.Id, gameClientId, StringComparison.OrdinalIgnoreCase));
     }
 }

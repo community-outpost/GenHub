@@ -1,3 +1,5 @@
+using GenHub.Core.Constants;
+
 namespace GenHub.Core.Models.Results.CAS;
 
 /// <summary>
@@ -5,6 +7,20 @@ namespace GenHub.Core.Models.Results.CAS;
 /// </summary>
 public class CasGarbageCollectionResult : ResultBase
 {
+    /// <summary>
+    /// Creates the fail-closed result returned while destructive garbage collection is disabled.
+    /// </summary>
+    /// <returns>A disabled result that reports zero deletion.</returns>
+    public static CasGarbageCollectionResult CreateDisabled()
+    {
+        return new CasGarbageCollectionResult(
+            false,
+            CasDefaults.GarbageCollectionDisabledMessage)
+        {
+            Disabled = true,
+        };
+    }
+
     /// <summary>
     /// Initializes a new instance of the <see cref="CasGarbageCollectionResult"/> class.
     /// </summary>
@@ -38,6 +54,11 @@ public class CasGarbageCollectionResult : ResultBase
 
     /// <summary>Gets or sets the number of objects that were referenced and kept.</summary>
     public int ObjectsReferenced { get; set; }
+
+    /// <summary>
+    /// Gets a value indicating whether destructive garbage collection is disabled.
+    /// </summary>
+    public bool Disabled { get; init; }
 
     /// <summary>Gets the percentage of storage freed.</summary>
     public double PercentageFreed

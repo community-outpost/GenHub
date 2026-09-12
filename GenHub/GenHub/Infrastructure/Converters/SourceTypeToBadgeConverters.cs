@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Infrastructure.Converters;
@@ -68,7 +69,7 @@ public static class SourceTypeToBadgeConverters
         /// <param name="targetType">The type of the binding target property.</param>
         /// <param name="parameter">An optional parameter to be used in the converter logic.</param>
         /// <param name="culture">The culture to use in the converter.</param>
-        /// <returns>A short label string such as "CAS", "Mod", or "Local". Returns "Unknown" if input is not a <see cref="ContentType"/>.</returns>
+        /// <returns>A short label string such as "CAS", "Mod", or "Local". Returns GameClientConstants.UnknownVersion if input is not a <see cref="ContentType"/>.</returns>
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
             if (value is ContentType ct)
@@ -81,7 +82,7 @@ public static class SourceTypeToBadgeConverters
                 };
             }
 
-            return "Unknown";
+            return GameClientConstants.UnknownVersion;
         }
 
         /// <summary>

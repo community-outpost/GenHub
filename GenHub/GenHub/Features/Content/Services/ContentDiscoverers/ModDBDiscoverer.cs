@@ -11,6 +11,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.ModDB;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentDiscoverers;
@@ -21,9 +22,6 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 /// </summary>
 public class ModDBDiscoverer(HttpClient httpClient, ILogger<ModDBDiscoverer> logger) : IContentDiscoverer
 {
-    private readonly HttpClient _httpClient = httpClient;
-    private readonly ILogger<ModDBDiscoverer> _logger = logger;
-
     /// <inheritdoc />
     public string SourceName => ModDBConstants.DiscovererSourceName;
 
@@ -37,14 +35,14 @@ public class ModDBDiscoverer(HttpClient httpClient, ILogger<ModDBDiscoverer> log
     public ContentSourceCapabilities Capabilities => ContentSourceCapabilities.RequiresDiscovery;
 
     /// <inheritdoc />
-    public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+    public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
     {
         try
         {
             var gameType = query.TargetGame ?? GameType.ZeroHour;
-            _logger.LogInformation("Discovering ModDB content for {Game}", gameType);
+            logger.LogInformation("Discovering ModDB content for {Game}", gameType);
 
             List<ContentSearchResult> results = [];
 
@@ -57,17 +55,22 @@ public class ModDBDiscoverer(HttpClient httpClient, ILogger<ModDBDiscoverer> log
                 results.AddRange(sectionResults);
             }
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Discovered {Count} ModDB items across {Sections} sections",
                 results.Count,
                 sectionsToSearch.Count);
-
-            return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
+            var list = results.ToList();
+            return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items = list,
+                TotalItems = list.Count,
+                HasMoreItems = false,
+            });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to discover ModDB content");
-            return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure($"Discovery failed: {ex.Message}");
+            logger.LogError(ex, "Failed to discover ModDB content");
+            return OperationResult<ContentDiscoveryResult>.CreateFailure($"Discovery failed: {ex.Message}");
         }
     }
 
@@ -297,9 +300,9 @@ public class ModDBDiscoverer(HttpClient httpClient, ILogger<ModDBDiscoverer> log
             var queryString = filter.ToQueryString();
             var url = baseUrl + queryString;
 
-            _logger.LogDebug("Fetching from URL: {Url}", url);
+            logger.LogDebug("Fetching from URL: {Url}", url);
 
-            var html = await _httpClient.GetStringAsync(url, cancellationToken);
+            var html = await httpClient.GetStringAsync(url, cancellationToken);
             var context = BrowsingContext.New(Configuration.Default);
             var document = await context.OpenAsync(req => req.Content(html), cancellationToken);
 
@@ -321,16 +324,16 @@ public class ModDBDiscoverer(HttpClient httpClient, ILogger<ModDBDiscoverer> log
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogDebug(ex, "Failed to parse content item");
+                    logger.LogDebug(ex, "Failed to parse content item");
                 }
             }
 
-            _logger.LogDebug("Found {Count} items in {Section} section", results.Count, section);
+            logger.LogDebug("Found {Count} items in {Section} section", results.Count, section);
             return results;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to discover from {Section} section", section);
+            logger.LogWarning(ex, "Failed to discover from {Section} section", section);
             return [];
         }
     }

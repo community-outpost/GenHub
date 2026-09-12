@@ -51,7 +51,7 @@ internal sealed class SimpleHttpServer : IDisposable
         Port = port;
 
         // Generate a random secret token to prevent other local processes from hijacking the server
-        _secretToken = Guid.NewGuid().ToString("N").Substring(0, SecretTokenLength);
+        _secretToken = Guid.NewGuid().ToString("N")[..SecretTokenLength];
 
         _listener = new HttpListener();
         _listener.Prefixes.Add($"http://localhost:{Port}/{_secretToken}/");

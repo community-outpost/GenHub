@@ -1,0 +1,122 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Info.ViewModels"
+             xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+             mc:Ignorable="d" d:DesignWidth="700" d:DesignHeight="500"
+             x:Class="GenHub.Features.Info.Views.ScanWizardDemoView"
+             x:DataType="vm:ScanWizardDemoViewModel">
+
+    <UserControl.Resources>
+      <conv:StringToImageConverter x:Key="StringToImageConverter" />
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="CheckBox">
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="Transparent" Padding="5">
+                        <Grid ColumnDefinitions="30,*">
+                            <Border Grid.Column="0"
+                                    Width="20" Height="20"
+                                    CornerRadius="4"
+                                    BorderBrush="{DynamicResource AccentBrush}"
+                                    BorderThickness="1"
+                                    Background="{TemplateBinding Background}">
+                                <PathIcon Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"
+                                          Width="12" Height="12"
+                                          Foreground="{DynamicResource TextPrimary}"
+                                          IsVisible="{TemplateBinding IsChecked}"/>
+                            </Border>
+                            <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}" Margin="10,0,0,0"/>
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+    </UserControl.Styles>
+
+    <Border CornerRadius="12" Background="{DynamicResource SurfaceCardBrush}" ClipToBounds="True" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1">
+        <Grid RowDefinitions="Auto,*,Auto">
+            <!-- Header -->
+            <Border Grid.Row="0" Padding="30,24,30,16">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Found Game Installations" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,4"/>
+                        <TextBlock Text="{Binding Status}" FontSize="13" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            Command="{Binding RescanCommand}"
+                            IsEnabled="{Binding !IsScanning}"
+                            VerticalAlignment="Center"
+                            Background="{DynamicResource SurfaceElevatedBrush}"
+                            Foreground="{DynamicResource TextPrimary}"
+                            BorderBrush="{DynamicResource BorderSubtleBrush}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="12,6"
+                            Margin="12,0,0,0"
+                            ToolTip.Tip="Simulate scanning for installed games">
+                        <TextBlock Text="Rescan" FontSize="12"/>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Items -->
+            <ScrollViewer Grid.Row="1" Padding="30,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl ItemsSource="{Binding Items}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ScanWizardDemoItemViewModel">
+                            <Border Padding="0,8" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource BorderSubtleBrush}">
+                                <Grid ColumnDefinitions="48,*,Auto">
+                                    <Border Grid.Column="0" Width="36" Height="36" CornerRadius="8" Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1" VerticalAlignment="Center">
+                                        <Image Source="{Binding IconPath, Converter={StaticResource StringToImageConverter}}" Width="32" Height="32"/>
+                                    </Border>
+
+                                    <StackPanel Grid.Column="1" Margin="12,0,10,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="Medium" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{Binding Path}" FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" MaxLines="2" Margin="0,2,0,0"/>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0" Spacing="8">
+                                            <Border Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Version}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <CheckBox Grid.Column="2" IsChecked="{Binding IsSelected, Mode=TwoWay}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- Footer -->
+            <Border Grid.Row="2" Padding="30,20" Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,1,0,0">
+                <Grid ColumnDefinitions="*,Auto">
+                    <Button Grid.Column="0"
+                            Content="Cancel"
+                            Command="{Binding CancelCommand}"
+                            HorizontalAlignment="Left"
+                            Background="Transparent"
+                            Foreground="{DynamicResource TextSecondary}"
+                            BorderThickness="0"
+                            Cursor="Hand"/>
+
+                    <Button Grid.Column="1"
+                            Content="{Binding ConfirmLabel}"
+                            Command="{Binding ImportCommand}"
+                            IsEnabled="{Binding HasSelectedItems}"
+                            Background="{DynamicResource AccentBrush}"
+                            Foreground="{DynamicResource PrimaryButtonForeground}"
+                            CornerRadius="6"
+                            FontWeight="Medium"
+                            Padding="20,8"
+                            Cursor="Hand"/>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>

@@ -13,12 +13,27 @@ public class IntToBoolConverter : IValueConverter
     /// <inheritdoc/>
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (value is int intValue && parameter is string strParam && int.TryParse(strParam, out var targetValue))
-        {
-            return intValue == targetValue;
-        }
+        if (value == null || parameter == null)
+            return false;
 
-        return false;
+        try
+        {
+            // Convert value to int (handles enums and other numeric types)
+            var intValue = System.Convert.ToInt32(value);
+
+            // Convert parameter to int
+            if (parameter is string strParam && int.TryParse(strParam, out var targetValue))
+            {
+                return intValue == targetValue;
+            }
+
+            var targetInt = System.Convert.ToInt32(parameter);
+            return intValue == targetInt;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <inheritdoc/>

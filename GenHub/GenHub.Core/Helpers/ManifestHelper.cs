@@ -32,12 +32,6 @@ public static class ManifestHelper
             return false;
         }
 
-        // Local detection manifests have ID starting with "1.0." (version 0)
-        if (manifest.Id.Value?.StartsWith("1.0.", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            return false;
-        }
-
         // Check if files indicate downloaded content (ContentAddressable source type with hashes)
         if (manifest.Files != null && manifest.Files.Count > 0)
         {

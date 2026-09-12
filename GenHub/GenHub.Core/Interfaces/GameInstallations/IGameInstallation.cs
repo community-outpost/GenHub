@@ -1,3 +1,4 @@
+using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 
@@ -12,6 +13,11 @@ public interface IGameInstallation
     /// Gets the unique identifier for this installation.
     /// </summary>
     string Id { get; }
+
+    /// <summary>
+    /// Gets the display name for this installation.
+    /// </summary>
+    string DisplayName => InstallationType.GetDisplayName();
 
     /// <summary>
     /// Gets the type of game installation.

@@ -1,0 +1,143 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Design.PreviewWith>
+        <Border Padding="20" Background="#08080C" Width="220" Height="220">
+            <Grid ColumnDefinitions="*,Auto" RowDefinitions="*,Auto">
+                <ScrollBar Grid.Column="1" Orientation="Vertical" Height="160" AllowAutoHide="False" Value="30" Maximum="100" />
+                <ScrollBar Grid.Row="1" Orientation="Horizontal" Width="160" AllowAutoHide="False" Value="30" Maximum="100" />
+            </Grid>
+        </Border>
+    </Design.PreviewWith>
+
+    <!-- Base ScrollBar Style -->
+    <Style Selector="ScrollBar">
+        <Setter Property="Cursor" Value="Arrow" />
+        <Setter Property="Background" Value="{DynamicResource ScrollbarTrackBrush}" />
+        <Setter Property="MinWidth" Value="8" />
+        <Setter Property="MinHeight" Value="8" />
+        <Setter Property="AllowAutoHide" Value="False" />
+    </Style>
+
+    <!-- Vertical ScrollBar Template -->
+    <Style Selector="ScrollBar:vertical">
+        <Setter Property="Width" Value="8" />
+        <Setter Property="MinWidth" Value="8" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Background="{TemplateBinding Background}" UseLayoutRounding="False">
+                    <Grid>
+                        <Track Name="PART_Track"
+                               Minimum="{TemplateBinding Minimum}"
+                               Maximum="{TemplateBinding Maximum}"
+                               Value="{TemplateBinding Value, Mode=TwoWay}"
+                               ViewportSize="{TemplateBinding ViewportSize}"
+                               Orientation="{TemplateBinding Orientation}"
+                               IsDirectionReversed="True">
+                            <Track.DecreaseButton>
+                                <RepeatButton Name="PART_PageUpButton"
+                                              Classes="scrollbar-track-button"
+                                              Focusable="False"
+                                              HorizontalAlignment="Stretch"
+                                              VerticalAlignment="Stretch" />
+                            </Track.DecreaseButton>
+                            <Track.IncreaseButton>
+                                <RepeatButton Name="PART_PageDownButton"
+                                              Classes="scrollbar-track-button"
+                                              Focusable="False"
+                                              HorizontalAlignment="Stretch"
+                                              VerticalAlignment="Stretch" />
+                            </Track.IncreaseButton>
+                            <Thumb Name="PART_Thumb"
+                                   Classes="scrollbar-thumb"
+                                   MinHeight="20"
+                                   Margin="1,0" />
+                        </Track>
+                    </Grid>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+
+    <!-- Horizontal ScrollBar Template -->
+    <Style Selector="ScrollBar:horizontal">
+        <Setter Property="Height" Value="8" />
+        <Setter Property="MinHeight" Value="8" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Background="{TemplateBinding Background}" UseLayoutRounding="False">
+                    <Grid>
+                        <Track Name="PART_Track"
+                               Minimum="{TemplateBinding Minimum}"
+                               Maximum="{TemplateBinding Maximum}"
+                               Value="{TemplateBinding Value, Mode=TwoWay}"
+                               ViewportSize="{TemplateBinding ViewportSize}"
+                               Orientation="{TemplateBinding Orientation}"
+                               IsDirectionReversed="False">
+                            <Track.DecreaseButton>
+                                <RepeatButton Name="PART_PageUpButton"
+                                              Classes="scrollbar-track-button"
+                                              Focusable="False"
+                                              HorizontalAlignment="Stretch"
+                                              VerticalAlignment="Stretch" />
+                            </Track.DecreaseButton>
+                            <Track.IncreaseButton>
+                                <RepeatButton Name="PART_PageDownButton"
+                                              Classes="scrollbar-track-button"
+                                              Focusable="False"
+                                              HorizontalAlignment="Stretch"
+                                              VerticalAlignment="Stretch" />
+                            </Track.IncreaseButton>
+                            <Thumb Name="PART_Thumb"
+                                   Classes="scrollbar-thumb"
+                                   MinWidth="20"
+                                   Margin="0,1" />
+                        </Track>
+                    </Grid>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+
+    <!-- Thumb Base Style -->
+    <Style Selector="Thumb.scrollbar-thumb, ScrollBar /template/ Thumb, Thumb.thumb">
+        <Setter Property="Background" Value="{DynamicResource ScrollbarThumbBrush}" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Background="{TemplateBinding Background}"
+                        CornerRadius="{TemplateBinding CornerRadius}">
+                    <Border.Transitions>
+                        <Transitions>
+                            <BrushTransition Property="Background" Duration="0:0:0.15" />
+                        </Transitions>
+                    </Border.Transitions>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+
+    <!-- Thumb Hover State -->
+    <Style Selector="Thumb.scrollbar-thumb:pointerover, ScrollBar /template/ Thumb:pointerover, Thumb.thumb:pointerover">
+        <Setter Property="Background" Value="{DynamicResource ScrollbarThumbHoverBrush}" />
+    </Style>
+
+    <!-- Thumb Pressed State -->
+    <Style Selector="Thumb.scrollbar-thumb:pressed, ScrollBar /template/ Thumb:pressed, Thumb.thumb:pressed">
+        <Setter Property="Background" Value="{DynamicResource ScrollbarThumbPressedBrush}" />
+    </Style>
+
+    <!-- Invisible Repeat Buttons for Track Page Up/Down -->
+    <Style Selector="RepeatButton.scrollbar-track-button, RepeatButton.repeat">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="IsHitTestVisible" Value="True" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Background="{TemplateBinding Background}" />
+            </ControlTemplate>
+        </Setter>
+    </Style>
+</Styles>

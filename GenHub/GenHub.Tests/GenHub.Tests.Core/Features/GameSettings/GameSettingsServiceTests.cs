@@ -1,9 +1,11 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameSettings;
 using GenHub.Features.GameSettings;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Moq.Protected;
 
 namespace GenHub.Tests.Core.Features.GameSettings;
 
@@ -117,7 +119,7 @@ public class GameSettingsServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task LoadOptionsAsync_Should_ParseValidIniFile()
+    public async Task LoadOptionsAsync_Should_ParseValidIniFileAsync()
     {
         // Arrange
         var iniContent = @"[AUDIO]
@@ -186,7 +188,7 @@ Gamma=60
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task LoadOptionsAsync_Should_ReturnSuccessWithDefaults_WhenFileDoesNotExist()
+    public async Task LoadOptionsAsync_Should_ReturnSuccessWithDefaults_WhenFileDoesNotExistAsync()
     {
         // Arrange
         var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
@@ -209,7 +211,7 @@ Gamma=60
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task LoadOptionsAsync_Should_HandleMalformedIniFile()
+    public async Task LoadOptionsAsync_Should_HandleMalformedIniFileAsync()
     {
         // Arrange
         var iniContent = @"[AUDIO]
@@ -248,7 +250,7 @@ MissingBracket
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task SaveOptionsAsync_Should_SaveOptionsToFile()
+    public async Task SaveOptionsAsync_Should_SaveOptionsToFileAsync()
     {
         // Arrange
         var tempFile = Path.GetTempFileName();
@@ -310,7 +312,7 @@ MissingBracket
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task BoolToString_Should_SerializeCorrectly(bool value)
+    public async Task BoolToString_Should_SerializeCorrectlyAsync(bool value)
     {
         // This is testing the private BoolToString method indirectly through SaveOptionsAsync
         var options = new IniOptions
@@ -350,7 +352,7 @@ MissingBracket
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task SaveOptionsAsync_Should_PreserveUnknownSections()
+    public async Task SaveOptionsAsync_Should_PreserveUnknownSectionsAsync()
     {
         // Arrange
         var originalContent = @"[AUDIO]
@@ -384,5 +386,237 @@ Resolution=1024 768
         Assert.Contains("[CUSTOM_SECTION]", savedContent);
         Assert.Contains("CustomKey=CustomValue", savedContent);
         Assert.Contains("AnotherKey=AnotherValue", savedContent);
+    }
+
+    /// <summary>
+    /// Should replace settings.json by moving a completed file over it, leaving nothing behind,
+    /// because a half-written settings.json costs the GeneralsOnline client every key it owns.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveGeneralsOnlineSettingsAsync_Should_ReplaceTheFileWithoutTruncatingItAsync()
+    {
+        // Arrange
+        var directory = Directory.CreateTempSubdirectory().FullName;
+        var settingsPath = Path.Combine(directory, GameSettingsGeneralsOnlineConstants.SettingsFileName);
+        await File.WriteAllTextAsync(settingsPath, "{ \"chat_font_size\": 8 }");
+        var service = CreateServiceWritingGeneralsOnlineSettingsTo(settingsPath);
+
+        try
+        {
+            // Act
+            var result = await service.SaveGeneralsOnlineSettingsAsync(new GeneralsOnlineSettings { ChatFontSize = 24 });
+
+            // Assert
+            Assert.True(result.Success, result.FirstError);
+            var reloaded = await service.LoadGeneralsOnlineSettingsAsync();
+            Assert.True(reloaded.Success, reloaded.FirstError);
+            Assert.Equal(24, reloaded.Data!.ChatFontSize);
+            Assert.Empty(Directory.GetFiles(directory, $"*{GameSettingsGeneralsOnlineConstants.TemporarySettingsFileExtension}"));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Should report success for every one of a set of concurrent saves, which two GeneralsOnline
+    /// launches produce because the launch lock is per profile while settings.json is a single
+    /// global file. Which save wins is not defined, but none of them may be turned away: a launch
+    /// that reports a settings failure has lost the settings the user chose for that profile.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveGeneralsOnlineSettingsAsync_Should_SucceedForEverySave_WhenSavesOverlapAsync()
+    {
+        // Arrange
+        var directory = Directory.CreateTempSubdirectory().FullName;
+        var settingsPath = Path.Combine(directory, GameSettingsGeneralsOnlineConstants.SettingsFileName);
+        var service = CreateServiceWritingGeneralsOnlineSettingsTo(settingsPath);
+
+        try
+        {
+            // Act
+            var fontSizes = Enumerable.Range(
+                GameSettingsGeneralsOnlineConstants.MinChatFontSize,
+                GameSettingsGeneralsOnlineConstants.MaxChatFontSize - GameSettingsGeneralsOnlineConstants.MinChatFontSize);
+            var results = await Task.WhenAll(
+                fontSizes.Select(fontSize => service.SaveGeneralsOnlineSettingsAsync(new GeneralsOnlineSettings { ChatFontSize = fontSize })));
+
+            // Assert
+            Assert.All(results, result => Assert.True(result.Success, result.FirstError));
+            var reloaded = await service.LoadGeneralsOnlineSettingsAsync();
+            Assert.True(reloaded.Success, reloaded.FirstError);
+            Assert.InRange(
+                reloaded.Data!.ChatFontSize,
+                GameSettingsGeneralsOnlineConstants.MinChatFontSize,
+                GameSettingsGeneralsOnlineConstants.MaxChatFontSize);
+            Assert.Empty(Directory.GetFiles(directory, $"*{GameSettingsGeneralsOnlineConstants.TemporarySettingsFileExtension}"));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Should keep both concurrent saves and concurrent loads working against the one global
+    /// settings.json. A load that overlaps the replacement of the file it is reading is the
+    /// other half of the same race, because the GameLauncher reads settings.json before every
+    /// save it makes.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GeneralsOnlineSettings_Should_SucceedForEveryCall_WhenLoadsAndSavesOverlapAsync()
+    {
+        // Arrange
+        var directory = Directory.CreateTempSubdirectory().FullName;
+        var settingsPath = Path.Combine(directory, GameSettingsGeneralsOnlineConstants.SettingsFileName);
+        var service = CreateServiceWritingGeneralsOnlineSettingsTo(settingsPath);
+        await service.SaveGeneralsOnlineSettingsAsync(new GeneralsOnlineSettings { ChatFontSize = GameSettingsGeneralsOnlineConstants.DefaultChatFontSize });
+
+        try
+        {
+            // Act
+            var fontSizes = Enumerable.Range(
+                GameSettingsGeneralsOnlineConstants.MinChatFontSize,
+                GameSettingsGeneralsOnlineConstants.MaxChatFontSize - GameSettingsGeneralsOnlineConstants.MinChatFontSize)
+                .ToList();
+            var saves = Task.WhenAll(fontSizes.Select(fontSize => service.SaveGeneralsOnlineSettingsAsync(new GeneralsOnlineSettings { ChatFontSize = fontSize })));
+            var loads = Task.WhenAll(fontSizes.Select(_ => service.LoadGeneralsOnlineSettingsAsync()));
+            var saveResults = await saves;
+            var loadResults = await loads;
+
+            // Assert
+            Assert.All(saveResults, result => Assert.True(result.Success, result.FirstError));
+            Assert.All(loadResults, result => Assert.True(result.Success, result.FirstError));
+            Assert.All(
+                loadResults,
+                result => Assert.InRange(
+                    result.Data!.ChatFontSize,
+                    GameSettingsGeneralsOnlineConstants.MinChatFontSize,
+                    GameSettingsGeneralsOnlineConstants.MaxChatFontSize));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Should report the failure once a replacement that cannot succeed has used up its
+    /// attempts, rather than retrying a real fault forever or claiming a save that never
+    /// happened, and should leave no temporary file behind when it does.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveGeneralsOnlineSettingsAsync_Should_ReportFailure_WhenTheReplacementNeverSucceedsAsync()
+    {
+        // Arrange
+        var directory = Directory.CreateTempSubdirectory().FullName;
+        var settingsPath = Path.Combine(directory, GameSettingsGeneralsOnlineConstants.SettingsFileName);
+        Directory.CreateDirectory(settingsPath);
+        var service = CreateServiceWritingGeneralsOnlineSettingsTo(settingsPath);
+
+        try
+        {
+            // Act
+            var result = await service.SaveGeneralsOnlineSettingsAsync(new GeneralsOnlineSettings());
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Empty(Directory.GetFiles(directory, $"*{GameSettingsGeneralsOnlineConstants.TemporarySettingsFileExtension}"));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Should parse GameWindowTransitionSpeedMultiplier correctly from Options.ini.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task LoadTheSuperHackersSettingsAsync_Should_ParseGameWindowTransitionSpeedMultiplierAsync()
+    {
+        // Arrange
+        var content = @"[TheSuperHackers]
+GameWindowTransitionSpeedMultiplier=3.5
+MoneyTransactionVolume=60
+";
+        var tempFile = Path.GetTempFileName();
+        await File.WriteAllTextAsync(tempFile, content);
+
+        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
+        {
+            CallBase = true,
+        };
+        mockService.Setup(x => x.GetOptionsFilePath(It.IsAny<GameType>())).Returns(tempFile);
+
+        try
+        {
+            // Act
+            var result = await mockService.Object.LoadTheSuperHackersSettingsAsync(GameType.ZeroHour);
+
+            // Assert
+            Assert.True(result.Success, result.FirstError);
+            Assert.Equal(3.5f, result.Data!.GameWindowTransitionSpeedMultiplier);
+            Assert.Equal(60, result.Data!.MoneyTransactionVolume);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    /// Should save and preserve GameWindowTransitionSpeedMultiplier across round-trips.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveTheSuperHackersSettingsAsync_Should_SerializeGameWindowTransitionSpeedMultiplierAsync()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName();
+        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
+        {
+            CallBase = true,
+        };
+        mockService.Setup(x => x.GetOptionsFilePath(It.IsAny<GameType>())).Returns(tempFile);
+
+        try
+        {
+            var settings = new TheSuperHackersSettings
+            {
+                GameWindowTransitionSpeedMultiplier = 3.5f,
+                MoneyTransactionVolume = 75,
+            };
+
+            // Act
+            var saveResult = await mockService.Object.SaveTheSuperHackersSettingsAsync(GameType.ZeroHour, settings);
+            var loadResult = await mockService.Object.LoadTheSuperHackersSettingsAsync(GameType.ZeroHour);
+
+            // Assert
+            Assert.True(saveResult.Success, saveResult.FirstError);
+            Assert.True(loadResult.Success, loadResult.FirstError);
+            Assert.Equal(3.5f, loadResult.Data!.GameWindowTransitionSpeedMultiplier);
+            Assert.Equal(75, loadResult.Data!.MoneyTransactionVolume);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    private GameSettingsService CreateServiceWritingGeneralsOnlineSettingsTo(string settingsPath)
+    {
+        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
+        {
+            CallBase = true,
+        };
+        mockService.Protected().Setup<string>("GetGeneralsOnlineSettingsPath").Returns(settingsPath);
+        return mockService.Object;
     }
 }

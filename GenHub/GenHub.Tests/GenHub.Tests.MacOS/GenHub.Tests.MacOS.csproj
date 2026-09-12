@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="StyleCop.Analyzers" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio"/>
+    <PackageReference Include="coverlet.collector"/>
+    <PackageReference Include="moq" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\GenHub.Core\GenHub.Core.csproj" />
+    <ProjectReference Include="..\..\GenHub.MacOS\GenHub.MacOS.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <!-- Shared composition-root assertions, linked rather than duplicated so every
+       platform host is held to the same contract. -->
+  <ItemGroup>
+    <Compile Include="..\Shared\CompositionRootAssertions.cs" Link="Shared\CompositionRootAssertions.cs" />
+    <Compile Include="..\Shared\TemporaryApplicationEnvironment.cs" Link="Shared\TemporaryApplicationEnvironment.cs" />
+  </ItemGroup>
+
+</Project>

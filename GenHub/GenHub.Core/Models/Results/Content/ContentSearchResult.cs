@@ -1,6 +1,7 @@
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Parsers;
 
-namespace GenHub.Core.Models.Results;
+namespace GenHub.Core.Models.Results.Content;
 
 /// <summary>Represents a single result from a content search operation.</summary>
 public class ContentSearchResult
@@ -38,14 +39,17 @@ public class ContentSearchResult
     /// <summary>Gets or sets the URL for the content's icon (optional).</summary>
     public string? IconUrl { get; set; }
 
+    /// <summary>Gets or sets the URL for the content's banner image (optional).</summary>
+    public string? BannerUrl { get; set; }
+
     /// <summary>Gets a list of screenshot URLs.</summary>
-    public IList<string> ScreenshotUrls { get; } = new List<string>();
+    public IList<string> ScreenshotUrls { get; } = [];
 
     /// <summary>Gets a list of tags associated with the content.</summary>
-    public IList<string> Tags { get; } = new List<string>();
+    public IList<string> Tags { get; } = [];
 
-    /// <summary>Gets or sets the date the content was last updated.</summary>
-    public DateTime LastUpdated { get; set; }
+    /// <summary>Gets or sets the date the content was last updated (optional).</summary>
+    public DateTime? LastUpdated { get; set; }
 
     /// <summary>Gets or sets the download size in bytes.</summary>
     public long DownloadSize { get; set; }
@@ -74,8 +78,18 @@ public class ContentSearchResult
     /// <summary>Gets or sets the source URL for resolution (e.g., specific mod page URL).</summary>
     public string? SourceUrl { get; set; }
 
+    /// <summary>
+    /// Gets or sets the direct URL selected from a content-details file list.
+    /// The resolver retains <see cref="SourceUrl"/> as the detail page and uses this value to
+    /// select the requested artifact without parsing the page again.
+    /// </summary>
+    public string? SelectedDownloadUrl { get; set; }
+
     /// <summary>Gets additional metadata for resolvers.</summary>
     public IDictionary<string, string> ResolverMetadata { get; } = new Dictionary<string, string>();
+
+    /// <summary>Gets or sets parsed web page data with rich metadata (files, images, videos, comments, etc.).</summary>
+    public ParsedWebPage? ParsedPageData { get; set; }
 
     /// <summary>Returns the data payload cast to type T, or null if unavailable or of wrong type.</summary>
     /// <typeparam name="T">Expected type of the data payload.</typeparam>
@@ -90,4 +104,33 @@ public class ContentSearchResult
     public void SetData<T>(T data)
         where T : class
         => Data = data;
+
+    /// <summary>
+    /// Updates the content ID. Useful when the ID changes after resolution (e.g. from a partial ID to a full manifest ID).
+    /// </summary>
+    /// <param name="newId">The new identifier.</param>
+    public void UpdateId(string newId)
+    {
+        Id = newId;
+    }
+
+    /// <summary>
+    /// Gets or sets the stable group key shared by every card that is a variant of the same
+    /// release. When two or more results share a non-null/non-empty <see cref="VariantGroupId"/>,
+    /// the downloads browser collapses them into a single card with a variant picker. Null/empty
+    /// for single-variant content.
+    /// </summary>
+    public string? VariantGroupId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the display name of the variant family (e.g. "Control Bar Pro (Xezon)"),
+    /// shown as the collapsed card's title when <see cref="VariantGroupId"/> groups siblings.
+    /// </summary>
+    public string? VariantFamilyName { get; set; }
+
+    /// <summary>
+    /// Gets or sets the selectable variants exposed for this content. Populated when this card is the
+    /// primary representation of a variant group; null for single-variant content.
+    /// </summary>
+    public IList<ContentVariantInfo>? Variants { get; set; }
 }

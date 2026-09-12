@@ -1,0 +1,347 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GeneralsOnline;
+using GenHub.Core.Models.Providers;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
+using GenHub.Core.Services.Providers.VersionSchemes;
+using Microsoft.Extensions.Logging;
+
+namespace GenHub.Features.Content.Services.GeneralsOnline;
+
+/// <summary>
+/// Parses Generals Online JSON catalog data into content search results.
+/// Accepts pre-fetched JSON from the Discoverer in wrapper format containing source type and data.
+/// </summary>
+public class GeneralsOnlineJsonCatalogParser(
+    ILogger<GeneralsOnlineJsonCatalogParser> logger
+) : ICatalogParser
+{
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+    };
+
+    /// <inheritdoc/>
+    public string CatalogFormat => "generalsonline-json-api";
+
+    /// <inheritdoc/>
+    public Task<OperationResult<IEnumerable<ContentSearchResult>>> ParseAsync(
+        string catalogContent,
+        ProviderDefinition provider,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            logger.LogInformation("Parsing Generals Online catalog data");
+
+            if (string.IsNullOrWhiteSpace(catalogContent))
+            {
+                logger.LogWarning("Catalog content is empty");
+                return Task.FromResult(
+                    OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+                        []));
+            }
+
+            // Parse the wrapper to determine source type
+            using var document = JsonDocument.Parse(catalogContent);
+            var root = document.RootElement;
+
+            if (!root.TryGetProperty("source", out var sourceElement))
+            {
+                logger.LogError("Invalid catalog format: missing 'source' property");
+                return Task.FromResult(
+                    OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
+                        "Invalid catalog format"));
+            }
+
+            var source = sourceElement.GetString();
+            GeneralsOnlineRelease? release = null;
+
+            if (source == "manifest")
+            {
+                // Parse full manifest.json response
+                if (root.TryGetProperty("data", out var dataElement))
+                {
+                    var apiResponse = JsonSerializer.Deserialize<GeneralsOnlineApiResponse>(
+                        dataElement.GetRawText(),
+                        _jsonOptions);
+
+                    if (apiResponse != null && (!string.IsNullOrWhiteSpace(apiResponse.Version) || !string.IsNullOrWhiteSpace(apiResponse.DownloadUrl)))
+                    {
+                        release = CreateReleaseFromApiResponse(apiResponse, logger);
+                        logger.LogInformation(
+                            "Parsed release from manifest.json: {Version}",
+                            release.Version);
+                    }
+                }
+            }
+            else if (source == "latest")
+            {
+                // Parse simple version from latest.txt
+                if (root.TryGetProperty("version", out var versionElement))
+                {
+                    var version = versionElement.GetString();
+                    if (!string.IsNullOrWhiteSpace(version))
+                    {
+                        release = CreateReleaseFromVersion(version, provider);
+                        logger.LogInformation(
+                            "Parsed release from latest.txt: {Version}",
+                            release.Version);
+                    }
+                }
+            }
+            else
+            {
+                logger.LogWarning("Unknown catalog source: {Source}", source);
+            }
+
+            if (release == null)
+            {
+                logger.LogInformation("No Generals Online releases found in catalog");
+                return Task.FromResult(
+                    OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+                        []));
+            }
+
+            // Create search result from release
+            var searchResult = CreateSearchResult(release, provider);
+
+            return Task.FromResult(
+                OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+                    [searchResult]));
+        }
+        catch (JsonException ex)
+        {
+            logger.LogError(ex, "Failed to parse Generals Online catalog JSON");
+            return Task.FromResult(
+                OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
+                    $"JSON parsing failed: {ex.Message}"));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse Generals Online catalog");
+            return Task.FromResult(
+                OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
+                    $"Catalog parsing failed: {ex.Message}"));
+        }
+    }
+
+    /// <summary>
+    /// Resolves the canonical release version, preferring the payload package version from the download URL
+    /// (which reflects the actual binaries and preserves build tags like _EAC), falling back to the API version
+    /// when the URL does not yield a version.
+    /// </summary>
+    /// <param name="apiVersion">The version string from the API JSON response.</param>
+    /// <param name="downloadUrl">The download URL for the portable package.</param>
+    /// <param name="logger">Optional logger for diagnostic warnings.</param>
+    /// <returns>The resolved canonical version string.</returns>
+    internal static string ResolveReleaseVersion(string? apiVersion, string? downloadUrl, ILogger? logger = null)
+    {
+        var urlVersion = ExtractVersionFromUrl(downloadUrl);
+
+        if (string.IsNullOrWhiteSpace(urlVersion))
+        {
+            return !string.IsNullOrWhiteSpace(apiVersion) ? apiVersion : GeneralsOnlineConstants.UnknownVersion;
+        }
+
+        if (string.IsNullOrWhiteSpace(apiVersion))
+        {
+            return urlVersion;
+        }
+
+        if (!string.Equals(urlVersion, apiVersion, StringComparison.OrdinalIgnoreCase))
+        {
+            logger?.LogWarning(
+                "Generals Online URL package version '{UrlVersion}' diverges from API manifest version '{ApiVersion}'",
+                urlVersion,
+                apiVersion);
+        }
+
+        var urlHasQfe = urlVersion.Contains(GeneralsOnlineConstants.QfeMarkerPrefix, StringComparison.OrdinalIgnoreCase);
+        var apiHasQfe = apiVersion.Contains(GeneralsOnlineConstants.QfeMarkerPrefix, StringComparison.OrdinalIgnoreCase);
+
+        if (urlHasQfe && !apiHasQfe)
+        {
+            return urlVersion;
+        }
+
+        if (apiHasQfe && !urlHasQfe)
+        {
+            return apiVersion;
+        }
+
+        // Both are present and not empty.
+        // If the URL names an actual package, it represents the exact payload delivered to the user.
+        // We prefer urlVersion to preserve payload parity and build tags (e.g. _EAC).
+        var scheme = new MmddyyQfeVersionScheme();
+        if (scheme.TryParse(urlVersion, out _))
+        {
+            return urlVersion;
+        }
+
+        if (scheme.TryParse(apiVersion, out _))
+        {
+            return apiVersion;
+        }
+
+        return urlVersion;
+    }
+
+    /// <summary>
+    /// Extracts a version string from a Generals Online download URL or package filename.
+    /// e.g. "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip" -> "082826_QFE1".
+    /// </summary>
+    /// <param name="downloadUrl">The download URL or archive filename.</param>
+    /// <returns>The extracted version string, or null if not found.</returns>
+    internal static string? ExtractVersionFromUrl(string? downloadUrl)
+    {
+        if (string.IsNullOrWhiteSpace(downloadUrl))
+        {
+            return null;
+        }
+
+        string fileName = string.Empty;
+        try
+        {
+            if (Uri.TryCreate(downloadUrl, UriKind.Absolute, out var uri))
+            {
+                fileName = Path.GetFileNameWithoutExtension(uri.AbsolutePath);
+            }
+            else
+            {
+                var urlWithoutQuery = downloadUrl.Split('?')[0];
+                fileName = Path.GetFileNameWithoutExtension(urlWithoutQuery);
+            }
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+
+        var prefix = GeneralsOnlineConstants.PortableFilePrefix;
+        var prefixIndex = fileName.IndexOf(prefix, StringComparison.OrdinalIgnoreCase);
+        if (prefixIndex >= 0)
+        {
+            var candidate = fileName[(prefixIndex + prefix.Length)..].Trim();
+            if (!string.IsNullOrEmpty(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Creates a GeneralsOnlineRelease from a full API response (manifest.json).
+    /// </summary>
+    private static GeneralsOnlineRelease CreateReleaseFromApiResponse(GeneralsOnlineApiResponse apiResponse, ILogger? logger = null)
+    {
+        var version = ResolveReleaseVersion(apiResponse.Version, apiResponse.DownloadUrl, logger);
+        var versionDate = ParseVersionDate(version) ?? DateTime.UnixEpoch;
+        var changelog = apiResponse.ReleaseNotes;
+        if (string.IsNullOrWhiteSpace(changelog) ||
+            string.Equals(changelog.Trim(), "www.playgenerals.online", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(changelog.Trim(), "https://www.playgenerals.online", StringComparison.OrdinalIgnoreCase))
+        {
+            changelog = $"Generals Online {version}";
+        }
+
+        return new GeneralsOnlineRelease
+        {
+            Version = version,
+            VersionDate = versionDate,
+            ReleaseDate = versionDate,
+            PortableUrl = apiResponse.DownloadUrl,
+            PortableSize = apiResponse.Size,
+            Sha256 = apiResponse.Sha256,
+            Changelog = changelog,
+        };
+    }
+
+    /// <summary>
+    /// Creates a GeneralsOnlineRelease from a version string (latest.txt fallback).
+    /// Constructs download URL using provider configuration.
+    /// </summary>
+    private static GeneralsOnlineRelease CreateReleaseFromVersion(string version, ProviderDefinition provider)
+    {
+        var versionDate = ParseVersionDate(version) ?? DateTime.UtcNow;
+        var releasesUrl = provider.Endpoints.GetEndpoint("releasesUrl");
+
+        return new GeneralsOnlineRelease
+        {
+            Version = version,
+            VersionDate = versionDate,
+            ReleaseDate = versionDate,
+            PortableUrl = $"{releasesUrl}/{GeneralsOnlineConstants.PortableFilePrefix}{version}{GeneralsOnlineConstants.PortableExtension}",
+            PortableSize = null, // Size unknown when using latest.txt fallback
+            Changelog = $"Generals Online {version}",
+        };
+    }
+
+    /// <summary>
+    /// Parses a version string (MMDDYY_QFE#) to extract the date.
+    /// </summary>
+    private static DateTime? ParseVersionDate(string version)
+    {
+        if (new MmddyyQfeVersionScheme().TryParse(version, out var parsed) && parsed.Components.Count >= 3)
+        {
+            return new DateTime((int)parsed.Components[0], (int)parsed.Components[1], (int)parsed.Components[2], 0, 0, 0, DateTimeKind.Utc);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Creates a ContentSearchResult from a release and provider configuration.
+    /// </summary>
+    private static ContentSearchResult CreateSearchResult(
+        GeneralsOnlineRelease release,
+        ProviderDefinition provider)
+    {
+        var downloadPageUrl = provider.Endpoints.GetEndpoint("downloadPageUrl");
+        var iconUrl = provider.Endpoints.GetEndpoint("iconUrl");
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = $"GeneralsOnline_{release.Version}",
+            Name = GeneralsOnlineConstants.ContentName,
+            Description = release.Changelog ?? provider.Description,
+            Version = release.Version,
+            ContentType = ContentType.GameClient,
+            TargetGame = provider.TargetGame ?? GameType.ZeroHour,
+            ProviderName = provider.PublisherType,
+            AuthorName = GeneralsOnlineConstants.PublisherName,
+            IconUrl = !string.IsNullOrEmpty(iconUrl) ? iconUrl : PublisherInfoConstants.GeneralsOnline.LogoSource,
+            LastUpdated = release.ReleaseDate,
+            DownloadSize = release.PortableSize ?? 0,
+            RequiresResolution = true,
+            ResolverId = GeneralsOnlineConstants.ResolverId,
+            SourceUrl = downloadPageUrl ?? provider.Endpoints.WebsiteUrl ?? string.Empty,
+        };
+
+        // Add default tags from provider
+        foreach (var tag in provider.DefaultTags)
+        {
+            if (!searchResult.Tags.Contains(tag))
+            {
+                searchResult.Tags.Add(tag);
+            }
+        }
+
+        // Store release data for the Resolver
+        searchResult.SetData(release);
+
+        return searchResult;
+    }
+}

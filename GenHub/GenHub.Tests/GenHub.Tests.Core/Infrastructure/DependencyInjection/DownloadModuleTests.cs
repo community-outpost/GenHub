@@ -1,8 +1,10 @@
+using System.Net.Http;
 using GenHub.Common.Services;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
+using Xunit;
 
 namespace GenHub.Tests.Core.Infrastructure.DependencyInjection;
 
@@ -35,10 +37,7 @@ public class DownloadModuleTests
         Assert.IsType<DownloadService>(service);
 
         // HttpClient should be resolvable for DownloadService
-        var httpClientFactory = provider.GetService<IHttpClientFactory>();
-        Assert.NotNull(httpClientFactory);
-
-        var httpClient = httpClientFactory.CreateClient(nameof(DownloadService));
+        var httpClient = provider.GetService<HttpClient>();
         Assert.NotNull(httpClient);
     }
 

@@ -138,4 +138,13 @@ public interface IUserDataTracker
     /// <returns>Total bytes used by tracked user data files.</returns>
     Task<OperationResult<long>> GetTotalUserDataSizeAsync(
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes ALL tracked user data files, manifests, and indexes.
+    /// This is a destructive operation used for "Delete All Data" functionality.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if deletion was successful.</returns>
+    Task<OperationResult<bool>> DeleteAllUserDataAsync(
+        CancellationToken cancellationToken = default);
 }

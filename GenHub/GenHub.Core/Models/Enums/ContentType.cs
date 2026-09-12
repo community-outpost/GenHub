@@ -62,6 +62,9 @@ public enum ContentType
     /// <summary>Screensaver files.</summary>
     Screensaver,
 
+    /// <summary>Standalone executable file.</summary>
+    Executable,
+
     /// <summary>Modding and mapping tools/utilities.</summary>
     ModdingTool,
 

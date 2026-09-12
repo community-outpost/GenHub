@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Runtime.Versioning;
 using Avalonia;
 using GenHub.Core.Constants;
@@ -34,35 +35,51 @@ public class Program
         // Initialize Velopack - must be first to handle install/update hooks
         VelopackApp.Build().Run();
 
-        // TODO: Create lockfile to guarantee that only one instance is running on linux
-        using var bootstrapLoggerFactory = LoggingModule.CreateBootstrapLoggerFactory();
-        var bootstrapLogger = bootstrapLoggerFactory.CreateLogger<Program>();
+        // Create lockfile to guarantee that only one instance is running on linux
+        var lockFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".genhub", "lock");
+        Directory.CreateDirectory(Path.GetDirectoryName(lockFilePath)!);
+        FileStream? lockFile = null;
         try
         {
-            bootstrapLogger.LogInformation("Starting GenHub Linux application");
+            lockFile = new FileStream(lockFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        }
+        catch (IOException)
+        {
+            // Another instance is running
+            return;
+        }
 
-            var services = new ServiceCollection();
-
+        using (lockFile)
+        using (var bootstrapLoggerFactory = LoggingModule.CreateBootstrapLoggerFactory())
+        {
+            var bootstrapLogger = bootstrapLoggerFactory.CreateLogger<Program>();
             try
             {
-                // Register shared services and Linux-specific services
-                services.ConfigureApplicationServices(s => s.AddLinuxServices());
+                bootstrapLogger.LogInformation("Starting GenHub Linux application");
+
+                var services = new ServiceCollection();
+
+                try
+                {
+                    // Register shared services and Linux-specific services
+                    services.ConfigureApplicationServices(s => s.AddLinuxServices());
+                }
+                catch (Exception configEx)
+                {
+                    bootstrapLogger.LogCritical(configEx, "Failed to configure application services");
+                    throw;
+                }
+
+                var serviceProvider = services.BuildServiceProvider();
+                AppLocator.Services = serviceProvider;
+
+                BuildAvaloniaApp(serviceProvider).StartWithClassicDesktopLifetime(args);
             }
-            catch (Exception configEx)
+            catch (Exception ex)
             {
-                bootstrapLogger.LogCritical(configEx, "Failed to configure application services");
+                bootstrapLogger.LogCritical(ex, "Application terminated unexpectedly");
                 throw;
             }
-
-            var serviceProvider = services.BuildServiceProvider();
-            AppLocator.Services = serviceProvider;
-
-            BuildAvaloniaApp(serviceProvider).StartWithClassicDesktopLifetime(args);
-        }
-        catch (Exception ex)
-        {
-            bootstrapLogger.LogCritical(ex, "Application terminated unexpectedly");
-            throw;
         }
     }
 

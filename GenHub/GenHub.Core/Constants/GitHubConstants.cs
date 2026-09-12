@@ -3,6 +3,23 @@ namespace GenHub.Core.Constants;
 /// <summary>GitHub-related constants for API interactions, parsing, and UI.</summary>
 public static class GitHubConstants
 {
+    // Rate limit constants
+
+    /// <summary>Default rate limit warning threshold (90%).</summary>
+    public const double DefaultRateLimitWarningThreshold = 0.9;
+
+    /// <summary>Default GitHub unauthenticated rate limit (Core API is 60, but 5000 is used as a safe high default until first update).</summary>
+    public const int DefaultRateLimit = 5000;
+
+    /// <summary>Default rate limit reset period in hours.</summary>
+    public const int DefaultRateLimitResetHours = 1;
+
+    /// <summary>Environment variable name for standard GitHub token.</summary>
+    public const string GitHubTokenEnvVar = "GITHUB_TOKEN";
+
+    /// <summary>Environment variable name for GenHub-specific GitHub token.</summary>
+    public const string GenHubTokenEnvVar = "GENHUB_GITHUB_TOKEN";
+
     // Build parsing constants
 
     /// <summary>String identifier for Zero Hour game variant.</summary>
@@ -224,7 +241,7 @@ public static class GitHubConstants
     public const string WorkflowRunItemType = "Workflow Run";
 
     /// <summary>Text for unknown item types.</summary>
-    public const string UnknownItemType = "Unknown";
+    public const string UnknownItemType = GameClientConstants.UnknownVersion;
 
     /// <summary>Text indicating capability is available.</summary>
     public const string CapabilityYes = "Yes";
@@ -321,6 +338,33 @@ public static class GitHubConstants
 
     /// <summary>Description for GitHub content deliverer.</summary>
     public const string GitHubDelivererDescription = "Delivers GitHub content including release archives";
+
+    // Archive extraction limits
+    // GitHub caps a single release asset at 2 GiB, so a downloaded archive can never exceed that
+    // compressed. These bounds leave generous headroom above real game content while keeping an
+    // archive that lies about its declared sizes from expanding without limit.
+
+    /// <summary>Maximum number of file entries a downloaded GitHub archive may contain.</summary>
+    public const int MaxArchiveEntries = 50000;
+
+    /// <summary>Maximum number of bytes a single GitHub archive entry may expand to (4 GiB).</summary>
+    public const long MaxEntryUncompressedBytes = 4L * 1024 * 1024 * 1024;
+
+    /// <summary>Maximum aggregate uncompressed bytes a GitHub archive may expand to (16 GiB).</summary>
+    public const long MaxAggregateUncompressedBytes = 16L * 1024 * 1024 * 1024;
+
+    /// <summary>
+    /// Maximum factor by which a GitHub archive may expand beyond its own downloaded size. Release
+    /// archives are deflate-compressed game content and executables, which run well under 20:1, so
+    /// this bounds a small archive that claims to hold very little and then inflates without end.
+    /// </summary>
+    public const long MaxArchiveExpansionRatio = 500;
+
+    /// <summary>
+    /// Floor for the ratio-derived expansion budget (8 MiB), so a very small archive still gets
+    /// room for content that compresses unusually well and is judged only by the absolute caps.
+    /// </summary>
+    public const long MinArchiveExpansionBudgetBytes = 8L * 1024 * 1024;
 
     // Metadata keys
 

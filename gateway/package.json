@@ -1,0 +1,20 @@
+{
+  "name": "genhub-upload-gateway",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Cloudflare Worker proxy gateway for GenHub UploadThing integration with stateless HMAC deletion security",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "types": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240729.0",
+    "typescript": "^5.5.4",
+    "wrangler": "^3.70.0"
+  },
+  "dependencies": {
+    "uploadthing": "^7.7.4"
+  }
+}

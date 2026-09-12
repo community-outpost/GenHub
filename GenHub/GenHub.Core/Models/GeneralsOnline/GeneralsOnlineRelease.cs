@@ -37,6 +37,12 @@ public class GeneralsOnlineRelease
     public long? PortableSize { get; init; }
 
     /// <summary>
+    /// Gets SHA256 hash of the portable ZIP package for file verification.
+    /// Null when hash is unknown (e.g., from latest.txt API).
+    /// </summary>
+    public string? Sha256 { get; init; }
+
+    /// <summary>
     /// Gets release changelog/notes.
     /// </summary>
     public string? Changelog { get; init; }

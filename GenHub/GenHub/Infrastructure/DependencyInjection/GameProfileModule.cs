@@ -60,6 +60,9 @@ public static class GameProfileModule
                 logger);
         });
 
+        // Register SetupWizardService
+        services.AddScoped<ISetupWizardService, SetupWizardService>();
+
         return services;
     }
 
@@ -67,18 +70,18 @@ public static class GameProfileModule
     {
         try
         {
-            var appDataPath = configProvider.GetApplicationDataPath();
-            var parentDirectory = Path.GetDirectoryName(appDataPath);
-            if (string.IsNullOrEmpty(parentDirectory))
+            var profilesDirectory = configProvider.GetProfilesPath();
+
+            // Fallback if configuration returns null (e.g. in tests)
+            if (string.IsNullOrEmpty(profilesDirectory))
             {
-                throw new InvalidOperationException($"Unable to determine parent directory for path: {appDataPath}");
+                profilesDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Profiles");
             }
 
-            var profilesDirectory = Path.Combine(parentDirectory, "Profiles");
             Directory.CreateDirectory(profilesDirectory);
             return profilesDirectory;
         }
-        catch (Exception ex) when (ex is not InvalidOperationException)
+        catch (Exception ex)
         {
             throw new InvalidOperationException($"Failed to create profiles directory: {ex.Message}", ex);
         }

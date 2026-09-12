@@ -1,9 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Security;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging;
@@ -19,9 +23,42 @@ public class ConfigurationProviderService(
     IUserSettingsService userSettings,
     ILogger<ConfigurationProviderService> logger) : IConfigurationProviderService
 {
+    private static readonly string[] LegacyRootDirectories =
+    [
+        DirectoryNames.Profiles,
+        FileTypes.ManifestsDirectory,
+        DirectoryNames.UserData,
+        DirectoryNames.CasPool,
+    ];
+
+    private static readonly string[] LegacySettingsFileNames =
+    [
+        FileTypes.SettingsFileName,
+        FileTypes.LegacySettingsFileName,
+    ];
+
+    /// <summary>
+    /// The sub-paths of the legacy data root a tracked entry may sit in, most recent layout first so
+    /// that a newer copy wins over an older one when both are present.
+    /// </summary>
+    private static readonly string[] LegacyRootLayouts =
+    [
+        string.Empty,
+        DirectoryNames.LegacyContent,
+    ];
+
     private readonly IAppConfiguration _appConfig = appConfig ?? throw new ArgumentNullException(nameof(appConfig));
     private readonly IUserSettingsService _userSettings = userSettings ?? throw new ArgumentNullException(nameof(userSettings));
     private readonly ILogger<ConfigurationProviderService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    private readonly object _migrationLock = new();
+
+    /// <summary>
+    /// Set once the migration has finished. Volatile because the fast path in
+    /// <see cref="EnsureLegacyDataMigrated"/> reads it outside <see cref="_migrationLock"/>: without
+    /// the release/acquire pair a second thread could observe the flag on a weakly ordered
+    /// architecture and read profiles or manifests before the moves that produced them are visible.
+    /// </summary>
+    private volatile bool _migrated;
 
     /// <inheritdoc />
     public string GetWorkspacePath()
@@ -92,9 +129,7 @@ public class ConfigurationProviderService(
     public bool GetAllowBackgroundDownloads()
     {
         var settings = _userSettings.Get();
-        return settings.IsExplicitlySet(nameof(UserSettings.AllowBackgroundDownloads))
-            ? settings.AllowBackgroundDownloads
-            : true; // App default
+        return !settings.IsExplicitlySet(nameof(UserSettings.AllowBackgroundDownloads)) || settings.AllowBackgroundDownloads; // App default
     }
 
     /// <inheritdoc />
@@ -133,25 +168,38 @@ public class ConfigurationProviderService(
         var settings = _userSettings.Get();
         return settings.IsExplicitlySet(nameof(UserSettings.DefaultWorkspaceStrategy))
             ? settings.DefaultWorkspaceStrategy
-            : _appConfig.GetDefaultWorkspaceStrategy();
+            : WorkspaceConstants.DefaultWorkspaceStrategy;
     }
 
     /// <inheritdoc />
     public bool GetAutoCheckForUpdatesOnStartup()
     {
         var settings = _userSettings.Get();
-        return settings.IsExplicitlySet(nameof(UserSettings.AutoCheckForUpdatesOnStartup))
-            ? settings.AutoCheckForUpdatesOnStartup
-            : true; // App default
+        return !settings.IsExplicitlySet(nameof(UserSettings.AutoCheckForUpdatesOnStartup)) || settings.AutoCheckForUpdatesOnStartup; // App default
+    }
+
+    /// <inheritdoc />
+    public bool GetAutoCheckForUpdatesPeriodically()
+    {
+        var settings = _userSettings.Get();
+        return !settings.IsExplicitlySet(nameof(UserSettings.AutoCheckForUpdatesPeriodically)) || settings.AutoCheckForUpdatesPeriodically; // App default
+    }
+
+    /// <inheritdoc />
+    public int GetPeriodicUpdateCheckIntervalMinutes()
+    {
+        var settings = _userSettings.Get();
+        var value = settings.IsExplicitlySet(nameof(UserSettings.PeriodicUpdateCheckIntervalMinutes)) && settings.PeriodicUpdateCheckIntervalMinutes > 0
+            ? settings.PeriodicUpdateCheckIntervalMinutes
+            : AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalMinutes;
+        return Math.Clamp(value, AppUpdateConstants.MinPeriodicUpdateCheckIntervalMinutes, AppUpdateConstants.MaxPeriodicUpdateCheckIntervalMinutes);
     }
 
     /// <inheritdoc />
     public bool GetEnableDetailedLogging()
     {
         var settings = _userSettings.Get();
-        return settings.IsExplicitlySet(nameof(UserSettings.EnableDetailedLogging))
-            ? settings.EnableDetailedLogging
-            : false; // App default
+        return settings.IsExplicitlySet(nameof(UserSettings.EnableDetailedLogging)) && settings.EnableDetailedLogging; // App default
     }
 
     /// <inheritdoc />
@@ -191,9 +239,7 @@ public class ConfigurationProviderService(
     public bool GetIsWindowMaximized()
     {
         var settings = _userSettings.Get();
-        return settings.IsExplicitlySet(nameof(UserSettings.IsMaximized))
-            ? settings.IsMaximized
-            : false; // App default
+        return settings.IsExplicitlySet(nameof(UserSettings.IsMaximized)) && settings.IsMaximized; // App default
     }
 
     /// <inheritdoc />
@@ -208,6 +254,9 @@ public class ConfigurationProviderService(
     /// <inheritdoc />
     public UserSettings GetEffectiveSettings()
     {
+        var csvCatalogConfiguration = GetCsvCatalogConfiguration();
+        var csvValidationCatalogs = csvCatalogConfiguration.CsvValidationCatalogs ?? [];
+
         return new UserSettings
         {
             Theme = GetTheme(),
@@ -220,6 +269,8 @@ public class ConfigurationProviderService(
             MaxConcurrentDownloads = GetMaxConcurrentDownloads(),
             AllowBackgroundDownloads = GetAllowBackgroundDownloads(),
             AutoCheckForUpdatesOnStartup = GetAutoCheckForUpdatesOnStartup(),
+            AutoCheckForUpdatesPeriodically = GetAutoCheckForUpdatesPeriodically(),
+            PeriodicUpdateCheckIntervalMinutes = GetPeriodicUpdateCheckIntervalMinutes(),
             LastUpdateCheckTimestamp = _userSettings.Get().LastUpdateCheckTimestamp,
             EnableDetailedLogging = GetEnableDetailedLogging(),
             DefaultWorkspaceStrategy = GetDefaultWorkspaceStrategy(),
@@ -232,6 +283,8 @@ public class ConfigurationProviderService(
             ApplicationDataPath = GetApplicationDataPath(),
             CachePath = GetCachePath(),
             CasConfiguration = GetCasConfiguration(),
+            IndexFilePath = csvCatalogConfiguration.IndexFilePath,
+            CsvValidationCatalogs = [.. csvValidationCatalogs.Select(c => c.Clone())],
         };
     }
 
@@ -245,10 +298,11 @@ public class ConfigurationProviderService(
             return settings.ContentDirectories;
         }
 
+        var dataRoot = GetApplicationDataPath();
         return
         [
-            Path.Combine(_appConfig.GetConfiguredDataPath(), FileTypes.ManifestsDirectory),
-            Path.Combine(_appConfig.GetConfiguredDataPath(), "CustomManifests"),
+            Path.Combine(dataRoot, FileTypes.ManifestsDirectory),
+            Path.Combine(dataRoot, DirectoryNames.CustomManifests),
             Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                 "Command and Conquer Generals Zero Hour Data",
@@ -264,21 +318,28 @@ public class ConfigurationProviderService(
             settings.GitHubDiscoveryRepositories != null && settings.GitHubDiscoveryRepositories.Count > 0)
             return settings.GitHubDiscoveryRepositories;
 
-        return ["TheSuperHackers/GeneralsGameCode"];
+        return
+        [
+            $"{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}",
+            $"{SuperHackersConstants.GeneralsGamePatch2Owner}/{SuperHackersConstants.GeneralsGamePatch2Repo}",
+        ];
     }
 
     /// <inheritdoc />
     public string GetApplicationDataPath()
     {
-        var settings = _userSettings.Get();
-        if (settings.IsExplicitlySet(nameof(UserSettings.ApplicationDataPath)) &&
-            !string.IsNullOrWhiteSpace(settings.ApplicationDataPath))
-        {
-            return settings.ApplicationDataPath;
-        }
-
-        return Path.Combine(_appConfig.GetConfiguredDataPath(), "Content");
+        EnsureLegacyDataMigrated();
+        return ResolveApplicationDataPath();
     }
+
+    /// <inheritdoc />
+    public string GetRootAppDataPath() => _appConfig.GetConfiguredDataPath();
+
+    /// <inheritdoc />
+    public string GetProfilesPath() => Path.Combine(GetApplicationDataPath(), DirectoryNames.Profiles);
+
+    /// <inheritdoc />
+    public string GetManifestsPath() => Path.Combine(GetApplicationDataPath(), FileTypes.ManifestsDirectory);
 
     /// <inheritdoc />
     /// <remarks>
@@ -295,22 +356,17 @@ public class ConfigurationProviderService(
         // If CasRootPath is empty, apply the default path
         if (string.IsNullOrWhiteSpace(casConfig.CasRootPath))
         {
-            var defaultPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                AppConstants.AppName,
-                DirectoryNames.CasPool);
+            var appDataPath = GetApplicationDataPath();
+            var defaultPath = !string.IsNullOrWhiteSpace(appDataPath)
+                ? Path.Combine(appDataPath, DirectoryNames.CasPool)
+                : Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    AppConstants.AppName,
+                    DirectoryNames.CasPool);
 
-            return new CasConfiguration
-            {
-                CasRootPath = defaultPath,
-                EnableAutomaticGc = casConfig.EnableAutomaticGc,
-                HashAlgorithm = casConfig.HashAlgorithm,
-                GcGracePeriod = casConfig.GcGracePeriod,
-                MaxCacheSizeBytes = casConfig.MaxCacheSizeBytes,
-                AutoGcInterval = casConfig.AutoGcInterval,
-                MaxConcurrentOperations = casConfig.MaxConcurrentOperations,
-                VerifyIntegrity = casConfig.VerifyIntegrity,
-            };
+            var defaultConfig = (CasConfiguration)casConfig.Clone();
+            defaultConfig.CasRootPath = defaultPath;
+            return defaultConfig;
         }
 
         return casConfig;
@@ -322,6 +378,437 @@ public class ConfigurationProviderService(
         return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             AppConstants.AppName,
-            DirectoryNames.Logs.ToLowerInvariant());
+            DirectoryNames.Logs);
+    }
+
+    /// <inheritdoc />
+    public CsvCatalogConfiguration GetCsvCatalogConfiguration()
+    {
+        var appCatalogConfig = _appConfig.GetCsvCatalogConfiguration() ?? new CsvCatalogConfiguration();
+        var settings = _userSettings.Get();
+        var appCatalogs = appCatalogConfig.CsvValidationCatalogs ?? [];
+
+        return new CsvCatalogConfiguration
+        {
+            IndexFilePath = settings.IsExplicitlySet(nameof(UserSettings.IndexFilePath)) &&
+                !string.IsNullOrWhiteSpace(settings.IndexFilePath)
+                    ? settings.IndexFilePath
+                    : appCatalogConfig.IndexFilePath,
+            CsvValidationCatalogs = settings.IsExplicitlySet(nameof(UserSettings.CsvValidationCatalogs)) &&
+                settings.CsvValidationCatalogs != null
+                    ? [.. settings.CsvValidationCatalogs.Select(c => c.Clone())]
+                    : [.. appCatalogs.Select(c => c.Clone())],
+        };
+    }
+
+    /// <summary>
+    /// Moves data that was written to the legacy roaming data root by GenHub releases up to v0.0.4
+    /// into the current data and settings roots.
+    /// </summary>
+    /// <param name="legacyRoot">The directory where older releases kept application data.</param>
+    /// <param name="dataRoot">The destination directory for profiles, manifests and user data.</param>
+    /// <param name="settingsRoot">The destination directory for user settings files.</param>
+    /// <remarks>
+    /// <para>
+    /// If an explicitly configured data root override sits outside <paramref name="dataRoot"/>, user
+    /// settings must still be written to <paramref name="settingsRoot"/> because the application
+    /// always resolves the configuration path before the override exists in memory or on disk,
+    /// and therefore has to land there.
+    /// </para>
+    /// <para>
+    /// Releases up to v0.0.3 nested the manifests, tracked user data and workspace metadata under a
+    /// <c>Content</c> directory, so both that layout and the flat one are probed and flattened into
+    /// the destination. Data that a v0.0.3 install kept outside the legacy root, because an
+    /// <see cref="UserSettings.ApplicationDataPath"/> override pointed elsewhere, is out of scope
+    /// here. Profiles are the exception and are recovered separately by
+    /// <see cref="MigrateLegacyCustomPathProfiles()"/>, because v0.0.3 wrote them beside the
+    /// override rather than inside it.
+    /// </para>
+    /// <para>
+    /// The CAS pool is migrated alongside profiles, manifests, and user data so that no files are
+    /// left behind in the legacy roaming location.
+    /// </para>
+    /// </remarks>
+    internal void MigrateLegacyDataRoot(string legacyRoot, string dataRoot, string settingsRoot)
+    {
+        if (!Directory.Exists(legacyRoot))
+        {
+            return;
+        }
+
+        var directories = ResolveLegacyDirectories(legacyRoot, dataRoot);
+        var files = ResolveLegacyFiles(legacyRoot, dataRoot, settingsRoot);
+
+        if (directories.Count == 0 && files.Count == 0)
+        {
+            return;
+        }
+
+        _logger.LogInformation(
+            "Migrating legacy data root {LegacyRoot} into {DataRoot}, settings into {SettingsRoot}",
+            legacyRoot,
+            dataRoot,
+            settingsRoot);
+
+        if (directories.Count > 0)
+        {
+            Directory.CreateDirectory(dataRoot);
+        }
+
+        foreach (var (source, destination) in directories)
+        {
+            try
+            {
+                MigrateDirectory(source, destination);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
+            {
+                _logger.LogError(ex, "Failed to migrate legacy directory {Source}", source);
+            }
+        }
+
+        foreach (var (source, destination) in files)
+        {
+            try
+            {
+                MigrateFile(source, destination);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
+            {
+                _logger.LogError(ex, "Failed to migrate legacy file {Source}", source);
+            }
+        }
+
+        TryDeleteEmptyDirectory(legacyRoot);
+    }
+
+    private static List<(string Source, string Destination)> ResolveLegacyDirectories(string legacyRoot, string dataRoot) =>
+        LegacyRootDirectories
+            .SelectMany(
+                _ => LegacyRootLayouts,
+                (name, layout) => (Source: Path.Combine(legacyRoot, layout, name), Destination: Path.Combine(dataRoot, name)))
+            .Where(entry => Directory.Exists(entry.Source) && !PathHelper.AreSamePath(entry.Source, entry.Destination))
+            .ToList();
+
+    private static List<(string Source, string Destination)> ResolveLegacyFiles(string legacyRoot, string dataRoot, string settingsRoot) =>
+        LegacyRootLayouts
+            .Select(layout => (
+                Source: Path.Combine(legacyRoot, layout, FileTypes.WorkspaceMetadataFileName),
+                Destination: Path.Combine(dataRoot, FileTypes.WorkspaceMetadataFileName)))
+            .Concat(LegacySettingsFileNames
+                .Select(name => (
+                    Source: Path.Combine(legacyRoot, name),
+                    Destination: Path.Combine(settingsRoot, FileTypes.SettingsFileName))))
+            .Where(entry => File.Exists(entry.Source) && !PathHelper.AreSamePath(entry.Source, entry.Destination))
+            .ToList();
+
+    private static void CleanEmptySubdirectories(string dir)
+    {
+        try
+        {
+            foreach (var subDir in Directory.GetDirectories(dir))
+            {
+                CleanEmptySubdirectories(subDir);
+                if (!Directory.EnumerateFileSystemEntries(subDir).Any())
+                {
+                    try
+                    {
+                        Directory.Delete(subDir);
+                    }
+                    catch (IOException)
+                    {
+                        // Ignore
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        // Ignore
+                    }
+                }
+            }
+        }
+        catch (IOException)
+        {
+            // Ignore
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Ignore
+        }
+    }
+
+    private void EnsureLegacyDataMigrated()
+    {
+        if (_migrated)
+        {
+            return;
+        }
+
+        lock (_migrationLock)
+        {
+            if (_migrated)
+            {
+                return;
+            }
+
+            MigrateLegacyDataRoot();
+            MigrateContentDirectory();
+            MigrateLegacyCustomPathProfiles();
+            _migrated = true;
+        }
+    }
+
+    /// <summary>
+    /// Resolves the effective data root without triggering the legacy migration, so the migration
+    /// itself can ask where the app will read from.
+    /// </summary>
+    /// <returns>The explicitly configured override when set, otherwise the configured data root.</returns>
+    private string ResolveApplicationDataPath()
+    {
+        var settings = _userSettings.Get();
+        return settings.IsExplicitlySet(nameof(UserSettings.ApplicationDataPath)) &&
+            !string.IsNullOrWhiteSpace(settings.ApplicationDataPath)
+                ? settings.ApplicationDataPath
+                : _appConfig.GetConfiguredDataPath();
+    }
+
+    private void MigrateLegacyDataRoot()
+    {
+        try
+        {
+            MigrateLegacyDataRoot(
+                _appConfig.GetLegacyConfiguredDataPath(),
+                ResolveApplicationDataPath(),
+                _appConfig.GetConfiguredDataPath());
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
+        {
+            _logger.LogError(ex, "Failed to migrate legacy data root");
+        }
+    }
+
+    /// <summary>
+    /// Recovers profiles that releases up to v0.0.3 wrote beside an explicit
+    /// <see cref="UserSettings.ApplicationDataPath"/> rather than inside it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// v0.0.3 derived its profiles directory from the <em>parent</em> of the application data path.
+    /// With the default path that landed correctly, because the value it resolved carried a trailing
+    /// <c>Content</c> segment. With an explicit override there is no such segment, so the parent sits one
+    /// level above the data root: an override of <c>D:\GenHub\Data</c> put profiles in
+    /// <c>D:\GenHub\Profiles</c>, and an override of <c>C:\GenHubData</c> put them at the drive root.
+    /// This release reads profiles from inside the data root, so those files are invisible and the
+    /// profile list comes up empty after upgrading.
+    /// </para>
+    /// <para>
+    /// Only <c>*.json</c> files are taken, and only into a destination that does not already hold a file
+    /// of that name, so an unrelated <c>Profiles</c> directory that happens to sit beside the override is
+    /// never emptied and an existing profile is never overwritten. Anything left behind is reported.
+    /// </para>
+    /// </remarks>
+    private void MigrateLegacyCustomPathProfiles()
+    {
+        try
+        {
+            var settings = _userSettings.Get();
+            if (!settings.IsExplicitlySet(nameof(UserSettings.ApplicationDataPath)) ||
+                string.IsNullOrWhiteSpace(settings.ApplicationDataPath))
+            {
+                return;
+            }
+
+            var overrideParent = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(settings.ApplicationDataPath));
+            if (string.IsNullOrEmpty(overrideParent))
+            {
+                return;
+            }
+
+            var legacyProfiles = Path.Combine(overrideParent, DirectoryNames.Profiles);
+            var currentProfiles = Path.Combine(ResolveApplicationDataPath(), DirectoryNames.Profiles);
+
+            if (!Directory.Exists(legacyProfiles) || PathHelper.AreSamePath(legacyProfiles, currentProfiles))
+            {
+                return;
+            }
+
+            var candidates = Directory.GetFiles(legacyProfiles, FileTypes.JsonFilePattern);
+            if (candidates.Length == 0)
+            {
+                return;
+            }
+
+            _logger.LogInformation(
+                "Recovering {Count} v0.0.3 profile(s) from {LegacyProfiles} into {CurrentProfiles}",
+                candidates.Length,
+                legacyProfiles,
+                currentProfiles);
+
+            foreach (var candidate in candidates)
+            {
+                try
+                {
+                    MigrateFile(candidate, Path.Combine(currentProfiles, Path.GetFileName(candidate)));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
+                {
+                    _logger.LogError(ex, "Failed to recover legacy profile {Source}, leaving it in place", candidate);
+                }
+            }
+
+            var remaining = Directory.Exists(legacyProfiles)
+                ? Directory.GetFiles(legacyProfiles, FileTypes.JsonFilePattern).Length
+                : 0;
+            if (remaining > 0)
+            {
+                _logger.LogWarning(
+                    "{Count} profile(s) remain in {LegacyProfiles} and were left untouched. A profile of the same name may already exist in {CurrentProfiles}, or recovery failed for that file; see any errors logged above.",
+                    remaining,
+                    legacyProfiles,
+                    currentProfiles);
+            }
+            else
+            {
+                TryDeleteEmptyDirectory(legacyProfiles);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
+        {
+            _logger.LogError(ex, "Failed to recover v0.0.3 profiles stored beside a custom data path");
+        }
+    }
+
+    private void MigrateContentDirectory()
+    {
+        try
+        {
+            var rootPath = ResolveApplicationDataPath();
+            var contentPath = Path.Combine(rootPath, DirectoryNames.LegacyContent);
+
+            if (!Directory.Exists(contentPath))
+            {
+                return;
+            }
+
+            _logger.LogInformation("Migrating content from {ContentPath} to root {RootPath}", contentPath, rootPath);
+
+            MigrateDirectory(Path.Combine(contentPath, FileTypes.ManifestsDirectory), Path.Combine(rootPath, FileTypes.ManifestsDirectory));
+            MigrateDirectory(Path.Combine(contentPath, DirectoryNames.UserData), Path.Combine(rootPath, DirectoryNames.UserData));
+            MigrateFile(
+                Path.Combine(contentPath, FileTypes.WorkspaceMetadataFileName),
+                Path.Combine(rootPath, FileTypes.WorkspaceMetadataFileName));
+
+            TryDeleteEmptyDirectory(contentPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
+        {
+            _logger.LogError(ex, "Failed to migrate Content directory");
+        }
+    }
+
+    private void TryDeleteEmptyDirectory(string path)
+    {
+        try
+        {
+            if (!Directory.Exists(path))
+            {
+                return;
+            }
+
+            CleanEmptySubdirectories(path);
+
+            if (!Directory.EnumerateFileSystemEntries(path).Any())
+            {
+                Directory.Delete(path);
+                _logger.LogInformation("Deleted empty directory {Path}", path);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
+        {
+            _logger.LogDebug(ex, "Could not delete {Path} after migration", path);
+        }
+    }
+
+    private void MigrateDirectory(string sourceDir, string destDir)
+    {
+        if (!Directory.Exists(sourceDir))
+        {
+            return;
+        }
+
+        if (!Directory.Exists(destDir))
+        {
+            try
+            {
+                Directory.Move(sourceDir, destDir);
+                _logger.LogInformation("Moved {Source} to {Dest}", sourceDir, destDir);
+                return;
+            }
+            catch (IOException ex)
+            {
+                _logger.LogWarning(ex, "Could not move {Source} to {Dest} directly, falling back to per-entry migration", sourceDir, destDir);
+                Directory.CreateDirectory(destDir);
+            }
+        }
+
+        foreach (var file in Directory.GetFiles(sourceDir))
+        {
+            try
+            {
+                MigrateFile(file, Path.Combine(destDir, Path.GetFileName(file)));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
+            {
+                _logger.LogError(ex, "Failed to migrate {Source}, leaving it in place", file);
+            }
+        }
+
+        foreach (var subDir in Directory.GetDirectories(sourceDir))
+        {
+            try
+            {
+                MigrateDirectory(subDir, Path.Combine(destDir, Path.GetFileName(subDir)));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
+            {
+                _logger.LogError(ex, "Failed to migrate {Source}, leaving it in place", subDir);
+            }
+        }
+
+        TryDeleteEmptyDirectory(sourceDir);
+    }
+
+    private void MigrateFile(string sourceFile, string destFile)
+    {
+        if (!File.Exists(sourceFile))
+        {
+            return;
+        }
+
+        if (File.Exists(destFile))
+        {
+            _logger.LogInformation("Skipping {Source}, {Dest} already exists", sourceFile, destFile);
+            return;
+        }
+
+        var destDir = Path.GetDirectoryName(destFile);
+        if (!string.IsNullOrEmpty(destDir))
+        {
+            Directory.CreateDirectory(destDir);
+        }
+
+        try
+        {
+            File.Move(sourceFile, destFile);
+        }
+        catch (IOException ex)
+        {
+            // File.Move cannot cross volumes on every platform; copy and only drop the source once
+            // the copy is on disk so a failure can never lose the file.
+            _logger.LogWarning(ex, "Could not move {Source} to {Dest} directly, copying instead", sourceFile, destFile);
+            File.Copy(sourceFile, destFile, overwrite: false);
+            File.Delete(sourceFile);
+        }
+
+        _logger.LogInformation("Moved {Source} to {Dest}", sourceFile, destFile);
     }
 }

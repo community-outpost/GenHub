@@ -1,0 +1,99 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Sidebar Button Styles -->
+    <Style Selector="Button.sidebar-btn">
+        <Setter Property="Height" Value="46" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="12,0" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Margin" Value="0,2" />
+    </Style>
+    <Style Selector="Button.sidebar-btn StackPanel">
+        <Setter Property="Spacing" Value="12" />
+    </Style>
+    <Style Selector="Button.sidebar-btn PathIcon">
+        <Setter Property="Width" Value="18" />
+        <Setter Property="Height" Value="18" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="Opacity" Value="0.6" />
+    </Style>
+    <Style Selector="Button.sidebar-btn TextBlock">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="Opacity" Value="0.6" />
+    </Style>
+
+    <Style Selector="Button.sidebar-btn:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="#15FFFFFF" />
+    </Style>
+    <Style Selector="Button.sidebar-btn:pointerover TextBlock, Button.sidebar-btn:pointerover PathIcon">
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+
+    <Style Selector="Button.sidebar-btn.selected /template/ ContentPresenter">
+        <Setter Property="Background" Value="#25FFFFFF" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Button.sidebar-btn.selected TextBlock, Button.sidebar-btn.selected PathIcon">
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+
+    <Style Selector="Button.sidebar-btn.selected /template/ ContentPresenter" x:CompileBindings="False">
+        <Setter Property="BorderBrush" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
+        <Setter Property="BorderThickness" Value="3,0,0,0" />
+    </Style>
+
+    <!-- Settings Card Style -->
+    <Style Selector="Border.settings-card">
+        <Setter Property="Background" Value="#10FFFFFF" />
+        <Setter Property="BorderBrush" Value="#20FFFFFF" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="24" />
+        <Setter Property="Margin" Value="24,0,24,24" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="MinWidth" Value="0" />
+    </Style>
+    <Style Selector="TextBlock.section-header">
+        <Setter Property="FontSize" Value="20" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Margin" Value="0,0,0,24" />
+    </Style>
+    <Style Selector="TextBlock.form-label">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Opacity" Value="0.7" />
+        <Setter Property="Margin" Value="0,0,0,8" />
+    </Style>
+
+    <!-- Numeric Input next to Slider (Stealth Style) -->
+    <Style Selector="NumericUpDown.slider-input">
+        <Setter Property="ShowButtonSpinner" Value="False" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="Width" Value="50" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="IsReadOnly" Value="False" />
+    </Style>
+    <Style Selector="NumericUpDown.slider-input /template/ TextBox">
+        <Setter Property="TextAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+    </Style>
+    <Style Selector="NumericUpDown.slider-input:focus /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#20FFFFFF" />
+    </Style>
+    <Style Selector="NumericUpDown.slider-input:pointerover">
+        <Setter Property="Background" Value="#10FFFFFF" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+</Styles>

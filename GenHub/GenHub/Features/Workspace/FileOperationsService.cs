@@ -7,6 +7,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Workspace;
@@ -20,10 +21,6 @@ public class FileOperationsService(
     ICasService casService) : IFileOperationsService
 {
     private const int BufferSize = 1024 * 1024; // 1MB buffer
-
-    private readonly ILogger<FileOperationsService> _logger = logger;
-    private readonly IDownloadService _downloadService = downloadService;
-    private readonly ICasService _casService = casService;
 
     /// <summary>
     /// Ensures that the directory for the specified file path exists, creating it if necessary.
@@ -51,29 +48,16 @@ public class FileOperationsService(
     {
         try
         {
-            // Check for file symlink FIRST (LinkTarget check works even for broken symlinks)
-            // File.Exists() returns false for broken symlinks on Windows, but they still exist
-            // and will prevent creating a new symlink at the same path
-            var fileInfo = new FileInfo(filePath);
-            if (fileInfo.LinkTarget != null)
+            if (TryDeleteReparsePointOrSymlink(filePath))
             {
-                // This is a file symlink (even if broken)
-                File.Delete(filePath);
-                return true;
-            }
-
-            // Check for directory symlink
-            var dirInfo = new DirectoryInfo(filePath);
-            if (dirInfo.LinkTarget != null)
-            {
-                // This is a directory symlink (even if broken)
-                Directory.Delete(filePath);
                 return true;
             }
 
             // Finally check for regular file (not a symlink)
             if (File.Exists(filePath))
             {
+                var fileInfo = new FileInfo(filePath);
+                ClearReadOnlyAttribute(fileInfo);
                 File.Delete(filePath);
                 return true;
             }
@@ -94,30 +78,62 @@ public class FileOperationsService(
 
     /// <summary>
     /// Deletes the specified directory and all its contents if it exists.
+    /// Safely unlinks NTFS directory junctions and symlinks, clears read-only attributes,
+    /// and deletes the target if it points to a regular file.
     /// </summary>
     /// <param name="directoryPath">The path of the directory to delete.</param>
-    /// <returns>True if the directory was deleted; otherwise, false.</returns>
-    /// <exception cref="IOException">Thrown when files are locked by another process.</exception>
+    /// <returns>True if the directory or file was deleted; otherwise, false.</returns>
+    /// <exception cref="IOException">Thrown when files are locked by another process or an I/O error occurs.</exception>
+    /// <exception cref="UnauthorizedAccessException">Thrown when access to the path is denied.</exception>
     public static bool DeleteDirectoryIfExists(string directoryPath)
     {
-        if (Directory.Exists(directoryPath))
+        if (string.IsNullOrWhiteSpace(directoryPath))
         {
-            try
-            {
-                Directory.Delete(directoryPath, recursive: true);
-                return true;
-            }
-            catch (IOException ex) when (ex.Message.Contains("being used by another process"))
-            {
-                // Re-throw with a more helpful message
-                throw new IOException(
-                    $"Cannot delete directory '{directoryPath}' because files are being used by another process. " +
-                    "Please ensure all applications using files in this directory are closed before deleting.",
-                    ex);
-            }
+            return false;
         }
 
-        return false;
+        FileAttributes attributes = default;
+        try
+        {
+            attributes = File.GetAttributes(directoryPath);
+        }
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return false;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            if (!Path.Exists(directoryPath))
+            {
+                return false;
+            }
+
+            throw;
+        }
+
+        if ((attributes & FileAttributes.Directory) == 0)
+        {
+            return DeleteFileIfExists(directoryPath);
+        }
+
+        var dirInfo = new DirectoryInfo(directoryPath);
+        try
+        {
+            DeleteDirectoryInternal(dirInfo);
+            return true;
+        }
+        catch (IOException ex) when (IsFileLockException(ex) || ex.Message.Contains("being used by another process", StringComparison.OrdinalIgnoreCase))
+        {
+            // Re-throw with a more helpful message
+            throw new IOException(
+                $"Cannot delete directory '{directoryPath}' because files are being used by another process. " +
+                "Please ensure all applications using files in this directory are closed before deleting.",
+                ex);
+        }
     }
 
     /// <summary>
@@ -148,12 +164,18 @@ public class FileOperationsService(
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A task representing the asynchronous copy operation.</returns>
     public async Task CopyFileAsync(
-            string sourcePath,
-            string destinationPath,
-            CancellationToken cancellationToken = default)
+        string sourcePath,
+        string destinationPath,
+        CancellationToken cancellationToken = default)
     {
         const int MaxRetries = 3;
         const int InitialDelayMs = 50;
+
+        if (WouldCopyOntoItself(sourcePath, destinationPath))
+        {
+            logger.LogDebug("Skipped copy because source and destination are the same file: {Source}", sourcePath);
+            return;
+        }
 
         for (int attempt = 0; attempt <= MaxRetries; attempt++)
         {
@@ -161,18 +183,8 @@ public class FileOperationsService(
             {
                 EnsureDirectoryExists(destinationPath);
 
-                // If destination exists and is a symlink/reparse point, delete it first
-                // This prevents issues when switching from Symlink strategy to FullCopy strategy
-                if (File.Exists(destinationPath))
-                {
-                    var destInfo = new FileInfo(destinationPath);
-                    if (destInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
-                    {
-                        _logger.LogDebug("Removing existing symlink at {Destination} before copying", destinationPath);
-                        destInfo.Delete();
-                    }
-                }
-
+                // Open the source before touching the destination: a missing or unreadable source
+                // must fail without having destroyed a valid file already sitting at the destination.
                 await using var source = new FileStream(
                     sourcePath,
                     FileMode.Open,
@@ -180,6 +192,15 @@ public class FileOperationsService(
                     FileShare.Read,
                     BufferSize,
                     useAsync: true);
+
+                // Always unlink an existing destination rather than truncating it. A symlink left by
+                // the Symlink strategy, or a hard link to a CAS object, would otherwise receive the
+                // write through to its target instead of yielding an independent copy here.
+                if (DeleteFileIfExists(destinationPath))
+                {
+                    logger.LogDebug("Removed existing destination at {Destination} before copying", destinationPath);
+                }
+
                 await using var destination = new FileStream(
                     destinationPath,
                     FileMode.Create,
@@ -193,25 +214,21 @@ public class FileOperationsService(
                 try
                 {
                     FileInfo sourceInfo = new(sourcePath);
-                    FileInfo destInfo = new(destinationPath)
-                    {
-                        // Timestamps
-                        CreationTime = sourceInfo.CreationTime,
-                        LastWriteTime = sourceInfo.LastWriteTime,
+                    File.SetCreationTime(destinationPath, sourceInfo.CreationTime);
+                    File.SetLastWriteTime(destinationPath, sourceInfo.LastWriteTime);
 
-                        // Attributes - avoid reparse/read-only/system flags
-                        Attributes = sourceInfo.Attributes
+                    var targetAttributes = sourceInfo.Attributes
                         & ~FileAttributes.ReparsePoint
                         & ~FileAttributes.ReadOnly
-                        & ~FileAttributes.System,
-                    };
+                        & ~FileAttributes.System;
+                    File.SetAttributes(destinationPath, targetAttributes);
                 }
                 catch (Exception attrEx)
                 {
-                    _logger.LogDebug(attrEx, "Non-fatal: failed to copy timestamps/attributes from {Source} to {Destination}", sourcePath, destinationPath);
+                    logger.LogDebug(attrEx, "Non-fatal: failed to copy timestamps/attributes from {Source} to {Destination}", sourcePath, destinationPath);
                 }
 
-                _logger.LogDebug(
+                logger.LogDebug(
                     "Copied file from {Source} to {Destination}",
                     sourcePath,
                     destinationPath);
@@ -221,7 +238,7 @@ public class FileOperationsService(
             catch (IOException ioEx) when (attempt < MaxRetries && IsFileLockException(ioEx))
             {
                 var delay = InitialDelayMs * (int)Math.Pow(2, attempt);
-                _logger.LogDebug(
+                logger.LogDebug(
                     "File copy attempt {Attempt}/{MaxRetries} failed due to file lock, retrying in {Delay}ms: {Message}",
                     attempt + 1,
                     MaxRetries + 1,
@@ -231,7 +248,7 @@ public class FileOperationsService(
             }
             catch (Exception ex)
             {
-                _logger.LogError(
+                logger.LogError(
                     ex,
                     "Failed to copy file from {Source} to {Destination}",
                     sourcePath,
@@ -299,7 +316,7 @@ public class FileOperationsService(
                         if (allowFallback)
                         {
                             // Fall back to copy if symlink creation requires elevation or Developer Mode
-                            _logger.LogWarning(uaex, "Symlink creation not permitted on Windows. Falling back to file copy for {LinkPath}", linkPath);
+                            logger.LogWarning(uaex, "Symlink creation not permitted on Windows. Falling back to file copy for {LinkPath}", linkPath);
                             FallbackToCopyIfPossible(absoluteTargetPath, linkPath);
                         }
                         else
@@ -312,7 +329,7 @@ public class FileOperationsService(
                         if (allowFallback)
                         {
                             // Fall back to copy if symlink creation fails due to privilege or filesystem issues
-                            _logger.LogWarning(ioex, "Symlink creation failed on Windows. Falling back to file copy for {LinkPath}", linkPath);
+                            logger.LogWarning(ioex, "Symlink creation failed on Windows. Falling back to file copy for {LinkPath}", linkPath);
                             FallbackToCopyIfPossible(absoluteTargetPath, linkPath);
                         }
                         else
@@ -325,7 +342,7 @@ public class FileOperationsService(
                         if (allowFallback)
                         {
                             // Fall back if platform lacks symlink support
-                            _logger.LogWarning(pnsex, "Symlink creation not supported on this platform. Falling back to file copy for {LinkPath}", linkPath);
+                            logger.LogWarning(pnsex, "Symlink creation not supported on this platform. Falling back to file copy for {LinkPath}", linkPath);
 
                             if (File.Exists(absoluteTargetPath))
                             {
@@ -344,14 +361,14 @@ public class FileOperationsService(
                 },
                 cancellationToken);
 
-            _logger.LogDebug(
+            logger.LogDebug(
                 "Created symlink or copied file from {Link} to {Target}",
                 linkPath,
                 absoluteTargetPath);
         }
         catch (Exception ex)
         {
-            _logger.LogError(
+            logger.LogError(
                 ex,
                 "Failed to create symlink from {Link} to {Target}",
                 linkPath,
@@ -380,29 +397,29 @@ public class FileOperationsService(
             await Task.Run(
                 () =>
                 {
-                    if (OperatingSystem.IsWindows())
-                    {
-                        // Use platform-specific implementation
-                        throw new NotImplementedException("Hard link creation should be handled by platform-specific service");
-                    }
-                    else
-                    {
-                        File.Copy(targetPath, linkPath, true);
-                        _logger.LogWarning(
-                            "Hard links not supported on this platform, fell back to copy for {Link}",
-                            linkPath);
-                    }
+                    // Every supported platform has a decorator that overrides this:
+                    // WindowsFileOperationsService and UnixFileOperationsService. Reaching
+                    // here means the host did not register one.
+                    //
+                    // This used to File.Copy on non-Windows and log a warning. That made a
+                    // missing registration invisible: workspaces still built, tests still
+                    // passed, and every profile silently consumed a full copy of the game
+                    // instead of a link. Failing is the only way that surfaces.
+                    throw new NotSupportedException(
+                        "Hard link creation must be handled by a platform-specific IFileOperationsService. "
+                        + "Register WindowsFileOperationsService or UnixFileOperationsService in the host's "
+                        + "service module.");
                 },
                 cancellationToken);
 
-            _logger.LogDebug(
+            logger.LogDebug(
                 "Created hard link from {Link} to {Target}",
                 linkPath,
                 targetPath);
         }
         catch (Exception ex)
         {
-            _logger.LogError(
+            logger.LogError(
                 ex,
                 "Failed to create hard link from {Link} to {Target}",
                 linkPath,
@@ -425,29 +442,53 @@ public class FileOperationsService(
     {
         try
         {
+            return await CheckFileHashAsync(filePath, expectedHash, cancellationToken) == FileHashVerification.Match;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to verify hash for {File}", filePath);
+            return false;
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<FileHashVerification> CheckFileHashAsync(
+        string filePath,
+        string expectedHash,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
             if (!File.Exists(filePath))
             {
-                return false;
+                // No hash was computed, so nothing is known about the content that used to be here.
+                // Reporting a mismatch would invite a caller to act on a change it never observed.
+                logger.LogDebug("Hash verification for {File}: file does not exist", filePath);
+                return FileHashVerification.Failed;
             }
 
-            var actualHash = await _downloadService.ComputeFileHashAsync(
+            var actualHash = await downloadService.ComputeFileHashAsync(
                 filePath,
                 cancellationToken);
-            var result = string.Equals(
+            var matches = string.Equals(
                 actualHash,
                 expectedHash,
                 StringComparison.OrdinalIgnoreCase);
 
-            _logger.LogDebug(
+            logger.LogDebug(
                 "Hash verification for {File}: {Result}",
                 filePath,
-                result);
-            return result;
+                matches);
+            return matches ? FileHashVerification.Match : FileHashVerification.Mismatch;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to verify hash for {File}", filePath);
-            return false;
+            logger.LogError(ex, "Failed to compute hash for {File}", filePath);
+            return FileHashVerification.Failed;
         }
     }
 
@@ -457,7 +498,7 @@ public class FileOperationsService(
         // TODO: This is a placeholder for a real patch implementation.
         // A real implementation would read the patch file and apply transformations
         // to the target file. For example, using a library for diff/patch or JSON Patch.
-        _logger.LogInformation("Applying patch {PatchPath} to {TargetPath}", patchPath, targetPath);
+        logger.LogInformation("Applying patch {PatchPath} to {TargetPath}", patchPath, targetPath);
 
         if (!File.Exists(targetPath))
         {
@@ -474,7 +515,7 @@ public class FileOperationsService(
         var patchContent = await File.ReadAllTextAsync(patchPath, cancellationToken);
         await File.AppendAllTextAsync(targetPath, patchContent, cancellationToken);
 
-        _logger.LogDebug("Successfully applied patch to {TargetPath}", targetPath);
+        logger.LogDebug("Successfully applied patch to {TargetPath}", targetPath);
     }
 
     /// <summary>
@@ -495,7 +536,7 @@ public class FileOperationsService(
         {
             EnsureDirectoryExists(destinationPath);
 
-            var result = await _downloadService.DownloadFileAsync(
+            var result = await downloadService.DownloadFileAsync(
                 new DownloadConfiguration { Url = url, DestinationPath = destinationPath },
                 progress,
                 cancellationToken);
@@ -505,7 +546,7 @@ public class FileOperationsService(
                     $"Download failed: {result.FirstError}");
             }
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Downloaded {Bytes} bytes from {Url} to {Destination}",
                 result.BytesDownloaded,
                 url.ToString(),
@@ -513,7 +554,7 @@ public class FileOperationsService(
         }
         catch (Exception ex)
         {
-            _logger.LogError(
+            logger.LogError(
                 ex,
                 "Failed to download file from {Url} to {Destination}",
                 url,
@@ -536,42 +577,39 @@ public class FileOperationsService(
     {
         try
         {
-            var result = await _casService.StoreContentAsync(sourcePath, expectedHash, cancellationToken).ConfigureAwait(false);
+            var result = await casService.StoreContentAsync(sourcePath, expectedHash, cancellationToken).ConfigureAwait(false);
             if (result.Success)
             {
-                _logger.LogDebug("Stored file {SourcePath} in CAS with hash {Hash}", sourcePath, result.Data);
+                logger.LogDebug("Stored file {SourcePath} in CAS with hash {Hash}", sourcePath, result.Data);
                 return result.Data;
             }
 
-            _logger.LogError("Failed to store file {SourcePath} in CAS: {Error}", sourcePath, result.FirstError);
+            logger.LogError("Failed to store file {SourcePath} in CAS: {Error}", sourcePath, result.FirstError);
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Exception storing file {SourcePath} in CAS", sourcePath);
+            logger.LogError(ex, "Exception storing file {SourcePath} in CAS", sourcePath);
             return null;
         }
     }
 
-    /// <summary>
-    /// Copies a file from CAS to the specified destination path using its hash.
-    /// The destination path determines the final filename and location.
-    /// </summary>
-    /// <param name="hash">The content hash in CAS.</param>
-    /// <param name="destinationPath">The destination file path.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True if the operation succeeded.</returns>
+    /// <inheritdoc/>
     public async Task<bool> CopyFromCasAsync(
         string hash,
         string destinationPath,
+        ContentType? contentType = null,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var pathResult = await _casService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
+            var pathResult = contentType.HasValue
+                ? await casService.GetContentPathAsync(hash, contentType.Value, cancellationToken).ConfigureAwait(false)
+                : await casService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
+
             if (!pathResult.Success || pathResult.Data == null)
             {
-                _logger.LogError("CAS content not found for hash {Hash}", hash);
+                logger.LogError("CAS content not found for hash {Hash}", hash);
                 return false;
             }
 
@@ -579,44 +617,39 @@ public class FileOperationsService(
 
             await CopyFileAsync(pathResult.Data, destinationPath, cancellationToken).ConfigureAwait(false);
 
-            _logger.LogDebug("Copied from CAS hash {Hash} to {DestinationPath}", hash, destinationPath);
+            logger.LogDebug("Copied from CAS hash {Hash} to {DestinationPath}", hash, destinationPath);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to copy from CAS hash {Hash} to {DestinationPath}", hash, destinationPath);
+            logger.LogError(ex, "Failed to copy from CAS hash {Hash} to {DestinationPath}", hash, destinationPath);
             return false;
         }
     }
 
-    /// <summary>
-    /// Creates a link (hard or symbolic) from CAS to the specified destination path.
-    /// The destination path determines the final filename and location.
-    /// </summary>
-    /// <param name="hash">The content hash in CAS.</param>
-    /// <param name="destinationPath">The destination file path.</param>
-    /// <param name="useHardLink">Whether to use a hard link instead of symbolic link.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True if the operation succeeded.</returns>
+    /// <inheritdoc/>
     public async Task<bool> LinkFromCasAsync(
         string hash,
         string destinationPath,
         bool useHardLink = false,
+        ContentType? contentType = null,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var pathResult = await _casService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
+            var pathResult = contentType.HasValue
+                ? await casService.GetContentPathAsync(hash, contentType.Value, cancellationToken).ConfigureAwait(false)
+                : await casService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
             if (!pathResult.Success || pathResult.Data == null)
             {
-                _logger.LogError("CAS content not found for hash {Hash}: {Error}", hash, pathResult.FirstError);
+                logger.LogError("CAS content not found for hash {Hash}: {Error}", hash, pathResult.FirstError);
                 return false;
             }
 
             // Verify the CAS file actually exists before trying to link
             if (!File.Exists(pathResult.Data))
             {
-                _logger.LogError("CAS file does not exist at path {Path} for hash {Hash}", pathResult.Data, hash);
+                logger.LogError("CAS file does not exist at path {Path} for hash {Hash}", pathResult.Data, hash);
                 return false;
             }
 
@@ -628,15 +661,15 @@ public class FileOperationsService(
             }
             else
             {
-                await CreateSymlinkAsync(destinationPath, pathResult.Data, !useHardLink, cancellationToken).ConfigureAwait(false);
+                await CreateSymlinkAsync(destinationPath, pathResult.Data, allowFallback: false, cancellationToken).ConfigureAwait(false);
             }
 
-            _logger.LogDebug("Created {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
+            logger.LogDebug("Created {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
+            logger.LogError(ex, "Failed to create {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
             return false;
         }
     }
@@ -653,18 +686,109 @@ public class FileOperationsService(
     {
         try
         {
-            var streamResult = await _casService.OpenContentStreamAsync(hash, cancellationToken).ConfigureAwait(false);
+            var streamResult = await casService.OpenContentStreamAsync(hash, cancellationToken).ConfigureAwait(false);
             if (streamResult.Success)
             {
                 return streamResult.Data;
             }
 
-            _logger.LogError("Failed to open CAS content stream for hash {Hash}: {Error}", hash, streamResult.FirstError);
+            logger.LogError("Failed to open CAS content stream for hash {Hash}: {Error}", hash, streamResult.FirstError);
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Exception opening CAS content stream for hash {Hash}", hash);
+            logger.LogError(ex, "Exception opening CAS content stream for hash {Hash}", hash);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Determines whether a copy would do nothing but unlink the file it is reading, in which case
+    /// there is nothing to copy and the file must be left alone.
+    /// <para>
+    /// A destination that is itself a symbolic link never qualifies, even when it resolves to the
+    /// source. Callers copy precisely to replace such a link with an independent file, and unlinking
+    /// a link leaves the file it points at untouched. Only a destination that is a real file naming
+    /// the same file as the source qualifies - the identical path, or the file a source link points
+    /// at - because unlinking that would destroy the only copy.
+    /// </para>
+    /// <para>
+    /// Hard links and Windows 8.3 short names have no resolvable target and are not detected here;
+    /// opening the source before unlinking the destination is what makes those cases fail safely
+    /// rather than destructively.
+    /// </para>
+    /// </summary>
+    /// <param name="sourcePath">The file being read.</param>
+    /// <param name="destinationPath">The path being written.</param>
+    /// <returns>True when the copy must be skipped.</returns>
+    private static bool WouldCopyOntoItself(string sourcePath, string destinationPath)
+    {
+        var source = TryGetFullPath(sourcePath);
+        var destination = TryGetFullPath(destinationPath);
+
+        if (source is null || destination is null)
+        {
+            return false;
+        }
+
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
+        if (string.Equals(source, destination, comparison))
+        {
+            return true;
+        }
+
+        if (TryResolveLinkTarget(destination) is not null)
+        {
+            return false;
+        }
+
+        return string.Equals(TryResolveLinkTarget(source) ?? source, destination, comparison);
+    }
+
+    /// <summary>
+    /// Normalizes a path without consulting the file system.
+    /// </summary>
+    /// <param name="path">The path to normalize.</param>
+    /// <returns>The normalized path, or <c>null</c> when the path cannot be normalized.</returns>
+    private static string? TryGetFullPath(string path)
+    {
+        try
+        {
+            return Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            return null;
+        }
+        catch (PathTooLongException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Follows a symbolic link or junction to its final target.
+    /// </summary>
+    /// <param name="fullPath">The normalized path to inspect.</param>
+    /// <returns>The final target, or <c>null</c> when the path is not a link or cannot be read.</returns>
+    private static string? TryResolveLinkTarget(string fullPath)
+    {
+        try
+        {
+            var target = File.ResolveLinkTarget(fullPath, returnFinalTarget: true);
+            return target is null ? null : Path.TrimEndingDirectorySeparator(target.FullName);
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
             return null;
         }
     }
@@ -697,6 +821,117 @@ public class FileOperationsService(
         else
         {
             throw new FileNotFoundException($"Source file not found for fallback copy: {sourcePath}");
+        }
+    }
+
+    /// <summary>
+    /// Recursively removes directory contents, safely unlinking directory junctions and symlinks
+    /// non-recursively and clearing read-only attributes to prevent <see cref="UnauthorizedAccessException"/>.
+    /// </summary>
+    private static void DeleteDirectoryInternal(DirectoryInfo directory)
+    {
+        if (!directory.Exists && directory.LinkTarget == null)
+        {
+            return;
+        }
+
+        // If the directory itself is a reparse point (e.g. junction or directory symlink),
+        // delete it non-recursively to avoid traversing the target or encountering access issues.
+        if ((directory.Attributes & FileAttributes.ReparsePoint) != 0 || directory.LinkTarget != null)
+        {
+            directory.Delete(false);
+            return;
+        }
+
+        // Strip read-only attributes and delete all files.
+        foreach (var file in directory.EnumerateFiles())
+        {
+            ClearReadOnlyAttribute(file);
+            file.Delete();
+        }
+
+        // Process subdirectories: delete junctions/reparse points non-recursively, recurse into regular dirs.
+        foreach (var subDir in directory.EnumerateDirectories())
+        {
+            DeleteDirectoryChild(subDir);
+        }
+
+        ClearReadOnlyAttribute(directory);
+        directory.Delete(false);
+    }
+
+    /// <summary>
+    /// Deletes a directory child entry non-recursively for reparse points and junctions, or recursively for regular directories.
+    /// </summary>
+    /// <param name="subDir">The subdirectory info to delete.</param>
+    private static void DeleteDirectoryChild(DirectoryInfo subDir)
+    {
+        ClearReadOnlyAttribute(subDir);
+        if ((subDir.Attributes & FileAttributes.ReparsePoint) != 0 || subDir.LinkTarget != null)
+        {
+            subDir.Delete(false);
+        }
+        else
+        {
+            DeleteDirectoryInternal(subDir);
+        }
+    }
+
+    /// <summary>
+    /// Attempts to delete a path if it is a reparse point or symbolic link (file or directory).
+    /// </summary>
+    /// <param name="path">The path to test and delete.</param>
+    /// <returns><c>true</c> if a reparse point was deleted; otherwise, <c>false</c>.</returns>
+    private static bool TryDeleteReparsePointOrSymlink(string path)
+    {
+        // Check for directory symlink or junction FIRST when directory attribute or existence indicates a directory,
+        // preventing directory junctions from failing with UnauthorizedAccessException when passed to File.Delete.
+        var dirInfo = new DirectoryInfo(path);
+        if ((dirInfo.Exists || (dirInfo.Attributes & FileAttributes.Directory) != 0) && IsReparsePointOrSymlink(dirInfo))
+        {
+            ClearReadOnlyAttribute(dirInfo);
+            Directory.Delete(path, recursive: false);
+            return true;
+        }
+
+        // Check for file symlink (LinkTarget check works even for broken symlinks)
+        var fileInfo = new FileInfo(path);
+        if (IsReparsePointOrSymlink(fileInfo))
+        {
+            ClearReadOnlyAttribute(fileInfo);
+            File.Delete(path);
+            return true;
+        }
+
+        if (IsReparsePointOrSymlink(dirInfo))
+        {
+            ClearReadOnlyAttribute(dirInfo);
+            Directory.Delete(path, recursive: false);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Determines whether the given file system info represents a reparse point or symbolic link.
+    /// </summary>
+    /// <param name="info">The file or directory info.</param>
+    /// <returns><c>true</c> if the entry is a reparse point or symlink; otherwise, <c>false</c>.</returns>
+    private static bool IsReparsePointOrSymlink(FileSystemInfo info)
+    {
+        return info.LinkTarget != null || (info.Exists && (info.Attributes & FileAttributes.ReparsePoint) != 0);
+    }
+
+    /// <summary>
+    /// Clears the read-only attribute from a file system entry if present.
+    /// </summary>
+    /// <param name="info">The file or directory info.</param>
+    private static void ClearReadOnlyAttribute(FileSystemInfo info)
+    {
+        if (info.Exists && (info.Attributes & FileAttributes.ReadOnly) != 0)
+        {
+            info.Attributes &= ~FileAttributes.ReadOnly;
         }
     }
 }

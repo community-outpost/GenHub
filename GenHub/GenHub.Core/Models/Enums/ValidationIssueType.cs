@@ -26,4 +26,7 @@ public enum ValidationIssueType
 
     /// <summary>There is insufficient disk space to complete the operation.</summary>
     InsufficientSpace,
+
+    /// <summary>Validation could not run because its required manifest or catalog was unavailable.</summary>
+    ValidationUnavailable,
 }

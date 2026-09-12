@@ -1,12 +1,19 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Core.Models.Validation;
 using GenHub.Features.Content.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
+using GameInstallationType = GenHub.Core.Models.Enums.GameInstallationType;
 
 namespace GenHub.Tests.Core.Features.Content;
 
@@ -18,6 +25,8 @@ public class ContentOrchestratorTests
     private readonly Mock<IDynamicContentCache> _cacheMock;
     private readonly Mock<IContentValidator> _contentValidatorMock;
     private readonly Mock<IContentManifestPool> _manifestPoolMock;
+    private readonly Mock<IGameInstallationService> _installationServiceMock;
+    private readonly Mock<IInstallationCasPoolService> _installationCasPoolServiceMock;
     private readonly Mock<ILogger<ContentOrchestrator>> _loggerMock;
 
     /// <summary>
@@ -28,6 +37,8 @@ public class ContentOrchestratorTests
         _cacheMock = new Mock<IDynamicContentCache>();
         _contentValidatorMock = new Mock<IContentValidator>();
         _manifestPoolMock = new Mock<IContentManifestPool>();
+        _installationServiceMock = new Mock<IGameInstallationService>();
+        _installationCasPoolServiceMock = new Mock<IInstallationCasPoolService>();
         _loggerMock = new Mock<ILogger<ContentOrchestrator>>();
     }
 
@@ -36,7 +47,7 @@ public class ContentOrchestratorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task SearchAsync_AggregatesResultsFromMultipleProviders_Successfully()
+    public async Task SearchAsync_AggregatesResultsFromMultipleProviders_SuccessfullyAsync()
     {
         // Arrange
         var provider1Mock = new Mock<IContentProvider>();
@@ -62,7 +73,9 @@ public class ContentOrchestratorTests
             [],
             _cacheMock.Object,
             _contentValidatorMock.Object,
-            _manifestPoolMock.Object);
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
 
         // Act
         var result = await orchestrator.SearchAsync(new ContentSearchQuery());
@@ -79,7 +92,7 @@ public class ContentOrchestratorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task AcquireContentAsync_ValidatesAndStoresContent_Successfully()
+    public async Task AcquireContentAsync_ValidatesAndStoresContent_SuccessfullyAsync()
     {
         // Arrange
         var searchResult = new ContentSearchResult
@@ -111,7 +124,7 @@ public class ContentOrchestratorTests
         _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync(manifest.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
 
-        _manifestPoolMock.Setup(m => m.AddManifestAsync(manifest, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        _manifestPoolMock.Setup(m => m.AddManifestAsync(manifest, It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         var orchestrator = new ContentOrchestrator(
@@ -121,7 +134,9 @@ public class ContentOrchestratorTests
             [],
             _cacheMock.Object,
             _contentValidatorMock.Object,
-            _manifestPoolMock.Object);
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
 
         // Act
         var result = await orchestrator.AcquireContentAsync(searchResult);
@@ -129,7 +144,453 @@ public class ContentOrchestratorTests
         // Assert
         Assert.True(result.Success);
         Assert.Equal(manifest, result.Data);
-        _manifestPoolMock.Verify(m => m.AddManifestAsync(manifest, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        _manifestPoolMock.Verify(m => m.AddManifestAsync(manifest, It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
         _contentValidatorMock.Verify(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Stops GameClient acquisition when storage settings cannot be saved safely.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AcquireContentAsync_WhenGameClientPoolCannotBeEnsured_ReturnsFailureAsync()
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.genhub.gameclient.test",
+            Name = "Test Client",
+            ProviderName = "TestProvider",
+        };
+        var manifest = new ContentManifest
+        {
+            Id = searchResult.Id,
+            Name = searchResult.Name,
+            ContentType = ContentType.GameClient,
+        };
+        var providerMock = new Mock<IContentProvider>();
+        providerMock.Setup(provider => provider.SourceName).Returns(searchResult.ProviderName);
+        providerMock
+            .Setup(provider => provider.GetValidatedContentAsync(searchResult.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+        providerMock
+            .Setup(provider => provider.PrepareContentAsync(
+                manifest,
+                It.IsAny<string>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+        _cacheMock
+            .Setup(cache => cache.GetAsync<ContentManifest>(manifest.Id.Value, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ContentManifest?)null);
+        _contentValidatorMock
+            .Setup(validator => validator.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+        _contentValidatorMock
+            .Setup(validator => validator.ValidateAllAsync(
+                It.IsAny<string>(),
+                manifest,
+                It.IsAny<IProgress<ValidationProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+        _manifestPoolMock
+            .Setup(pool => pool.IsManifestAcquiredAsync(manifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        var installation = new GameInstallation("/game", GameInstallationType.Retail);
+        _installationServiceMock
+            .Setup(service => service.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+        _installationCasPoolServiceMock
+            .Setup(service => service.EnsurePoolPathAsync(
+                It.IsAny<IReadOnlyList<GameInstallation>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [providerMock.Object],
+            [],
+            [],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+
+        var result = await orchestrator.AcquireContentAsync(searchResult);
+
+        Assert.False(result.Success);
+        _manifestPoolMock.Verify(
+            pool => pool.AddManifestAsync(
+                It.IsAny<ContentManifest>(),
+                It.IsAny<string>(),
+                It.IsAny<IProgress<ContentStorageProgress>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that provider cancellation escapes <see cref="ContentOrchestrator.SearchAsync"/>
+    /// instead of being aggregated into an empty success result.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SearchAsync_WhenProviderCancels_PropagatesCancellationAsync()
+    {
+        var providerMock = new Mock<IContentProvider>();
+        providerMock.Setup(provider => provider.IsEnabled).Returns(true);
+        providerMock.Setup(provider => provider.SourceName).Returns("TestProvider");
+        providerMock
+            .Setup(provider => provider.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [providerMock.Object],
+            [],
+            [],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => orchestrator.SearchAsync(new ContentSearchQuery(), cts.Token));
+    }
+
+    /// <summary>
+    /// Verifies that a cached search result cannot mask an already-cancelled caller.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SearchAsync_WhenCancelledBeforeCacheHit_PropagatesCancellationAsync()
+    {
+        _cacheMock
+            .Setup(cache => cache.GetAsync<List<ContentSearchResult>>(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new ContentSearchResult { Id = "cached.mod", Name = "Cached Mod" }]);
+
+        var providerMock = new Mock<IContentProvider>();
+        providerMock.Setup(provider => provider.IsEnabled).Returns(true);
+        providerMock.Setup(provider => provider.SourceName).Returns("TestProvider");
+
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [providerMock.Object],
+            [],
+            [],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => orchestrator.SearchAsync(new ContentSearchQuery(), cts.Token));
+    }
+
+    /// <summary>
+    /// Verifies that a provider timing out on its own token does not abort the aggregate search,
+    /// since <see cref="TaskCanceledException"/> is also raised by HttpClient timeouts.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SearchAsync_WhenProviderTimesOut_KeepsResultsFromOtherProvidersAsync()
+    {
+        var timingOutProviderMock = new Mock<IContentProvider>();
+        timingOutProviderMock.Setup(provider => provider.IsEnabled).Returns(true);
+        timingOutProviderMock.Setup(provider => provider.SourceName).Returns("SlowProvider");
+        timingOutProviderMock
+            .Setup(provider => provider.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new TaskCanceledException("The request was canceled due to the configured HttpClient.Timeout"));
+
+        var healthyProviderMock = new Mock<IContentProvider>();
+        healthyProviderMock.Setup(provider => provider.IsEnabled).Returns(true);
+        healthyProviderMock.Setup(provider => provider.SourceName).Returns("FastProvider");
+        healthyProviderMock
+            .Setup(provider => provider.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+                [new ContentSearchResult { Id = "fast.mod", Name = "Fast Mod" }]));
+
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [timingOutProviderMock.Object, healthyProviderMock.Object],
+            [],
+            [],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+
+        var result = await orchestrator.SearchAsync(new ContentSearchQuery());
+
+        Assert.True(result.Success);
+        Assert.Single(result.Data ?? []);
+        Assert.Contains(result.Data ?? [], searchResult => searchResult.Id == "fast.mod");
+    }
+
+    /// <summary>
+    /// Verifies that provider cancellation escapes <see cref="ContentOrchestrator.AcquireContentAsync"/>
+    /// instead of being converted into a failure result.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AcquireContentAsync_WhenProviderCancels_PropagatesCancellationAsync()
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.genhub.mod.test",
+            Name = "Test Mod",
+            ProviderName = "TestProvider",
+        };
+        var providerMock = new Mock<IContentProvider>();
+        providerMock.Setup(provider => provider.SourceName).Returns(searchResult.ProviderName);
+        providerMock
+            .Setup(provider => provider.GetValidatedContentAsync(searchResult.Id, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+        _cacheMock
+            .Setup(cache => cache.GetAsync<ContentManifest>(searchResult.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ContentManifest?)null);
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [providerMock.Object],
+            [],
+            [],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => orchestrator.AcquireContentAsync(searchResult, progress: null, cts.Token));
+    }
+
+    /// <summary>
+    /// Verifies that a download timeout during acquisition is still reported as a failure result
+    /// rather than propagating as cancellation to the caller.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AcquireContentAsync_WhenProviderTimesOut_ReturnsFailureAsync()
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.genhub.mod.test",
+            Name = "Test Mod",
+            ProviderName = "TestProvider",
+        };
+        var providerMock = new Mock<IContentProvider>();
+        providerMock.Setup(provider => provider.SourceName).Returns(searchResult.ProviderName);
+        providerMock
+            .Setup(provider => provider.GetValidatedContentAsync(searchResult.Id, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new TaskCanceledException("The request was canceled due to the configured HttpClient.Timeout"));
+        _cacheMock
+            .Setup(cache => cache.GetAsync<ContentManifest>(searchResult.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ContentManifest?)null);
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [providerMock.Object],
+            [],
+            [],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+
+        var result = await orchestrator.AcquireContentAsync(searchResult);
+
+        Assert.False(result.Success);
+    }
+
+    /// <summary>
+    /// Verifies that cancellation during installation detection escapes GameClient acquisition
+    /// instead of being reported as an unusable CAS pool.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AcquireContentAsync_WhenInstallationDetectionCancels_PropagatesCancellationAsync()
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.genhub.gameclient.test",
+            Name = "Test Client",
+            ProviderName = "TestProvider",
+        };
+        var manifest = new ContentManifest
+        {
+            Id = searchResult.Id,
+            Name = searchResult.Name,
+            ContentType = ContentType.GameClient,
+        };
+        var providerMock = new Mock<IContentProvider>();
+        providerMock.Setup(provider => provider.SourceName).Returns(searchResult.ProviderName);
+        providerMock
+            .Setup(provider => provider.GetValidatedContentAsync(searchResult.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+        providerMock
+            .Setup(provider => provider.PrepareContentAsync(
+                manifest,
+                It.IsAny<string>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+        _cacheMock
+            .Setup(cache => cache.GetAsync<ContentManifest>(manifest.Id.Value, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ContentManifest?)null);
+        _contentValidatorMock
+            .Setup(validator => validator.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+        _contentValidatorMock
+            .Setup(validator => validator.ValidateAllAsync(
+                It.IsAny<string>(),
+                manifest,
+                It.IsAny<IProgress<ValidationProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+        _manifestPoolMock
+            .Setup(pool => pool.IsManifestAcquiredAsync(manifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        using var cts = new CancellationTokenSource();
+        _installationServiceMock
+            .Setup(service => service.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .Callback(() => cts.Cancel())
+            .ThrowsAsync(new OperationCanceledException());
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [providerMock.Object],
+            [],
+            [],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => orchestrator.AcquireContentAsync(searchResult, progress: null, cts.Token));
+    }
+
+    /// <summary>
+    /// Verifies that SearchAsync deduplicates results by manifest ID, preferring specialized providers.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SearchAsync_DeduplicatesResultsById_PrefersSpecializedProviderOverGitHubAsync()
+    {
+        // Arrange
+        var specializedProviderMock = new Mock<IContentProvider>();
+        var githubProviderMock = new Mock<IContentProvider>();
+
+        const string duplicateId = "1.0.thesuperhackers.patch.generalsgamepatch2";
+
+        var specializedResult = new ContentSearchResult
+        {
+            Id = duplicateId,
+            Name = "TheSuperHackers Patch 2",
+            ProviderName = "thesuperhackers",
+        };
+
+        var githubResult = new ContentSearchResult
+        {
+            Id = duplicateId,
+            Name = "GeneralsGamePatch2",
+            ProviderName = "GitHub",
+        };
+
+        specializedProviderMock.Setup(p => p.IsEnabled).Returns(true);
+        specializedProviderMock.Setup(p => p.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([specializedResult]));
+
+        githubProviderMock.Setup(p => p.IsEnabled).Returns(true);
+        githubProviderMock.Setup(p => p.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([githubResult]));
+
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [githubProviderMock.Object, specializedProviderMock.Object],
+            [],
+            [],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+
+        // Act
+        var result = await orchestrator.SearchAsync(new ContentSearchQuery());
+
+        // Assert
+        Assert.True(result.Success);
+        var items = result.Data?.ToList();
+        Assert.NotNull(items);
+        Assert.Single(items);
+        Assert.Equal("thesuperhackers", items[0].ProviderName);
+        Assert.Equal("TheSuperHackers Patch 2", items[0].Name);
+    }
+
+    /// <summary>
+    /// Verifies that ResolveManifestAsync successfully matches resolvers across hyphen and case variations.
+    /// </summary>
+    /// <param name="searchResolverId">The resolver ID variant to test.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Theory]
+    [InlineData("community-outpost")]
+    [InlineData("communityoutpost")]
+    [InlineData("community_outpost")]
+    [InlineData("COMMUNITY-OUTPOST")]
+    [InlineData("COMMUNITYOUTPOST")]
+    [InlineData("COMMUNITY_OUTPOST")]
+    public async Task ResolveManifestAsync_MatchesResolverWithHyphenAndCaseVariationsAsync(string searchResolverId)
+    {
+        // Arrange
+        var resolverMock = new Mock<IContentResolver>();
+        resolverMock.Setup(r => r.ResolverId).Returns("community-outpost");
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.communityoutpost.addon.gent",
+            Name = "GenTool",
+            ResolverId = searchResolverId,
+        };
+
+        var manifest = new ContentManifest
+        {
+            Id = searchResult.Id,
+            Name = searchResult.Name,
+            ContentType = ContentType.Addon,
+        };
+
+        resolverMock
+            .Setup(r => r.ResolveAsync(searchResult, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+
+        _contentValidatorMock
+            .Setup(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [],
+            [],
+            [resolverMock.Object],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+
+        // Act
+        var result = await orchestrator.ResolveManifestAsync(searchResult);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal("GenTool", result.Data.Name);
     }
 }

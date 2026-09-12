@@ -18,7 +18,7 @@ public class FileSystemValidatorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateDirectoriesAsync_MissingDirectory_ReturnsIssue()
+    public async Task ValidateDirectoriesAsync_MissingDirectory_ReturnsIssueAsync()
     {
         var logger = new Mock<ILogger>().Object;
         var validator = new TestFileSystemValidator(logger);
@@ -33,7 +33,7 @@ public class FileSystemValidatorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateFilesAsync_PathTraversal_Throws()
+    public async Task ValidateFilesAsync_PathTraversal_ThrowsAsync()
     {
         var logger = new Mock<ILogger>().Object;
         var validator = new TestFileSystemValidator(logger);
@@ -47,7 +47,7 @@ public class FileSystemValidatorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateFilesAsync_IOException_ReportsIssue()
+    public async Task ValidateFilesAsync_IOException_ReportsIssueAsync()
     {
         var logger = new Mock<ILogger>().Object;
         var validator = new TestFileSystemValidator(logger);

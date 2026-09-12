@@ -26,6 +26,11 @@ public static class ValidationLimits
     public const int MaxDownloadTimeoutSeconds = 3600; // 1 hour
 
     /// <summary>
+    /// Minimum allowed download save timeout in milliseconds.
+    /// </summary>
+    public const int MinDownloadSaveTimeoutMs = 60000;
+
+    /// <summary>
     /// Minimum allowed download buffer size in bytes.
     /// </summary>
     public const int MinDownloadBufferSizeBytes = 4096; // 4KB

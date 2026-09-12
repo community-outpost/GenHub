@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -14,13 +15,21 @@ namespace GenHub.Tests.Core.Features.Workspace;
 /// <summary>
 /// Tests for the WorkspaceValidator class.
 /// </summary>
-public class WorkspaceValidatorTests : IDisposable
+public partial class WorkspaceValidatorTests : IDisposable
 {
     private readonly Mock<ILogger<WorkspaceValidator>> _mockLogger;
     private readonly WorkspaceValidator _validator;
     private readonly string _tempDir;
     private readonly string _sourceDir;
     private readonly string _workspaceDir;
+
+    /// <summary>
+    /// Effective user ID, POSIX <c>geteuid(2)</c>. Declared here because the production
+    /// equivalent is internal to the GenHub assembly.
+    /// </summary>
+    /// <returns>The effective user ID; 0 is root.</returns>
+    [LibraryImport("libc", EntryPoint = "geteuid")]
+    private static partial uint GetEffectiveUserId();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="WorkspaceValidatorTests"/> class.
@@ -42,7 +51,7 @@ public class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidateConfigurationAsync_ValidConfiguration_ReturnsSuccess()
+    public async Task ValidateConfigurationAsync_ValidConfiguration_ReturnsSuccessAsync()
     {
         // Arrange
         var config = CreateValidConfiguration();
@@ -66,7 +75,7 @@ public class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidateConfigurationAsync_MissingRequiredProperties_ReturnsErrors()
+    public async Task ValidateConfigurationAsync_MissingRequiredProperties_ReturnsErrorsAsync()
     {
         // Arrange
         var config = new WorkspaceConfiguration
@@ -74,7 +83,7 @@ public class WorkspaceValidatorTests : IDisposable
             Id = string.Empty,
             BaseInstallationPath = string.Empty,
             WorkspaceRootPath = string.Empty,
-            Manifests = new List<ContentManifest> { new() { Files = new List<ManifestFile>(), }, },
+            Manifests = [new() { Files = [], }],
         };
 
         // Act
@@ -89,7 +98,7 @@ public class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidateConfigurationAsync_NonExistentSourcePath_ReturnsError()
+    public async Task ValidateConfigurationAsync_NonExistentSourcePath_ReturnsErrorAsync()
     {
         // Arrange
         var config = CreateValidConfiguration();
@@ -107,11 +116,11 @@ public class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidateConfigurationAsync_EmptyManifest_ReturnsError()
+    public async Task ValidateConfigurationAsync_EmptyManifest_ReturnsErrorAsync()
     {
         // Arrange
         var config = CreateValidConfiguration();
-        config.Manifests = new List<ContentManifest> { new() { Files = new List<ManifestFile>(), }, };
+        config.Manifests = [new() { Files = [], }];
 
         // Act
         var result = await _validator.ValidateConfigurationAsync(config);
@@ -125,7 +134,7 @@ public class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidatePrerequisitesAsync_AdminRequired_ValidatesCorrectly()
+    public async Task ValidatePrerequisitesAsync_AdminRequired_ValidatesCorrectlyAsync()
     {
         // Arrange
         var mockStrategy = new Mock<IWorkspaceStrategy>();
@@ -145,7 +154,7 @@ public class WorkspaceValidatorTests : IDisposable
             Id = Path.GetFileName(_workspaceDir),
             BaseInstallationPath = _sourceDir,
             WorkspaceRootPath = Path.GetDirectoryName(_workspaceDir) ?? _workspaceDir,
-            Manifests = new List<ContentManifest>(), // Empty for this test
+            Manifests = [], // Empty for this test
             GameClient = new GameClient { Id = "test" },
             Strategy = WorkspaceStrategy.FullCopy,
         };
@@ -162,7 +171,7 @@ public class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidatePrerequisitesAsync_DifferentVolumes_ReturnsWarning()
+    public async Task ValidatePrerequisitesAsync_DifferentVolumes_ReturnsWarningAsync()
     {
         // Arrange
         var mockStrategy = new Mock<IWorkspaceStrategy>();
@@ -183,7 +192,7 @@ public class WorkspaceValidatorTests : IDisposable
             Id = Path.GetFileName(destPath),
             BaseInstallationPath = sourcePath,
             WorkspaceRootPath = Path.GetDirectoryName(destPath) ?? destPath,
-            Manifests = new List<ContentManifest>(), // Empty for this test
+            Manifests = [], // Empty for this test
             GameClient = new GameClient { Id = "test" },
             Strategy = WorkspaceStrategy.HardLink,
         };
@@ -208,26 +217,21 @@ public class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidatePrerequisitesAsync_InsufficientDiskSpace_ReturnsWarning()
+    public async Task ValidatePrerequisitesAsync_InsufficientDiskSpace_ReturnsWarningAsync()
     {
-        // Arrange - Use a concrete strategy that can return large disk usage
-        var fileOps = new Mock<IFileOperationsService>();
-        var logger = new Mock<ILogger<FullCopyStrategy>>();
-        var strategy = new FullCopyStrategy(fileOps.Object, logger.Object);
-
         // Create a configuration with large files to trigger disk space warning
         var largeFileManifest = new ContentManifest
         {
-            Files = new List<ManifestFile>
-            {
+            Files =
+            [
                 new() { RelativePath = "huge.bin", Size = long.MaxValue / 2 },
-            },
+            ],
         };
 
         var config = new WorkspaceConfiguration
         {
             Id = "test-workspace",
-            Manifests = new List<ContentManifest> { largeFileManifest },
+            Manifests = [largeFileManifest],
             Strategy = WorkspaceStrategy.FullCopy,
             BaseInstallationPath = _sourceDir,
             WorkspaceRootPath = Path.GetDirectoryName(_workspaceDir) ?? _workspaceDir,
@@ -252,6 +256,484 @@ public class WorkspaceValidatorTests : IDisposable
     }
 
     /// <summary>
+    /// An execute bit for an identity other than the effective process identity must not
+    /// make a workspace entry point appear executable — validation repairs the entry
+    /// point on a workspace-owned copy instead of reporting a warning.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateWorkspaceAsync_OtherOnlyExecuteBit_RepairsEntryPointAsync()
+    {
+        // Root bypasses the permission bits entirely: faccessat reports execute access for
+        // an other-only bit, so the behaviour under test does not exist for uid 0. Checked
+        // via geteuid rather than the user name, which is wrong under `sudo -E` and for any
+        // uid-0 account named otherwise.
+        if (OperatingSystem.IsWindows() || GetEffectiveUserId() == 0)
+        {
+            return;
+        }
+
+        var executablePath = Path.Combine(_workspaceDir, "client");
+        await File.WriteAllTextAsync(executablePath, "engine binary");
+        File.SetUnixFileMode(
+            executablePath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.OtherExecute);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = executablePath,
+        };
+
+        var result = await _validator.ValidateWorkspaceAsync(workspaceInfo);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.DoesNotContain(
+            result.Data.Issues,
+            issue => issue.IssueType == ValidationIssueType.AccessDenied);
+        Assert.True(File.GetUnixFileMode(executablePath).HasFlag(UnixFileMode.UserExecute));
+        Assert.Equal("engine binary", await File.ReadAllTextAsync(executablePath));
+    }
+
+    /// <summary>
+    /// A workspace bricked before executable modes were applied atomically — entry point
+    /// present, execute bit lost — is repaired so launch preparation can proceed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureEntryPointExecutableAsync_BrickedEntryPoint_RestoresExecuteModeAsync()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var executablePath = Path.Combine(_workspaceDir, "client");
+        await File.WriteAllTextAsync(executablePath, "engine binary");
+        File.SetUnixFileMode(executablePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = "client",
+        };
+
+        var result = await _validator.EnsureEntryPointExecutableAsync(workspaceInfo);
+
+        Assert.True(result.Success);
+        Assert.True(result.Data);
+        Assert.True(File.GetUnixFileMode(executablePath).HasFlag(UnixFileMode.UserExecute));
+        Assert.Equal("engine binary", await File.ReadAllTextAsync(executablePath));
+        Assert.Empty(Directory.GetFiles(_workspaceDir, "*.genhub-exec-tmp-*"));
+    }
+
+    /// <summary>
+    /// An entry point that is already executable is left alone.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureEntryPointExecutableAsync_AlreadyExecutable_ReportsNoRepairAsync()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var executablePath = Path.Combine(_workspaceDir, "client");
+        await File.WriteAllTextAsync(executablePath, "engine binary");
+        var originalMode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
+        File.SetUnixFileMode(executablePath, originalMode);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = executablePath,
+        };
+
+        var result = await _validator.EnsureEntryPointExecutableAsync(workspaceInfo);
+
+        Assert.True(result.Success);
+        Assert.False(result.Data);
+        Assert.Equal(originalMode, File.GetUnixFileMode(executablePath));
+    }
+
+    /// <summary>
+    /// A missing entry point is an error, not something repair may create.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureEntryPointExecutableAsync_MissingEntryPoint_FailsWithoutCreatingFileAsync()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var executablePath = Path.Combine(_workspaceDir, "missing-client");
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = executablePath,
+        };
+
+        var result = await _validator.EnsureEntryPointExecutableAsync(workspaceInfo);
+
+        Assert.False(result.Success);
+        Assert.False(File.Exists(executablePath));
+    }
+
+    /// <summary>
+    /// Validation keeps reporting a missing entry point as an error rather than creating one.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateWorkspaceAsync_MissingEntryPoint_ReportsErrorWithoutCreatingFileAsync()
+    {
+        var executablePath = Path.Combine(_workspaceDir, "missing-client");
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = executablePath,
+        };
+
+        var result = await _validator.ValidateWorkspaceAsync(workspaceInfo);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Contains(
+            result.Data.Issues,
+            issue => issue.IssueType == ValidationIssueType.MissingFile
+                && issue.Severity == ValidationSeverity.Error);
+        Assert.False(File.Exists(executablePath));
+    }
+
+    /// <summary>
+    /// A rooted entry point outside the workspace root is refused without being touched,
+    /// even when the outside directory shares the root as a name prefix.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureEntryPointExecutableAsync_RootedPathOutsideWorkspace_RefusesWithoutMutationAsync()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        // The sibling shares the workspace root as a prefix, so a containment check
+        // without the trailing separator would wrongly accept it.
+        var evilDir = _workspaceDir + "-evil";
+        Directory.CreateDirectory(evilDir);
+        var outsidePath = Path.Combine(evilDir, "client");
+        await File.WriteAllTextAsync(outsidePath, "outside binary");
+        var originalMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        File.SetUnixFileMode(outsidePath, originalMode);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = outsidePath,
+        };
+
+        var result = await _validator.EnsureEntryPointExecutableAsync(workspaceInfo);
+
+        Assert.False(result.Success);
+        Assert.Contains("outside the workspace root", result.FirstError);
+        Assert.Equal(originalMode, File.GetUnixFileMode(outsidePath));
+        Assert.Equal("outside binary", await File.ReadAllTextAsync(outsidePath));
+    }
+
+    /// <summary>
+    /// A relative entry point that traverses out of the workspace root is refused
+    /// without being touched.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureEntryPointExecutableAsync_TraversalPath_RefusesWithoutMutationAsync()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var outsidePath = Path.Combine(_sourceDir, "client");
+        await File.WriteAllTextAsync(outsidePath, "outside binary");
+        var originalMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        File.SetUnixFileMode(outsidePath, originalMode);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine("..", "source", "client"),
+        };
+
+        var result = await _validator.EnsureEntryPointExecutableAsync(workspaceInfo);
+
+        Assert.False(result.Success);
+        Assert.Contains("outside the workspace root", result.FirstError);
+        Assert.Equal(originalMode, File.GetUnixFileMode(outsidePath));
+    }
+
+    /// <summary>
+    /// Strategies store the entry point as an absolute path inside the workspace, so a
+    /// rooted in-workspace path must still be repaired.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureEntryPointExecutableAsync_RootedPathInsideWorkspace_StillRepairsAsync()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var executablePath = Path.Combine(_workspaceDir, "client");
+        await File.WriteAllTextAsync(executablePath, "engine binary");
+        File.SetUnixFileMode(executablePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = executablePath,
+        };
+
+        var result = await _validator.EnsureEntryPointExecutableAsync(workspaceInfo);
+
+        Assert.True(result.Success);
+        Assert.True(result.Data);
+        Assert.True(File.GetUnixFileMode(executablePath).HasFlag(UnixFileMode.UserExecute));
+        Assert.Equal("engine binary", await File.ReadAllTextAsync(executablePath));
+    }
+
+    /// <summary>
+    /// Validation reports an entry point that escapes the workspace root as an error and
+    /// leaves the outside file untouched.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateWorkspaceAsync_EntryPointOutsideWorkspace_ReportsErrorWithoutMutationAsync()
+    {
+        var outsidePath = Path.Combine(_sourceDir, "client");
+        await File.WriteAllTextAsync(outsidePath, "outside binary");
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(outsidePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        }
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = outsidePath,
+        };
+
+        var result = await _validator.ValidateWorkspaceAsync(workspaceInfo);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Contains(
+            result.Data.Issues,
+            issue => issue.IssueType == ValidationIssueType.UnexpectedFile
+                && issue.Severity == ValidationSeverity.Error
+                && issue.Message.Contains("outside the workspace root"));
+
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.False(File.GetUnixFileMode(outsidePath).HasFlag(UnixFileMode.UserExecute));
+        }
+
+        Assert.Equal("outside binary", await File.ReadAllTextAsync(outsidePath));
+    }
+
+    /// <summary>
+    /// Lexical containment cannot see through links, so a symlinked intermediate
+    /// directory pointing outside the workspace must make the repair refuse without
+    /// touching the outside file.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureEntryPointExecutableAsync_SymlinkedIntermediateDirectory_RefusesWithoutMutationAsync()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var outsideDir = Path.Combine(_sourceDir, "payload");
+        Directory.CreateDirectory(outsideDir);
+        var outsidePath = Path.Combine(outsideDir, "client");
+        await File.WriteAllTextAsync(outsidePath, "outside binary");
+        var originalMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        File.SetUnixFileMode(outsidePath, originalMode);
+
+        Directory.CreateSymbolicLink(Path.Combine(_workspaceDir, "bin"), outsideDir);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine("bin", "client"),
+        };
+
+        var result = await _validator.EnsureEntryPointExecutableAsync(workspaceInfo);
+
+        Assert.False(result.Success);
+        Assert.Contains("is a symlink", result.FirstError);
+        Assert.Equal(originalMode, File.GetUnixFileMode(outsidePath));
+        Assert.Equal("outside binary", await File.ReadAllTextAsync(outsidePath));
+    }
+
+    /// <summary>
+    /// A symlinked leaf executable in an ordinary workspace is replaced with a private
+    /// executable copy while the symlink target keeps its bytes and mode — the same
+    /// store-safe behaviour materialisation applies.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureEntryPointExecutableAsync_SymlinkedLeafExecutable_RepairsCopyAndLeavesTargetUntouchedAsync()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var targetPath = Path.Combine(_sourceDir, "client-target");
+        await File.WriteAllTextAsync(targetPath, "engine binary");
+        var targetMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        File.SetUnixFileMode(targetPath, targetMode);
+
+        var executablePath = Path.Combine(_workspaceDir, "client");
+        File.CreateSymbolicLink(executablePath, targetPath);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = executablePath,
+        };
+
+        var result = await _validator.EnsureEntryPointExecutableAsync(workspaceInfo);
+
+        Assert.True(result.Success);
+        Assert.True(result.Data);
+        Assert.Null(new FileInfo(executablePath).LinkTarget);
+        Assert.True(File.GetUnixFileMode(executablePath).HasFlag(UnixFileMode.UserExecute));
+        Assert.Equal("engine binary", await File.ReadAllTextAsync(executablePath));
+        Assert.Equal(targetMode, File.GetUnixFileMode(targetPath));
+        Assert.Equal("engine binary", await File.ReadAllTextAsync(targetPath));
+    }
+
+    /// <summary>
+    /// Temporary swap names carry a fresh GUID, so a pre-existing file left at an
+    /// old-style temporary name is never clobbered by a repair.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureEntryPointExecutableAsync_PreExistingTemporaryFile_IsNotClobberedAsync()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var executablePath = Path.Combine(_workspaceDir, "client");
+        await File.WriteAllTextAsync(executablePath, "engine binary");
+        File.SetUnixFileMode(executablePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+
+        var stalePath = executablePath + ".genhub-exec-tmp";
+        await File.WriteAllTextAsync(stalePath, "precious leftover");
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = executablePath,
+        };
+
+        var result = await _validator.EnsureEntryPointExecutableAsync(workspaceInfo);
+
+        Assert.True(result.Success);
+        Assert.True(result.Data);
+        Assert.True(File.GetUnixFileMode(executablePath).HasFlag(UnixFileMode.UserExecute));
+        Assert.Equal("precious leftover", await File.ReadAllTextAsync(stalePath));
+    }
+
+    /// <summary>
+    /// Windows has no execute bit, so the repair is a no-op that leaves the file untouched.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureEntryPointExecutableAsync_OnWindows_IsANoOpAsync()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var executablePath = Path.Combine(_workspaceDir, "client.exe");
+        await File.WriteAllTextAsync(executablePath, "engine binary");
+        var lastWrite = File.GetLastWriteTimeUtc(executablePath);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = executablePath,
+        };
+
+        var result = await _validator.EnsureEntryPointExecutableAsync(workspaceInfo);
+
+        Assert.True(result.Success);
+        Assert.False(result.Data);
+        Assert.Equal(lastWrite, File.GetLastWriteTimeUtc(executablePath));
+    }
+
+    /// <summary>
+    /// A workspace entry point executable by the current identity remains valid.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateWorkspaceAsync_ExecutableEntryPoint_HasNoAccessErrorAsync()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var executablePath = Path.Combine(_workspaceDir, "client");
+        await File.WriteAllTextAsync(executablePath, "engine binary");
+        File.SetUnixFileMode(
+            executablePath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = executablePath,
+        };
+
+        var result = await _validator.ValidateWorkspaceAsync(workspaceInfo);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.DoesNotContain(
+            result.Data.Issues,
+            issue => issue.IssueType == ValidationIssueType.AccessDenied);
+    }
+
+    /// <summary>
     /// Disposes of test resources.
     /// </summary>
     public void Dispose()
@@ -260,6 +742,8 @@ public class WorkspaceValidatorTests : IDisposable
         {
             Directory.Delete(_tempDir, true);
         }
+
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>
@@ -271,17 +755,17 @@ public class WorkspaceValidatorTests : IDisposable
         return new WorkspaceConfiguration
         {
             Id = "test-workspace",
-            Manifests = new List<ContentManifest>
-            {
+            Manifests =
+            [
                 new()
                 {
-                    Files = new List<ManifestFile>
-                    {
+                    Files =
+                    [
                         new() { RelativePath = "generals.exe", Size = 1000000, IsExecutable = true },
                         new() { RelativePath = "config.ini", Size = 500 },
-                    },
+                    ],
                 },
-            },
+            ],
             BaseInstallationPath = _sourceDir,
             WorkspaceRootPath = _workspaceDir,
             GameClient = new GameClient { Id = "test-version" },

@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -17,11 +18,26 @@ namespace GenHub.Features.Manifest;
 /// <summary>
 /// Service for discovering and indexing manifests in the GenHub file system, and for populating the manifest cache.
 /// </summary>
-public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, IManifestCache manifestCache)
+/// <remarks>
+/// The filesystem enumerators are optional constructor parameters rather than a separate
+/// test-only constructor. A second constructor chaining into this one has to hardcode the
+/// primary constructor's arity, so adding a dependency here breaks that chain without
+/// producing a merge conflict — it merges cleanly and fails to compile instead.
+/// </remarks>
+public class ManifestDiscoveryService(
+    ILogger<ManifestDiscoveryService> logger,
+    IManifestCache manifestCache,
+    IConfigurationProviderService configurationProvider,
+    Func<string, string, IEnumerable<string>>? enumerateFiles = null,
+    Func<string, IEnumerable<string>>? enumerateDirectories = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
-    private readonly ILogger<ManifestDiscoveryService> _logger = logger;
-    private readonly IManifestCache _manifestCache = manifestCache;
+    private readonly Func<string, string, IEnumerable<string>> _enumerateFiles =
+        enumerateFiles ?? ((directory, pattern) =>
+            Directory.EnumerateFiles(directory, pattern, SearchOption.TopDirectoryOnly));
+
+    private readonly Func<string, IEnumerable<string>> _enumerateDirectories =
+        enumerateDirectories ?? Directory.EnumerateDirectories;
 
     /// <summary>
     /// Gets manifests by content type.
@@ -62,8 +78,11 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
         var manifests = new Dictionary<string, ContentManifest>();
         foreach (var directory in searchDirectories.Where(Directory.Exists))
         {
-            _logger.LogInformation("Scanning directory for manifests: {Directory}", directory);
-            var manifestFiles = Directory.EnumerateFiles(directory, "FileTypes.JsonFilePattern", SearchOption.AllDirectories);
+            logger.LogInformation("Scanning directory for manifests: {Directory}", directory);
+            var manifestFiles = EnumerateFilesSafely(
+                directory,
+                FileTypes.JsonFilePattern,
+                cancellationToken);
             foreach (var manifestFile in manifestFiles)
             {
                 try
@@ -74,7 +93,7 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
                     if (manifest != null)
                     {
                         manifests[manifest.Id] = manifest;
-                        _logger.LogDebug(
+                        logger.LogDebug(
                             "Discovered manifest: {ManifestId} ({ContentType})",
                             manifest.Id,
                             manifest.ContentType);
@@ -82,12 +101,12 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to load manifest from {ManifestFile}", manifestFile);
+                    logger.LogWarning(ex, "Failed to load manifest from {ManifestFile}", manifestFile);
                 }
             }
         }
 
-        _logger.LogInformation("Discovery completed. Found {ManifestCount} manifests", manifests.Count);
+        logger.LogInformation("Discovery completed. Found {ManifestCount} manifests", manifests.Count);
         return manifests;
     }
 
@@ -98,26 +117,21 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task InitializeCacheAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Initializing manifest cache...");
+        logger.LogInformation("Initializing manifest cache...");
 
         // First discover embedded manifests
         await DiscoverEmbeddedManifestsAsync(cancellationToken);
 
-        // Then discover from local filesystem locations
-        var localManifestDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            AppConstants.AppName,
-            FileTypes.ManifestsDirectory);
-
-        // Also check for custom manifest directories
-        var customManifestDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            AppConstants.AppName,
-            "CustomManifests");
+        // Then discover from local filesystem locations.
+        // Routed through the configuration provider so a user-relocated data directory
+        // is honoured; a raw SpecialFolder lookup would keep reading the default tree.
+        var applicationDataPath = configurationProvider.GetApplicationDataPath();
+        var localManifestDir = Path.Combine(applicationDataPath, FileTypes.ManifestsDirectory);
+        var customManifestDir = Path.Combine(applicationDataPath, DirectoryNames.CustomManifests);
 
         await DiscoverFileSystemManifestsAsync([localManifestDir, customManifestDir], cancellationToken);
 
-        _logger.LogInformation("Manifest cache initialization complete. Loaded {Count} manifests.", _manifestCache.GetAllManifests().Count());
+        logger.LogInformation("Manifest cache initialization complete. Loaded {Count} manifests.", manifestCache.GetAllManifests().Count());
     }
 
     /// <summary>
@@ -134,7 +148,7 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
         {
             if (!availableManifests.TryGetValue(dependency.Id, out ContentManifest? dependencyManifest))
             {
-                _logger.LogWarning(
+                logger.LogWarning(
                     "Missing required dependency {DependencyId} for manifest {ManifestId}",
                     dependency.Id,
                     manifest.Id);
@@ -146,7 +160,7 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
                 dependency.MinVersion ?? string.Empty,
                 dependency.MaxVersion ?? string.Empty))
             {
-                _logger.LogWarning(
+                logger.LogWarning(
                     "Dependency {DependencyId} version {Version} is not compatible with required range {MinVersion}-{MaxVersion}",
                     dependency.Id,
                     dependencyManifest.Version,
@@ -157,6 +171,11 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
         }
 
         return true;
+    }
+
+    private static bool IsSkippableEnumerationException(Exception exception)
+    {
+        return exception is UnauthorizedAccessException or IOException;
     }
 
     private static bool IsVersionCompatible(string actualVersion, string minVersion, string maxVersion)
@@ -174,28 +193,105 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
         return true;
     }
 
-    private static async Task<ContentManifest?> LoadManifestAsync(string manifestPath, CancellationToken cancellationToken)
+    /// <summary>
+    /// Applies the variant ingestion gate, logging and rejecting when it does not pass.
+    /// </summary>
+    /// <param name="manifest">The deserialized manifest.</param>
+    /// <param name="source">Where it came from, named in the rejection log.</param>
+    /// <returns><c>true</c> when the manifest may be ingested; otherwise <c>false</c>.</returns>
+    private bool IsManifestAccepted(ContentManifest manifest, string source)
+    {
+        if (ManifestIngestionGate.TryAccept(manifest, out var rejectionReason))
+        {
+            return true;
+        }
+
+        logger.LogWarning("Skipping manifest from {Source}: {Reason}", source, rejectionReason);
+        return false;
+    }
+
+    private async Task<ContentManifest?> LoadManifestAsync(string manifestPath, CancellationToken cancellationToken)
     {
         await using var stream = File.OpenRead(manifestPath);
         var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, JsonOptions, cancellationToken);
         if (manifest != null && !string.IsNullOrEmpty(manifest.Id))
         {
+            if (!IsManifestAccepted(manifest, manifestPath))
+            {
+                return null;
+            }
+
             return manifest;
         }
 
         return null;
     }
 
+    private IEnumerable<string> EnumerateFilesSafely(
+        string rootDirectory,
+        string searchPattern,
+        CancellationToken cancellationToken)
+    {
+        var pendingDirectories = new Stack<string>();
+        pendingDirectories.Push(rootDirectory);
+
+        while (pendingDirectories.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var currentDirectory = pendingDirectories.Pop();
+
+            string[] files = [];
+            try
+            {
+                files = _enumerateFiles(currentDirectory, searchPattern).ToArray();
+            }
+            catch (Exception ex) when (IsSkippableEnumerationException(ex))
+            {
+                logger.LogWarning(
+                    ex,
+                    "Skipping files in inaccessible or unavailable manifest directory: {Directory}",
+                    currentDirectory);
+                files = [];
+            }
+
+            foreach (var file in files)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return file;
+            }
+
+            string[] childDirectories = [];
+            try
+            {
+                childDirectories = _enumerateDirectories(currentDirectory).ToArray();
+            }
+            catch (Exception ex) when (IsSkippableEnumerationException(ex))
+            {
+                logger.LogWarning(
+                    ex,
+                    "Skipping inaccessible or unavailable manifest directory: {Directory}",
+                    currentDirectory);
+                childDirectories = [];
+            }
+
+            for (var index = childDirectories.Length - 1; index >= 0; index--)
+            {
+                pendingDirectories.Push(childDirectories[index]);
+            }
+        }
+    }
+
     private async Task DiscoverFileSystemManifestsAsync(IEnumerable<string> searchDirectories, CancellationToken cancellationToken)
     {
         foreach (var directory in searchDirectories.Where(Directory.Exists))
         {
-            _logger.LogInformation("Scanning directory for manifests: {Directory}", directory);
+            logger.LogInformation("Scanning directory for manifests: {Directory}", directory);
 
-            // Look for both .json and .manifest.json files to avoid conflicts with stored manifests
-            var manifestFiles = Directory.EnumerateFiles(directory, FileTypes.ManifestFilePattern, SearchOption.AllDirectories)
-                .Concat(Directory.EnumerateFiles(directory, "*.json", SearchOption.AllDirectories)
-                    .Where(f => !f.EndsWith(FileTypes.ManifestFileExtension)));
+            // The JSON pattern includes both .json and .manifest.json files.
+            var manifestFiles = EnumerateFilesSafely(
+                directory,
+                FileTypes.JsonFilePattern,
+                cancellationToken);
 
             foreach (var manifestFile in manifestFiles)
             {
@@ -205,13 +301,18 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
                     var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, JsonOptions, cancellationToken);
                     if (manifest != null && !string.IsNullOrEmpty(manifest.Id))
                     {
-                        _manifestCache.AddOrUpdateManifest(manifest);
-                        _logger.LogDebug("Discovered file system manifest: {ManifestId}", manifest.Id);
+                        if (!IsManifestAccepted(manifest, manifestFile))
+                        {
+                            continue;
+                        }
+
+                        manifestCache.AddOrUpdateManifest(manifest);
+                        logger.LogDebug("Discovered file system manifest: {ManifestId}", manifest.Id);
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to load manifest from {ManifestFile}", manifestFile);
+                    logger.LogWarning(ex, "Failed to load manifest from {ManifestFile}", manifestFile);
                 }
             }
         }
@@ -219,8 +320,8 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
 
     private async Task DiscoverEmbeddedManifestsAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Scanning for embedded manifests...");
-        var assembly = Assembly.GetExecutingAssembly();
+        logger.LogInformation("Scanning for embedded manifests...");
+        var assembly = typeof(ManifestDiscoveryService).Assembly;
         var manifestResourceNames = assembly.GetManifestResourceNames()
             .Where(r => r.StartsWith("GenHub.Manifests.") && r.EndsWith(FileTypes.JsonFileExtension));
 
@@ -234,13 +335,18 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
                 var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, JsonOptions, cancellationToken);
                 if (manifest != null && !string.IsNullOrEmpty(manifest.Id))
                 {
-                    _manifestCache.AddOrUpdateManifest(manifest);
-                    _logger.LogDebug("Discovered embedded manifest: {ManifestId}", manifest.Id);
+                    if (!IsManifestAccepted(manifest, resourceName))
+                    {
+                        continue;
+                    }
+
+                    manifestCache.AddOrUpdateManifest(manifest);
+                    logger.LogDebug("Discovered embedded manifest: {ManifestId}", manifest.Id);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to load embedded manifest from {ResourceName}", resourceName);
+                logger.LogWarning(ex, "Failed to load embedded manifest from {ResourceName}", resourceName);
             }
         }
     }

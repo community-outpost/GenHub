@@ -6,12 +6,17 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Core.Models.Validation;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
@@ -31,6 +36,8 @@ public class ContentOrchestrator : IContentOrchestrator
     private readonly IDynamicContentCache _cache;
     private readonly IContentValidator _contentValidator;
     private readonly IContentManifestPool _manifestPool;
+    private readonly IGameInstallationService _installationService;
+    private readonly IInstallationCasPoolService _installationCasPoolService;
     private readonly object _providerLock = new();
 
     /// <summary>
@@ -43,6 +50,8 @@ public class ContentOrchestrator : IContentOrchestrator
     /// <param name="cache">The dynamic content cache service for performance optimization.</param>
     /// <param name="contentValidator">The content validator service for manifest and content integrity.</param>
     /// <param name="manifestPool">The manifest pool for acquired content.</param>
+    /// <param name="installationService">The game installation service for detecting installations.</param>
+    /// <param name="installationCasPoolService">The installation CAS pool selector.</param>
     public ContentOrchestrator(
         ILogger<ContentOrchestrator> logger,
         IEnumerable<IContentProvider> providers,
@@ -50,23 +59,33 @@ public class ContentOrchestrator : IContentOrchestrator
         IEnumerable<IContentResolver> resolvers,
         IDynamicContentCache cache,
         IContentValidator contentValidator,
-        IContentManifestPool manifestPool)
+        IContentManifestPool manifestPool,
+        IGameInstallationService installationService,
+        IInstallationCasPoolService installationCasPoolService)
     {
         _logger = logger;
         _providers = [.. providers];
         _discoverers = [.. discoverers];
-        _resolvers = new ConcurrentDictionary<string, IContentResolver>();
+        _resolvers = new ConcurrentDictionary<string, IContentResolver>(StringComparer.OrdinalIgnoreCase);
         foreach (var resolver in resolvers)
         {
             if (!_resolvers.TryAdd(resolver.ResolverId, resolver))
             {
                 _logger.LogWarning("Duplicate ResolverId found: {ResolverId}. Skipping resolver.", resolver.ResolverId);
             }
+
+            var normalized = resolver.ResolverId.Replace("-", string.Empty).Replace("_", string.Empty);
+            if (!string.Equals(normalized, resolver.ResolverId, StringComparison.OrdinalIgnoreCase))
+            {
+                _resolvers.TryAdd(normalized, resolver);
+            }
         }
 
         _cache = cache;
         _contentValidator = contentValidator;
         _manifestPool = manifestPool;
+        _installationService = installationService;
+        _installationCasPoolService = installationCasPoolService;
 
         _logger.LogInformation("ContentOrchestrator initialized with {ProviderCount} providers, {DiscovererCount} discoverers, {ResolverCount} resolvers", _providers.Count, _discoverers.Count, _resolvers.Count);
     }
@@ -89,10 +108,13 @@ public class ContentOrchestrator : IContentOrchestrator
             return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure("Take must be between 1 and 1000");
         }
 
+        // Checked before the cache lookup so a cache hit cannot mask an already-cancelled caller.
+        cancellationToken.ThrowIfCancellationRequested();
+
         _logger.LogDebug("Starting orchestrated content search with query: {SearchTerm}, ContentType: {ContentType}", query.SearchTerm, query.ContentType);
 
         // Check cache first
-        var cacheKey = $"search::{query.ProviderName}::{query.SearchTerm}::{query.ContentType}::{query.Skip}::{query.Take}::{query.SortOrder}";
+        var cacheKey = $"search::{query.ProviderName}::{query.SearchTerm}::{query.ContentType}::{query.TargetGame}::{query.AuthorName}::{query.GitHubAuthor}::{query.Language}::{query.Skip}::{query.Take}::{query.SortOrder}";
         var cachedResults = await _cache.GetAsync<List<ContentSearchResult>>(cacheKey, cancellationToken);
         if (cachedResults != null)
         {
@@ -100,8 +122,7 @@ public class ContentOrchestrator : IContentOrchestrator
             return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(cachedResults);
         }
 
-        List<ContentSearchResult> allResults = [];
-        List<string> errors = [];
+        ConcurrentBag<string> errors = [];
 
         // Orchestrate search across all enabled providers concurrently
         // Each provider handles its own internal discovery→resolution→delivery pipeline
@@ -123,6 +144,7 @@ public class ContentOrchestrator : IContentOrchestrator
         var searchTasksAsync = searchTasks
             .Select(async provider =>
             {
+                var providerResults = new List<ContentSearchResult>();
                 try
                 {
                     _logger.LogDebug("Executing search via provider: {ProviderName}", provider.SourceName);
@@ -130,46 +152,60 @@ public class ContentOrchestrator : IContentOrchestrator
 
                     if (result.Success && result.Data != null)
                     {
-                        lock (allResults)
+                        foreach (var item in result.Data)
                         {
-                            foreach (var item in result.Data)
+                            // Ensure provider name is set correctly
+                            if (string.IsNullOrEmpty(item.ProviderName))
                             {
-                                // Ensure provider name is set correctly
-                                if (string.IsNullOrEmpty(item.ProviderName))
-                                {
-                                    item.ProviderName = provider.SourceName;
-                                }
+                                item.ProviderName = provider.SourceName;
                             }
 
-                            allResults.AddRange(result.Data);
+                            providerResults.Add(item);
                         }
 
                         _logger.LogDebug("Provider {ProviderName} returned {ResultCount} results", provider.SourceName, result.Data.Count());
                     }
                     else
                     {
-                        lock (errors)
-                        {
-                            errors.Add($"{provider.SourceName}: {result.FirstError}");
-                        }
-
+                        errors.Add($"{provider.SourceName}: {result.FirstError}");
                         _logger.LogWarning("Provider {ProviderName} failed: {Error}", provider.SourceName, result.FirstError);
                     }
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    // Filtered on the caller's token: a provider timing out on its own token raises
+                    // TaskCanceledException too, and must not abort the other providers' results.
+                    throw;
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Search failed for provider: {ProviderName}", provider.SourceName);
-                    lock (errors)
-                    {
-                        errors.Add($"{provider.SourceName}: {ex.Message}");
-                    }
+                    errors.Add($"{provider.SourceName}: {ex.Message}");
                 }
+
+                return providerResults;
             });
 
-        await Task.WhenAll(searchTasksAsync);
+        var resultsPerProvider = await Task.WhenAll(searchTasksAsync);
+        var allResults = resultsPerProvider.SelectMany(r => r).ToList();
+
+        // A provider that handled cancellation internally reports it as a failed result rather
+        // than an exception, which would otherwise surface here as an empty successful search.
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // Deduplicate results by manifest ID across providers before sorting and pagination,
+        // preferring specialized publisher providers over generic GitHub providers.
+        var deduplicatedResults = allResults
+            .GroupBy(r => r.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g
+                .OrderByDescending(r =>
+                    !string.Equals(r.ProviderName, ContentSourceNames.GitHubDiscoverer, StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(r.ProviderName, ContentSourceNames.GitHubReleasesDiscoverer, StringComparison.OrdinalIgnoreCase) ? 1 : 0)
+                .First())
+            .ToList();
 
         // Apply orchestrator-level sorting and pagination
-        var sortedResults = ApplySorting(allResults, query.SortOrder)
+        var sortedResults = ApplySorting(deduplicatedResults, query.SortOrder)
             .Skip(query.Skip)
             .Take(query.Take)
             .ToList();
@@ -222,6 +258,8 @@ public class ContentOrchestrator : IContentOrchestrator
         // Cache successful results
         if (result.Success && result.Data != null)
         {
+            result.Data.OriginalProviderName = providerName;
+            result.Data.OriginalContentId = contentId;
             await _cache.SetAsync(cacheKey, result.Data, TimeSpan.FromHours(1), cancellationToken);
         }
 
@@ -272,14 +310,17 @@ public class ContentOrchestrator : IContentOrchestrator
     {
         ArgumentNullException.ThrowIfNull(provider);
 
-        if (!_providers.ToList().Any(p => p.SourceName == provider.SourceName))
+        lock (_providerLock)
         {
-            _providers.Add(provider);
-            _logger.LogInformation("Registered content provider: {ProviderName}", provider.SourceName);
-        }
-        else
-        {
-            _logger.LogWarning("Attempted to register duplicate provider: {ProviderName}", provider.SourceName);
+            if (_providers.All(p => !string.Equals(p.SourceName, provider.SourceName, StringComparison.OrdinalIgnoreCase)))
+            {
+                _providers.Add(provider);
+                _logger.LogInformation("Registered content provider: {ProviderName}", provider.SourceName);
+            }
+            else
+            {
+                _logger.LogWarning("Attempted to register duplicate provider: {ProviderName}", provider.SourceName);
+            }
         }
     }
 
@@ -349,8 +390,12 @@ public class ContentOrchestrator : IContentOrchestrator
 
         if (!_resolvers.TryGetValue(contentSearchResult.ResolverId, out IContentResolver? resolver))
         {
-            return OperationResult<ContentManifest>.CreateFailure(
-                $"No resolver found for ResolverId: {contentSearchResult.ResolverId}");
+            var normalized = contentSearchResult.ResolverId.Replace("-", string.Empty).Replace("_", string.Empty);
+            if (!_resolvers.TryGetValue(normalized, out resolver))
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"No resolver found for ResolverId: {contentSearchResult.ResolverId}");
+            }
         }
 
         var manifestResult = await resolver.ResolveAsync(contentSearchResult, cancellationToken);
@@ -397,38 +442,36 @@ public class ContentOrchestrator : IContentOrchestrator
             }
 
             // Step 2: Get complete manifest
-            ContentManifest manifest;
-            var embeddedManifest = searchResult.GetData<ContentManifest>();
-            if (embeddedManifest != null)
+            var manifest = searchResult.GetData<ContentManifest>();
+            if (manifest == null)
             {
-                manifest = embeddedManifest;
-            }
-            else if (searchResult.RequiresResolution && !string.IsNullOrEmpty(searchResult.ResolverId))
-            {
-                // Content requires resolution through a resolver (e.g., GitHub releases)
-                _logger.LogInformation(
-                    "Content requires resolution. Using resolver: {ResolverId}",
-                    searchResult.ResolverId);
-
-                var resolveResult = await ResolveManifestAsync(searchResult, cancellationToken);
-                if (!resolveResult.Success || resolveResult.Data == null)
+                if (searchResult.RequiresResolution && !string.IsNullOrEmpty(searchResult.ResolverId))
                 {
-                    return OperationResult<ContentManifest>.CreateFailure(
-                        $"Failed to resolve manifest: {resolveResult.FirstError}");
-                }
+                    // Content requires resolution through a resolver (e.g., GitHub releases)
+                    _logger.LogInformation(
+                        "Content requires resolution. Using resolver: {ResolverId}",
+                        searchResult.ResolverId);
 
-                manifest = resolveResult.Data;
-            }
-            else
-            {
-                var manifestResult = await provider.GetValidatedContentAsync(searchResult.Id, cancellationToken);
-                if (!manifestResult.Success || manifestResult.Data == null)
+                    var resolveResult = await ResolveManifestAsync(searchResult, cancellationToken);
+                    if (!resolveResult.Success || resolveResult.Data == null)
+                    {
+                        return OperationResult<ContentManifest>.CreateFailure(
+                            $"Failed to resolve manifest: {resolveResult.FirstError}");
+                    }
+
+                    manifest = resolveResult.Data;
+                }
+                else
                 {
-                    return OperationResult<ContentManifest>.CreateFailure(
-                        $"Failed to get manifest: {manifestResult.FirstError}");
-                }
+                    var manifestResult = await provider.GetValidatedContentAsync(searchResult.Id, cancellationToken);
+                    if (!manifestResult.Success || manifestResult.Data == null)
+                    {
+                        return OperationResult<ContentManifest>.CreateFailure(
+                            $"Failed to get manifest: {manifestResult.FirstError}");
+                    }
 
-                manifest = manifestResult.Data;
+                    manifest = manifestResult.Data;
+                }
             }
 
             // Step 3: Validate manifest structure only
@@ -471,6 +514,7 @@ public class ContentOrchestrator : IContentOrchestrator
                 }
 
                 // Step 5: Full validation (manifest + files)
+                // Always validate to ensure content integrity, even if nominally in CAS
                 progress?.Report(new ContentAcquisitionProgress
                 {
                     Phase = ContentAcquisitionPhase.ValidatingFiles,
@@ -528,7 +572,20 @@ public class ContentOrchestrator : IContentOrchestrator
                 {
                     // Manifest not yet stored, store it now
                     _logger.LogDebug("Manifest {ManifestId} not yet stored, storing now from staging directory", prepareResult.Data.Id);
-                    await _manifestPool.AddManifestAsync(prepareResult.Data, stagingDir, cancellationToken);
+
+                    // For GameClient content, ensure InstallationPoolRootPath is set before storing
+                    // This prevents content from being stored in the wrong CAS pool (e.g., C: drive instead of game-adjacent pool)
+                    if (prepareResult.Data.ContentType == ContentType.GameClient)
+                    {
+                        var success = await EnsureInstallationPoolPathAsync(cancellationToken);
+                        if (!success)
+                        {
+                            return OperationResult<ContentManifest>.CreateFailure(
+                                "Could not ensure InstallationPoolRootPath for GameClient content. A valid game installation is required.");
+                        }
+                    }
+
+                    await _manifestPool.AddManifestAsync(prepareResult.Data, stagingDir, cancellationToken: cancellationToken);
                 }
                 else
                 {
@@ -560,6 +617,10 @@ public class ContentOrchestrator : IContentOrchestrator
                 }
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to acquire content {ContentId}", searchResult.Id);
@@ -580,10 +641,8 @@ public class ContentOrchestrator : IContentOrchestrator
         {
             return OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifestsResult.Data ?? []);
         }
-        else
-        {
-            return OperationResult<IEnumerable<ContentManifest>>.CreateFailure(manifestsResult.Errors);
-        }
+
+        return OperationResult<IEnumerable<ContentManifest>>.CreateFailure(manifestsResult.Errors);
     }
 
     /// <summary>
@@ -599,10 +658,30 @@ public class ContentOrchestrator : IContentOrchestrator
 
         try
         {
-            await _manifestPool.RemoveManifestAsync(manifestId, cancellationToken);
+            // Retrieve the manifest first to get its original provider info for cache invalidation
+            var manifestResult = await _manifestPool.GetManifestAsync(manifestId, cancellationToken);
+
+            var removalResult = await _manifestPool.RemoveManifestAsync(manifestId, cancellationToken: cancellationToken);
+            if (!removalResult.Success)
+            {
+                _logger.LogWarning("Failed to remove content {ManifestId} from pool: {Error}", manifestId, removalResult.FirstError);
+                return OperationResult<bool>.CreateFailure($"Failed to remove content from pool: {removalResult.FirstError}");
+            }
+
             _logger.LogInformation("Removed content {ManifestId} from pool", manifestId);
 
             // Invalidate related cache entries
+            if (manifestResult.Success && manifestResult.Data != null)
+            {
+                var providerName = manifestResult.Data.OriginalProviderName;
+                var contentId = manifestResult.Data.OriginalContentId;
+
+                if (!string.IsNullOrEmpty(providerName) && !string.IsNullOrEmpty(contentId))
+                {
+                    await _cache.InvalidateAsync($"manifest::{providerName}::{contentId}", cancellationToken);
+                }
+            }
+
             await _cache.InvalidateAsync($"manifest::{manifestId}", cancellationToken);
 
             return OperationResult<bool>.CreateSuccess(true);
@@ -625,5 +704,44 @@ public class ContentOrchestrator : IContentOrchestrator
             ContentSortField.Rating => results.OrderByDescending(r => r.Rating),
             _ => results, // Relevance - keep original order
         };
+    }
+
+    /// <summary>
+    /// Ensures the InstallationPoolRootPath is set before storing GameClient content.
+    /// This prevents content from being stored in the wrong CAS pool.
+    /// </summary>
+    /// <returns>True if the path was successfully ensured or auto-set.</returns>
+    private async Task<bool> EnsureInstallationPoolPathAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Force installation detection and reset the path
+            // Even if a path is set, it might be stale (from before user deleted data)
+            // or point to the wrong installation
+            _logger.LogInformation("Forcing installation detection to ensure correct InstallationPoolRootPath");
+            _installationService.InvalidateCache();
+
+            // Get all installations (this will trigger detection if cache is empty)
+            var installationsResult = await _installationService.GetAllInstallationsAsync(cancellationToken);
+            if (!installationsResult.Success || installationsResult.Data == null)
+            {
+                _logger.LogWarning(
+                    "Failed to get installations for CAS pool path resolution: {Error}; the primary CAS pool will be used",
+                    installationsResult.FirstError);
+                return true;
+            }
+
+            var installations = installationsResult.Data.ToList();
+            return await _installationCasPoolService.EnsurePoolPathAsync(installations, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to ensure InstallationPoolRootPath is set");
+            return false;
+        }
     }
 }

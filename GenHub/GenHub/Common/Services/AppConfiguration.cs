@@ -1,7 +1,9 @@
 using System;
 using System.IO;
+using System.Linq;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -13,6 +15,9 @@ namespace GenHub.Common.Services;
 /// </summary>
 public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfiguration>? logger) : IAppConfiguration
 {
+    private const string FailedToGetConfiguredAppDataPathMessage = "Failed to get configured AppDataPath, using default";
+    private const string FailedToResolveCustomInstallRootMessage = "Failed to resolve custom install root for configured data path, falling back to default";
+
     private readonly IConfiguration? _configuration = configuration;
     private readonly ILogger<AppConfiguration>? _logger = logger;
 
@@ -25,14 +30,37 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
         try
         {
             var configured = _configuration?.GetValue<string>(ConfigurationKeys.AppDataPath);
-            return !string.IsNullOrEmpty(configured)
-                ? configured
-                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub");
+            if (!string.IsNullOrEmpty(configured))
+            {
+                return configured;
+            }
+
+            if (StorageMigrationService.IsCustomInstallRoot())
+            {
+                return StorageMigrationService.GetSourceRootDirectory();
+            }
+
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
-            _logger?.LogWarning(ex, "Failed to get configured AppDataPath, using default");
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub");
+            _logger?.LogWarning(ex, FailedToGetConfiguredAppDataPathMessage);
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger?.LogWarning(ex, FailedToGetConfiguredAppDataPathMessage);
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
+        }
+        catch (System.Security.SecurityException ex)
+        {
+            _logger?.LogWarning(ex, FailedToGetConfiguredAppDataPathMessage);
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger?.LogWarning(ex, FailedToGetConfiguredAppDataPathMessage);
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
         }
     }
 
@@ -126,7 +154,7 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
         var configured = _configuration?[ConfigurationKeys.WorkspaceDefaultStrategy];
         return !string.IsNullOrEmpty(configured) && Enum.TryParse(configured, out WorkspaceStrategy strategy)
             ? strategy
-            : WorkspaceStrategy.SymlinkOnly;
+            : WorkspaceConstants.DefaultWorkspaceStrategy;
     }
 
     /// <summary>
@@ -138,20 +166,20 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
         var configured = _configuration?[ConfigurationKeys.UiDefaultTheme];
         if (!string.IsNullOrEmpty(configured))
         {
-            // Validate that the configured theme is valid (only "Dark" and "Light" are supported)
             var normalizedTheme = configured.Trim();
-            if (string.Equals(normalizedTheme, "Dark", StringComparison.OrdinalIgnoreCase) ||
+            if (ThemeConstants.AllThemes.Any(t =>
+                    string.Equals(t.Id, normalizedTheme, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(t.DisplayName, normalizedTheme, StringComparison.OrdinalIgnoreCase)) ||
+                string.Equals(normalizedTheme, "Dark", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(normalizedTheme, "Light", StringComparison.OrdinalIgnoreCase))
             {
                 return normalizedTheme;
             }
-            else
-            {
-                _logger?.LogWarning("Invalid theme '{Theme}' configured, falling back to default", configured);
-            }
+
+            _logger?.LogWarning("Invalid theme '{Theme}' configured, falling back to default", configured);
         }
 
-        return AppConstants.DefaultThemeName; // Default theme
+        return ThemeConstants.DefaultTheme.Id;
     }
 
     /// <summary>
@@ -216,14 +244,52 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
     /// <returns>The application data path as a string.</returns>
     public string GetConfiguredDataPath()
     {
-        if (_configuration == null)
+        if (_configuration != null)
         {
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppConstants.AppName);
+            var configured = _configuration[ConfigurationKeys.AppDataPath];
+            if (!string.IsNullOrEmpty(configured))
+            {
+                return configured;
+            }
         }
 
-        var configured = _configuration[ConfigurationKeys.AppDataPath];
-        return !string.IsNullOrEmpty(configured)
-            ? configured
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppConstants.AppName);
+        try
+        {
+            if (StorageMigrationService.IsCustomInstallRoot())
+            {
+                return StorageMigrationService.GetSourceRootDirectory();
+            }
+        }
+        catch (IOException ex)
+        {
+            _logger?.LogWarning(ex, FailedToResolveCustomInstallRootMessage);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger?.LogWarning(ex, FailedToResolveCustomInstallRootMessage);
+        }
+        catch (System.Security.SecurityException ex)
+        {
+            _logger?.LogWarning(ex, FailedToResolveCustomInstallRootMessage);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger?.LogWarning(ex, FailedToResolveCustomInstallRootMessage);
+        }
+
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
+    }
+
+    /// <summary>
+    /// Gets the application data path used by releases up to v0.0.3, which stored data under the roaming profile.
+    /// </summary>
+    /// <returns>The legacy application data path as a string.</returns>
+    public string GetLegacyConfiguredDataPath() =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppConstants.AppName);
+
+    /// <inheritdoc />
+    public CsvCatalogConfiguration GetCsvCatalogConfiguration()
+    {
+        return _configuration?.GetSection(ConfigurationKeys.GenHubSection).Get<CsvCatalogConfiguration>() ?? new CsvCatalogConfiguration();
     }
 }

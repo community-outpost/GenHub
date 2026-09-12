@@ -17,17 +17,19 @@ public static class ContentTypeExtensions
         return contentType switch
         {
             ContentType.GameInstallation => "Game Installation",
-            ContentType.GameClient => "Game Client",
-            ContentType.Mod => "Modification",
+            ContentType.GameClient => "GameClient",
+            ContentType.Mod => "Mods",
             ContentType.Patch => "Patch",
-            ContentType.Addon => "Add-on",
-            ContentType.MapPack => "Map Pack",
+            ContentType.Addon => "Addons",
+            ContentType.MapPack => "Maps",
             ContentType.Map => "Map",
             ContentType.Mission => "Mission",
             ContentType.LanguagePack => "Language Pack",
             ContentType.ContentBundle => "Content Bundle",
             ContentType.PublisherReferral => "Publisher Referral",
             ContentType.ContentReferral => "Content Referral",
+            ContentType.ModdingTool => "Tool",
+            ContentType.Executable => "Executable",
             _ => contentType.ToString(),
         };
     }
@@ -54,8 +56,25 @@ public static class ContentTypeExtensions
             ContentType.ContentReferral => "contentreferral",
             ContentType.Mission => "mission",
             ContentType.Map => "map",
+            ContentType.ModdingTool => "moddingtool",
+            ContentType.Executable => "executable",
             ContentType.UnknownContentType => "unknown",
             _ => "unknown",
+        };
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether this content type is standalone (doesn't require a game client foundation).
+    /// </summary>
+    /// <param name="contentType">The content type.</param>
+    /// <returns>True if standalone; otherwise, false.</returns>
+    public static bool IsStandalone(this ContentType contentType)
+    {
+        return contentType switch
+        {
+            ContentType.ModdingTool => true,
+            ContentType.Executable => true,
+            _ => false,
         };
     }
 }

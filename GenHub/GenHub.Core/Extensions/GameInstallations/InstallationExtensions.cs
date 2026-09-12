@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
@@ -50,11 +52,74 @@ public static class InstallationExtensions
             var files = directoryInfo.GetFiles();
             return files.Any(f => string.Equals(f.Name, fileName, StringComparison.OrdinalIgnoreCase));
         }
-        catch
+        catch (IOException)
         {
             // If directory enumeration fails, fall back to false
             return false;
         }
+        catch (UnauthorizedAccessException)
+        {
+            // If directory enumeration fails due to permissions, fall back to false
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            // If path contains invalid characters, fall back to false
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Checks if a subdirectory exists under a parent path in a case-insensitive manner, returning the matched directory path.
+    /// </summary>
+    /// <param name="parentDirectory">The parent directory to search within.</param>
+    /// <param name="subDirectoryName">The subdirectory name to look for.</param>
+    /// <param name="matchedPath">The actual matched full path if found.</param>
+    /// <returns>True if the subdirectory exists; otherwise false.</returns>
+    public static bool TryGetDirectoryCaseInsensitive(this string parentDirectory, string subDirectoryName, [NotNullWhen(true)] out string? matchedPath)
+    {
+        matchedPath = null;
+        if (string.IsNullOrEmpty(parentDirectory) || string.IsNullOrEmpty(subDirectoryName))
+        {
+            return false;
+        }
+
+        try
+        {
+            var candidate = Path.Combine(parentDirectory, subDirectoryName);
+            if (Directory.Exists(candidate))
+            {
+                matchedPath = candidate;
+                return true;
+            }
+
+            var directoryInfo = new DirectoryInfo(parentDirectory);
+            if (!directoryInfo.Exists)
+            {
+                return false;
+            }
+
+            var matchingDir = directoryInfo.GetDirectories().FirstOrDefault(d => string.Equals(d.Name, subDirectoryName, StringComparison.OrdinalIgnoreCase));
+            if (matchingDir is not null)
+            {
+                matchedPath = matchingDir.FullName;
+                return true;
+            }
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -69,14 +134,20 @@ public static class InstallationExtensions
             "Converting {InstallationType} installation to domain model",
             installation.InstallationType);
 
-        var installationPath = installation.HasGenerals ? installation.GeneralsPath : installation.ZeroHourPath;
+        // Use the original InstallationPath from the platform detector
+        // This preserves the library root path (e.g., Steam library folder)
+        // Only fall back to game-specific paths if InstallationPath is not set
+        var installationPath = installation.InstallationPath;
         if (string.IsNullOrEmpty(installationPath))
         {
-            installationPath = installation.InstallationPath;
+            installationPath = installation.HasGenerals ? installation.GeneralsPath : installation.ZeroHourPath;
         }
 
-        var gameInstallation = new GameInstallation(installationPath, installation.InstallationType, logger as ILogger<GameInstallation>);
-        gameInstallation.Id = installation.Id;
+        var gameInstallation = new GameInstallation(installationPath, installation.InstallationType, logger as ILogger<GameInstallation>)
+        {
+            Id = installation.Id,
+            DisplayName = installation.DisplayName,
+        };
         gameInstallation.SetPaths(installation.GeneralsPath, installation.ZeroHourPath);
         gameInstallation.PopulateGameClients(installation.AvailableGameClients);
 
@@ -98,13 +169,15 @@ public static class InstallationExtensions
     {
         return installationType switch
         {
-            GameInstallationType.Steam => "Steam",
-            GameInstallationType.EaApp => "EA App",
-            GameInstallationType.TheFirstDecade => "The First Decade",
-            GameInstallationType.CDISO => "CD/ISO",
-            GameInstallationType.Wine => "Wine/Proton",
-            GameInstallationType.Retail => "Retail",
-            GameInstallationType.Unknown => "Unknown",
+            GameInstallationType.Steam => PublisherInfoConstants.Steam.Name,
+            GameInstallationType.EaApp => PublisherInfoConstants.EaApp.Name,
+            GameInstallationType.TheFirstDecade => PublisherInfoConstants.TheFirstDecade.Name,
+            GameInstallationType.CDISO => PublisherInfoConstants.CdIso.Name,
+            GameInstallationType.Wine => PublisherInfoConstants.Wine.Name,
+            GameInstallationType.Retail => PublisherInfoConstants.Retail.Name,
+            GameInstallationType.Lutris => PublisherInfoConstants.Lutris.Name,
+            GameInstallationType.Custom => PublisherInfoConstants.GenHubLocal.Name,
+            GameInstallationType.Unknown => GameClientConstants.UnknownVersion,
             _ => installationType.ToString(),
         };
     }
@@ -125,6 +198,7 @@ public static class InstallationExtensions
             GameInstallationType.CDISO => "cdiso",
             GameInstallationType.Wine => "wine",
             GameInstallationType.Retail => "retail",
+            GameInstallationType.Custom => "genhublocal",
             GameInstallationType.Unknown => "unknown",
             _ => throw new ArgumentOutOfRangeException(nameof(installationType), installationType, "Unknown installation type"),
         };
@@ -144,6 +218,7 @@ public static class InstallationExtensions
             GameInstallationType.Wine => false,
             GameInstallationType.CDISO => false,
             GameInstallationType.Retail => false,
+            GameInstallationType.Custom => false,
             _ => false,
         };
     }
@@ -156,38 +231,6 @@ public static class InstallationExtensions
     public static bool RequiresWineCompatibility(this GameInstallationType installationType)
     {
         return installationType == GameInstallationType.Wine;
-    }
-
-    /// <summary>
-    /// Validates an installation and logs the result.
-    /// </summary>
-    /// <param name="installation">The installation to validate.</param>
-    /// <param name="logger">Logger instance.</param>
-    /// <returns>True if the installation is valid.</returns>
-    public static bool ValidateInstallation(
-        this IGameInstallation installation,
-        ILogger? logger = null)
-    {
-        logger?.LogDebug(
-            "Validating installation: {InstallationType} at {InstallationPath}",
-            installation.InstallationType,
-            installation.InstallationPath);
-
-        var hasValidGenerals = !installation.HasGenerals ||
-            (!string.IsNullOrEmpty(installation.GeneralsPath) && System.IO.Directory.Exists(installation.GeneralsPath));
-
-        var hasValidZeroHour = !installation.HasZeroHour ||
-            (!string.IsNullOrEmpty(installation.ZeroHourPath) && System.IO.Directory.Exists(installation.ZeroHourPath));
-
-        var isValid = hasValidGenerals && hasValidZeroHour;
-
-        logger?.LogDebug(
-            "Installation validation result: {IsValid} (Generals: {HasValidGenerals}, ZeroHour: {HasValidZeroHour})",
-            isValid,
-            hasValidGenerals,
-            hasValidZeroHour);
-
-        return isValid;
     }
 
     /// <summary>
@@ -206,6 +249,7 @@ public static class InstallationExtensions
             GameInstallationType.Wine => "wine",
             GameInstallationType.CDISO => "cdiso",
             GameInstallationType.Retail => "retail",
+            GameInstallationType.Custom => "genhublocal",
             GameInstallationType.Unknown => "unknown",
             _ => "unknown",
         };
@@ -231,6 +275,7 @@ public static class InstallationExtensions
             GameInstallationType.Wine => "retail",
             GameInstallationType.CDISO => "retail",
             GameInstallationType.Retail => "retail",
+            GameInstallationType.Custom => PublisherTypeConstants.GenHubLocal,
             GameInstallationType.Unknown => "unknown",
             _ => "unknown",
         };

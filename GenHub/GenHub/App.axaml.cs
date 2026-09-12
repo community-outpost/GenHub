@@ -5,12 +5,16 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using GenHub.Common.Services;
 using GenHub.Common.ViewModels;
 using GenHub.Common.Views;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Shortcuts;
+using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -24,7 +28,9 @@ public partial class App : Application
     private readonly IServiceProvider _serviceProvider;
     private readonly IUserSettingsService _userSettingsService;
     private readonly IConfigurationProviderService _configurationProvider;
+    private readonly ILocalizationService _localizationService;
     private readonly IProfileLauncherFacade _profileLauncherFacade;
+    private readonly IThemeService? _themeService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="App"/> class with the specified service provider.
@@ -35,7 +41,9 @@ public partial class App : Application
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _userSettingsService = _serviceProvider.GetService<IUserSettingsService>() ?? throw new InvalidOperationException("IUserSettingsService not registered");
         _configurationProvider = _serviceProvider.GetService<IConfigurationProviderService>() ?? throw new InvalidOperationException("IConfigurationProviderService not registered");
+        _localizationService = _serviceProvider.GetRequiredService<ILocalizationService>();
         _profileLauncherFacade = _serviceProvider.GetRequiredService<IProfileLauncherFacade>();
+        _themeService = _serviceProvider.GetService<IThemeService>();
     }
 
     /// <summary>
@@ -43,7 +51,12 @@ public partial class App : Application
     /// </summary>
     public override void Initialize()
     {
+        // Make localization available while application XAML resources are loading.
+        Resources[LocalizationConstants.ResourceServiceKey] = _localizationService;
         AvaloniaXamlLoader.Load(this);
+
+        // App XAML replaces the resource dictionary, so restore the service for views loaded afterward.
+        Resources[LocalizationConstants.ResourceServiceKey] = _localizationService;
     }
 
     /// <summary>
@@ -52,6 +65,8 @@ public partial class App : Application
     /// </summary>
     public override void OnFrameworkInitializationCompleted()
     {
+        _themeService?.InitializeTheme();
+
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var mainWindow = new MainWindow
@@ -65,8 +80,14 @@ public partial class App : Application
             // Subscribe to IPC commands from secondary instances (Windows only)
             SubscribeToSingleInstanceCommands(mainWindow);
 
-            // Handle launch profile from startup args (first launch with shortcut)
-            SafeFireAndForget(HandleLaunchProfileArgsAsync(desktop.Args, mainWindow), "HandleLaunchProfileArgsAsync");
+            // Handle startup arguments sequentially (launch profile, then subscription if present)
+            SafeFireAndForget(HandleStartupArgsAsync(desktop.Args, mainWindow), nameof(HandleStartupArgsAsync));
+
+            // Repair desktop and application shortcuts if application executable has moved/relocated
+            SafeFireAndForget(RepairShortcutsAsync(), nameof(RepairShortcutsAsync));
+
+            // Clean any orphaned default AppData folders when running from a custom install location
+            StorageMigrationService.CleanOrphanedDefaultAppDataIfCustom();
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -74,19 +95,21 @@ public partial class App : Application
 
     private static void UpdateViewModelAfterLaunch(MainWindow mainWindow, string profileId, int processId)
     {
-        var mainViewModel = mainWindow.DataContext as MainViewModel;
-        if (mainViewModel?.GameProfilesViewModel == null)
+        if (mainWindow?.DataContext is not MainViewModel mainViewModel || mainViewModel.GameProfilesViewModel == null)
         {
             return;
         }
 
-        var targetProfile = mainViewModel.GameProfilesViewModel.Profiles
-            .FirstOrDefault(p => p.ProfileId.Equals(profileId, StringComparison.OrdinalIgnoreCase));
-
-        if (targetProfile != null)
+        if (mainViewModel.GameProfilesViewModel.Profiles != null)
         {
-            targetProfile.IsProcessRunning = true;
-            targetProfile.ProcessId = processId;
+            var targetProfile = mainViewModel.GameProfilesViewModel.Profiles
+                .FirstOrDefault(p => p.ProfileId.Equals(profileId, StringComparison.OrdinalIgnoreCase));
+
+            if (targetProfile != null)
+            {
+                targetProfile.IsProcessRunning = true;
+                targetProfile.ProcessId = processId;
+            }
         }
 
         mainViewModel.GameProfilesViewModel.StatusMessage = $"Profile launched (Process ID: {processId})";
@@ -94,11 +117,36 @@ public partial class App : Application
 
     private static void UpdateViewModelWithError(MainWindow mainWindow, string error)
     {
-        var mainViewModel = mainWindow.DataContext as MainViewModel;
-        if (mainViewModel?.GameProfilesViewModel != null)
+        if (mainWindow?.DataContext is not MainViewModel mainViewModel || mainViewModel.GameProfilesViewModel == null)
         {
-            mainViewModel.GameProfilesViewModel.StatusMessage = $"Launch failed: {error}";
-            mainViewModel.GameProfilesViewModel.ErrorMessage = error;
+            return;
+        }
+
+        mainViewModel.GameProfilesViewModel.StatusMessage = $"Launch failed: {error}";
+        mainViewModel.GameProfilesViewModel.ErrorMessage = error;
+    }
+
+    private static async Task RepairProfileShortcutsAsync(
+        IShortcutService shortcutService,
+        IGameProfileManager profileManager,
+        ILogger<App>? logger)
+    {
+        var profilesResult = await profileManager.GetAllProfilesAsync();
+        if (!profilesResult.Success || profilesResult.Data == null)
+        {
+            return;
+        }
+
+        foreach (var profile in profilesResult.Data)
+        {
+            if (await shortcutService.ShortcutExistsAsync(profile))
+            {
+                var result = await shortcutService.CreateDesktopShortcutAsync(profile);
+                if (!result.Success)
+                {
+                    logger?.LogWarning("Failed to repair desktop shortcut for profile {ProfileName}: {Error}", profile.Name, result.FirstError);
+                }
+            }
         }
     }
 
@@ -165,6 +213,17 @@ public partial class App : Application
         }
     }
 
+    private async Task HandleStartupArgsAsync(string[]? args, MainWindow mainWindow)
+    {
+        if (args == null || args.Length == 0)
+        {
+            return;
+        }
+
+        await HandleLaunchProfileArgsAsync(args, mainWindow);
+        await HandleSubscriptionArgsAsync(args, mainWindow);
+    }
+
     private async Task HandleLaunchProfileArgsAsync(string[]? args, MainWindow mainWindow)
     {
         if (args == null || args.Length == 0)
@@ -184,6 +243,25 @@ public partial class App : Application
         await LaunchProfileByIdAsync(profileId, mainWindow);
     }
 
+    private async Task HandleSubscriptionArgsAsync(string[]? args, MainWindow mainWindow)
+    {
+        if (args == null || args.Length == 0)
+        {
+            return;
+        }
+
+        var subscriptionUrl = CommandLineParser.ExtractSubscriptionUrl(args);
+        if (string.IsNullOrWhiteSpace(subscriptionUrl))
+        {
+            return;
+        }
+
+        var logger = _serviceProvider.GetService<ILogger<App>>();
+        logger?.LogInformation("Startup subscription detected for URL: {Url}", subscriptionUrl);
+
+        await HandleSubscriptionUrlAsync(subscriptionUrl, mainWindow);
+    }
+
     private void SubscribeToSingleInstanceCommands(MainWindow mainWindow)
     {
         // Get the SingleInstanceManager from AppLocator (set by Windows Program.cs)
@@ -194,10 +272,7 @@ public partial class App : Application
         }
 
         singleInstanceManager.CommandReceived += (_, command) =>
-        {
-            // Dispatch to UI thread since the event comes from a background pipe listener
             Dispatcher.UIThread.Post(() => HandleSingleInstanceCommand(command, mainWindow));
-        };
 
         var logger = _serviceProvider.GetService<ILogger<App>>();
         logger?.LogDebug("Subscribed to single instance IPC commands");
@@ -213,7 +288,15 @@ public partial class App : Application
             logger?.LogInformation("Received IPC launch command for profile: {ProfileId}", profileId);
 
             // Launch the profile
-            SafeFireAndForget(LaunchProfileByIdAsync(profileId, mainWindow), "LaunchProfileByIdAsync");
+            SafeFireAndForget(LaunchProfileByIdAsync(profileId, mainWindow), nameof(LaunchProfileByIdAsync));
+        }
+        else if (command.StartsWith(IpcCommands.SubscribePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var subscriptionUrl = command[IpcCommands.SubscribePrefix.Length..];
+            logger?.LogInformation("Received IPC subscribe command for URL: {Url}", subscriptionUrl);
+
+            // Handle the subscription URL
+            SafeFireAndForget(HandleSubscriptionUrlAsync(subscriptionUrl, mainWindow), nameof(HandleSubscriptionUrlAsync));
         }
         else
         {
@@ -264,6 +347,86 @@ public partial class App : Application
         catch (Exception ex)
         {
             logger?.LogError(ex, "Exception while launching profile {ProfileId}", profileId);
+        }
+    }
+
+    private async Task HandleSubscriptionUrlAsync(string subscriptionUrl, MainWindow mainWindow)
+    {
+        var logger = _serviceProvider.GetService<ILogger<App>>();
+
+        try
+        {
+            var sanitizedUrl = subscriptionUrl.Replace("\r", string.Empty).Replace("\n", string.Empty).Trim('"', '\'', ' ', '\t');
+            if (!Uri.TryCreate(sanitizedUrl, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            {
+                logger?.LogWarning("Invalid or unsafe subscription URL: {Url}", subscriptionUrl);
+                return;
+            }
+
+            logger?.LogInformation("Handling subscription URL: {Url}", uri.AbsoluteUri);
+
+            var dialogService = _serviceProvider.GetService<IDialogService>();
+            if (dialogService != null)
+            {
+                var confirmed = await dialogService.ShowConfirmationAsync(
+                    "Subscribe to Catalog",
+                    $"Do you want to subscribe to content from:\n{uri.AbsoluteUri}",
+                    "Subscribe",
+                    "Cancel");
+
+                if (confirmed)
+                {
+                    if (mainWindow?.DataContext is MainViewModel mainViewModel)
+                    {
+                        mainViewModel.SelectTab(NavigationTab.Downloads);
+                    }
+
+                    logger?.LogInformation("User confirmed subscription to: {Url}", uri.AbsoluteUri);
+                    var notificationService = _serviceProvider.GetService<INotificationService>();
+                    notificationService?.ShowSuccess("Subscribed", $"Successfully subscribed to: {uri.AbsoluteUri}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Exception while handling subscription URL {Url}", subscriptionUrl);
+        }
+    }
+
+    private async Task RepairShortcutsAsync()
+    {
+        if (OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        await Task.Run(ExecuteRepairShortcutsAsync);
+    }
+
+    private async Task ExecuteRepairShortcutsAsync()
+    {
+        var logger = _serviceProvider.GetService<ILogger<App>>();
+        try
+        {
+            var shortcutService = _serviceProvider.GetService<IShortcutService>();
+            var profileManager = _serviceProvider.GetService<IGameProfileManager>();
+            if (shortcutService == null || profileManager == null)
+            {
+                return;
+            }
+
+            await RepairProfileShortcutsAsync(shortcutService, profileManager, logger);
+
+            var repairAppResult = await shortcutService.RepairApplicationShortcutsAsync();
+            if (!repairAppResult.Success)
+            {
+                logger?.LogWarning("Failed to repair application shortcuts: {Error}", repairAppResult.FirstError);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogWarning(ex, "Failed to repair desktop shortcuts during startup");
         }
     }
 }

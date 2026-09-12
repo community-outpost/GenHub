@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Models.GameClients;
@@ -16,11 +17,11 @@ public readonly struct GameClientInfo
     /// <param name="publisher">The publisher/distributor (e.g., "EA", "Steam", "ThirdParty", "Community-Outpost").</param>
     /// <param name="description">Optional description of this executable variant.</param>
     /// <param name="isOfficial">Whether this is an official release or community modification.</param>
-    public GameClientInfo(GameType gameType, string version, string publisher = "Unknown", string description = "", bool isOfficial = true)
+    public GameClientInfo(GameType gameType, string version, string publisher = GameClientConstants.UnknownVersion, string description = "", bool isOfficial = true)
     {
         GameType = gameType;
-        Version = version ?? "Unknown";
-        Publisher = publisher ?? "Unknown";
+        Version = version ?? GameClientConstants.UnknownVersion;
+        Publisher = publisher ?? GameClientConstants.UnknownVersion;
         Description = description ?? string.Empty;
         IsOfficial = isOfficial;
         DetectedAt = DateTime.UtcNow;

@@ -1,4 +1,6 @@
 using System;
+using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading;
 using System.Windows.Input;
 using Avalonia.Media;
@@ -35,15 +37,11 @@ public partial class NotificationItemViewModel : ViewModelBase, IDisposable
     /// </summary>
     public NotificationType Type { get; }
 
-    /// <summary>
-    /// Gets the notification title.
-    /// </summary>
-    public string Title { get; }
+    [ObservableProperty]
+    private string _title;
 
-    /// <summary>
-    /// Gets the notification message.
-    /// </summary>
-    public string Message { get; }
+    [ObservableProperty]
+    private string _message;
 
     /// <summary>
     /// Gets the timestamp when the notification was created.
@@ -51,22 +49,27 @@ public partial class NotificationItemViewModel : ViewModelBase, IDisposable
     public DateTime Timestamp { get; }
 
     /// <summary>
-    /// Gets a value indicating whether this notification has an action button.
+    /// Gets a value indicating whether this notification has any actionable buttons.
     /// </summary>
     public bool IsActionable { get; }
 
     /// <summary>
-    /// Gets the action button text.
+    /// Gets the collection of actions available for this notification.
     /// </summary>
-    public string? ActionText { get; }
+    public ObservableCollection<NotificationActionViewModel> Actions { get; }
 
     /// <summary>
-    /// Gets the action to execute when the action button is clicked.
+    /// Gets the action text for backward compatibility (first action).
     /// </summary>
-    public Action? Action { get; }
+    public string? ActionText => Actions.FirstOrDefault()?.Text;
 
     /// <summary>
-    /// Gets the icon path data based on notification type.
+    /// Gets the action command for backward compatibility (first action).
+    /// </summary>
+    public ICommand? ActionCommand => Actions.FirstOrDefault()?.ExecuteCommand;
+
+    /// <summary>
+    /// Gets the icon path data based on the notification type.
     /// </summary>
     public string IconPath => Type switch
     {
@@ -111,37 +114,30 @@ public partial class NotificationItemViewModel : ViewModelBase, IDisposable
 
         Id = notification.Id;
         Type = notification.Type;
-        Title = notification.Title;
-        Message = notification.Message;
+        _title = notification.Title;
+        _message = notification.Message;
         Timestamp = notification.Timestamp;
         IsActionable = notification.IsActionable;
-        ActionText = notification.ActionText;
-        Action = notification.Action;
         _isVisible = false;
 
+        // Create action view models for each action
+        Actions = new ObservableCollection<NotificationActionViewModel>(
+            notification.Actions?.Select(a => new NotificationActionViewModel(a, () => ExecuteAction(a))) ?? Enumerable.Empty<NotificationActionViewModel>());
+
         DismissCommand = new RelayCommand(ExecuteDismiss);
-        ActionCommand = new RelayCommand(ExecuteAction, () => IsActionable);
 
         if (notification.AutoDismissMilliseconds.HasValue)
         {
             StartDismissTimer(notification.AutoDismissMilliseconds.Value);
         }
 
-        Dispatcher.UIThread.Post(() =>
-        {
-            IsVisible = true;
-        });
+        Dispatcher.UIThread.Post(() => IsVisible = true);
     }
 
     /// <summary>
     /// Gets the command to dismiss the notification.
     /// </summary>
     public ICommand DismissCommand { get; }
-
-    /// <summary>
-    /// Gets the command to execute the notification action.
-    /// </summary>
-    public ICommand ActionCommand { get; }
 
     /// <summary>
     /// Starts the auto-dismiss timer.
@@ -175,12 +171,13 @@ public partial class NotificationItemViewModel : ViewModelBase, IDisposable
         _onDismissCallback?.Invoke(Id);
     }
 
-    private void ExecuteAction()
+    private void ExecuteAction(NotificationAction action)
     {
-        if (IsActionable && Action != null)
+        _logger.LogDebug("Executing action for notification {NotificationId}", Id);
+        action.Callback?.Invoke();
+
+        if (action.DismissOnExecute)
         {
-            _logger.LogDebug("Executing action for notification {NotificationId}", Id);
-            Action.Invoke();
             ExecuteDismiss();
         }
     }

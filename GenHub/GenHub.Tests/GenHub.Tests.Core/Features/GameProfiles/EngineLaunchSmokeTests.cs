@@ -1,0 +1,237 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using GenHub.Core.Constants;
+using GenHub.Core.Models.Launching;
+using GenHub.Features.GameProfiles.Infrastructure;
+using Microsoft.Extensions.Logging.Abstractions;
+using Xunit;
+
+namespace GenHub.Tests.Core.Features.GameProfiles;
+
+/// <summary>
+/// Engine-only launch smoke test: starts the native client with no game data at all and
+/// requires the failure the engine is known to produce.
+/// <para>
+/// The engine cannot reach its main loop without content — with no readable INI it aborts
+/// with exit code 1 during initialisation. Launching it in an empty workspace therefore
+/// still proves the things CI otherwise never covers: the binary loads, its dylibs resolve
+/// relative to the executable, initialisation runs as far as INI loading, and the failure
+/// is a prompt exit rather than a hang. No licensed retail data is involved.
+/// </para>
+/// <para>
+/// Like the other native-client tests this skips when no client is present — unless
+/// <c>GENHUB_REQUIRE_NATIVE_SMOKE</c> is set, which CI uses to turn a missing client into
+/// a failure instead of a silent green run.
+/// </para>
+/// </summary>
+[Collection(NativeClientLaunchCollection.Name)]
+public class EngineLaunchSmokeTests : IDisposable
+{
+    /// <summary>
+    /// Environment variable that forbids skipping: when set to <c>1</c> or <c>true</c>, a
+    /// missing native client fails the test rather than passing it vacuously.
+    /// </summary>
+    public const string RequireEnvironmentVariable = "GENHUB_REQUIRE_NATIVE_SMOKE";
+
+    /// <summary>
+    /// How long the engine gets to exit before the test declares a hang. The observed
+    /// failure takes about a second; the margin covers a cold CI runner, not the engine.
+    /// </summary>
+    private static readonly TimeSpan ExitTimeout = TimeSpan.FromSeconds(60);
+
+    private readonly string _tempRoot = Path.Combine(
+        Path.GetTempPath(),
+        $"genhub-engine-smoke-{Guid.NewGuid():N}");
+
+    private readonly GameProcessManager _processManager = new(NullLogger<GameProcessManager>.Instance);
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EngineLaunchSmokeTests"/> class.
+    /// </summary>
+    public EngineLaunchSmokeTests() => Directory.CreateDirectory(_tempRoot);
+
+    private static bool IsSmokeRequired
+    {
+        get
+        {
+            var value = Environment.GetEnvironmentVariable(RequireEnvironmentVariable);
+            return string.Equals(value, "1", StringComparison.Ordinal)
+                || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    /// <summary>
+    /// Stages the engine binary and its libraries into an empty workspace — no archives,
+    /// no retail roots — and launches headless with HOME redirected so the crash report
+    /// lands in the sandbox. The engine must exit with code 1 and leave its crash report
+    /// in the redirected HOME — the diagnostic that identifies this as the known abort.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EngineWithNoGameData_ExitsWithCodeOne()
+    {
+        var installDirectory = NativeClientFixture.Directory;
+        if (installDirectory is null)
+        {
+            var missingClientMessage =
+                $"{RequireEnvironmentVariable} is set but no native client was found. "
+                + $"Point {NativeClientFixture.EnvironmentOverride} at a directory containing "
+                + $"'{NativeClientFixture.BinaryName}'.";
+            Assert.False(IsSmokeRequired, missingClientMessage);
+            return;
+        }
+
+        var workspace = StageEngineOnlyWorkspace(installDirectory);
+        var sandboxHome = Path.Combine(_tempRoot, "home");
+        Directory.CreateDirectory(sandboxHome);
+
+        // The exit code is only observable through the manager's exit event: the process
+        // handle stays internal, and GetProcessInfoAsync reports an exited process as
+        // not found. Subscribed before launch so a fast exit cannot slip past.
+        var exited = new TaskCompletionSource<int?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _processManager.ProcessExited += (_, e) => exited.TrySetResult(e.ExitCode);
+
+        // The install-path variables are pinned to the empty workspace so a developer who
+        // has them exported cannot feed this "no data" launch their real retail content
+        // through the inherited environment. GameProcessManager assigns these into
+        // ProcessStartInfo.EnvironmentVariables by indexer, which the framework
+        // pre-populates from the parent environment — so an inherited value is replaced,
+        // not merely joined. The trailing separator matches how GameLauncher sets these
+        // for real launches: the engine requires it on the value.
+        var pinnedInstallPath = workspace + Path.DirectorySeparatorChar;
+        var configuration = new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(workspace, NativeClientFixture.BinaryName),
+            WorkingDirectory = workspace,
+            Arguments = new() { ["-headless"] = string.Empty },
+            EnvironmentVariables = new()
+            {
+                ["HOME"] = sandboxHome,
+                [RetailArchiveConstants.ZeroHourInstallPathVariable] = pinnedInstallPath,
+                [RetailArchiveConstants.GeneralsInstallPathVariable] = pinnedInstallPath,
+            },
+        };
+
+        var result = await _processManager.StartProcessAsync(configuration);
+
+        if (!result.Success)
+        {
+            // The engine beat the launcher-detection delay. The manager folds the exit
+            // code into the error, so the assertion still pins it to exactly 1.
+            Assert.Contains(
+                "exited immediately with code 1",
+                string.Join(" ", result.Errors),
+                StringComparison.OrdinalIgnoreCase);
+        }
+        else
+        {
+            var completed = await Task.WhenAny(exited.Task, Task.Delay(ExitTimeout));
+            if (completed != exited.Task)
+            {
+                await _processManager.TerminateProcessAsync(result.Data!.ProcessId);
+                Assert.Fail(
+                    $"The engine was still running {ExitTimeout.TotalSeconds:F0}s after launch with "
+                    + "no game data. The known behaviour is a prompt abort with exit code 1; a hang "
+                    + "here means startup no longer fails fast and the launcher could wait forever.");
+            }
+
+            var exitCode = await exited.Task;
+            Assert.NotNull(exitCode);
+            Assert.Equal(1, exitCode);
+        }
+
+        AssertCrashReportWasWritten(sandboxHome);
+    }
+
+    /// <summary>
+    /// Releases the temporary workspace and sandbox HOME.
+    /// </summary>
+    public void Dispose()
+    {
+        GC.SuppressFinalize(this);
+        _processManager.Dispose();
+        try
+        {
+            if (Directory.Exists(_tempRoot))
+            {
+                Directory.Delete(_tempRoot, recursive: true);
+            }
+        }
+        catch (IOException)
+        {
+            // A leftover temp directory is not worth failing a test over.
+        }
+    }
+
+    /// <summary>
+    /// Asserts the abort produced its diagnostic. In this failure mode stderr is empty;
+    /// what the engine leaves behind is a crash report named <c>ReleaseCrashInfo.txt</c>
+    /// under HOME (on macOS beneath <c>Library/Application Support</c>). Searched
+    /// recursively so the intermediate segments — engine behaviour, and platform
+    /// dependent — are not hardcoded. The sandbox HOME is created empty by this test, so
+    /// any report found here was newly written by this launch; finding it in the sandbox
+    /// also proves the HOME redirection worked, keeping the user's real profile untouched.
+    /// </summary>
+    /// <param name="sandboxHome">The redirected HOME directory.</param>
+    private static void AssertCrashReportWasWritten(string sandboxHome)
+    {
+        var reports = Directory
+            .EnumerateFiles(sandboxHome, "ReleaseCrashInfo.txt", SearchOption.AllDirectories)
+            .ToList();
+
+        var missingReportMessage =
+            "The engine exited with code 1 but wrote no ReleaseCrashInfo.txt under the "
+            + $"redirected HOME '{sandboxHome}'. The known abort writes that report before "
+            + "exiting, so its absence means this was a different failure than the "
+            + "no-game-data INI abort this test pins down.";
+        Assert.True(reports.Count > 0, missingReportMessage);
+
+        var reportContents = File.ReadAllText(reports[0]);
+        Assert.False(
+            string.IsNullOrWhiteSpace(reportContents),
+            $"The crash report at '{reports[0]}' is empty; the known abort records its reason.");
+
+        // The stable line the abort writes is "; Reason Uncaught Exception during
+        // initialization." — asserted without the leading punctuation so a formatting
+        // change there cannot break the test, while the reason itself stays pinned.
+        Assert.Contains(
+            "Reason Uncaught Exception during initialization.",
+            reportContents,
+            StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Copies only the engine binary and its dynamic libraries into a fresh directory.
+    /// Everything else in the source install — archives, retail roots, user files — is
+    /// deliberately left behind; their absence is the point of the test.
+    /// </summary>
+    /// <param name="installDirectory">The native client install to stage from.</param>
+    /// <returns>The staged workspace directory.</returns>
+    private string StageEngineOnlyWorkspace(string installDirectory)
+    {
+        var workspace = Path.Combine(_tempRoot, "workspace");
+        Directory.CreateDirectory(workspace);
+
+        foreach (var path in Directory.EnumerateFiles(installDirectory, "*", SearchOption.TopDirectoryOnly))
+        {
+            var name = Path.GetFileName(path);
+            if (name != NativeClientFixture.BinaryName && !NativeClientFixture.IsDynamicLibrary(name))
+            {
+                continue;
+            }
+
+            File.Copy(path, Path.Combine(workspace, name));
+        }
+
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(
+                Path.Combine(workspace, NativeClientFixture.BinaryName),
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+
+        return workspace;
+    }
+}

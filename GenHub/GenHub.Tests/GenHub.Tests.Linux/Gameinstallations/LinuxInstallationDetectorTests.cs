@@ -33,7 +33,7 @@ public class LinuxInstallationDetectorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DetectInstallationsAsync_ReturnsDetectionResult()
+    public async Task DetectInstallationsAsync_ReturnsDetectionResultAsync()
     {
         var detector = new LinuxInstallationDetector(NullLogger<LinuxInstallationDetector>.Instance);
         var result = await detector.DetectInstallationsAsync();

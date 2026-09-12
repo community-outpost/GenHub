@@ -1,0 +1,201 @@
+namespace GenHub.Windows.Features.ActionSets.Fixes;
+
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using GenHub.Core.Constants;
+using GenHub.Core.Features.ActionSets;
+using GenHub.Core.Models.GameInstallations;
+using Microsoft.Extensions.Logging;
+
+/// <summary>
+/// Fix that sets network connection to Private (Home) profile for better LAN/online play.
+/// </summary>
+public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) : BaseActionSet(logger)
+{
+    private static readonly string PowerShellPath = Path.Combine(
+        Environment.SystemDirectory,
+        "WindowsPowerShell",
+        "v1.0",
+        "powershell.exe");
+
+    /// <inheritdoc/>
+    public override string Id => "NetworkPrivateProfileFix";
+
+    /// <inheritdoc/>
+    public override string Title => "Network Private Profile";
+
+    /// <inheritdoc/>
+    public override string Description => "Sets active network connections to Private mode so Windows Defender Firewall permits LAN and direct IP multiplayer.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "Windows marks unfamiliar networks as Public by default, which blocks peer-to-peer game discovery and UDP packets. Configuring your network connection as Private unblocks Generals multiplayer traffic, enabling seamless LAN, GameRanger, and online connectivity.";
+
+    /// <inheritdoc/>
+    public override string Category => ActionSetConstants.Categories.Multiplayer;
+
+    /// <inheritdoc/>
+    public override bool IsCoreFix => false;
+
+    /// <inheritdoc/>
+    public override bool IsCrucialFix => false;
+
+    /// <inheritdoc/>
+    public override async Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
+    {
+        try
+        {
+            var profiles = await Task.Run(() => GetNetworkProfiles(ct), ct);
+            return profiles.Count > 0 && profiles.All(p => p.Equals("Private", StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error checking network profile status");
+            return false;
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
+    {
+        var details = new List<string>();
+
+        try
+        {
+            var profiles = await Task.Run(() => GetNetworkProfiles(ct), ct);
+            details.Add($"Found {profiles.Count} network adapter(s)");
+
+            foreach (var profile in profiles)
+            {
+                details.Add($"• Adapter profile: {profile}");
+            }
+
+            if (profiles.Count > 0 && profiles.All(p => p.Equals("Private", StringComparison.OrdinalIgnoreCase)))
+            {
+                details.Add("✓ All network profiles are already set to Private.");
+                logger.LogInformation("Network profile is already set to Private. No action needed.");
+                return new ActionSetResult(true, null, details);
+            }
+
+            logger.LogInformation("Setting network profile to Private (Home)...");
+            details.Add("Setting network profile to Private...");
+
+            var success = await RunPowerShellScriptAsync("Set-NetConnectionProfile -NetworkCategory Private", ct);
+
+            if (success)
+            {
+                details.Add("✓ Network profile successfully set to Private (Home).");
+                logger.LogInformation("Network profile successfully set to Private (Home).");
+                return new ActionSetResult(true, null, details);
+            }
+
+            details.Add("✗ Failed to set network profile.");
+            logger.LogError("Failed to set network profile");
+            return new ActionSetResult(false, "Failed to set network profile", details);
+        }
+        catch (Exception ex)
+        {
+            details.Add($"✗ Error: {ex.Message}");
+            logger.LogError(ex, "Error applying network private profile fix");
+            return new ActionSetResult(false, ex.Message, details);
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override async Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
+    {
+        var details = new List<string>();
+
+        try
+        {
+            details.Add("Reverting network profile to Public...");
+
+            var success = await RunPowerShellScriptAsync("Set-NetConnectionProfile -NetworkCategory Public", ct);
+
+            if (success)
+            {
+                details.Add("✓ Network connection profile reverted to Public");
+                return new ActionSetResult(true, null, details);
+            }
+
+            details.Add("✗ Failed to revert network connection profile");
+            return new ActionSetResult(false, "Failed to revert network connection profile", details);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error undoing network profile change");
+            return new ActionSetResult(false, ex.Message, details);
+        }
+    }
+
+    private static async Task<bool> RunPowerShellScriptAsync(string script, CancellationToken ct)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = PowerShellPath,
+            Arguments = $"-WindowStyle Hidden -NonInteractive -Command \"{script}\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        using var process = Process.Start(psi);
+        if (process == null)
+        {
+            return false;
+        }
+
+        await process.WaitForExitAsync(ct);
+        return process.ExitCode == ProcessConstants.ExitCodeSuccess;
+    }
+
+    private List<string> GetNetworkProfiles(CancellationToken ct)
+    {
+        var profiles = new List<string>();
+
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = PowerShellPath,
+                Arguments = "-WindowStyle Hidden -NonInteractive -Command \"Get-NetConnectionProfile | Select-Object -ExpandProperty NetworkCategory\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+
+            using var process = Process.Start(psi);
+            if (process != null)
+            {
+                var output = process.StandardOutput.ReadToEnd();
+                _ = process.StandardError.ReadToEnd();
+                process.WaitForExit();
+
+                var lines = output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+                foreach (var line in lines)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var trimmed = line.Trim();
+                    if (!string.IsNullOrWhiteSpace(trimmed))
+                    {
+                        profiles.Add(trimmed);
+                    }
+                }
+
+                logger.LogInformation("Current network profiles: {Profiles}", string.Join(", ", profiles));
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Error checking network profile");
+        }
+
+        return profiles;
+    }
+}

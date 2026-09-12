@@ -1,0 +1,58 @@
+using System;
+using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using GenHub.Core.Models.Enums;
+
+namespace GenHub.Core.Serialization;
+
+/// <summary>
+/// Custom JSON converter for WorkspaceStrategy that writes the member name and reads both string
+/// and integer formats, so metadata written by releases up to v0.0.3 still deserializes.
+/// </summary>
+public class JsonWorkspaceStrategyConverter : JsonConverter<WorkspaceStrategy>
+{
+    /// <inheritdoc />
+    [SuppressMessage("Maintainability", "CS-R1138:Inappropriate ordering of parameters", Justification = "Signature is defined by System.Text.Json.Serialization.JsonConverter<T>.Read")]
+    [SuppressMessage("DeepSource", "CS-R1138", Justification = "Signature is defined by System.Text.Json.Serialization.JsonConverter<T>.Read")]
+    [SuppressMessage("csharp", "CS-R1138", Justification = "Signature is defined by System.Text.Json.Serialization.JsonConverter<T>.Read")]
+    public override WorkspaceStrategy Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) // skipcq: CS-R1138
+    {
+        if (reader.TokenType == JsonTokenType.Number)
+        {
+            if (reader.TryGetInt32(out var value))
+            {
+                if (Enum.IsDefined(typeof(WorkspaceStrategy), value))
+                {
+                    return (WorkspaceStrategy)value;
+                }
+
+                // Invalid numeric value - fallback
+                return WorkspaceStrategy.HardLink;
+            }
+        }
+        else if (reader.TokenType == JsonTokenType.String)
+        {
+            var valueStr = reader.GetString();
+            if (!string.IsNullOrEmpty(valueStr) && Enum.TryParse<WorkspaceStrategy>(valueStr, true, out var result))
+            {
+                if (Enum.IsDefined(typeof(WorkspaceStrategy), result))
+                {
+                    return result;
+                }
+
+                // Invalid string value - fallback
+                return WorkspaceStrategy.HardLink;
+            }
+        }
+
+        // Fallback for unknown values or unexpected token types
+        return WorkspaceStrategy.HardLink;
+    }
+
+    /// <inheritdoc />
+    public override void Write(Utf8JsonWriter writer, WorkspaceStrategy value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value.ToString());
+    }
+}

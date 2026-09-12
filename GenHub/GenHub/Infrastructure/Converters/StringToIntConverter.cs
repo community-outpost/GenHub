@@ -12,7 +12,7 @@ public class StringToIntConverter : IValueConverter
     /// <summary>
     /// Singleton instance.
     /// </summary>
-    public static readonly StringToIntConverter Instance = new StringToIntConverter();
+    public static readonly StringToIntConverter Instance = new();
 
     /// <inheritdoc/>
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo? culture)

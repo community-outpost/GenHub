@@ -110,38 +110,52 @@ This allows users to reinstall the same PR build with different commits without 
 
 ## Update Channels
 
-GenHub provides two update channels that users can switch between:
+GenHub provides three update channels that users can switch between:
 
-### Stable Channel
+### 1. Stable Channel (Default)
 
 - **Source**: GitHub Releases
-- **Versions**: `0.0.X` (no PR suffix)
-- **Updates**: Only stable builds from main branch
-- **Recommended for**: Production use
+- **Versions**: `0.0.X` (no branch/PR suffix)
+- **Updates**: Only published releases from the main branch
+- **Recommended for**: General production use
 
-### Artifacts Channel (PR Subscription)
+### 2. PR Artifacts Channel (PR Subscription)
 
-- **Source**: GitHub Actions CI artifacts
+- **Source**: GitHub Actions CI workflow artifacts
 - **Versions**: `0.0.X-prY` format
-- **Updates**: Specific PR builds
-- **Recommended for**: Testing features, bug fixes
+- **Updates**: Specific Pull Request CI builds
+- **Recommended for**: Testing specific feature branches or bug fix pull requests
 - **Requires**: GitHub Personal Access Token (PAT) with `repo` scope
 
 #### Subscribing to PR Builds
 
 1. Navigate to Settings → Updates
 2. Click "Manage Updates & PRs"
-3. Enter GitHub PAT (if not already configured)
-4. Select a PR from the list
-5. Click "Subscribe"
+3. In the "Browse Builds" tab, select a pull request
+4. Click "Subscribe"
 
-The app will now check for updates from that PR instead of stable releases.
+The application will automatically query and notify when newer CI builds are published for that PR.
+
+### 3. Branch Artifacts Channel (Branch Subscription)
+
+- **Source**: GitHub Actions CI workflow artifacts on a branch (e.g., `development`, `main`)
+- **Versions**: `0.0.X-branchname` format
+- **Updates**: Continuous integration builds on the selected branch
+- **Recommended for**: Developers and testers wanting bleeding-edge builds
 
 #### Unsubscribing
 
 1. Open "Manage Updates & PRs"
-2. Click "Unsubscribe" on the currently subscribed PR
-3. App returns to stable channel
+2. Click "Unsubscribe" on the currently subscribed PR or branch
+3. The app returns to the stable release channel
+
+### Periodic Background Update Checks
+
+GenHub supports periodic background update checks configured in **Settings**:
+- **Automatic Background Checks**: Enable or disable periodic checks
+- **Configurable Interval**: Set between 5 minutes and 7 days (default: 30 minutes)
+- **Persistent Notifications & Badges**: Prompts users with a non-intrusive one-click "Update" action in the notification feed
+- **Duplicate Prevention**: Notification records are uniquely tracked per update identity (`pr:{prNumber}:{version}`, `branch:{branch}:{version}`, or `release:{version}`) to avoid notification spam
 
 ## Building Releases
 
@@ -282,12 +296,24 @@ After packaging, Velopack generates:
 - **User Data**: `%APPDATA%\GenHub\`
 - **Update Cache**: `%LOCALAPPDATA%\GenHub\packages\`
 
-**Note**: Velopack uses a "one-click" installer that always installs to LocalAppData. This location:
+**Note**: Velopack uses a "one-click" installer that installs to LocalAppData by default. This location:
 
 - Does not require administrator privileges
 - Is standard for modern auto-updating applications (VS Code, Discord, Slack, etc.)
 - Enables seamless automatic updates
 - Is isolated per-user for better security
+
+### Custom Installation Path (--installto)
+
+Users who wish to install GenHub to a custom drive or directory (e.g. `D:\Games\GenHub`) can use the `--installto` (or short form `-t`) parameter during setup:
+
+```cmd
+GenHub-win-Setup.exe --installto "D:\Games\GenHub"
+```
+
+Any application arguments must follow a `--` separator if needed. When `--installto` is specified, Velopack installs all binaries, `Update.exe`, and package metadata into the designated target folder instead of `%LOCALAPPDATA%\GenHub\`. Automatic updates continue to work normally within the custom installation directory.
+
+Existing installations on `C:` can also be migrated to a new location at any time using the in-app **Settings → Migrate Installation** workflow.
 
 ### Linux Installation
 
@@ -295,7 +321,11 @@ After packaging, Velopack generates:
 - **User Data**: `~/.config/GenHub/`
 - **Update Cache**: `~/.cache/GenHub/`
 
-The app ID `GenHub` ensures clean, predictable installation paths without vendor prefixes.
+The app ID `GenHub` ensures clean, predictable installation paths without vendor prefixes. Note that CI release pipelines currently produce `.nupkg` packages and JSON release-feed manifests for Linux updates; no standalone installer or AppImage picker is distributed at this time.
+
+### Protocol Handler & URI Scheme Registration
+
+On Windows, the `genhub://` custom URI scheme is registered under `HKCU\Software\Classes\genhub` on application startup. If the installation directory is moved or migrated to a different folder or drive, the registration automatically self-heals upon next launch from the new location by updating the command path in the registry. On Linux, application shortcuts and desktop entries containing `Exec=` and `Path=` definitions automatically self-heal upon next launch via `RepairApplicationShortcutsAsync()`. macOS application bundles maintain internal paths and do not require shortcut re-registration.
 
 ## Update Features
 
@@ -456,6 +486,13 @@ Common issues:
 - Ensure using `ApplyUpdatesAndRestart()` not `ApplyUpdatesAndExit()`
 - Check logs for update application errors
 - Verify update package integrity
+
+### Custom Installation Directory Updates
+
+When GenHub is installed into a custom directory via `--installto <path>` or relocated using the in-app migration tool:
+- Automatic updates continue to operate seamlessly within the custom directory. Velopack automatically resolves the update root relative to the running executable's path (`AppContext.BaseDirectory`).
+- New version binaries and packages will be staged and applied directly inside the custom folder without reverting to `%LOCALAPPDATA%\GenHub`.
+- Desktop shortcuts and protocol handler registrations automatically point to the new location.
 
 ## Security Considerations
 

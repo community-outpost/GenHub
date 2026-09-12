@@ -58,6 +58,39 @@ public static partial class ManifestIdGenerator
     }
 
     /// <summary>
+    /// Generates a manifest ID for publisher-provided content using release date as version.
+    /// Used for publishers like ModDB, CNCLabs, AODMaps that don't have semantic versioning.
+    /// Format: schemaVersion.dateVersion.publisher.contentType.contentName (exactly 5 segments).
+    /// </summary>
+    /// <param name="publisherId">Publisher identifier (e.g., 'moddb', 'cnclabs').</param>
+    /// <param name="contentType">The type of content being identified.</param>
+    /// <param name="contentName">Human readable content name.</param>
+    /// <param name="releaseDate">The release date to use as version (formatted as yyyyMMdd).</param>
+    /// <returns>A normalized manifest identifier.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="publisherId"/> or <paramref name="contentName"/> is empty or whitespace.</exception>
+    public static string GeneratePublisherContentId(
+        string publisherId,
+        ContentType contentType,
+        string contentName,
+        DateTime releaseDate)
+    {
+        if (string.IsNullOrWhiteSpace(publisherId))
+            throw new ArgumentException("Publisher ID cannot be empty", nameof(publisherId));
+        if (string.IsNullOrWhiteSpace(contentName))
+            throw new ArgumentException("Content name cannot be empty", nameof(contentName));
+        if (releaseDate == DateTime.MinValue)
+            throw new ArgumentException("Release date cannot be DateTime.MinValue", nameof(releaseDate));
+
+        var safePublisher = Normalize(publisherId);
+        var contentTypeString = contentType.ToManifestIdString();
+        var safeName = Normalize(contentName);
+        var dateVersion = releaseDate.ToString("yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture);
+        var fullVersion = $"{ManifestConstants.DefaultManifestFormatVersion}.{dateVersion}";
+
+        return $"{fullVersion}.{safePublisher}.{contentTypeString}.{safeName}";
+    }
+
+    /// <summary>
     /// Generates a manifest ID for a game installation.
     /// Format: schemaVersion.userVersion.publisher.contentType.contentName (exactly 5 segments).
     /// This 5-segment structure enables:
@@ -149,6 +182,35 @@ public static partial class ManifestIdGenerator
     }
 
     /// <summary>
+    /// Extracts a numeric version from a release tag string.
+    /// Examples: "v1.2.3" -> 123, "1.0" -> 10, "v2" -> 2, "latest" -> 0.
+    /// </summary>
+    /// <param name="tag">The release tag string.</param>
+    /// <returns>The extracted numeric version, or 0 if unparseable.</returns>
+    public static int ExtractVersionFromTag(string? tag)
+    {
+        if (string.IsNullOrWhiteSpace(tag) || tag.Equals("latest", StringComparison.OrdinalIgnoreCase))
+            return 0;
+
+        // Clean up the tag (remove 'v' prefix, whitespace)
+        var cleanTag = tag.TrimStart('v', 'V').Trim();
+
+        try
+        {
+            // Use standard normalization logic (handles 1.04 -> 104, 1.5 -> 105)
+            // This ensures "v1.5" produces the same ID as "1.5" would in other contexts
+            var normalized = NormalizeVersionString(cleanTag);
+            return int.TryParse(normalized, out var version) ? version : 0;
+        }
+        catch (ArgumentException)
+        {
+            // Fallback to simple digit extraction if strict normalization fails
+            // (e.g. for complex tags like "beta-1-final")
+            return ExtractDigitsAsInt(tag);
+        }
+    }
+
+    /// <summary>
     /// Normalizes a version value to a string without dots.
     /// Examples: "1.08" → "108", "1.04" → "104", "1.8" → "108", 5 → "5", "2.0" → "200", null → "0".
     /// Note: Minor versions are always padded to 2 digits for consistency.
@@ -195,22 +257,15 @@ public static partial class ManifestIdGenerator
         return versionStr;
     }
 
-    /// <summary>
-    /// Extracts a numeric version from a release tag string.
-    /// Examples: "v1.2.3" -> 123, "1.0" -> 10, "v2" -> 2, "latest" -> 0.
-    /// </summary>
-    private static int ExtractVersionFromTag(string? tag)
+    private static int ExtractDigitsAsInt(string? s)
     {
-        if (string.IsNullOrWhiteSpace(tag) || tag.Equals("latest", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(s))
             return 0;
 
-        // Extract all digits and concatenate
-        var digits = DigitsRegex().Replace(tag, string.Empty);
-
+        var digits = DigitsRegex().Replace(s, string.Empty);
         if (string.IsNullOrEmpty(digits))
             return 0;
 
-        // Take first 9 digits to avoid overflow
         if (digits.Length > 9)
             digits = digits[..9];
 

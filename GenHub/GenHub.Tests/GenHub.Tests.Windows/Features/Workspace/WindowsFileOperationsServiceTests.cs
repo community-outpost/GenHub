@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Features.Workspace;
@@ -37,7 +38,7 @@ public class WindowsFileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateHardLinkAsync_CreatesHardLink_OnWindows()
+    public async Task CreateHardLinkAsync_CreatesHardLink_OnWindowsAsync()
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -72,7 +73,7 @@ public class WindowsFileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateSymlinkAsync_CreatesSymlink_OnWindows()
+    public async Task CreateSymlinkAsync_CreatesSymlink_OnWindowsAsync()
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -106,6 +107,50 @@ public class WindowsFileOperationsServiceTests : IDisposable
         // Note: Since we're using a concrete mock, we can't easily verify calls
         // This test would need to be refactored to work with the new architecture
         // For now, we've ensured the service doesn't throw unhandled exceptions
+    }
+
+    /// <summary>
+    /// Tests that DeleteDirectoryIfExists unlinks an NTFS directory junction without deleting the target directory or its contents.
+    /// </summary>
+    [Fact]
+    public void DeleteDirectoryIfExists_UnlinksNtfsJunctionWithoutDeletingTarget()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var targetDir = Path.Combine(_tempDir, "junction_target");
+        Directory.CreateDirectory(targetDir);
+        var targetFile = Path.Combine(targetDir, "important.txt");
+        File.WriteAllText(targetFile, "critical game data");
+
+        var parentDir = Path.Combine(_tempDir, "workspace");
+        Directory.CreateDirectory(parentDir);
+        var junctionPath = Path.Combine(parentDir, "Core");
+
+        var psi = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = Path.Combine(Environment.SystemDirectory, "cmd.exe"),
+            Arguments = $"/c mklink /J \"{junctionPath}\" \"{targetDir}\"",
+            CreateNoWindow = true,
+            UseShellExecute = false,
+        };
+        using var process = System.Diagnostics.Process.Start(psi);
+        process?.WaitForExit(ProcessConstants.HelperProcessTimeoutMs);
+
+        if (!Directory.Exists(junctionPath))
+        {
+            // Skip if environment does not allow junction creation
+            return;
+        }
+
+        var result = FileOperationsService.DeleteDirectoryIfExists(parentDir);
+
+        Assert.True(result);
+        Assert.False(Directory.Exists(parentDir));
+        Assert.True(Directory.Exists(targetDir), "Target directory of junction must remain intact!");
+        Assert.True(File.Exists(targetFile), "Files in target directory must remain intact!");
     }
 
     /// <summary>

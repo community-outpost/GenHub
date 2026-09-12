@@ -5,6 +5,11 @@ namespace GenHub.Core.Constants;
 /// </summary>
 public static class StorageConstants
 {
+    /// <summary>
+    /// Prefix used for temporary files that verify a storage location is writable.
+    /// </summary>
+    public const string WriteProbeFilePrefix = ".genhub-write-probe-";
+
     // CAS retry constants
 
     /// <summary>
