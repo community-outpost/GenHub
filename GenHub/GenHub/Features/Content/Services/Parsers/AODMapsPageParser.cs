@@ -75,7 +75,7 @@ public partial class AODMapsPageParser(
         return null;
     }
 
-    private string MakeAbsoluteUrl(string? url)
+    private string MakeAbsoluteUrl(string? url, string? pageUrl = null)
     {
         if (string.IsNullOrEmpty(url))
         {
@@ -93,6 +93,14 @@ public partial class AODMapsPageParser(
         if (url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
         {
             return url;
+        }
+
+        if (!string.IsNullOrEmpty(pageUrl) && Uri.TryCreate(pageUrl, UriKind.Absolute, out var baseUri))
+        {
+            if (Uri.TryCreate(baseUri, url, out var combinedUri))
+            {
+                return combinedUri.ToString();
+            }
         }
 
         return $"{AODMapsConstants.BaseUrl.TrimEnd('/')}/{url.TrimStart('/')}";
@@ -158,7 +166,7 @@ public partial class AODMapsPageParser(
             return null;
         }
 
-        downloadUrl = MakeAbsoluteUrl(downloadUrl);
+        downloadUrl = MakeAbsoluteUrl(downloadUrl, pageUrl);
 
         var nameEl = item.QuerySelector(AODMapsConstants.GalleryMapNameSelector);
         var name = nameEl?.TextContent?.Trim();
@@ -169,7 +177,7 @@ public partial class AODMapsPageParser(
 
         var thumbEl = item.QuerySelector(AODMapsConstants.GalleryThumbnailSelector);
         var thumbSrc = thumbEl?.GetAttribute("src");
-        var thumbUrl = !string.IsNullOrEmpty(thumbSrc) ? MakeAbsoluteUrl(thumbSrc) : null;
+        var thumbUrl = !string.IsNullOrEmpty(thumbSrc) ? MakeAbsoluteUrl(thumbSrc, pageUrl) : null;
 
         var downloadCount = ExtractDownloadCount(item);
         var author = AODMapsHelper.ExtractAuthor(name, pageUrl) ?? AODMapsConstants.DefaultAuthorName;
@@ -201,7 +209,7 @@ public partial class AODMapsPageParser(
             return null;
         }
 
-        downloadUrl = MakeAbsoluteUrl(downloadUrl);
+        downloadUrl = MakeAbsoluteUrl(downloadUrl, pageUrl);
 
         // Name
         var titleEl = item.QuerySelector(AODMapsConstants.MapMakerTitleSelector);
@@ -213,7 +221,7 @@ public partial class AODMapsPageParser(
 
         var imgEl = item.QuerySelector(AODMapsConstants.MapMakerImageSelector);
         var thumbSrc = imgEl?.GetAttribute("src");
-        var thumbUrl = !string.IsNullOrEmpty(thumbSrc) ? MakeAbsoluteUrl(thumbSrc) : null;
+        var thumbUrl = !string.IsNullOrEmpty(thumbSrc) ? MakeAbsoluteUrl(thumbSrc, pageUrl) : null;
 
         return new DownloadableFile(
              Name: name,
