@@ -39,7 +39,7 @@ public partial class SettingsView : UserControl
         if (DataContext is SettingsViewModel vm)
         {
             vm.IsViewVisible = true;
-            vm.LoadSubscriptionsCommand.Execute(null);
+            _ = vm.LoadSubscriptionsCommand.ExecuteAsync(null);
             HookViewModel(vm);
             if (vm.SelectedSection != null)
             {

@@ -177,10 +177,6 @@ print_launch_fallback() {
     echo "parses genhub://subscribe?url=... from argv on every platform):"
     echo "  \"$EXE_PATH\" \"$subscribe_uri\""
     echo "  dotnet run --project \"$PROJECT\" -c $CONFIG -- \"$subscribe_uri\""
-    echo ""
-    echo "Local HTTP (most reliable if file:// is rejected):"
-    echo "  cd \"$SCRIPT_DIR\" && python3 -m http.server 8080"
-    echo "  then pass: genhub://subscribe?url=http://localhost:8080/genhub-test-catalog.catalog.json"
 }
 
 # --- Windows -----------------------------------------------------------------
@@ -229,8 +225,6 @@ EOF
 [InternetShortcut]
 URL=$SUBSCRIBE_URI
 IDList=
-IconFile=avares://GenHub/Assets/Icons/generalshub-icon.png
-IconIndex=0
 EOF
         echo "Wrote $url_path"
     fi

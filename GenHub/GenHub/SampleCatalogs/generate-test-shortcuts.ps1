@@ -123,14 +123,12 @@ $urlContent = @'
 [InternetShortcut]
 URL=genhub://subscribe?url=__FILEURI__
 IDList=
-IconFile=avares://GenHub/Assets/Icons/generalshub-icon.png
-IconIndex=0
 '@ -replace '__FILEURI__', $fileUri
 
 foreach ($pair in @(@{Path = $regPath; Content = $regContent},
                     @{Path = $urlPath; Content = $urlContent})) {
+    $rel = [System.IO.Path]::GetRelativePath($scriptDir, $pair.Path)
     if ((Test-Path $pair.Path) -and -not $Force) {
-        $rel = Resolve-Path $pair.Path -Relative
         $overwrite = Read-Host "$rel exists. Overwrite? [y/N]"
         if ($overwrite -notmatch '^[yY]') {
             Write-Host "Skipped $rel"
@@ -139,7 +137,7 @@ foreach ($pair in @(@{Path = $regPath; Content = $regContent},
     }
     Set-Content -Path $pair.Path -Value $pair.Content -Encoding ASCII -NoNewline
     Add-Content -Path $pair.Path -Value ""      # trailing newline
-    Write-Host "Wrote $(Resolve-Path $pair.Path -Relative)"
+    Write-Host "Wrote $rel"
 }
 
 Write-Host ""
