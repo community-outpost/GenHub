@@ -48,6 +48,9 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     private const int MinNumSounds = GameSettingsConstants.Audio.MinNumSounds;
     private const int MaxNumSounds = GameSettingsConstants.Audio.MaxNumSounds;
 
+    private readonly IGameSettingsService? _gameSettingsService = gameSettingsService;
+    private readonly ILogger<GameSettingsViewModel> _logger = logger;
+
     private static bool ParseBool(string value) =>
         value.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
         value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
@@ -72,8 +75,40 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         return true;
     }
 
-    private readonly IGameSettingsService? _gameSettingsService = gameSettingsService;
-    private readonly ILogger<GameSettingsViewModel> _logger = logger;
+    private static bool TryGetAnySetting(IniOptions options, string key, out string value)
+    {
+        if (options.Video.AdditionalProperties.TryGetValue(key, out var vVal))
+        {
+            value = vVal;
+            return true;
+        }
+
+        var tshKvp = options.AdditionalSections.FirstOrDefault(s =>
+            string.Equals(s.Key, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase));
+        if (tshKvp.Value?.TryGetCaseInsensitive(key, out var tshVal) == true)
+        {
+            value = tshVal!;
+            return true;
+        }
+
+        if (options.Network.AdditionalProperties.TryGetValue(key, out var nVal))
+        {
+            value = nVal;
+            return true;
+        }
+
+        value = string.Empty;
+        return false;
+    }
+
+    private static string? GetFirstSettingValue(Dictionary<string, string>? primary, Dictionary<string, string>? fallback, string key)
+    {
+        if (primary?.TryGetCaseInsensitive(key, out var primaryVal) == true)
+            return primaryVal;
+        if (fallback?.TryGetCaseInsensitive(key, out var fallbackVal) == true)
+            return fallbackVal;
+        return null;
+    }
 
     /// <summary>
     /// Gets or sets the action triggered when the view needs to scroll to a specific section.
@@ -1324,32 +1359,6 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         SelectedResolutionPreset = ResolutionPresets.Contains(currentRes) ? currentRes : null;
     }
 
-    private static bool TryGetAnySetting(IniOptions options, string key, out string value)
-    {
-        if (options.Video.AdditionalProperties.TryGetValue(key, out var vVal))
-        {
-            value = vVal;
-            return true;
-        }
-
-        var tshKvp = options.AdditionalSections.FirstOrDefault(s =>
-            string.Equals(s.Key, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase));
-        if (tshKvp.Value?.TryGetCaseInsensitive(key, out var tshVal) == true)
-        {
-            value = tshVal!;
-            return true;
-        }
-
-        if (options.Network.AdditionalProperties.TryGetValue(key, out var nVal))
-        {
-            value = nVal;
-            return true;
-        }
-
-        value = string.Empty;
-        return false;
-    }
-
     private void ApplyVideoAdditionalProperties(IniOptions options)
     {
         if (options.Video.AdditionalProperties.TryGetValue("GenHubParticleEffects", out var particleEffects))
@@ -1434,15 +1443,6 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
                 TshGameWindowTransitionSpeedMultiplier = parsed.Value;
             }
         }
-    }
-
-    private static string? GetFirstSettingValue(Dictionary<string, string>? primary, Dictionary<string, string>? fallback, string key)
-    {
-        if (primary?.TryGetCaseInsensitive(key, out var primaryVal) == true)
-            return primaryVal;
-        if (fallback?.TryGetCaseInsensitive(key, out var fallbackVal) == true)
-            return fallbackVal;
-        return null;
     }
 
     private void ApplyTshUiCursorProperties(Dictionary<string, string> tsh)

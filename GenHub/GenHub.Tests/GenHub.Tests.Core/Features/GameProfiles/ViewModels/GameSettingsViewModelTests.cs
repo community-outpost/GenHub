@@ -1210,6 +1210,7 @@ public class GameSettingsViewModelTests
         Assert.True(tsh.TryGetValue("GameTimeFontSize", out var syncedFontSize));
         Assert.Equal("18", syncedFontSize);
     }
+
     private static GameProfile CreateGeneralsOnlineProfile()
     {
         return new GameProfile
