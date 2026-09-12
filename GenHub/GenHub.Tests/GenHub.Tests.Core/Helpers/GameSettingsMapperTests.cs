@@ -660,4 +660,34 @@ public class GameSettingsMapperTests
         Assert.True(profile.VideoDrawScrollAnchor);
         Assert.False(profile.VideoBuildingOcclusion);
     }
+
+    /// <summary>
+    /// Verifies that PatchGameProfile applies settings including UseSteamLaunch from CreateProfileRequest.
+    /// </summary>
+    [Fact]
+    public void PatchGameProfile_CreateProfileRequest_AppliesUseSteamLaunchAndSettings()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            UseSteamLaunch = false,
+            VideoResolutionWidth = 1024,
+            VideoResolutionHeight = 768,
+        };
+        var request = new CreateProfileRequest
+        {
+            Name = "TestProfile",
+            UseSteamLaunch = true,
+            VideoResolutionWidth = 1920,
+            VideoResolutionHeight = 1080,
+        };
+
+        // Act
+        GameSettingsMapper.PatchGameProfile(profile, request);
+
+        // Assert
+        Assert.True(profile.UseSteamLaunch);
+        Assert.Equal(1920, profile.VideoResolutionWidth);
+        Assert.Equal(1080, profile.VideoResolutionHeight);
+    }
 }

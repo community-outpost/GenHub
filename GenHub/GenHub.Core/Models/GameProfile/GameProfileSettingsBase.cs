@@ -6,7 +6,7 @@ namespace GenHub.Core.Models.GameProfile;
 /// <summary>
 /// Base class containing game settings properties shared between profile creation and update requests.
 /// </summary>
-public abstract class GameProfileSettingsBase
+public class GameProfileSettingsBase
 {
     /// <summary>Gets or sets whether to launch via Steam integration.</summary>
     public bool? UseSteamLaunch { get; set; }
