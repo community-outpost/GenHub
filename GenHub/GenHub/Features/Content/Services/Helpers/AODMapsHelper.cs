@@ -178,17 +178,14 @@ public static partial class AODMapsHelper
         var p1Text = content.QuerySelector(AODMapsConstants.MapMakerInfoSelector)?.TextContent?.Trim();
         var paragraphs = new List<string>();
 
-        if (!string.IsNullOrWhiteSpace(p1Text))
+        if (!string.IsNullOrWhiteSpace(p1Text) && !DownloadCounterScriptRegex().IsMatch(p1Text))
         {
-            if (!DownloadCounterScriptRegex().IsMatch(p1Text))
+            var normalizedP1 = NormalizeHtmlDescription(p1Text);
+            if (!string.IsNullOrWhiteSpace(normalizedP1) &&
+                !normalizedP1.Equals("info text will be here soon", StringComparison.OrdinalIgnoreCase) &&
+                !normalizedP1.Equals("&nbsp;", StringComparison.OrdinalIgnoreCase))
             {
-                var normalizedP1 = NormalizeHtmlDescription(p1Text);
-                if (!string.IsNullOrWhiteSpace(normalizedP1) &&
-                    !normalizedP1.Equals("info text will be here soon", StringComparison.OrdinalIgnoreCase) &&
-                    !normalizedP1.Equals("&nbsp;", StringComparison.OrdinalIgnoreCase))
-                {
-                    paragraphs.Add(normalizedP1.TrimStart('-').Trim());
-                }
+                paragraphs.Add(normalizedP1.TrimStart('-').Trim());
             }
         }
 

@@ -359,7 +359,7 @@ public partial class AODMapsDiscoverer(
             return true;
         }
 
-        return (item.Name?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false)
+        return (item.Name?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) == true)
             || string.Equals(item.Id, searchTerm, StringComparison.OrdinalIgnoreCase);
     }
 

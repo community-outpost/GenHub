@@ -131,7 +131,7 @@ public partial class CNCLabsFilterViewModel : FilterPanelViewModelBase
     /// <inheritdoc />
     public override void ClearFilters()
     {
-        TargetGame = GameType.ZeroHour; // Reset to default
+        SetGame(GameType.ZeroHour); // Reset to default
         SelectedContentType = ContentType.Map; // Reset to default
         SelectedPlayerCount = null;
 
