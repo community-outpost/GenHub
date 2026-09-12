@@ -326,10 +326,7 @@ public class GeneralsOnlineManifestFactory(
         string version,
         PublisherInfo publisherInfo,
         ContentManifest originalManifest,
-        int userVersion,
-        DateTime? releaseDate,
-        string? iconUrl,
-        string? changelogUrl)
+        int userVersion)
     {
         return new ContentManifest
         {
@@ -344,11 +341,11 @@ public class GeneralsOnlineManifestFactory(
             Metadata = new ContentMetadata
             {
                 Description = GeneralsOnlineConstants.ShortDescription,
-                ReleaseDate = releaseDate ?? DateTime.UtcNow,
-                IconUrl = iconUrl,
+                ReleaseDate = originalManifest.Metadata?.ReleaseDate ?? DateTime.UtcNow,
+                IconUrl = GeneralsOnlineConstants.LogoSource,
                 ThemeColor = GeneralsOnlineConstants.ThemeColor,
                 Tags = [.. GeneralsOnlineConstants.Tags, .. GetVariantTags(GeneralsOnlineConstants.Variant60HzSuffix)],
-                ChangelogUrl = changelogUrl,
+                ChangelogUrl = originalManifest.Metadata?.ChangelogUrl,
                 CoverUrl = GeneralsOnlineConstants.CoverSource,
             },
             Files = [],
@@ -539,10 +536,7 @@ public class GeneralsOnlineManifestFactory(
                 version,
                 publisherInfo,
                 originalManifest,
-                userVersion,
-                releaseDate,
-                iconUrl,
-                changelogUrl));
+                userVersion));
         }
         else
         {
@@ -560,10 +554,7 @@ public class GeneralsOnlineManifestFactory(
                 version,
                 publisherInfo,
                 originalManifest,
-                userVersion,
-                releaseDate,
-                iconUrl,
-                changelogUrl));
+                userVersion));
 
             manifests.Add(new ContentManifest
             {
