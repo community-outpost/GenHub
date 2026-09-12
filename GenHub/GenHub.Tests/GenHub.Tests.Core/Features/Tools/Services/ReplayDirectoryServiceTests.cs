@@ -3137,6 +3137,136 @@ public sealed class ReplayDirectoryServiceTests
     }
 
     /// <summary>
+    /// Verifies that CreateProfileForReplayAsync resolves the installation's base game client manifest
+    /// when a retail client card (e.g. Oct 17 2005) is selected from the client selection dialog.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateProfileForReplayAsync_WhenRetailCustomGameClientProvided_ResolvesInstallationBaseClientManifestAsync()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "Oct17Replay.rep",
+            FullPath = "/replays/Oct17Replay.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0x887B0CAA,
+            },
+        };
+
+        var customClient = new GameClient
+        {
+            Id = "1.104.retail.gameclient.zerohour",
+            Name = "Zero Hour 1.04 (Oct 17 2005)",
+            Version = "1.04",
+            PublisherType = "Retail",
+            GameType = GameType.ZeroHour,
+            ExecutablePath = string.Empty,
+        };
+
+        var steamClient = new GameClient
+        {
+            Id = "1.104.steam.gameclient.zerohour",
+            Name = "Steam Client",
+            Version = "1.04",
+            PublisherType = "steam",
+            GameType = GameType.ZeroHour,
+            ExecutablePath = "generals.exe",
+            WorkingDirectory = "/games/ZeroHour",
+        };
+
+        var installation = new GameInstallation("/games/ZeroHour", GameInstallationType.Steam)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = "/games/ZeroHour",
+            ZeroHourClient = steamClient,
+            AvailableGameClients = [steamClient],
+        };
+
+        _mockInstallationService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+
+        _mockProfileManager
+            .Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        CreateProfileRequest? capturedRequest = null;
+        _mockProfileManager
+            .Setup(p => p.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<CreateProfileRequest, CancellationToken>((req, _) => capturedRequest = req)
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "created-oct17-profile-id", Name = "Zero Hour 1.04 (Oct 17 2005) (Replay: Oct17Replay)" }));
+
+        _mockCasPoolService
+            .Setup(c => c.EnsurePoolPathAsync(It.IsAny<IReadOnlyList<GameInstallation>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var result = await service.CreateProfileForReplayAsync(replay, customGameClient: customClient, customClientManifestId: "1.104.retail.gameclient.zerohour");
+
+        Assert.True(result.Success);
+        Assert.NotNull(capturedRequest);
+        Assert.NotNull(capturedRequest!.GameClient);
+        Assert.Equal("Zero Hour 1.04 (Oct 17 2005)", capturedRequest.GameClient!.Name);
+        Assert.Equal("1.104.steam.gameclient.zerohour", capturedRequest.GameClient!.Id);
+        Assert.Contains("1.104.steam.gameclient.zerohour", capturedRequest.EnabledContentIds);
+        Assert.Contains("1.104.steam.gameinstallation.zerohour", capturedRequest.EnabledContentIds);
+        Assert.Equal("created-oct17-profile-id", replay.MatchingProfileId);
+        Assert.Equal(ReplayCompatibilityStatus.Compatible, replay.CompatibilityStatus);
+    }
+
+    /// <summary>
+    /// Verifies that FindMatchingProfile does not match a profile dedicated to another replay.
+    /// </summary>
+    [Fact]
+    public void FindMatchingProfile_WhenProfileDedicatedToAnotherReplay_ReturnsNull()
+    {
+        var replayA = new ReplayFile
+        {
+            FileName = "MatchA.rep",
+            FullPath = "/replays/MatchA.rep",
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0xDA2B4B18,
+            },
+        };
+
+        var profileForB = new GameProfile
+        {
+            Id = "profile-for-match-b",
+            Name = "Zero Hour 1.04 (Replay: MatchB)",
+            Description = "[replay:MatchB.rep] Dedicated profile for MatchB",
+            GameClient = new GameClient
+            {
+                Id = "1.104.steam.gameclient.zerohour",
+                GameType = GameType.ZeroHour,
+                PublisherType = "steam",
+            },
+            EnabledContentIds = ["1.104.steam.gameinstallation.zerohour", "1.104.steam.gameclient.zerohour"],
+        };
+
+        var match = ReplayDirectoryService.FindMatchingProfile(
+            [profileForB],
+            GameType.ZeroHour,
+            "1.104.steam.gameclient.zerohour",
+            null,
+            replayA);
+
+        Assert.Null(match);
+    }
+
+    /// <summary>
     /// Verifies that LaunchReplayAsync uses explicit profile ID when provided.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

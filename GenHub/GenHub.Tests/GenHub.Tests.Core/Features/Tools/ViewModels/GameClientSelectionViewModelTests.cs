@@ -124,4 +124,63 @@ public sealed class GameClientSelectionViewModelTests
         vm.ToggleShowAllCommand.Execute(null);
         Assert.True(vm.ShowAllClients);
     }
+
+    /// <summary>
+    /// Verifies that profiles dedicated to another replay are ignored during game client discovery.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadClientsForReplayAsync_IgnoresProfilesDedicatedToAnotherReplayAsync()
+    {
+        var mockProfileMgr = new Moq.Mock<GenHub.Core.Interfaces.GameProfiles.IGameProfileManager>();
+        var mockManifestPool = new Moq.Mock<GenHub.Core.Interfaces.Manifest.IContentManifestPool>();
+        var mockCrcRegistry = new Moq.Mock<GenHub.Core.Interfaces.Tools.ReplayManager.ICrcMappingRegistry>();
+        var mockLogger = new Moq.Mock<Microsoft.Extensions.Logging.ILogger<GameClientSelectionViewModel>>();
+
+        var otherReplayProfile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "profile-for-other-replay",
+            Name = "Zero Hour 1.04 (Oct 17 2005) (Replay: other_replay)",
+            Description = "[replay:other_replay.rep] Dedicated profile for other_replay",
+            GameClient = new GenHub.Core.Models.GameClients.GameClient
+            {
+                Id = "client-other-replay",
+                Name = "Zero Hour 1.04 (Oct 17 2005)",
+                GameType = GameType.ZeroHour,
+                PublisherType = "Retail",
+            },
+        };
+
+        mockProfileMgr
+            .Setup(p => p.GetAllProfilesAsync(Moq.It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GenHub.Core.Models.Results.ProfileOperationResult<IReadOnlyList<GenHub.Core.Models.GameProfile.GameProfile>>.CreateSuccess([otherReplayProfile]));
+
+        mockManifestPool
+            .Setup(m => m.GetAllManifestsAsync(Moq.It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        var vm = new GameClientSelectionViewModel(
+            mockProfileMgr.Object,
+            mockManifestPool.Object,
+            mockCrcRegistry.Object,
+            mockLogger.Object);
+
+        var replay = new ReplayFile
+        {
+            FileName = "my_replay.rep",
+            FullPath = "/replays/my_replay.rep",
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0xDA2B4B18,
+            },
+        };
+
+        await vm.LoadClientsForReplayAsync(GameType.ZeroHour, replay);
+
+        Assert.DoesNotContain(vm.AllClients, c => c.Name.Contains("other_replay") || c.Description.Contains("other_replay"));
+    }
 }
+

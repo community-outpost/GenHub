@@ -299,12 +299,42 @@ public sealed class ReplayDirectoryService(
             var isRetailClient = isUnmappedReplay ||
                                  IsRetailClient(replay.MatchedClient?.Publisher, replay.MatchedClient?.ManifestId);
 
-            var (clientManifestId, gameClient) = customGameClient != null
+            var isCustomRetail = customGameClient != null &&
+                (IsRetailClient(customGameClient.PublisherType, customClientManifestId) ||
+                 (customClientManifestId != null && customClientManifestId.Contains(".retail.gameclient.", StringComparison.OrdinalIgnoreCase)) ||
+                 (customGameClient.Id != null && customGameClient.Id.Contains(".retail.gameclient.", StringComparison.OrdinalIgnoreCase)) ||
+                 string.IsNullOrEmpty(customClientManifestId));
+
+            var (clientManifestId, gameClient) = (customGameClient != null && !isCustomRetail)
                 ? (customClientManifestId ?? customGameClient.Id ?? string.Empty, customGameClient)
                 : await ResolveReplayGameClientAsync(
-                    installation, replay, defaultVersion, isRetailClient, manifestPool, contentOrchestrator, ct);
+                    installation, replay, defaultVersion, isRetailClient: isRetailClient || isCustomRetail, manifestPool, contentOrchestrator, ct);
 
-            gameClient = EnsureGameClientExecutable(gameClient, replay.GameVersion, replay.MatchedClient?.Publisher);
+            if (customGameClient != null && isCustomRetail && !string.IsNullOrWhiteSpace(customGameClient.Name) && gameClient != null)
+            {
+                gameClient.Name = customGameClient.Name;
+            }
+
+            if (customGameClient != null && !isCustomRetail && gameClient != null)
+            {
+                var (_, installWorkingDir) = ResolveGameInstallationContext(installation, replay.GameVersion);
+                if (string.IsNullOrWhiteSpace(gameClient.WorkingDirectory))
+                {
+                    gameClient.WorkingDirectory = installWorkingDir;
+                }
+
+                if (string.IsNullOrWhiteSpace(gameClient.InstallationId))
+                {
+                    gameClient.InstallationId = installation.Id;
+                }
+
+                if (gameClient.GameType == GameType.Unknown)
+                {
+                    gameClient.GameType = replay.GameVersion;
+                }
+            }
+
+            gameClient = EnsureGameClientExecutable(gameClient, replay.GameVersion, isCustomRetail ? null : (customGameClient?.PublisherType ?? replay.MatchedClient?.Publisher));
             if (gameClient == null)
             {
                 logger.LogError("[ReplayManager] Could not determine executable path for {GameVersion} installation", replay.GameVersion);
@@ -753,7 +783,12 @@ public sealed class ReplayDirectoryService(
             return false;
         }
 
-        if (!IsProfileExeCrcMatching(p, ctx.TargetExeCrc, ctx.CrcCalc, ctx.TargetLogger))
+        if (IsDedicatedToThisReplay(p, replay, ctx.TargetLogger))
+        {
+            return true;
+        }
+
+        if (IsDedicatedToAnotherReplay(p))
         {
             return false;
         }
@@ -764,13 +799,13 @@ public sealed class ReplayDirectoryService(
             return true;
         }
 
-        if (IsDedicatedToThisReplay(p, replay, ctx.TargetLogger))
-        {
-            return true;
-        }
-
         if (ctx.IsRetailClient)
         {
+            if (!IsProfileExeCrcMatching(p, ctx.TargetExeCrc, ctx.CrcCalc, ctx.TargetLogger))
+            {
+                return false;
+            }
+
             return IsProfileMatchingRetail(p, ctx.DataPatchManifestId);
         }
 
@@ -791,7 +826,7 @@ public sealed class ReplayDirectoryService(
         var exePath = ResolveProfileFullExePath(profile.GameClient);
         if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
         {
-            return true;
+            return false;
         }
 
         try
@@ -807,7 +842,7 @@ public sealed class ReplayDirectoryService(
             logger?.LogWarning(ex, "[ReplayManager] Error verifying profile '{ProfileName}' EXE CRC for replay matching", profile.Name);
         }
 
-        return true;
+        return false;
     }
 
     /// <summary>
@@ -1844,7 +1879,9 @@ public sealed class ReplayDirectoryService(
                 return false;
             }
 
-            return string.Equals(v1, v2, StringComparison.OrdinalIgnoreCase);
+            return string.Equals(v1, v2, StringComparison.OrdinalIgnoreCase) ||
+                   v1.StartsWith(v2, StringComparison.OrdinalIgnoreCase) ||
+                   v2.StartsWith(v1, StringComparison.OrdinalIgnoreCase);
         }
 
         return false;
@@ -2681,6 +2718,11 @@ public sealed class ReplayDirectoryService(
         out CrcMappingEntry? matchedProfileEntry)
     {
         matchedProfileEntry = null;
+        if (IsDedicatedToAnotherReplay(profile))
+        {
+            return false;
+        }
+
         var exePath = ResolveProfileFullExePath(profile.GameClient);
         if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
         {
