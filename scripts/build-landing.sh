@@ -7,7 +7,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${ROOT_DIR}"
 
 LATEST_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName // ""' 2>/dev/null || echo "v0.0.3")
-if [ -z "${LATEST_TAG}" ] || [ "${LATEST_TAG}" = "null" ]; then
+if [[ -z "${LATEST_TAG}" || "${LATEST_TAG}" == "null" ]]; then
     LATEST_TAG="v0.0.3"
 fi
 
@@ -24,7 +24,7 @@ rm -rf "${ROOT_DIR}/public"
 mkdir -p "${ROOT_DIR}/public"
 cp "${ROOT_DIR}/Landing-page/index.html" "${ROOT_DIR}/public/index.html"
 
-if [ -d "${ROOT_DIR}/Landing-page/assets" ]; then
+if [[ -d "${ROOT_DIR}/Landing-page/assets" ]]; then
     cp -r "${ROOT_DIR}/Landing-page/assets" "${ROOT_DIR}/public/assets"
 fi
 
