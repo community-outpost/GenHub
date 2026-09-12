@@ -19,6 +19,47 @@ main {
     animation: fadeInUp 0.75s ease-out;
 }
 
+/* Hero Logo Backdrop / Watermark */
+.hero-logo-backdrop {
+    position: absolute;
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(740px, 90vw);
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.18;
+    filter: drop-shadow(0 0 50px rgba(139, 92, 246, 0.55)) drop-shadow(0 0 100px rgba(56, 189, 248, 0.2));
+    user-select: none;
+    display: flex;
+    justify-content: center;
+}
+
+.hero-logo-backdrop img {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
+.version-badge,
+.hero-title,
+.hero-subtitle,
+.cta-group,
+.platform-info,
+.stats-widget {
+    position: relative;
+    z-index: 2;
+}
+
+.comparison-section,
+.features-section,
+.steps-section,
+.faq-section,
+.showcase-container,
+.bottom-cta-section {
+    scroll-margin-top: 100px;
+}
+
 .version-badge {
     display: inline-flex;
     align-items: center;

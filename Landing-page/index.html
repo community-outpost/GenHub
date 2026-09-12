@@ -255,19 +255,15 @@
         <nav aria-label="Main Navigation">
             <div class="logo-group">
                 <a href="#" class="logo" aria-label="GeneralsHub Homepage">
-                    <img src="./assets/images/generalshub-logo.png" alt="GeneralsHub Logo" width="34" height="34">
+                    <img src="./assets/icon.png" alt="GeneralsHub Icon" width="32" height="32">
                     <span>GeneralsHub</span>
                 </a>
-                <span class="header-badge">Open Source</span>
             </div>
 
             <div class="nav-links" id="main-nav-links">
-                <a href="#showcase">Client App</a>
-                <a href="#steam">Steam & EA</a>
-                <a href="#local-import">Local Import</a>
-                <a href="#generals-online">Generals Online</a>
-                <a href="#genpatcher">GenPatcher Tools</a>
-                <a href="#workspaces">Workspaces</a>
+                <a href="#why-genhub">Why GenHub</a>
+                <a href="#showcase">Client</a>
+                <a href="#features">Features</a>
                 <a href="#faq">FAQ</a>
                 <a href="https://wiki.generalshub.com/" target="_blank" rel="noopener noreferrer">Docs</a>
             </div>
@@ -291,6 +287,11 @@
     <main>
         <!-- Hero Section -->
         <section class="hero-section">
+            <!-- Prominent GENERALSHUB Brand Backdrop -->
+            <div class="hero-logo-backdrop" aria-hidden="true">
+                <img src="./assets/images/generalshub-logo.png" alt="GeneralsHub Backdrop">
+            </div>
+
             <div class="version-badge">
                 <span class="pulse-dot"></span>
                 <span>Alpha Release: VERSION_PLACEHOLDER</span>
@@ -778,18 +779,18 @@
             </div>
         </section>
 
-        <!-- The Problem vs The Solution -->
+        <!-- Why GenHub -->
         <section class="comparison-section" id="why-genhub">
             <div class="section-header">
                 <span class="section-tag">
-                    <i data-feather="help-circle"></i>
-                    <span>The Problem We Are Solving</span>
+                    <i data-feather="terminal"></i>
+                    <span>Why GenHub</span>
                 </span>
                 <h2 class="section-title">
-                    The Modern Standard for <span class="text-gradient">Generals & Zero Hour</span>
+                    Solving 20 Years of <span class="text-gradient">Modding Friction</span>
                 </h2>
                 <p class="section-description">
-                    Switching between vanilla, competitive, and modded setups without juggling folders, breaking Steam playtime, or corrupting your clean game files.
+                    Zero Hour was never built for multi-mod setups, Steam overlays, or modern operating systems. GenHub isolates your files so you can install, test, and switch setups cleanly.
                 </p>
             </div>
 
@@ -810,199 +811,161 @@
             </div>
 
             <div class="comparison-grid">
-                <!-- The Old Way -->
+                <!-- Manual Installation -->
                 <div class="comparison-card card-negative">
                     <div class="comparison-header">
                         <div class="comparison-icon" aria-hidden="true">
                             <i data-feather="x"></i>
                         </div>
-                        <h3>The Old Frustrating Way</h3>
+                        <h3>Manual Installation</h3>
                     </div>
                     <ul class="comparison-list">
                         <li>
                             <i data-feather="alert-octagon"></i>
-                            <span><strong>Crashes on Launch:</strong> "DirectX 8.1 Error" and instant black-screen crashes on modern GPUs.</span>
+                            <span><strong>Overwritten Base Files:</strong> Installing mods directly into your game directory replaces vanilla assets, requiring manual backups or a full reinstallation to revert.</span>
                         </li>
                         <li>
                             <i data-feather="alert-octagon"></i>
-                            <span><strong>Corrupted Base Files:</strong> Installing a mod directly into your game folder overwrites vanilla files, forcing a full reinstall.</span>
+                            <span><strong>Bypassed Steam Features:</strong> Custom launchers run outside Steam, disabling the Shift+Tab overlay and leaving gameplay hours unrecorded on your profile.</span>
                         </li>
                         <li>
                             <i data-feather="alert-octagon"></i>
-                            <span><strong>GenLauncher File Scrambling:</strong> Renames clean archives into <code>.gib</code> files and litters folders with broken <code>.GLR</code> and <code>.GOF</code> suffixes.</span>
+                            <span><strong>Scrambled File Formats:</strong> Older tools renamed <code>.big</code> archives to <code>.gib</code> and left orphaned <code>.GLR</code> or <code>.GOF</code> extensions across your disk.</span>
                         </li>
                         <li>
                             <i data-feather="alert-octagon"></i>
-                            <span><strong>Third-Party VPN Hassles:</strong> Forcing friends to configure Hamachi or Radmin and forward router ports just to connect.</span>
+                            <span><strong>Connection Setup Hurdles:</strong> Direct IP multiplayer requires third-party tunneling software (Hamachi or Radmin) or manual router port configurations.</span>
                         </li>
                         <li>
                             <i data-feather="alert-octagon"></i>
-                            <span><strong>Lost Steam Integration:</strong> Launching mods fails to track playtime or disables the Steam Overlay.</span>
+                            <span><strong>Silent Replay Desyncs:</strong> Watching replays from past tournaments or friends fails with missing asset errors because the original mod build cannot be identified.</span>
                         </li>
                     </ul>
                 </div>
 
-                <!-- The GenHub Way -->
+                <!-- GenHub Architecture -->
                 <div class="comparison-card card-positive">
                     <div class="comparison-header">
                         <div class="comparison-icon" aria-hidden="true">
                             <i data-feather="check"></i>
                         </div>
-                        <h3>The GeneralsHub Solution</h3>
+                        <h3>GenHub Architecture</h3>
                     </div>
                     <ul class="comparison-list">
                         <li>
                             <i data-feather="check-circle"></i>
-                            <span><strong>Integrated GenPatcher Tools:</strong> 1-click DirectX 8.1 runtime wrapper, 4K widescreen unlocker, and GenTool v8.7.</span>
+                            <span><strong>Immutable Base Directory:</strong> Profiles run in sandboxed folders via CAS hardlinks—your clean install stays untouched and switching requires zero file copying.</span>
                         </li>
                         <li>
                             <i data-feather="check-circle"></i>
-                            <span><strong>Zero-Storage Isolated Workspaces:</strong> Profiles run in sandboxed environments via NTFS hardlinks; vanilla files stay read-only.</span>
+                            <span><strong>Native Steam Proxy:</strong> Retains official Steam integration across all profiles, logging playtime to your account and keeping the in-game overlay active.</span>
                         </li>
                         <li>
                             <i data-feather="check-circle"></i>
-                            <span><strong>Automatic GenLauncher Repair:</strong> "Add Local" restores scrambled <code>.gib</code> files back to standard <code>.big</code> archives automatically.</span>
+                            <span><strong>Lossless Local Import:</strong> Automatically scans and repairs modified <code>.gib</code> files back to standard <code>.big</code> archives during folder import.</span>
                         </li>
                         <li>
                             <i data-feather="check-circle"></i>
-                            <span><strong>Generals Online with Auto-Updates:</strong> Modern matchmaking, low-latency NAT traversal, and automatic background map updates.</span>
+                            <span><strong>Direct Multiplayer:</strong> Built-in Generals Online matchmaking with low-latency NAT traversal connects you directly with zero router configuration.</span>
                         </li>
                         <li>
                             <i data-feather="check-circle"></i>
-                            <span><strong>Native Steam & EA App Support:</strong> AppID injection records playtime to your official Steam library and enables Steam Overlay.</span>
+                            <span><strong>CRC-Aware Replay Launcher:</strong> Inspects match headers and version checksums to match the exact build and launch the correct profile automatically.</span>
                         </li>
                     </ul>
                 </div>
             </div>
         </section>
 
-        <!-- Deep-Dive Features Section -->
+        <!-- Core Pillars Section -->
         <section class="features-section" id="features">
             <div class="section-header">
                 <span class="section-tag">
-                    <i data-feather="grid"></i>
-                    <span>Core Features</span>
+                    <i data-feather="box"></i>
+                    <span>The 4 Pillars</span>
                 </span>
                 <h2 class="section-title">
-                    Built for Players, Competitors, and <span class="text-gradient">Modders</span>
+                    The Four Foundations of <span class="text-gradient">GeneralsHub</span>
                 </h2>
                 <p class="section-description">
-                    Everything you need to launch, configure, patch, and play Command & Conquer Generals and Zero Hour in one unified desktop application.
+                    Four dedicated modules designed to launch, discover, configure, and maintain Command & Conquer environments.
                 </p>
             </div>
 
             <div class="bento-grid">
-                <!-- Bento 1: Native Steam & EA App Integration -->
-                <div class="bento-card col-span-6 spotlight-steam" id="steam">
+                <!-- Pillar 1: GameProfiles (The Master Mechanic) -->
+                <div class="bento-card col-span-6 spotlight-steam" id="profiles">
                     <div class="bento-header">
                         <div class="card-icon-wrap icon-steam">
-                            <img src="./assets/images/steam-icon.png" alt="Steam" width="24" height="24">
-                        </div>
-                        <span class="card-badge badge-cyan">Steam & EA App</span>
-                    </div>
-                    <h3 class="bento-title">Native Steam & EA App Integration</h3>
-                    <p class="bento-desc">
-                        Full compatibility with the 2024 Steam release of Command & Conquer: The Ultimate Collection and EA App. GenHub uses <strong>AppID injection</strong> so Steam recognizes your session, records official playtime to your profile, and displays your active game status to your Steam friends.
-                    </p>
-                    <ul class="feature-points">
-                        <li><i data-feather="check"></i> In-game Steam Overlay (Shift+Tab) and screenshot hotkeys work in all mods</li>
-                        <li><i data-feather="check"></i> Official Steam library playtime tracking without modifying Steam files</li>
-                        <li><i data-feather="check"></i> Automatic detection of Steam, EA App, Origin, and original CD installations</li>
-                    </ul>
-                </div>
-
-                <!-- Bento 2: Local Content Import & GenLauncher Repair -->
-                <div class="bento-card col-span-6 spotlight-local" id="local-import">
-                    <div class="bento-header">
-                        <div class="card-icon-wrap" style="color:#c084fc; background:rgba(168, 85, 247, 0.15); border-color:rgba(168, 85, 247, 0.35);">
-                            <i data-feather="folder-plus"></i>
-                        </div>
-                        <span class="card-badge badge-purple">Local Content Workflow</span>
-                    </div>
-                    <h3 class="bento-title">Local Content Import & GenLauncher File Repair</h3>
-                    <p class="bento-desc">
-                        Bring your existing mod collection into GenHub. The <strong>Add Local</strong> workflow imports folders, ZIP archives, or custom executables into an immutable content pool. It automatically normalizes scrambled <code>.gib</code> files back to standard <code>.big</code> archives and strips broken <code>.GLR</code>, <code>.GOF</code>, and <code>.GLTC</code> suffixes left by GenLauncher.
-                    </p>
-                    <ul class="feature-points">
-                        <li><i data-feather="check"></i> Automatically repairs scrambled GenLauncher .gib files back to clean .big archives</li>
-                        <li><i data-feather="check"></i> Strips leftover .GLR, .GOF, and .GLTC suffixes and cleans bad symlinks</li>
-                        <li><i data-feather="check"></i> Import once, then link to unlimited profiles with 0 MB duplicated drive space</li>
-                    </ul>
-                </div>
-
-                <!-- Bento 3: Generals Online & Delta Auto-Updates -->
-                <div class="bento-card col-span-6 spotlight-updates" id="generals-online">
-                    <div class="bento-header">
-                        <div class="card-icon-wrap icon-cyan">
-                            <img src="./assets/images/generalsonline-logo.png" alt="Generals Online" width="24" height="24">
-                        </div>
-                        <span class="card-badge badge-cyan">Multiplayer Sync</span>
-                    </div>
-                    <h3 class="bento-title">Generals Online: Matchmaking & Auto-Updates</h3>
-                    <p class="bento-desc">
-                        Jump into multiplayer without third-party VPNs or router port-forwarding. Generals Online features low-latency NAT traversal, modern lobby matchmaking, and automatic background updates for both the client engine and community maps.
-                    </p>
-                    <ul class="feature-points">
-                        <li><i data-feather="check"></i> Automatic background delta updates for game clients and community map pools</li>
-                        <li><i data-feather="check"></i> Built-in NAT traversal (no Hamachi, Radmin, or router port-forwarding needed)</li>
-                        <li><i data-feather="check"></i> AES-256 encrypted peer connections and GenTool anti-cheat validation</li>
-                    </ul>
-                </div>
-
-                <!-- Bento 4: GenPatcher & GenTool Integration -->
-                <div class="bento-card col-span-6 spotlight-genpatcher" id="genpatcher">
-                    <div class="bento-header">
-                        <div class="card-icon-wrap icon-emerald">
-                            <img src="./assets/images/genpatcher-logo.png" alt="GenPatcher" width="24" height="24">
-                        </div>
-                        <span class="card-badge badge-emerald">Integrated Diagnostic Tools</span>
-                    </div>
-                    <h3 class="bento-title">Integrated GenPatcher & GenTool Suite</h3>
-                    <p class="bento-desc">
-                        Say goodbye to forum guides and registry hacks. GenHub incorporates the diagnostic engine of GenPatcher to eliminate DirectX 8 startup crashes, configure modern widescreen resolutions (1080p, 1440p, 4K Ultrawide), and install GenTool v8.7 with a single click.
-                    </p>
-                    <ul class="feature-points">
-                        <li><i data-feather="check"></i> DirectX 8.1 modern GPU runtime wrapper eliminates black screens and crashes</li>
-                        <li><i data-feather="check"></i> Automatic widescreen and 4K configuration without stretching HUD elements</li>
-                        <li><i data-feather="check"></i> GenTool v8.7 pre-configured with observer camera, anti-cheat, and match timers</li>
-                    </ul>
-                </div>
-
-                <!-- Bento 5: Zero-Storage Isolated Workspaces -->
-                <div class="bento-card col-span-6" id="workspaces">
-                    <div class="bento-header">
-                        <div class="card-icon-wrap">
                             <i data-feather="layers"></i>
                         </div>
-                        <span class="card-badge badge-purple">Zero-Corruption Workspaces</span>
+                        <span class="card-badge badge-cyan">Pillar 01 &bull; GameProfiles</span>
                     </div>
-                    <h3 class="bento-title">Isolated Workspaces (0 MB Disk Overhead)</h3>
+                    <h3 class="bento-title">GameProfiles &bull; The Master Mechanic</h3>
                     <p class="bento-desc">
-                        Every mod profile operates inside an isolated sandbox using NTFS hardlink technology. Switching between ShockWave, Rise of the Reds, and pristine Vanilla takes less than 50 milliseconds without duplicating game files or corrupting your base installation.
+                        Organize vanilla, competitive, and modded setups into distinct, isolated environments. Profiles use content-addressed storage (CAS) hardlinks so vanilla game files stay completely untouched, requiring zero extra disk space.
                     </p>
                     <ul class="feature-points">
-                        <li><i data-feather="check"></i> Base game directory remains completely read-only and immutable</li>
-                        <li><i data-feather="check"></i> Hardlinks share 5+ GB of vanilla assets across profiles using 0 MB extra disk space</li>
-                        <li><i data-feather="check"></i> Switch mod setups in seconds without file collisions</li>
+                        <li><i data-feather="check"></i> <strong>Universal Detection:</strong> Automatically discovers Steam, EA App, The First Decade, and original CD installations across Windows, Linux, and macOS.</li>
+                        <li><i data-feather="check"></i> <strong>Steam Launch Proxy:</strong> Playtime records to your official Steam profile with in-game overlay (Shift+Tab) and friend status active in all mods.</li>
+                        <li><i data-feather="check"></i> <strong>Desktop Shortcuts:</strong> Generate standalone desktop shortcuts to launch any profile directly with one double-click.</li>
                     </ul>
                 </div>
 
-                <!-- Bento 6: Replay Analyzer & Map Manager -->
-                <div class="bento-card col-span-6" id="tools">
+                <!-- Pillar 2: Downloads (The Parts Catalog) -->
+                <div class="bento-card col-span-6 spotlight-updates" id="downloads">
                     <div class="bento-header">
-                        <div class="card-icon-wrap">
-                            <i data-feather="tool"></i>
+                        <div class="card-icon-wrap icon-cyan">
+                            <i data-feather="download-cloud"></i>
                         </div>
-                        <span class="card-badge badge-purple">Tournament Tools</span>
+                        <span class="card-badge badge-cyan">Pillar 02 &bull; Downloads</span>
                     </div>
-                    <h3 class="bento-title">Replay Analyzer & MapPack Creator</h3>
+                    <h3 class="bento-title">Downloads &bull; The Parts Catalog</h3>
                     <p class="bento-desc">
-                        Inspect match duration, factions, and GenTool CRC checksums before launching. Upload replays directly to GenHub Cloud to share links in Discord. Manage custom maps with auto-rendered minimap thumbnails and bundle MapPacks for game nights.
+                        A decentralized package repository connecting community creators directly to players. Install, test, and manage mods, map packs, and engine patches without manual file extractions or ZIP hunting.
                     </p>
                     <ul class="feature-points">
-                        <li><i data-feather="check"></i> Replay header inspector: player nicknames, factions, and CRC sync checks</li>
-                        <li><i data-feather="check"></i> 1-click cloud replay sharing with Discord-friendly links</li>
-                        <li><i data-feather="check"></i> Auto-rendered high-res minimap previews and 1-click MapPack bundler</li>
+                        <li><i data-feather="check"></i> <strong>Verified Repositories:</strong> One-click installs for Generals Online, TheSuperHackers Weekly builds, and the CommunityPatch.</li>
+                        <li><i data-feather="check"></i> <strong>genhub:// Deep Linking:</strong> Subscribe to packages directly from Discord and community websites via the registered OS protocol handler.</li>
+                        <li><i data-feather="check"></i> <strong>Automated Maintenance:</strong> Verifies file integrity, cleans orphaned cache entries, and handles safe uninstalls.</li>
+                    </ul>
+                </div>
+
+                <!-- Pillar 3: Tools (Power Tools for Players & Creators) -->
+                <div class="bento-card col-span-6 spotlight-genpatcher" id="tools">
+                    <div class="bento-header">
+                        <div class="card-icon-wrap icon-emerald">
+                            <i data-feather="tool"></i>
+                        </div>
+                        <span class="card-badge badge-emerald">Pillar 03 &bull; Power Tools</span>
+                    </div>
+                    <h3 class="bento-title">Tools &bull; Power Tools for Players & Creators</h3>
+                    <p class="bento-desc">
+                        Integrated utilities to diagnose problems, review tournament matches, and manage content collections without relying on separate external programs.
+                    </p>
+                    <ul class="feature-points">
+                        <li><i data-feather="check"></i> <strong>GenPatcher Diagnostic Engine:</strong> Automated health checks, runtime repairs, and GenTool integration for modern widescreen setups.</li>
+                        <li><i data-feather="check"></i> <strong>Replay Manager:</strong> Inspects match headers, factions, and CRC checksums to identify and launch the matching game profile automatically.</li>
+                        <li><i data-feather="check"></i> <strong>Map Manager:</strong> Drag-and-drop ZIP and folder imports with auto-rendered minimaps and one-click cloud share links.</li>
+                    </ul>
+                </div>
+
+                <!-- Pillar 4: Info & Guide (Documentation & Diagnostics) -->
+                <div class="bento-card col-span-6 spotlight-local" id="guides">
+                    <div class="bento-header">
+                        <div class="card-icon-wrap" style="color:#c084fc; background:rgba(168, 85, 247, 0.15); border-color:rgba(168, 85, 247, 0.35);">
+                            <i data-feather="book-open"></i>
+                        </div>
+                        <span class="card-badge badge-purple">Pillar 04 &bull; Documentation</span>
+                    </div>
+                    <h3 class="bento-title">Info & Guides &bull; Knowledge Base</h3>
+                    <p class="bento-desc">
+                        Comprehensive documentation and troubleshooting resources built directly into the launcher, eliminating the need to search through outdated forum threads.
+                    </p>
+                    <ul class="feature-points">
+                        <li><i data-feather="check"></i> <strong>First-Time QuickStart:</strong> Step-by-step walkthrough covering initial setup, game directory verification, and profile creation.</li>
+                        <li><i data-feather="check"></i> <strong>Synchronized Troubleshooting:</strong> Resolves common launch and multiplayer errors using verified solutions synced directly from legi.cc.</li>
+                        <li><i data-feather="check"></i> <strong>Network Status:</strong> Live Generals Online server availability, active player counts, and community news updates.</li>
                     </ul>
                 </div>
             </div>
@@ -1040,9 +1003,9 @@
                     <div class="step-icon-wrap">
                         <i data-feather="tool"></i>
                     </div>
-                    <h3>Apply 1-Click Fixes</h3>
+                    <h3>Apply Modern Display & GenTool Fixes</h3>
                     <p>
-                        GenHub automatically configures your modern widescreen resolution (1080p, 1440p, or 4K), installs the DirectX 8 wrapper, and integrates GenTool v8.7.
+                        GenHub configures clean widescreen resolutions (1080p, 1440p, or 4K), resolves startup issues, and activates GenTool for modern hardware.
                     </p>
                 </div>
 
