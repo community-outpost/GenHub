@@ -64,10 +64,17 @@ public partial class AODMapsManifestFactory(
     {
         logger.LogInformation("Processing AODMaps extracted content from: {Directory}", extractedDirectory);
 
+        if (!Directory.Exists(extractedDirectory))
+        {
+            logger.LogWarning("Extracted directory does not exist: {Directory}", extractedDirectory);
+            return [originalManifest];
+        }
+
         var zipFiles = Directory.GetFiles(extractedDirectory, "*.zip", SearchOption.AllDirectories);
         if (zipFiles.Length == 0)
         {
-            throw new InvalidDataException("AODMaps download did not produce a ZIP archive.");
+            logger.LogDebug("No ZIP files found in directory {Directory}, returning original manifest", extractedDirectory);
+            return [originalManifest];
         }
 
         foreach (var zipPath in zipFiles)
@@ -97,7 +104,8 @@ public partial class AODMapsManifestFactory(
 
         if (files.Count == 0)
         {
-            throw new InvalidDataException("AODMaps archive contained no files.");
+            logger.LogWarning("AODMaps archive contained no files in directory {Directory}, returning original manifest", extractedDirectory);
+            return [originalManifest];
         }
 
         return
@@ -198,7 +206,10 @@ public partial class AODMapsManifestFactory(
         // AODMaps exposes a click-counter URL. The HTTP stack follows its redirect, while
         // this stable ZIP name ensures Stage 3 recognizes and extracts the real archive.
         var fileName = $"{contentName}.zip";
-        await manifestBuilder.AddRemoteFileAsync(fileName, details.DownloadUrl);
+        await manifestBuilder.AddRemoteFileAsync(
+            fileName,
+            details.DownloadUrl,
+            ContentSourceType.RemoteDownload);
 
         // 7. Add dependencies
         manifest = AddGameDependencies(manifest, details.TargetGame);

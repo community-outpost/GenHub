@@ -325,7 +325,10 @@ public partial class CNCLabsManifestFactory(
             throw new InvalidOperationException($"Download URL is missing for {details.Name}");
         }
 
-        await builder.AddRemoteFileAsync(fileName, details.DownloadUrl);
+        await builder.AddRemoteFileAsync(
+            fileName,
+            details.DownloadUrl,
+            ContentSourceType.RemoteDownload);
 
         return builder.Build();
     }

@@ -67,6 +67,64 @@ public sealed class AODMapsManifestFactoryTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that when the extracted directory does not exist, the original manifest is returned.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_DirectoryDoesNotExist_ReturnsOriginalManifestAsync()
+    {
+        // Arrange
+        var nonExistentDirectory = Path.Combine(_stagingDirectory, "does-not-exist");
+        var factory = new AODMapsManifestFactory(
+            () => new Mock<IContentManifestBuilder>().Object,
+            new Mock<IManifestIdService>().Object,
+            new Mock<IProviderDefinitionLoader>().Object,
+            new Mock<IFileHashProvider>().Object,
+            new Mock<ILogger<AODMapsManifestFactory>>().Object);
+        var original = new ContentManifest
+        {
+            Id = "1.0.aodmaps.map.test",
+            Name = "Test Map",
+        };
+
+        // Act
+        var result = await factory.CreateManifestsFromExtractedContentAsync(original, nonExistentDirectory);
+
+        // Assert
+        var manifest = Assert.Single(result);
+        Assert.Same(original, manifest);
+    }
+
+    /// <summary>
+    /// Verifies that when no ZIP files exist in the extracted directory, the original manifest is returned.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_NoZipFiles_ReturnsOriginalManifestAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var factory = new AODMapsManifestFactory(
+            () => new Mock<IContentManifestBuilder>().Object,
+            new Mock<IManifestIdService>().Object,
+            new Mock<IProviderDefinitionLoader>().Object,
+            new Mock<IFileHashProvider>().Object,
+            new Mock<ILogger<AODMapsManifestFactory>>().Object);
+        var original = new ContentManifest
+        {
+            Id = "1.0.aodmaps.map.test",
+            Name = "Test Map",
+        };
+
+        // Act
+        var result = await factory.CreateManifestsFromExtractedContentAsync(original, _stagingDirectory);
+
+        // Assert
+        var manifest = Assert.Single(result);
+        Assert.Same(original, manifest);
+    }
+
+    /// <summary>
     /// Deletes the test staging directory.
     /// </summary>
     public void Dispose()

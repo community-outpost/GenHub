@@ -180,13 +180,13 @@ public class CNCLabsMapResolver(
         var (gameType, contentType) = CNCLabsHelper.ExtractBreadcrumbCategory(document);
         logger.LogDebug("Detected game type: {GameType}, content type: {ContentType}", gameType, contentType);
 
-        // 5. Download URL
         // 5. Download URL - Try multiple selectors for robustness
         var downloadLink = document.QuerySelector("a[href*='DownloadFile.aspx']")
                            ?? document.QuerySelector("a[href*='downloader.aspx']")
                            ?? document.QuerySelector("#ctl00_Main_MapDisplay_DownloadLink")
                            ?? document.QuerySelector("a[id$='DownloadButton']")
-                           ?? document.QuerySelector("div.DownloadButton a");
+                           ?? document.QuerySelector("div.DownloadButton a")
+                           ?? document.QuerySelector("a[href*='/downloads/file/']");
 
         var downloadUrl = downloadLink?.GetAttribute(CNCLabsConstants.HrefAttribute) ?? string.Empty;
 

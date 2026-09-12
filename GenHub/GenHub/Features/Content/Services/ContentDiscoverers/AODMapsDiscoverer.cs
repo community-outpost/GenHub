@@ -32,9 +32,6 @@ public partial class AODMapsDiscoverer(
     [GeneratedRegex(@"(\d+(?:,\d{3})*)\s*downloads?", RegexOptions.IgnoreCase)]
     private static partial Regex DownloadCountRegex();
 
-    [GeneratedRegex(@"(\d+)\.html", RegexOptions.None)]
-    private static partial Regex HtmlPageNumberRegex();
-
     [GeneratedRegex(@"(?:^|[?&=])(?<players>[1-8])P(?:[_&]|$)", RegexOptions.IgnoreCase)]
     private static partial Regex PlayerCountFromDownloadIdRegex();
 
@@ -43,6 +40,130 @@ public partial class AODMapsDiscoverer(
 
     [GeneratedRegex(@"/(?<players>[1-8])_players", RegexOptions.IgnoreCase)]
     private static partial Regex PlayerCountFromPageUrlRegex();
+
+    /// <inheritdoc />
+    public string SourceName => AODMapsConstants.DiscovererSourceName;
+
+    /// <inheritdoc />
+    public string Description => AODMapsConstants.DiscovererDescription;
+
+    /// <inheritdoc />
+    public bool IsEnabled => true;
+
+    /// <inheritdoc />
+    public ContentSourceCapabilities Capabilities => ContentSourceCapabilities.RequiresDiscovery;
+
+    /// <inheritdoc />
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "AODMaps discovery iterates irregular legacy HTML pages and handles custom pagination.")]
+    public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
+        ContentSearchQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Allow discovery if there is a search term OR if it's a browsing query (game/content type set)
+            // If neither, return empty but success (or failure if strict)
+            if (query is null)
+            {
+               return OperationResult<ContentDiscoveryResult>.CreateFailure("Query cannot be null");
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // The AODMaps site paginates irregularly (e.g. NEW/new.html has 3 items while
+            // NEW/new2.html holds the remaining archive), so site pages cannot be mapped 1:1
+            // onto UI pages. Fetch site pages sequentially, de-duplicate, and slice the
+            // aggregate list by the query's paging parameters instead.
+            int uiPage = query.Page ?? 1;
+            int take = query.Take > 0 ? query.Take : 24;
+            int skip = (uiPage - 1) * take;
+
+            var collected = new List<ContentSearchResult>();
+            var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            const int maxSitePages = 30; // safety bound against runaway loops
+            int sitePage = 1;
+            var expectedPlayerCount = ParsePlayerCountFilter(query.AODMapsPlayerCount);
+
+            using var client = httpClientFactory.CreateClient(AODMapsConstants.PublisherType);
+            if (client.DefaultRequestHeaders.UserAgent.Count == 0)
+            {
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
+            }
+
+            var context = BrowsingContext.New(Configuration.Default);
+
+            // Fetch one item past the requested window so HasMoreItems is exact.
+            // Player-count filtering is applied while collecting so combined category+players
+            // queries still fill a full UI page.
+            while (sitePage <= maxSitePages && collected.Count < skip + take + 1)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var url = BuildDiscoveryUrl(query, sitePage);
+                logger.LogInformation("Discovering AODMaps content from: {Url} (site page {SitePage})", url, sitePage);
+
+                string html = string.Empty;
+                try
+                {
+                    html = await client.GetStringAsync(url, cancellationToken);
+                }
+                catch (HttpRequestException ex)
+                {
+                    // 404 or similar: we ran past the last site page — not an error.
+                    logger.LogInformation(ex, "AODMaps site page {SitePage} not available ({Message}); stopping pagination", sitePage, ex.Message);
+                    break;
+                }
+
+                var document = await context.OpenAsync(req => req.Content(html), cancellationToken);
+                var items = ExtractItems(document, url);
+
+                int before = collected.Count;
+                int rawAccepted = 0;
+                foreach (var item in items)
+                {
+                    if (!seenIds.Add(item.Id ?? string.Empty))
+                    {
+                        continue;
+                    }
+
+                    rawAccepted++;
+                    if (MatchesPlayerCountFilter(item, expectedPlayerCount))
+                    {
+                        collected.Add(item);
+                    }
+                }
+
+                // If this site page had no new unique items at all, we reached the end.
+                if (rawAccepted == 0)
+                {
+                    break;
+                }
+
+                sitePage++;
+            }
+
+            bool hasMore = collected.Count > skip + take;
+            var pageItems = collected.Skip(skip).Take(take).ToList();
+
+            logger.LogInformation(
+                "AODMaps discovery finished: collected {Collected}, returning page {Page} with {Count} items (hasMore={HasMore})",
+                collected.Count,
+                uiPage,
+                pageItems.Count,
+                hasMore);
+
+            return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items = pageItems,
+                HasMoreItems = hasMore,
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to discover maps from AODMaps");
+            return OperationResult<ContentDiscoveryResult>.CreateFailure($"Discovery failed: {ex.Message}");
+        }
+    }
 
     /// <summary>
     /// Makes a relative URL absolute by prepending the AODMaps base URL.
@@ -405,51 +526,6 @@ public partial class AODMapsDiscoverer(
         }
     }
 
-    private static bool HasNextTextLink(IDocument document, out string? href)
-    {
-        href = null;
-        var nextLink = document.QuerySelectorAll("a").FirstOrDefault(a =>
-            a.TextContent != null &&
-            a.TextContent.Trim().Equals("Next", StringComparison.OrdinalIgnoreCase));
-
-        if (nextLink == null)
-        {
-            return false;
-        }
-
-        href = nextLink.GetAttribute("href");
-        return !string.IsNullOrWhiteSpace(href) &&
-               !href.Equals("#", StringComparison.Ordinal) &&
-               !href.StartsWith("javascript:", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsHigherPageLink(IElement a, int currentPage)
-    {
-        var href = a.GetAttribute("href");
-        var text = a.TextContent?.Trim();
-
-        if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(href))
-        {
-            return false;
-        }
-
-        if (href.Contains("new") || href.Contains("players") || href.Contains("compstomp") || href.Contains("Map_Packs"))
-        {
-            var match = HtmlPageNumberRegex().Match(href);
-            if (match.Success && int.TryParse(match.Groups[1].Value, out var pageNum) && pageNum > currentPage)
-            {
-                return true;
-            }
-
-            if (int.TryParse(text, out var textPageNum) && textPageNum > currentPage)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     private static ContentSearchResult CreateAODMapSearchResult(
         string id,
         string name,
@@ -485,157 +561,12 @@ public partial class AODMapsDiscoverer(
         };
     }
 
-    /// <inheritdoc />
-    public string SourceName => AODMapsConstants.DiscovererSourceName;
-
-    /// <inheritdoc />
-    public string Description => AODMapsConstants.DiscovererDescription;
-
-    /// <inheritdoc />
-    public bool IsEnabled => true;
-
-    /// <inheritdoc />
-    public ContentSourceCapabilities Capabilities => ContentSourceCapabilities.RequiresDiscovery;
-
-    /// <inheritdoc />
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "AODMaps discovery iterates irregular legacy HTML pages and handles custom pagination.")]
-    public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
-        ContentSearchQuery query,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            // Allow discovery if there is a search term OR if it's a browsing query (game/content type set)
-            // If neither, return empty but success (or failure if strict)
-            if (query is null)
-            {
-               return OperationResult<ContentDiscoveryResult>.CreateFailure("Query cannot be null");
-            }
-
-            cancellationToken.ThrowIfCancellationRequested();
-
-            // The AODMaps site paginates irregularly (e.g. NEW/new.html has 3 items while
-            // NEW/new2.html holds the remaining archive), so site pages cannot be mapped 1:1
-            // onto UI pages. Fetch site pages sequentially, de-duplicate, and slice the
-            // aggregate list by the query's paging parameters instead.
-            int uiPage = query.Page ?? 1;
-            int take = query.Take > 0 ? query.Take : 24;
-            int skip = (uiPage - 1) * take;
-
-            var collected = new List<ContentSearchResult>();
-            var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            const int maxSitePages = 30; // safety bound against runaway loops
-            int sitePage = 1;
-            var expectedPlayerCount = ParsePlayerCountFilter(query.AODMapsPlayerCount);
-
-            using var client = httpClientFactory.CreateClient("AODMaps");
-            if (client.DefaultRequestHeaders.UserAgent.Count == 0)
-            {
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
-            }
-
-            var context = BrowsingContext.New(Configuration.Default);
-
-            // Fetch one item past the requested window so HasMoreItems is exact.
-            // Player-count filtering is applied while collecting so combined category+players
-            // queries still fill a full UI page.
-            while (sitePage <= maxSitePages && collected.Count < skip + take + 1)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var url = BuildDiscoveryUrl(query, sitePage);
-                logger.LogInformation("Discovering AODMaps content from: {Url} (site page {SitePage})", url, sitePage);
-
-                string html = string.Empty;
-                try
-                {
-                    html = await client.GetStringAsync(url, cancellationToken);
-                }
-                catch (HttpRequestException ex)
-                {
-                    // 404 or similar: we ran past the last site page — not an error.
-                    logger.LogInformation(ex, "AODMaps site page {SitePage} not available ({Message}); stopping pagination", sitePage, ex.Message);
-                    break;
-                }
-
-                var document = await context.OpenAsync(req => req.Content(html), cancellationToken);
-                var (items, _) = ExtractItems(document, url, sitePage);
-
-                int before = collected.Count;
-                int rawAccepted = 0;
-                foreach (var item in items)
-                {
-                    if (!seenIds.Add(item.Id ?? string.Empty))
-                    {
-                        continue;
-                    }
-
-                    rawAccepted++;
-                    if (!MatchesPlayerCountFilter(item, expectedPlayerCount))
-                    {
-                        continue;
-                    }
-
-                    collected.Add(item);
-                }
-
-                if (rawAccepted == 0)
-                {
-                    // The page produced nothing new (unpaginated category URLs return the same
-                    // content for every suffix) — stop.
-                    break;
-                }
-
-                // If every unique item was filtered out by player count, keep paging when the site
-                // still has more pages; otherwise stop to avoid empty spinning.
-                if (collected.Count == before && expectedPlayerCount.HasValue)
-                {
-                    sitePage++;
-                    continue;
-                }
-
-                if (collected.Count == before)
-                {
-                    break;
-                }
-
-                sitePage++;
-            }
-
-            var pageItems = collected.Skip(skip).Take(take).ToList();
-            bool hasMoreItems = collected.Count > skip + take;
-
-            logger.LogInformation(
-                "Discovered {Count} AODMaps items for UI page {Page} (aggregate {Total}, HasMore: {HasMore})",
-                pageItems.Count,
-                uiPage,
-                collected.Count,
-                hasMoreItems);
-
-            return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
-            {
-                Items = pageItems,
-                HasMoreItems = hasMoreItems,
-            });
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, AODMapsConstants.DiscoveryFailureLogMessage);
-            return OperationResult<ContentDiscoveryResult>.CreateFailure(
-                string.Format(AODMapsConstants.DiscoveryFailedErrorTemplate, ex.Message));
-        }
-    }
-
     /// <summary>
-    /// Builds the discovery URL for a specific site page based on the provided query filters.
+    /// Builds the discovery URL based on the search query.
     /// </summary>
-    /// <param name="query">The content search query containing filter criteria.</param>
-    /// <param name="sitePage">The AODMaps site page number to build the URL for.</param>
-    /// <returns>The constructed URL for discovering AODMaps content.</returns>
+    /// <param name="query">The content search query.</param>
+    /// <param name="sitePage">1-based page number on the remote site.</param>
+    /// <returns>The URL to fetch content from.</returns>
     private static string BuildDiscoveryUrl(ContentSearchQuery query, int sitePage)
     {
         string suffix = sitePage > 1 ? sitePage.ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty;
@@ -689,55 +620,14 @@ public partial class AODMapsDiscoverer(
     /// </summary>
     /// <param name="document">The parsed HTML document.</param>
     /// <param name="sourceUrl">The source URL of the document.</param>
-    /// <param name="currentPage">The current page number.</param>
-    /// <returns>A tuple containing the list of extracted items and a flag indicating if more items are available.</returns>
-    private (List<ContentSearchResult> Items, bool HasMoreItems) ExtractItems(IDocument document, string sourceUrl, int currentPage)
+    /// <returns>A list containing the extracted items.</returns>
+    private static List<ContentSearchResult> ExtractItems(IDocument document, string sourceUrl)
     {
         var results = new List<ContentSearchResult>();
 
         ExtractGalleryItems(document, sourceUrl, results);
         ExtractMapMakerItems(document, sourceUrl, results);
 
-        // Check for next page indicator to support progressive loading
-        bool hasMoreItems = CheckForNextPage(document, currentPage);
-        return (results, hasMoreItems);
-    }
-
-    /// <summary>
-    /// Checks if there is a next page available in the pagination.
-    /// </summary>
-    /// <param name="document">The parsed HTML document.</param>
-    /// <param name="currentPage">The current page number.</param>
-    /// <returns>True if a next page is available, otherwise false.</returns>
-    private bool CheckForNextPage(IDocument document, int currentPage)
-    {
-        if (HasNextTextLink(document, out var nextHref))
-        {
-            logger.LogInformation("[AODMaps] Found 'Next' link: {Url}", nextHref);
-            return true;
-        }
-
-        var higherPageCount = document.QuerySelectorAll("a").Count(a => IsHigherPageLink(a, currentPage));
-        if (higherPageCount > 0)
-        {
-            logger.LogInformation("[AODMaps] Found {Count} pagination links to higher pages", higherPageCount);
-            return true;
-        }
-
-        var nextPagePattern = currentPage > 1
-            ? $"new{currentPage + 1}.html"
-            : "new2.html";
-
-        var directNextLink = document.QuerySelectorAll("a").FirstOrDefault(a =>
-            a.GetAttribute("href")?.Contains(nextPagePattern) == true);
-
-        if (directNextLink != null)
-        {
-            logger.LogInformation("[AODMaps] Found direct next page link: {Url}", directNextLink.GetAttribute("href"));
-            return true;
-        }
-
-        logger.LogInformation("[AODMaps] No next page link found on page {Page}", currentPage);
-        return false;
+        return results;
     }
 }

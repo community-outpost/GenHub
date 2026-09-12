@@ -209,7 +209,7 @@ public sealed class AODMapsDiscovererTests
 
         var httpClientFactory = new Mock<IHttpClientFactory>();
         httpClientFactory
-            .Setup(factory => factory.CreateClient(AODMapsConstants.DiscovererSourceName))
+            .Setup(factory => factory.CreateClient(AODMapsConstants.PublisherType))
             .Returns(new HttpClient(handler));
 
         var discoverer = new AODMapsDiscoverer(

@@ -20,10 +20,11 @@ public static partial class CNCLabsHelper
     /// <summary>
     /// Tries to extract a numeric content identifier from a CNC Labs details URL.
     /// The method first ensures the URL is absolute and that its path contains the expected
-    /// marker (e.g., <c>details.aspx</c>). It then parses the <c>id</c> query parameter.
+    /// marker (e.g., <c>details</c>). It then checks for an <c>id</c> query parameter or a
+    /// path segment following <c>details/</c>.
     /// </summary>
     /// <param name="url">The URL string to inspect.</param>
-    /// <param name="pathMarker">A substring expected in the absolute path (e.g., "details.aspx").</param>
+    /// <param name="pathMarker">A substring expected in the absolute path (e.g., "details").</param>
     /// <param name="id">When this method returns, contains the parsed ID if successful; otherwise, <c>0</c>.</param>
     /// <returns><see langword="true"/> if an <c>id</c> value was found and parsed; otherwise, <see langword="false"/>.</returns>
     public static bool TryExtractMapIdFromUrl(string? url, string pathMarker, out int id)
@@ -46,7 +47,22 @@ public static partial class CNCLabsHelper
 
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
         var idStr = query[CNCLabsConstants.QueryStringIdParameter];
-        return int.TryParse(idStr, out id);
+        if (int.TryParse(idStr, out id))
+        {
+            return true;
+        }
+
+        var segments = uri.AbsolutePath.Trim('/').Split('/');
+        for (var i = 0; i < segments.Length - 1; i++)
+        {
+            if (string.Equals(segments[i], "details", StringComparison.OrdinalIgnoreCase) &&
+                int.TryParse(segments[i + 1], out id))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

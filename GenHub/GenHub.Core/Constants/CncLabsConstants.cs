@@ -1,4 +1,4 @@
-﻿namespace GenHub.Core.Constants;
+namespace GenHub.Core.Constants;
 
 /// <summary>
 /// Constants specific to CNC Labs and its content pipeline components.
@@ -23,7 +23,7 @@ public static class CNCLabsConstants
     /// <summary>
     /// Path marker for details pages on CNC Labs.
     /// </summary>
-    public const string DetailsPathMarker = "details.aspx";
+    public const string DetailsPathMarker = "details";
 
     /// <summary>
     /// Path marker for Generals maps on CNC Labs.
@@ -132,6 +132,36 @@ public static class CNCLabsConstants
     public const string DescriptionSelector = "div.mb-1.text-muted.small";
 
     /// <summary>
+    /// CSS selector for author person icon (2026 Bootstrap redesign).
+    /// </summary>
+    public const string PersonIconSelector = "i.bi-person";
+
+    /// <summary>
+    /// CSS selector for download icon (2026 Bootstrap redesign).
+    /// </summary>
+    public const string DownloadIconSelector = "i.bi-download";
+
+    /// <summary>
+    /// CSS selector for file size container (2026 Bootstrap redesign).
+    /// </summary>
+    public const string FileSizeSelector = "div.ms-3 div.small";
+
+    /// <summary>
+    /// CSS selector for thumbnail image (2026 Bootstrap redesign).
+    /// </summary>
+    public const string ThumbnailSelector = "img.download-list-thumbnail";
+
+    /// <summary>
+    /// CSS selector for badge elements (2026 Bootstrap redesign).
+    /// </summary>
+    public const string BadgeSelector = "span.badge";
+
+    /// <summary>
+    /// CSS selector for pagination page links (2026 Bootstrap redesign).
+    /// </summary>
+    public const string PaginationLinkSelector = "ul.pagination a.page-link";
+
+    /// <summary>
     /// CSS selector for bold labels inside the item description cell (used to locate the "Author:" label).
     /// </summary>
     public const string DescriptionCellStrongSelector = ".DescriptionCell strong";
@@ -198,7 +228,7 @@ public static class CNCLabsConstants
 
     /// <summary>
     /// CSS selector for the map title on the details page.
-    /// Example element: <c>&lt;span class="DisplayName"&gt;…&lt;/span&gt;</c>.
+    /// Example element: <c>&lt;span class=\"DisplayName\"&gt;…&lt;/span&gt;</c>.
     /// </summary>
     public const string NameSelector = ".DownloadItem .DisplayName";
 
@@ -215,16 +245,16 @@ public static class CNCLabsConstants
     public const char BreadcrumbSeparator = '»';
 
     /// <summary>
-    /// CSS selector for the description span whose id ends with <c>_DescriptionLabel</c>.
+    /// CSS selector for the description span whose id ends with <c>_DescriptionLabel</c> or container.
     /// This is the raw HTML we pass to <c>CNCLabsHelper.FormatDescription</c> to normalize.
     /// </summary>
-    public const string DetailsPageDescriptionSelector = ".DownloadItem span[id$='DescriptionLabel']";
+    public const string DetailsPageDescriptionSelector = ".DownloadItem span[id$='DescriptionLabel'], #description, div.card-body";
 
     /// <summary>
-    /// CSS selector that finds all <c>&lt;strong&gt;</c> nodes within the description cell.
+    /// CSS selector that finds all <c>&lt;strong&gt;</c> nodes within the description cell or page.
     /// We search these for a node whose text is equal to <see cref="AuthorLabelText"/>.
     /// </summary>
-    public const string AuthorLabelContainerSelector = ".DownloadItem .DescriptionCell strong";
+    public const string AuthorLabelContainerSelector = ".DownloadItem .DescriptionCell strong, strong";
 
     /// <summary>
     /// Error message thrown when the caller provides a null/empty details page URL.
