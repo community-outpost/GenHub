@@ -48,6 +48,9 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     private const int MinNumSounds = GameSettingsConstants.Audio.MinNumSounds;
     private const int MaxNumSounds = GameSettingsConstants.Audio.MaxNumSounds;
 
+    private readonly IGameSettingsService? _gameSettingsService = gameSettingsService;
+    private readonly ILogger<GameSettingsViewModel> _logger = logger;
+
     private static bool ParseBool(string value) =>
         value.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
         value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
@@ -72,8 +75,36 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         return true;
     }
 
-    private readonly IGameSettingsService? _gameSettingsService = gameSettingsService;
-    private readonly ILogger<GameSettingsViewModel> _logger = logger;
+    private static string? GetAnySettingValue(IniOptions options, string key)
+    {
+        if (options.Video.AdditionalProperties.TryGetValue(key, out var vVal))
+        {
+            return vVal;
+        }
+
+        var tshKvp = options.AdditionalSections.FirstOrDefault(s =>
+            string.Equals(s.Key, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase));
+        if (tshKvp.Value?.TryGetCaseInsensitive(key, out var tshVal) == true)
+        {
+            return tshVal;
+        }
+
+        if (options.Network.AdditionalProperties.TryGetValue(key, out var nVal))
+        {
+            return nVal;
+        }
+
+        return null;
+    }
+
+    private static string? GetFirstSettingValue(Dictionary<string, string>? primary, Dictionary<string, string>? fallback, string key)
+    {
+        if (primary?.TryGetCaseInsensitive(key, out var primaryVal) == true)
+            return primaryVal;
+        if (fallback?.TryGetCaseInsensitive(key, out var fallbackVal) == true)
+            return fallbackVal;
+        return null;
+    }
 
     /// <summary>
     /// Gets or sets the action triggered when the view needs to scroll to a specific section.
@@ -422,8 +453,9 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     /// </summary>
     /// <param name="profileId">The profile ID to load settings for.</param>
     /// <param name="profile">The game profile with settings.</param>
+    /// <param name="initialGameType">The initial game type to select when creating a new profile.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task InitializeForProfileAsync(string? profileId, Core.Models.GameProfile.GameProfile? profile = null)
+    public async Task InitializeForProfileAsync(string? profileId, Core.Models.GameProfile.GameProfile? profile = null, GameType? initialGameType = null)
     {
         _initializationDepth++;
         IsLoading = true;  // Provide UI feedback for loading state
@@ -434,53 +466,13 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             _currentProfileIsGeneralsOnline = profile?.IsGeneralsOnlineProfile() == true;
             _generalsOnlineSettingsSeeded = false;
 
-            // Auto-select game type from profile
-            if (profile != null)
+            if (!ResolveInitialGameType(profile, initialGameType, profileId))
             {
-                if (profile.IsToolProfile)
-                {
-                    StatusMessage = ProfileValidationConstants.ToolProfileSettingsNotApplicable;
-                    _logger.LogInformation("Skipping settings load for Tool profile {ProfileId}", profileId);
-                    return;
-                }
-
-                if ((profile.GameClient?.GameType ?? GameType.Unknown) == GameType.Unknown)
-                {
-                    _logger.LogWarning("Cannot initialize settings for profile {Id} with Unknown game type", profile.Id);
-                    SelectedGameType = GameType.Unknown;
-                    StatusMessage = "Profile has an unknown game type. Settings cannot be loaded.";
-                    return;
-                }
-
-                SelectedGameType = profile.GameClient?.GameType ?? GameType.Unknown;
-                _logger.LogInformation(
-                    "Auto-selected game type {GameType} for profile {ProfileId}",
-                    SelectedGameType,
-                    profileId);
-            }
-            else
-            {
-                // Ensure we log what we're doing
-                _logger.LogInformation("Using pre-selected GameType {GameType} for new profile initialization", SelectedGameType);
+                return;
             }
 
-            // If profile has settings, load them
-            if (profile?.HasCustomSettings() == true)
-            {
-                // Seeded from settings.json first so that the options the profile does not declare
-                // show, and are saved back as, what the user configured inside the GeneralsOnline
-                // client rather than this view model's defaults.
-                await LoadGeneralsOnlineSettingsFromClientAsync();
-                LoadSettingsFromProfile(profile);
-            }
-            else
-            {
-                // For new profiles or profiles without settings, load from Options.ini as defaults
-                _isLoadingFromOptions = true;
-                await LoadSettingsCommand.ExecuteAsync(null);
-                _isLoadingFromOptions = false;
-                StatusMessage = "Loaded default settings from Options.ini. Save the profile to persist these settings.";
-            }
+            var optionsLoaded = await SeedBaselineOptionsAsync();
+            await SeedProfileOrDefaultsAsync(profile, optionsLoaded);
         }
         finally
         {
@@ -650,7 +642,164 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     private bool _currentProfileIsGeneralsOnline;
     private string? _currentProfileId;
     private int _initializationDepth;
-    private bool _isLoadingFromOptions;
+    private volatile bool _isLoadingFromOptions;
+    private GameType? _pendingGameTypeLoad;
+
+    /// <summary>
+    /// Determines and sets the initial game type during profile initialization.
+    /// </summary>
+    /// <param name="profile">The game profile.</param>
+    /// <param name="initialGameType">The initial game type override.</param>
+    /// <param name="profileId">The profile ID.</param>
+    /// <returns><see langword="true"/> if game type resolution succeeded and initialization can continue; otherwise, <see langword="false"/>.</returns>
+    private bool ResolveInitialGameType(Core.Models.GameProfile.GameProfile? profile, GameType? initialGameType, string? profileId)
+    {
+        if (profile != null)
+        {
+            if (profile.IsToolProfile)
+            {
+                StatusMessage = ProfileValidationConstants.ToolProfileSettingsNotApplicable;
+                _logger.LogInformation("Skipping settings load for Tool profile {ProfileId}", profileId);
+                return false;
+            }
+
+            var clientGameType = profile.GameClient?.GameType ?? GameType.Unknown;
+            if (clientGameType == GameType.Unknown)
+            {
+                _logger.LogWarning("Cannot initialize settings for profile {Id} with Unknown game type", profile.Id);
+                SelectedGameType = GameType.Unknown;
+                StatusMessage = "Profile has an unknown game type. Settings cannot be loaded.";
+                return false;
+            }
+
+            SelectedGameType = clientGameType;
+            _logger.LogInformation(
+                "Auto-selected game type {GameType} for profile {ProfileId}",
+                SelectedGameType,
+                profileId);
+            return true;
+        }
+
+        if (initialGameType.HasValue && initialGameType.Value != GameType.Unknown)
+        {
+            SelectedGameType = initialGameType.Value;
+            _logger.LogInformation("Using initial GameType {GameType} for new profile initialization", SelectedGameType);
+            return true;
+        }
+
+        _logger.LogInformation("Using pre-selected GameType {GameType} for new profile initialization", SelectedGameType);
+        return true;
+    }
+
+    /// <summary>
+    /// Seeds baseline settings and current options from Options.ini.
+    /// </summary>
+    /// <returns>A task returning <see langword="true"/> if options were loaded successfully; otherwise, <see langword="false"/>.</returns>
+    private async Task<bool> SeedBaselineOptionsAsync()
+    {
+        if (SelectedGameType == GameType.Unknown)
+        {
+            return false;
+        }
+
+        var optionsLoaded = await LoadOptionsFromIniAsync(SelectedGameType);
+        if (!optionsLoaded)
+        {
+            _currentOptions = null;
+        }
+
+        return optionsLoaded;
+    }
+
+    /// <summary>
+    /// Seeds profile custom settings or default GeneralsOnline settings.
+    /// </summary>
+    /// <param name="profile">The game profile.</param>
+    /// <param name="optionsLoaded"><see langword="true"/> if Options.ini options were loaded; otherwise, <see langword="false"/>.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    private async Task SeedProfileOrDefaultsAsync(Core.Models.GameProfile.GameProfile? profile, bool optionsLoaded)
+    {
+        if (profile?.HasCustomSettings() == true)
+        {
+            await LoadGeneralsOnlineSettingsFromClientAsync();
+            LoadSettingsFromProfile(profile);
+            return;
+        }
+
+        if (_gameSettingsService != null && _currentProfileIsGeneralsOnline)
+        {
+            var goResult = await _gameSettingsService.LoadGeneralsOnlineSettingsAsync();
+            if (goResult?.Success == true && goResult.Data != null)
+            {
+                ApplyGeneralsOnlineSettings(goResult.Data);
+                _generalsOnlineSettingsSeeded = true;
+            }
+        }
+
+        if (optionsLoaded)
+        {
+            StatusMessage = "Loaded default settings from Options.ini. Save the profile to persist these settings.";
+        }
+    }
+
+    /// <summary>
+    /// Reads Options.ini for the specified game type and populates the view model and baseline options.
+    /// </summary>
+    /// <remarks>
+    /// View model properties have no unset state, so all of them are written back on save.
+    /// Seeding them from disk is what keeps that from replacing options the profile does not declare with defaults.
+    /// Populating <see cref="_currentOptions"/> also preserves unmanaged sections and properties.
+    /// </remarks>
+    private async Task<bool> LoadOptionsFromIniAsync(GameType gameType)
+    {
+        if (_gameSettingsService == null || gameType == GameType.Unknown)
+        {
+            return false;
+        }
+
+        try
+        {
+            OptionsFilePath = _gameSettingsService.GetOptionsFilePath(gameType);
+            OptionsFileExists = _gameSettingsService.OptionsFileExists(gameType);
+
+            var result = await _gameSettingsService.LoadOptionsAsync(gameType);
+            if (gameType != SelectedGameType)
+            {
+                _logger.LogInformation(
+                    "Discarding Options.ini load for {GameType} because SelectedGameType changed to {SelectedType}",
+                    gameType,
+                    SelectedGameType);
+                return false;
+            }
+
+            if (result?.Success == true && result.Data != null)
+            {
+                _currentOptions = result.Data;
+                ApplyOptionsToViewModel(_currentOptions);
+
+                _logger.LogInformation("Loaded settings from Options.ini for {GameType}", gameType);
+                return true;
+            }
+
+            var errors = result?.Errors ?? ["LoadOptions result was null"];
+            _currentOptions = null;
+            StatusMessage = $"Failed to load settings: {string.Join(", ", errors)}";
+            _logger.LogWarning("Failed to load Options.ini for {GameType}: {Errors}", gameType, string.Join(", ", errors));
+            return false;
+        }
+        catch (Exception ex)
+        {
+            if (gameType != SelectedGameType)
+            {
+                return false;
+            }
+
+            _currentOptions = null;
+            _logger.LogError(ex, "Error loading Options.ini for {GameType}", gameType);
+            StatusMessage = $"Error loading settings: {ex.Message}";
+            return false;
+        }
+    }
 
     /// <summary>
     /// Loads the options.ini settings for the selected game type.
@@ -658,51 +807,47 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     [RelayCommand]
     private async Task LoadSettings()
     {
-        if (_gameSettingsService == null)
-        {
-            StatusMessage = "Game settings service not available";
-            return;
-        }
-
-        if (SelectedGameType == GameType.Unknown)
-        {
-             StatusMessage = "Cannot load settings: Game type is Unknown";
-             _logger.LogWarning("LoadSettings called with Unknown GameType");
-             return;
-        }
-
-        GameType gameType = SelectedGameType;
         try
         {
             IsLoading = true;
+            _isLoadingFromOptions = true;
 
+            if (_gameSettingsService == null)
+            {
+                StatusMessage = "Game settings service not available";
+                return;
+            }
+
+            if (SelectedGameType == GameType.Unknown)
+            {
+                StatusMessage = "Cannot load settings: Game type is Unknown";
+                _logger.LogWarning("LoadSettings called with Unknown GameType");
+                return;
+            }
+
+            GameType gameType = SelectedGameType;
             StatusMessage = $"Loading {gameType} settings...";
 
-            OptionsFilePath = _gameSettingsService.GetOptionsFilePath(gameType);
-            OptionsFileExists = _gameSettingsService.OptionsFileExists(gameType);
-
-            var result = await _gameSettingsService.LoadOptionsAsync(gameType);
-
-            if (result?.Success == true && result.Data != null)
+            var loaded = await LoadOptionsFromIniAsync(gameType);
+            if (gameType != SelectedGameType)
             {
-                _currentOptions = result.Data;
-                ApplyOptionsToViewModel(_currentOptions);
+                return;
+            }
 
+            if (loaded)
+            {
                 StatusMessage = OptionsFileExists
                     ? $"Loaded {gameType} settings from {Path.GetFileName(OptionsFilePath)}"
                     : $"Using default {gameType} settings (file not found)";
-
-                _logger.LogInformation("Loaded settings for {GameType}", gameType);
-            }
-            else
-            {
-                var errors = result?.Errors ?? ["LoadOptions result was null"];
-                StatusMessage = $"Failed to load settings: {string.Join(", ", errors)}";
-                _logger.LogWarning("Failed to load settings for {GameType}: {Errors}", gameType, string.Join(", ", errors));
             }
 
             // Load GeneralsOnline settings separately
             var goResult = await _gameSettingsService.LoadGeneralsOnlineSettingsAsync();
+            if (gameType != SelectedGameType)
+            {
+                return;
+            }
+
             if (goResult?.Success == true && goResult.Data != null)
             {
                 ApplyGeneralsOnlineSettings(goResult.Data);
@@ -718,12 +863,14 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error loading settings for {GameType}", gameType);
+            _logger.LogError(ex, "Error loading settings for {GameType}", SelectedGameType);
             StatusMessage = $"Error loading settings: {ex.Message}";
         }
         finally
         {
+            _isLoadingFromOptions = false;
             IsLoading = false;
+            CheckAndDispatchPendingGameTypeLoad();
         }
     }
 
@@ -926,6 +1073,13 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             return;
         }
 
+        if (OptionsFileExists && _currentOptions == null)
+        {
+            StatusMessage = "Cannot save settings: Options.ini could not be loaded and saving would overwrite existing unmanaged settings.";
+            _logger.LogWarning("Aborting SaveSettings for {GameType} because Options.ini exists but _currentOptions is null", SelectedGameType);
+            return;
+        }
+
         try
         {
             IsLoading = true;
@@ -1102,29 +1256,54 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
     partial void OnSelectedGameTypeChanged(GameType value)
     {
-        if (_initializationDepth == 0 && !_isLoadingFromOptions)
-        {
-            _logger.LogInformation("GameType changed to {GameType} - loading from Options.ini", value);
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await LoadSettingsCommand.ExecuteAsync(null);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to load settings for {GameType}", value);
-                    StatusMessage = $"Error loading settings: {ex.Message}";
-                }
-            });
-        }
-        else if (_isLoadingFromOptions)
-        {
-            _logger.LogInformation("GameType changed to {GameType} while loading from Options.ini - skipping auto-load", value);
-        }
-        else
+        if (_initializationDepth > 0)
         {
             _logger.LogInformation("GameType set to {GameType} during initialization - skipping auto-load", value);
+            return;
+        }
+
+        if (_isLoadingFromOptions)
+        {
+            _pendingGameTypeLoad = value;
+            _logger.LogInformation("GameType changed to {GameType} while loading from Options.ini - scheduled pending reload", value);
+            return;
+        }
+
+        TriggerAutoLoadSettings(value);
+    }
+
+    private void TriggerAutoLoadSettings(GameType value)
+    {
+        _logger.LogInformation("GameType changed to {GameType} - loading from Options.ini", value);
+        _isLoadingFromOptions = true;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await LoadSettingsCommand.ExecuteAsync(null);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load settings for {GameType}", value);
+                StatusMessage = $"Error loading settings: {ex.Message}";
+            }
+        });
+    }
+
+    private void CheckAndDispatchPendingGameTypeLoad()
+    {
+        if (_pendingGameTypeLoad.HasValue)
+        {
+            var pending = _pendingGameTypeLoad.Value;
+            _pendingGameTypeLoad = null;
+            if (pending != SelectedGameType)
+            {
+                SelectedGameType = pending;
+            }
+            else
+            {
+                TriggerAutoLoadSettings(pending);
+            }
         }
     }
 
@@ -1193,42 +1372,66 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (options.Video.AdditionalProperties.TryGetValue("UseCloudMap", out var ucm)) UseCloudMap = ParseBool(ucm);
         if (options.Video.AdditionalProperties.TryGetValue("UseLightMap", out var ulm)) UseLightMap = ParseBool(ulm);
 
-        if (options.Video.AdditionalProperties.TryGetValue("DrawScrollAnchor", out var draws)) DrawScrollAnchor = ParseBool(draws);
-        if (options.Video.AdditionalProperties.TryGetValue("MoveScrollAnchor", out var moves)) MoveScrollAnchor = ParseBool(moves);
-        if (options.Video.AdditionalProperties.TryGetValue("GameTimeFontSize", out var gtfs) && int.TryParse(gtfs, out var gtfsVal)) GameTimeFontSize = gtfsVal;
-        if (options.Video.AdditionalProperties.TryGetValue("LanguageFilter", out var lf)) LanguageFilter = ParseBool(lf);
-        if (options.Video.AdditionalProperties.TryGetValue("SendDelay", out var sd)) SendDelay = ParseBool(sd);
-        if (options.Video.AdditionalProperties.TryGetValue("SkipEALogo", out var sel)) SkipEALogo = ParseBool(sel);
+        if (GetAnySettingValue(options, GameSettingsTheSuperHackersConstants.DrawScrollAnchorKey) is { } draws) DrawScrollAnchor = ParseBool(draws);
+        if (GetAnySettingValue(options, GameSettingsTheSuperHackersConstants.MoveScrollAnchorKey) is { } moves) MoveScrollAnchor = ParseBool(moves);
+        if (GetAnySettingValue(options, GameSettingsTheSuperHackersConstants.GameTimeFontSizeKey) is { } gtfs && int.TryParse(gtfs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var gtfsVal)) GameTimeFontSize = gtfsVal;
+        if (GetAnySettingValue(options, GameSettingsTheSuperHackersConstants.LanguageFilterKey) is { } lf) LanguageFilter = ParseBool(lf);
+        if (GetAnySettingValue(options, GameSettingsTheSuperHackersConstants.SendDelayKey) is { } sd) SendDelay = ParseBool(sd);
+        if (GetAnySettingValue(options, "SkipEALogo") is { } sel) SkipEALogo = ParseBool(sel);
     }
 
     private void ApplyTshAdditionalProperties(IniOptions options)
     {
-        if (!options.AdditionalSections.TryGetValue("TheSuperHackers", out var tsh))
-        {
-            return;
-        }
+        var tshKvp = options.AdditionalSections.FirstOrDefault(s =>
+            string.Equals(s.Key, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase));
 
-        ApplyTshGameplayProperties(tsh);
-        ApplyTshUiCursorProperties(tsh);
+        ApplyTshGameplayProperties(tshKvp.Value, options.Video.AdditionalProperties);
+        if (tshKvp.Value != null)
+        {
+            ApplyTshUiCursorProperties(tshKvp.Value);
+        }
     }
 
-    private void ApplyTshGameplayProperties(Dictionary<string, string> tsh)
+    private void ApplyTshGameplayProperties(Dictionary<string, string>? tsh, Dictionary<string, string>? videoAdditional)
     {
-        if (tsh.TryGetValue("UseDoubleClickAttackMove", out var doubleClick))
+        ApplySharedEngineProperties(tsh, videoAdditional);
+        if (tsh != null)
+        {
+            ApplyTshExclusiveGameplayProperties(tsh);
+        }
+    }
+
+    private void ApplySharedEngineProperties(Dictionary<string, string>? tsh, Dictionary<string, string>? videoAdditional)
+    {
+        var doubleClick = GetFirstSettingValue(tsh, videoAdditional, GameSettingsTheSuperHackersConstants.UseDoubleClickAttackMoveKey)
+            ?? GetFirstSettingValue(tsh, videoAdditional, GameSettingsTheSuperHackersConstants.UseDoubleClickKey);
+        if (doubleClick != null)
             UseDoubleClickAttackMove = ParseBool(doubleClick);
-        if (tsh.TryGetValue("ScrollFactor", out var scroll) && int.TryParse(scroll, out var scrollVal))
+
+        var scroll = GetFirstSettingValue(tsh, videoAdditional, GameSettingsTheSuperHackersConstants.ScrollFactorKey);
+        if (scroll != null && int.TryParse(scroll, NumberStyles.Integer, CultureInfo.InvariantCulture, out var scrollVal))
             ScrollFactor = scrollVal;
-        if (tsh.TryGetValue("Retaliation", out var retaliation))
+
+        var retaliation = GetFirstSettingValue(tsh, videoAdditional, GameSettingsTheSuperHackersConstants.RetaliationKey);
+        if (retaliation != null)
             Retaliation = ParseBool(retaliation);
-        if (tsh.TryGetValue("DynamicLOD", out var dynLOD))
+
+        var dynLOD = GetFirstSettingValue(tsh, videoAdditional, GameSettingsTheSuperHackersConstants.DynamicLODKey);
+        if (dynLOD != null)
             DynamicLOD = ParseBool(dynLOD);
-        if (tsh.TryGetValue("MaxParticleCount", out var particles) && int.TryParse(particles, out var particleVal))
+
+        var particles = GetFirstSettingValue(tsh, videoAdditional, GameSettingsTheSuperHackersConstants.MaxParticleCountKey);
+        if (particles != null && int.TryParse(particles, NumberStyles.Integer, CultureInfo.InvariantCulture, out var particleVal))
             MaxParticleCount = particleVal;
-        if (tsh.TryGetValue("ArchiveReplays", out var ar)) TshArchiveReplays = ParseBool(ar);
-        if (tsh.TryGetValue("ShowMoneyPerMinute", out var smpm)) TshShowMoneyPerMinute = ParseBool(smpm);
-        if (tsh.TryGetValue("PlayerObserverEnabled", out var poe)) TshPlayerObserverEnabled = ParseBool(poe);
-        if (tsh.TryGetValue("MoneyTransactionVolume", out var mtv) && int.TryParse(mtv, out var mtvVal)) TshMoneyTransactionVolume = mtvVal;
-        if (tsh.TryGetValue(GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var gwt))
+    }
+
+    private void ApplyTshExclusiveGameplayProperties(Dictionary<string, string> tsh)
+    {
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ArchiveReplaysKey, out var ar)) TshArchiveReplays = ParseBool(ar);
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ShowMoneyPerMinuteKey, out var smpm)) TshShowMoneyPerMinute = ParseBool(smpm);
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.PlayerObserverEnabledKey, out var poe)) TshPlayerObserverEnabled = ParseBool(poe);
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.MoneyTransactionVolumeKey, out var mtv) && int.TryParse(mtv, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mtvVal)) TshMoneyTransactionVolume = mtvVal;
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var gwt))
         {
             var parsed = GameSettingsMapper.ParseTransitionSpeedMultiplier(gwt);
             if (parsed.HasValue)
@@ -1240,16 +1443,16 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
     private void ApplyTshUiCursorProperties(Dictionary<string, string> tsh)
     {
-        if (tsh.TryGetValue("SystemTimeFontSize", out var stfs) && int.TryParse(stfs, out var stfsVal)) TshSystemTimeFontSize = stfsVal;
-        if (tsh.TryGetValue("NetworkLatencyFontSize", out var nlfs) && int.TryParse(nlfs, out var nlfsVal)) TshNetworkLatencyFontSize = nlfsVal;
-        if (tsh.TryGetValue("RenderFpsFontSize", out var rffs) && int.TryParse(rffs, out var rffsVal)) TshRenderFpsFontSize = rffsVal;
-        if (tsh.TryGetValue("ResolutionFontAdjustment", out var rfa) && int.TryParse(rfa, out var rfaVal)) TshResolutionFontAdjustment = rfaVal;
-        if (tsh.TryGetValue("CursorCaptureEnabledInFullscreenGame", out var ccefg)) TshCursorCaptureEnabledInFullscreenGame = ParseBool(ccefg);
-        if (tsh.TryGetValue("CursorCaptureEnabledInFullscreenMenu", out var ccefm)) TshCursorCaptureEnabledInFullscreenMenu = ParseBool(ccefm);
-        if (tsh.TryGetValue("CursorCaptureEnabledInWindowedGame", out var ccewg)) TshCursorCaptureEnabledInWindowedGame = ParseBool(ccewg);
-        if (tsh.TryGetValue("CursorCaptureEnabledInWindowedMenu", out var ccewm)) TshCursorCaptureEnabledInWindowedMenu = ParseBool(ccewm);
-        if (tsh.TryGetValue("ScreenEdgeScrollEnabledInFullscreenApp", out var sesefa)) TshScreenEdgeScrollEnabledInFullscreenApp = ParseBool(sesefa);
-        if (tsh.TryGetValue("ScreenEdgeScrollEnabledInWindowedApp", out var sesewa)) TshScreenEdgeScrollEnabledInWindowedApp = ParseBool(sesewa);
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.SystemTimeFontSizeKey, out var stfs) && int.TryParse(stfs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var stfsVal)) TshSystemTimeFontSize = stfsVal;
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.NetworkLatencyFontSizeKey, out var nlfs) && int.TryParse(nlfs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var nlfsVal)) TshNetworkLatencyFontSize = nlfsVal;
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.RenderFpsFontSizeKey, out var rffs) && int.TryParse(rffs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rffsVal)) TshRenderFpsFontSize = rffsVal;
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ResolutionFontAdjustmentKey, out var rfa) && int.TryParse(rfa, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rfaVal)) TshResolutionFontAdjustment = rfaVal;
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenGameKey, out var ccefg)) TshCursorCaptureEnabledInFullscreenGame = ParseBool(ccefg);
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenMenuKey, out var ccefm)) TshCursorCaptureEnabledInFullscreenMenu = ParseBool(ccefm);
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedGameKey, out var ccewg)) TshCursorCaptureEnabledInWindowedGame = ParseBool(ccewg);
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedMenuKey, out var ccewm)) TshCursorCaptureEnabledInWindowedMenu = ParseBool(ccewm);
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInFullscreenAppKey, out var scrollApp)) TshScreenEdgeScrollEnabledInFullscreenApp = ParseBool(scrollApp);
+        if (tsh.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInWindowedAppKey, out var scrollWinApp)) TshScreenEdgeScrollEnabledInWindowedApp = ParseBool(scrollWinApp);
     }
 
     private IniOptions CreateOptionsFromViewModel()
@@ -1292,15 +1495,15 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
         // TSH settings (writing to root for maximum compatibility as some clients prefer flat Options.ini)
         options.Video.AdditionalProperties["UseDoubleClickAttackMove"] = BoolToString(UseDoubleClickAttackMove);
-        options.Video.AdditionalProperties["ScrollFactor"] = ScrollFactor.ToString();
+        options.Video.AdditionalProperties["ScrollFactor"] = ScrollFactor.ToString(CultureInfo.InvariantCulture);
         options.Video.AdditionalProperties["Retaliation"] = BoolToString(Retaliation);
         options.Video.AdditionalProperties["DynamicLOD"] = BoolToString(DynamicLOD);
-        options.Video.AdditionalProperties["MaxParticleCount"] = MaxParticleCount.ToString();
-        options.Video.AdditionalProperties["DrawScrollAnchor"] = BoolToString(DrawScrollAnchor);
-        options.Video.AdditionalProperties["MoveScrollAnchor"] = BoolToString(MoveScrollAnchor);
-        options.Video.AdditionalProperties["GameTimeFontSize"] = GameTimeFontSize.ToString();
-        options.Video.AdditionalProperties["LanguageFilter"] = BoolToString(LanguageFilter);
-        options.Video.AdditionalProperties["SendDelay"] = BoolToString(SendDelay);
+        options.Video.AdditionalProperties["MaxParticleCount"] = MaxParticleCount.ToString(CultureInfo.InvariantCulture);
+        options.Video.AdditionalProperties[GameSettingsTheSuperHackersConstants.DrawScrollAnchorKey] = BoolToString(DrawScrollAnchor);
+        options.Video.AdditionalProperties[GameSettingsTheSuperHackersConstants.MoveScrollAnchorKey] = BoolToString(MoveScrollAnchor);
+        options.Video.AdditionalProperties[GameSettingsTheSuperHackersConstants.GameTimeFontSizeKey] = GameTimeFontSize.ToString(CultureInfo.InvariantCulture);
+        options.Video.AdditionalProperties[GameSettingsTheSuperHackersConstants.LanguageFilterKey] = BoolToString(LanguageFilter);
+        options.Video.AdditionalProperties[GameSettingsTheSuperHackersConstants.SendDelayKey] = BoolToString(SendDelay);
 
         options.Video.ExtraAnimations = ExtraAnimations;
         options.Video.Gamma = Gamma;
@@ -1314,27 +1517,52 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         options.Network.GameSpyIPAddress = GameSpyIPAddress;
 
         // TheSuperHackers settings - preserve existing settings, only update the ones we manage
-        if (!options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshDict))
+        var tshKey = options.AdditionalSections.Keys.FirstOrDefault(k =>
+            string.Equals(k, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase)) ?? GameSettingsTheSuperHackersConstants.SectionName;
+
+        if (!options.AdditionalSections.TryGetValue(tshKey, out var tshDict) || tshDict == null)
         {
-            tshDict = [];
-            options.AdditionalSections["TheSuperHackers"] = tshDict;
+            tshDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            options.AdditionalSections[tshKey] = tshDict;
         }
 
+        // Synchronize settings if they already exist in tshDict to prevent desync/overwrites
+        if (tshDict.ContainsKey(GameSettingsTheSuperHackersConstants.GameTimeFontSizeKey))
+            tshDict[GameSettingsTheSuperHackersConstants.GameTimeFontSizeKey] = GameTimeFontSize.ToString(CultureInfo.InvariantCulture);
+        if (tshDict.ContainsKey(GameSettingsTheSuperHackersConstants.DrawScrollAnchorKey))
+            tshDict[GameSettingsTheSuperHackersConstants.DrawScrollAnchorKey] = BoolToString(DrawScrollAnchor);
+        if (tshDict.ContainsKey(GameSettingsTheSuperHackersConstants.MoveScrollAnchorKey))
+            tshDict[GameSettingsTheSuperHackersConstants.MoveScrollAnchorKey] = BoolToString(MoveScrollAnchor);
+        if (tshDict.ContainsKey(GameSettingsTheSuperHackersConstants.LanguageFilterKey))
+            tshDict[GameSettingsTheSuperHackersConstants.LanguageFilterKey] = BoolToString(LanguageFilter);
+        if (tshDict.ContainsKey(GameSettingsTheSuperHackersConstants.SendDelayKey))
+            tshDict[GameSettingsTheSuperHackersConstants.SendDelayKey] = BoolToString(SendDelay);
+        if (tshDict.ContainsKey(GameSettingsTheSuperHackersConstants.ScrollFactorKey))
+            tshDict[GameSettingsTheSuperHackersConstants.ScrollFactorKey] = ScrollFactor.ToString(CultureInfo.InvariantCulture);
+        if (tshDict.ContainsKey(GameSettingsTheSuperHackersConstants.UseDoubleClickAttackMoveKey))
+            tshDict[GameSettingsTheSuperHackersConstants.UseDoubleClickAttackMoveKey] = BoolToString(UseDoubleClickAttackMove);
+        if (tshDict.ContainsKey(GameSettingsTheSuperHackersConstants.RetaliationKey))
+            tshDict[GameSettingsTheSuperHackersConstants.RetaliationKey] = BoolToString(Retaliation);
+        if (tshDict.ContainsKey(GameSettingsTheSuperHackersConstants.DynamicLODKey))
+            tshDict[GameSettingsTheSuperHackersConstants.DynamicLODKey] = BoolToString(DynamicLOD);
+        if (tshDict.ContainsKey(GameSettingsTheSuperHackersConstants.MaxParticleCountKey))
+            tshDict[GameSettingsTheSuperHackersConstants.MaxParticleCountKey] = MaxParticleCount.ToString(CultureInfo.InvariantCulture);
+
         // Update only the remaining settings we know about in the ViewModel, preserve all others
-        tshDict["ArchiveReplays"] = BoolToString(TshArchiveReplays);
-        tshDict["ShowMoneyPerMinute"] = BoolToString(TshShowMoneyPerMinute);
-        tshDict["PlayerObserverEnabled"] = BoolToString(TshPlayerObserverEnabled);
-        tshDict["SystemTimeFontSize"] = TshSystemTimeFontSize.ToString();
-        tshDict["NetworkLatencyFontSize"] = TshNetworkLatencyFontSize.ToString();
-        tshDict["RenderFpsFontSize"] = TshRenderFpsFontSize.ToString();
-        tshDict["ResolutionFontAdjustment"] = TshResolutionFontAdjustment.ToString();
-        tshDict["CursorCaptureEnabledInFullscreenGame"] = BoolToString(TshCursorCaptureEnabledInFullscreenGame);
-        tshDict["CursorCaptureEnabledInFullscreenMenu"] = BoolToString(TshCursorCaptureEnabledInFullscreenMenu);
-        tshDict["CursorCaptureEnabledInWindowedGame"] = BoolToString(TshCursorCaptureEnabledInWindowedGame);
-        tshDict["CursorCaptureEnabledInWindowedMenu"] = BoolToString(TshCursorCaptureEnabledInWindowedMenu);
-        tshDict["ScreenEdgeScrollEnabledInFullscreenApp"] = BoolToString(TshScreenEdgeScrollEnabledInFullscreenApp);
-        tshDict["ScreenEdgeScrollEnabledInWindowedApp"] = BoolToString(TshScreenEdgeScrollEnabledInWindowedApp);
-        tshDict["MoneyTransactionVolume"] = TshMoneyTransactionVolume.ToString();
+        tshDict[GameSettingsTheSuperHackersConstants.ArchiveReplaysKey] = BoolToString(TshArchiveReplays);
+        tshDict[GameSettingsTheSuperHackersConstants.ShowMoneyPerMinuteKey] = BoolToString(TshShowMoneyPerMinute);
+        tshDict[GameSettingsTheSuperHackersConstants.PlayerObserverEnabledKey] = BoolToString(TshPlayerObserverEnabled);
+        tshDict[GameSettingsTheSuperHackersConstants.SystemTimeFontSizeKey] = TshSystemTimeFontSize.ToString(CultureInfo.InvariantCulture);
+        tshDict[GameSettingsTheSuperHackersConstants.NetworkLatencyFontSizeKey] = TshNetworkLatencyFontSize.ToString(CultureInfo.InvariantCulture);
+        tshDict[GameSettingsTheSuperHackersConstants.RenderFpsFontSizeKey] = TshRenderFpsFontSize.ToString(CultureInfo.InvariantCulture);
+        tshDict[GameSettingsTheSuperHackersConstants.ResolutionFontAdjustmentKey] = TshResolutionFontAdjustment.ToString(CultureInfo.InvariantCulture);
+        tshDict[GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenGameKey] = BoolToString(TshCursorCaptureEnabledInFullscreenGame);
+        tshDict[GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenMenuKey] = BoolToString(TshCursorCaptureEnabledInFullscreenMenu);
+        tshDict[GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedGameKey] = BoolToString(TshCursorCaptureEnabledInWindowedGame);
+        tshDict[GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedMenuKey] = BoolToString(TshCursorCaptureEnabledInWindowedMenu);
+        tshDict[GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInFullscreenAppKey] = BoolToString(TshScreenEdgeScrollEnabledInFullscreenApp);
+        tshDict[GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInWindowedAppKey] = BoolToString(TshScreenEdgeScrollEnabledInWindowedApp);
+        tshDict[GameSettingsTheSuperHackersConstants.MoneyTransactionVolumeKey] = TshMoneyTransactionVolume.ToString(CultureInfo.InvariantCulture);
         tshDict[GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey] = (GameSettingsMapper.NormalizeTransitionSpeedMultiplier(TshGameWindowTransitionSpeedMultiplier) ?? GameSettingsTheSuperHackersConstants.DefaultGameWindowTransitionSpeedMultiplier).ToString(CultureInfo.InvariantCulture);
 
         return options;

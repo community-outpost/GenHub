@@ -13,6 +13,8 @@ public class GameSettingsMapperTests
 {
     /// <summary>
     /// Verifies that all texture quality levels map to the correct engine values.
+    /// Note: In the retail engine, both High and VeryHigh map to TextureReduction 0 (no reduction).
+    /// VeryHigh exists in GenHub's enum to support modern renderers/mods, but Options.ini uses 0 for both.
     /// </summary>
     /// <param name="quality">The texture quality level.</param>
     /// <param name="expectedReduction">The expected texture reduction value in Options.ini.</param>
@@ -20,7 +22,7 @@ public class GameSettingsMapperTests
     [InlineData(TextureQuality.Low, GameSettingsConstants.TextureQuality.TextureReductionLow)]
     [InlineData(TextureQuality.Medium, GameSettingsConstants.TextureQuality.TextureReductionMedium)]
     [InlineData(TextureQuality.High, GameSettingsConstants.TextureQuality.TextureReductionHigh)]
-    [InlineData(TextureQuality.VeryHigh, GameSettingsConstants.TextureQuality.TextureReductionHigh)]
+    [InlineData(TextureQuality.VeryHigh, GameSettingsConstants.TextureQuality.TextureReductionVeryHigh)]
     public void ApplyToOptions_AllTextureQualities_SetsCorrectReduction(TextureQuality quality, int expectedReduction)
     {
         // Arrange
@@ -28,7 +30,10 @@ public class GameSettingsMapperTests
         {
             VideoTextureQuality = quality,
         };
-        var options = new IniOptions();
+        var options = new IniOptions
+        {
+            Video = { TextureReduction = 99 },
+        };
 
         // Act
         GameSettingsMapper.ApplyToOptions(profile, options);
@@ -61,30 +66,31 @@ public class GameSettingsMapperTests
     }
 
     /// <summary>
-    /// Verifies that font sizes the profile leaves unset keep the values already in settings.json,
-    /// which is where the values a user configured inside the client itself live.
+    /// Verifies that font sizes the profile leaves unset keep the values already in TheSuperHackers section.
     /// </summary>
     [Fact]
-    public void ApplyToGeneralsOnlineSettings_UnsetFontSizes_PreservesExistingValues()
+    public void ApplyToOptions_TheSuperHackersUnsetFontSizes_PreservesExistingValues()
     {
         // Arrange - seed with values no GenHub default would produce
         var profile = new GameProfile();
-        var settings = new GeneralsOnlineSettings
+        var options = new IniOptions();
+        options.AdditionalSections["TheSuperHackers"] = new Dictionary<string, string>
         {
-            SystemTimeFontSize = 99,
-            NetworkLatencyFontSize = 98,
-            RenderFpsFontSize = 97,
-            ResolutionFontAdjustment = 96,
+            ["SystemTimeFontSize"] = "99",
+            ["NetworkLatencyFontSize"] = "98",
+            ["RenderFpsFontSize"] = "97",
+            ["ResolutionFontAdjustment"] = "96",
         };
 
         // Act
-        GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
+        GameSettingsMapper.ApplyToOptions(profile, options);
 
         // Assert
-        Assert.Equal(99, settings.SystemTimeFontSize);
-        Assert.Equal(98, settings.NetworkLatencyFontSize);
-        Assert.Equal(97, settings.RenderFpsFontSize);
-        Assert.Equal(96, settings.ResolutionFontAdjustment);
+        var tsh = options.AdditionalSections["TheSuperHackers"];
+        Assert.Equal("99", tsh["SystemTimeFontSize"]);
+        Assert.Equal("98", tsh["NetworkLatencyFontSize"]);
+        Assert.Equal("97", tsh["RenderFpsFontSize"]);
+        Assert.Equal("96", tsh["ResolutionFontAdjustment"]);
     }
 
     /// <summary>
@@ -120,10 +126,10 @@ public class GameSettingsMapperTests
     }
 
     /// <summary>
-    /// Verifies that explicit TheSuperHackers font sizes on the profile are written through unchanged.
+    /// Verifies that explicit TheSuperHackers font sizes on the profile are written to Options.ini unchanged.
     /// </summary>
     [Fact]
-    public void ApplyToGeneralsOnlineSettings_ExplicitFontSizes_ArePreserved()
+    public void ApplyToOptions_ExplicitFontSizes_ArePreserved()
     {
         // Arrange
         var profile = new GameProfile
@@ -133,75 +139,80 @@ public class GameSettingsMapperTests
             TshRenderFpsFontSize = 22,
             TshResolutionFontAdjustment = 23,
         };
-        var settings = new GeneralsOnlineSettings();
+        var options = new IniOptions();
 
         // Act
-        GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
+        GameSettingsMapper.ApplyToOptions(profile, options);
 
         // Assert
-        Assert.Equal(20, settings.SystemTimeFontSize);
-        Assert.Equal(21, settings.NetworkLatencyFontSize);
-        Assert.Equal(22, settings.RenderFpsFontSize);
-        Assert.Equal(23, settings.ResolutionFontAdjustment);
+        var tsh = options.AdditionalSections["TheSuperHackers"];
+        Assert.Equal("20", tsh["SystemTimeFontSize"]);
+        Assert.Equal("21", tsh["NetworkLatencyFontSize"]);
+        Assert.Equal("22", tsh["RenderFpsFontSize"]);
+        Assert.Equal("23", tsh["ResolutionFontAdjustment"]);
     }
 
     /// <summary>
-    /// Verifies that a fresh settings.json keeps money transaction audio audible, so that the
-    /// model default and the settings screen agree on what an unconfigured profile writes.
+    /// Verifies that an unconfigured profile preserves existing MoneyTransactionVolume in Options.ini.
     /// </summary>
     [Fact]
-    public void ApplyToGeneralsOnlineSettings_UnsetMoneyTransactionVolume_StaysAudible()
+    public void ApplyToOptions_UnsetMoneyTransactionVolume_PreservesExistingValue()
     {
         // Arrange
         var profile = new GameProfile();
-        var settings = new GeneralsOnlineSettings();
+        var options = new IniOptions();
+        options.AdditionalSections["TheSuperHackers"] = new Dictionary<string, string>
+        {
+            ["MoneyTransactionVolume"] = "75",
+        };
 
         // Act
-        GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
+        GameSettingsMapper.ApplyToOptions(profile, options);
 
         // Assert
-        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultMoneyTransactionVolume, settings.MoneyTransactionVolume);
-        Assert.NotEqual(0, settings.MoneyTransactionVolume);
+        Assert.Equal("75", options.AdditionalSections["TheSuperHackers"]["MoneyTransactionVolume"]);
     }
 
     /// <summary>
     /// Verifies that cursor capture, edge scroll and observer toggles the profile leaves unset
-    /// keep the values already in settings.json.
+    /// keep the values already in TheSuperHackers section.
     /// </summary>
     [Fact]
-    public void ApplyToGeneralsOnlineSettings_UnsetToggles_PreservesExistingValues()
+    public void ApplyToOptions_UnsetToggles_PreservesExistingValues()
     {
         // Arrange - seed each toggle inverted relative to its GenHub default
         var profile = new GameProfile();
-        var settings = new GeneralsOnlineSettings
+        var options = new IniOptions();
+        options.AdditionalSections["TheSuperHackers"] = new Dictionary<string, string>
         {
-            PlayerObserverEnabled = false,
-            CursorCaptureEnabledInFullscreenGame = false,
-            CursorCaptureEnabledInFullscreenMenu = false,
-            CursorCaptureEnabledInWindowedGame = false,
-            CursorCaptureEnabledInWindowedMenu = true,
-            ScreenEdgeScrollEnabledInFullscreenApp = false,
-            ScreenEdgeScrollEnabledInWindowedApp = true,
+            ["PlayerObserverEnabled"] = "no",
+            ["CursorCaptureEnabledInFullscreenGame"] = "no",
+            ["CursorCaptureEnabledInFullscreenMenu"] = "no",
+            ["CursorCaptureEnabledInWindowedGame"] = "no",
+            ["CursorCaptureEnabledInWindowedMenu"] = "yes",
+            ["ScreenEdgeScrollEnabledInFullscreenApp"] = "no",
+            ["ScreenEdgeScrollEnabledInWindowedApp"] = "yes",
         };
 
         // Act
-        GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
+        GameSettingsMapper.ApplyToOptions(profile, options);
 
         // Assert
-        Assert.False(settings.PlayerObserverEnabled);
-        Assert.False(settings.CursorCaptureEnabledInFullscreenGame);
-        Assert.False(settings.CursorCaptureEnabledInFullscreenMenu);
-        Assert.False(settings.CursorCaptureEnabledInWindowedGame);
-        Assert.True(settings.CursorCaptureEnabledInWindowedMenu);
-        Assert.False(settings.ScreenEdgeScrollEnabledInFullscreenApp);
-        Assert.True(settings.ScreenEdgeScrollEnabledInWindowedApp);
+        var tsh = options.AdditionalSections["TheSuperHackers"];
+        Assert.Equal("no", tsh["PlayerObserverEnabled"]);
+        Assert.Equal("no", tsh["CursorCaptureEnabledInFullscreenGame"]);
+        Assert.Equal("no", tsh["CursorCaptureEnabledInFullscreenMenu"]);
+        Assert.Equal("no", tsh["CursorCaptureEnabledInWindowedGame"]);
+        Assert.Equal("yes", tsh["CursorCaptureEnabledInWindowedMenu"]);
+        Assert.Equal("no", tsh["ScreenEdgeScrollEnabledInFullscreenApp"]);
+        Assert.Equal("yes", tsh["ScreenEdgeScrollEnabledInWindowedApp"]);
     }
 
     /// <summary>
-    /// Verifies that explicit toggle values on the profile are written through unchanged.
+    /// Verifies that explicit toggle values on the profile are written to Options.ini unchanged.
     /// </summary>
     [Fact]
-    public void ApplyToGeneralsOnlineSettings_ExplicitToggles_ArePreserved()
+    public void ApplyToOptions_ExplicitToggles_ArePreserved()
     {
         // Arrange - every value is the opposite of its default
         var profile = new GameProfile
@@ -214,19 +225,20 @@ public class GameSettingsMapperTests
             TshScreenEdgeScrollEnabledInFullscreenApp = false,
             TshScreenEdgeScrollEnabledInWindowedApp = true,
         };
-        var settings = new GeneralsOnlineSettings();
+        var options = new IniOptions();
 
         // Act
-        GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
+        GameSettingsMapper.ApplyToOptions(profile, options);
 
         // Assert
-        Assert.False(settings.PlayerObserverEnabled);
-        Assert.False(settings.CursorCaptureEnabledInFullscreenGame);
-        Assert.False(settings.CursorCaptureEnabledInFullscreenMenu);
-        Assert.False(settings.CursorCaptureEnabledInWindowedGame);
-        Assert.True(settings.CursorCaptureEnabledInWindowedMenu);
-        Assert.False(settings.ScreenEdgeScrollEnabledInFullscreenApp);
-        Assert.True(settings.ScreenEdgeScrollEnabledInWindowedApp);
+        var tsh = options.AdditionalSections["TheSuperHackers"];
+        Assert.Equal("no", tsh["PlayerObserverEnabled"]);
+        Assert.Equal("no", tsh["CursorCaptureEnabledInFullscreenGame"]);
+        Assert.Equal("no", tsh["CursorCaptureEnabledInFullscreenMenu"]);
+        Assert.Equal("no", tsh["CursorCaptureEnabledInWindowedGame"]);
+        Assert.Equal("yes", tsh["CursorCaptureEnabledInWindowedMenu"]);
+        Assert.Equal("no", tsh["ScreenEdgeScrollEnabledInFullscreenApp"]);
+        Assert.Equal("yes", tsh["ScreenEdgeScrollEnabledInWindowedApp"]);
     }
 
     /// <summary>
@@ -291,30 +303,56 @@ public class GameSettingsMapperTests
     }
 
     /// <summary>
-    /// Verifies that ApplyToGeneralsOnlineSettings and ApplyFromGeneralsOnlineSettings preserve GameWindowTransitionSpeedMultiplier.
+    /// Verifies that ApplyToOptions and ApplyFromOptions preserve GameWindowTransitionSpeedMultiplier.
     /// </summary>
     [Fact]
-    public void ApplyToAndFromGeneralsOnlineSettings_GameWindowTransitionSpeedMultiplier_RoundTrips()
+    public void ApplyToAndFromOptions_GameWindowTransitionSpeedMultiplier_RoundTrips()
     {
         // Arrange
         var profile = new GameProfile
         {
             TshGameWindowTransitionSpeedMultiplier = 4.0f,
         };
-        var settings = new GeneralsOnlineSettings();
+        var options = new IniOptions();
 
         // Act
-        GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
+        GameSettingsMapper.ApplyToOptions(profile, options);
 
         // Assert
-        Assert.Equal(4.0f, settings.GameWindowTransitionSpeedMultiplier);
+        var tsh = options.AdditionalSections["TheSuperHackers"];
+        Assert.Equal("4", tsh["GameWindowTransitionSpeedMultiplier"]);
 
         // Act back
         var targetProfile = new GameProfile();
-        GameSettingsMapper.ApplyFromGeneralsOnlineSettings(settings, targetProfile);
+        GameSettingsMapper.ApplyFromOptions(options, targetProfile);
 
         // Assert back
         Assert.Equal(4.0f, targetProfile.TshGameWindowTransitionSpeedMultiplier);
+    }
+
+    /// <summary>
+    /// Verifies that ApplyFromOptions parses TheSuperHackers section case-insensitively.
+    /// </summary>
+    [Fact]
+    public void ApplyFromOptions_CaseInsensitiveTheSuperHackersSection_LoadsProperties()
+    {
+        // Arrange
+        var options = new IniOptions();
+        options.AdditionalSections["thesuperhackers"] = new Dictionary<string, string>
+        {
+            ["gamewindowtransitionspeedmultiplier"] = "1.5",
+            ["archivereplays"] = "yes",
+            ["systemtimefontsize"] = "18",
+        };
+        var profile = new GameProfile();
+
+        // Act
+        GameSettingsMapper.ApplyFromOptions(options, profile);
+
+        // Assert
+        Assert.Equal(1.5f, profile.TshGameWindowTransitionSpeedMultiplier);
+        Assert.True(profile.TshArchiveReplays);
+        Assert.Equal(18, profile.TshSystemTimeFontSize);
     }
 
     /// <summary>
@@ -429,5 +467,197 @@ public class GameSettingsMapperTests
 
         Assert.True(options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshDict));
         Assert.Equal("4", tshDict["GameWindowTransitionSpeedMultiplier"]);
+    }
+
+    /// <summary>
+    /// Verifies that PopulateRequest from UpdateProfileRequest to CreateProfileRequest copies all properties including UseSteamLaunch and VideoSkipEALogo.
+    /// </summary>
+    [Fact]
+    public void PopulateRequest_CreateProfileRequest_CopiesAllSettingsIncludingUseSteamLaunchAndVideoSkipEALogo()
+    {
+        // Arrange
+        var source = new UpdateProfileRequest
+        {
+            UseSteamLaunch = true,
+            VideoSkipEALogo = true,
+            GameSpyIPAddress = "192.168.1.1",
+            VideoResolutionWidth = 1920,
+            VideoResolutionHeight = 1080,
+            TshGameWindowTransitionSpeedMultiplier = 2.5f,
+        };
+        var target = new CreateProfileRequest
+        {
+            Name = "Test",
+        };
+
+        // Act
+        GameSettingsMapper.PopulateRequest(target, source);
+
+        // Assert
+        Assert.True(target.UseSteamLaunch);
+        Assert.True(target.VideoSkipEALogo);
+        Assert.Equal("192.168.1.1", target.GameSpyIPAddress);
+        Assert.Equal(1920, target.VideoResolutionWidth);
+        Assert.Equal(1080, target.VideoResolutionHeight);
+        Assert.Equal(2.5f, target.TshGameWindowTransitionSpeedMultiplier);
+    }
+
+    /// <summary>
+    /// Verifies that PopulateRequest from UpdateProfileRequest to UpdateProfileRequest copies all properties including UseSteamLaunch and VideoSkipEALogo.
+    /// </summary>
+    [Fact]
+    public void PopulateRequest_UpdateProfileRequest_CopiesAllSettingsIncludingUseSteamLaunchAndVideoSkipEALogo()
+    {
+        // Arrange
+        var source = new UpdateProfileRequest
+        {
+            UseSteamLaunch = true,
+            VideoSkipEALogo = true,
+            GameSpyIPAddress = "192.168.1.1",
+            VideoResolutionWidth = 1920,
+            VideoResolutionHeight = 1080,
+            TshGameWindowTransitionSpeedMultiplier = 2.5f,
+        };
+        var target = new UpdateProfileRequest();
+
+        // Act
+        GameSettingsMapper.PopulateRequest(target, source);
+
+        // Assert
+        Assert.True(target.UseSteamLaunch);
+        Assert.True(target.VideoSkipEALogo);
+        Assert.Equal("192.168.1.1", target.GameSpyIPAddress);
+        Assert.Equal(1920, target.VideoResolutionWidth);
+        Assert.Equal(1080, target.VideoResolutionHeight);
+        Assert.Equal(2.5f, target.TshGameWindowTransitionSpeedMultiplier);
+    }
+
+    /// <summary>
+    /// Verifies that GameSettingsMapper uses InvariantCulture when formatting numeric values.
+    /// </summary>
+    [Fact]
+    public void ApplyToOptions_NumericFormatting_UsesInvariantCulture()
+    {
+        var currentCulture = System.Globalization.CultureInfo.CurrentCulture;
+        try
+        {
+            // Use German culture where comma is the decimal separator
+            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("de-DE");
+
+            var profile = new GameProfile
+            {
+                TshGameWindowTransitionSpeedMultiplier = 2.5f,
+                TshSystemTimeFontSize = 14,
+            };
+            var options = new IniOptions();
+
+            GameSettingsMapper.ApplyToOptions(profile, options);
+
+            var tsh = options.AdditionalSections["TheSuperHackers"];
+            Assert.Equal("2.5", tsh["GameWindowTransitionSpeedMultiplier"]);
+            Assert.Equal("14", tsh["SystemTimeFontSize"]);
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = currentCulture;
+        }
+    }
+
+    /// <summary>
+    /// Verifies that GameTimeFontSize is loaded from flat Video properties or TheSuperHackers section.
+    /// </summary>
+    [Fact]
+    public void ApplyFromOptions_GameTimeFontSize_LoadsFromFlatOrSection()
+    {
+        // 1. From flat Video properties
+        var flatOptions = new IniOptions();
+        flatOptions.Video.AdditionalProperties["GameTimeFontSize"] = "14";
+        var flatProfile = new GameProfile();
+        GameSettingsMapper.ApplyFromOptions(flatOptions, flatProfile);
+        Assert.Equal(14, flatProfile.VideoGameTimeFontSize);
+
+        // 2. From TheSuperHackers section
+        var tshOptions = new IniOptions();
+        tshOptions.AdditionalSections["TheSuperHackers"] = new Dictionary<string, string>
+        {
+            ["GameTimeFontSize"] = "16",
+        };
+        var tshProfile = new GameProfile();
+        GameSettingsMapper.ApplyFromOptions(tshOptions, tshProfile);
+        Assert.Equal(16, tshProfile.VideoGameTimeFontSize);
+    }
+
+    /// <summary>
+    /// Verifies that ApplyToOptions writes VideoGameTimeFontSize to root properties and synchronizes TheSuperHackers.
+    /// </summary>
+    [Fact]
+    public void ApplyToOptions_VideoGameTimeFontSize_WritesToRootAndSyncsSection()
+    {
+        var profile = new GameProfile
+        {
+            VideoGameTimeFontSize = 18,
+            VideoDrawScrollAnchor = true,
+            VideoMoveScrollAnchor = false,
+        };
+
+        var options = new IniOptions();
+        options.AdditionalSections["TheSuperHackers"] = new Dictionary<string, string>
+        {
+            ["GameTimeFontSize"] = "10",
+        };
+
+        GameSettingsMapper.ApplyToOptions(profile, options);
+
+        Assert.Equal("18", options.Video.AdditionalProperties["GameTimeFontSize"]);
+        Assert.Equal("18", options.AdditionalSections["TheSuperHackers"]["GameTimeFontSize"]);
+        Assert.Equal("yes", options.Video.AdditionalProperties["DrawScrollAnchor"]);
+        Assert.Equal("no", options.Video.AdditionalProperties["MoveScrollAnchor"]);
+    }
+
+    /// <summary>
+    /// Verifies that PopulateGameProfile and UpdateFromRequest preserve all additional video and engine settings.
+    /// </summary>
+    [Fact]
+    public void PopulateAndUpdate_PreservesGameTimeFontSizeAndAdditionalSettings()
+    {
+        var createRequest = new CreateProfileRequest
+        {
+            Name = "TestProfile",
+            VideoGameTimeFontSize = 16,
+            VideoDrawScrollAnchor = true,
+            VideoMoveScrollAnchor = false,
+            VideoUseShadowDecals = true,
+            VideoBuildingOcclusion = false,
+            VideoShowProps = true,
+            GameLanguageFilter = false,
+            NetworkSendDelay = false,
+        };
+        var profile = new GameProfile();
+
+        GameSettingsMapper.PopulateGameProfile(profile, createRequest);
+
+        Assert.Equal(16, profile.VideoGameTimeFontSize);
+        Assert.True(profile.VideoDrawScrollAnchor);
+        Assert.False(profile.VideoMoveScrollAnchor);
+        Assert.True(profile.VideoUseShadowDecals);
+        Assert.False(profile.VideoBuildingOcclusion);
+        Assert.True(profile.VideoShowProps);
+        Assert.False(profile.GameLanguageFilter);
+        Assert.False(profile.NetworkSendDelay);
+
+        var updateRequest = new UpdateProfileRequest
+        {
+            VideoGameTimeFontSize = 20,
+            VideoUseShadowDecals = false,
+        };
+
+        GameSettingsMapper.UpdateFromRequest(profile, updateRequest);
+
+        Assert.Equal(20, profile.VideoGameTimeFontSize);
+        Assert.False(profile.VideoUseShadowDecals);
+
+        // Untouched fields in update request retain original values
+        Assert.True(profile.VideoDrawScrollAnchor);
+        Assert.False(profile.VideoBuildingOcclusion);
     }
 }

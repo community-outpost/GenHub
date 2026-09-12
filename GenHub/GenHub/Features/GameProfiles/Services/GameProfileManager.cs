@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Messaging;
+using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -144,7 +145,7 @@ public class GameProfileManager(
 
                 // Load existing Options.ini settings only if they weren't explicitly provided in the request
                 // This ensures we still have a baseline for unset fields but respect wizard selections.
-                await LoadExistingSettingsIntoProfileAsync(profile, gameClient.GameType);
+                await LoadExistingSettingsIntoProfileAsync(profile, gameClient.GameType, cancellationToken);
 
                 // Re-apply request settings over the loaded ones (in case LoadExistingSettingsIntoProfileAsync overwrote them)
                 GameSettingsMapper.PatchGameProfile(profile, request);
@@ -430,7 +431,10 @@ public class GameProfileManager(
     /// Loads existing Options.ini settings and populates the profile with them.
     /// This ensures new profiles inherit existing game settings.
     /// </summary>
-    private async Task LoadExistingSettingsIntoProfileAsync(GameProfile profile, Core.Models.Enums.GameType gameType)
+    private async Task LoadExistingSettingsIntoProfileAsync(
+        GameProfile profile,
+        Core.Models.Enums.GameType gameType,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -449,6 +453,18 @@ public class GameProfileManager(
             else
             {
                 logger.LogDebug("No existing Options.ini found for {GameType}, profile {ProfileName} will use defaults", gameType, profile.Name);
+            }
+
+            // If this is a GeneralsOnline profile, also inherit existing settings.json settings
+            if (profile.IsGeneralsOnlineProfile())
+            {
+                logger.LogDebug("Loading existing GeneralsOnline settings.json to populate new profile {ProfileName}", profile.Name);
+                var goLoadResult = await gameSettingsService.LoadGeneralsOnlineSettingsAsync(cancellationToken);
+                if (goLoadResult.Success && goLoadResult.Data != null)
+                {
+                    GameSettingsMapper.ApplyFromGeneralsOnlineSettings(goLoadResult.Data, profile);
+                    logger.LogInformation("Populated profile {ProfileName} with existing GeneralsOnline settings", profile.Name);
+                }
             }
         }
         catch (Exception ex)
