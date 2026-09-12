@@ -1279,6 +1279,59 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that ToggleSubscriptionTrustCommand ignores verified publishers and prevents execution.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ToggleSubscriptionTrustCommand_VerifiedSubscription_CannotExecuteAndDoesNotModifyAsync()
+    {
+        // Arrange
+        var mockSubStore = new Mock<IPublisherSubscriptionStore>();
+        var sub = new PublisherSubscription { PublisherId = "pub_verified", PublisherName = "Verified Pub", TrustLevel = TrustLevel.Verified };
+
+        var viewModel = CreateViewModel(subscriptionStore: mockSubStore.Object);
+        viewModel.Subscriptions.Add(sub);
+
+        // Act & Assert CanExecute
+        Assert.False(viewModel.ToggleSubscriptionTrustCommand.CanExecute(sub));
+
+        await viewModel.ToggleSubscriptionTrustCommand.ExecuteAsync(sub);
+
+        // Assert
+        Assert.Equal(TrustLevel.Verified, sub.TrustLevel);
+        mockSubStore.Verify(s => s.UpdateTrustLevelAsync(It.IsAny<string>(), It.IsAny<TrustLevel>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that ShowNoSubscriptions accurately reflects subscription list and loading status.
+    /// </summary>
+    [Fact]
+    public void ShowNoSubscriptions_ReflectsLoadingAndCollectionState()
+    {
+        // Arrange
+        var viewModel = CreateViewModel();
+
+        // Initially empty and not loading
+        Assert.True(viewModel.ShowNoSubscriptions);
+
+        // While loading, empty message is suppressed
+        viewModel.IsLoadingSubscriptions = true;
+        Assert.False(viewModel.ShowNoSubscriptions);
+
+        viewModel.IsLoadingSubscriptions = false;
+        Assert.True(viewModel.ShowNoSubscriptions);
+
+        // Adding subscription hides message
+        var sub = new PublisherSubscription { PublisherId = "p1", PublisherName = "Publisher 1" };
+        viewModel.Subscriptions.Add(sub);
+        Assert.False(viewModel.ShowNoSubscriptions);
+
+        // Removing subscription restores message
+        viewModel.Subscriptions.Remove(sub);
+        Assert.True(viewModel.ShowNoSubscriptions);
+    }
+
+    /// <summary>
     /// Verifies that RefreshAllCatalogsCommand invokes catalog refresh service.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
