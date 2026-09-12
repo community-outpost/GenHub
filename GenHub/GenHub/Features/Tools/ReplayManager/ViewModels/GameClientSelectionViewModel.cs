@@ -541,7 +541,7 @@ public sealed partial class GameClientSelectionViewModel(
     {
         CompatibleCount = _allClients.Count(c => c.IsCrcMatch);
         HasCompatibleCrcClients = CompatibleCount > 0;
-        ShowAllClients = !HasCompatibleCrcClients;
+        ShowAllClients = false;
     }
 
     private async Task DiscoverManifestClientsAsync(
