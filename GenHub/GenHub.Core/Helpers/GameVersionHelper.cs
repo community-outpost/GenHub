@@ -23,7 +23,7 @@ public static partial class GameVersionHelper
         }
 
         // Try extracting an 8-digit date pattern first (e.g., "2025-11-07", "weekly-2025-11-21", "1.20260116")
-        var dateMatch = Regex.Match(version, @"\b(\d{4})[-_.]?(\d{2})[-_.]?(\d{2})\b", RegexOptions.None, TimeSpan.FromSeconds(1));
+        var dateMatch = EightDigitDateRegex().Match(version);
         if (dateMatch.Success && int.TryParse($"{dateMatch.Groups[1].Value}{dateMatch.Groups[2].Value}{dateMatch.Groups[3].Value}", NumberStyles.Integer, CultureInfo.InvariantCulture, out var dateVal))
         {
             return dateVal;
@@ -130,7 +130,7 @@ public static partial class GameVersionHelper
 
     /// <summary>
     /// Builds the numeric version component of a Generals Online manifest ID.
-    /// Converts "101525_QFE2" to 1015252.
+    /// Converts "101525_QFE2" to 1015252, and "082826" to 828260.
     /// </summary>
     /// <remarks>
     /// This value identifies a release inside an existing manifest ID; it is not a sort key.
@@ -149,25 +149,33 @@ public static partial class GameVersionHelper
 
         // Preserve the exact legacy behavior used to generate installed manifest IDs.
         // Extended versions previously fell through to digit extraction, so this encoder
-        // intentionally accepts only the original two-segment format.
+        // intentionally accepts the original two-segment format or single-segment day releases.
         var parts = version.Split(
             '_',
             StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length != 2)
+        if (parts.Length != 1 && parts.Length != 2)
         {
             return ExtractVersionFromVersionString(version);
         }
 
         var datePart = parts[0];
-        var qfePart = parts[1];
-        var hasQfePrefix = qfePart.StartsWith("QFE", StringComparison.OrdinalIgnoreCase);
-        var qfeDigits = hasQfePrefix ? qfePart[3..] : string.Empty;
+        var qfe = 0;
+        if (parts.Length == 2)
+        {
+            var qfePart = parts[1];
+            var hasQfePrefix = qfePart.StartsWith("QFE", StringComparison.OrdinalIgnoreCase);
+            var qfeDigits = hasQfePrefix ? qfePart[3..] : string.Empty;
+
+            if (qfeDigits.Length == 0
+                || !qfeDigits.All(character => character is >= '0' and <= '9')
+                || !int.TryParse(qfeDigits, NumberStyles.None, CultureInfo.InvariantCulture, out qfe))
+            {
+                return ExtractVersionFromVersionString(version);
+            }
+        }
 
         if (datePart.Length != 6
             || !datePart.All(character => character is >= '0' and <= '9')
-            || qfeDigits.Length == 0
-            || !qfeDigits.All(character => character is >= '0' and <= '9')
-            || !int.TryParse(qfeDigits, NumberStyles.None, CultureInfo.InvariantCulture, out var qfe)
             || !DateOnly.TryParseExact(datePart, "MMddyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
         {
             return ExtractVersionFromVersionString(version);
@@ -220,6 +228,32 @@ public static partial class GameVersionHelper
 
         return result;
     }
+
+    /// <summary>
+    /// Strips a leading 'v' or 'V' character from a version or tag string if present.
+    /// </summary>
+    /// <param name="tag">The version or tag string.</param>
+    /// <returns>The string without the leading version prefix.</returns>
+    public static string StripVersionPrefix(string? tag)
+    {
+        if (string.IsNullOrWhiteSpace(tag))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = tag.Trim();
+        if ((trimmed.StartsWith('v') || trimmed.StartsWith('V')) &&
+            trimmed.Length > 1 &&
+            char.IsDigit(trimmed[1]))
+        {
+            return trimmed[1..];
+        }
+
+        return trimmed;
+    }
+
+    [GeneratedRegex(@"\b(\d{4})[-_.]?(\d{2})[-_.]?(\d{2})\b", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex EightDigitDateRegex();
 
     [GeneratedRegex(@"\D")]
     private static partial Regex NonDigitRegex();

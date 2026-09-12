@@ -1,18 +1,21 @@
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Interfaces.Providers;
-using GenHub.Core.Models.Content;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Providers;
-using GenHub.Core.Models.Results;
-using GenHub.Core.Models.Results.Content;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using AngleSharp;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GeneralsOnline;
+using GenHub.Core.Models.Providers;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Info.Services;
+using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.GeneralsOnline;
 
@@ -24,8 +27,28 @@ public class GeneralsOnlineDiscoverer(
     ILogger<GeneralsOnlineDiscoverer> logger,
     IProviderDefinitionLoader providerLoader,
     ICatalogParserFactory catalogParserFactory,
-    IHttpClientFactory httpClientFactory) : IContentDiscoverer
+    IHttpClientFactory httpClientFactory,
+    IGeneralsOnlinePatchNotesService? patchNotesService) : IContentDiscoverer
 {
+    private const string BaseUrl = GeneralsOnlineConstants.WebsiteUrl;
+    private const string DefaultPatchNotesUrl = GeneralsOnlineConstants.PatchNotesUrl;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GeneralsOnlineDiscoverer"/> class without patch notes service.
+    /// </summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="providerLoader">The provider definition loader.</param>
+    /// <param name="catalogParserFactory">The catalog parser factory.</param>
+    /// <param name="httpClientFactory">The HTTP client factory.</param>
+    public GeneralsOnlineDiscoverer(
+        ILogger<GeneralsOnlineDiscoverer> logger,
+        IProviderDefinitionLoader providerLoader,
+        ICatalogParserFactory catalogParserFactory,
+        IHttpClientFactory httpClientFactory)
+        : this(logger, providerLoader, catalogParserFactory, httpClientFactory, null)
+    {
+    }
+
     /// <inheritdoc />
     public string SourceName => GeneralsOnlineConstants.PublisherType;
 
@@ -120,6 +143,13 @@ public class GeneralsOnlineDiscoverer(
             }
 
             var list = results.ToList();
+
+            // Step 5: Enrich releases with patch notes
+            foreach (var item in list)
+            {
+                await EnrichWithPatchNotesAsync(item, provider, cancellationToken);
+            }
+
             return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
             {
                 Items = list,
@@ -132,6 +162,108 @@ public class GeneralsOnlineDiscoverer(
             logger.LogError(ex, "Failed to discover Generals Online releases");
             return OperationResult<ContentDiscoveryResult>.CreateFailure(
                 $"Discovery failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Enriches a discovered release with formatted patch notes if needed.
+    /// </summary>
+    private async Task EnrichWithPatchNotesAsync(
+        ContentSearchResult item,
+        ProviderDefinition provider,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var release = item.GetData<GeneralsOnlineRelease>();
+            var version = release?.Version ?? item.Version;
+            if (string.IsNullOrWhiteSpace(version))
+            {
+                return;
+            }
+
+            var changelog = release?.Changelog;
+            var needsPatchNotes = string.IsNullOrWhiteSpace(changelog) ||
+                changelog.Equals("www.playgenerals.online", StringComparison.OrdinalIgnoreCase) ||
+                changelog.StartsWith("http", StringComparison.OrdinalIgnoreCase) ||
+                changelog.Equals($"Generals Online {version}", StringComparison.OrdinalIgnoreCase);
+
+            if (!needsPatchNotes)
+            {
+                return;
+            }
+
+            string? notes = null;
+            if (patchNotesService != null)
+            {
+                notes = await patchNotesService.GetPatchNotesFormattedAsync(version, cancellationToken);
+            }
+
+            if (string.IsNullOrWhiteSpace(notes))
+            {
+                notes = await FetchDirectPatchNotesAsync(version, provider, cancellationToken);
+            }
+
+            if (!string.IsNullOrWhiteSpace(notes))
+            {
+                item.Description = notes;
+                if (release != null)
+                {
+                    var updatedRelease = new GeneralsOnlineRelease
+                    {
+                        Version = release.Version,
+                        VersionDate = release.VersionDate,
+                        ReleaseDate = release.ReleaseDate,
+                        PortableUrl = release.PortableUrl,
+                        PortableSize = release.PortableSize,
+                        Sha256 = release.Sha256,
+                        Changelog = notes,
+                    };
+                    item.SetData(updatedRelease);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogDebug(ex, "Could not enrich release with patch notes");
+        }
+    }
+
+    /// <summary>
+    /// Directly fetches and parses patch notes HTML for the given version as a fallback.
+    /// </summary>
+    private async Task<string?> FetchDirectPatchNotesAsync(
+        string version,
+        ProviderDefinition provider,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var datePart = version.Split('_', StringSplitOptions.TrimEntries)[0];
+            if (datePart.Length != 6 || !datePart.All(char.IsAsciiDigit))
+            {
+                return null;
+            }
+
+            var patchNotesBaseUrl = provider.Endpoints.GetEndpoint("patchNotesUrl") ?? DefaultPatchNotesUrl;
+            var url = $"{patchNotesBaseUrl.TrimEnd('/')}/{datePart}";
+
+            using var httpClient = httpClientFactory.CreateClient(GeneralsOnlineConstants.PublisherType);
+            httpClient.Timeout = TimeSpan.FromSeconds(15);
+            httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(ApiConstants.BrowserUserAgent);
+            httpClient.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8");
+            httpClient.DefaultRequestHeaders.Add("Referer", BaseUrl);
+
+            var html = await httpClient.GetStringAsync(url, cancellationToken);
+            var context = BrowsingContext.New(Configuration.Default);
+            var document = await context.OpenAsync(req => req.Content(html), cancellationToken);
+
+            return GeneralsOnlinePatchNotesService.FormatPatchNotesDocument(document, datePart);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogDebug(ex, "Failed direct patch notes fetch for version {Version}", version);
+            return null;
         }
     }
 

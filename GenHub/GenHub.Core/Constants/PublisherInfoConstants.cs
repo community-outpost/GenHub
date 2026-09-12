@@ -1,4 +1,6 @@
+using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Constants;
@@ -10,6 +12,24 @@ namespace GenHub.Core.Constants;
 [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized URI constants / mock demo paths")]
 public static class PublisherInfoConstants
 {
+    /// <summary>
+    /// Default icon source for general GenHub publishers and fallback views.
+    /// </summary>
+    public const string DefaultGenHubIconSource = "avares://GenHub/Assets/Icons/generalshub-icon.png";
+
+    private static readonly (string[] Keywords, string LogoSource)[] LogoRules =
+    [
+        (["communityoutpost", "community outpost", "community-outpost"], CommunityOutpost.LogoSource),
+        (["superhacker"], TheSuperHackers.LogoSource),
+        (["generalsonline", "generals online", "generals-online"], GeneralsOnline.LogoSource),
+        (["moddb", "mod db", "mod-db"], ModDB.LogoSource),
+        (["cnclabs", "cnc labs", "cnc-labs"], CNCLabs.LogoSource),
+        (["aodmaps", "aod maps", "aod-maps"], AODMaps.LogoSource),
+        (["genhublocal", "genhub local"], GenHubLocal.LogoSource),
+        (["lutris"], Lutris.LogoSource),
+        (["github"], GitHub.LogoSource),
+    ];
+
     /// <summary>
     /// Publisher information for Steam.
     /// </summary>
@@ -119,6 +139,42 @@ public static class PublisherInfoConstants
     }
 
     /// <summary>
+    /// Publisher information for Lutris.
+    /// </summary>
+    public static class Lutris
+    {
+        /// <summary>Display name for Lutris publisher.</summary>
+        public const string Name = "Lutris";
+
+        /// <summary>Website URL for Lutris.</summary>
+        public const string Website = "https://lutris.net";
+
+        /// <summary>Support URL for Lutris.</summary>
+        public const string SupportUrl = "https://forums.lutris.net";
+
+        /// <summary>Logo source for Lutris.</summary>
+        public const string LogoSource = DefaultGenHubIconSource;
+    }
+
+    /// <summary>
+    /// Publisher information for GenHub Local.
+    /// </summary>
+    public static class GenHubLocal
+    {
+        /// <summary>Display name for GenHub Local publisher.</summary>
+        public const string Name = "GenHub Local";
+
+        /// <summary>Website URL for GenHub Local.</summary>
+        public const string Website = "https://github.com/community-outpost/GenHub";
+
+        /// <summary>Support URL for GenHub Local.</summary>
+        public const string SupportUrl = "https://github.com/community-outpost/GenHub/issues";
+
+        /// <summary>Logo source for GenHub Local.</summary>
+        public const string LogoSource = DefaultGenHubIconSource;
+    }
+
+    /// <summary>
     /// Publisher information for Generals Online.
     /// </summary>
     public static class GeneralsOnline
@@ -145,10 +201,10 @@ public static class PublisherInfoConstants
         public const string Name = "TheSuperHackers";
 
         /// <summary>Website URL for TheSuperHackers.</summary>
-        public const string Website = ""; // TODO: Add website
+        public const string Website = "https://github.com/thesuperhackers";
 
         /// <summary>Support URL for TheSuperHackers.</summary>
-        public const string SupportUrl = "";
+        public const string SupportUrl = "https://github.com/thesuperhackers/GeneralsGameCode/issues";
 
         /// <summary>Logo source for TheSuperHackers.</summary>
         public const string LogoSource = "avares://GenHub/Assets/Logos/thesuperhackers-logo.png";
@@ -163,10 +219,10 @@ public static class PublisherInfoConstants
         public const string Name = "CommunityOutpost";
 
         /// <summary>Website URL for Community Outpost.</summary>
-        public const string Website = ""; // TODO: Add website
+        public const string Website = "https://legi.cc";
 
         /// <summary>Support URL for Community Outpost.</summary>
-        public const string SupportUrl = "";
+        public const string SupportUrl = "https://legi.cc/patch";
 
         /// <summary>Logo source for Community Outpost.</summary>
         public const string LogoSource = "avares://GenHub/Assets/Logos/communityoutpost-logo.png";
@@ -253,7 +309,25 @@ public static class PublisherInfoConstants
         public const string Name = "All Publishers";
 
         /// <summary>Logo source for All Publishers view.</summary>
-        public const string LogoSource = "avares://GenHub/Assets/Icons/generalshub-icon.png";
+        public const string LogoSource = DefaultGenHubIconSource;
+    }
+
+    /// <summary>
+    /// Publisher information for Unknown/Other publishers.
+    /// </summary>
+    public static class Unknown
+    {
+        /// <summary>Display name for Unknown publisher.</summary>
+        public const string Name = "Unknown";
+
+        /// <summary>Website URL for Unknown.</summary>
+        public const string Website = "about:blank";
+
+        /// <summary>Support URL for Unknown.</summary>
+        public const string SupportUrl = "about:blank";
+
+        /// <summary>Logo source for Unknown.</summary>
+        public const string LogoSource = DefaultGenHubIconSource;
     }
 
     /// <summary>
@@ -271,7 +345,47 @@ public static class PublisherInfoConstants
             GameInstallationType.Wine => (Wine.Name, Wine.Website, Wine.SupportUrl),
             GameInstallationType.CDISO => (CdIso.Name, CdIso.Website, CdIso.SupportUrl),
             GameInstallationType.Retail => (Retail.Name, Retail.Website, Retail.SupportUrl),
-            _ => (Retail.Name, Retail.Website, Retail.SupportUrl), // Default to retail
+            GameInstallationType.Lutris => (Lutris.Name, Lutris.Website, Lutris.SupportUrl),
+            GameInstallationType.Custom => (GenHubLocal.Name, GenHubLocal.Website, GenHubLocal.SupportUrl),
+            _ => (Unknown.Name, Unknown.Website, Unknown.SupportUrl),
         };
+    }
+
+    /// <summary>
+    /// Gets the logo source URI for a publisher or content item based on publisher ID, provider name, or title.
+    /// </summary>
+    /// <param name="publisherIdOrName">The publisher ID or provider display name.</param>
+    /// <param name="contentIdOrName">The content ID, title, or manifest ID context.</param>
+    /// <returns>An avares:// URI string pointing to the logo image asset, or null if unmapped.</returns>
+    public static string? GetPublisherLogo(string? publisherIdOrName, string? contentIdOrName = null)
+    {
+        var primary = MatchLogo(publisherIdOrName);
+        var secondary = MatchLogo(contentIdOrName);
+
+        // If primary matched generic GitHub, but secondary matched a specific publisher, prefer the specific publisher
+        if (primary == GitHub.LogoSource && secondary != null && secondary != GitHub.LogoSource)
+        {
+            return secondary;
+        }
+
+        return primary ?? secondary;
+    }
+
+    private static string? MatchLogo(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return null;
+        }
+
+        foreach (var (keywords, logoSource) in LogoRules)
+        {
+            if (keywords.Any(keyword => input.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
+            {
+                return logoSource;
+            }
+        }
+
+        return null;
     }
 }

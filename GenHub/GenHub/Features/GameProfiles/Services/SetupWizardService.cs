@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -33,6 +34,11 @@ public class SetupWizardService(
     IContentManifestPool manifestPool,
     ILogger<SetupWizardService> logger) : ISetupWizardService
 {
+    /// <summary>
+    /// Gets or sets an optional hook for showing the wizard dialog, primarily used in unit tests to simulate user interaction.
+    /// </summary>
+    internal Func<SetupWizardViewModel, Task<bool>>? DialogShower { get; set; }
+
     /// <inheritdoc/>
     public async Task<SetupWizardResult> RunSetupWizardAsync(IEnumerable<GameInstallation> installations, CancellationToken cancellationToken = default)
     {
@@ -95,8 +101,21 @@ public class SetupWizardService(
                     return (true, GameClientConstants.WizardActionTypes.Decline);
                 }
 
-                logger.LogInformation("[SetupWizard] Managed up-to-date manifest found for {Title} ({Version}), but profile missing. Creating profile.", title, latestVersion);
-                return (true, GameClientConstants.WizardActionTypes.CreateProfile);
+                logger.LogInformation("[SetupWizard] Managed up-to-date manifest found for {Title} ({Version}), but profile missing. Showing in wizard to create profile.", title, latestVersion);
+                var downloadedItem = new SetupWizardItemViewModel
+                {
+                    Title = title,
+                    Status = GameClientConstants.WizardStatuses.Downloaded,
+                    Description = FormatCreateProfileDescription(title, latestVersion),
+                    ActionLabel = GameClientConstants.WizardActionLabels.CreateProfile,
+                    ActionType = GameClientConstants.WizardActionTypes.CreateProfile,
+                    IsSelected = true,
+                    IconPath = iconPath,
+                    Metadata = metadata,
+                    Version = latestVersion,
+                };
+                wizardItems.Add(downloadedItem);
+                return (false, downloadedItem.ActionType);
             }
 
             // Also check unmanaged clients from installations in case an unmanaged client is managed/has ID
@@ -116,8 +135,21 @@ public class SetupWizardService(
                     return (true, GameClientConstants.WizardActionTypes.Decline);
                 }
 
-                logger.LogInformation("[SetupWizard] Up-to-date client found in installations for {Title} ({Version}), profile missing. Creating profile.", title, latestVersion);
-                return (true, GameClientConstants.WizardActionTypes.CreateProfile);
+                logger.LogInformation("[SetupWizard] Up-to-date client found in installations for {Title} ({Version}), profile missing. Showing in wizard to create profile.", title, latestVersion);
+                var detectedItem = new SetupWizardItemViewModel
+                {
+                    Title = title,
+                    Status = GameClientConstants.WizardStatuses.Detected,
+                    Description = FormatCreateProfileDescription(title, latestVersion),
+                    ActionLabel = GameClientConstants.WizardActionLabels.CreateProfile,
+                    ActionType = GameClientConstants.WizardActionTypes.CreateProfile,
+                    IsSelected = true,
+                    IconPath = iconPath,
+                    Metadata = metadata,
+                    Version = latestVersion,
+                };
+                wizardItems.Add(detectedItem);
+                return (false, detectedItem.ActionType);
             }
 
             // 3. Check if any profiles exist for this component (managed or unmanaged)
@@ -145,7 +177,9 @@ public class SetupWizardService(
             }
 
             var isDetected = componentGlobal.Count > 0;
-            var isInstalled = managedManifests.Count > 0 || anyProfileExists;
+            var displayVersion = !string.IsNullOrEmpty(latestVersion) && latestVersion != GameClientConstants.UnknownVersion
+                ? latestVersion
+                : (managedManifests.FirstOrDefault()?.Version ?? latestVersion);
 
             // Construct Wizard Item
             var item = new SetupWizardItemViewModel
@@ -154,32 +188,42 @@ public class SetupWizardService(
                 IsSelected = true,
                 IconPath = iconPath,
                 Metadata = metadata,
-                Version = latestVersion,
+                Version = displayVersion,
             };
 
-            if (isInstalled)
+            if (anyProfileExists)
             {
-                // Profile or older managed manifest exists, but it is not the latest managed version
-                item.Status = "Installed";
-                item.Description = $"Update existing {title} profiles to {latestVersion}.";
-                item.ActionLabel = "Update / Reinstall";
+                // Profile exists, but it is not the latest managed version
+                item.Status = GameClientConstants.WizardStatuses.Installed;
+                item.Description = FormatUpdateProfileDescription(title, displayVersion);
+                item.ActionLabel = GameClientConstants.WizardActionLabels.UpdateReinstall;
                 item.ActionType = GameClientConstants.WizardActionTypes.Update;
                 item.IsSelected = false;
+            }
+            else if (managedManifests.Count > 0)
+            {
+                // Content downloaded in pool, but no profile exists
+                item.Status = GameClientConstants.WizardStatuses.Downloaded;
+                item.Description = FormatCreateProfileDescription(title, displayVersion);
+                item.ActionLabel = GameClientConstants.WizardActionLabels.CreateProfile;
+                item.ActionType = GameClientConstants.WizardActionTypes.CreateProfile;
+                item.IsSelected = true;
             }
             else if (isDetected)
             {
                 // Unmanaged files detected but no profile
-                item.Status = "Detected";
-                item.Description = $"Detected installed {title}. Install managed {latestVersion} and create profiles?";
-                item.ActionLabel = "Download & Install";
-                item.ActionType = GameClientConstants.WizardActionTypes.CreateProfile;
+                item.Status = GameClientConstants.WizardStatuses.Detected;
+                item.Description = FormatDetectedInstallDescription(title, latestVersion);
+                item.ActionLabel = GameClientConstants.WizardActionLabels.DownloadAndInstall;
+                item.ActionType = GameClientConstants.WizardActionTypes.Install;
+                item.IsSelected = true;
             }
             else
             {
                 // Nothing found at all
-                item.Status = "Missing";
+                item.Status = GameClientConstants.WizardStatuses.Missing;
                 item.Description = missingDescription;
-                item.ActionLabel = "Download & Install";
+                item.ActionLabel = GameClientConstants.WizardActionLabels.DownloadAndInstall;
                 item.ActionType = GameClientConstants.WizardActionTypes.Install;
                 item.IsSelected = title == "Community Patch"; // Defaults
             }
@@ -227,22 +271,29 @@ public class SetupWizardService(
         if (wizardItems.Count > 0)
         {
             var wizardVm = new SetupWizardViewModel(wizardItems);
-            var mainWindow = GetMainWindow();
-            if (mainWindow != null)
+            if (DialogShower != null)
             {
-                var wizardView = new SetupWizardView
-                {
-                    DataContext = wizardVm,
-                };
-
-                await wizardView.ShowDialog(mainWindow);
-
-                result.Confirmed = wizardVm.Confirmed;
+                result.Confirmed = await DialogShower(wizardVm);
             }
             else
             {
-                logger.LogWarning("Could not resolve MainWindow for Setup Wizard.");
-                result.Confirmed = false;
+                var mainWindow = GetMainWindow();
+                if (mainWindow != null)
+                {
+                    var wizardView = new SetupWizardView
+                    {
+                        DataContext = wizardVm,
+                    };
+
+                    await wizardView.ShowDialog(mainWindow);
+
+                    result.Confirmed = wizardVm.Confirmed;
+                }
+                else
+                {
+                    logger.LogWarning("Could not resolve MainWindow for Setup Wizard.");
+                    result.Confirmed = false;
+                }
             }
         }
         else
@@ -269,6 +320,15 @@ public class SetupWizardService(
 
         return result;
     }
+
+    private static string FormatCreateProfileDescription(string title, string version) =>
+        string.Format(CultureInfo.InvariantCulture, GameClientConstants.WizardDescriptionTemplates.CreateProfileFormat, title, version);
+
+    private static string FormatUpdateProfileDescription(string title, string version) =>
+        string.Format(CultureInfo.InvariantCulture, GameClientConstants.WizardDescriptionTemplates.UpdateProfileFormat, title, version);
+
+    private static string FormatDetectedInstallDescription(string title, string version) =>
+        string.Format(CultureInfo.InvariantCulture, GameClientConstants.WizardDescriptionTemplates.DetectedInstallFormat, title, version);
 
     private static Window? GetMainWindow()
     {

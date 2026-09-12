@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using GenHub;
+using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using Microsoft.Extensions.Logging;
@@ -43,19 +44,16 @@ public sealed class ImageCacheService : IImageCacheService
     {
         get
         {
-            if (instance == null)
+            lock (InstanceLock)
             {
-                lock (InstanceLock)
+                if (instance == null)
                 {
-                    if (instance == null)
-                    {
-                        var resolved = AppLocator.GetServiceOrDefault<IImageCacheService>();
-                        instance = resolved ?? new ImageCacheService();
-                    }
+                    var resolved = AppLocator.GetServiceOrDefault<IImageCacheService>();
+                    instance = resolved ?? new ImageCacheService();
                 }
-            }
 
-            return instance;
+                return instance;
+            }
         }
 
         set
@@ -127,9 +125,11 @@ public sealed class ImageCacheService : IImageCacheService
             var appDataPath = configurationProvider?.GetApplicationDataPath();
             if (string.IsNullOrWhiteSpace(appDataPath))
             {
-                appDataPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "GenHub");
+                appDataPath = StorageMigrationService.IsCustomInstallRoot()
+                    ? StorageMigrationService.GetSourceRootDirectory()
+                    : Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                        AppConstants.AppName);
             }
 
             cacheDirectory = Path.Combine(appDataPath, "Images");
@@ -867,7 +867,7 @@ public sealed class ImageCacheService : IImageCacheService
         using var ms = new MemoryStream();
         var buffer = new byte[81920];
         long totalBytesRead = 0;
-        int read;
+        int read = 0;
 
         while ((read = await responseStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false)) > 0)
         {

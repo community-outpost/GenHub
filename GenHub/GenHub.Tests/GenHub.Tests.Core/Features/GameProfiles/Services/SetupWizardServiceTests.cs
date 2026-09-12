@@ -6,6 +6,8 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -14,6 +16,7 @@ using GenHub.Features.Content.Services.CommunityOutpost;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Content.Services.Publishers;
 using GenHub.Features.GameProfiles.Services;
+using GenHub.Features.GameProfiles.ViewModels.Wizard;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
@@ -100,11 +103,11 @@ public class SetupWizardServiceTests
 
     /// <summary>
     /// Verifies that when a managed client manifest is up-to-date in the pool but its profile is missing,
-    /// the setup wizard auto-accepts CreateProfile without prompting the user.
+    /// the setup wizard displays it as Downloaded with action Create Profile, and confirms profile creation.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task RunSetupWizardAsync_WhenManagedClientUpToDateAndProfileMissing_AutoAcceptsCreateProfileAsync()
+    public async Task RunSetupWizardAsync_WhenManagedClientUpToDateAndProfileMissing_ShowsInWizardAsCreateProfileAsync()
     {
         // Arrange
         const string latestVersion = "082826_QFE1";
@@ -140,10 +143,92 @@ public class SetupWizardServiceTests
 
         var service = CreateService();
 
+        SetupWizardViewModel? capturedVm = null;
+        service.DialogShower = vm =>
+        {
+            capturedVm = vm;
+            vm.ConfirmCommand.Execute(null);
+            return Task.FromResult(true);
+        };
+
         // Act
         var result = await service.RunSetupWizardAsync([], CancellationToken.None);
 
-        // Assert: Up-to-date manifest found in pool, profile missing -> auto-accept CreateProfile
+        // Assert: Generals Online was shown in wizard with Create Profile action
+        Assert.NotNull(capturedVm);
+        var goItem = capturedVm.Items.FirstOrDefault(i => i.Title == "Generals Online");
+        Assert.NotNull(goItem);
+        Assert.Equal(GameClientConstants.WizardStatuses.Downloaded, goItem.Status);
+        Assert.Equal(GameClientConstants.WizardActionLabels.CreateProfile, goItem.ActionLabel);
+        Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, goItem.ActionType);
+        Assert.True(goItem.IsSelected);
+        Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, result.GeneralsOnlineAction);
+    }
+
+    /// <summary>
+    /// Verifies that when an up-to-date client is found in an installation but its profile is missing,
+    /// the setup wizard displays it as Detected with action Create Profile, and confirms profile creation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RunSetupWizardAsync_WhenInstalledClientUpToDateAndProfileMissing_ShowsInWizardAsCreateProfileAsync()
+    {
+        // Arrange
+        const string latestVersion = "082826_QFE1";
+        const string clientId = "installed.generalsonline.client";
+
+        _goDiscovererMock
+            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items = [new ContentSearchResult { Version = latestVersion }],
+            }));
+
+        _cpDiscovererMock
+            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [] }));
+
+        // Manifest pool has no up-to-date manifests
+        _manifestPoolMock
+            .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        var installation = new GameInstallation("C:\\Games\\Generals", GameInstallationType.Retail, null);
+        var client = new GameClient
+        {
+            Id = clientId,
+            InstallationId = installation.Id,
+            Name = "Generals Online",
+            PublisherType = PublisherTypeConstants.GeneralsOnline,
+            Version = latestVersion,
+        };
+        installation.AvailableGameClients = [client];
+
+        _profileServiceMock
+            .Setup(s => s.ProfileExistsForGameClientAsync(clientId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var service = CreateService();
+
+        SetupWizardViewModel? capturedVm = null;
+        service.DialogShower = vm =>
+        {
+            capturedVm = vm;
+            vm.ConfirmCommand.Execute(null);
+            return Task.FromResult(true);
+        };
+
+        // Act
+        var result = await service.RunSetupWizardAsync([installation], CancellationToken.None);
+
+        // Assert: Generals Online was shown in wizard with Status "Detected" and "Create Profile" action
+        Assert.NotNull(capturedVm);
+        var goItem = capturedVm.Items.FirstOrDefault(i => i.Title == "Generals Online");
+        Assert.NotNull(goItem);
+        Assert.Equal(GameClientConstants.WizardStatuses.Detected, goItem.Status);
+        Assert.Equal(GameClientConstants.WizardActionLabels.CreateProfile, goItem.ActionLabel);
+        Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, goItem.ActionType);
+        Assert.True(goItem.IsSelected);
         Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, result.GeneralsOnlineAction);
     }
 

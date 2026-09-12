@@ -299,6 +299,7 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
                 ProviderName = provider.PublisherType,
                 AuthorName = provider.DisplayName,
                 SourceUrl = preferredUrl,
+                IconUrl = CommunityOutpostConstants.LogoSource,
                 DownloadSize = item.FileSize,
                 RequiresResolution = true,
                 ResolverId = provider.ProviderId,
@@ -333,6 +334,22 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
                 .ToList();
             result.ResolverMetadata[CommunityOutpostCatalogConstants.MirrorUrlsKey] = JsonSerializer.Serialize(absoluteUrls);
             result.ResolverMetadata[CommunityOutpostCatalogConstants.MirrorsKey] = string.Join(", ", item.Mirrors.Select(m => m.Name));
+
+            // Populate variant options for content types that support variants (e.g. Control Bar Pro resolutions, Hotkeys languages)
+            if (metadata.SupportsVariants && metadata.Variants is { Count: > 0 })
+            {
+                result.VariantFamilyName = metadata.DisplayName;
+                result.VariantGroupId = $"communityoutpost.{contentType}.{item.ContentCode.ToLowerInvariant()}";
+                result.Variants = metadata.Variants.Select(v => new ContentVariantInfo
+                {
+                    Id = v.Id,
+                    Name = v.Name,
+                    VariantType = v.VariantType,
+                    ManifestId = $"1.0.{publisherName}.{contentType}.{item.ContentCode.ToLowerInvariant()}-{v.Id}",
+                    IsDefault = v.IsDefault,
+                    TargetGame = v.TargetGame ?? metadata.TargetGame,
+                }).ToList();
+            }
 
             logger.LogDebug(
                 "Created ContentSearchResult for {Code}: {Name} ({ContentType}, {Game})",

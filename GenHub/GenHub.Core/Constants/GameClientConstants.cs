@@ -18,6 +18,9 @@ public static class GameClientConstants
     /// <summary>Game engine executable filename.</summary>
     public const string GameExecutable = "game.exe";
 
+    /// <summary>Child game process name (without extension).</summary>
+    public const string GameProcessName = "game";
+
     /// <summary>Steam game.dat executable (primary for Steam installations, avoids launcher stubs).</summary>
     public const string SteamGameDatExecutable = "game.dat";
 
@@ -63,6 +66,15 @@ public static class GameClientConstants
 
     /// <summary>Standard retail Zero Hour directory name.</summary>
     public const string ZeroHourRetailDirectoryName = "Command & Conquer Generals Zero Hour";
+
+    /// <summary>Directory marker for Zero Hour's Generals installation link.</summary>
+    public const string ZhGeneralsDirectory = "ZH_Generals";
+
+    /// <summary>Directory containing activation DLLs for modern Steam and EA App releases.</summary>
+    public const string CoreDirectory = "Core";
+
+    /// <summary>Directory marker used by Steam DRM wrapper installations.</summary>
+    public const string SteamDrmMarkerDirectory = "__Installer";
 
     // ===== Core Game Archives =====
 
@@ -159,6 +171,9 @@ public static class GameClientConstants
     /// <summary>dbghelp.dll backup filename.</summary>
     public const string DbgHelpDllBak = "dbghelp.dll.bak";
 
+    /// <summary>Direct3D 8 wrapper DLL filename.</summary>
+    public const string Direct3D8WrapperDll = "d3d8.dll";
+
     /// <summary>
     /// DLLs required for standard game installations.
     /// </summary>
@@ -207,9 +222,7 @@ public static class GameClientConstants
 
     // ===== Configuration Files =====
 
-    /// <summary>
-    /// Configuration files used by game installations.
-    /// </summary>
+    /// <summary>Configuration files used by game installations.</summary>
     public static readonly string[] ConfigFiles =
     [
         "options.ini",     // Legacy game options
@@ -263,6 +276,54 @@ public static class GameClientConstants
 
         /// <summary>No action taken.</summary>
         public const string None = "None";
+    }
+
+    /// <summary>
+    /// Status strings displayed in the Setup Wizard.
+    /// </summary>
+    public static class WizardStatuses
+    {
+        /// <summary>Installed status.</summary>
+        public const string Installed = "Installed";
+
+        /// <summary>Downloaded status.</summary>
+        public const string Downloaded = "Downloaded";
+
+        /// <summary>Detected status.</summary>
+        public const string Detected = "Detected";
+
+        /// <summary>Missing status.</summary>
+        public const string Missing = "Missing";
+    }
+
+    /// <summary>
+    /// Action button and toggle labels displayed in the Setup Wizard.
+    /// </summary>
+    public static class WizardActionLabels
+    {
+        /// <summary>Update or reinstall action label.</summary>
+        public const string UpdateReinstall = "Update / Reinstall";
+
+        /// <summary>Create profile action label.</summary>
+        public const string CreateProfile = "Create Profile";
+
+        /// <summary>Download and install action label.</summary>
+        public const string DownloadAndInstall = "Download & Install";
+    }
+
+    /// <summary>
+    /// Description format templates used in the Setup Wizard.
+    /// </summary>
+    public static class WizardDescriptionTemplates
+    {
+        /// <summary>Format string for creating a game profile: "Create game profile for {0} {1}.".</summary>
+        public const string CreateProfileFormat = "Create game profile for {0} {1}.";
+
+        /// <summary>Format string for updating existing profiles: "Update existing {0} profiles to {1}.".</summary>
+        public const string UpdateProfileFormat = "Update existing {0} profiles to {1}.";
+
+        /// <summary>Format string for detected installed component: "Detected installed {0}. Install managed {1} and create profiles?".</summary>
+        public const string DetectedInstallFormat = "Detected installed {0}. Install managed {1} and create profiles?";
     }
 
     /// <summary>

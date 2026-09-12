@@ -22,7 +22,7 @@ public class ProxyLauncher(ILogger<ProxyLauncher> logger) : BaseActionSet(logger
 {
     private const string ProxyLauncherFileName = SteamConstants.ProxyLauncherFileName;
 
-    private readonly string _markerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", ActionSetConstants.Paths.SubActionSetMarkers, "ProxyLauncher.done");
+    private readonly string _markerPath = GetMarkerPath("ProxyLauncher.done");
 
     /// <inheritdoc/>
     public override string Id => "ProxyLauncher";

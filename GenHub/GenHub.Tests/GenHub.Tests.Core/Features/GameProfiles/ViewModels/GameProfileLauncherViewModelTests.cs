@@ -417,11 +417,88 @@ public class GameProfileLauncherViewModelTests
 
         Assert.Equal("Scan complete. Found 1 installations, created 0 profiles", vm.StatusMessage);
         publisherOrchestrator.Verify(
-            x => x.CreateProfilesForPublisherClientAsync(It.IsAny<GameInstallation>(), It.IsAny<GameClient>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            x => x.CreateProfilesForPublisherClientAsync(It.IsAny<GameInstallation>(), It.IsAny<GameClient>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
             Times.Never);
         profileManager.Verify(
             x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that when the wizard returns CreateProfile for Generals Online, the publisher orchestrator is invoked with skipAcquisition true.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ScanForGamesCommand_WhenWizardReturnsCreateProfileForGeneralsOnline_CallsOrchestratorWithSkipAcquisitionAsync()
+    {
+        var installationService = new Mock<IGameInstallationService>();
+        var installation = new GameInstallation(Path.Combine("C:", "Steam", "Games"), GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object);
+        installation.PopulateGameClients([
+            new GameClient
+            {
+                Id = "base-zh",
+                Name = "Zero Hour",
+                GameType = GameType.ZeroHour,
+                InstallationId = installation.Id,
+            },
+        ]);
+        var installations = new List<GameInstallation> { installation };
+
+        installationService.Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess(installations));
+
+        var shortcutService = new Mock<IShortcutService>();
+        var notificationService = new Mock<INotificationService>();
+        var publisherOrchestrator = new Mock<IPublisherProfileOrchestrator>();
+        publisherOrchestrator
+            .Setup(x => x.CreateProfilesForPublisherClientAsync(
+                It.IsAny<GameInstallation>(),
+                It.IsAny<GameClient>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<int>.CreateSuccess(1));
+
+        var profileManager = new Mock<IGameProfileManager>();
+        var editorFacade = new Mock<IProfileEditorFacade>();
+
+        var setupWizardService = new Mock<ISetupWizardService>();
+        setupWizardService.Setup(x => x.RunSetupWizardAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SetupWizardResult
+            {
+                Confirmed = true,
+                GeneralsOnlineAction = GameClientConstants.WizardActionTypes.CreateProfile,
+            });
+
+        var vm = new GameProfileLauncherViewModel(
+            installationService.Object,
+            profileManager.Object,
+            null!,
+            null!,
+            editorFacade.Object,
+            null!,
+            null!,
+            shortcutService.Object,
+            publisherOrchestrator.Object,
+            new Mock<ISteamManifestPatcher>().Object,
+            CreateProfileResourceService(),
+            new Mock<IGameClientDetector>().Object,
+            notificationService.Object,
+            setupWizardService.Object,
+            new Mock<IDialogService>().Object,
+            NullLogger<GameProfileLauncherViewModel>.Instance);
+
+        await vm.ScanForGamesCommand.ExecuteAsync(null);
+
+        Assert.Equal("Scan complete. Found 1 installations, created 1 profiles", vm.StatusMessage);
+        publisherOrchestrator.Verify(
+            x => x.CreateProfilesForPublisherClientAsync(
+                It.Is<GameInstallation>(inst => inst == installation),
+                It.Is<GameClient>(c => c.PublisherType == PublisherTypeConstants.GeneralsOnline),
+                false,
+                true,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     /// <summary>

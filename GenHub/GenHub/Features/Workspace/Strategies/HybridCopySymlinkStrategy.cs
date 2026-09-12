@@ -82,10 +82,10 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
             cancellationToken.ThrowIfCancellationRequested();
 
             // Clean existing workspace if force recreate is requested
-            if (Directory.Exists(workspacePath) && configuration.ForceRecreate)
+            if (configuration.ForceRecreate)
             {
                 Logger.LogDebug("Removing existing workspace directory: {WorkspacePath}", workspacePath);
-                Directory.Delete(workspacePath, true);
+                FileOperationsService.DeleteDirectoryIfExists(workspacePath);
             }
 
             // Create workspace directory
@@ -247,7 +247,9 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
         {
             Logger.LogError(ex, "Failed to prepare hybrid copy-symlink workspace at {WorkspacePath}", workspacePath);
             CleanupWorkspaceOnFailure(workspacePath);
-            throw;
+            workspaceInfo.IsPrepared = false;
+            workspaceInfo.ValidationIssues.Add(new() { Message = ex.Message, Severity = Core.Models.Validation.ValidationSeverity.Error });
+            return workspaceInfo;
         }
     }
 

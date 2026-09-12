@@ -19,6 +19,9 @@ namespace GenHub.Common.Services;
 /// </summary>
 public class UserSettingsService : IUserSettingsService
 {
+    private const string FailedPreUpgradeSettingsFallbackMessage =
+        "Failed to look for pre-upgrade settings, falling back to {DefaultPath}";
+
     /// <summary>
     /// JSON serializer options for settings.
     /// </summary>
@@ -482,10 +485,35 @@ public class UserSettingsService : IUserSettingsService
                     legacyPath);
                 return legacyPath;
             }
+
+            var appDir = Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory);
+            var appSettings = Path.Combine(appDir, FileTypes.SettingsFileName);
+            if (File.Exists(appSettings) && !PathHelper.AreSamePath(appSettings, defaultPath))
+            {
+                _logger.LogInformation(
+                    "No settings file at {DefaultPath}, reading from app directory {AppSettings}",
+                    defaultPath,
+                    appSettings);
+                return appSettings;
+            }
+
+            var appParentDir = Directory.GetParent(appDir)?.FullName;
+            if (appParentDir != null)
+            {
+                var parentSettings = Path.Combine(appParentDir, FileTypes.SettingsFileName);
+                if (File.Exists(parentSettings) && !PathHelper.AreSamePath(parentSettings, defaultPath))
+                {
+                    _logger.LogInformation(
+                        "No settings file at {DefaultPath}, reading from parent directory {ParentSettings}",
+                        defaultPath,
+                        parentSettings);
+                    return parentSettings;
+                }
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
         {
-            _logger.LogWarning(ex, "Failed to look for pre-upgrade settings, falling back to {DefaultPath}", defaultPath);
+            _logger.LogWarning(ex, FailedPreUpgradeSettingsFallbackMessage, defaultPath);
         }
 
         return defaultPath;

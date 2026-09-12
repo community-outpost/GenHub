@@ -1,3 +1,6 @@
+using System;
+using System.Linq;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -120,4 +123,44 @@ public static class SuperHackersConstants
 
     /// <summary>Delimiter used in manifest versions.</summary>
     public const string VersionDelimiter = ".";
+
+    /// <summary>Default page size for discovery (10 items = 5 release cards).</summary>
+    public const int PageSize = 10;
+
+    /// <summary>
+    /// Gets the standard variant group ID for a SuperHackers game client release.
+    /// </summary>
+    /// <param name="tag">The release tag name.</param>
+    /// <returns>The unified variant group ID.</returns>
+    public static string GetGameClientVariantGroupId(string tag) =>
+        $"{GeneralsGameCodeOwner.ToLowerInvariant()}.{GeneralsGameCodeRepo.ToLowerInvariant()}.gameclient.{tag.ToLowerInvariant()}";
+
+    /// <summary>
+    /// Extracts a numeric version from a release tag.
+    /// Examples: "v1.2.3" -> 123, "weekly-2025-10-31" -> 20251031, "latest" -> 0.
+    /// </summary>
+    /// <param name="tag">The release tag string.</param>
+    /// <returns>The extracted integer version.</returns>
+    public static int ExtractVersionFromReleaseTag(string? tag)
+    {
+        if (string.IsNullOrWhiteSpace(tag) || tag.Equals("latest", StringComparison.OrdinalIgnoreCase))
+        {
+            return 0;
+        }
+
+        var cleaned = tag.TrimStart('v', 'V', 'r', 'R');
+        var digits = new string(cleaned.Where(char.IsDigit).ToArray());
+
+        if (string.IsNullOrEmpty(digits))
+        {
+            return 0;
+        }
+
+        if (digits.Length > 9)
+        {
+            digits = digits[..9];
+        }
+
+        return int.TryParse(digits, out var version) ? version : 0;
+    }
 }

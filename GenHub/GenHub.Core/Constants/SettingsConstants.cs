@@ -26,6 +26,11 @@ public static class SettingsConstants
     public const string SectionDataDirectories = "data-directories";
 
     /// <summary>
+    /// Section ID for Migrate Installation.
+    /// </summary>
+    public const string SectionMigrateInstallation = "migrate-installation";
+
+    /// <summary>
     /// Section ID for Logs.
     /// </summary>
     public const string SectionLogs = "logs";

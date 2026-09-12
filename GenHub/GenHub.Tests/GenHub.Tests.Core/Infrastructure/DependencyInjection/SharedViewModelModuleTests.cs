@@ -128,6 +128,7 @@ public class SharedViewModelModuleTests
         services.AddUserDataServices();
         services.AddLaunchingServices();
         services.AddToolsServices();
+        services.AddStorageMigrationServices();
         services.AddSharedViewModelModule();
 
         // Register IManifestIdService
@@ -142,7 +143,7 @@ public class SharedViewModelModuleTests
         // Act & Assert: Try to resolve each ViewModel that doesn't require complex constructor parameters
         Assert.NotNull(serviceProvider.GetService<MainViewModel>());
         Assert.NotNull(serviceProvider.GetService<GameProfileLauncherViewModel>());
-        Assert.NotNull(serviceProvider.GetService<DownloadsViewModel>());
+        Assert.NotNull(serviceProvider.GetService<DownloadsBrowserViewModel>());
         Assert.NotNull(serviceProvider.GetService<GenHub.Features.Tools.ViewModels.ToolsViewModel>());
         Assert.NotNull(serviceProvider.GetService<SettingsViewModel>());
     }

@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -116,6 +118,7 @@ public interface IContentManifestBuilder
     /// <param name="compatibleVersions">List of compatible versions.</param>
     /// <param name="isExclusive">Whether the dependency is exclusive.</param>
     /// <param name="conflictsWith">List of conflicting dependency IDs.</param>
+    /// <param name="compatibleGameTypes">List of compatible game types.</param>
     /// <returns>The builder instance for chaining.</returns>
     IContentManifestBuilder AddDependency(
         ManifestId id,
@@ -126,7 +129,8 @@ public interface IContentManifestBuilder
         string maxVersion = "",
         List<string>? compatibleVersions = null,
         bool isExclusive = false,
-        List<ManifestId>? conflictsWith = null);
+        List<ManifestId>? conflictsWith = null,
+        List<GameType>? compatibleGameTypes = null);
 
     /// <summary>
     /// Scans a directory and adds files with the specified source type.
@@ -291,6 +295,27 @@ public interface IContentManifestBuilder
     /// <param name="patchSourceFile">The path to the patch file, relative to the mod's content root.</param>
     /// <returns>The builder instance for chaining.</returns>
     IContentManifestBuilder AddPatchFile(string targetRelativePath, string patchSourceFile);
+
+    /// <summary>
+    /// Sets the declared entry point executable for this manifest.
+    /// </summary>
+    /// <param name="entryPoint">The relative path of the entry point file.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithEntryPoint(string? entryPoint);
+
+    /// <summary>
+    /// Explicitly sets the manifest ID, bypassing automatic generation.
+    /// </summary>
+    /// <param name="id">The manifest identifier.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithId(ManifestId id);
+
+    /// <summary>
+    /// Sets the human-readable display name for this manifest.
+    /// </summary>
+    /// <param name="name">The display name.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithName(string name);
 
     /// <summary>
     /// Builds the final ContentManifest.

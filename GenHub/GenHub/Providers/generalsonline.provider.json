@@ -16,7 +16,7 @@
             "latestVersionUrl": "https://cdn.playgenerals.online/latest.txt",
             "releasesUrl": "https://cdn.playgenerals.online/releases",
             "downloadPageUrl": "https://www.playgenerals.online/#download",
-            "iconUrl": "https://www.playgenerals.online/logo.png"
+            "iconUrl": "avares://GenHub/Assets/Logos/generalsonline-logo.png"
         }
     },
     "mirrorPreference": [],

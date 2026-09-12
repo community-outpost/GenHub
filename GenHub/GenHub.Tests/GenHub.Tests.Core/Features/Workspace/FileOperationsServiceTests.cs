@@ -448,6 +448,70 @@ public class FileOperationsServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that DeleteDirectoryIfExists returns false for null or whitespace paths.
+    /// </summary>
+    /// <param name="path">The path to test.</param>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void DeleteDirectoryIfExists_ReturnsFalse_WhenPathIsNullOrWhiteSpace(string? path)
+    {
+        var result = FileOperationsService.DeleteDirectoryIfExists(path!);
+        Assert.False(result);
+    }
+
+    /// <summary>
+    /// Tests that DeleteDirectoryIfExists returns false when the directory does not exist.
+    /// </summary>
+    [Fact]
+    public void DeleteDirectoryIfExists_ReturnsFalse_WhenDirectoryDoesNotExist()
+    {
+        var nonExistent = Path.Combine(_tempDir, Guid.NewGuid().ToString());
+        var result = FileOperationsService.DeleteDirectoryIfExists(nonExistent);
+        Assert.False(result);
+    }
+
+    /// <summary>
+    /// Tests that DeleteDirectoryIfExists successfully removes a directory containing read-only files.
+    /// </summary>
+    [Fact]
+    public void DeleteDirectoryIfExists_DeletesDirectoryAndReadOnlyFiles()
+    {
+        var dir = Path.Combine(_tempDir, "readonly_dir");
+        var subDir = Path.Combine(dir, "sub");
+        Directory.CreateDirectory(subDir);
+
+        var file1 = Path.Combine(dir, "file1.txt");
+        var file2 = Path.Combine(subDir, "file2.txt");
+        File.WriteAllText(file1, "read only file 1");
+        File.WriteAllText(file2, "read only file 2");
+
+        File.SetAttributes(file1, FileAttributes.ReadOnly);
+        File.SetAttributes(file2, FileAttributes.ReadOnly);
+
+        var result = FileOperationsService.DeleteDirectoryIfExists(dir);
+
+        Assert.True(result);
+        Assert.False(Directory.Exists(dir));
+    }
+
+    /// <summary>
+    /// Tests that DeleteDirectoryIfExists deletes a regular file if given a path to a file.
+    /// </summary>
+    [Fact]
+    public void DeleteDirectoryIfExists_DeletesRegularFile()
+    {
+        var filePath = Path.Combine(_tempDir, "stray_file.txt");
+        File.WriteAllText(filePath, "stray file content");
+
+        var result = FileOperationsService.DeleteDirectoryIfExists(filePath);
+
+        Assert.True(result);
+        Assert.False(File.Exists(filePath));
+    }
+
+    /// <summary>
     /// Performs cleanup by disposing of temporary resources.
     /// </summary>
     public void Dispose()

@@ -67,7 +67,7 @@ public class WindowsApplicationCompositionTests
         var mainViewModel = serviceProvider.GetRequiredService<MainViewModel>();
         Assert.Same(settingsViewModel, mainViewModel.SettingsViewModel);
         Assert.NotNull(mainViewModel.GameProfilesViewModel);
-        Assert.NotNull(mainViewModel.DownloadsViewModel);
+        Assert.NotNull(mainViewModel.DownloadsBrowserViewModel);
         Assert.NotNull(mainViewModel.ToolsViewModel);
     }
 }

@@ -26,6 +26,9 @@ using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Results.CAS;
+using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Theming;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Settings.Models;
@@ -39,7 +42,15 @@ namespace GenHub.Features.Settings.ViewModels;
 /// </summary>
 public partial class SettingsViewModel : ObservableObject, IDisposable
 {
+    private const string ErrorTitle = "Error";
     private static readonly char[] LineSeparators = ['\r', '\n'];
+
+    private enum CasCleanupOutcome
+    {
+        Success,
+        Disabled,
+        Failed,
+    }
 
     /// <summary>
     /// Gets the available workspace strategies for selection in the UI.
@@ -65,6 +76,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         new(SettingsConstants.SectionDownloads, "Downloads", "M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"),
         new(SettingsConstants.SectionAppearance, "Appearance", "M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"),
         new(SettingsConstants.SectionDataDirectories, "Data Directories", "M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z"),
+        new(SettingsConstants.SectionMigrateInstallation, "Migrate Installation", "M20,6H12L10,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8A2,2 0 0,0 20,6M12,17L8,13H11V9H13V13H16L12,17Z"),
         new(SettingsConstants.SectionLogs, "Logs", "M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"),
         new(SettingsConstants.SectionPerformance, "Performance", "M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z"),
         new(SettingsConstants.SectionCas, "CAS Storage", "M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4,14Z"),
@@ -91,6 +103,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IStorageLocationService _storageLocationService;
     private readonly IUserDataTracker _userDataTracker;
     private readonly IDialogService _dialogService;
+    private readonly IStorageMigrationService _storageMigrationService;
     private readonly IThemeService? _themeService;
 
     private bool _isViewVisible;
@@ -148,6 +161,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private string _profilesInfo = "Calculating...";
+
+    [ObservableProperty]
+    private ObservableCollection<GameInstallation> _customInstallations = [];
+
+    [ObservableProperty]
+    private bool _isLoadingCustomInstallations;
 
     [ObservableProperty]
     private string? _workspacePath;
@@ -231,6 +250,21 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _patStatusMessage = string.Empty;
 
+    [ObservableProperty]
+    private string _migrationTargetPath = string.Empty;
+
+    [ObservableProperty]
+    private bool _relocateCasAndWorkspacesWithMigration;
+
+    [ObservableProperty]
+    private bool _isMigrating;
+
+    [ObservableProperty]
+    private string _migrationStatusText = string.Empty;
+
+    [ObservableProperty]
+    private double _migrationProgressPercentage;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsViewModel"/> class.
     /// </summary>
@@ -247,6 +281,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="storageLocationService">Storage location service.</param>
     /// <param name="userDataTracker">User data tracker service.</param>
     /// <param name="dialogService">Dialog service used to confirm destructive actions.</param>
+    /// <param name="storageMigrationService">Storage and installation migration service.</param>
     /// <param name="themeService">Theme service for dynamic accent theming.</param>
     /// <param name="gitHubTokenStorage">GitHub token storage.</param>
     /// <param name="gitHubApiClient">GitHub API client.</param>
@@ -264,6 +299,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IStorageLocationService storageLocationService,
         IUserDataTracker userDataTracker,
         IDialogService dialogService,
+        IStorageMigrationService storageMigrationService,
         IThemeService? themeService = null,
         IGitHubTokenStorage? gitHubTokenStorage = null,
         IGitHubApiClient? gitHubApiClient = null)
@@ -281,6 +317,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _storageLocationService = storageLocationService ?? throw new ArgumentNullException(nameof(storageLocationService));
         _userDataTracker = userDataTracker ?? throw new ArgumentNullException(nameof(userDataTracker));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        _storageMigrationService = storageMigrationService ?? throw new ArgumentNullException(nameof(storageMigrationService));
         _themeService = themeService;
         _gitHubTokenStorage = gitHubTokenStorage;
         _gitHubApiClient = gitHubApiClient;
@@ -328,6 +365,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
                     // Initial update when becoming visible
                     Task.Run(UpdateDangerZoneDataAsync);
+                    _ = LoadCustomInstallationsAsync();
+                    NotifyDangerZoneCanExecuteChanged();
                 }
                 else
                 {
@@ -390,6 +429,44 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         Dispose(true);
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Loads custom game installations.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task LoadCustomInstallationsAsync()
+    {
+        try
+        {
+            IsLoadingCustomInstallations = true;
+            var cachedInstallations = _installationService.CachedInstallations;
+            if (cachedInstallations != null)
+            {
+                var customList = cachedInstallations
+                    .Where(i => i.InstallationType == GameInstallationType.Custom)
+                    .ToList();
+                CustomInstallations = new ObservableCollection<GameInstallation>(customList);
+                return;
+            }
+
+            var result = await _installationService.GetAllInstallationsAsync();
+            if (result.Success && result.Data != null)
+            {
+                var customList = result.Data
+                    .Where(i => i.InstallationType == GameInstallationType.Custom)
+                    .ToList();
+                CustomInstallations = new ObservableCollection<GameInstallation>(customList);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading custom installations");
+        }
+        finally
+        {
+            IsLoadingCustomInstallations = false;
+        }
     }
 
     /// <summary>
@@ -774,8 +851,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             ApplicationDataPath = null;
 
             // Reset CAS settings
-            CasRootPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppConstants.AppName, DirectoryNames.CasPool);
+            CasRootPath = Path.Combine(_configurationProvider.GetApplicationDataPath(), DirectoryNames.CasPool);
             EnableAutomaticGc = true;
             MaxCacheSizeGB = 50;
             CasMaxConcurrentOperations = CasDefaults.MaxConcurrentOperations;
@@ -791,6 +867,90 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to reset settings to defaults");
+        }
+    }
+
+    [RelayCommand]
+    private async Task AddCustomInstallationAsync()
+    {
+        try
+        {
+            _logger.LogDebug("Add custom installation requested");
+
+            var lifetime = Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var mainWindow = lifetime?.MainWindow;
+            var topLevel = mainWindow != null ? TopLevel.GetTopLevel(mainWindow) : null;
+            if (topLevel == null)
+            {
+                return;
+            }
+
+            var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "Select Game Installation Directory",
+                AllowMultiple = false,
+            });
+
+            if (folders.Count == 0)
+            {
+                return;
+            }
+
+            var path = folders[0].Path.LocalPath;
+            var regResult = await _installationService.RegisterCustomInstallationAsync(path);
+            if (regResult.Success)
+            {
+                await LoadCustomInstallationsAsync();
+                _notificationService.ShowSuccess("Custom Installation Added", $"Successfully registered '{regResult.Data?.DisplayName ?? "Custom Installation"}'.", 3000);
+            }
+            else
+            {
+                _notificationService.ShowError("Registration Failed", regResult.Errors.FirstOrDefault() ?? "Unknown error", 5000);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error adding custom installation");
+            _notificationService.ShowError(ErrorTitle, $"Failed to add custom installation: {ex.Message}", 5000);
+        }
+    }
+
+    [RelayCommand]
+    private async Task RemoveCustomInstallationAsync(GameInstallation? installation)
+    {
+        if (installation == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var confirmed = await _dialogService.ShowConfirmationAsync(
+                "Remove Custom Installation",
+                $"Are you sure you want to remove '{installation.DisplayName}' ({installation.InstallationPath})? No files on disk will be deleted.",
+                "Remove",
+                "Cancel");
+
+            if (!confirmed)
+            {
+                return;
+            }
+
+            var remResult = await _installationService.RemoveCustomInstallationAsync(installation.Id);
+            if (remResult.Success)
+            {
+                await LoadCustomInstallationsAsync();
+                _notificationService.ShowSuccess("Installation Removed", $"Custom installation '{installation.DisplayName}' was removed.", 3000);
+            }
+            else
+            {
+                _notificationService.ShowError("Removal Failed", remResult.Errors.FirstOrDefault() ?? "Unknown error", 5000);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error removing custom installation: {Id}", installation.Id);
+            _notificationService.ShowError(ErrorTitle, $"Failed to remove custom installation: {ex.Message}", 5000);
         }
     }
 
@@ -886,6 +1046,135 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while browsing for CAS root path");
+        }
+    }
+
+    [RelayCommand]
+    private async Task BrowseMigrationTargetPath()
+    {
+        try
+        {
+            _logger.LogDebug("Browse migration target path requested");
+
+            var lifetime = Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var mainWindow = lifetime?.MainWindow;
+            var topLevel = mainWindow != null ? TopLevel.GetTopLevel(mainWindow) : null;
+            if (topLevel != null)
+            {
+                var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+                {
+                    Title = "Select Destination Folder for GenHub Migration",
+                    AllowMultiple = false,
+                });
+
+                if (folders.Count > 0)
+                {
+                    MigrationTargetPath = folders[0].Path.LocalPath;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while browsing for migration target path");
+        }
+    }
+
+    [RelayCommand]
+    private async Task MigrateInstallationLocation(CancellationToken cancellationToken)
+    {
+        if (IsMigrating)
+        {
+            return;
+        }
+
+        var hideDelayMs = (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds;
+        var errorHideDelayMs = (int)TimeIntervals.ErrorNotificationHideDelay.TotalMilliseconds;
+        try
+        {
+            if (string.IsNullOrWhiteSpace(MigrationTargetPath))
+            {
+                _notificationService.ShowWarning("Migration Target Required", "Please select a target directory for migration.", hideDelayMs);
+                return;
+            }
+
+            _logger.LogInformation("Starting migration to {TargetPath} (RelocateStorage: {Relocate})", MigrationTargetPath, RelocateCasAndWorkspacesWithMigration);
+
+            IsMigrating = true;
+            MigrationStatusText = "Validating target directory...";
+            MigrationProgressPercentage = 5;
+
+            var preflight = await _storageMigrationService.ValidatePreflightAsync(
+                MigrationTargetPath,
+                RelocateCasAndWorkspacesWithMigration,
+                cancellationToken);
+
+            if (!preflight.Success || preflight.Data is null || !preflight.Data.IsValid)
+            {
+                var errorMessage = preflight.Data?.ErrorMessage ?? preflight.FirstError ?? "Pre-flight validation failed.";
+                _logger.LogWarning("Migration pre-flight checks failed: {ErrorMessage}", errorMessage);
+                _notificationService.ShowError("Migration Pre-flight Failed", errorMessage, errorHideDelayMs);
+                IsMigrating = false;
+                MigrationStatusText = string.Empty;
+                MigrationProgressPercentage = 0;
+                return;
+            }
+
+            var confirmMessage = $"Are you sure you want to migrate GenHub to:\n{MigrationTargetPath}\n\n"
+                + (RelocateCasAndWorkspacesWithMigration ? "Your CAS storage pool and workspaces will also be relocated.\n\n" : string.Empty)
+                + "GenHub will close and restart automatically from the new location.";
+
+            var confirmed = await _dialogService.ShowConfirmationAsync(
+                "Confirm Installation Migration",
+                confirmMessage,
+                "Migrate & Restart",
+                "Cancel");
+
+            if (!confirmed)
+            {
+                _logger.LogInformation("User cancelled installation migration.");
+                IsMigrating = false;
+                MigrationStatusText = string.Empty;
+                MigrationProgressPercentage = 0;
+                return;
+            }
+
+            var progressReporter = new Progress<StorageMigrationProgress>(p =>
+            {
+                MigrationStatusText = $"{p.Stage}: {p.Message}";
+                MigrationProgressPercentage = p.Percentage;
+            });
+
+            var request = new StorageMigrationRequest
+            {
+                TargetPath = MigrationTargetPath,
+                RelocateCasAndWorkspace = RelocateCasAndWorkspacesWithMigration,
+                ExitApplicationOnSuccess = true,
+                LaunchHelperProcess = true,
+            };
+
+            var migrationResult = await _storageMigrationService.MigrateAsync(request, progressReporter, cancellationToken);
+            if (!migrationResult.Success)
+            {
+                var error = migrationResult.FirstError ?? "Migration operation failed.";
+                _logger.LogError("Installation migration failed: {Error}", error);
+                _notificationService.ShowError("Migration Failed", error, errorHideDelayMs);
+                IsMigrating = false;
+                MigrationStatusText = $"Migration failed: {error}";
+                MigrationProgressPercentage = 0;
+            }
+            else
+            {
+                MigrationStatusText = "Migration complete. Restarting GenHub...";
+                MigrationProgressPercentage = 100;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error during installation migration");
+            _notificationService.ShowError("Migration Error", ex.Message, errorHideDelayMs);
+            IsMigrating = false;
+            MigrationStatusText = string.Empty;
+            MigrationProgressPercentage = 0;
         }
     }
 
@@ -1079,11 +1368,48 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to update Danger Zone data");
-            CasStorageInfo = "Error";
-            ManifestsInfo = "Error";
-            WorkspacesInfo = "Error";
-            ProfilesInfo = "Error";
+            CasStorageInfo = ErrorTitle;
+            ManifestsInfo = ErrorTitle;
+            WorkspacesInfo = ErrorTitle;
+            ProfilesInfo = ErrorTitle;
         }
+        finally
+        {
+            NotifyDangerZoneCanExecuteChanged();
+        }
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell",
+        "S2325:Methods and properties that don't access instance data should be static",
+        Justification = "Kept as instance method to maintain member ordering and consistency.")]
+    private void RunOnUiSafe(Action action)
+    {
+        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess() || Avalonia.Application.Current == null)
+        {
+            action();
+        }
+        else
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(action);
+        }
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell",
+        "S2325:Methods and properties that don't access instance data should be static",
+        Justification = "Accesses generated RelayCommand instance properties.")]
+    private void NotifyDangerZoneCanExecuteChanged()
+    {
+        RunOnUiSafe(() =>
+        {
+            DeleteAllDataCommand.NotifyCanExecuteChanged();
+            DeleteCasStorageCommand.NotifyCanExecuteChanged();
+            DeleteManifestsCommand.NotifyCanExecuteChanged();
+            DeleteWorkspacesCommand.NotifyCanExecuteChanged();
+            DeleteProfilesCommand.NotifyCanExecuteChanged();
+            UninstallGenHubCommand.NotifyCanExecuteChanged();
+        });
     }
 
     /// <summary>
@@ -1230,10 +1556,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            await DeleteProfiles();
-            await DeleteWorkspaces();
-            await DeleteManifests();
-            await DeleteCasStorage();
+            await DeleteProfilesInternalAsync(showToast: false, updateDangerZone: false);
+            await DeleteWorkspacesInternalAsync(showToast: false, updateDangerZone: false);
+            await DeleteManifestsInternalAsync(showToast: false, updateDangerZone: false);
+            var casOutcome = await DeleteCasStorageInternalAsync(showToast: false, updateDangerZone: false);
             var userDataDeleted = await DeleteUserDataInternalAsync();
 
             // Invalidate installation cache to force re-generation of manifests on next scan
@@ -1243,7 +1569,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
             // A success toast on top of the partial-failure toast the user data deletion just raised
             // would tell the user their data is gone while their originals are still on disk.
-            if (userDataDeleted)
+            if (userDataDeleted && casOutcome == CasCleanupOutcome.Success)
             {
                 _notificationService.ShowSuccess(
                     "Data Deleted",
@@ -1252,9 +1578,23 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
             else
             {
+                var casDetail = casOutcome switch
+                {
+                    CasCleanupOutcome.Disabled => "CAS cleanup was skipped (disabled)",
+                    CasCleanupOutcome.Failed => "CAS cleanup failed",
+                    _ => null,
+                };
+
+                var partialDetails = (!userDataDeleted, casDetail) switch
+                {
+                    (true, not null) => $"some user data was kept and {casDetail}",
+                    (false, not null) => casDetail,
+                    _ => "some user data was kept",
+                };
+
                 _notificationService.ShowWarning(
                     "Data Partially Deleted",
-                    $"Profiles, workspaces, and manifests were deleted, but some user data was kept. {CasDefaults.GarbageCollectionDisabledMessage}",
+                    $"Profiles, workspaces, and manifests were deleted, but {partialDetails}. {CasDefaults.GarbageCollectionDisabledMessage}",
                     5000);
             }
         }
@@ -1262,6 +1602,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             _logger.LogError(ex, "Failed to delete all application data");
             _notificationService.ShowError("Deletion Failed", $"Failed to delete all application data: {ex.Message}", 5000);
+        }
+        finally
+        {
+            NotifyDangerZoneCanExecuteChanged();
         }
     }
 
@@ -1271,11 +1615,27 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             _logger.LogWarning("Uninstall GenHub requested");
+
+            var confirmed = await _dialogService.ShowConfirmationAsync(
+                AppConstants.UninstallGenHubConfirmationTitle,
+                AppConstants.UninstallGenHubConfirmationMessage,
+                confirmText: AppConstants.UninstallGenHubConfirmText);
+
+            if (!confirmed)
+            {
+                _logger.LogInformation("Uninstall GenHub was cancelled at the confirmation prompt");
+                return;
+            }
+
             await Task.Run(() => _updateManager.Uninstall());
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to uninstall GenHub");
+        }
+        finally
+        {
+            NotifyDangerZoneCanExecuteChanged();
         }
     }
 
@@ -1284,42 +1644,122 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         try
         {
+            var confirmed = await _dialogService.ShowConfirmationAsync(
+                AppConstants.DeleteCasStorageConfirmationTitle,
+                AppConstants.DeleteCasStorageConfirmationMessage,
+                confirmText: AppConstants.DeleteCasStorageConfirmText);
+
+            if (!confirmed)
+            {
+                _logger.LogInformation("Delete CAS storage was cancelled at the confirmation prompt");
+                return;
+            }
+
+            await DeleteCasStorageInternalAsync(showToast: true, updateDangerZone: true);
+        }
+        finally
+        {
+            NotifyDangerZoneCanExecuteChanged();
+        }
+    }
+
+    private async Task<CasCleanupOutcome> DeleteCasStorageInternalAsync(bool showToast, bool updateDangerZone)
+    {
+        try
+        {
             _logger.LogWarning("Deleting CAS storage (forced)");
             var result = await _casService.RunGarbageCollectionAsync(force: true, CancellationToken.None);
             if (result.Disabled)
             {
-                _notificationService.ShowInfo(
-                    "CAS Cleanup Disabled",
-                    result.FirstError ?? CasDefaults.GarbageCollectionDisabledMessage,
-                    (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
-            }
-            else if (result.ObjectsDeleted == 0)
-            {
-                if (result.ObjectsReferenced > 0)
+                if (showToast)
                 {
-                    _notificationService.ShowInfo("CAS Clean", "All items in CAS are currently in use and cannot be deleted.", (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
+                    _notificationService.ShowInfo(
+                        "CAS Cleanup Disabled",
+                        result.FirstError ?? CasDefaults.GarbageCollectionDisabledMessage,
+                        (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
                 }
-                else
-                {
-                    _notificationService.ShowInfo("CAS Empty", "CAS storage is already empty.", (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
-                }
-            }
-            else
-            {
-                _notificationService.ShowSuccess("CAS Cleared", $"Deleted {result.ObjectsDeleted} objects, freed {result.BytesFreed / (double)ConversionConstants.BytesPerGigabyte:F2} GB.", 5000); // Keep 5s for significant operations
+
+                return CasCleanupOutcome.Disabled;
             }
 
-            await UpdateDangerZoneDataAsync();
+            if (!result.Success)
+            {
+                _logger.LogWarning("Failed to collect CAS storage: {Error}", result.FirstError);
+                if (showToast)
+                {
+                    _notificationService.ShowError("Deletion Failed", result.FirstError ?? "Failed to collect CAS storage", 5000);
+                }
+
+                return CasCleanupOutcome.Failed;
+            }
+
+            if (showToast)
+            {
+                ShowCasStorageResultToast(result);
+            }
+
+            if (updateDangerZone)
+            {
+                await UpdateDangerZoneDataAsync();
+            }
+
+            return CasCleanupOutcome.Success;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to delete CAS storage");
-            _notificationService.ShowError("Deletion Failed", $"An error occurred: {ex.Message}", 5000);
+            if (showToast)
+            {
+                _notificationService.ShowError("Deletion Failed", $"An error occurred: {ex.Message}", 5000);
+            }
+
+            return CasCleanupOutcome.Failed;
         }
+    }
+
+    private void ShowCasStorageResultToast(CasGarbageCollectionResult result)
+    {
+        if (result.ObjectsDeleted > 0)
+        {
+            _notificationService.ShowSuccess(
+                "CAS Cleared",
+                $"Deleted {result.ObjectsDeleted} objects, freed {result.BytesFreed / (double)ConversionConstants.BytesPerGigabyte:F2} GB.",
+                5000);
+            return;
+        }
+
+        var (title, message) = result.ObjectsReferenced > 0
+            ? ("CAS Clean", "All items in CAS are currently in use and cannot be deleted.")
+            : ("CAS Empty", "CAS storage is already empty.");
+
+        _notificationService.ShowInfo(title, message, (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
     }
 
     [RelayCommand]
     private async Task DeleteManifests()
+    {
+        try
+        {
+            var confirmed = await _dialogService.ShowConfirmationAsync(
+                AppConstants.DeleteManifestsConfirmationTitle,
+                AppConstants.DeleteManifestsConfirmationMessage,
+                confirmText: AppConstants.DeleteManifestsConfirmText);
+
+            if (!confirmed)
+            {
+                _logger.LogInformation("Delete manifests was cancelled at the confirmation prompt");
+                return;
+            }
+
+            await DeleteManifestsInternalAsync(showToast: true, updateDangerZone: true);
+        }
+        finally
+        {
+            NotifyDangerZoneCanExecuteChanged();
+        }
+    }
+
+    private async Task DeleteManifestsInternalAsync(bool showToast, bool updateDangerZone)
     {
         try
         {
@@ -1333,20 +1773,52 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     await _manifestPool.RemoveManifestAsync(manifest.Id);
                 }
 
-                _notificationService.ShowSuccess("Manifests Deleted", $"Deleted {count} manifest(s) successfully.", (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
+                if (showToast)
+                {
+                    _notificationService.ShowSuccess("Manifests Deleted", $"Deleted {count} manifest(s) successfully.", (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
+                }
             }
 
-            await UpdateDangerZoneDataAsync();
+            if (updateDangerZone)
+            {
+                await UpdateDangerZoneDataAsync();
+            }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to delete manifests");
-            _notificationService.ShowError("Deletion Failed", $"Failed to delete manifests: {ex.Message}", 5000);
+            if (showToast)
+            {
+                _notificationService.ShowError("Deletion Failed", $"Failed to delete manifests: {ex.Message}", 5000);
+            }
         }
     }
 
     [RelayCommand]
     private async Task DeleteWorkspaces()
+    {
+        try
+        {
+            var confirmed = await _dialogService.ShowConfirmationAsync(
+                AppConstants.DeleteWorkspacesConfirmationTitle,
+                AppConstants.DeleteWorkspacesConfirmationMessage,
+                confirmText: AppConstants.DeleteWorkspacesConfirmText);
+
+            if (!confirmed)
+            {
+                _logger.LogInformation("Delete workspaces was cancelled at the confirmation prompt");
+                return;
+            }
+
+            await DeleteWorkspacesInternalAsync(showToast: true, updateDangerZone: true);
+        }
+        finally
+        {
+            NotifyDangerZoneCanExecuteChanged();
+        }
+    }
+
+    private async Task DeleteWorkspacesInternalAsync(bool showToast, bool updateDangerZone)
     {
         try
         {
@@ -1370,21 +1842,30 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             var orphanedCount = await CleanupOrphanedWorkspaceDirectoriesAsync();
             totalDeleted += orphanedCount;
 
-            if (totalDeleted > 0)
+            if (showToast)
             {
-                _notificationService.ShowSuccess("Workspaces Deleted", $"Deleted {totalDeleted} workspace(s) successfully.", 3000);
-            }
-            else
-            {
-                _notificationService.ShowInfo("Workspaces Clean", "No workspaces found to delete.", 3000);
+                if (totalDeleted > 0)
+                {
+                    _notificationService.ShowSuccess("Workspaces Deleted", $"Deleted {totalDeleted} workspace(s) successfully.", 3000);
+                }
+                else
+                {
+                    _notificationService.ShowInfo("Workspaces Clean", "No workspaces found to delete.", 3000);
+                }
             }
 
-            await UpdateDangerZoneDataAsync();
+            if (updateDangerZone)
+            {
+                await UpdateDangerZoneDataAsync();
+            }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to delete workspaces");
-            _notificationService.ShowError("Deletion Failed", $"Failed to delete workspaces: {ex.Message}", 5000);
+            if (showToast)
+            {
+                _notificationService.ShowError("Deletion Failed", $"Failed to delete workspaces: {ex.Message}", 5000);
+            }
         }
     }
 
@@ -1409,32 +1890,41 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 }
             }
 
-            // Try to get installations to find their adjacent workspace directories
-            var installationsResult = await _installationService.GetAllInstallationsAsync();
-            if (installationsResult.Success && installationsResult.Data != null)
+            var settings = _userSettingsService.Get();
+
+            // Only inspect installations if adjacent storage is enabled, and only if installations
+            // are already cached, to avoid expensive re-detection and manifest generation.
+            if (settings.UseInstallationAdjacentStorage)
             {
-                foreach (var installation in installationsResult.Data)
+                var cachedInstallations = _installationService.CachedInstallations;
+                if (cachedInstallations != null)
                 {
-                    try
+                    foreach (var installation in cachedInstallations)
                     {
-                        var workspacePath = _storageLocationService.GetWorkspacePath(installation);
-                        if (Directory.Exists(workspacePath) && !trackedPaths.Contains(workspacePath))
+                        try
                         {
-                            _logger.LogInformation("Deleting orphaned workspace directory: {Path}", workspacePath);
-                            try
+                            var workspacePath = _storageLocationService.GetWorkspacePath(installation);
+                            if (Directory.Exists(workspacePath))
                             {
-                                Directory.Delete(workspacePath, true);
-                                deletedCount++;
-                            }
-                            catch (Exception deleteEx)
-                            {
-                                _logger.LogDebug(deleteEx, "Failed to delete workspace directory {Path}", workspacePath);
+                                foreach (var dir in Directory.GetDirectories(workspacePath).Where(d => !trackedPaths.Contains(d)))
+                                {
+                                    _logger.LogInformation("Deleting orphaned adjacent workspace directory: {Path}", dir);
+                                    try
+                                    {
+                                        Directory.Delete(dir, true);
+                                        deletedCount++;
+                                    }
+                                    catch (Exception deleteEx)
+                                    {
+                                        _logger.LogDebug(deleteEx, "Failed to delete adjacent workspace directory {Path}", dir);
+                                    }
+                                }
                             }
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogDebug(ex, "Failed to cleanup adjacent workspace for installation {InstallationId}", installation.Id);
+                        catch (Exception ex)
+                        {
+                            _logger.LogDebug(ex, "Failed to cleanup adjacent workspace for installation {InstallationId}", installation.Id);
+                        }
                     }
                 }
             }
@@ -1443,28 +1933,59 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             var centralizedPath = Path.Combine(_configurationProvider.GetApplicationDataPath(), DirectoryNames.Workspaces);
             if (Directory.Exists(centralizedPath))
             {
-                var subdirectories = Directory.GetDirectories(centralizedPath);
-                foreach (var dir in subdirectories)
+                foreach (var dir in Directory.GetDirectories(centralizedPath).Where(d => !trackedPaths.Contains(d)))
                 {
                     try
                     {
-                        if (!trackedPaths.Contains(dir))
+                        _logger.LogInformation("Deleting orphaned centralized workspace directory: {Path}", dir);
+                        try
                         {
-                            _logger.LogInformation("Deleting orphaned centralized workspace directory: {Path}", dir);
-                            try
-                            {
-                                Directory.Delete(dir, true);
-                                deletedCount++;
-                            }
-                            catch (Exception deleteEx)
-                            {
-                                _logger.LogDebug(deleteEx, "Failed to delete workspace directory {Path}", dir);
-                            }
+                            Directory.Delete(dir, true);
+                            deletedCount++;
+                        }
+                        catch (Exception deleteEx)
+                        {
+                            _logger.LogDebug(deleteEx, "Failed to delete workspace directory {Path}", dir);
                         }
                     }
                     catch (Exception ex)
                     {
                         _logger.LogDebug(ex, "Failed to cleanup centralized workspace directory {Path}", dir);
+                    }
+                }
+            }
+
+            // Also check custom configured workspace path if set and different from centralized
+            if (!string.IsNullOrWhiteSpace(settings.WorkspacePath) &&
+                !string.Equals(Path.GetFullPath(settings.WorkspacePath), Path.GetFullPath(centralizedPath), StringComparison.OrdinalIgnoreCase) &&
+                Directory.Exists(settings.WorkspacePath))
+            {
+                foreach (var dir in Directory.GetDirectories(settings.WorkspacePath).Where(d => !trackedPaths.Contains(d)))
+                {
+                    var dirName = Path.GetFileName(dir);
+                    if (!Guid.TryParse(dirName, out _))
+                    {
+                        // Protect user's arbitrary subdirectories under custom workspace roots:
+                        // only sweep directories formatted as GenHub workspace GUIDs.
+                        continue;
+                    }
+
+                    try
+                    {
+                        _logger.LogInformation("Deleting orphaned custom workspace directory: {Path}", dir);
+                        try
+                        {
+                            Directory.Delete(dir, true);
+                            deletedCount++;
+                        }
+                        catch (Exception deleteEx)
+                        {
+                            _logger.LogDebug(deleteEx, "Failed to delete custom workspace directory {Path}", dir);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug(ex, "Failed to cleanup custom workspace directory {Path}", dir);
                     }
                 }
             }
@@ -1587,6 +2108,29 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         try
         {
+            var confirmed = await _dialogService.ShowConfirmationAsync(
+                AppConstants.DeleteProfilesConfirmationTitle,
+                AppConstants.DeleteProfilesConfirmationMessage,
+                confirmText: AppConstants.DeleteProfilesConfirmText);
+
+            if (!confirmed)
+            {
+                _logger.LogInformation("Delete profiles was cancelled at the confirmation prompt");
+                return;
+            }
+
+            await DeleteProfilesInternalAsync(showToast: true, updateDangerZone: true);
+        }
+        finally
+        {
+            NotifyDangerZoneCanExecuteChanged();
+        }
+    }
+
+    private async Task DeleteProfilesInternalAsync(bool showToast, bool updateDangerZone)
+    {
+        try
+        {
             _logger.LogWarning("Deleting all profiles");
             var profilesResult = await _profileManager.GetAllProfilesAsync();
             if (profilesResult.Success && profilesResult.Data != null)
@@ -1599,18 +2143,27 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     await _profileManager.DeleteProfileAsync(id);
                 }
 
-                _notificationService.ShowSuccess("Profiles Deleted", $"Deleted {count} profile(s) successfully.", 3000);
+                if (showToast)
+                {
+                    _notificationService.ShowSuccess("Profiles Deleted", $"Deleted {count} profile(s) successfully.", 3000);
+                }
             }
 
             // Notify listeners that profile list has changed
             WeakReferenceMessenger.Default.Send(new ProfileListUpdatedMessage());
 
-            await UpdateDangerZoneDataAsync();
+            if (updateDangerZone)
+            {
+                await UpdateDangerZoneDataAsync();
+            }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to delete profiles");
-            _notificationService.ShowError("Deletion Failed", $"Failed to delete profiles: {ex.Message}", 5000);
+            if (showToast)
+            {
+                _notificationService.ShowError("Deletion Failed", $"Failed to delete profiles: {ex.Message}", 5000);
+            }
         }
     }
 
@@ -1638,7 +2191,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open logs directory");
-            _notificationService.ShowError("Error", $"Failed to open logs directory: {ex.Message}", 5000);
+            _notificationService.ShowError(ErrorTitle, $"Failed to open logs directory: {ex.Message}", 5000);
         }
     }
 
@@ -1666,7 +2219,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open AppData directory");
-            _notificationService.ShowError("Error", $"Failed to open AppData directory: {ex.Message}", 5000);
+            _notificationService.ShowError(ErrorTitle, $"Failed to open AppData directory: {ex.Message}", 5000);
         }
     }
 
@@ -1694,7 +2247,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open profiles directory");
-            _notificationService.ShowError("Error", $"Failed to open profiles directory: {ex.Message}", 5000);
+            _notificationService.ShowError(ErrorTitle, $"Failed to open profiles directory: {ex.Message}", 5000);
         }
     }
 
@@ -1722,7 +2275,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open manifests directory");
-            _notificationService.ShowError("Error", $"Failed to open manifests directory: {ex.Message}", 5000);
+            _notificationService.ShowError(ErrorTitle, $"Failed to open manifests directory: {ex.Message}", 5000);
         }
     }
 
@@ -1765,7 +2318,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open workspaces directory");
-            _notificationService.ShowError("Error", $"Failed to open workspaces directory: {ex.Message}", 5000);
+            _notificationService.ShowError(ErrorTitle, $"Failed to open workspaces directory: {ex.Message}", 5000);
         }
     }
 
@@ -1808,7 +2361,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open CAS pool directory");
-            _notificationService.ShowError("Error", $"Failed to open CAS pool directory: {ex.Message}", 5000);
+            _notificationService.ShowError(ErrorTitle, $"Failed to open CAS pool directory: {ex.Message}", 5000);
         }
     }
 
@@ -1823,7 +2376,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (!Directory.Exists(logsPath))
             {
                 _logger.LogWarning("Logs directory not found at {Path}", logsPath);
-                _notificationService.ShowError("Error", "Logs directory not found.", 3000);
+                _notificationService.ShowError(ErrorTitle, "Logs directory not found.", 3000);
                 return;
             }
 
@@ -1850,7 +2403,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open latest log file");
-            _notificationService.ShowError("Error", $"Failed to open latest log file: {ex.Message}", 5000);
+            _notificationService.ShowError(ErrorTitle, $"Failed to open latest log file: {ex.Message}", 5000);
         }
     }
 
@@ -1862,7 +2415,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             var logsPath = _configurationProvider.GetLogsPath();
             if (!Directory.Exists(logsPath))
             {
-                _notificationService.ShowError("Error", "Logs directory not found.", 3000);
+                _notificationService.ShowError(ErrorTitle, "Logs directory not found.", 3000);
                 return;
             }
 
@@ -1891,13 +2444,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     }
                     else
                     {
-                        _notificationService.ShowError("Error", "Clipboard not available.", 3000);
+                        _notificationService.ShowError(ErrorTitle, "Clipboard not available.", 3000);
                     }
                 }
                 catch (IOException ioEx)
                 {
                     _logger.LogWarning(ioEx, "Failed to read log file (file in use?)");
-                    _notificationService.ShowError("Error", "Could not read log file (it might be in use).", 3000);
+                    _notificationService.ShowError(ErrorTitle, "Could not read log file (it might be in use).", 3000);
                 }
             }
             else
@@ -1908,7 +2461,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to copy latest log file");
-            _notificationService.ShowError("Error", "Failed to copy latest log.", 3000);
+            _notificationService.ShowError(ErrorTitle, "Failed to copy latest log.", 3000);
         }
     }
 
@@ -1931,7 +2484,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to clear logs");
-            _notificationService.ShowError("Error", $"Failed to clear logs: {ex.Message}", 5000);
+            _notificationService.ShowError(ErrorTitle, $"Failed to clear logs: {ex.Message}", 5000);
         }
     }
 
@@ -1962,7 +2515,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
         if (deletedCount == 0)
         {
-            _notificationService.ShowError("Error", "Could not clear active log files (files in use).", 3000);
+            _notificationService.ShowError(ErrorTitle, "Could not clear active log files (files in use).", 3000);
             return;
         }
 

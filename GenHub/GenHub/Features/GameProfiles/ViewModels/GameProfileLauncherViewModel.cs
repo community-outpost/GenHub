@@ -654,7 +654,9 @@ public partial class GameProfileLauncherViewModel(
         }
 
         var client = installation.AvailableGameClients?.FirstOrDefault(c => string.Equals(c.PublisherType, publisherType, StringComparison.OrdinalIgnoreCase));
-        if (client == null && decision != GameClientConstants.WizardActionTypes.Install)
+        if (client == null &&
+            decision != GameClientConstants.WizardActionTypes.Install &&
+            decision != GameClientConstants.WizardActionTypes.CreateProfile)
         {
             return (false, 0);
         }
@@ -669,7 +671,12 @@ public partial class GameProfileLauncherViewModel(
         };
 
         bool forceAttr = decision == GameClientConstants.WizardActionTypes.Update;
-        var result = await publisherProfileOrchestrator.CreateProfilesForPublisherClientAsync(installation, clientToUse, forceReacquireContent: forceAttr);
+        bool skipAcquire = decision == GameClientConstants.WizardActionTypes.CreateProfile;
+        var result = await publisherProfileOrchestrator.CreateProfilesForPublisherClientAsync(
+            installation,
+            clientToUse,
+            forceReacquireContent: forceAttr,
+            skipAcquisition: skipAcquire);
         int profiles = (result.Success && result.Data > 0) ? result.Data : 0;
 
         return (true, profiles);

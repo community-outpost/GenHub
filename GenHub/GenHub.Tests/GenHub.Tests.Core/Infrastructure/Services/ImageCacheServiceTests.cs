@@ -130,7 +130,7 @@ public class ImageCacheServiceTests
             var configMock = new Mock<IConfigurationProviderService>();
             configMock.Setup(c => c.GetApplicationDataPath()).Returns(tempRoot);
 
-            var service = new ImageCacheService(configMock.Object);
+            _ = new ImageCacheService(configMock.Object);
             var expectedCacheDir = Path.Combine(tempRoot, "Images");
 
             Assert.True(Directory.Exists(expectedCacheDir));
@@ -143,7 +143,11 @@ public class ImageCacheServiceTests
                 {
                     Directory.Delete(tempRoot, true);
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                catch (IOException)
+                {
+                    // ignore cleanup failure
+                }
+                catch (UnauthorizedAccessException)
                 {
                     // ignore cleanup failure
                 }
@@ -188,7 +192,11 @@ public class ImageCacheServiceTests
                 {
                     Directory.Delete(tempDir, true);
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                catch (IOException)
+                {
+                    // ignore cleanup failure
+                }
+                catch (UnauthorizedAccessException)
                 {
                     // ignore cleanup failure
                 }
@@ -253,7 +261,11 @@ public class ImageCacheServiceTests
                 {
                     Directory.Delete(tempDir, true);
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                catch (IOException)
+                {
+                    // Ignore cleanup failure in test teardown
+                }
+                catch (UnauthorizedAccessException)
                 {
                     // Ignore cleanup failure in test teardown
                 }
@@ -325,7 +337,11 @@ public class ImageCacheServiceTests
                 {
                     Directory.Delete(tempDir, true);
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                catch (IOException)
+                {
+                    // ignore cleanup failure
+                }
+                catch (UnauthorizedAccessException)
                 {
                     // ignore cleanup failure
                 }
@@ -394,7 +410,11 @@ public class ImageCacheServiceTests
                 {
                     Directory.Delete(tempDir, true);
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                catch (IOException)
+                {
+                    // ignore cleanup failure
+                }
+                catch (UnauthorizedAccessException)
                 {
                     // ignore cleanup failure
                 }
@@ -446,7 +466,11 @@ public class ImageCacheServiceTests
                 {
                     Directory.Delete(tempDir, true);
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                catch (IOException)
+                {
+                    // ignore cleanup failure
+                }
+                catch (UnauthorizedAccessException)
                 {
                     // ignore cleanup failure
                 }
@@ -505,7 +529,11 @@ public class ImageCacheServiceTests
                 {
                     Directory.Delete(tempDir, true);
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                catch (IOException)
+                {
+                    // ignore cleanup failure
+                }
+                catch (UnauthorizedAccessException)
                 {
                     // ignore cleanup failure
                 }
@@ -543,7 +571,11 @@ public class ImageCacheServiceTests
                 {
                     Directory.Delete(tempDir, true);
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                catch (IOException)
+                {
+                    // ignore cleanup failure
+                }
+                catch (UnauthorizedAccessException)
                 {
                     // ignore cleanup failure
                 }

@@ -28,6 +28,7 @@ public class ConfigurationProviderService(
         DirectoryNames.Profiles,
         FileTypes.ManifestsDirectory,
         DirectoryNames.UserData,
+        DirectoryNames.CasPool,
     ];
 
     private static readonly string[] LegacySettingsFileNames =
@@ -355,10 +356,13 @@ public class ConfigurationProviderService(
         // If CasRootPath is empty, apply the default path
         if (string.IsNullOrWhiteSpace(casConfig.CasRootPath))
         {
-            var defaultPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                AppConstants.AppName,
-                DirectoryNames.CasPool);
+            var appDataPath = GetApplicationDataPath();
+            var defaultPath = !string.IsNullOrWhiteSpace(appDataPath)
+                ? Path.Combine(appDataPath, DirectoryNames.CasPool)
+                : Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    AppConstants.AppName,
+                    DirectoryNames.CasPool);
 
             var defaultConfig = (CasConfiguration)casConfig.Clone();
             defaultConfig.CasRootPath = defaultPath;
@@ -398,20 +402,17 @@ public class ConfigurationProviderService(
     }
 
     /// <summary>
-    /// Moves the data written by releases that stored everything under the roaming application data
-    /// folder into the current data root, so upgrading users keep their profiles, manifests, tracked
-    /// user data, workspace metadata and settings.
+    /// Moves data that was written to the legacy roaming data root by GenHub releases up to v0.0.4
+    /// into the current data and settings roots.
     /// </summary>
-    /// <param name="legacyRoot">The roaming data root used before the move to local application data.</param>
-    /// <param name="dataRoot">The root every consumer of <see cref="GetApplicationDataPath"/> reads from.</param>
-    /// <param name="settingsRoot">The root the settings file is read from and written to.</param>
+    /// <param name="legacyRoot">The directory where older releases kept application data.</param>
+    /// <param name="dataRoot">The destination directory for profiles, manifests and user data.</param>
+    /// <param name="settingsRoot">The destination directory for user settings files.</param>
     /// <remarks>
     /// <para>
-    /// The two destinations differ deliberately. Profiles, manifests, tracked user data and the
-    /// workspace metadata are all resolved through <see cref="GetApplicationDataPath"/>, so they have
-    /// to follow an explicitly configured <see cref="UserSettings.ApplicationDataPath"/> override;
-    /// moving them into the configured root instead would leave them where nothing ever looks. The
-    /// settings file is resolved straight from <see cref="IAppConfiguration.GetConfiguredDataPath"/>
+    /// If an explicitly configured data root override sits outside <paramref name="dataRoot"/>, user
+    /// settings must still be written to <paramref name="settingsRoot"/> because the application
+    /// always resolves the configuration path before the override exists in memory or on disk,
     /// and therefore has to land there.
     /// </para>
     /// <para>
@@ -422,8 +423,8 @@ public class ConfigurationProviderService(
     /// stays where it is.
     /// </para>
     /// <para>
-    /// The CAS pool is deliberately excluded: <see cref="GetCasConfiguration"/> still defaults to the
-    /// legacy location, so moving the pool would orphan it.
+    /// The CAS pool is migrated alongside profiles, manifests, and user data so that no files are
+    /// left behind in the legacy roaming location.
     /// </para>
     /// </remarks>
     internal void MigrateLegacyDataRoot(string legacyRoot, string dataRoot, string settingsRoot)
@@ -475,6 +476,8 @@ public class ConfigurationProviderService(
                 _logger.LogError(ex, "Failed to migrate legacy file {Source}", source);
             }
         }
+
+        TryDeleteEmptyDirectory(legacyRoot);
     }
 
     private static List<(string Source, string Destination)> ResolveLegacyDirectories(string legacyRoot, string dataRoot) =>
@@ -496,6 +499,40 @@ public class ConfigurationProviderService(
                     Destination: Path.Combine(settingsRoot, FileTypes.SettingsFileName))))
             .Where(entry => File.Exists(entry.Source) && !PathHelper.AreSamePath(entry.Source, entry.Destination))
             .ToList();
+
+    private static void CleanEmptySubdirectories(string dir)
+    {
+        try
+        {
+            foreach (var subDir in Directory.GetDirectories(dir))
+            {
+                CleanEmptySubdirectories(subDir);
+                if (!Directory.EnumerateFileSystemEntries(subDir).Any())
+                {
+                    try
+                    {
+                        Directory.Delete(subDir);
+                    }
+                    catch (IOException)
+                    {
+                        // Ignore
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        // Ignore
+                    }
+                }
+            }
+        }
+        catch (IOException)
+        {
+            // Ignore
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Ignore
+        }
+    }
 
     private void EnsureLegacyDataMigrated()
     {
@@ -578,6 +615,13 @@ public class ConfigurationProviderService(
     {
         try
         {
+            if (!Directory.Exists(path))
+            {
+                return;
+            }
+
+            CleanEmptySubdirectories(path);
+
             if (!Directory.EnumerateFileSystemEntries(path).Any())
             {
                 Directory.Delete(path);

@@ -3,6 +3,8 @@ namespace GenHub.Core.Features.ActionSets;
 using System;
 using System.Globalization;
 using System.IO;
+using System.Linq;
+using GenHub.Core.Constants;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Models.GameInstallations;
@@ -183,6 +185,58 @@ public abstract class BaseActionSet(ILogger logger) : IActionSet
     protected static void DeleteMarkerFile(string markerPath)
     {
         DeleteFileSafely(markerPath);
+    }
+
+    /// <summary>
+    /// Resolves the local marker file path for an action set, migrating any legacy roaming marker if present.
+    /// </summary>
+    /// <param name="markerFileName">The marker file name (e.g. "MyFix.done").</param>
+    /// <returns>The path to the marker file in LocalApplicationData.</returns>
+    protected static string GetMarkerPath(string markerFileName)
+    {
+        var localDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            AppConstants.AppName,
+            ActionSetConstants.Paths.SubActionSetMarkers);
+
+        var localPath = Path.Combine(localDir, markerFileName);
+
+        try
+        {
+            if (!File.Exists(localPath))
+            {
+                var roamingDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    AppConstants.AppName,
+                    ActionSetConstants.Paths.SubActionSetMarkers);
+                var roamingPath = Path.Combine(roamingDir, markerFileName);
+
+                if (File.Exists(roamingPath))
+                {
+                    Directory.CreateDirectory(localDir);
+                    File.Move(roamingPath, localPath, overwrite: true);
+
+                    if (Directory.Exists(roamingDir) && !Directory.EnumerateFileSystemEntries(roamingDir).Any())
+                    {
+                        Directory.Delete(roamingDir);
+                    }
+                }
+            }
+        }
+        catch (IOException)
+        {
+            // Best effort migration
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Best effort migration
+        }
+        catch (System.Security.SecurityException)
+        {
+            // Best effort migration
+        }
+
+        return localPath;
     }
 
     /// <summary>

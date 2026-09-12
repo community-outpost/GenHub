@@ -72,7 +72,7 @@ public class ScanWizardDemoViewModelTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task RescanCommand_ExecutesAndRepopulatesItems()
+    public async Task RescanCommand_ExecutesAndRepopulatesItemsAsync()
     {
         var vm = CreateVm();
         vm.Items[0].IsSelected = false;
@@ -93,7 +93,7 @@ public class ScanWizardDemoViewModelTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task RescanAsync_WhenCancelled_PreservesItemsAndSetsCancelledStatus()
+    public async Task RescanAsync_WhenCancelled_PreservesItemsAndSetsCancelledStatusAsync()
     {
         var vm = CreateVm();
         using var cts = new CancellationTokenSource();
@@ -115,7 +115,7 @@ public class ScanWizardDemoViewModelTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task CancelCommand_DuringRescan_CancelsActiveScan()
+    public async Task CancelCommand_DuringRescan_CancelsActiveScanAsync()
     {
         var scanStartedTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var cancellationTriggeredTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -123,9 +123,11 @@ public class ScanWizardDemoViewModelTests
         var vm = CreateVm(delayProvider: async ct =>
         {
             scanStartedTcs.SetResult();
-            using var reg = ct.Register(() => cancellationTriggeredTcs.SetResult());
-            await cancellationTriggeredTcs.Task;
-            ct.ThrowIfCancellationRequested();
+            using (ct.Register(() => cancellationTriggeredTcs.SetResult()))
+            {
+                await cancellationTriggeredTcs.Task;
+                ct.ThrowIfCancellationRequested();
+            }
         });
 
         var scanTask = vm.RescanAsync();

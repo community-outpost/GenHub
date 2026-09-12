@@ -78,7 +78,7 @@ public class GeneralsOnlineJsonCatalogParser(
 
                     if (apiResponse != null && (!string.IsNullOrWhiteSpace(apiResponse.Version) || !string.IsNullOrWhiteSpace(apiResponse.DownloadUrl)))
                     {
-                        release = CreateReleaseFromApiResponse(apiResponse);
+                        release = CreateReleaseFromApiResponse(apiResponse, logger);
                         logger.LogInformation(
                             "Parsed release from manifest.json: {Version}",
                             release.Version);
@@ -143,10 +143,12 @@ public class GeneralsOnlineJsonCatalogParser(
     /// </summary>
     /// <param name="apiVersion">The version string from the API JSON response.</param>
     /// <param name="downloadUrl">The download URL for the portable package.</param>
+    /// <param name="logger">Optional logger for diagnostic warnings.</param>
     /// <returns>The resolved canonical version string.</returns>
-    internal static string ResolveReleaseVersion(string? apiVersion, string? downloadUrl)
+    internal static string ResolveReleaseVersion(string? apiVersion, string? downloadUrl, ILogger? logger = null)
     {
         var urlVersion = ExtractVersionFromUrl(downloadUrl);
+
         if (string.IsNullOrWhiteSpace(urlVersion))
         {
             return !string.IsNullOrWhiteSpace(apiVersion) ? apiVersion : GeneralsOnlineConstants.UnknownVersion;
@@ -155,6 +157,27 @@ public class GeneralsOnlineJsonCatalogParser(
         if (string.IsNullOrWhiteSpace(apiVersion))
         {
             return urlVersion;
+        }
+
+        if (!string.Equals(urlVersion, apiVersion, StringComparison.OrdinalIgnoreCase))
+        {
+            logger?.LogWarning(
+                "Generals Online URL package version '{UrlVersion}' diverges from API manifest version '{ApiVersion}'",
+                urlVersion,
+                apiVersion);
+        }
+
+        var urlHasQfe = urlVersion.Contains(GeneralsOnlineConstants.QfeMarkerPrefix, StringComparison.OrdinalIgnoreCase);
+        var apiHasQfe = apiVersion.Contains(GeneralsOnlineConstants.QfeMarkerPrefix, StringComparison.OrdinalIgnoreCase);
+
+        if (urlHasQfe && !apiHasQfe)
+        {
+            return urlVersion;
+        }
+
+        if (apiHasQfe && !urlHasQfe)
+        {
+            return apiVersion;
         }
 
         // Both are present and not empty.
@@ -167,19 +190,6 @@ public class GeneralsOnlineJsonCatalogParser(
         }
 
         if (scheme.TryParse(apiVersion, out _))
-        {
-            return apiVersion;
-        }
-
-        var urlHasQfe = urlVersion.Contains(GeneralsOnlineConstants.QfeMarkerPrefix, StringComparison.OrdinalIgnoreCase);
-        var apiHasQfe = apiVersion.Contains(GeneralsOnlineConstants.QfeMarkerPrefix, StringComparison.OrdinalIgnoreCase);
-
-        if (urlHasQfe)
-        {
-            return urlVersion;
-        }
-
-        if (apiHasQfe)
         {
             return apiVersion;
         }
@@ -200,7 +210,7 @@ public class GeneralsOnlineJsonCatalogParser(
             return null;
         }
 
-        string fileName;
+        string fileName = string.Empty;
         try
         {
             if (Uri.TryCreate(downloadUrl, UriKind.Absolute, out var uri))
@@ -235,10 +245,17 @@ public class GeneralsOnlineJsonCatalogParser(
     /// <summary>
     /// Creates a GeneralsOnlineRelease from a full API response (manifest.json).
     /// </summary>
-    private static GeneralsOnlineRelease CreateReleaseFromApiResponse(GeneralsOnlineApiResponse apiResponse)
+    private static GeneralsOnlineRelease CreateReleaseFromApiResponse(GeneralsOnlineApiResponse apiResponse, ILogger? logger = null)
     {
-        var version = ResolveReleaseVersion(apiResponse.Version, apiResponse.DownloadUrl);
-        var versionDate = ParseVersionDate(version) ?? DateTime.UtcNow;
+        var version = ResolveReleaseVersion(apiResponse.Version, apiResponse.DownloadUrl, logger);
+        var versionDate = ParseVersionDate(version) ?? DateTime.UnixEpoch;
+        var changelog = apiResponse.ReleaseNotes;
+        if (string.IsNullOrWhiteSpace(changelog) ||
+            string.Equals(changelog.Trim(), "www.playgenerals.online", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(changelog.Trim(), "https://www.playgenerals.online", StringComparison.OrdinalIgnoreCase))
+        {
+            changelog = $"Generals Online {version}";
+        }
 
         return new GeneralsOnlineRelease
         {
@@ -248,7 +265,7 @@ public class GeneralsOnlineJsonCatalogParser(
             PortableUrl = apiResponse.DownloadUrl,
             PortableSize = apiResponse.Size,
             Sha256 = apiResponse.Sha256,
-            Changelog = apiResponse.ReleaseNotes ?? $"Generals Online {version}",
+            Changelog = changelog,
         };
     }
 
@@ -277,37 +294,12 @@ public class GeneralsOnlineJsonCatalogParser(
     /// </summary>
     private static DateTime? ParseVersionDate(string version)
     {
-        try
+        if (new MmddyyQfeVersionScheme().TryParse(version, out var parsed) && parsed.Components.Count >= 3)
         {
-            var parts = version.Split(
-                [GeneralsOnlineConstants.QfeSeparator],
-                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-            if (parts.Length < 1)
-            {
-                return null;
-            }
-
-            var datePart = parts[0];
-            if (datePart.Length != 6)
-            {
-                return null;
-            }
-
-            if (!int.TryParse(datePart[..2], out var month) ||
-                !int.TryParse(datePart.Substring(2, 2), out var day) ||
-                !int.TryParse(datePart[4..], out var yearSuffix))
-            {
-                return null;
-            }
-
-            var year = 2000 + yearSuffix;
-            return new DateTime(year, month, day, 0, 0, 0, DateTimeKind.Utc);
+            return new DateTime((int)parsed.Components[0], (int)parsed.Components[1], (int)parsed.Components[2], 0, 0, 0, DateTimeKind.Utc);
         }
-        catch
-        {
-            return null;
-        }
+
+        return null;
     }
 
     /// <summary>
@@ -330,7 +322,7 @@ public class GeneralsOnlineJsonCatalogParser(
             TargetGame = provider.TargetGame ?? GameType.ZeroHour,
             ProviderName = provider.PublisherType,
             AuthorName = GeneralsOnlineConstants.PublisherName,
-            IconUrl = iconUrl ?? string.Empty,
+            IconUrl = !string.IsNullOrEmpty(iconUrl) ? iconUrl : PublisherInfoConstants.GeneralsOnline.LogoSource,
             LastUpdated = release.ReleaseDate,
             DownloadSize = release.PortableSize ?? 0,
             RequiresResolution = true,

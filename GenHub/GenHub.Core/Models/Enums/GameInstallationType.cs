@@ -44,4 +44,9 @@ public enum GameInstallationType
     /// Lutris installation on Linux.
     /// </summary>
     Lutris = 7,
+
+    /// <summary>
+    /// Custom user-specified local game installation.
+    /// </summary>
+    Custom = 8,
 }

@@ -9,6 +9,12 @@ namespace GenHub.Core.Interfaces.GameInstallations;
 public interface IGameInstallationService
 {
     /// <summary>
+    /// Gets the currently cached game installations if initialized; otherwise <c>null</c>.
+    /// Does not trigger auto-detection or manifest generation.
+    /// </summary>
+    IReadOnlyList<GameInstallation>? CachedInstallations { get; }
+
+    /// <summary>
     /// Gets a game installation by its unique identifier.
     /// </summary>
     /// <param name="installationId">The unique identifier of the installation (a GUID string, e.g., "550e8400-e29b-41d4-a716-446655440000").</param>
@@ -44,4 +50,21 @@ public interface IGameInstallationService
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     Task CreateAndRegisterInstallationManifestsAsync(GameInstallation installation, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Registers a custom game installation from a specified directory path.
+    /// Validates game files against CSV catalog, generates manifests, assigns display name, and persists to settings.
+    /// </summary>
+    /// <param name="directoryPath">The directory path of the custom game installation.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>An operation result containing the registered installation, or errors if invalid.</returns>
+    Task<OperationResult<GameInstallation>> RegisterCustomInstallationAsync(string directoryPath, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Removes a custom game installation by its directory path or installation ID, and updates settings.
+    /// </summary>
+    /// <param name="installationIdOrPath">The installation ID or directory path.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>An operation result indicating whether removal succeeded.</returns>
+    Task<OperationResult<bool>> RemoveCustomInstallationAsync(string installationIdOrPath, CancellationToken cancellationToken = default);
 }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Models.Info;
 
@@ -21,4 +22,12 @@ public interface IGeneralsOnlinePatchNotesService
     /// <param name="patchNote">The patch note to fetch details for.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     Task GetPatchDetailsAsync(PatchNote patchNote);
+
+    /// <summary>
+    /// Fetches and formats the patch notes for a given release version into plain text.
+    /// </summary>
+    /// <param name="version">The release version (e.g. "082826" or "082826_QFE1").</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The formatted patch notes, or null if retrieval fails.</returns>
+    Task<string?> GetPatchNotesFormattedAsync(string version, CancellationToken cancellationToken = default);
 }

@@ -18,6 +18,9 @@ public class MmddyyQfeVersionSchemeTests
     /// <param name="day">The expected day.</param>
     /// <param name="qfe">The expected QFE number.</param>
     [Theory]
+    [InlineData("082826", 2026, 8, 28, 0)]
+    [InlineData("042826", 2026, 4, 28, 0)]
+    [InlineData("042826_EAC", 2026, 4, 28, 0)]
     [InlineData("101525_QFE2", 2025, 10, 15, 2)]
     [InlineData("060526_QFE1", 2026, 6, 5, 1)]
     [InlineData("042826_QFE3_EAC", 2026, 4, 28, 3)]
@@ -58,13 +61,11 @@ public class MmddyyQfeVersionSchemeTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    [InlineData("042826")]
     [InlineData("ABCDEF_QFE1")]
     [InlineData("042826_QFEx")]
     [InlineData("133126_QFE1")]
     [InlineData("043126_QFE1")]
     [InlineData("0428267_QFE1")]
-    [InlineData("042826_EAC")]
     [InlineData("042826_QFE-1")]
     [InlineData("042826__QFE3")]
     [InlineData("_042826_QFE3")]
@@ -89,6 +90,9 @@ public class MmddyyQfeVersionSchemeTests
     [InlineData("042826_QFE10", "042826_QFE9", 1)] // QFE beyond a single digit
     [InlineData("042826_QFE3_EAC", "042826_QFE3", 0)] // Build tags do not affect ordering
     [InlineData("042826_QFE2", "042826_QFE3_EAC", -1)]
+    [InlineData("082826_QFE1", "082826", 1)] // QFE1 beats day release without QFE
+    [InlineData("082826", "081326_QFE3", 1)] // Aug 28 beats Aug 13 regardless of QFE
+    [InlineData("082826", "082826_EAC", 0)] // Build tag alone equals day release
     public void Compare_OrdersByDateThenQfe(string version1, string version2, int expected)
     {
         Assert.Equal(expected, Math.Sign(_scheme.Compare(version1, version2)));

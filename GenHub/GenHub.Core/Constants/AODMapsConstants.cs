@@ -3,7 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 namespace GenHub.Core.Constants;
 
 /// <summary>
-/// Constants for AODMaps (Age of Defense Maps) provider.
+/// Constants for AODMaps (Art of Defense Maps) provider.
 /// </summary>
 [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized URI constants / mock demo paths")]
 [SuppressMessage("Minor Code Smell", "S101:Types should be named in PascalCase", Justification = "Domain acronym")]
@@ -19,7 +19,7 @@ public static class AODMapsConstants
     public const string DiscovererSourceName = "AODMaps";
 
     /// <summary>Gets the discoverer description.</summary>
-    public const string DiscovererDescription = "Age of Defense Maps";
+    public const string DiscovererDescription = "Art of Defense Maps";
 
     /// <summary>Gets the resolver ID for AODMaps.</summary>
     public const string ResolverId = "AODMaps";
@@ -117,6 +117,9 @@ public static class AODMapsConstants
     /// <summary>Gets the download URL metadata key.</summary>
     public const string DownloadUrlMetadataKey = "downloadUrl";
 
+    /// <summary>Gets the list page URL metadata key.</summary>
+    public const string ListPageUrlMetadataKey = "listPageUrl";
+
     /// <summary>Gets the direct download metadata key.</summary>
     public const string DirectDownloadMetadataKey = "directDownload";
 
@@ -125,6 +128,30 @@ public static class AODMapsConstants
 
     /// <summary>Gets the download count metadata key.</summary>
     public const string DownloadCountMetadataKey = "downloadCount";
+
+    /// <summary>Gets the player count metadata key.</summary>
+    public const string PlayerCountMetadataKey = ContentConstants.PlayerCountMetadataKey;
+
+    /// <summary>Gets the category metadata key used for download-card badges and combined filtering.</summary>
+    public const string CategoryMetadataKey = ContentConstants.CategoryMetadataKey;
+
+    /// <summary>Filter / badge label for Compstomp maps.</summary>
+    public const string CategoryCompstomp = "Compstomp";
+
+    /// <summary>Filter / badge label for map packs.</summary>
+    public const string CategoryMapPacks = "Map Packs";
+
+    /// <summary>Filter / badge label for air maps.</summary>
+    public const string CategoryAir = "Air";
+
+    /// <summary>Filter / badge label for race maps.</summary>
+    public const string CategoryRace = "Race";
+
+    /// <summary>Filter / badge label for Art of Attack maps.</summary>
+    public const string CategoryAoa = "AOA";
+
+    /// <summary>Filter / badge label for Contra AOD maps.</summary>
+    public const string CategoryContra = "Contra";
 
     /// <summary>Gets the last updated metadata key.</summary>
     public const string LastUpdatedMetadataKey = "lastUpdated";

@@ -119,6 +119,7 @@
     <Color x:Key="WarningHighlightColor">#F59E0B</Color>
     <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" />
     <SolidColorBrush x:Key="WarningHighlightBrush" Color="{StaticResource WarningHighlightColor}" />
+    <SolidColorBrush x:Key="WarningForegroundBrush" Color="{StaticResource SurfaceBackgroundDark}" />
 
     <!-- Status Tokens: Error -->
     <Color x:Key="ErrorColor">#EF4444</Color>

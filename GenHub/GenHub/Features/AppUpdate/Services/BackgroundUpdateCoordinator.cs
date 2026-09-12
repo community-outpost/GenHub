@@ -49,9 +49,9 @@ public class BackgroundUpdateCoordinator(
         RegisterMessages();
 
         var settings = userSettingsService.Get();
-        if (settings.AutoCheckForUpdatesOnStartup && TryGetLifetimeToken(out var lifetimeToken))
+        if (settings.AutoCheckForUpdatesOnStartup && TryGetLifetimeToken(out _))
         {
-            _ = CheckForUpdatesOnStartupAsync(lifetimeToken, cancellationToken);
+            _ = CheckForUpdatesOnStartupAsync(cancellationToken);
         }
 
         RestartPeriodicUpdateTimer(settings.AutoCheckForUpdatesPeriodically, settings.PeriodicUpdateCheckIntervalMinutes);
@@ -205,7 +205,7 @@ public class BackgroundUpdateCoordinator(
             var currentVersionBase = UpdateNotificationViewModel.CurrentAppVersion.Split('+')[0];
             var artifactVersionBase = artifactUpdate.Version.Split('+')[0];
 
-            if (AppUpdateVersionHelper.IsArtifactVersionNewer(artifactVersionBase, currentVersionBase) &&
+            if (AppUpdateVersionHelper.IsArtifactVersionNewer(artifactVersionBase, currentVersionBase, allowCrossChannel: true) &&
                 !string.Equals(artifactVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
             {
                 var updateIdentity = $"{AppUpdateConstants.PrDedupePrefix}{prNumber}:{artifactVersionBase}";
@@ -420,7 +420,7 @@ public class BackgroundUpdateCoordinator(
             var currentVersionBase = UpdateNotificationViewModel.CurrentAppVersion.Split('+')[0];
             var artifactVersionBase = artifactUpdate.Version.Split('+')[0];
 
-            if (AppUpdateVersionHelper.IsArtifactVersionNewer(artifactVersionBase, currentVersionBase) &&
+            if (AppUpdateVersionHelper.IsArtifactVersionNewer(artifactVersionBase, currentVersionBase, allowCrossChannel: true) &&
                 !string.Equals(artifactVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
             {
                 var updateIdentity = $"{AppUpdateConstants.BranchDedupePrefix}{branch}:{artifactVersionBase}";
@@ -857,8 +857,13 @@ public class BackgroundUpdateCoordinator(
         });
     }
 
-    private async Task CheckForUpdatesOnStartupAsync(CancellationToken lifetimeToken, CancellationToken cancellationToken)
+    private async Task CheckForUpdatesOnStartupAsync(CancellationToken cancellationToken)
     {
+        if (!TryGetLifetimeToken(out var lifetimeToken))
+        {
+            return;
+        }
+
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(lifetimeToken, cancellationToken);
         await CheckForUpdatesInBackgroundAsync(linkedCts.Token);
     }

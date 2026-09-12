@@ -1024,6 +1024,66 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     }
 
     /// <summary>
+    /// Determines whether a GitHub Actions workflow run matches the specified branch or PR number criteria.
+    /// </summary>
+    /// <param name="run">The workflow run JSON element.</param>
+    /// <param name="branchName">The optional target branch name.</param>
+    /// <param name="prNumber">The optional pull request number.</param>
+    /// <returns><c>true</c> if the workflow run matches; otherwise, <c>false</c>.</returns>
+    internal static bool IsMatchingWorkflowRun(JsonElement run, string? branchName, int? prNumber)
+    {
+        var actualBranch = run.TryGetProperty("head_branch", out var b) ? b.GetString() : branchName ?? "unknown";
+        var eventType = run.TryGetProperty("event", out var e) ? e.GetString() : "unknown";
+
+        if (prNumber.HasValue)
+        {
+            return MatchesPullRequestCriteria(run, prNumber.Value, actualBranch, branchName);
+        }
+
+        if (!string.IsNullOrEmpty(branchName))
+        {
+            return MatchesBranchCriteria(actualBranch, branchName, eventType);
+        }
+
+        return true;
+    }
+
+    private static bool MatchesPullRequestCriteria(JsonElement run, int prNumber, string? actualBranch, string? branchName)
+    {
+        if (run.TryGetProperty("pull_requests", out var prs) && prs.ValueKind == JsonValueKind.Array)
+        {
+            var prCount = 0;
+            foreach (var pr in prs.EnumerateArray())
+            {
+                prCount++;
+                if (pr.TryGetProperty("number", out var num) && num.GetInt32() == prNumber)
+                {
+                    return true;
+                }
+            }
+
+            if (prCount > 0)
+            {
+                return false;
+            }
+        }
+
+        return string.IsNullOrEmpty(branchName) || string.Equals(actualBranch, branchName, StringComparison.Ordinal);
+    }
+
+    private static bool MatchesBranchCriteria(string? actualBranch, string branchName, string? eventType)
+    {
+        if (!string.Equals(actualBranch, branchName, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return string.Equals(eventType, "push", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(eventType, "workflow_dispatch", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(eventType, "pull_request", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Extracts version from artifact name.
     /// Expected format: genhub-velopack-{platform}-{version}.
     /// </summary>
@@ -1469,7 +1529,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
             var runsUrl = !string.IsNullOrEmpty(branch)
                 ? string.Format(ApiConstants.GitHubApiWorkflowRunsFormat, owner, repo, branch)
-                : $"https://api.github.com/repos/{owner}/{repo}/actions/runs?status=success&event=push&per_page=10";
+                : string.Format(ApiConstants.GitHubApiWorkflowRunsAllFormat, owner, repo);
 
             if (!string.IsNullOrEmpty(branch))
             {
@@ -1547,9 +1607,12 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             return null;
         }
 
-        if (!string.IsNullOrEmpty(branch) && !string.Equals(eventType, "push", StringComparison.OrdinalIgnoreCase) && !string.Equals(eventType, "workflow_dispatch", StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrEmpty(branch) &&
+            !string.Equals(eventType, "push", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(eventType, "workflow_dispatch", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(eventType, "pull_request", StringComparison.OrdinalIgnoreCase))
         {
-            _logger.LogDebug("Skipping run {RunId} ({EventType}) - not a push or workflow_dispatch event for branch {Branch}", runId, eventType, branch);
+            _logger.LogDebug("Skipping run {RunId} ({EventType}) - not a push, workflow_dispatch, or pull_request event for branch {Branch}", runId, eventType, branch);
             return null;
         }
 
@@ -1591,48 +1654,6 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         _logger.LogDebug("No suitable Velopack artifacts found for current platform in run {RunId}, checking next run", runId);
         return null;
-    }
-
-    private bool IsMatchingWorkflowRun(JsonElement run, string? branchName, int? prNumber)
-    {
-        var actualBranch = run.TryGetProperty("head_branch", out var b) ? b.GetString() : branchName ?? "unknown";
-        var eventType = run.TryGetProperty("event", out var e) ? e.GetString() : "unknown";
-
-        if (prNumber.HasValue)
-        {
-            if (run.TryGetProperty("pull_requests", out var prs) && prs.ValueKind == JsonValueKind.Array)
-            {
-                var prCount = 0;
-                foreach (var pr in prs.EnumerateArray())
-                {
-                    prCount++;
-                    if (pr.TryGetProperty("number", out var num) && num.GetInt32() == prNumber.Value)
-                    {
-                        return true;
-                    }
-                }
-
-                if (prCount > 0)
-                {
-                    return false;
-                }
-            }
-
-            return string.IsNullOrEmpty(branchName) || string.Equals(actualBranch, branchName, StringComparison.Ordinal);
-        }
-
-        if (!string.IsNullOrEmpty(branchName))
-        {
-            if (!string.Equals(actualBranch, branchName, StringComparison.Ordinal))
-            {
-                return false;
-            }
-
-            return string.Equals(eventType, "push", StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(eventType, "workflow_dispatch", StringComparison.OrdinalIgnoreCase);
-        }
-
-        return true;
     }
 
     private async Task<IReadOnlyList<ArtifactUpdateInfo>> FindArtifactsAsync(HttpClient client, string? branchName, int? prNumber, CancellationToken cancellationToken)

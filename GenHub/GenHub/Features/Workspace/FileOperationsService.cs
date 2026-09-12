@@ -48,29 +48,16 @@ public class FileOperationsService(
     {
         try
         {
-            // Check for file symlink FIRST (LinkTarget check works even for broken symlinks)
-            // File.Exists() returns false for broken symlinks on Windows, but they still exist
-            // and will prevent creating a new symlink at the same path
-            var fileInfo = new FileInfo(filePath);
-            if (fileInfo.LinkTarget != null)
+            if (TryDeleteReparsePointOrSymlink(filePath))
             {
-                // This is a file symlink (even if broken)
-                File.Delete(filePath);
-                return true;
-            }
-
-            // Check for directory symlink
-            var dirInfo = new DirectoryInfo(filePath);
-            if (dirInfo.LinkTarget != null)
-            {
-                // This is a directory symlink (even if broken)
-                Directory.Delete(filePath);
                 return true;
             }
 
             // Finally check for regular file (not a symlink)
             if (File.Exists(filePath))
             {
+                var fileInfo = new FileInfo(filePath);
+                ClearReadOnlyAttribute(fileInfo);
                 File.Delete(filePath);
                 return true;
             }
@@ -91,30 +78,62 @@ public class FileOperationsService(
 
     /// <summary>
     /// Deletes the specified directory and all its contents if it exists.
+    /// Safely unlinks NTFS directory junctions and symlinks, clears read-only attributes,
+    /// and deletes the target if it points to a regular file.
     /// </summary>
     /// <param name="directoryPath">The path of the directory to delete.</param>
-    /// <returns>True if the directory was deleted; otherwise, false.</returns>
-    /// <exception cref="IOException">Thrown when files are locked by another process.</exception>
+    /// <returns>True if the directory or file was deleted; otherwise, false.</returns>
+    /// <exception cref="IOException">Thrown when files are locked by another process or an I/O error occurs.</exception>
+    /// <exception cref="UnauthorizedAccessException">Thrown when access to the path is denied.</exception>
     public static bool DeleteDirectoryIfExists(string directoryPath)
     {
-        if (Directory.Exists(directoryPath))
+        if (string.IsNullOrWhiteSpace(directoryPath))
         {
-            try
-            {
-                Directory.Delete(directoryPath, recursive: true);
-                return true;
-            }
-            catch (IOException ex) when (ex.Message.Contains("being used by another process"))
-            {
-                // Re-throw with a more helpful message
-                throw new IOException(
-                    $"Cannot delete directory '{directoryPath}' because files are being used by another process. " +
-                    "Please ensure all applications using files in this directory are closed before deleting.",
-                    ex);
-            }
+            return false;
         }
 
-        return false;
+        FileAttributes attributes = default;
+        try
+        {
+            attributes = File.GetAttributes(directoryPath);
+        }
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return false;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            if (!Path.Exists(directoryPath))
+            {
+                return false;
+            }
+
+            throw;
+        }
+
+        if ((attributes & FileAttributes.Directory) == 0)
+        {
+            return DeleteFileIfExists(directoryPath);
+        }
+
+        var dirInfo = new DirectoryInfo(directoryPath);
+        try
+        {
+            DeleteDirectoryInternal(dirInfo);
+            return true;
+        }
+        catch (IOException ex) when (IsFileLockException(ex) || ex.Message.Contains("being used by another process", StringComparison.OrdinalIgnoreCase))
+        {
+            // Re-throw with a more helpful message
+            throw new IOException(
+                $"Cannot delete directory '{directoryPath}' because files are being used by another process. " +
+                "Please ensure all applications using files in this directory are closed before deleting.",
+                ex);
+        }
     }
 
     /// <summary>
@@ -802,6 +821,117 @@ public class FileOperationsService(
         else
         {
             throw new FileNotFoundException($"Source file not found for fallback copy: {sourcePath}");
+        }
+    }
+
+    /// <summary>
+    /// Recursively removes directory contents, safely unlinking directory junctions and symlinks
+    /// non-recursively and clearing read-only attributes to prevent <see cref="UnauthorizedAccessException"/>.
+    /// </summary>
+    private static void DeleteDirectoryInternal(DirectoryInfo directory)
+    {
+        if (!directory.Exists && directory.LinkTarget == null)
+        {
+            return;
+        }
+
+        // If the directory itself is a reparse point (e.g. junction or directory symlink),
+        // delete it non-recursively to avoid traversing the target or encountering access issues.
+        if ((directory.Attributes & FileAttributes.ReparsePoint) != 0 || directory.LinkTarget != null)
+        {
+            directory.Delete(false);
+            return;
+        }
+
+        // Strip read-only attributes and delete all files.
+        foreach (var file in directory.EnumerateFiles())
+        {
+            ClearReadOnlyAttribute(file);
+            file.Delete();
+        }
+
+        // Process subdirectories: delete junctions/reparse points non-recursively, recurse into regular dirs.
+        foreach (var subDir in directory.EnumerateDirectories())
+        {
+            DeleteDirectoryChild(subDir);
+        }
+
+        ClearReadOnlyAttribute(directory);
+        directory.Delete(false);
+    }
+
+    /// <summary>
+    /// Deletes a directory child entry non-recursively for reparse points and junctions, or recursively for regular directories.
+    /// </summary>
+    /// <param name="subDir">The subdirectory info to delete.</param>
+    private static void DeleteDirectoryChild(DirectoryInfo subDir)
+    {
+        ClearReadOnlyAttribute(subDir);
+        if ((subDir.Attributes & FileAttributes.ReparsePoint) != 0 || subDir.LinkTarget != null)
+        {
+            subDir.Delete(false);
+        }
+        else
+        {
+            DeleteDirectoryInternal(subDir);
+        }
+    }
+
+    /// <summary>
+    /// Attempts to delete a path if it is a reparse point or symbolic link (file or directory).
+    /// </summary>
+    /// <param name="path">The path to test and delete.</param>
+    /// <returns><c>true</c> if a reparse point was deleted; otherwise, <c>false</c>.</returns>
+    private static bool TryDeleteReparsePointOrSymlink(string path)
+    {
+        // Check for directory symlink or junction FIRST when directory attribute or existence indicates a directory,
+        // preventing directory junctions from failing with UnauthorizedAccessException when passed to File.Delete.
+        var dirInfo = new DirectoryInfo(path);
+        if ((dirInfo.Exists || (dirInfo.Attributes & FileAttributes.Directory) != 0) && IsReparsePointOrSymlink(dirInfo))
+        {
+            ClearReadOnlyAttribute(dirInfo);
+            Directory.Delete(path, recursive: false);
+            return true;
+        }
+
+        // Check for file symlink (LinkTarget check works even for broken symlinks)
+        var fileInfo = new FileInfo(path);
+        if (IsReparsePointOrSymlink(fileInfo))
+        {
+            ClearReadOnlyAttribute(fileInfo);
+            File.Delete(path);
+            return true;
+        }
+
+        if (IsReparsePointOrSymlink(dirInfo))
+        {
+            ClearReadOnlyAttribute(dirInfo);
+            Directory.Delete(path, recursive: false);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Determines whether the given file system info represents a reparse point or symbolic link.
+    /// </summary>
+    /// <param name="info">The file or directory info.</param>
+    /// <returns><c>true</c> if the entry is a reparse point or symlink; otherwise, <c>false</c>.</returns>
+    private static bool IsReparsePointOrSymlink(FileSystemInfo info)
+    {
+        return info.LinkTarget != null || (info.Exists && (info.Attributes & FileAttributes.ReparsePoint) != 0);
+    }
+
+    /// <summary>
+    /// Clears the read-only attribute from a file system entry if present.
+    /// </summary>
+    /// <param name="info">The file or directory info.</param>
+    private static void ClearReadOnlyAttribute(FileSystemInfo info)
+    {
+        if (info.Exists && (info.Attributes & FileAttributes.ReadOnly) != 0)
+        {
+            info.Attributes &= ~FileAttributes.ReadOnly;
         }
     }
 }

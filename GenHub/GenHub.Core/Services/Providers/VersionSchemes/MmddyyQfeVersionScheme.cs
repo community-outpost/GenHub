@@ -5,9 +5,10 @@ using GenHub.Core.Models.Content;
 namespace GenHub.Core.Services.Providers.VersionSchemes;
 
 /// <summary>
-/// Generals Online versions: a MMDDYY date, a QFE revision, and any number of trailing
-/// build tags. "060526_QFE1", "042826_QFE3_EAC" and "011526_QFE1_EAC_X86" are all valid;
-/// the trailing tags identify a build, not a release, so they take no part in ordering.
+/// Generals Online versions: a MMDDYY date, an optional QFE revision, and any number of trailing
+/// build tags. "082826", "060526_QFE1", "042826_QFE3_EAC" and "011526_QFE1_EAC_X86" are all valid;
+/// day releases without QFE default to revision 0, and the trailing tags identify a build, not a
+/// release, so they take no part in ordering.
 /// </summary>
 public sealed class MmddyyQfeVersionScheme : VersionSchemeBase
 {
@@ -25,7 +26,7 @@ public sealed class MmddyyQfeVersionScheme : VersionSchemeBase
         }
 
         var segments = version.Split('_', StringSplitOptions.TrimEntries);
-        if (segments.Length < 2 || segments.Any(string.IsNullOrEmpty))
+        if (segments.Length < 1 || segments.Any(string.IsNullOrEmpty))
         {
             return false;
         }
@@ -50,23 +51,30 @@ public sealed class MmddyyQfeVersionScheme : VersionSchemeBase
             return false;
         }
 
-        var qfeSegments = segments
-            .Skip(1)
-            .Where(segment => segment.StartsWith(
-                GeneralsOnlineConstants.QfeMarkerPrefix,
-                StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-
-        if (qfeSegments.Length != 1)
+        var qfe = 0;
+        if (segments.Length > 1)
         {
-            return false;
-        }
+            var qfeSegments = segments
+                .Skip(1)
+                .Where(segment => segment.StartsWith(
+                    GeneralsOnlineConstants.QfeMarkerPrefix,
+                    StringComparison.OrdinalIgnoreCase))
+                .ToArray();
 
-        var qfeSegment = qfeSegments[0];
-        var qfeDigits = qfeSegment[GeneralsOnlineConstants.QfeMarkerPrefix.Length..];
-        if (!int.TryParse(qfeDigits, NumberStyles.None, CultureInfo.InvariantCulture, out var qfe))
-        {
-            return false;
+            if (qfeSegments.Length > 1)
+            {
+                return false;
+            }
+
+            if (qfeSegments.Length == 1)
+            {
+                var qfeSegment = qfeSegments[0];
+                var qfeDigits = qfeSegment[GeneralsOnlineConstants.QfeMarkerPrefix.Length..];
+                if (!int.TryParse(qfeDigits, NumberStyles.None, CultureInfo.InvariantCulture, out qfe))
+                {
+                    return false;
+                }
+            }
         }
 
         result = new ContentVersion(date.Year, date.Month, date.Day, qfe);

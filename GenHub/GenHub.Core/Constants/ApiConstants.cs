@@ -49,14 +49,15 @@ public static class ApiConstants
     public const string GitHubApiArtifactDownloadFormat = "https://api.github.com/repos/{0}/{1}/actions/artifacts/{2}/zip";
 
     /// <summary>
-    /// Format string for GitHub API Workflow Runs endpoint (owner, repo, branch).
+    /// Format string for GitHub API CI Workflow Runs endpoint by branch (owner, repo, branch).
+    /// Scoped to ci.yml so non-build workflows do not displace artifact-producing runs.
     /// </summary>
-    public const string GitHubApiWorkflowRunsFormat = "https://api.github.com/repos/{0}/{1}/actions/runs?status=success&branch={2}&per_page=10";
+    public const string GitHubApiWorkflowRunsFormat = "https://api.github.com/repos/{0}/{1}/actions/workflows/ci.yml/runs?status=success&branch={2}&per_page=20";
 
     /// <summary>
-    /// Format string for GitHub API Latest Workflow Runs endpoint (owner, repo).
+    /// Format string for GitHub API Latest CI Workflow Runs endpoint (owner, repo).
     /// </summary>
-    public const string GitHubApiLatestWorkflowRunsFormat = "https://api.github.com/repos/{0}/{1}/actions/runs?status=success&per_page=1";
+    public const string GitHubApiLatestWorkflowRunsFormat = "https://api.github.com/repos/{0}/{1}/actions/workflows/ci.yml/runs?status=success&per_page=1";
 
     /// <summary>
     /// Format string for GitHub API Run Artifacts endpoint (owner, repo, runId).
@@ -160,9 +161,16 @@ public static class ApiConstants
     public const string GameReplaysDomainFragment = "gamereplays.org";
 
     /// <summary>
-    /// Format string for GitHub API Workflow Runs endpoint (owner, repo).
+    /// Format string for GitHub API CI Workflow Runs endpoint across all branches (owner, repo).
     /// </summary>
-    public const string GitHubApiWorkflowRunsAllFormat = "https://api.github.com/repos/{0}/{1}/actions/runs?status=success&per_page=20";
+    public const string GitHubApiWorkflowRunsAllFormat = "https://api.github.com/repos/{0}/{1}/actions/workflows/ci.yml/runs?status=success&per_page=20";
+
+    // YouTube
+
+    /// <summary>
+    /// Base watch URL prefix for YouTube videos.
+    /// </summary>
+    public const string YouTubeWatchUrlPrefix = "https://www.youtube.com/watch?v=";
 
     // User agents
 
