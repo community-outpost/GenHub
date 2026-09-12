@@ -36,7 +36,7 @@ The `index.json` manifest acts as the root index queried by `CsvDiscoverer` duri
 ```json
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-08-30T17:40:00Z",
+  "lastUpdated": "2026-09-12T14:51:04Z",
   "description": "Index of CSV registries for Command & Conquer Generals and Zero Hour validation",
   "registries": [
     {
@@ -44,14 +44,14 @@ The `index.json` manifest acts as the root index queried by `CsvDiscoverer` duri
       "gameType": "Generals",
       "version": "1.08",
       "url": "https://raw.githubusercontent.com/community-outpost/GenHub/development/docs/GameInstallationFilesRegistry/Generals-1.08.csv",
-      "fileCount": 164,
-      "totalSizeBytes": 28977,
+      "fileCount": 163,
+      "totalSizeBytes": 28813,
       "languages": ["All", "EN", "DE", "FR", "ES", "IT", "KO", "PL", "PT-BR", "ZH-CN", "ZH-TW"],
       "checksum": {
-        "md5": "4b77bce0b4dd0301478e0e341757491f",
-        "sha256": "0fba15bb0a0db434b5edce0475615d4f84c4f2a02b01610f42dc23b9f491099d"
+        "md5": "7f599b8c81ef300692c944c7419bf968",
+        "sha256": "0b2578095af96028bc9be32e5cecc2e10070290e9a6b923ac1eb5dd43c9af114"
       },
-      "generatedAt": "2025-09-17T09:15:00Z",
+      "generatedAt": "2026-09-12T14:51:04Z",
       "generatorVersion": "1.0.0",
       "isActive": true
     }
