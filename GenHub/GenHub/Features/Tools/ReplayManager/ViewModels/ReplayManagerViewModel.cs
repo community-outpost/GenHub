@@ -20,6 +20,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Messages;
@@ -1231,9 +1232,12 @@ public partial class ReplayManagerViewModel(
             return;
         }
 
-        // When multiple profiles are compatible with this replay, prompt user to select which one to launch
+        // When multiple profiles exist for this game type or multiple profiles are compatible with this replay,
+        // prompt user to select which one to launch using the profile selection dialog
         var compatibleProfiles = await directoryService.GetCompatibleProfilesForReplayAsync(replay);
-        if (compatibleProfiles.Count > 1)
+        var totalProfilesForGame = await GetProfileCountForGameAsync(replay.GameVersion);
+
+        if (compatibleProfiles.Count > 1 || totalProfilesForGame > 1)
         {
             await SelectProfileAndLaunchReplayAsync(replay);
             return;
@@ -1250,6 +1254,32 @@ public partial class ReplayManagerViewModel(
         }
 
         await LaunchReplayWithProfileAsync(replay, targetProfileId);
+    }
+
+    private async Task<int> GetProfileCountForGameAsync(GameType gameType)
+    {
+        try
+        {
+            if (serviceProvider != null)
+            {
+                using var scope = serviceProvider.CreateScope();
+                var profileManager = scope.ServiceProvider.GetService<IGameProfileManager>();
+                if (profileManager != null)
+                {
+                    var result = await profileManager.GetAllProfilesAsync();
+                    if (result.Success && result.Data != null)
+                    {
+                        return result.Data.Count(p => p.GameClient?.GameType == gameType);
+                    }
+                }
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogDebug(ex, "Failed to retrieve profile count for {GameType}", gameType);
+        }
+
+        return 0;
     }
 
     /// <summary>

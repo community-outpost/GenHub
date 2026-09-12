@@ -207,13 +207,31 @@ public sealed class ReplayDirectoryService(
         var clientManifestId = replay.MatchedClient?.ManifestId ?? string.Empty;
         var dataPatchManifestId = replay.MatchedClient?.DataPatchManifestId;
 
-        return FindCompatibleProfiles(
+        var compatible = FindCompatibleProfiles(
             profilesResult.Data,
             replay.GameVersion,
             clientManifestId,
             dataPatchManifestId,
             replay,
             logger);
+
+        if (crcCalculator != null && !string.IsNullOrEmpty(replay.Metadata?.FormattedExeCrc))
+        {
+            var targetExeCrc = replay.Metadata.FormattedExeCrc;
+            var targetIniCrc = replay.Metadata.FormattedIniCrc;
+            var compatibleIds = new HashSet<string>(compatible.Select(p => p.Id), StringComparer.OrdinalIgnoreCase);
+
+            foreach (var profile in profilesResult.Data.Where(p => p.GameClient?.GameType == replay.GameVersion && !compatibleIds.Contains(p.Id)))
+            {
+                if (TryMatchProfileExeCrc(profile, replay, targetExeCrc, targetIniCrc, out _))
+                {
+                    compatible.Add(profile);
+                    compatibleIds.Add(profile.Id);
+                }
+            }
+        }
+
+        return compatible;
     }
 
     /// <inheritdoc/>
@@ -514,8 +532,14 @@ public sealed class ReplayDirectoryService(
 
         if (!string.IsNullOrEmpty(dataPatchManifestId))
         {
-            return profile.EnabledContentIds?.Any(id =>
-                HasMatchingDataPatchId(dataPatchManifestId, id)) == true;
+            var hasAnyPatch = profile.EnabledContentIds?.Any(id =>
+                id.Contains(".patch.", StringComparison.OrdinalIgnoreCase)) == true;
+
+            if (hasAnyPatch)
+            {
+                return profile.EnabledContentIds?.Any(id =>
+                    HasMatchingDataPatchId(dataPatchManifestId, id)) == true;
+            }
         }
 
         return true;

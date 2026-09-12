@@ -237,9 +237,14 @@ public sealed partial class GameClientSelectionViewModel(
     /// <returns><c>true</c> if the manifest matches the target game; otherwise, <c>false</c>.</returns>
     internal static bool ManifestMatchesGame(ContentManifest manifest, GameType targetGame)
     {
-        if (manifest.TargetGame != GameType.Unknown && manifest.TargetGame == targetGame)
+        if (manifest.TargetGame == targetGame)
         {
             return true;
+        }
+
+        if (manifest.TargetGame != GameType.Unknown)
+        {
+            return false;
         }
 
         var tokens = (manifest.Id.Value ?? string.Empty).ToLowerInvariant().Split('-', '_', '.');

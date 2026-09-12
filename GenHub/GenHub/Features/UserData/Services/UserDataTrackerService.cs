@@ -121,7 +121,7 @@ public class UserDataTrackerService(
                 UserDataFileEntry? priorEntry = null;
                 priorFiles?.TryGetValue(targetPath, out priorEntry);
 
-                var installResult = await InstallSingleUserDataFileAsync(file, targetPath, targetGame, userDataManifest.InstallationKey, priorEntry, cancellationToken);
+                var installResult = await InstallSingleUserDataFileAsync(file, targetPath, targetGame, userDataManifest.InstallationKey, userDataManifest.ManifestId, priorEntry, cancellationToken);
                 if (!installResult.Success || installResult.Data == null)
                 {
                     var error = installResult.FirstError ?? $"Failed to install '{targetPath}'.";
@@ -1146,6 +1146,7 @@ public class UserDataTrackerService(
         string targetPath,
         GameType targetGame,
         string installationKey,
+        string manifestId,
         UserDataFileEntry? priorEntry,
         CancellationToken cancellationToken)
     {
@@ -1156,46 +1157,27 @@ public class UserDataTrackerService(
             return OperationResult<UserDataFileEntry>.CreateFailure($"Failed to check file conflict for '{targetPath}': {conflictResult.FirstError}");
         }
 
-        // Optimization & Conflict resolution: If the file already exists on disk and matches the required content hash,
-        // reuse it directly (even if previously tracked under an adopting/conflicting profile installation key)
-        if (File.Exists(targetPath) && !string.IsNullOrEmpty(file.Hash))
-        {
-            var isIdentical = await fileOperations.VerifyFileHashAsync(targetPath, file.Hash, cancellationToken);
-            if (isIdentical)
-            {
-                if (!string.IsNullOrEmpty(conflictResult.Data) && conflictResult.Data != installationKey)
-                {
-                    logger.LogInformation(
-                        "[UserData] File {Path} is already present and matches expected hash from installation {PriorKey}; adopting for {NewKey}",
-                        targetPath,
-                        conflictResult.Data,
-                        installationKey);
-                }
-                else
-                {
-                    logger.LogDebug("[UserData] File {Path} already exists and matches expected hash; reusing without re-materializing", targetPath);
-                }
-
-                return OperationResult<UserDataFileEntry>.CreateSuccess(new UserDataFileEntry
-                {
-                    RelativePath = file.RelativePath,
-                    AbsolutePath = targetPath,
-                    SourceHash = file.Hash,
-                    FileSize = file.Size,
-                    InstallTarget = file.InstallTarget,
-                    WasOverwritten = priorEntry?.WasOverwritten == true,
-                    BackupPath = priorEntry?.BackupPath,
-                    InstalledAt = DateTime.UtcNow,
-                    IsHardLink = false,
-                    CasHash = file.Hash,
-                });
-            }
-        }
 
         if (!string.IsNullOrEmpty(conflictResult.Data) && conflictResult.Data != installationKey)
         {
-            logger.LogError("[UserData] File conflict with installation {Key}: {Path}; aborting installation", conflictResult.Data, targetPath);
-            return OperationResult<UserDataFileEntry>.CreateFailure($"File '{targetPath}' is already managed by installation '{conflictResult.Data}'. Installation aborted.");
+            var conflictingManifest = await LoadUserDataManifestByKeyAsync(conflictResult.Data, cancellationToken);
+            var isSameManifest = conflictingManifest != null &&
+                string.Equals(conflictingManifest.ManifestId, manifestId, StringComparison.OrdinalIgnoreCase);
+
+            if (conflictingManifest != null && (!conflictingManifest.IsActive || isSameManifest))
+            {
+                logger.LogInformation(
+                    "[UserData] Adopting file {Path} from prior installation {PriorKey} (IsActive: {IsActive}) for {NewKey}",
+                    targetPath,
+                    conflictResult.Data,
+                    conflictingManifest.IsActive,
+                    installationKey);
+            }
+            else
+            {
+                logger.LogError("[UserData] File conflict with installation {Key}: {Path}; aborting installation", conflictResult.Data, targetPath);
+                return OperationResult<UserDataFileEntry>.CreateFailure($"File '{targetPath}' is already managed by installation '{conflictResult.Data}'. Installation aborted.");
+            }
         }
 
         var wasOverwritten = false;
