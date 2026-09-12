@@ -627,39 +627,17 @@ public sealed partial class ContentGridItemViewModel(
 
     private bool MatchesResolverMetadata(ContentStateChangedEventArgs e)
     {
-        if (SearchResult.ResolverMetadata == null)
-        {
-            return false;
-        }
+        return MatchesKey(CNCLabsConstants.MapIdMetadataKey, e) ||
+               MatchesKey(AODMapsConstants.MapIdMetadataKey, e) ||
+               MatchesKey(ModDBConstants.ContentIdMetadataKey, e);
+    }
 
-        if (SearchResult.ResolverMetadata.TryGetValue(CNCLabsConstants.MapIdMetadataKey, out var cncMapId) && !string.IsNullOrEmpty(cncMapId))
-        {
-            if (e.ManifestId?.Contains(cncMapId, StringComparison.OrdinalIgnoreCase) == true ||
-                e.ContentId?.Contains(cncMapId, StringComparison.OrdinalIgnoreCase) == true)
-            {
-                return true;
-            }
-        }
-
-        if (SearchResult.ResolverMetadata.TryGetValue(AODMapsConstants.MapIdMetadataKey, out var aodMapId) && !string.IsNullOrEmpty(aodMapId))
-        {
-            if (e.ManifestId?.Contains(aodMapId, StringComparison.OrdinalIgnoreCase) == true ||
-                e.ContentId?.Contains(aodMapId, StringComparison.OrdinalIgnoreCase) == true)
-            {
-                return true;
-            }
-        }
-
-        if (SearchResult.ResolverMetadata.TryGetValue(ModDBConstants.ContentIdMetadataKey, out var modDbId) && !string.IsNullOrEmpty(modDbId))
-        {
-            if (e.ManifestId?.Contains(modDbId, StringComparison.OrdinalIgnoreCase) == true ||
-                e.ContentId?.Contains(modDbId, StringComparison.OrdinalIgnoreCase) == true)
-            {
-                return true;
-            }
-        }
-
-        return false;
+    private bool MatchesKey(string key, ContentStateChangedEventArgs e)
+    {
+        return SearchResult.ResolverMetadata?.TryGetValue(key, out var id) == true &&
+               !string.IsNullOrEmpty(id) &&
+               (e.ManifestId?.Contains(id, StringComparison.OrdinalIgnoreCase) == true ||
+                e.ContentId?.Contains(id, StringComparison.OrdinalIgnoreCase) == true);
     }
 
     /// <summary>

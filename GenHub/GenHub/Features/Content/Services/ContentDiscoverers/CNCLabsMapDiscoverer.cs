@@ -84,14 +84,7 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
 
             var (discoveredMaps, hasMoreItems) = await SearchByFiltersAsync(query, cancellationToken).ConfigureAwait(false);
 
-            if (!string.IsNullOrWhiteSpace(query.SearchTerm))
-            {
-                discoveredMaps = discoveredMaps
-                    .Where(m => (m.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true) ||
-                                (m.Description?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true) ||
-                                (m.Author?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true))
-                    .ToList();
-            }
+            discoveredMaps = FilterBySearchTerm(discoveredMaps, query.SearchTerm);
 
             var results = discoveredMaps.Select(map => new ContentSearchResult
             {
@@ -122,16 +115,7 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
                 },
             }).ToList();
 
-            foreach (var res in results)
-            {
-                var map = discoveredMaps.First(m => string.Format(CNCLabsConstants.MapIdFormat, m.Id) == res.Id);
-                foreach (var tag in map.Tags)
-                {
-                    res.Tags.Add(tag);
-                }
-
-                ContentCardBadgeHelper.PromoteFromTags(res);
-            }
+            PopulateTagsAndBadges(results, discoveredMaps);
 
             return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
             {
@@ -143,6 +127,37 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
         {
             logger.LogError(ex, CNCLabsConstants.DiscoveryFailureLogMessage);
             return OperationResult<ContentDiscoveryResult>.CreateFailure(string.Format(CNCLabsConstants.DiscoveryFailedErrorTemplate, ex.Message));
+        }
+    }
+
+    private static List<MapListItem> FilterBySearchTerm(List<MapListItem> maps, string? searchTerm)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            return maps;
+        }
+
+        return maps
+            .Where(m => (m.Name?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) == true) ||
+                        (m.Description?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) == true) ||
+                        (m.Author?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) == true))
+            .ToList();
+    }
+
+    private static void PopulateTagsAndBadges(IEnumerable<ContentSearchResult> results, IEnumerable<MapListItem> discoveredMaps)
+    {
+        var mapLookup = discoveredMaps.ToDictionary(m => string.Format(CNCLabsConstants.MapIdFormat, m.Id));
+        foreach (var res in results)
+        {
+            if (mapLookup.TryGetValue(res.Id, out var map))
+            {
+                foreach (var tag in map.Tags)
+                {
+                    res.Tags.Add(tag);
+                }
+
+                ContentCardBadgeHelper.PromoteFromTags(res);
+            }
         }
     }
 
