@@ -175,7 +175,8 @@ public static class GameClientConstants
     public const string Direct3D8WrapperDll = "d3d8.dll";
 
     /// <summary>
-    /// DLLs required for standard game installations.</summary>
+    /// DLLs required for standard game installations.
+    /// </summary>
     public static readonly string[] RequiredDlls =
     [
         "steam_api.dll",      // Steam integration

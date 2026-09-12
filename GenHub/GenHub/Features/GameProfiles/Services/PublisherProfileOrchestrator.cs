@@ -61,7 +61,7 @@ public class PublisherProfileOrchestrator(
             var existingManifests = await GetPublisherManifestsFromPoolAsync(publisherType, cancellationToken);
 
             bool shouldAcquire = false;
-            if (skipAcquisition)
+            if (skipAcquisition && existingManifests.Count > 0)
             {
                 logger.LogInformation(
                     "Skip acquisition requested for {PublisherType}, creating profiles from {Count} existing manifests",
