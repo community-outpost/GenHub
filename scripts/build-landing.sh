@@ -7,7 +7,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${ROOT_DIR}"
 
 LATEST_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName // ""' 2>/dev/null || echo "v0.0.3")
-if [[ -z "${LATEST_TAG}" || "${LATEST_TAG}" == "null" ]]; then
+if [[ -z "${LATEST_TAG}" || "${LATEST_TAG}" = "null" ]]; then
     LATEST_TAG="v0.0.3"
 fi
 

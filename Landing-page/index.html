@@ -425,7 +425,7 @@
                                     <i data-feather="crosshair"></i>
                                     <span>Scan for Games</span>
                                 </button>
-                                <input type="text" class="toolbar-search" placeholder="Search profiles..." readonly value="All Game Profiles">
+                                <input type="text" id="profiles-toolbar-search" aria-label="Filter Game Profiles" class="toolbar-search" placeholder="Search profiles..." readonly value="All Game Profiles">
                             </div>
                             <div class="toolbar-right-badge">
                                 <span>Default Workspace: <strong>NTFS Hardlink (0 MB Extra Disk)</strong></span>
@@ -1317,7 +1317,7 @@
 
             if (pillContainer) {
                 pillContainer.addEventListener('keydown', (e) => {
-                    const currentIndex = pillTabs.findIndex(btn => btn === document.activeElement);
+                    const currentIndex = pillTabs.indexOf(document.activeElement);
                     if (currentIndex === -1) return;
 
                     let newIndex;
