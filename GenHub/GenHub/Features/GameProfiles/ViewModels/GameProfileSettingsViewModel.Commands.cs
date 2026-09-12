@@ -351,7 +351,7 @@ public partial class GameProfileSettingsViewModel
 
             _logger?.LogInformation("Attempting to delete content: {ContentName}", contentItem.DisplayName);
 
-            var result = await _localContentService.DeleteLocalContentAsync(contentItem.ManifestId.Value);
+            var result = await _localContentService.DeleteLocalContentAsync(contentItem.ManifestId.Value, cancellationToken);
 
             if (result.Success)
             {

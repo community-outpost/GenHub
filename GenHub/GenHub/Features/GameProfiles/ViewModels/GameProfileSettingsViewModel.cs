@@ -901,6 +901,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// <param name="installation">The game installation item to check.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A list of active game client items that depend on the installation.</returns>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Operates on observable collection properties defined across partial view model classes")]
     private async Task<List<ContentDisplayItem>> GetDependentActiveGameClientsAsync(
         ContentDisplayItem installation,
         CancellationToken cancellationToken = default)
@@ -938,71 +939,71 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         ContentDisplayItem installation,
         CancellationToken cancellationToken = default)
     {
-        // 1. Direct SourceId match (standard GameClients point directly to the GameInstallation ID)
-        if (!string.IsNullOrEmpty(client.SourceId) &&
-            (string.Equals(client.SourceId, installation.ManifestId.Value, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(client.SourceId, installation.SourceId, StringComparison.OrdinalIgnoreCase)))
+        if (MatchesClientSourceId(client, installation))
         {
             return true;
         }
 
-        // 2. Check manifest dependencies if available or synthesized
         var manifest = await GetOrSynthesizeManifestForContentAsync(client, cancellationToken);
-        if (manifest?.Dependencies != null)
+        var installDependencies = manifest?.Dependencies?
+            .Where(d => d.DependencyType == ContentType.GameInstallation)
+            .ToList();
+
+        if (installDependencies is { Count: > 0 })
         {
-            var installDependencies = manifest.Dependencies
-                .Where(d => d.DependencyType == ContentType.GameInstallation)
-                .ToList();
-
-            if (installDependencies.Count > 0)
-            {
-                foreach (var dep in installDependencies)
-                {
-                    var depId = dep.Id.ToString();
-                    if (depId != ManifestConstants.DefaultContentDependencyId)
-                    {
-                        if (string.Equals(depId, installation.ManifestId.Value, StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(depId, installation.SourceId, StringComparison.OrdinalIgnoreCase) ||
-                            HasCompatibleCatalogMatch(depId, installation.ManifestId.Value))
-                        {
-                            return true;
-                        }
-
-                        // Publisher-agnostic dependencies (e.g. "1.104.genhub.gameinstallation.zerohour"
-                        // with StrictPublisher = false) are satisfied by any installation of a
-                        // compatible game type, mirroring FindCompatibleGameInstallation.
-                        if (!dep.StrictPublisher &&
-                            (dep.CompatibleGameTypes is not { Count: > 0 } ||
-                             dep.CompatibleGameTypes.Contains(installation.GameType)))
-                        {
-                            return true;
-                        }
-                    }
-                    else
-                    {
-                        if (dep.CompatibleGameTypes is { Count: > 0 })
-                        {
-                            if (dep.CompatibleGameTypes.Contains(installation.GameType))
-                            {
-                                return true;
-                            }
-                        }
-                        else if (client.GameType == installation.GameType)
-                        {
-                            return true;
-                        }
-                    }
-                }
-
-                return false;
-            }
+            return installDependencies.Any(dep => IsInstallationDependencySatisfiedBy(dep, installation, client.GameType));
         }
 
-        // 3. Fallback: Any active GameClient targeting the same GameType depends on this GameInstallation,
-        // or if this installation is the currently selected profile installation.
         return client.GameType == installation.GameType ||
                (SelectedGameInstallation != null &&
                 string.Equals(SelectedGameInstallation.ManifestId.Value, installation.ManifestId.Value, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool MatchesClientSourceId(ContentDisplayItem client, ContentDisplayItem installation)
+    {
+        if (string.IsNullOrEmpty(client.SourceId))
+        {
+            return false;
+        }
+
+        return string.Equals(client.SourceId, installation.ManifestId.Value, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(client.SourceId, installation.SourceId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool MatchesDependencyGameType(ContentDependency dep, GameType installationGameType, GameType fallbackGameType)
+    {
+        if (dep.CompatibleGameTypes is { Count: > 0 })
+        {
+            return dep.CompatibleGameTypes.Contains(installationGameType);
+        }
+
+        return fallbackGameType == installationGameType;
+    }
+
+    private bool MatchesInstallationDependencyId(string depId, ContentDisplayItem installation)
+    {
+        return string.Equals(depId, installation.ManifestId.Value, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(depId, installation.SourceId, StringComparison.OrdinalIgnoreCase) ||
+               HasCompatibleCatalogMatch(depId, installation.ManifestId.Value);
+    }
+
+    private bool IsInstallationDependencySatisfiedBy(ContentDependency dep, ContentDisplayItem installation, GameType clientGameType)
+    {
+        var depId = dep.Id.ToString();
+        if (depId == ManifestConstants.DefaultContentDependencyId)
+        {
+            return MatchesDependencyGameType(dep, installation.GameType, clientGameType);
+        }
+
+        if (MatchesInstallationDependencyId(depId, installation))
+        {
+            return true;
+        }
+
+        // Publisher-agnostic dependencies (e.g. "1.104.genhub.gameinstallation.zerohour"
+        // with StrictPublisher = false) are satisfied by any installation of a
+        // compatible game type, mirroring FindCompatibleGameInstallation.
+        return !dep.StrictPublisher && MatchesDependencyGameType(dep, installation.GameType, clientGameType);
     }
 
     private void ResolveGameInstallationDependency(
