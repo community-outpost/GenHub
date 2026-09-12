@@ -14,6 +14,7 @@ using GenHub.Features.Content.Services.CommunityOutpost;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Content.Services.Publishers;
 using GenHub.Features.GameProfiles.Services;
+using GenHub.Features.GameProfiles.ViewModels.Wizard;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
@@ -100,11 +101,11 @@ public class SetupWizardServiceTests
 
     /// <summary>
     /// Verifies that when a managed client manifest is up-to-date in the pool but its profile is missing,
-    /// the setup wizard auto-accepts CreateProfile without prompting the user.
+    /// the setup wizard displays it as Downloaded with action Create Profile, and confirms profile creation.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task RunSetupWizardAsync_WhenManagedClientUpToDateAndProfileMissing_AutoAcceptsCreateProfileAsync()
+    public async Task RunSetupWizardAsync_WhenManagedClientUpToDateAndProfileMissing_ShowsInWizardAsCreateProfileAsync()
     {
         // Arrange
         const string latestVersion = "082826_QFE1";
@@ -140,10 +141,25 @@ public class SetupWizardServiceTests
 
         var service = CreateService();
 
+        SetupWizardViewModel? capturedVm = null;
+        service.DialogShower = vm =>
+        {
+            capturedVm = vm;
+            vm.ConfirmCommand.Execute(null);
+            return Task.FromResult(true);
+        };
+
         // Act
         var result = await service.RunSetupWizardAsync([], CancellationToken.None);
 
-        // Assert: Up-to-date manifest found in pool, profile missing -> auto-accept CreateProfile
+        // Assert: Generals Online was shown in wizard with Create Profile action
+        Assert.NotNull(capturedVm);
+        var goItem = capturedVm.Items.FirstOrDefault(i => i.Title == "Generals Online");
+        Assert.NotNull(goItem);
+        Assert.Equal("Downloaded", goItem.Status);
+        Assert.Equal("Create Profile", goItem.ActionLabel);
+        Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, goItem.ActionType);
+        Assert.True(goItem.IsSelected);
         Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, result.GeneralsOnlineAction);
     }
 
