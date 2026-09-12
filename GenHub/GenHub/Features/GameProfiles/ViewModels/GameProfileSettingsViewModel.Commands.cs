@@ -106,7 +106,7 @@ public partial class GameProfileSettingsViewModel
                         continue;
                     }
 
-                    if (coreItem.GameType != GameTypeFilter)
+                    if (coreItem.GameType != GameTypeFilter && coreItem.GameType != Core.Models.Enums.GameType.Unknown)
                     {
                         continue;
                     }
@@ -285,7 +285,8 @@ public partial class GameProfileSettingsViewModel
 
     private void UpdateAvailableContentOnDisable(ContentDisplayItem itemToRemove)
     {
-        if (itemToRemove.ContentType != SelectedContentType || itemToRemove.GameType != GameTypeFilter)
+        if (itemToRemove.ContentType != SelectedContentType ||
+            (itemToRemove.GameType != GameTypeFilter && itemToRemove.GameType != Core.Models.Enums.GameType.Unknown))
         {
             return;
         }

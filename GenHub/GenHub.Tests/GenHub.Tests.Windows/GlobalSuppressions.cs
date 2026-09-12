@@ -12,6 +12,9 @@
 // -----------------------------------------------------------------------------
 
 using System.Diagnostics.CodeAnalysis;
+using Xunit;
+
+[assembly: CollectionBehavior(DisableTestParallelization = true)]
 
 [assembly: SuppressMessage(
     "StyleCop.CSharp.SpacingRules",

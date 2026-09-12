@@ -1,0 +1,15 @@
+{
+  "BundlePacks": [
+    {
+      "Name": "GeneralsGamePatch2",
+      "Items": [
+        "PatchINI"
+      ],
+      "OutputFile": ".Release/500_900_CommunityPatch_CoreINI.big",
+      "Big": true,
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Complete Generals Community Patch 2.0 Core INI release single BIG archive"
+    }
+  ]
+}

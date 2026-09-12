@@ -1,0 +1,196 @@
+using System.Collections.Generic;
+using System.IO;
+
+namespace GenHub.Core.Constants;
+
+/// <summary>
+/// Constants for mod builder directory names, file names, default configurations, and pipeline stages.
+/// </summary>
+public static class ModBuilderConstants
+{
+    /// <summary>
+    /// Default project version string.
+    /// </summary>
+    public const string DefaultProjectVersion = "1.0.0";
+
+    /// <summary>
+    /// Default project file extension.
+    /// </summary>
+    public const string ProjectFileExtension = ".mbproj";
+
+    /// <summary>
+    /// File pattern for project selection dialogs.
+    /// </summary>
+    public const string ProjectFilePattern = "*.mbproj";
+
+    /// <summary>
+    /// File name for recent projects metadata.
+    /// </summary>
+    public const string RecentProjectsFileName = "recent_projects.json";
+
+    /// <summary>
+    /// Directory name for ModBuilder files in application data.
+    /// </summary>
+    public const string ModBuilderDirName = "ModBuilder";
+
+    /// <summary>
+    /// Install manifest file name stored in target game directory.
+    /// </summary>
+    public const string InstallManifestFileName = ".modbuilder_install.json";
+
+    /// <summary>
+    /// Backup file extension used during file installation.
+    /// </summary>
+    public const string BackupFileExtension = ".modbuilder_backup";
+
+    /// <summary>
+    /// Default directory name for build output.
+    /// </summary>
+    public const string DefaultBuildDir = ".Build";
+
+    /// <summary>
+    /// Default directory name for release output.
+    /// </summary>
+    public const string DefaultReleaseDir = ".Release";
+
+    /// <summary>
+    /// Directory prefix for staging directories.
+    /// </summary>
+    public const string StagingDirectoryPrefix = ".staging";
+
+    /// <summary>
+    /// Subdirectory name for raw bundle items within build directory.
+    /// </summary>
+    public const string RawBundleItemsSubdir = "raw_bundle_items";
+
+    /// <summary>
+    /// Subdirectory name for compiled big bundles within build directory.
+    /// </summary>
+    public const string BundlesSubdir = "bundles";
+
+    /// <summary>
+    /// Subdirectory name for bundle packs within build directory.
+    /// </summary>
+    public const string BundlePacksSubdir = "bundle_packs";
+
+    /// <summary>
+    /// Directory name for edited game source files.
+    /// </summary>
+    public const string GameFilesEditedDir = "GameFilesEdited";
+
+    /// <summary>
+    /// Directory name for project configuration files.
+    /// </summary>
+    public const string ConfigDir = "Configs";
+
+    /// <summary>
+    /// Legacy or alternate lowercase directory name for project configuration files.
+    /// </summary>
+    public const string LowercaseConfigDir = "config";
+
+    /// <summary>
+    /// Directory name for ModBuilder cache.
+    /// </summary>
+    public const string CacheDirectoryName = ".modbuilder_cache";
+
+    /// <summary>
+    /// File name for bundle items configuration.
+    /// </summary>
+    public const string BundleItemsConfigFileName = "ModBundleItems.json";
+
+    /// <summary>
+    /// File name for bundle packs configuration.
+    /// </summary>
+    public const string BundlePacksConfigFileName = "ModBundlePacks.json";
+
+    /// <summary>
+    /// Directory name for uncompressed release files.
+    /// </summary>
+    public const string ReleaseFilesDir = "ReleaseFiles";
+
+    /// <summary>
+    /// Directory name for project resources.
+    /// </summary>
+    public const string ResourcesDir = "Resources";
+
+    /// <summary>
+    /// Subdirectory name for file hash registry files within resources.
+    /// </summary>
+    public const string FileHashRegistrySubdir = "FileHashRegistry";
+
+    /// <summary>
+    /// Default bundle item name for imported game files.
+    /// </summary>
+    public const string DefaultImportedGameFilesItemName = "ImportedGameFiles";
+
+    /// <summary>
+    /// Default streaming threshold size in bytes (10MB).
+    /// </summary>
+    public const long DefaultStreamingThresholdBytes = 10 * 1024 * 1024;
+
+    /// <summary>
+    /// Default timeout for external tool execution in seconds.
+    /// </summary>
+    public const int ExternalToolTimeoutSeconds = 120;
+
+    /// <summary>
+    /// Name of the primary crunch tool executable.
+    /// </summary>
+    public const string CrunchExecutable = "crunch_x64.exe";
+
+    /// <summary>
+    /// Secondary fallback name of the crunch tool executable.
+    /// </summary>
+    public const string CrunchFallbackExecutable = "crunch.exe";
+
+    /// <summary>
+    /// DXT1 texture format identifier (no alpha).
+    /// </summary>
+    public const string Dxt1Format = "DXT1";
+
+    /// <summary>
+    /// DXT5 texture format identifier (with alpha).
+    /// </summary>
+    public const string Dxt5Format = "DXT5";
+
+    /// <summary>
+    /// Candidate search paths for the crunch tool executable.
+    /// </summary>
+    public static readonly IReadOnlyList<string> CrunchExecutableCandidates =
+    [
+        Path.Combine(".tools", CrunchExecutable),
+        Path.Combine("tools", CrunchExecutable),
+        Path.Combine(".tools", CrunchFallbackExecutable),
+        Path.Combine("tools", CrunchFallbackExecutable),
+    ];
+
+    /// <summary>
+    /// Supported texture format flags for crunch.
+    /// </summary>
+    public static readonly IReadOnlyList<string> CrunchTextureFormatFlags =
+    [
+        "-DXT1",
+        "-DXT2",
+        "-DXT3",
+        "-DXT4",
+        "-DXT5",
+        "-3DC",
+        "-DXN",
+        "-DXT5A",
+        "-DXT5_CCxY",
+        "-DXT5_xGxR",
+        "-DXT5_xGBR",
+        "-DXT5_AGBR",
+        "-DXT1A",
+        "-ETC1",
+        "-ETC2",
+        "-ETC2A",
+        "-ETC1S",
+        "-ETC2AS",
+        "-R8G8B8",
+        "-L8",
+        "-A8",
+        "-A8L8",
+        "-A8R8G8B8"
+    ];
+}

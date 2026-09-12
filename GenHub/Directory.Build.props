@@ -6,6 +6,9 @@
     -->
     <Version Condition="'$(Version)' == ''">0.0.1</Version>
 
+    <!-- Suppress StyleCop and XML documentation warnings -->
+    <NoWarn>$(NoWarn);SA0001;SA1101;SA1108;SA1116;SA1117;SA1124;SA1200;SA1202;SA1203;SA1204;SA1210;SA1309;SA1407;SA1413;SA1501;SA1503;SA1508;SA1515;SA1518;SA1600;SA1629;SA1633;SA1636;CS1591</NoWarn>
+
     <!--
       AssemblyVersion and FileVersion must be strictly numeric (x.y.z.w)
       Strip any prerelease suffix (e.g., -pr238) from Version for these properties

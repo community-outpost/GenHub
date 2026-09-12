@@ -34,4 +34,14 @@ public static class ErrorMessages
     /// Error message for failed to process ZIP.
     /// </summary>
     public const string FailedToProcessZip = "Failed to process ZIP: {0}";
+
+    /// <summary>
+    /// Error message when a profile requires a game installation.
+    /// </summary>
+    public const string ProfileRequiresGameInstallation = "• '{0}' requires a Game Installation";
+
+    /// <summary>
+    /// Error message when a profile requires a dependency.
+    /// </summary>
+    public const string ProfileRequiresDependency = "• '{0}' requires '{1}'";
 }

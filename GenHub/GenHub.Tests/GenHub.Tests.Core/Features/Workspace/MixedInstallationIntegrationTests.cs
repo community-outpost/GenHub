@@ -60,7 +60,7 @@ public class MixedInstallationIntegrationTests : IDisposable
         Directory.CreateDirectory(_tempContentStorage);
 
         var services = new ServiceCollection();
-        services.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Debug));
+        services.AddLogging();
 
         services.AddSingleton<IFileHashProvider, Sha256HashProvider>();
         services.AddSingleton<IStreamHashProvider, Sha256HashProvider>();
@@ -432,6 +432,11 @@ public class MixedInstallationIntegrationTests : IDisposable
         {
             // Log cleanup errors
             _testOutput.WriteLine($"Cleanup failed: {ex.Message}");
+        }
+
+        if (_serviceProvider is IDisposable disposable)
+        {
+            disposable.Dispose();
         }
 
         _disposed = true;

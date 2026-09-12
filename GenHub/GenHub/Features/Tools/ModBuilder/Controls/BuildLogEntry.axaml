@@ -1,0 +1,89 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="30"
+             x:Class="GenHub.Features.Tools.ModBuilder.Controls.BuildLogEntry">
+
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="../Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="../Styles/ModBuilderIcons.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
+
+  <Border Background="Transparent"
+          Padding="8,4"
+          BorderBrush="{DynamicResource BorderBrush}"
+          BorderThickness="0,0,0,0.5">
+
+    <Border.Styles>
+      <Style Selector="Border:pointerover">
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+      </Style>
+    </Border.Styles>
+
+    <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
+
+      <!-- Timestamp -->
+      <TextBlock Grid.Column="0"
+                 Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss.fff}'}"
+                 FontFamily="JetBrains Mono, Consolas, Courier New, monospace"
+                 FontSize="11"
+                 Foreground="{DynamicResource TextSecondary}"
+                 VerticalAlignment="Center"
+                 Margin="0,0,12,0"/>
+
+      <!-- Log Level Icon -->
+      <Border Grid.Column="1"
+              Width="18" Height="18"
+              Margin="0,0,8,0"
+              Background="{Binding LogLevelBackground}"
+              CornerRadius="4">
+        <Path Width="10" Height="10"
+              Fill="{Binding LogLevelForeground}"
+              Data="{Binding LogLevelIcon}"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              Stretch="Uniform"/>
+      </Border>
+
+      <!-- Log Level Text -->
+      <TextBlock Grid.Column="2"
+                 Text="{Binding LogLevel}"
+                 FontFamily="JetBrains Mono, Consolas, Courier New, monospace"
+                 FontSize="11"
+                 FontWeight="SemiBold"
+                 Foreground="{Binding LogLevelForeground}"
+                 VerticalAlignment="Center"
+                 Width="60"
+                 Margin="0,0,12,0"/>
+
+      <!-- Message -->
+      <TextBlock Grid.Column="3"
+                 Text="{Binding Message}"
+                 FontFamily="JetBrains Mono, Consolas, Courier New, monospace"
+                 FontSize="12"
+                 Foreground="{DynamicResource TextPrimary}"
+                 VerticalAlignment="Center"
+                 TextWrapping="NoWrap"
+                 TextTrimming="CharacterEllipsis"
+                 ToolTip.Tip="{Binding Message}"/>
+
+      <!-- Duration (if applicable) -->
+      <TextBlock Grid.Column="4"
+                 Text="{Binding Duration, StringFormat='{}({0:F2}s)'}"
+                 FontFamily="JetBrains Mono, Consolas, Courier New, monospace"
+                 FontSize="11"
+                 Foreground="{DynamicResource AccentBrush}"
+                 VerticalAlignment="Center"
+                 Margin="12,0,0,0"
+                 IsVisible="{Binding HasDuration}"/>
+
+    </Grid>
+
+  </Border>
+
+</UserControl>

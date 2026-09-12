@@ -72,3 +72,10 @@ using System.Diagnostics.CodeAnalysis;
     "StyleCop.CSharp.SpacingRules",
     "SA1009:Closing parenthesis should be spaced correctly",
     Justification = "Conflicts with null-forgiving operator usage.")]
+
+[assembly: SuppressMessage(
+    "SonarSource.Security",
+    "S4790:Make sure that hashing data is safe here.",
+    Scope = "type",
+    Target = "~T:GenHub.Features.Tools.ModBuilder.Services.Md5HashProvider",
+    Justification = "Non-cryptographic MD5 checksum generation required for legacy game engine compatibility.")]

@@ -40,7 +40,7 @@ public class WorkspaceIntegrationTests : IDisposable
         _tempWorkspaceRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
 
         var services = new ServiceCollection();
-        services.AddLogging(builder => builder.AddConsole());
+        services.AddLogging();
 
         // Add mock download service for FileOperationsService
         var mockDownloadService = new Mock<IDownloadService>();
@@ -222,6 +222,11 @@ public class WorkspaceIntegrationTests : IDisposable
         catch
         {
             // Ignore cleanup errors
+        }
+
+        if (_serviceProvider is IDisposable disposable)
+        {
+            disposable.Dispose();
         }
     }
 

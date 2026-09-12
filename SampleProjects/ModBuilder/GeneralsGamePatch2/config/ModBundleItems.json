@@ -1,0 +1,13 @@
+{
+  "BundleItems": [
+    {
+      "Name": "PatchINI",
+      "Type": "INI",
+      "SourceFiles": [
+        "GameFilesEdited/Data/INI/**/*.ini"
+      ],
+      "OutputFormat": "INI",
+      "Description": "Generals community bugfix and balance INI rules"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "name": "ImprovedMenus",
+  "contentType": "Addon",
+  "version": "1.0.0",
+  "author": "GenHub Community",
+  "targetGame": "ZeroHour",
+  "description": "16:9 widescreen menu overhauls and custom UI windows (.wnd) for C&C Generals: Zero Hour",
+  "directories": {
+    "configs": "config",
+    "gameFilesEdited": "GameFilesEdited",
+    "build": ".Build",
+    "release": ".Release"
+  },
+  "bundleConfigs": [
+    "config/ModBundleItems.json",
+    "config/ModBundlePacks.json"
+  ]
+}

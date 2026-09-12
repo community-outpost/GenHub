@@ -1,0 +1,354 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
+             xmlns:models="using:GenHub.Features.Tools.ModBuilder.Models"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
+             x:Class="GenHub.Features.Tools.ModBuilder.Views.ProjectDashboardView"
+             x:DataType="vm:ModBuilderViewModel">
+
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+    <StackPanel Spacing="24" Margin="32,24,32,32" MaxWidth="1100">
+
+      <!-- ==================== HEADER SECTION ==================== -->
+      <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+        <StackPanel Grid.Column="0" Spacing="4">
+          <TextBlock Text="ModBuilder"
+                     Classes="headline-large"
+                     FontWeight="Bold"
+                     Foreground="{DynamicResource TextPrimary}"/>
+          <TextBlock Text="C&amp;C Generals &amp; Zero Hour Content Creation Tool"
+                     Classes="title-small"
+                     Foreground="{DynamicResource TextSecondary}"/>
+        </StackPanel>
+
+        <!-- Header Actions: Primary buttons always accessible -->
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+          <Button Command="{Binding CreateProjectCommand}"
+                  Classes="dashboard-primary-btn"
+                  ToolTip.Tip="Create a brand new mod project (Ctrl+N)">
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <Path Width="14" Height="14"
+                    Fill="White"
+                    Data="{StaticResource IconAdd}"
+                    Stretch="Uniform"
+                    VerticalAlignment="Center"/>
+              <TextBlock Text="New Project" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Button>
+
+          <Button Command="{Binding OpenProjectCommand}"
+                  Classes="dashboard-secondary-btn"
+                  ToolTip.Tip="Open an existing project from disk (Ctrl+O)">
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <Path Width="14" Height="14"
+                    Fill="{DynamicResource TextPrimary}"
+                    Data="{StaticResource IconFolder}"
+                    Stretch="Uniform"
+                    VerticalAlignment="Center"/>
+              <TextBlock Text="Open Project" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Button>
+        </StackPanel>
+      </Grid>
+
+      <!-- ==================== QUICK START / ACTION CARDS ==================== -->
+      <Grid ColumnDefinitions="*,*,*" Margin="0,0,0,4">
+
+        <!-- Card 1: New Project -->
+        <Border Grid.Column="0"
+                Classes="action-card"
+                Margin="0,0,8,0">
+          <Button Command="{Binding CreateProjectCommand}"
+                  Classes="card-action-btn"
+                  HorizontalContentAlignment="Stretch"
+                  VerticalContentAlignment="Stretch">
+            <Grid RowDefinitions="Auto,*,Auto">
+              <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
+                <Border Width="40" Height="40"
+                        CornerRadius="8"
+                        Background="#263B82F6"
+                        HorizontalAlignment="Left">
+                  <Path Width="18" Height="18"
+                        Fill="{DynamicResource AccentPrimary}"
+                        Data="{StaticResource IconAdd}"
+                        Stretch="Uniform"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="New Project"
+                             FontSize="15"
+                             FontWeight="SemiBold"
+                             Foreground="{DynamicResource TextPrimary}"/>
+                  <TextBlock Text="Start from scratch"
+                             FontSize="12"
+                             Foreground="{DynamicResource TextSecondary}"/>
+                </StackPanel>
+              </StackPanel>
+              <TextBlock Grid.Row="1"
+                         Text="Set up a structured mod workspace with standard INI, Art, and Audio directories ready for authoring."
+                         FontSize="12"
+                         Foreground="{DynamicResource TextSecondary}"
+                         TextWrapping="Wrap"
+                         Margin="0,12,0,12"/>
+              <TextBlock Grid.Row="2"
+                         Text="Create Project &#x2192;"
+                         FontSize="12"
+                         FontWeight="SemiBold"
+                         Foreground="{DynamicResource AccentPrimary}"/>
+            </Grid>
+          </Button>
+        </Border>
+
+        <!-- Card 2: Open Existing -->
+        <Border Grid.Column="1"
+                Classes="action-card"
+                Margin="4,0,4,0">
+          <Button Command="{Binding OpenProjectCommand}"
+                  Classes="card-action-btn"
+                  HorizontalContentAlignment="Stretch"
+                  VerticalContentAlignment="Stretch">
+            <Grid RowDefinitions="Auto,*,Auto">
+              <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
+                <Border Width="40" Height="40"
+                        CornerRadius="8"
+                        Background="#2610B981"
+                        HorizontalAlignment="Left">
+                  <Path Width="18" Height="18"
+                        Fill="{DynamicResource SuccessBrush}"
+                        Data="{StaticResource IconFolder}"
+                        Stretch="Uniform"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="Open Project"
+                             FontSize="15"
+                             FontWeight="SemiBold"
+                             Foreground="{DynamicResource TextPrimary}"/>
+                  <TextBlock Text="Browse your disk"
+                             FontSize="12"
+                             Foreground="{DynamicResource TextSecondary}"/>
+                </StackPanel>
+              </StackPanel>
+              <TextBlock Grid.Row="1"
+                         Text="Open an existing .mbproj project file or import a workspace configured with ModBuilder tools."
+                         FontSize="12"
+                         Foreground="{DynamicResource TextSecondary}"
+                         TextWrapping="Wrap"
+                         Margin="0,12,0,12"/>
+              <TextBlock Grid.Row="2"
+                         Text="Browse Files &#x2192;"
+                         FontSize="12"
+                         FontWeight="SemiBold"
+                         Foreground="{DynamicResource SuccessBrush}"/>
+            </Grid>
+          </Button>
+        </Border>
+
+        <!-- Card 3: Sample Projects -->
+        <Border Grid.Column="2"
+                Classes="action-card"
+                Margin="8,0,0,0">
+          <Button Command="{Binding LoadSampleProjectCommand}"
+                  Classes="card-action-btn"
+                  HorizontalContentAlignment="Stretch"
+                  VerticalContentAlignment="Stretch">
+            <Grid RowDefinitions="Auto,*,Auto">
+              <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12">
+                <Border Width="40" Height="40"
+                        CornerRadius="8"
+                        Background="#268B5CF6"
+                        HorizontalAlignment="Left">
+                  <Path Width="18" Height="18"
+                        Fill="{DynamicResource AccentSecondary}"
+                        Data="{StaticResource IconPackage}"
+                        Stretch="Uniform"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="Sample Projects"
+                             FontSize="15"
+                             FontWeight="SemiBold"
+                             Foreground="{DynamicResource TextPrimary}"/>
+                  <TextBlock Text="Learn by example"
+                             FontSize="12"
+                             Foreground="{DynamicResource TextSecondary}"/>
+                </StackPanel>
+              </StackPanel>
+              <TextBlock Grid.Row="1"
+                         Text="Explore community patch and hotkey sample projects with preconfigured bundle items and release archives."
+                         FontSize="12"
+                         Foreground="{DynamicResource TextSecondary}"
+                         TextWrapping="Wrap"
+                         Margin="0,12,0,12"/>
+              <TextBlock Grid.Row="2"
+                         Text="Open Samples &#x2192;"
+                         FontSize="12"
+                         FontWeight="SemiBold"
+                         Foreground="{DynamicResource AccentSecondary}"/>
+            </Grid>
+          </Button>
+        </Border>
+      </Grid>
+
+      <!-- ==================== RECENT PROJECTS SECTION ==================== -->
+      <StackPanel Spacing="12">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Path Width="16" Height="16"
+                  Fill="{DynamicResource TextPrimary}"
+                  Data="{StaticResource IconTime}"
+                  Stretch="Uniform"
+                  VerticalAlignment="Center"/>
+            <TextBlock Text="Recent Projects"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimary}"
+                       VerticalAlignment="Center"/>
+            <Border Background="{DynamicResource SurfaceVariant}"
+                    CornerRadius="10"
+                    Padding="6,1"
+                    Margin="4,0,0,0"
+                    IsVisible="{Binding RecentProjects.Count}">
+              <TextBlock Text="{Binding RecentProjects.Count}"
+                         FontSize="11"
+                         Foreground="{DynamicResource TextSecondary}"/>
+            </Border>
+          </StackPanel>
+        </Grid>
+
+        <!-- Project List -->
+        <ItemsControl ItemsSource="{Binding RecentProjects}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="models:RecentProjectInfo">
+              <Border Classes="recent-project-row"
+                      Margin="0,0,0,6">
+                <Button Command="{Binding ((vm:ModBuilderViewModel)DataContext).SelectRecentProjectCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                        CommandParameter="{Binding Path}"
+                        Classes="recent-project-btn"
+                        HorizontalContentAlignment="Stretch"
+                        Padding="16,12">
+                  <Grid ColumnDefinitions="Auto,*,Auto">
+                    <!-- Project Icon -->
+                    <Border Grid.Column="0"
+                            Width="36" Height="36"
+                            CornerRadius="8"
+                            Background="{DynamicResource SurfaceVariant}"
+                            Margin="0,0,14,0"
+                            VerticalAlignment="Center">
+                      <Path Width="16" Height="16"
+                            Fill="{DynamicResource AccentPrimary}"
+                            Data="{StaticResource IconModBuilder}"
+                            Stretch="Uniform"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"/>
+                    </Border>
+
+                    <!-- Name and Path -->
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                      <TextBlock Text="{Binding Name}"
+                                 FontSize="14"
+                                 FontWeight="SemiBold"
+                                 Foreground="{DynamicResource TextPrimary}"/>
+                      <TextBlock Text="{Binding Path}"
+                                 FontSize="11"
+                                 Foreground="{DynamicResource TextSecondary}"
+                                 TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+
+                    <!-- Date & Arrow -->
+                    <StackPanel Grid.Column="2"
+                                Orientation="Horizontal"
+                                Spacing="12"
+                                VerticalAlignment="Center">
+                      <TextBlock Text="{Binding LastOpened}"
+                                 FontSize="11"
+                                 Foreground="{DynamicResource TextTertiary}"
+                                 VerticalAlignment="Center"/>
+                      <Path Width="12" Height="12"
+                            Fill="{DynamicResource TextTertiary}"
+                            Data="{StaticResource IconChevronRight}"
+                            Stretch="Uniform"
+                            VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Grid>
+                </Button>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- Empty State: shown when no recent projects exist -->
+        <Border Classes="empty-recent-state"
+                IsVisible="{Binding !RecentProjects.Count}"
+                Padding="32,40">
+          <StackPanel Spacing="12" HorizontalAlignment="Center">
+            <Border Width="56" Height="56"
+                    CornerRadius="28"
+                    Background="{DynamicResource SurfaceVariant}"
+                    HorizontalAlignment="Center">
+              <Path Width="24" Height="24"
+                    Fill="{DynamicResource TextTertiary}"
+                    Data="{StaticResource IconPackage}"
+                    Stretch="Uniform"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"/>
+            </Border>
+            <TextBlock Text="No projects found"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimary}"
+                       HorizontalAlignment="Center"/>
+            <TextBlock Text="Create a new project or explore the bundled sample projects to get started"
+                       FontSize="13"
+                       Foreground="{DynamicResource TextSecondary}"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center"/>
+            <Button Command="{Binding LoadSampleProjectCommand}"
+                    Classes="dashboard-primary-btn"
+                    ToolTip.Tip="Explore the built-in sample projects"
+                    HorizontalAlignment="Center"
+                    Margin="0,8,0,0">
+              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Path Width="14" Height="14"
+                      Fill="White"
+                      Data="{StaticResource IconPackage}"
+                      Stretch="Uniform"
+                      VerticalAlignment="Center"/>
+                <TextBlock Text="Explore Sample Projects" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+
+      <!-- ==================== DOCUMENTATION / TIPS ==================== -->
+      <Border Classes="tips-card" Padding="20,16">
+        <Grid ColumnDefinitions="Auto,*">
+          <Path Grid.Column="0"
+                Width="20" Height="20"
+                Fill="{DynamicResource AccentPrimary}"
+                Data="{StaticResource IconHelp}"
+                Stretch="Uniform"
+                VerticalAlignment="Top"
+                Margin="0,2,16,0"/>
+          <StackPanel Grid.Column="1" Spacing="4">
+            <TextBlock Text="Quick Tip: Build Workflow"
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimary}"/>
+            <TextBlock Text="Organize source files inside 'GameFilesEdited', configure output archives in 'config/ModBundlePacks.json', and click 'Execute Build' to create distribution-ready .big and .zip archives automatically."
+                       FontSize="12"
+                       Foreground="{DynamicResource TextSecondary}"
+                       TextWrapping="Wrap"/>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
