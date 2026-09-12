@@ -46,12 +46,6 @@ public sealed class ReplayDirectoryService(
     ILogger<ReplayDirectoryService> logger,
     IGameCrcCalculatorService? crcCalculator = null) : IReplayDirectoryService
 {
-    private static readonly TimeSpan ReplayFileNameRegexTimeout = TimeSpan.FromMilliseconds(250);
-    private static readonly Regex GeneralsOnlineFileNameRegex = new(
-        @"^match_\d+_user_[a-fA-F0-9]+_replay\.rep$",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
-        ReplayFileNameRegexTimeout);
-
     private sealed record ReplayContentResolutionContext(
         IContentManifestPool ManifestPool,
         IContentOrchestrator? ContentOrchestrator,
@@ -59,6 +53,12 @@ public sealed class ReplayDirectoryService(
         ReplayFile Replay,
         string InstallationManifestId,
         string ClientManifestId);
+
+    private static readonly TimeSpan ReplayFileNameRegexTimeout = TimeSpan.FromMilliseconds(250);
+    private static readonly Regex GeneralsOnlineFileNameRegex = new(
+        @"^match_\d+_user_[a-fA-F0-9]+_replay\.rep$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+        ReplayFileNameRegexTimeout);
 
     /// <inheritdoc />
     public string GetReplayDirectory(GameType version)
@@ -432,6 +432,7 @@ public sealed class ReplayDirectoryService(
     /// <param name="dataPatchManifestId">The data patch manifest ID if any.</param>
     /// <param name="replay">The replay file being matched, if available.</param>
     /// <param name="logger">Optional logger for diagnostic warnings.</param>
+    /// <param name="crcCalculator">Optional game CRC calculator service.</param>
     /// <returns>A sorted list of compatible <see cref="GameProfile"/> instances.</returns>
     internal static List<GameProfile> FindCompatibleProfiles(
         IEnumerable<GameProfile> profiles,
@@ -442,54 +443,12 @@ public sealed class ReplayDirectoryService(
         ILogger? logger = null,
         IGameCrcCalculatorService? crcCalculator = null)
     {
-        var profileList = profiles.ToList();
-
         var isRetailClient = IsRetailClient(null, clientManifestId);
         var targetExeCrc = replay?.MatchedClient?.ExeCrc ?? replay?.Metadata?.FormattedExeCrc;
 
-        var compatibleCandidates = profileList.Where(p =>
-        {
-            if (p.GameClient?.GameType != gameVersion)
-            {
-                return false;
-            }
-
-            if (crcCalculator != null && !string.IsNullOrEmpty(targetExeCrc))
-            {
-                var exePath = ResolveProfileFullExePath(p.GameClient);
-                if (!string.IsNullOrEmpty(exePath) && File.Exists(exePath))
-                {
-                    try
-                    {
-                        var calcRes = crcCalculator.CalculateExeCrcAsync(exePath, ct: CancellationToken.None).GetAwaiter().GetResult();
-                        if (calcRes.Success && !string.IsNullOrEmpty(calcRes.Data) &&
-                            !string.Equals(calcRes.Data, targetExeCrc, StringComparison.OrdinalIgnoreCase))
-                        {
-                            return false;
-                        }
-                    }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
-                    {
-                        logger?.LogWarning(ex, "[ReplayManager] Error verifying profile '{ProfileName}' EXE CRC for replay matching", p.Name);
-                    }
-                }
-            }
-
-            if (!string.IsNullOrEmpty(replay?.MatchingProfileId) &&
-                string.Equals(p.Id, replay.MatchingProfileId, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            if (IsDedicatedToThisReplay(p, replay, logger))
-            {
-                return true;
-            }
-
-            return isRetailClient
-                ? IsProfileMatchingRetail(p, dataPatchManifestId)
-                : IsProfileMatchingThirdParty(p, clientManifestId, dataPatchManifestId, replay?.MatchedClient?.Version);
-        }).ToList();
+        var compatibleCandidates = profiles
+            .Where(p => IsProfileCandidateCompatible(p, gameVersion, clientManifestId, dataPatchManifestId, targetExeCrc, replay, isRetailClient, logger, crcCalculator))
+            .ToList();
 
         return compatibleCandidates
             .Select(p => new { Profile = p, Score = ScoreCandidateProfile(p, clientManifestId, dataPatchManifestId, replay, logger) })
@@ -498,6 +457,79 @@ public sealed class ReplayDirectoryService(
             .ThenBy(x => x.Profile.Id, StringComparer.OrdinalIgnoreCase)
             .Select(x => x.Profile)
             .ToList();
+    }
+
+    private static bool IsProfileCandidateCompatible(
+        GameProfile p,
+        GameType gameVersion,
+        string clientManifestId,
+        string? dataPatchManifestId,
+        string? targetExeCrc,
+        ReplayFile? replay,
+        bool isRetailClient,
+        ILogger? logger,
+        IGameCrcCalculatorService? crcCalculator)
+    {
+        if (p.GameClient?.GameType != gameVersion)
+        {
+            return false;
+        }
+
+        if (!IsProfileExeCrcMatching(p, targetExeCrc, crcCalculator, logger))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(replay?.MatchingProfileId) &&
+            string.Equals(p.Id, replay.MatchingProfileId, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (IsDedicatedToThisReplay(p, replay, logger))
+        {
+            return true;
+        }
+
+        if (isRetailClient)
+        {
+            return IsProfileMatchingRetail(p, dataPatchManifestId);
+        }
+
+        return IsProfileMatchingThirdParty(p, clientManifestId, dataPatchManifestId, replay?.MatchedClient?.Version);
+    }
+
+    private static bool IsProfileExeCrcMatching(
+        GameProfile profile,
+        string? targetExeCrc,
+        IGameCrcCalculatorService? crcCalculator,
+        ILogger? logger)
+    {
+        if (crcCalculator == null || string.IsNullOrEmpty(targetExeCrc))
+        {
+            return true;
+        }
+
+        var exePath = ResolveProfileFullExePath(profile.GameClient);
+        if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
+        {
+            return true;
+        }
+
+        try
+        {
+            var calcRes = crcCalculator.CalculateExeCrcAsync(exePath, ct: CancellationToken.None).GetAwaiter().GetResult();
+            if (calcRes.Success && !string.IsNullOrEmpty(calcRes.Data))
+            {
+                return string.Equals(calcRes.Data, targetExeCrc, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger?.LogWarning(ex, "[ReplayManager] Error verifying profile '{ProfileName}' EXE CRC for replay matching", profile.Name);
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -515,6 +547,7 @@ public sealed class ReplayDirectoryService(
     /// <param name="dataPatchManifestId">The data patch manifest ID if any.</param>
     /// <param name="replay">The replay file being matched, if available.</param>
     /// <param name="logger">Optional logger for diagnostic warnings.</param>
+    /// <param name="crcCalculator">Optional game CRC calculator service.</param>
     /// <returns>The best matching <see cref="GameProfile"/> if found; otherwise, <c>null</c>.</returns>
     internal static GameProfile? FindMatchingProfile(
         IEnumerable<GameProfile> profiles,
@@ -676,6 +709,7 @@ public sealed class ReplayDirectoryService(
     /// <param name="acquiredIds">The set of acquired manifest IDs.</param>
     /// <param name="profiles">The list of game profiles.</param>
     /// <param name="logger">Optional logger.</param>
+    /// <param name="crcCalculator">Optional game CRC calculator service.</param>
     internal static void ResolveMatchedClientCompatibility(
         ReplayFile replay,
         CrcMappingEntry match,

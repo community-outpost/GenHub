@@ -1157,7 +1157,6 @@ public class UserDataTrackerService(
             return OperationResult<UserDataFileEntry>.CreateFailure($"Failed to check file conflict for '{targetPath}': {conflictResult.FirstError}");
         }
 
-
         if (!string.IsNullOrEmpty(conflictResult.Data) && conflictResult.Data != installationKey)
         {
             var conflictingManifest = await LoadUserDataManifestByKeyAsync(conflictResult.Data, cancellationToken);

@@ -76,7 +76,7 @@ public sealed class GameClientSelectionViewModelTests
     /// and FilteredClients is empty, rather than dumping all incompatible clients onto the user.
     /// </summary>
     [Fact]
-    public async Task LoadClientsForReplayAsync_WhenNoCompatibleClients_DoesNotAutoShowAllClients()
+    public async Task LoadClientsForReplayAsync_WhenNoCompatibleClients_DoesNotAutoShowAllClientsAsync()
     {
         var mockProfileMgr = new Moq.Mock<GenHub.Core.Interfaces.GameProfiles.IGameProfileManager>();
         var mockManifestPool = new Moq.Mock<GenHub.Core.Interfaces.Manifest.IContentManifestPool>();
