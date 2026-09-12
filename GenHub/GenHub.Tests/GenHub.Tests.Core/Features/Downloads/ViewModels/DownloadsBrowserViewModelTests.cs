@@ -1294,11 +1294,11 @@ public class DownloadsBrowserViewModelTests
     }
 
     /// <summary>
-    /// Verifies that UpdateContentCommand falls back to downloading the target item when publisher reconciler reports no reconciliation.
+    /// Verifies that UpdateContentCommand does not download the target item when publisher reconciler reports no reconciliation or user skips.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task UpdateContentCommand_WhenPublisherReconcilerReturnsNoReconciliation_FallsBackToDownloadAsync()
+    public async Task UpdateContentCommand_WhenPublisherReconcilerReturnsNoReconciliation_DoesNotDownloadAsync()
     {
         // Arrange
         var orchestratorMock = new Mock<IContentOrchestrator>();
@@ -1308,10 +1308,8 @@ public class DownloadsBrowserViewModelTests
             Name = "Custom Mod",
             Version = "2.0.0",
         };
-        string? acquiredId = null;
         orchestratorMock
             .Setup(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>?>(), It.IsAny<CancellationToken>()))
-            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken>((sr, _, _) => acquiredId = sr.Id)
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
 
         var reconcilerMock = new Mock<IPublisherReconciler>();
@@ -1354,17 +1352,16 @@ public class DownloadsBrowserViewModelTests
         // Act
         await viewModel.UpdateContentCommand.ExecuteAsync(currentVm);
 
-        // Assert: Reconciler was invoked but returned false, so fallback downloaded target VM
+        // Assert: Reconciler was invoked and handled the update; since it returned false, no download was performed
         reconcilerMock.Verify(
             r => r.CheckAndReconcileIfNeededAsync(string.Empty, It.IsAny<CancellationToken>()),
             Times.Once);
-        Assert.Equal("custom.mod.v2", acquiredId);
         orchestratorMock.Verify(
             o => o.AcquireContentAsync(
                 It.IsAny<ContentSearchResult>(),
                 It.IsAny<IProgress<ContentAcquisitionProgress>?>(),
                 It.IsAny<CancellationToken>()),
-            Times.Once);
+            Times.Never);
     }
 
     /// <summary>

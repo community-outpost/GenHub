@@ -508,6 +508,7 @@ public class CommunityOutpostProfileReconciler(
         }
 
         strategy = dialogResult.Strategy;
+        shouldDeleteOldVersions = dialogResult.DeleteOldVersions;
 
         if (dialogResult.IsDoNotAskAgain)
         {
@@ -519,6 +520,7 @@ public class CommunityOutpostProfileReconciler(
                 if (sub != null)
                 {
                     sub.PreferredUpdateStrategy = strategy;
+                    sub.DeleteOldVersions = shouldDeleteOldVersions;
                 }
 
                 return true;

@@ -529,6 +529,7 @@ public class SuperHackersProfileReconciler(
         }
 
         strategy = dialogResult.Strategy;
+        shouldDeleteOldVersions = dialogResult.DeleteOldVersions;
 
         if (dialogResult.IsDoNotAskAgain)
         {
@@ -540,6 +541,7 @@ public class SuperHackersProfileReconciler(
                 if (sub != null)
                 {
                     sub.PreferredUpdateStrategy = strategy;
+                    sub.DeleteOldVersions = shouldDeleteOldVersions;
                 }
 
                 return true;

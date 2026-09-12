@@ -64,7 +64,7 @@ public class GeneralsOnlineProfileReconciler(
                 return OperationResult<bool>.CreateFailure(checkResult.FirstError ?? "Failed to check update availability");
             }
 
-            var (proceed, updateResult, strategy, subscription) = checkResult.Data;
+            var (proceed, updateResult, strategy, subscription, shouldDeleteOldVersions) = checkResult.Data;
             if (!proceed || updateResult == null)
             {
                 return OperationResult<bool>.CreateSuccess(false);
@@ -129,8 +129,8 @@ public class GeneralsOnlineProfileReconciler(
                     anyFailure = true;
                 }
 
-                bool shouldDeleteOldVersions = (strategy != UpdateStrategy.CreateNewProfile) && (subscription?.DeleteOldVersions ?? true);
-                await HandleOldManifestsAndCleanupAsync(shouldDeleteOldVersions, anyFailure, manifestMapping, oldManifests, cancellationToken);
+                bool deleteOldVersions = (strategy != UpdateStrategy.CreateNewProfile) && shouldDeleteOldVersions;
+                await HandleOldManifestsAndCleanupAsync(deleteOldVersions, anyFailure, manifestMapping, oldManifests, cancellationToken);
 
                 if (anyFailure)
                 {
@@ -364,58 +364,61 @@ public class GeneralsOnlineProfileReconciler(
         return mapping;
     }
 
-    private async Task<OperationResult<(bool Proceed, ContentUpdateCheckResult? UpdateResult, UpdateStrategy Strategy, PublisherSubscription? Subscription)>>
+    private async Task<OperationResult<(bool Proceed, ContentUpdateCheckResult? UpdateResult, UpdateStrategy Strategy, PublisherSubscription? Subscription, bool ShouldDeleteOldVersions)>>
         CheckUpdateAvailabilityAndStrategyAsync(string? triggeringProfileId, CancellationToken cancellationToken)
     {
         var updateResult = await updateService.CheckForUpdatesAsync(cancellationToken);
         if (!updateResult.Success)
         {
             logger.LogWarning("[GO Reconciler] Update check failed: {Error}", updateResult.FirstError);
-            return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?)>.CreateFailure(
+            return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?, bool)>.CreateFailure(
                 $"Failed to check for GeneralsOnline updates: {updateResult.FirstError}");
         }
 
         if (!updateResult.IsUpdateAvailable)
         {
             logger.LogInformation("[GO Reconciler] No update available. Current version: {Version}", updateResult.CurrentVersion);
-            return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?)>.CreateSuccess((false, null, UpdateStrategy.ReplaceCurrent, null));
+            return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?, bool)>.CreateSuccess((false, null, UpdateStrategy.ReplaceCurrent, null, true));
         }
 
         if (!string.IsNullOrEmpty(triggeringProfileId) &&
             await IsTriggeringProfileUpToDateAsync(triggeringProfileId, updateResult.LatestVersion, cancellationToken))
         {
-            return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?)>.CreateSuccess(
-                (false, null, UpdateStrategy.ReplaceCurrent, null));
+            return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?, bool)>.CreateSuccess(
+                (false, null, UpdateStrategy.ReplaceCurrent, null, true));
         }
 
         var settings = userSettingsService.Get();
         if (settings.IsVersionSkipped(GeneralsOnlineConstants.PublisherType, updateResult.LatestVersion ?? string.Empty))
         {
             logger.LogInformation("[GO Reconciler] User opted to skip version {Version}. Skipping.", updateResult.LatestVersion);
-            return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?)>.CreateSuccess((false, null, UpdateStrategy.ReplaceCurrent, null));
+            return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?, bool)>.CreateSuccess((false, null, UpdateStrategy.ReplaceCurrent, null, true));
         }
 
         var subscription = settings.GetSubscription(GeneralsOnlineConstants.PublisherType);
         var strategy = subscription?.PreferredUpdateStrategy ?? settings.PreferredUpdateStrategy ?? UpdateStrategy.ReplaceCurrent;
         var autoUpdate = subscription is { AutoUpdateEnabled: true };
+        var shouldDeleteOldVersions = subscription?.DeleteOldVersions ?? true;
 
         if (!autoUpdate)
         {
             var promptResult = await PromptUserForUpdateStrategyAsync(
                 updateResult.LatestVersion ?? string.Empty,
-                strategy);
+                strategy,
+                shouldDeleteOldVersions);
 
             if (!promptResult.Proceed)
             {
-                return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?)>.CreateSuccess(
-                    (false, null, promptResult.Strategy, subscription));
+                return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?, bool)>.CreateSuccess(
+                    (false, null, promptResult.Strategy, subscription, promptResult.ShouldDeleteOldVersions));
             }
 
             strategy = promptResult.Strategy;
+            shouldDeleteOldVersions = promptResult.ShouldDeleteOldVersions;
         }
 
-        return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?)>.CreateSuccess(
-            (true, updateResult, strategy, subscription));
+        return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?, bool)>.CreateSuccess(
+            (true, updateResult, strategy, subscription, shouldDeleteOldVersions));
     }
 
     /// <summary>
@@ -481,10 +484,12 @@ public class GeneralsOnlineProfileReconciler(
     /// </summary>
     /// <param name="latestVersion">The latest version string.</param>
     /// <param name="fallbackStrategy">The default update strategy to use if not specified.</param>
-    /// <returns>A tuple indicating whether to proceed and the chosen strategy.</returns>
-    private async Task<(bool Proceed, UpdateStrategy Strategy)> PromptUserForUpdateStrategyAsync(
+    /// <param name="fallbackDeleteOldVersions">The default setting for deleting old versions.</param>
+    /// <returns>A tuple indicating whether to proceed, the chosen strategy, and whether to delete old versions.</returns>
+    private async Task<(bool Proceed, UpdateStrategy Strategy, bool ShouldDeleteOldVersions)> PromptUserForUpdateStrategyAsync(
         string latestVersion,
-        UpdateStrategy fallbackStrategy)
+        UpdateStrategy fallbackStrategy,
+        bool fallbackDeleteOldVersions = true)
     {
         var dialogResult = await dialogService.ShowUpdateOptionDialogAsync(
             "Generals Online Update Available",
@@ -492,7 +497,7 @@ public class GeneralsOnlineProfileReconciler(
 
         if (dialogResult == null)
         {
-            return (false, fallbackStrategy);
+            return (false, fallbackStrategy, fallbackDeleteOldVersions);
         }
 
         if (dialogResult.Action == "Skip")
@@ -507,10 +512,12 @@ public class GeneralsOnlineProfileReconciler(
                 });
             }
 
-            return (false, fallbackStrategy);
+            return (false, fallbackStrategy, fallbackDeleteOldVersions);
         }
 
         var strategy = dialogResult.Strategy;
+        var shouldDeleteOldVersions = dialogResult.DeleteOldVersions;
+
         if (dialogResult.IsDoNotAskAgain)
         {
             logger.LogInformation("[GO Reconciler] Saving user preference for GeneralsOnline updates");
@@ -519,11 +526,12 @@ public class GeneralsOnlineProfileReconciler(
                 var sub = s.GetOrCreateSubscription(GeneralsOnlineConstants.PublisherType, isSubscribed: true);
                 sub.AutoUpdateEnabled = true;
                 sub.PreferredUpdateStrategy = strategy;
+                sub.DeleteOldVersions = shouldDeleteOldVersions;
                 return true;
             });
         }
 
-        return (true, strategy);
+        return (true, strategy, shouldDeleteOldVersions);
     }
 
     private async Task<OperationResult<(int ProfilesUpdated, bool AnyFailure, Dictionary<string, string>? ManifestMapping)>>

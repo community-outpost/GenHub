@@ -1692,6 +1692,8 @@ public sealed partial class DownloadsBrowserViewModel(
             {
                 logger.LogWarning("Reconciler failed for {PublisherId}: {Error}", publisherId, result.FirstError);
             }
+
+            return false;
         }
 
         return await DownloadContentAsync(targetItem, ct);

@@ -322,4 +322,92 @@ public class GeneralsOnlineProfileReconcilerTests
             x => x.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
+    /// <summary>
+    /// Verifies that when the user skips the update dialog, the reconciler returns false and does not acquire content.
+    /// </summary>
+    [Fact]
+    public async Task CheckAndReconcileIfNeededAsync_WhenUserSkipsDialog_ReturnsSuccessFalseAndDoesNotAcquireAsync()
+    {
+        // Arrange
+        string latestVersion = "0.0.99";
+        _updateServiceMock.Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentUpdateCheckResult.CreateUpdateAvailable(latestVersion, "0.0.1"));
+
+        var settings = new UserSettings();
+        _userSettingsServiceMock.Setup(x => x.Get()).Returns(settings);
+
+        _dialogServiceMock.Setup(x => x.ShowUpdateOptionDialogAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(new UpdateDialogResult { Action = "Skip", IsDoNotAskAgain = false });
+
+        // Act
+        var result = await _reconciler.CheckAndReconcileIfNeededAsync("profile1", CancellationToken.None);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.False(result.Data);
+
+        _contentOrchestratorMock.Verify(
+            x => x.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that when the user specifies DeleteOldVersions is false, old manifests are not removed.
+    /// </summary>
+    [Fact]
+    public async Task CheckAndReconcileIfNeededAsync_WhenUserDisablesDeleteOldVersions_DoesNotDeleteOldManifestsAsync()
+    {
+        // Arrange
+        string latestVersion = "0.0.99";
+        _updateServiceMock.Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentUpdateCheckResult.CreateUpdateAvailable(latestVersion, "0.0.1"));
+
+        var settings = new UserSettings();
+        _userSettingsServiceMock.Setup(x => x.Get()).Returns(settings);
+
+        _dialogServiceMock.Setup(x => x.ShowUpdateOptionDialogAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(new UpdateDialogResult
+            {
+                Action = "Update",
+                Strategy = UpdateStrategy.ReplaceCurrent,
+                DeleteOldVersions = false,
+            });
+
+        var oldManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.82826.generalsonline.gameclient.30hz"),
+            Name = "Generals Online Client (30Hz)",
+            Version = "0.0.1",
+        };
+        var newManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.82827.generalsonline.gameclient.30hz"),
+            Name = "Generals Online Client (30Hz)",
+            Version = latestVersion,
+        };
+
+        _manifestPoolMock.Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([oldManifest, newManifest]));
+
+        _contentOrchestratorMock.Setup(
+                x => x.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+            [
+                new() { Name = "New GO Version", Version = latestVersion },
+            ]));
+
+        _contentOrchestratorMock.Setup(x => x.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(newManifest));
+
+        // Act
+        var result = await _reconciler.CheckAndReconcileIfNeededAsync("profile1", CancellationToken.None);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.True(result.Data);
+
+        _reconciliationServiceMock.Verify(
+            x => x.OrchestrateBulkRemovalAsync(It.IsAny<IEnumerable<ManifestId>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
 }
