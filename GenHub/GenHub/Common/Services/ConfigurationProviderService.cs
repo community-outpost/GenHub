@@ -631,7 +631,7 @@ public class ConfigurationProviderService(
                 return;
             }
 
-            var candidates = Directory.GetFiles(legacyProfiles, "*.json");
+            var candidates = Directory.GetFiles(legacyProfiles, FileTypes.JsonFilePattern);
             if (candidates.Length == 0)
             {
                 return;
@@ -656,7 +656,7 @@ public class ConfigurationProviderService(
             }
 
             var remaining = Directory.Exists(legacyProfiles)
-                ? Directory.GetFiles(legacyProfiles, "*.json").Length
+                ? Directory.GetFiles(legacyProfiles, FileTypes.JsonFilePattern).Length
                 : 0;
             if (remaining > 0)
             {
