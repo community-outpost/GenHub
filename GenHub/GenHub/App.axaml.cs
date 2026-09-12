@@ -192,30 +192,72 @@ public partial class App : Application
             defaultRoot,
             detectedCustomPath);
 
-        var shouldAdopt = !StorageMigrationService.HasExistingUserData(defaultRoot) &&
+        var markerPath = Path.Combine(defaultRoot, ".adoption-pending");
+        var isPendingRetry = File.Exists(markerPath);
+        var hasExistingData = StorageMigrationService.HasExistingUserData(defaultRoot);
+        var shouldAdopt = (!hasExistingData || isPendingRetry) &&
                           StorageMigrationService.HasExistingUserData(detectedCustomPath);
         var imported = false;
 
-        // If the current default location has no user data (fresh installer run), adopt settings/profiles from custom location
+        // If the current default location has no user data (fresh installer run) or is retrying a partial adoption,
+        // adopt settings/profiles from custom location
         if (shouldAdopt)
         {
+            SetAdoptionMarker(markerPath, detectedCustomPath, logger);
+
             logger?.LogInformation(
                 "Adopting user configuration from previous custom installation '{CustomLocation}' into '{DefaultLocation}'",
                 detectedCustomPath,
                 defaultRoot);
 
             imported = StorageMigrationService.TryImportUserDataFromCustomInstall(detectedCustomPath, defaultRoot, logger);
-        }
+            var hasRemainingUnadopted = StorageMigrationService.HasUnadoptedUserData(detectedCustomPath, defaultRoot);
 
-        // Clear custom install path from registry only when there is no pending adoption left to retry,
-        // or when user already has existing data at default root (acknowledging collision without re-triggering warning).
-        if (imported || !shouldAdopt)
+            // If all eligible data has been adopted, clear marker file and registry marker
+            if (!hasRemainingUnadopted)
+            {
+                ClearAdoptionMarker(markerPath, logger);
+                tracker?.ClearCustomInstallPath();
+            }
+        }
+        else
         {
+            ClearAdoptionMarker(markerPath, logger);
             tracker?.ClearCustomInstallPath();
         }
 
         // Notify the user in the UI
         NotifyDuplicateInstallationConflict(detectedCustomPath, imported);
+    }
+
+    private static void SetAdoptionMarker(string markerPath, string customPath, ILogger? logger)
+    {
+        try
+        {
+            if (!File.Exists(markerPath))
+            {
+                File.WriteAllText(markerPath, customPath);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            logger?.LogWarning(ex, "Failed to create adoption marker file at {MarkerPath}", markerPath);
+        }
+    }
+
+    private static void ClearAdoptionMarker(string markerPath, ILogger? logger)
+    {
+        try
+        {
+            if (File.Exists(markerPath))
+            {
+                File.Delete(markerPath);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            logger?.LogWarning(ex, "Failed to remove adoption marker file at {MarkerPath}", markerPath);
+        }
     }
 
     private void NotifyDuplicateInstallationConflict(string detectedCustomPath, bool imported)

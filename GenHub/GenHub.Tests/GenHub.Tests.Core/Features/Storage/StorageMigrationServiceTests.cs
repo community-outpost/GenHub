@@ -812,6 +812,44 @@ public class StorageMigrationServiceTests : IDisposable
         Assert.False(importedSecondTime);
     }
 
+    /// <summary>
+    /// Tests that HasUnadoptedUserData detects pending settings and directory data,
+    /// and returns false once all eligible items are present in the target.
+    /// </summary>
+    [Fact]
+    public void HasUnadoptedUserData_DetectsPendingDataAndCompletion()
+    {
+        var customDir = Path.Combine(_tempRoot, "HasUnadoptedSource");
+        var defaultDir = Path.Combine(_tempRoot, "HasUnadoptedDest");
+        Directory.CreateDirectory(customDir);
+        Directory.CreateDirectory(defaultDir);
+
+        Assert.False(StorageMigrationService.HasUnadoptedUserData(customDir, defaultDir));
+
+        // Add settings to source
+        File.WriteAllText(Path.Combine(customDir, FileTypes.SettingsFileName), "{}");
+        Assert.True(StorageMigrationService.HasUnadoptedUserData(customDir, defaultDir));
+
+        // Copy settings to target
+        File.WriteAllText(Path.Combine(defaultDir, FileTypes.SettingsFileName), "{}");
+        Assert.False(StorageMigrationService.HasUnadoptedUserData(customDir, defaultDir));
+
+        // Add profiles to source
+        var customProfiles = Path.Combine(customDir, DirectoryNames.Profiles);
+        Directory.CreateDirectory(customProfiles);
+        File.WriteAllText(Path.Combine(customProfiles, "p1.json"), "{}");
+        Assert.True(StorageMigrationService.HasUnadoptedUserData(customDir, defaultDir));
+
+        // Create empty profiles directory in target (should still count as unadopted since source has entries)
+        var defaultProfiles = Path.Combine(defaultDir, DirectoryNames.Profiles);
+        Directory.CreateDirectory(defaultProfiles);
+        Assert.True(StorageMigrationService.HasUnadoptedUserData(customDir, defaultDir));
+
+        // Add file to target profiles
+        File.WriteAllText(Path.Combine(defaultProfiles, "p1.json"), "{}");
+        Assert.False(StorageMigrationService.HasUnadoptedUserData(customDir, defaultDir));
+    }
+
     private StorageMigrationService CreateService()
     {
         return new StorageMigrationService(

@@ -460,11 +460,61 @@ public class StorageMigrationService(
 
             return importedAny;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
         {
             logger?.LogWarning(ex, "Failed to import user data from custom installation directory {CustomRoot}", customRoot);
             return false;
         }
+    }
+
+    /// <summary>
+    /// Checks whether the custom installation contains user configuration or data
+    /// (settings, profiles, manifests, or user data) that has not yet been imported into the target root.
+    /// </summary>
+    /// <param name="customRoot">The custom installation root directory.</param>
+    /// <param name="targetRoot">The target installation root directory.</param>
+    /// <returns><see langword="true"/> if unadopted user data is present in <paramref name="customRoot"/>; otherwise, <see langword="false"/>.</returns>
+    internal static bool HasUnadoptedUserData(string customRoot, string targetRoot)
+    {
+        if (string.IsNullOrWhiteSpace(customRoot) || string.IsNullOrWhiteSpace(targetRoot) ||
+            !Directory.Exists(customRoot) || !Directory.Exists(targetRoot))
+        {
+            return false;
+        }
+
+        try
+        {
+            var settingsSrc = Path.Combine(customRoot, FileTypes.SettingsFileName);
+            var settingsDest = Path.Combine(targetRoot, FileTypes.SettingsFileName);
+            if (File.Exists(settingsSrc) && !File.Exists(settingsDest))
+            {
+                return true;
+            }
+
+            var dirs = new[]
+            {
+                DirectoryNames.Profiles,
+                FileTypes.ManifestsDirectory,
+                DirectoryNames.UserData,
+            };
+
+            foreach (var dir in dirs)
+            {
+                var srcDir = Path.Combine(customRoot, dir);
+                var destDir = Path.Combine(targetRoot, dir);
+                if (Directory.Exists(srcDir) && Directory.EnumerateFileSystemEntries(srcDir).Any() &&
+                    (!Directory.Exists(destDir) || !Directory.EnumerateFileSystemEntries(destDir).Any()))
+                {
+                    return true;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException)
+        {
+            return false;
+        }
+
+        return false;
     }
 
     /// <summary>

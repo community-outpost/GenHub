@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Security;
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Storage;
@@ -39,7 +40,7 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
                 logger?.LogInformation("Recorded custom installation root in registry: {CustomRoot}", customRoot);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException or ArgumentException or InvalidOperationException)
         {
             logger?.LogWarning(ex, "Failed to record installation location in registry.");
         }
@@ -87,7 +88,7 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException or ArgumentException or InvalidOperationException)
         {
             logger?.LogWarning(ex, "Failed to read registered custom installation location from registry.");
         }
@@ -112,7 +113,7 @@ public sealed class WindowsInstallationTracker(ILogger<WindowsInstallationTracke
             key?.DeleteValue(CustomInstallPathValueName, throwOnMissingValue: false);
             logger?.LogInformation("Cleared custom installation path from registry.");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException or ArgumentException or InvalidOperationException)
         {
             logger?.LogWarning(ex, "Failed to clear custom installation path from registry.");
         }

@@ -177,12 +177,6 @@ public static class RegistryConstants
 
     // ===== Shell & Classes Keys =====
 
-    /// <summary>Registry classes subkey prefix under HKCU or HKCR.</summary>
-    public const string ClassesSubKeyPrefix = @"Software\Classes";
-
-    /// <summary>Registry shell open command subkey path.</summary>
-    public const string ShellOpenCommandSubKey = @"shell\open\command";
-
     /// <summary>Registry shell open command subkey path for GenHub URI scheme.</summary>
     public const string GenHubUriSchemeCommandKey = @"Software\Classes\genhub\shell\open\command";
 
