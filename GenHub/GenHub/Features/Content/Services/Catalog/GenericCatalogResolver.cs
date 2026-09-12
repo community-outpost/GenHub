@@ -257,17 +257,17 @@ public partial class GenericCatalogResolver(
     /// Sanitizes a filename by replacing invalid filesystem characters with underscores.
     /// </summary>
     /// <param name="filename">The filename to sanitize.</param>
-    /// <returns>A sanitized filename, or <c>"download.zip"</c> if the input is null or whitespace.</returns>
+    /// <returns>A sanitized filename, or <see cref="CatalogConstants.DefaultDownloadFilename"/> if the input is null or whitespace.</returns>
     private static string SanitizeFileName(string? filename)
     {
         if (string.IsNullOrWhiteSpace(filename))
         {
-            return "download.zip";
+            return CatalogConstants.DefaultDownloadFilename;
         }
 
         var invalidChars = Path.GetInvalidFileNameChars();
         var sanitized = string.Concat(filename.Select(c => invalidChars.Contains(c) ? '_' : c));
-        return string.IsNullOrWhiteSpace(sanitized) ? "download.zip" : sanitized;
+        return string.IsNullOrWhiteSpace(sanitized) ? CatalogConstants.DefaultDownloadFilename : sanitized;
     }
 
     private static string? AddDependencies(

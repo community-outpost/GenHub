@@ -281,10 +281,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets a value indicating whether to display the empty subscriptions state message.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage(
-        "Major Code Smell",
-        "S2325:Methods and properties that don't access instance data should be static",
-        Justification = "Instance property bound to Avalonia UI and notified of instance state changes.")]
     public bool ShowNoSubscriptions => !IsLoadingSubscriptions && Subscriptions.Count == 0;
 
     /// <summary>
@@ -2670,6 +2666,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (result.Success)
             {
                 subscription.TrustLevel = newTrust;
+                ToggleSubscriptionTrustCommand.NotifyCanExecuteChanged();
             }
             else
             {

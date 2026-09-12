@@ -33,7 +33,7 @@ public class CatalogTabProvider(
 {
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan NegativeCacheDuration = TimeSpan.FromMinutes(1);
-    private readonly ConcurrentDictionary<string, (DateTime FetchedAt, string CatalogUrl, PublisherCatalog? Catalog)> _catalogCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, (DateTime FetchedAt, PublisherCatalog? Catalog)> _catalogCache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <inheritdoc/>
     public string ProviderId => "catalog-tabs";
@@ -127,7 +127,7 @@ public class CatalogTabProvider(
 
         if (!subscriptionResult.Success || subscriptionResult.Data == null)
         {
-            _catalogCache[publisherId] = (DateTime.UtcNow, string.Empty, null);
+            _catalogCache[publisherId] = (DateTime.UtcNow, null);
             return null;
         }
 
@@ -143,7 +143,7 @@ public class CatalogTabProvider(
 
         var catalogResult = await catalogParser.ParseCatalogAsync(catalogJson, cancellationToken);
         var resolvedCatalog = catalogResult.Success && catalogResult.Data != null ? catalogResult.Data : null;
-        _catalogCache[publisherId] = (DateTime.UtcNow, subscription.CatalogUrl, resolvedCatalog);
+        _catalogCache[publisherId] = (DateTime.UtcNow, resolvedCatalog);
         return resolvedCatalog;
     }
 
