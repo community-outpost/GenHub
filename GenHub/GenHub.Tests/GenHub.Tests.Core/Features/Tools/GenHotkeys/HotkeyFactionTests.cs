@@ -45,6 +45,7 @@ public class HotkeyFactionTests
     [InlineData("TOX", "TOXIC", "GLA", "GLA • TOXIC")]
     [InlineData("STL", "STEALTH", "GLA", "GLA • STEALTH")]
     [InlineData("DML", "DEMO", "GLA", "GLA • DEMO")]
+    [InlineData("CUSTOM_GEN", "Demolition General", "GLA", "GLA • Demolition General")]
     public void FactionGroup_GlaGenerals_ClassifiedCorrectly(string shortName, string displayName, string expectedGroup, string expectedTitle)
     {
         var faction = new HotkeyFaction
