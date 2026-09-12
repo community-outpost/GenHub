@@ -253,10 +253,16 @@ public partial class GenericCatalogResolver(
         return filename;
     }
 
-    private static string SanitizeFileName(string filename)
+    private static string SanitizeFileName(string? filename)
     {
+        if (string.IsNullOrWhiteSpace(filename))
+        {
+            return "download.zip";
+        }
+
         var invalidChars = Path.GetInvalidFileNameChars();
-        return string.Concat(filename.Select(c => invalidChars.Contains(c) ? '_' : c));
+        var sanitized = string.Concat(filename.Select(c => invalidChars.Contains(c) ? '_' : c));
+        return string.IsNullOrWhiteSpace(sanitized) ? "download.zip" : sanitized;
     }
 
     private static string? AddDependencies(

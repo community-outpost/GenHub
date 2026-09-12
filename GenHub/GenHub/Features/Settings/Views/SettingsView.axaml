@@ -1021,7 +1021,7 @@
             </ItemsControl>
 
             <TextBlock Text="No active subscriptions found. You can subscribe to catalogs via 'genhub://subscribe' links."
-                       IsVisible="{Binding !Subscriptions.Count}"
+                       IsVisible="{Binding ShowNoSubscriptions}"
                        Foreground="{DynamicResource TextSecondary}" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,10"/>
           </StackPanel>
         </Border>

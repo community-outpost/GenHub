@@ -295,10 +295,17 @@ public partial class SettingsViewModel(
     private double _migrationProgressPercentage;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowNoSubscriptions))]
     private ObservableCollection<PublisherSubscription> _subscriptions = [];
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowNoSubscriptions))]
     private bool _isLoadingSubscriptions;
+
+    /// <summary>
+    /// Gets a value indicating whether to display the empty subscriptions state message.
+    /// </summary>
+    public bool ShowNoSubscriptions => !IsLoadingSubscriptions && Subscriptions.Count == 0;
 
     private static ColorTheme ResolveInitialTheme(IThemeService? themeService, string themeId) =>
         (themeService?.AvailableThemes ?? ThemeConstants.AllThemes).FirstOrDefault(t =>
@@ -326,6 +333,7 @@ public partial class SettingsViewModel(
         }
 
         _isRuntimeInitialized = true;
+        Subscriptions.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ShowNoSubscriptions));
         _ = LoadPatStatusAsync();
         WeakReferenceMessenger.Default.Register<DownloadSettingsChangedMessage>(
             this,
@@ -2521,11 +2529,21 @@ public partial class SettingsViewModel(
         logger.LogInformation("Cleared {Count} log files ({Bytes} bytes freed, {Locked} locked)", deletedCount, freedBytes, lockedCount);
     }
 
+    partial void OnSubscriptionsChanged(ObservableCollection<PublisherSubscription> value)
+    {
+        value.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ShowNoSubscriptions));
+    }
+
+    private bool CanToggleSubscriptionTrust(PublisherSubscription? subscription)
+    {
+        return subscription != null && subscription.TrustLevel != TrustLevel.Verified;
+    }
+
     /// <summary>
     /// Loads all active publisher subscriptions.
     /// </summary>
     [RelayCommand]
-    private async Task LoadSubscriptionsAsync()
+    private async Task LoadSubscriptionsAsync(CancellationToken cancellationToken = default)
     {
         if (subscriptionStore == null)
         {
@@ -2535,7 +2553,7 @@ public partial class SettingsViewModel(
         try
         {
             IsLoadingSubscriptions = true;
-            var result = await subscriptionStore.GetSubscriptionsAsync();
+            var result = await subscriptionStore.GetSubscriptionsAsync(cancellationToken);
             if (result.Success && result.Data != null)
             {
                 Subscriptions.Clear();
@@ -2544,6 +2562,10 @@ public partial class SettingsViewModel(
                     Subscriptions.Add(sub);
                 }
             }
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("Loading subscriptions was cancelled.");
         }
         catch (Exception ex)
         {
@@ -2559,7 +2581,7 @@ public partial class SettingsViewModel(
     /// Removes a publisher subscription.
     /// </summary>
     [RelayCommand]
-    private async Task RemoveSubscriptionAsync(PublisherSubscription? subscription)
+    private async Task RemoveSubscriptionAsync(PublisherSubscription? subscription, CancellationToken cancellationToken = default)
     {
         if (subscription == null || subscriptionStore == null)
         {
@@ -2568,7 +2590,7 @@ public partial class SettingsViewModel(
 
         try
         {
-            var result = await subscriptionStore.RemoveSubscriptionAsync(subscription.PublisherId);
+            var result = await subscriptionStore.RemoveSubscriptionAsync(subscription.PublisherId, cancellationToken);
             if (result.Success)
             {
                 Subscriptions.Remove(subscription);
@@ -2578,6 +2600,10 @@ public partial class SettingsViewModel(
             {
                 notificationService.ShowError("Error", $"Failed to remove subscription: {result.FirstError}");
             }
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("Removing subscription was cancelled.");
         }
         catch (Exception ex)
         {
@@ -2589,10 +2615,10 @@ public partial class SettingsViewModel(
     /// <summary>
     /// Toggles the trust level for a publisher subscription.
     /// </summary>
-    [RelayCommand]
-    private async Task ToggleSubscriptionTrustAsync(PublisherSubscription? subscription)
+    [RelayCommand(CanExecute = nameof(CanToggleSubscriptionTrust))]
+    private async Task ToggleSubscriptionTrustAsync(PublisherSubscription? subscription, CancellationToken cancellationToken = default)
     {
-        if (subscription == null || subscriptionStore == null)
+        if (subscription == null || subscriptionStore == null || subscription.TrustLevel == TrustLevel.Verified)
         {
             return;
         }
@@ -2603,7 +2629,7 @@ public partial class SettingsViewModel(
                 ? TrustLevel.Untrusted
                 : TrustLevel.Trusted;
 
-            var result = await subscriptionStore.UpdateTrustLevelAsync(subscription.PublisherId, newTrust);
+            var result = await subscriptionStore.UpdateTrustLevelAsync(subscription.PublisherId, newTrust, cancellationToken);
             if (result.Success)
             {
                 subscription.TrustLevel = newTrust;
@@ -2615,7 +2641,7 @@ public partial class SettingsViewModel(
         }
         catch (OperationCanceledException)
         {
-            throw;
+            logger.LogInformation("Toggling trust level was cancelled.");
         }
         catch (Exception ex)
         {
@@ -2628,7 +2654,7 @@ public partial class SettingsViewModel(
     /// Refreshes all subscribed catalogs.
     /// </summary>
     [RelayCommand]
-    private async Task RefreshAllCatalogsAsync()
+    private async Task RefreshAllCatalogsAsync(CancellationToken cancellationToken = default)
     {
         if (catalogRefreshService == null)
         {
@@ -2638,16 +2664,20 @@ public partial class SettingsViewModel(
         try
         {
             IsLoadingSubscriptions = true;
-            var result = await catalogRefreshService.RefreshAllAsync();
+            var result = await catalogRefreshService.RefreshAllAsync(cancellationToken);
             if (result.Success)
             {
-                await LoadSubscriptionsAsync();
+                await LoadSubscriptionsAsync(cancellationToken);
                 notificationService.ShowSuccess("Catalogs Refreshed", "Successfully updated all subscribed catalogs.");
             }
             else
             {
                 notificationService.ShowError("Refresh Failed", result.FirstError ?? "Unknown error");
             }
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("Refreshing catalogs was cancelled.");
         }
         catch (Exception ex)
         {
