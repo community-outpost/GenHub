@@ -25,15 +25,15 @@ public class FactionToBrushConverter : IValueConverter
 
         if (string.Equals(group, HotkeyFaction.ChinaGroup, StringComparison.OrdinalIgnoreCase))
         {
-            return TryGetThemeBrush("ErrorBrush") ?? TryGetThemeBrush("AccentBrush") ?? Brushes.Red;
+            return TryGetThemeBrush("GeneralsFactionBrush") ?? TryGetThemeBrush("AccentBrush");
         }
 
         if (string.Equals(group, HotkeyFaction.GlaGroup, StringComparison.OrdinalIgnoreCase))
         {
-            return TryGetThemeBrush("SuccessBrush") ?? TryGetThemeBrush("AccentBrush") ?? Brushes.Green;
+            return TryGetThemeBrush("SuccessBrush") ?? TryGetThemeBrush("AccentBrush");
         }
 
-        return TryGetThemeBrush("ZeroHourAccentBrush") ?? TryGetThemeBrush("AccentBrush") ?? Brushes.DodgerBlue;
+        return TryGetThemeBrush("ZeroHourFactionBrush") ?? TryGetThemeBrush("AccentBrush");
     }
 
     /// <inheritdoc />

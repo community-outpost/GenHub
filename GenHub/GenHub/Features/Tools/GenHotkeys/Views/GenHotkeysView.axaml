@@ -25,7 +25,6 @@
       <converters:BoolToBackgroundConverter x:Key="BoolToBackgroundConverter" />
       <hotkeyConverters:CornerToHorizontalAlignmentConverter x:Key="CornerToHorizontalAlignmentConverter" />
       <hotkeyConverters:CornerToVerticalAlignmentConverter x:Key="CornerToVerticalAlignmentConverter" />
-      <hotkeyConverters:FactionToGeometryConverter x:Key="FactionToGeometryConverter" />
       <hotkeyConverters:FactionToImageConverter x:Key="FactionToImageConverter" />
       <hotkeyConverters:FactionToBrushConverter x:Key="FactionToBrushConverter" />
     </ResourceDictionary>
@@ -39,11 +38,11 @@
       <Setter Property="HorizontalContentAlignment" Value="Center" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
       <Setter Property="Background" Value="{DynamicResource CardBackground}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource DividerColor}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
       <Setter Property="BorderThickness" Value="1" />
     </Style>
     <Style Selector="Button.KeyButton:pointerover">
-      <Setter Property="Background" Value="{DynamicResource CardHighlightBackground}" />
+      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource AccentColor}" />
     </Style>
 
@@ -51,14 +50,14 @@
     <Style Selector="Button.action-card">
       <Setter Property="CornerRadius" Value="8" />
       <Setter Property="BorderThickness" Value="2" />
-      <Setter Property="BorderBrush" Value="{DynamicResource DividerColor}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
       <Setter Property="Background" Value="{DynamicResource CardBackground}" />
       <Setter Property="Padding" Value="4" />
       <Setter Property="HorizontalAlignment" Value="Stretch" />
       <Setter Property="VerticalAlignment" Value="Stretch" />
     </Style>
     <Style Selector="Button.action-card:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource CardHighlightBackground}" />
+      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource AccentColor}" />
     </Style>
     <Style Selector="Button.action-card.selected">
@@ -74,49 +73,26 @@
     </Style>
     <Style Selector="Button.action-card.conflict:pointerover /template/ ContentPresenter#PART_ContentPresenter">
       <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
-      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-    </Style>
-    <Style Selector="Button.action-card.conflict.selected">
-      <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
-      <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
-    </Style>
-    <Style Selector="Button.action-card.conflict.selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
-      <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
-    </Style>
-
-    <!-- Prevent ListBoxItem pointerover from wiping out selected highlight -->
-    <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource GeneralsAccentBrush}" />
-    </Style>
-    <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource GeneralsAccentBrush}" />
-      <Setter Property="Opacity" Value="0.9" />
     </Style>
   </UserControl.Styles>
 
-  <Grid RowDefinitions="Auto,*,Auto" Margin="12">
-    <!-- TOP TOOLBAR / SETTINGS HEADER -->
-    <Border Grid.Row="0" Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="12" Margin="0,0,0,12" Padding="12">
-      <StackPanel Spacing="10">
-        <!-- Row 1: Game Switcher, Profile Management, Export Button -->
-        <Grid ColumnDefinitions="Auto,*,Auto">
-          <!-- Game Tabs -->
-          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-            <TextBlock Text="Game:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,4,0"/>
-            <RadioButton Content="Generals"
-                         IsChecked="{Binding SelectedGame, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static enums:GameType.Generals}}"
-                         GroupName="GameSelector"
-                         Classes="TabButton"/>
-            <RadioButton Content="Zero Hour"
-                         IsChecked="{Binding SelectedGame, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static enums:GameType.ZeroHour}}"
-                         GroupName="GameSelector"
-                         Classes="TabButton"/>
-          </StackPanel>
+  <!-- Keyboard navigation handlers for hotkey input -->
+  <Grid RowDefinitions="Auto,*,Auto" Margin="16">
 
-          <!-- Profile Selector & Presets -->
-          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="24,0" VerticalAlignment="Center">
-            <TextBlock Text="Profile:" VerticalAlignment="Center" FontWeight="SemiBold"/>
+    <!-- TOP BAR: PROFILE & PRESETS & EXPORT ACTIONS -->
+    <Border Grid.Row="0" Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="14,10" Margin="0,0,0,10">
+      <StackPanel Spacing="10">
+        <!-- Row 1: Profile Selection + Presets + Export Addon Button -->
+        <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+          <!-- Profiles & Presets Selector -->
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <!-- Game Switcher -->
+            <TextBlock Text="Game:" VerticalAlignment="Center" FontWeight="SemiBold"/>
+            <ComboBox ItemsSource="{Binding AvailableGames}"
+                      SelectedItem="{Binding SelectedGame}"
+                      Width="120"/>
+
+            <TextBlock Text="Profile:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="8,0,0,0"/>
             <ComboBox ItemsSource="{Binding Profiles}"
                       SelectedItem="{Binding SelectedProfile}"
                       Width="180">
@@ -131,7 +107,7 @@
             <Button Content="New" Command="{Binding CreateNewProfileCommand}" Classes="Secondary" Padding="8,4"/>
 
             <!-- Rename Profile Button + Flyout -->
-            <Button Classes="Secondary" Padding="8,4" ToolTip.Tip="Rename Current Profile">
+            <Button Classes="Secondary" Padding="8,4" ToolTip.Tip="Rename Current Profile" AutomationProperties.Name="Rename Profile">
               <PathIcon Data="{StaticResource ToolIcon.PencilOutline}" Width="14" Height="14" VerticalAlignment="Center"/>
               <Button.Flyout>
                 <Flyout>
@@ -146,11 +122,11 @@
               </Button.Flyout>
             </Button>
 
-            <Button Command="{Binding DeleteCurrentProfileCommand}" Classes="Secondary" Padding="8,4" ToolTip.Tip="Delete Profile">
+            <Button Command="{Binding DeleteCurrentProfileCommand}" Classes="Secondary" Padding="8,4" ToolTip.Tip="Delete Profile" AutomationProperties.Name="Delete Profile">
               <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="14" Height="14" VerticalAlignment="Center"/>
             </Button>
 
-            <Rectangle Width="1" Height="20" Fill="{DynamicResource DividerColor}" Margin="4,0"/>
+            <Rectangle Width="1" Height="20" Fill="{DynamicResource BorderSubtleBrush}" Margin="4,0"/>
 
             <!-- Presets Menu -->
             <TextBlock Text="Presets:" VerticalAlignment="Center" FontWeight="SemiBold"/>

@@ -95,4 +95,15 @@ public class GenHotkeysToolPluginTests
         plugin.OnDeactivated();
         plugin.Dispose();
     }
+
+    /// <summary>
+    /// Verifies that multiple calls to Dispose execute cleanly without throwing exceptions.
+    /// </summary>
+    [Fact]
+    public void Plugin_DoubleDispose_ExecutesCleanly()
+    {
+        var plugin = new GenHotkeysToolPlugin();
+        plugin.Dispose();
+        plugin.Dispose();
+    }
 }

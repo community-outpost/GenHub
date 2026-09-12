@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Constants;
 
@@ -8,6 +9,111 @@ namespace GenHub.Core.Constants;
 /// </summary>
 public static class GenHotkeysConstants
 {
+    /// <summary>Mutual exclusion and special action CSF labels.</summary>
+    public static class CsfLabels
+    {
+        /// <summary>CSF label for Daisy Cutter special power.</summary>
+        public const string DaisyCutter = "CONTROLBAR:DaisyCutter";
+
+        /// <summary>CSF label for MOAB special power.</summary>
+        public const string Moab = "CONTROLBAR:MOAB";
+
+        /// <summary>CSF label for China Land Mines upgrade.</summary>
+        public const string UpgradeChinaMines = "CONTROLBAR:UpgradeChinaMines";
+
+        /// <summary>CSF label for China EMP / Neutron Mines upgrade.</summary>
+        public const string UpgradeEmpMines = "CONTROLBAR:UpgradeEMPMines";
+
+        /// <summary>CSF label for China Satellite Hack 1 upgrade.</summary>
+        public const string UpgradeChinaSatelliteHackOne = "CONTROLBAR:UpgradeChinaSatelliteHackOne";
+
+        /// <summary>CSF label for China Satellite Hack 2 upgrade.</summary>
+        public const string UpgradeChinaSatelliteHackTwo = "CONTROLBAR:UpgradeChinaSatelliteHackTwo";
+
+        /// <summary>CSF label for Structure Sell command.</summary>
+        public const string Sell = "CONTROLBAR:Sell";
+    }
+
+    /// <summary>Mutual exclusion and special action icon names.</summary>
+    public static class IconNames
+    {
+        /// <summary>Icon identifier for USA Daisy Cutter.</summary>
+        public const string UsaDaisyCutter = "USADaisyCutter";
+
+        /// <summary>Icon identifier for USA MOAB.</summary>
+        public const string UsaMoab = "USAMOAB";
+
+        /// <summary>Icon identifier for PRC Land Mines.</summary>
+        public const string PrcLandMine = "PRCLandMine";
+
+        /// <summary>Icon identifier for PRC Neutron Mines.</summary>
+        public const string PrcNeutronMines = "PRCNeutronMines";
+
+        /// <summary>Icon identifier for PRC Satellite Hack 1.</summary>
+        public const string PrcSatelliteHack1 = "PRCSatelliteHack1";
+
+        /// <summary>Icon identifier for PRC Satellite Hack 2.</summary>
+        public const string PrcSatelliteHack2 = "PRCSatelliteHack2";
+
+        /// <summary>Icon identifier for Sell action.</summary>
+        public const string Sell = "Sell";
+    }
+
+    /// <summary>Standard faction short-codes and keywords.</summary>
+    public static class FactionCodes
+    {
+        /// <summary>PRC / China faction code.</summary>
+        public const string Prc = "PRC";
+
+        /// <summary>Infantry general code.</summary>
+        public const string Infantry = "INF";
+
+        /// <summary>Nuke general code.</summary>
+        public const string Nuke = "NUK";
+
+        /// <summary>Tank general code.</summary>
+        public const string Tank = "TNK";
+
+        /// <summary>GLA faction code.</summary>
+        public const string Gla = "GLA";
+
+        /// <summary>Toxin general code.</summary>
+        public const string Toxic = "TOX";
+
+        /// <summary>Stealth general code.</summary>
+        public const string Stealth = "STL";
+
+        /// <summary>Demolition general code.</summary>
+        public const string Demo = "DML";
+
+        /// <summary>USA faction code.</summary>
+        public const string Usa = "USA";
+
+        /// <summary>Air Force general code.</summary>
+        public const string AirForce = "AIR";
+
+        /// <summary>Laser general code.</summary>
+        public const string Laser = "LSR";
+
+        /// <summary>Superweapon general code.</summary>
+        public const string SuperWeapon = "SWG";
+
+        /// <summary>Keyword identifying Infantry general.</summary>
+        public const string KeywordInfantry = "Infantry";
+
+        /// <summary>Keyword identifying Nuke general.</summary>
+        public const string KeywordNuke = "Nuke";
+
+        /// <summary>Keyword identifying Tank general.</summary>
+        public const string KeywordTank = "Tank";
+
+        /// <summary>Keyword identifying Toxin general.</summary>
+        public const string KeywordTox = "Tox";
+
+        /// <summary>Keyword identifying Stealth general.</summary>
+        public const string KeywordStealth = "Stealth";
+    }
+
     /// <summary>Tool unique identifier.</summary>
     public const string ToolId = "genhotkeys";
 
@@ -31,6 +137,30 @@ public static class GenHotkeysConstants
 
     /// <summary>Keyword indicating a default preset name.</summary>
     public const string DefaultPresetKeyword = "Default";
+
+    /// <summary>Game tag for Generals.</summary>
+    public const string GameTagGenerals = "Gen";
+
+    /// <summary>Game tag for Zero Hour.</summary>
+    public const string GameTagZeroHour = "ZH";
+
+    /// <summary>Display name for Generals.</summary>
+    public const string GameDisplayNameGenerals = "Generals";
+
+    /// <summary>Display name for Zero Hour.</summary>
+    public const string GameDisplayNameZeroHour = "Zero Hour";
+
+    /// <summary>Profile directory name for Generals.</summary>
+    public const string ProfileDirectoryGenerals = "Generals";
+
+    /// <summary>Profile directory name for Zero Hour.</summary>
+    public const string ProfileDirectoryGeneralsZh = "GeneralsZH";
+
+    /// <summary>Candidate icon path template.</summary>
+    public const string ProfileIconsPathPattern = "Profiles/{0}/Icons/{1}{2}{3}";
+
+    /// <summary>URI pattern for Avalonia faction icons.</summary>
+    public const string FactionIconUriPattern = "avares://GenHub/Assets/Icons/Factions/{0}";
 
     /// <summary>Minimum overlap ratio threshold between layout actions to consider an upgrade variant.</summary>
     public const double UpgradeVariantOverlapRatioThreshold = 0.40;
@@ -90,56 +220,6 @@ public static class GenHotkeysConstants
     /// <summary>Command CSF key prefix.</summary>
     public const string CsfCommandPrefix = "COMMAND:";
 
-    /// <summary>Mutual exclusion and special action CSF labels.</summary>
-    public static class CsfLabels
-    {
-        /// <summary>CSF label for Daisy Cutter special power.</summary>
-        public const string DaisyCutter = "CONTROLBAR:DaisyCutter";
-
-        /// <summary>CSF label for MOAB special power.</summary>
-        public const string Moab = "CONTROLBAR:MOAB";
-
-        /// <summary>CSF label for China Land Mines upgrade.</summary>
-        public const string UpgradeChinaMines = "CONTROLBAR:UpgradeChinaMines";
-
-        /// <summary>CSF label for China EMP / Neutron Mines upgrade.</summary>
-        public const string UpgradeEmpMines = "CONTROLBAR:UpgradeEMPMines";
-
-        /// <summary>CSF label for China Satellite Hack 1 upgrade.</summary>
-        public const string UpgradeChinaSatelliteHackOne = "CONTROLBAR:UpgradeChinaSatelliteHackOne";
-
-        /// <summary>CSF label for China Satellite Hack 2 upgrade.</summary>
-        public const string UpgradeChinaSatelliteHackTwo = "CONTROLBAR:UpgradeChinaSatelliteHackTwo";
-
-        /// <summary>CSF label for Structure Sell command.</summary>
-        public const string Sell = "CONTROLBAR:Sell";
-    }
-
-    /// <summary>Mutual exclusion and special action icon names.</summary>
-    public static class IconNames
-    {
-        /// <summary>Icon identifier for USA Daisy Cutter.</summary>
-        public const string UsaDaisyCutter = "USADaisyCutter";
-
-        /// <summary>Icon identifier for USA MOAB.</summary>
-        public const string UsaMoab = "USAMOAB";
-
-        /// <summary>Icon identifier for PRC Land Mines.</summary>
-        public const string PrcLandMine = "PRCLandMine";
-
-        /// <summary>Icon identifier for PRC Neutron Mines.</summary>
-        public const string PrcNeutronMines = "PRCNeutronMines";
-
-        /// <summary>Icon identifier for PRC Satellite Hack 1.</summary>
-        public const string PrcSatelliteHack1 = "PRCSatelliteHack1";
-
-        /// <summary>Icon identifier for PRC Satellite Hack 2.</summary>
-        public const string PrcSatelliteHack2 = "PRCSatelliteHack2";
-
-        /// <summary>Icon identifier for Sell action.</summary>
-        public const string Sell = "Sell";
-    }
-
     /// <summary>
     /// Mapping of primary hotkey labels (typically CONTROLBAR:...) to their corresponding
     /// sidebar shortcut button labels (OBJECT:..., GUI:Superweapon..., ...Shortcut) in generals.csf.
@@ -178,15 +258,35 @@ public static class GenHotkeysConstants
             ["CONTROLBAR:CrateDrop"] = ["GUI:SuperweaponCrateDrop"],
 
             // GLA Generals Powers & Superweapons
-            ["CONTROLBAR:Ambush"] = ["GUI:SuperweaponRebelAmbush"],
-            ["CONTROLBAR:RebelAmbush"] = ["GUI:SuperweaponRebelAmbush"],
-            ["CONTROLBAR:GPSScrambler"] = ["GUI:SuperweaponGPSScrambler"],
-            ["CONTROLBAR:AnthraxBomb"] = ["OBJECT:AnthraxBomb"],
-            ["CONTROLBAR:SneakAttack"] = ["CONTROLBAR:SneakAttackShort"],
             ["CONTROLBAR:ScudStorm"] = ["CONTROLBAR:ScudStormShortcut"],
-            ["CONTROLBAR:RadarVanScan"] = ["CONTROLBAR:RadarVanScanShortcut"],
-
-            // Superweapon General Cruise Missile
-            ["CONTROLBAR:ICBM"] = ["CONTROLBAR:ICBMShortcut"],
+            ["CONTROLBAR:AnthraxBomb"] = ["OBJECT:AnthraxBomb"],
+            ["CONTROLBAR:Ambush"] = ["GUI:SuperweaponRebelAmbush"],
+            ["CONTROLBAR:EmergencyRepairGLA"] = ["GUI:SuperweaponEmergencyRepairGLA"],
+            ["CONTROLBAR:SneakAttack"] = ["CONTROLBAR:SneakAttackShortcut"],
+            ["CONTROLBAR:GPSScrambler"] = ["CONTROLBAR:GPSScramblerShortcut"],
         };
+
+    /// <summary>
+    /// Gets the abbreviated game tag ("Gen" or "ZH") for the specified game type.
+    /// </summary>
+    /// <param name="gameType">Target game type.</param>
+    /// <returns>"Gen" for Generals, "ZH" for Zero Hour.</returns>
+    public static string GetGameTag(GameType gameType) =>
+        gameType == GameType.Generals ? GameTagGenerals : GameTagZeroHour;
+
+    /// <summary>
+    /// Gets the friendly display name ("Generals" or "Zero Hour") for the specified game type.
+    /// </summary>
+    /// <param name="gameType">Target game type.</param>
+    /// <returns>"Generals" or "Zero Hour".</returns>
+    public static string GetGameDisplayName(GameType gameType) =>
+        gameType == GameType.Generals ? GameDisplayNameGenerals : GameDisplayNameZeroHour;
+
+    /// <summary>
+    /// Gets the profile asset directory ("Generals" or "GeneralsZH") for the specified game type.
+    /// </summary>
+    /// <param name="gameType">Target game type.</param>
+    /// <returns>Asset directory name.</returns>
+    public static string GetProfileDirectory(GameType gameType) =>
+        gameType == GameType.Generals ? ProfileDirectoryGenerals : ProfileDirectoryGeneralsZh;
 }

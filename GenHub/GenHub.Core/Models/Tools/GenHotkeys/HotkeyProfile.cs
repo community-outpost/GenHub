@@ -39,4 +39,13 @@ public class HotkeyProfile
 
     /// <summary>Gets or sets the last modification timestamp.</summary>
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Normalizes collections to ensure case-insensitive string lookups even after JSON deserialization.
+    /// </summary>
+    public void NormalizeComparers()
+    {
+        KeyMappings = new Dictionary<string, char>(KeyMappings, StringComparer.OrdinalIgnoreCase);
+        ClearedKeys = new HashSet<string>(ClearedKeys, StringComparer.OrdinalIgnoreCase);
+    }
 }

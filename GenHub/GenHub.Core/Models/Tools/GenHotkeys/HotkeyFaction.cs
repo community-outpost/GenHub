@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using GenHub.Core.Constants;
+
 namespace GenHub.Core.Models.Tools.GenHotkeys;
 
 /// <summary>
@@ -32,37 +36,37 @@ public class HotkeyFaction
         get
         {
             // China factions & generals: China (PRC), Infantry (INF), Nuke (NUK), Tank (TNK)
-            if (string.Equals(ShortName, "PRC", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(ShortName, "INF", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(ShortName, "NUK", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(ShortName, "TNK", StringComparison.OrdinalIgnoreCase) ||
+            if (string.Equals(ShortName, GenHotkeysConstants.FactionCodes.Prc, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(ShortName, GenHotkeysConstants.FactionCodes.Infantry, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(ShortName, GenHotkeysConstants.FactionCodes.Nuke, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(ShortName, GenHotkeysConstants.FactionCodes.Tank, StringComparison.OrdinalIgnoreCase) ||
                 ShortName.Contains(ChinaGroup, StringComparison.OrdinalIgnoreCase) ||
                 DisplayName.Contains(ChinaGroup, StringComparison.OrdinalIgnoreCase) ||
-                DisplayName.Contains("Infantry", StringComparison.OrdinalIgnoreCase) ||
-                DisplayName.Contains("Nuke", StringComparison.OrdinalIgnoreCase) ||
-                DisplayName.Contains("Tank", StringComparison.OrdinalIgnoreCase) ||
+                DisplayName.Contains(GenHotkeysConstants.FactionCodes.KeywordInfantry, StringComparison.OrdinalIgnoreCase) ||
+                DisplayName.Contains(GenHotkeysConstants.FactionCodes.KeywordNuke, StringComparison.OrdinalIgnoreCase) ||
+                DisplayName.Contains(GenHotkeysConstants.FactionCodes.KeywordTank, StringComparison.OrdinalIgnoreCase) ||
                 DisplayNameDescription.Contains(ChinaGroup, StringComparison.OrdinalIgnoreCase) ||
-                DisplayNameDescription.Contains("Infantry", StringComparison.OrdinalIgnoreCase) ||
-                DisplayNameDescription.Contains("Nuke", StringComparison.OrdinalIgnoreCase) ||
-                DisplayNameDescription.Contains("Tank", StringComparison.OrdinalIgnoreCase))
+                DisplayNameDescription.Contains(GenHotkeysConstants.FactionCodes.KeywordInfantry, StringComparison.OrdinalIgnoreCase) ||
+                DisplayNameDescription.Contains(GenHotkeysConstants.FactionCodes.KeywordNuke, StringComparison.OrdinalIgnoreCase) ||
+                DisplayNameDescription.Contains(GenHotkeysConstants.FactionCodes.KeywordTank, StringComparison.OrdinalIgnoreCase))
             {
                 return ChinaGroup;
             }
 
             // GLA factions & generals: GLA (GLA), Toxic (TOX), Stealth (STL), Demo (DML)
-            if (string.Equals(ShortName, "GLA", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(ShortName, "TOX", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(ShortName, "STL", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(ShortName, "DML", StringComparison.OrdinalIgnoreCase) ||
+            if (string.Equals(ShortName, GenHotkeysConstants.FactionCodes.Gla, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(ShortName, GenHotkeysConstants.FactionCodes.Toxic, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(ShortName, GenHotkeysConstants.FactionCodes.Stealth, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(ShortName, GenHotkeysConstants.FactionCodes.Demo, StringComparison.OrdinalIgnoreCase) ||
                 ShortName.Contains(GlaGroup, StringComparison.OrdinalIgnoreCase) ||
                 DisplayName.Contains(GlaGroup, StringComparison.OrdinalIgnoreCase) ||
-                DisplayName.Contains("Tox", StringComparison.OrdinalIgnoreCase) ||
-                DisplayName.Contains("Stealth", StringComparison.OrdinalIgnoreCase) ||
-                DisplayName.Contains("Demo", StringComparison.OrdinalIgnoreCase) ||
+                DisplayName.Contains(GenHotkeysConstants.FactionCodes.KeywordTox, StringComparison.OrdinalIgnoreCase) ||
+                DisplayName.Contains(GenHotkeysConstants.FactionCodes.KeywordStealth, StringComparison.OrdinalIgnoreCase) ||
+                DisplayName.Contains(GenHotkeysConstants.FactionCodes.Demo, StringComparison.OrdinalIgnoreCase) ||
                 DisplayNameDescription.Contains(GlaGroup, StringComparison.OrdinalIgnoreCase) ||
-                DisplayNameDescription.Contains("Toxic", StringComparison.OrdinalIgnoreCase) ||
-                DisplayNameDescription.Contains("Stealth", StringComparison.OrdinalIgnoreCase) ||
-                DisplayNameDescription.Contains("Demo", StringComparison.OrdinalIgnoreCase))
+                DisplayNameDescription.Contains(GenHotkeysConstants.FactionCodes.KeywordTox, StringComparison.OrdinalIgnoreCase) ||
+                DisplayNameDescription.Contains(GenHotkeysConstants.FactionCodes.KeywordStealth, StringComparison.OrdinalIgnoreCase) ||
+                DisplayNameDescription.Contains(GenHotkeysConstants.FactionCodes.Demo, StringComparison.OrdinalIgnoreCase))
             {
                 return GlaGroup;
             }
