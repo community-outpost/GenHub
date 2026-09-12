@@ -307,7 +307,7 @@ def check_url_exists(url: str, timeout: int = 5) -> bool:
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status == 200
-    except OSError:
+    except (OSError, http.client.HTTPException):
         return False
 
 
@@ -721,11 +721,25 @@ def _validate_crc_fields(m_id: str, entry: dict) -> bool:
     return valid
 
 
+def _has_cdn_crc_conflict(entry: dict, existing_entry: dict, new_exe: str, new_ini: str, ex_exe: str, ex_ini: str) -> bool:
+    ex_cdn = existing_entry.get("cdnUrl")
+    new_cdn = entry.get("cdnUrl")
+    if not (ex_cdn and new_cdn and ex_cdn == new_cdn):
+        return False
+    is_patch = bool(
+        entry.get("dataPatchName")
+        or existing_entry.get("dataPatchName")
+        or entry.get("dataPatchManifestId")
+        or existing_entry.get("dataPatchManifestId")
+    )
+    has_ini_conflict = bool(ex_ini and new_ini and ex_ini != new_ini and not is_patch)
+    return bool((ex_exe and new_exe and ex_exe != new_exe) or has_ini_conflict)
+
+
 def _validate_seen_manifest(m_id: str, entry: dict, seen_manifests: dict) -> bool:
     """Checks for duplicate or conflicting exeCrc / iniCrc / cdnUrl for previously seen manifest IDs."""
     new_exe = (entry.get("exeCrc") or "").lower()
     new_ini = (entry.get("iniCrc") or "").lower()
-    new_cdn = entry.get("cdnUrl")
 
     if m_id not in seen_manifests:
         seen_manifests[m_id] = entry
@@ -734,15 +748,13 @@ def _validate_seen_manifest(m_id: str, entry: dict, seen_manifests: dict) -> boo
     existing_entry = seen_manifests[m_id]
     ex_exe = (existing_entry.get("exeCrc") or "").lower()
     ex_ini = (existing_entry.get("iniCrc") or "").lower()
-    ex_cdn = existing_entry.get("cdnUrl")
 
-    if ex_cdn and new_cdn and ex_cdn == new_cdn:
-        if (ex_exe and new_exe and ex_exe != new_exe) or (ex_ini and new_ini and ex_ini != new_ini):
-            print(
-                f"Validation error at {m_id}: conflicting CRCs ({new_exe}/{new_ini} vs {ex_exe}/{ex_ini}) for same cdnUrl {new_cdn}",
-                file=sys.stderr,
-            )
-            return False
+    if _has_cdn_crc_conflict(entry, existing_entry, new_exe, new_ini, ex_exe, ex_ini):
+        print(
+            f"Validation error at {m_id}: conflicting CRCs ({new_exe}/{new_ini} vs {ex_exe}/{ex_ini}) for same cdnUrl",
+            file=sys.stderr,
+        )
+        return False
 
     if ex_exe and new_exe and ex_exe != new_exe:
         print(
@@ -786,6 +798,10 @@ def validate_catalog(catalog: dict) -> bool:
 
     if "mappings" not in catalog or not isinstance(catalog["mappings"], list):
         print("Validation error: 'mappings' array missing", file=sys.stderr)
+        return False
+
+    if "totalEntries" in catalog and catalog["totalEntries"] != len(catalog["mappings"]):
+        print(f"Validation error: totalEntries ({catalog['totalEntries']}) does not match mappings count ({len(catalog['mappings'])})", file=sys.stderr)
         return False
 
     valid = True

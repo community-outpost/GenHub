@@ -124,8 +124,8 @@ public sealed class ReplayExportService(
     {
         if (replayList.Count == 1 &&
             (replayList[0].FileName.EndsWith(FileTypes.ZipFileExtension, StringComparison.OrdinalIgnoreCase) ||
-             replayList[0].FileName.EndsWith(".7z", StringComparison.OrdinalIgnoreCase) ||
-             replayList[0].FileName.EndsWith(".rar", StringComparison.OrdinalIgnoreCase)))
+             replayList[0].FileName.EndsWith(FileTypes.SevenZipFileExtension, StringComparison.OrdinalIgnoreCase) ||
+             replayList[0].FileName.EndsWith(FileTypes.RarFileExtension, StringComparison.OrdinalIgnoreCase)))
         {
             var (isValid, errorMessage) = zipValidationService.ValidateZip(replayList[0].FullPath);
             if (!isValid)

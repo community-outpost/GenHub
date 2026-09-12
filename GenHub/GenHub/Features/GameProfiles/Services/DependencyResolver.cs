@@ -292,6 +292,8 @@ public class DependencyResolver(
     private static bool IsZeroHourIdentifier(string name)
     {
         if (name.Contains(ManifestConstants.ZeroHourContentName, StringComparison.OrdinalIgnoreCase) ||
+            name.Contains(ManifestConstants.ZeroHourHyphenContentName, StringComparison.OrdinalIgnoreCase) ||
+            name.Contains(ManifestConstants.ZeroHourSpacedContentName, StringComparison.OrdinalIgnoreCase) ||
             name.StartsWith(ManifestConstants.GeneralsZeroHourContentName, StringComparison.OrdinalIgnoreCase) ||
             name.EndsWith(ManifestConstants.ZeroHourShortContentName, StringComparison.OrdinalIgnoreCase))
         {

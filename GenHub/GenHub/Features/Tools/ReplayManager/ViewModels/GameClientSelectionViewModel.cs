@@ -98,6 +98,36 @@ public sealed partial class GameClientSelectionViewModel(
         }
     }
 
+    private static bool ManifestMatchesGame(ContentManifest manifest, GameType targetGame)
+    {
+        if (manifest.TargetGame == targetGame)
+        {
+            return true;
+        }
+
+        if (manifest.TargetGame != GameType.Unknown)
+        {
+            return false;
+        }
+
+        var tokens = manifest.Id.Value.Split('.');
+        if (targetGame == GameType.ZeroHour)
+        {
+            return tokens.Any(t => string.Equals(t, "zerohour", StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(t, "zh", StringComparison.OrdinalIgnoreCase) ||
+                                   t.EndsWith("-zerohour", StringComparison.OrdinalIgnoreCase) ||
+                                   t.EndsWith("-zh", StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (targetGame == GameType.Generals)
+        {
+            return tokens.Any(t => string.Equals(t, "generals", StringComparison.OrdinalIgnoreCase) ||
+                                   t.EndsWith("-generals", StringComparison.OrdinalIgnoreCase));
+        }
+
+        return false;
+    }
+
     [RelayCommand]
     private void Cancel()
     {
@@ -239,10 +269,9 @@ public sealed partial class GameClientSelectionViewModel(
                 return;
             }
 
-            var gameSegment = targetGame.ToString().ToLowerInvariant();
             foreach (var manifest in manifestsResult.Data.Where(m => m.ContentType == ContentType.GameClient))
             {
-                if (!MatchesGame(manifest))
+                if (!ManifestMatchesGame(manifest, targetGame))
                 {
                     continue;
                 }
@@ -254,23 +283,6 @@ public sealed partial class GameClientSelectionViewModel(
                 }
 
                 _allClients.Add(CreateManifestGameClientCard(manifest, targetGame));
-            }
-
-            bool MatchesGame(ContentManifest manifest)
-            {
-                if (manifest.TargetGame == targetGame)
-                {
-                    return true;
-                }
-
-                if (manifest.TargetGame != GameType.Unknown)
-                {
-                    return false;
-                }
-
-                var id = manifest.Id.Value;
-                return id.Contains($".gameclient.{gameSegment}", StringComparison.OrdinalIgnoreCase) ||
-                       id.Contains($".{gameSegment}.", StringComparison.OrdinalIgnoreCase);
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

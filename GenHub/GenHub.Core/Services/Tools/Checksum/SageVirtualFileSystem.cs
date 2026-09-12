@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using GenHub.Core.Constants;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Core.Services.Tools.Checksum;
@@ -20,7 +22,12 @@ public sealed class SageVirtualFileSystem
     /// <param name="gameRoot">The root directory of the game installation.</param>
     /// <param name="isZeroHour">Whether the target game is Zero Hour (generalsmd) or vanilla Generals.</param>
     /// <param name="logger">Optional logger for diagnostic tracing.</param>
-    public SageVirtualFileSystem(string gameRoot, bool isZeroHour, ILogger? logger = null)
+    /// <param name="cancellationToken">Optional cancellation token.</param>
+    public SageVirtualFileSystem(
+        string gameRoot,
+        bool isZeroHour,
+        ILogger? logger = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(gameRoot);
         _logger = logger;
@@ -31,7 +38,7 @@ public sealed class SageVirtualFileSystem
             return;
         }
 
-        var bigFiles = Directory.GetFiles(gameRoot, "*.big", SearchOption.AllDirectories);
+        var bigFiles = Directory.GetFiles(gameRoot, SageChecksumConstants.BigFileSearchPattern, SearchOption.AllDirectories);
         Array.Sort(bigFiles, (a, b) =>
         {
             string relA = Path.GetRelativePath(gameRoot, a).Replace('/', '\\');
@@ -41,8 +48,9 @@ public sealed class SageVirtualFileSystem
 
         foreach (string bigFile in bigFiles)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             string rel = Path.GetRelativePath(gameRoot, bigFile).Replace('/', '\\');
-            if (isZeroHour && rel.EndsWith(@"data\ini\inizh.big", StringComparison.OrdinalIgnoreCase))
+            if (isZeroHour && rel.EndsWith(SageChecksumConstants.IniZhBigRelativePath, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -76,7 +84,7 @@ public sealed class SageVirtualFileSystem
         if (Directory.Exists(path))
         {
             _looseRoots.Add(path);
-            var bigFiles = Directory.GetFiles(path, "*.big", SearchOption.AllDirectories);
+            var bigFiles = Directory.GetFiles(path, SageChecksumConstants.BigFileSearchPattern, SearchOption.AllDirectories);
             Array.Sort(bigFiles, StringComparer.OrdinalIgnoreCase);
             foreach (string bigFile in bigFiles)
             {
@@ -103,7 +111,7 @@ public sealed class SageVirtualFileSystem
         if (Directory.Exists(path))
         {
             _looseRoots.Add(path);
-            var bigFiles = Directory.GetFiles(path, "*.big", SearchOption.AllDirectories);
+            var bigFiles = Directory.GetFiles(path, SageChecksumConstants.BigFileSearchPattern, SearchOption.AllDirectories);
             Array.Sort(bigFiles, StringComparer.OrdinalIgnoreCase);
             foreach (string bigFile in bigFiles)
             {

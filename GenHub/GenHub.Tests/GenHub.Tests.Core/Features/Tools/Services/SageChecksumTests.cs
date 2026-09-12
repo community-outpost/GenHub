@@ -166,4 +166,38 @@ public sealed class SageChecksumTests
         Assert.False(result.Success);
         Assert.NotEmpty(result.Errors);
     }
+
+    /// <summary>
+    /// Verifies BigArchiveReader throws InvalidDataException on corrupt or truncated header.
+    /// </summary>
+    [Fact]
+    public void BigArchiveReader_CorruptedHeader_ThrowsInvalidDataException()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            // Construct archive with declared header larger than stream length
+            File.WriteAllBytes(tempFile, [0x42, 0x49, 0x47, 0x46, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x10, 0x00]);
+            Assert.Throws<InvalidDataException>(() => BigArchiveReader.ReadIndex(tempFile));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies PeVersionExtractor returns false gracefully on non-existent file path.
+    /// </summary>
+    [Fact]
+    public void PeVersionExtractor_NonExistentFile_ReturnsFalse()
+    {
+        bool extracted = PeVersionExtractor.TryExtractFromVersionInfo("non_existent_file.exe", out int major, out int minor);
+        Assert.False(extracted);
+        Assert.Equal(0, major);
+        Assert.Equal(0, minor);
+    }
 }

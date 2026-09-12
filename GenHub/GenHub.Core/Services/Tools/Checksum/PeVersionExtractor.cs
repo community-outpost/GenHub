@@ -1,4 +1,6 @@
+using System;
 using System.Diagnostics;
+using System.IO;
 
 namespace GenHub.Core.Services.Tools.Checksum;
 
@@ -76,10 +78,29 @@ public static class PeVersionExtractor
                 return true;
             }
         }
-        catch
+        catch (IOException)
         {
             // Fall through to FileVersionInfo
         }
+        catch (UnauthorizedAccessException)
+        {
+            // Fall through to FileVersionInfo
+        }
+
+        return TryExtractFromVersionInfo(executablePath, out major, out minor);
+    }
+
+    /// <summary>
+    /// Attempts to extract engine version from PE file version metadata.
+    /// </summary>
+    /// <param name="executablePath">The path to the game executable.</param>
+    /// <param name="major">The resolved major version number.</param>
+    /// <param name="minor">The resolved minor version number.</param>
+    /// <returns><c>true</c> if version was successfully resolved; otherwise, <c>false</c>.</returns>
+    public static bool TryExtractFromVersionInfo(string executablePath, out int major, out int minor)
+    {
+        major = 0;
+        minor = 0;
 
         try
         {
@@ -91,9 +112,17 @@ public static class PeVersionExtractor
                 return true;
             }
         }
-        catch
+        catch (FileNotFoundException)
         {
-            // Ignore
+            // Ignore metadata read failure
+        }
+        catch (FileLoadException)
+        {
+            // Ignore metadata read failure
+        }
+        catch (NotSupportedException)
+        {
+            // Ignore metadata read failure
         }
 
         return false;

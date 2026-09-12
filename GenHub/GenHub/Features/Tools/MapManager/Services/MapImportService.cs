@@ -65,9 +65,9 @@ public sealed class MapImportService(
             }
 
             var isArchive = IsArchiveFile(tempPath) ||
-                fileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
-                fileName.EndsWith(".7z", StringComparison.OrdinalIgnoreCase) ||
-                fileName.EndsWith(".rar", StringComparison.OrdinalIgnoreCase);
+                fileName.EndsWith(FileTypes.ZipFileExtension, StringComparison.OrdinalIgnoreCase) ||
+                fileName.EndsWith(FileTypes.SevenZipFileExtension, StringComparison.OrdinalIgnoreCase) ||
+                fileName.EndsWith(FileTypes.RarFileExtension, StringComparison.OrdinalIgnoreCase);
 
             if (isArchive)
             {
@@ -318,18 +318,20 @@ public sealed class MapImportService(
                             continue;
                         }
 
+                        var mapFileName = Path.GetFileName(mapEntry.FullName.Replace('\\', '/'));
+
                         // Determine the directory name for this map
                         var mapDirName = string.IsNullOrEmpty(directoryName)
-                            ? Path.GetFileNameWithoutExtension(mapEntry.Name)
+                            ? Path.GetFileNameWithoutExtension(mapFileName)
                             : Path.GetFileName(directoryName);
 
                         if (string.IsNullOrWhiteSpace(mapDirName) || mapDirName == "." || mapDirName == "..")
                         {
-                            mapDirName = Path.GetFileNameWithoutExtension(mapEntry.Name);
+                            mapDirName = Path.GetFileNameWithoutExtension(mapFileName);
                         }
 
                         var mapDirPath = GetUniqueDirectoryPath(Path.Combine(targetDir, mapDirName));
-                        var mapDestPath = Path.Combine(mapDirPath, mapEntry.Name);
+                        var mapDestPath = Path.Combine(mapDirPath, mapFileName);
                         var assetFiles = new List<string>();
                         string? thumbnailPath = null;
 
@@ -373,13 +375,31 @@ public sealed class MapImportService(
                             // Extract related asset files from the same directory in the ZIP
                             if (!string.IsNullOrEmpty(directoryName))
                             {
+                                var mapEntriesInGroup = mapEntries.Count;
+                                var mapBaseName = Path.GetFileNameWithoutExtension(mapFileName);
                                 var assetEntries = entries.Where(e =>
-                                    !e.Name.EndsWith(".map", StringComparison.OrdinalIgnoreCase) &&
-                                    MapManagerConstants.AllowedExtensions.Contains(Path.GetExtension(e.Name), StringComparer.OrdinalIgnoreCase));
+                                {
+                                    var fn = Path.GetFileName(e.FullName.Replace('\\', '/'));
+                                    if (fn.EndsWith(".map", StringComparison.OrdinalIgnoreCase) ||
+                                        !MapManagerConstants.AllowedExtensions.Contains(Path.GetExtension(fn), StringComparer.OrdinalIgnoreCase))
+                                    {
+                                        return false;
+                                    }
+
+                                    if (mapEntriesInGroup > 1)
+                                    {
+                                        return fn.StartsWith(mapBaseName + "_", StringComparison.OrdinalIgnoreCase) ||
+                                               fn.StartsWith(mapBaseName + ".", StringComparison.OrdinalIgnoreCase) ||
+                                               fn.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase);
+                                    }
+
+                                    return true;
+                                });
 
                                 foreach (var assetEntry in assetEntries)
                                 {
-                                    var assetDestPath = Path.Combine(mapDirPath, assetEntry.Name);
+                                    var assetFileName = Path.GetFileName(assetEntry.FullName.Replace('\\', '/'));
+                                    var assetDestPath = Path.Combine(mapDirPath, assetFileName);
                                     if (!File.Exists(assetDestPath))
                                     {
                                         try
@@ -417,8 +437,8 @@ public sealed class MapImportService(
                                     assetFiles.Add(assetDestPath);
 
                                     // Check for thumbnail
-                                    if (assetEntry.Name.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase) ||
-                                        (thumbnailPath == null && assetEntry.Name.EndsWith(".tga", StringComparison.OrdinalIgnoreCase)))
+                                    if (assetFileName.Equals(MapManagerConstants.DefaultThumbnailName, StringComparison.OrdinalIgnoreCase) ||
+                                        (thumbnailPath == null && assetFileName.EndsWith(".tga", StringComparison.OrdinalIgnoreCase)))
                                     {
                                         thumbnailPath = assetDestPath;
                                     }

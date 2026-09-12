@@ -99,11 +99,23 @@ public sealed class CrcCatalogUpdateService(
         }
     }
 
-    private static Uri GetCatalogUrl()
+    private Uri GetCatalogUrl()
     {
         var envUrl = Environment.GetEnvironmentVariable(ReplayManagerConstants.CrcCatalogUrlEnvironmentVariable);
-        var urlString = !string.IsNullOrWhiteSpace(envUrl) ? envUrl : ReplayManagerConstants.DefaultCrcCatalogUrl;
-        return new Uri(urlString, UriKind.Absolute);
+        if (!string.IsNullOrWhiteSpace(envUrl))
+        {
+            if (Uri.TryCreate(envUrl, UriKind.Absolute, out var parsedEnvUri))
+            {
+                return parsedEnvUri;
+            }
+
+            logger.LogWarning(
+                "Invalid {EnvironmentVariable} URL '{RawUrl}', falling back to default catalog URL.",
+                ReplayManagerConstants.CrcCatalogUrlEnvironmentVariable,
+                envUrl);
+        }
+
+        return new Uri(ReplayManagerConstants.DefaultCrcCatalogUrl, UriKind.Absolute);
     }
 
     private async Task<ContentUpdateCheckResult> LoadLocalFallbackAsync(CancellationToken cancellationToken)
@@ -141,7 +153,7 @@ public sealed class CrcCatalogUpdateService(
     private async Task SaveLocalFallbackAsync(CrcCatalog catalog, CancellationToken cancellationToken)
     {
         var appDataPath = configurationProviderService.GetApplicationDataPath();
-        var tempFilePath = Path.Combine(appDataPath, $"{ReplayManagerConstants.CrcCatalogLocalFileName}.tmp");
+        var tempFilePath = Path.Combine(appDataPath, $"{ReplayManagerConstants.CrcCatalogLocalFileName}{IoConstants.StagingFileSuffix}");
         var finalFilePath = Path.Combine(appDataPath, ReplayManagerConstants.CrcCatalogLocalFileName);
 
         try

@@ -32,7 +32,7 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
         ReadCommentHandling = JsonCommentHandling.Skip,
     };
 
-    private RegistryState _state = InitializeRegistryState(logger);
+    private volatile RegistryState _state = InitializeRegistryState(logger);
 
     /// <inheritdoc />
     public bool TryGetEntry(string exeCrc, string iniCrc, out CrcMappingEntry? entry)
@@ -165,6 +165,110 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
         return trimmed.ToUpperInvariant();
     }
 
+    private static void AddOrUpdatePairEntry(ImmutableDictionary<string, CrcMappingEntry>.Builder pairBuilder, CrcMappingEntry entry)
+    {
+        var pairKey = CreateCrcPairKey(entry.ExeCrc, entry.IniCrc);
+        if (!pairBuilder.TryGetValue(pairKey, out _) ||
+            string.Equals(entry.Publisher, PublisherTypeConstants.Steam, StringComparison.OrdinalIgnoreCase))
+        {
+            pairBuilder[pairKey] = entry;
+        }
+    }
+
+    private static void AddOrUpdateExeEntry(ImmutableDictionary<string, CrcMappingEntry>.Builder exeBuilder, CrcMappingEntry entry)
+    {
+        var normalizedExe = NormalizeHex(entry.ExeCrc);
+        if (string.IsNullOrEmpty(normalizedExe))
+        {
+            return;
+        }
+
+        if (!exeBuilder.TryGetValue(normalizedExe, out var existing))
+        {
+            exeBuilder[normalizedExe] = entry;
+            return;
+        }
+
+        bool entryIsSteam = string.Equals(entry.Publisher, PublisherTypeConstants.Steam, StringComparison.OrdinalIgnoreCase);
+        bool existingIsSteam = string.Equals(existing.Publisher, PublisherTypeConstants.Steam, StringComparison.OrdinalIgnoreCase);
+        if (entryIsSteam && !existingIsSteam)
+        {
+            exeBuilder[normalizedExe] = entry;
+            return;
+        }
+
+        if (!entryIsSteam && !existingIsSteam)
+        {
+            int dateCmp = string.Compare(entry.BuildDate, existing.BuildDate, StringComparison.OrdinalIgnoreCase);
+            if (dateCmp > 0 || (dateCmp == 0 && CompareVersions(entry.Version, existing.Version) > 0))
+            {
+                exeBuilder[normalizedExe] = entry;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Compares two version strings numerically by segment, falling back to lexicographical comparison.
+    /// </summary>
+    private static int CompareVersions(string? a, string? b)
+    {
+        if (string.Equals(a, b, StringComparison.OrdinalIgnoreCase))
+        {
+            return 0;
+        }
+
+        if (string.IsNullOrEmpty(a))
+        {
+            return -1;
+        }
+
+        if (string.IsNullOrEmpty(b))
+        {
+            return 1;
+        }
+
+        var partsA = a.Split('.', '-', '_');
+        var partsB = b.Split('.', '-', '_');
+        int len = Math.Min(partsA.Length, partsB.Length);
+
+        for (int i = 0; i < len; i++)
+        {
+            bool aIsNum = int.TryParse(partsA[i], out int numA);
+            bool bIsNum = int.TryParse(partsB[i], out int numB);
+
+            if (aIsNum && bIsNum)
+            {
+                int cmp = numA.CompareTo(numB);
+                if (cmp != 0)
+                {
+                    return cmp;
+                }
+            }
+            else
+            {
+                int cmp = string.Compare(partsA[i], partsB[i], StringComparison.OrdinalIgnoreCase);
+                if (cmp != 0)
+                {
+                    return cmp;
+                }
+            }
+        }
+
+        int lengthCmp = partsA.Length.CompareTo(partsB.Length);
+        return lengthCmp != 0 ? lengthCmp : string.Compare(a, b, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void AddOrUpdateIniEntry(ImmutableDictionary<string, CrcMappingEntry>.Builder iniBuilder, CrcMappingEntry entry)
+    {
+        var normalizedIni = NormalizeHex(entry.IniCrc);
+        if (!string.IsNullOrEmpty(normalizedIni) &&
+            (!iniBuilder.TryGetValue(normalizedIni, out _) ||
+             !string.IsNullOrEmpty(entry.DataPatchManifestId)))
+        {
+            iniBuilder[normalizedIni] = entry;
+        }
+    }
+
     private static RegistryState BuildState(IEnumerable<CrcMappingEntry> mappings)
     {
         var pairBuilder = ImmutableDictionary.CreateBuilder<string, CrcMappingEntry>(StringComparer.OrdinalIgnoreCase);
@@ -175,28 +279,9 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
 
         foreach (var entry in mappings)
         {
-            var pairKey = CreateCrcPairKey(entry.ExeCrc, entry.IniCrc);
-            if (!pairBuilder.TryGetValue(pairKey, out _) ||
-                string.Equals(entry.Publisher, PublisherTypeConstants.Steam, StringComparison.OrdinalIgnoreCase))
-            {
-                pairBuilder[pairKey] = entry;
-            }
-
-            var normalizedExe = NormalizeHex(entry.ExeCrc);
-            if (!string.IsNullOrEmpty(normalizedExe) &&
-                (!exeBuilder.TryGetValue(normalizedExe, out _) ||
-                 string.Equals(entry.Publisher, PublisherTypeConstants.Steam, StringComparison.OrdinalIgnoreCase)))
-            {
-                exeBuilder[normalizedExe] = entry;
-            }
-
-            var normalizedIni = NormalizeHex(entry.IniCrc);
-            if (!string.IsNullOrEmpty(normalizedIni) &&
-                (!iniBuilder.TryGetValue(normalizedIni, out _) ||
-                 !string.IsNullOrEmpty(entry.DataPatchManifestId)))
-            {
-                iniBuilder[normalizedIni] = entry;
-            }
+            AddOrUpdatePairEntry(pairBuilder, entry);
+            AddOrUpdateExeEntry(exeBuilder, entry);
+            AddOrUpdateIniEntry(iniBuilder, entry);
 
             if (!string.IsNullOrWhiteSpace(entry.Sha256))
             {
@@ -227,7 +312,7 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
         {
             var assembly = typeof(CrcMappingRegistry).Assembly;
             var resourceName = assembly.GetManifestResourceNames()
-                .FirstOrDefault(n => n.EndsWith("crc-mapping.json", StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(n => n.EndsWith(ReplayManagerConstants.CrcCatalogLocalFileName, StringComparison.OrdinalIgnoreCase));
 
             if (resourceName == null)
             {
@@ -252,7 +337,7 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
     private static RegistryState InitializeRegistryState(ILogger<CrcMappingRegistry>? logger)
     {
         var catalog = TryLoadEmbeddedCatalog(logger);
-        if (catalog != null && catalog.Mappings.Count > 0)
+        if (catalog?.Mappings is { Count: > 0 })
         {
             return BuildState(catalog.Mappings);
         }

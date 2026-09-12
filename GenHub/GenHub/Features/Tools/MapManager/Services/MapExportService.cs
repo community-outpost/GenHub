@@ -163,8 +163,8 @@ public sealed class MapExportService(
     {
         if (mapList.Count == 1 &&
             (mapList[0].FileName.EndsWith(Path.GetExtension(MapManagerConstants.ZipFilePattern), StringComparison.OrdinalIgnoreCase) ||
-             mapList[0].FileName.EndsWith(".7z", StringComparison.OrdinalIgnoreCase) ||
-             mapList[0].FileName.EndsWith(".rar", StringComparison.OrdinalIgnoreCase)))
+             mapList[0].FileName.EndsWith(FileTypes.SevenZipFileExtension, StringComparison.OrdinalIgnoreCase) ||
+             mapList[0].FileName.EndsWith(FileTypes.RarFileExtension, StringComparison.OrdinalIgnoreCase)))
         {
             var (isValid, errorMessage) = importService.ValidateZip(mapList[0].FullPath);
             if (!isValid)

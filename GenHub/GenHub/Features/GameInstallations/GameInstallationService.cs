@@ -1040,7 +1040,21 @@ IUserSettingsService? userSettingsService = null) : IGameInstallationService, ID
             }
 
             var defaultExe = gameType == GameType.ZeroHour ? GameClientConstants.ZeroHourExecutable : GameClientConstants.GeneralsExecutable;
-            var exePath = gameClient?.ExecutablePath ?? Path.Combine(gamePath, defaultExe);
+            string exePath;
+            if (!string.IsNullOrWhiteSpace(gameClient?.ExecutablePath))
+            {
+                exePath = gameClient.ExecutablePath;
+            }
+            else if (installation.InstallationType == GameInstallationType.Steam &&
+                     File.Exists(Path.Combine(gamePath, GameClientConstants.SteamGameDatExecutable)))
+            {
+                exePath = Path.Combine(gamePath, GameClientConstants.SteamGameDatExecutable);
+            }
+            else
+            {
+                exePath = Path.Combine(gamePath, defaultExe);
+            }
+
             if (!File.Exists(exePath))
             {
                 logger.LogWarning(

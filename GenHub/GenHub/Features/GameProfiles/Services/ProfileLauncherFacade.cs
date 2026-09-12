@@ -212,7 +212,7 @@ public class ProfileLauncherFacade(
             // 1. Profile is deleted
             // 2. Content changes require workspace refresh
             logger.LogInformation("Successfully stopped profile {ProfileId}", profileId);
-            WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(profileId, 0));
+            WeakReferenceMessenger.Default.Send(new ProfileStoppedMessage(profileId, launch.ProcessInfo.ProcessId));
             return ProfileOperationResult<bool>.CreateSuccess(true);
         }
         catch (Exception ex)
@@ -737,6 +737,9 @@ public class ProfileLauncherFacade(
             // Update the profile with the resolved installation if it changed
             await TryRebindProfileInstallationAsync(profileId, profile, resolvedInstallation, cancellationToken);
 
+            // Ensure CAS pool is available before reconciliation may download artifacts
+            await EnsureCasPoolAsync(resolvedInstallation, cancellationToken);
+
             // Step 2.5: Check for game client updates before launching.
             var reconcileResult = await ReconcilePublisherClientAsync(profile, profileId, cancellationToken);
             if (reconcileResult.Failed)
@@ -771,8 +774,6 @@ public class ProfileLauncherFacade(
                 resolvedInstallation.InstallationPath,
                 casPoolPath,
                 workspacePath);
-
-            await EnsureCasPoolAsync(resolvedInstallation, cancellationToken);
 
             notificationService.ShowInfo(
                 "Launching Profile",

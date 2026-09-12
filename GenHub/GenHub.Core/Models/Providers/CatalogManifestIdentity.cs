@@ -192,7 +192,7 @@ public static class CatalogManifestIdentity
 
         var publisher = dependency.PublisherId ?? string.Empty;
         var contentId = dependency.ContentId ?? string.Empty;
-        var isEaOrAny = publisher.Equals("ea", StringComparison.OrdinalIgnoreCase) ||
+        var isEaOrAny = publisher.Equals(PublisherTypeConstants.Ea, StringComparison.OrdinalIgnoreCase) ||
                         publisher.Equals("any", StringComparison.OrdinalIgnoreCase);
         if (!isEaOrAny)
         {

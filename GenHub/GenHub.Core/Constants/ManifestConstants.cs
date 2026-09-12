@@ -182,6 +182,16 @@ public static class ManifestConstants
     public const string ZeroHourContentName = "zerohour";
 
     /// <summary>
+    /// Content name for Zero Hour with hyphen (e.g. zero-hour).
+    /// </summary>
+    public const string ZeroHourHyphenContentName = "zero-hour";
+
+    /// <summary>
+    /// Content name for Zero Hour with space (e.g. zero hour).
+    /// </summary>
+    public const string ZeroHourSpacedContentName = "zero hour";
+
+    /// <summary>
     /// Short content name for Zero Hour segment.
     /// </summary>
     public const string ZeroHourShortContentName = "zh";
@@ -283,9 +293,6 @@ public static class ManifestConstants
     public const string OtherTag = "Other";
 
     // ===== Content Keywords =====
-
-    /// <summary>Content keyword for patch segment.</summary>
-    public const string PatchKeyword = "patch";
 
     /// <summary>Content keyword for quickmatch maps segment.</summary>
     public const string QuickMatchMapsKeyword = "quickmatchmaps";

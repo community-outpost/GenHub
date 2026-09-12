@@ -387,8 +387,8 @@ public sealed class ReplayImportService(
 
             if (!fileName.EndsWith(FileTypes.ReplayFileExtension, StringComparison.OrdinalIgnoreCase) &&
                 !fileName.EndsWith(FileTypes.ZipFileExtension, StringComparison.OrdinalIgnoreCase) &&
-                !fileName.EndsWith(".7z", StringComparison.OrdinalIgnoreCase) &&
-                !fileName.EndsWith(".rar", StringComparison.OrdinalIgnoreCase))
+                !fileName.EndsWith(FileTypes.SevenZipFileExtension, StringComparison.OrdinalIgnoreCase) &&
+                !fileName.EndsWith(FileTypes.RarFileExtension, StringComparison.OrdinalIgnoreCase))
             {
                 return $"{fileName}{FileTypes.ReplayFileExtension}";
             }

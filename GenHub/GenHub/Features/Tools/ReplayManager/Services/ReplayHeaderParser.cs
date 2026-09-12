@@ -216,7 +216,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             {
                 var length = offset - start;
                 offset += 1;
-                value = length == 0 ? null : Encoding.ASCII.GetString(buffer, start, length);
+                value = length == 0 ? null : Encoding.Latin1.GetString(buffer, start, length);
                 return true;
             }
 

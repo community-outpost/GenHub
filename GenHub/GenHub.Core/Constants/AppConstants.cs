@@ -108,11 +108,6 @@ public static class AppConstants
     public const string GitHubDefaultBranch = "main";
 
     /// <summary>
-    /// The folder name for documentation files.
-    /// </summary>
-    public const string DocsFolderName = "docs";
-
-    /// <summary>
     /// The folder name for the CSV game installation files registry.
     /// </summary>
     public const string GameInstallationFilesRegistryFolderName = "GameInstallationFilesRegistry";

@@ -687,7 +687,8 @@ public class SteamLauncher : ISteamLauncher
 
             if (File.Exists(_backupPath))
             {
-                if (!IsProxyLauncher(_targetExePath, _proxySourcePath))
+                var targetInfo = new FileInfo(_targetExePath);
+                if (!IsProxyLauncher(_targetExePath, _proxySourcePath) && targetInfo.Length > 0)
                 {
                     _executableRestoreSource = _executableSnapshotPath;
                     var refreshStagingPath = CreateTemporaryPath(_backupPath);

@@ -993,10 +993,13 @@ public sealed class ReplayDirectoryService(
             return null;
         }
 
-        var exactResult = await manifestPool.GetManifestAsync(ManifestId.Create(dataPatchManifestId), ct);
-        if (exactResult.Success && exactResult.Data != null)
+        if (ManifestId.TryCreate(dataPatchManifestId, out var requestedPatchId))
         {
-            return exactResult.Data.Id.Value;
+            var exactResult = await manifestPool.GetManifestAsync(requestedPatchId, ct);
+            if (exactResult?.Success == true && exactResult.Data != null)
+            {
+                return exactResult.Data.Id.Value;
+            }
         }
 
         var allManifestsResult = await manifestPool.GetAllManifestsAsync(ct);
@@ -1021,7 +1024,17 @@ public sealed class ReplayDirectoryService(
     {
         if (replay.MatchedClient != null)
         {
-            return replay.MatchedClient.Description ?? replay.MatchedClient.Publisher ?? "Game";
+            if (!string.IsNullOrWhiteSpace(replay.MatchedClient.Description))
+            {
+                return replay.MatchedClient.Description;
+            }
+
+            if (!string.IsNullOrWhiteSpace(replay.MatchedClient.Publisher))
+            {
+                return replay.MatchedClient.Publisher;
+            }
+
+            return "Game";
         }
 
         return replay.GameVersion == GameType.ZeroHour ? "Zero Hour" : "Generals";
@@ -1322,7 +1335,9 @@ public sealed class ReplayDirectoryService(
             return string.Empty;
         }
 
-        var exactCheck = await manifestPool.GetManifestAsync(ManifestId.Create(matchedClient.ManifestId), ct);
+        var exactCheck = ManifestId.TryCreate(matchedClient.ManifestId, out var requestedClientId)
+            ? await manifestPool.GetManifestAsync(requestedClientId, ct)
+            : null;
         if (exactCheck != null && exactCheck.Success && exactCheck.Data != null)
         {
             return exactCheck.Data.Id.Value;
@@ -1503,6 +1518,25 @@ public sealed class ReplayDirectoryService(
                 await contentOrchestrator.AcquireContentAsync(patchMatch, null, ct);
             }
         }
+    }
+
+    private static long ParseVersionSegments(string? version)
+    {
+        if (string.IsNullOrEmpty(version))
+        {
+            return 0;
+        }
+
+        long score = 0;
+        foreach (var part in version.Split('.', '_', '-'))
+        {
+            if (int.TryParse(part, out var num))
+            {
+                score = (score * 10000) + num;
+            }
+        }
+
+        return score;
     }
 
     private static string GetReplayClientDisplayName(CrcMappingEntry? matchedClient, string defaultName)
@@ -1770,12 +1804,12 @@ public sealed class ReplayDirectoryService(
     private static bool IsGeneralsOnlinePattern(string? fileName, string? versionStr)
     {
         if (!string.IsNullOrEmpty(fileName) &&
-            (GeneralsOnlineFileNameRegex.IsMatch(fileName) || fileName.Contains("generalsonline", StringComparison.OrdinalIgnoreCase)))
+            (GeneralsOnlineFileNameRegex.IsMatch(fileName) || fileName.Contains(GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase)))
         {
             return true;
         }
 
-        return !string.IsNullOrEmpty(versionStr) && versionStr.Contains("generalsonline", StringComparison.OrdinalIgnoreCase);
+        return !string.IsNullOrEmpty(versionStr) && versionStr.Contains(GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase);
     }
 
     private static CrcMappingEntry? TryMatchGeneralsOnlineByBuildDate(List<CrcMappingEntry> entries, string buildTime)
@@ -2022,7 +2056,10 @@ public sealed class ReplayDirectoryService(
     {
         if (gameClient != null && string.IsNullOrWhiteSpace(gameClient.ExecutablePath))
         {
-            gameClient.ExecutablePath = GetDefaultExecutableName(gameVersion, publisher);
+            var defaultExe = GetDefaultExecutableName(gameVersion, publisher);
+            gameClient.ExecutablePath = !string.IsNullOrWhiteSpace(gameClient.WorkingDirectory)
+                ? Path.Combine(gameClient.WorkingDirectory, defaultExe)
+                : defaultExe;
             logger.LogDebug(
                 "[ReplayManager] Assigned default executable path '{ExePath}' for game client '{ClientName}'",
                 gameClient.ExecutablePath,
@@ -2252,7 +2289,7 @@ public sealed class ReplayDirectoryService(
     private string? FindLocalMatchingManifestId(HashSet<string> acquiredIds, string iniCrcStr, string normalizedIni)
     {
         return acquiredIds.FirstOrDefault(id =>
-            id.Contains(normalizedIni, StringComparison.OrdinalIgnoreCase) ||
+            id.Split('.').Any(token => string.Equals(token, normalizedIni, StringComparison.OrdinalIgnoreCase)) ||
             (crcMappingRegistry.TryGetEntryByIniCrc(iniCrcStr, out var knownEntry) &&
              !string.IsNullOrEmpty(knownEntry?.DataPatchManifestId) &&
              (string.Equals(id, knownEntry.DataPatchManifestId, StringComparison.OrdinalIgnoreCase) ||
@@ -2265,7 +2302,15 @@ public sealed class ReplayDirectoryService(
 
         var isGeneralsOnlinePattern = IsGeneralsOnlinePattern(replay.FileName, replay.Metadata?.VersionString);
         var buildTime = replay.Metadata?.BuildTimeString;
-        var isModernBuild = !string.IsNullOrEmpty(buildTime) && (buildTime.Contains("2026") || buildTime.Contains("2025"));
+        var isModernBuild = false;
+        if (!string.IsNullOrEmpty(buildTime))
+        {
+            var match = Regex.Match(buildTime, @"\b(20\d{2})\b", RegexOptions.None, ReplayFileNameRegexTimeout);
+            if (match.Success && int.TryParse(match.Groups[1].Value, out var year))
+            {
+                isModernBuild = year >= 2024;
+            }
+        }
 
         if (!isGeneralsOnlinePattern && !isModernBuild)
         {
@@ -2297,7 +2342,8 @@ public sealed class ReplayDirectoryService(
         {
             matchedEntry = generalsOnlineEntries
                 .OrderByDescending(e => e.BuildDate ?? string.Empty)
-                .ThenByDescending(e => e.Version)
+                .ThenByDescending(e => ParseVersionSegments(e.Version))
+                .ThenByDescending(e => e.Version ?? string.Empty, StringComparer.OrdinalIgnoreCase)
                 .First();
             return true;
         }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools.Checksum;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
@@ -14,66 +15,6 @@ namespace GenHub.Core.Services.Tools.Checksum;
 /// </summary>
 public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
 {
-    private static readonly (string DefaultPath, string OverridePath)[] GeneralsMdOrder =
-    [
-        (@"Data\INI\Default\GameData", @"Data\INI\GameData"),
-        (string.Empty, @"Data\INI\GameData.ini"),
-        (string.Empty, @"Data\INI\Default\GameData.ini"),
-        (string.Empty, @"Data\INI\INIZH.ini"),
-        (string.Empty, @"Data\INI\Default\INIZH.ini"),
-        (@"Data\INI\Default\Water", @"Data\INI\Water"),
-        (string.Empty, @"Data\INI\Default\Weather.ini"),
-        (string.Empty, @"Data\INI\Weather.ini"),
-        (string.Empty, @"Data\INI\Default\Terrain.ini"),
-        (string.Empty, @"Data\INI\Terrain.ini"),
-        (string.Empty, @"Data\INI\Default\Road.ini"),
-        (string.Empty, @"Data\INI\Road.ini"),
-        (string.Empty, @"Data\INI\Default\Handicap.ini"),
-        (string.Empty, @"Data\INI\Handicap.ini"),
-        (string.Empty, @"Data\INI\Default\CommandSet.ini"),
-        (string.Empty, @"Data\INI\CommandSet.ini"),
-        (string.Empty, @"Data\INI\Default\CommandButton.ini"),
-        (string.Empty, @"Data\INI\CommandButton.ini"),
-        (string.Empty, @"Data\INI\Default\Science.ini"),
-        (string.Empty, @"Data\INI\Science.ini"),
-        (string.Empty, @"Data\INI\Default\ModifierList.ini"),
-        (string.Empty, @"Data\INI\ModifierList.ini"),
-        (string.Empty, @"Data\INI\Default\ControlBarScheme.ini"),
-        (string.Empty, @"Data\INI\ControlBarScheme.ini"),
-        (string.Empty, @"Data\INI\Default\Video.ini"),
-        (string.Empty, @"Data\INI\Video.ini"),
-        (string.Empty, @"Data\INI\Default\AudioFX.ini"),
-        (string.Empty, @"Data\INI\AudioFX.ini"),
-        (string.Empty, @"Data\INI\Default\Animation.ini"),
-        (string.Empty, @"Data\INI\Animation.ini"),
-        (string.Empty, @"Data\INI\Default\Rank.ini"),
-        (string.Empty, @"Data\INI\Rank.ini"),
-        (string.Empty, @"Data\INI\Default\WebBanners.ini"),
-        (string.Empty, @"Data\INI\WebBanners.ini"),
-        (string.Empty, @"Data\INI\Default\MiscFX.ini"),
-        (string.Empty, @"Data\INI\MiscFX.ini"),
-        (string.Empty, @"Data\INI\Default\ParticleSystem.ini"),
-        (string.Empty, @"Data\INI\ParticleSystem.ini"),
-        (string.Empty, @"Data\INI\Default\FXList.ini"),
-        (string.Empty, @"Data\INI\FXList.ini"),
-        (string.Empty, @"Data\INI\Default\DamageFX.ini"),
-        (string.Empty, @"Data\INI\DamageFX.ini"),
-        (string.Empty, @"Data\INI\Default\Armor.ini"),
-        (string.Empty, @"Data\INI\Armor.ini"),
-        (string.Empty, @"Data\INI\Default\Locomotor.ini"),
-        (string.Empty, @"Data\INI\Locomotor.ini"),
-        (string.Empty, @"Data\INI\Default\SpecialPower.ini"),
-        (string.Empty, @"Data\INI\SpecialPower.ini"),
-        (string.Empty, @"Data\INI\Default\Weapon.ini"),
-        (string.Empty, @"Data\INI\Weapon.ini"),
-        (string.Empty, @"Data\INI\DamageFX"),
-        (string.Empty, @"Data\INI\Armor"),
-        (@"Data\INI\Default\Object", @"Data\INI\Object"),
-        (@"Data\INI\Default\Upgrade", @"Data\INI\Upgrade"),
-        (@"Data\INI\Default\AIData", @"Data\INI\AIData"),
-        (@"Data\INI\Default\Crate", @"Data\INI\Crate"),
-    ];
-
     /// <inheritdoc/>
     public async Task<OperationResult<string>> CalculateExeCrcAsync(
         string executablePath,
@@ -134,11 +75,11 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
                 ct.ThrowIfCancellationRequested();
 
                 bool isZeroHour = gameType == GameType.ZeroHour;
-                var vfs = new SageVirtualFileSystem(gameRootPath, isZeroHour);
+                var vfs = new SageVirtualFileSystem(gameRootPath, isZeroHour, cancellationToken: ct);
                 var crc = new XferChecksum();
 
                 var order = isZeroHour
-                    ? GeneralsMdOrder
+                    ? SageChecksumConstants.GeneralsMdOrder
                     : BuildGeneralsOrder();
 
                 // Phase 1: Load GameData before sideloads/mods are mounted
@@ -177,25 +118,32 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
 
     private static (int Major, int Minor) ResolveVersion(byte[] exeBytes, string executablePath, int? major, int? minor)
     {
-        if (major != null && minor != null)
-        {
-            return (major.Value, minor.Value);
-        }
+        int detectedMajor = 0;
+        int detectedMinor = 0;
 
         if (PeVersionExtractor.TryExtract(exeBytes, out int extractedMajor, out int extractedMinor) ||
-            PeVersionExtractor.TryExtractFromFile(executablePath, out extractedMajor, out extractedMinor))
+            PeVersionExtractor.TryExtractFromVersionInfo(executablePath, out extractedMajor, out extractedMinor))
         {
-            return (extractedMajor, extractedMinor);
+            detectedMajor = extractedMajor;
+            detectedMinor = extractedMinor;
+        }
+        else
+        {
+            // Fallback based on filename convention
+            string name = Path.GetFileName(executablePath).ToLowerInvariant();
+            if (name.Contains("zh") || name.Contains("zerohour"))
+            {
+                detectedMajor = 1;
+                detectedMinor = 4;
+            }
+            else
+            {
+                detectedMajor = 1;
+                detectedMinor = 8;
+            }
         }
 
-        // Fallback based on filename convention
-        string name = Path.GetFileName(executablePath).ToLowerInvariant();
-        if (name.Contains("zh") || name.Contains("zerohour"))
-        {
-            return (1, 4);
-        }
-
-        return (1, 8);
+        return (major ?? detectedMajor, minor ?? detectedMinor);
     }
 
     private static void AddVersionBytes(LegacyChecksum crc, int major, int minor)
@@ -204,9 +152,14 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         [
             (byte)(minor & 0xFF),
             (byte)((minor >> 8) & 0xFF),
+            (byte)((minor >> 16) & 0xFF),
+            (byte)((minor >> 24) & 0xFF),
             (byte)(major & 0xFF),
-            (byte)((major >> 8) & 0xFF)
+            (byte)((major >> 8) & 0xFF),
+            (byte)((major >> 16) & 0xFF),
+            (byte)((major >> 24) & 0xFF),
         ];
+
         crc.Add(versionBytes);
     }
 
@@ -217,13 +170,13 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
             return;
         }
 
-        string skirmishPath = Path.Combine(root, "Data", "Scripts", "SkirmishScripts.scb");
+        string skirmishPath = Path.Combine(root, SageChecksumConstants.SkirmishScriptsRelativePath);
         if (File.Exists(skirmishPath))
         {
             TryAddFileBytes(crc, skirmishPath);
         }
 
-        string mpPath = Path.Combine(root, "Data", "Scripts", "MultiplayerScripts.scb");
+        string mpPath = Path.Combine(root, SageChecksumConstants.MultiplayerScriptsRelativePath);
         if (File.Exists(mpPath))
         {
             TryAddFileBytes(crc, mpPath);
@@ -236,9 +189,13 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         {
             crc.Add(File.ReadAllBytes(path));
         }
-        catch
+        catch (IOException)
         {
-            // Ignore script read failure
+            // Ignore script read failure per specific exception convention
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Ignore script read failure per specific exception convention
         }
     }
 
@@ -259,13 +216,13 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
     {
         if (sideloadPaths != null)
         {
-            foreach (string sideload in sideloadPaths)
+            foreach (var side in sideloadPaths)
             {
-                vfs.AddSideload(sideload);
+                vfs.AddSideload(side);
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(modPath))
+        if (!string.IsNullOrEmpty(modPath))
         {
             vfs.AddMod(modPath);
         }
@@ -274,14 +231,15 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
     private static (string DefaultPath, string OverridePath)[] BuildGeneralsOrder()
     {
         var list = new List<(string DefaultPath, string OverridePath)>();
-        for (int i = 0; i < 3; i++)
+        foreach (var step in SageChecksumConstants.GeneralsMdOrder)
         {
-            list.Add(GeneralsMdOrder[i]);
-        }
+            if (step.OverridePath.Contains("INIZH", StringComparison.OrdinalIgnoreCase) ||
+                step.DefaultPath.Contains("INIZH", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
 
-        for (int i = 5; i < GeneralsMdOrder.Length; i++)
-        {
-            list.Add(GeneralsMdOrder[i]);
+            list.Add(step);
         }
 
         return [.. list];

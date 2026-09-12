@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.ReplayManager;
 using GenHub.Features.Tools.ReplayManager.Services;
 using Xunit;
@@ -153,5 +154,96 @@ public sealed class CrcMappingRegistryTests
         Assert.Equal(2, all.Count);
         Assert.True(registry.TryGetEntry("0x8B75EFD4", "0x5CB7992C", out _));
         Assert.True(registry.TryGetEntry("0x401D89EA", "0x76B251A3", out _));
+    }
+
+    /// <summary>
+    /// Verifies that duplicate ExeCrc entries are disambiguated in favor of the newer version or Steam.
+    /// </summary>
+    [Fact]
+    public void LoadCatalog_DuplicateExeCrc_DisambiguatesToNewestOrSteam()
+    {
+        var registry = new CrcMappingRegistry();
+        var catalog = new CrcCatalog
+        {
+            SchemaVersion = 1,
+            TotalEntries = 6,
+            Mappings =
+            [
+                new()
+                {
+                    ExeCrc = "0xB9DB8815",
+                    IniCrc = "0x11111111",
+                    ManifestId = "1.82826.generalsonline.gameclient.zerohour",
+                    Publisher = "generalsonline",
+                    GameType = "ZeroHour",
+                    BuildDate = "2026-08-28",
+                    Version = "1.82826",
+                },
+                new()
+                {
+                    ExeCrc = "0xB9DB8815",
+                    IniCrc = "0x22222222",
+                    ManifestId = "1.828261.generalsonline.gameclient.zerohour",
+                    Publisher = "generalsonline",
+                    GameType = "ZeroHour",
+                    BuildDate = "2026-08-28",
+                    Version = "1.828261",
+                },
+                new()
+                {
+                    ExeCrc = "0xAAAAAAAA",
+                    IniCrc = "0x33333333",
+                    ManifestId = "1.0.retail.gameclient.zerohour",
+                    Publisher = "retail",
+                    GameType = "ZeroHour",
+                    BuildDate = "2026-09-01",
+                    Version = "1.0",
+                },
+                new()
+                {
+                    ExeCrc = "0xAAAAAAAA",
+                    IniCrc = "0x44444444",
+                    ManifestId = "1.0.steam.gameclient.zerohour",
+                    Publisher = PublisherTypeConstants.Steam,
+                    GameType = "ZeroHour",
+                    BuildDate = "2024-03-07",
+                    Version = "1.0",
+                },
+                new()
+                {
+                    ExeCrc = "0xBBBBBBBB",
+                    IniCrc = "0x55555555",
+                    ManifestId = "1.9.mod.gameclient.zerohour",
+                    Publisher = "modder",
+                    GameType = "ZeroHour",
+                    BuildDate = "2026-01-01",
+                    Version = "1.9",
+                },
+                new()
+                {
+                    ExeCrc = "0xBBBBBBBB",
+                    IniCrc = "0x66666666",
+                    ManifestId = "1.10.mod.gameclient.zerohour",
+                    Publisher = "modder",
+                    GameType = "ZeroHour",
+                    BuildDate = "2026-01-01",
+                    Version = "1.10",
+                },
+            ],
+        };
+
+        registry.LoadCatalog(catalog);
+
+        Assert.True(registry.TryGetEntryByExeCrc("0xB9DB8815", out var found));
+        Assert.NotNull(found);
+        Assert.Equal("1.828261.generalsonline.gameclient.zerohour", found.ManifestId);
+
+        Assert.True(registry.TryGetEntryByExeCrc("0xAAAAAAAA", out var steamFound));
+        Assert.NotNull(steamFound);
+        Assert.Equal("1.0.steam.gameclient.zerohour", steamFound.ManifestId);
+
+        Assert.True(registry.TryGetEntryByExeCrc("0xBBBBBBBB", out var numericFound));
+        Assert.NotNull(numericFound);
+        Assert.Equal("1.10.mod.gameclient.zerohour", numericFound.ManifestId);
     }
 }
