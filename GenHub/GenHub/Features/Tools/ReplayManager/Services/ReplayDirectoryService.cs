@@ -54,6 +54,15 @@ public sealed class ReplayDirectoryService(
         string InstallationManifestId,
         string ClientManifestId);
 
+    private sealed record ProfileCandidateMatchContext(
+        GameType GameVersion,
+        string ClientManifestId,
+        string? DataPatchManifestId,
+        string? TargetExeCrc,
+        bool IsRetailClient,
+        ILogger? Logger,
+        IGameCrcCalculatorService? CrcCalculator);
+
     private static readonly TimeSpan ReplayFileNameRegexTimeout = TimeSpan.FromMilliseconds(250);
     private static readonly Regex GeneralsOnlineFileNameRegex = new(
         @"^match_\d+_user_[a-fA-F0-9]+_replay\.rep$",
@@ -446,8 +455,17 @@ public sealed class ReplayDirectoryService(
         var isRetailClient = IsRetailClient(null, clientManifestId);
         var targetExeCrc = replay?.MatchedClient?.ExeCrc ?? replay?.Metadata?.FormattedExeCrc;
 
+        var matchCtx = new ProfileCandidateMatchContext(
+            gameVersion,
+            clientManifestId,
+            dataPatchManifestId,
+            targetExeCrc,
+            isRetailClient,
+            logger,
+            crcCalculator);
+
         var compatibleCandidates = profiles
-            .Where(p => IsProfileCandidateCompatible(p, gameVersion, clientManifestId, dataPatchManifestId, targetExeCrc, replay, isRetailClient, logger, crcCalculator))
+            .Where(p => IsProfileCandidateCompatible(p, replay, matchCtx))
             .ToList();
 
         return compatibleCandidates
@@ -727,21 +745,15 @@ public sealed class ReplayDirectoryService(
 
     private static bool IsProfileCandidateCompatible(
         GameProfile p,
-        GameType gameVersion,
-        string clientManifestId,
-        string? dataPatchManifestId,
-        string? targetExeCrc,
         ReplayFile? replay,
-        bool isRetailClient,
-        ILogger? logger,
-        IGameCrcCalculatorService? crcCalculator)
+        ProfileCandidateMatchContext ctx)
     {
-        if (p.GameClient?.GameType != gameVersion)
+        if (p.GameClient?.GameType != ctx.GameVersion)
         {
             return false;
         }
 
-        if (!IsProfileExeCrcMatching(p, targetExeCrc, crcCalculator, logger))
+        if (!IsProfileExeCrcMatching(p, ctx.TargetExeCrc, ctx.CrcCalculator, ctx.Logger))
         {
             return false;
         }
@@ -752,17 +764,17 @@ public sealed class ReplayDirectoryService(
             return true;
         }
 
-        if (IsDedicatedToThisReplay(p, replay, logger))
+        if (IsDedicatedToThisReplay(p, replay, ctx.Logger))
         {
             return true;
         }
 
-        if (isRetailClient)
+        if (ctx.IsRetailClient)
         {
-            return IsProfileMatchingRetail(p, dataPatchManifestId);
+            return IsProfileMatchingRetail(p, ctx.DataPatchManifestId);
         }
 
-        return IsProfileMatchingThirdParty(p, clientManifestId, dataPatchManifestId, replay?.MatchedClient?.Version);
+        return IsProfileMatchingThirdParty(p, ctx.ClientManifestId, ctx.DataPatchManifestId, replay?.MatchedClient?.Version);
     }
 
     private static bool IsProfileExeCrcMatching(
