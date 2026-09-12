@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Tools.GenHotkeys;
-using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -75,11 +74,22 @@ public class HotkeyPackageService(
             progress?.Report("Registering addon in GenHub...");
             var manifestResult = await RegisterAddonManifestAsync(profile, packageDir, cancellationToken);
 
-            logger.LogInformation(
-                "Successfully exported hotkeys addon '{Name}' ({Id}) to {Path}",
-                profile.Name,
-                profile.Id,
-                bigFilePath);
+            if (manifestResult is { Success: true, Data: not null })
+            {
+                logger.LogInformation(
+                    "Successfully exported hotkeys addon '{Name}' ({Id}) to {Path}",
+                    profile.Name,
+                    profile.Id,
+                    bigFilePath);
+            }
+            else
+            {
+                logger.LogWarning(
+                    "Failed to register addon manifest for profile '{Name}' ({Id}): {Errors}",
+                    profile.Name,
+                    profile.Id,
+                    string.Join("; ", manifestResult.Errors));
+            }
 
             return manifestResult;
         }

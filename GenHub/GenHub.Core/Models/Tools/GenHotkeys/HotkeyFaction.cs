@@ -62,11 +62,11 @@ public class HotkeyFaction
                 DisplayName.Contains(GlaGroup, StringComparison.OrdinalIgnoreCase) ||
                 DisplayName.Contains(GenHotkeysConstants.FactionCodes.KeywordTox, StringComparison.OrdinalIgnoreCase) ||
                 DisplayName.Contains(GenHotkeysConstants.FactionCodes.KeywordStealth, StringComparison.OrdinalIgnoreCase) ||
-                DisplayName.Contains(GenHotkeysConstants.FactionCodes.Demo, StringComparison.OrdinalIgnoreCase) ||
+                DisplayName.Contains(GenHotkeysConstants.FactionCodes.KeywordDemo, StringComparison.OrdinalIgnoreCase) ||
                 DisplayNameDescription.Contains(GlaGroup, StringComparison.OrdinalIgnoreCase) ||
                 DisplayNameDescription.Contains(GenHotkeysConstants.FactionCodes.KeywordTox, StringComparison.OrdinalIgnoreCase) ||
                 DisplayNameDescription.Contains(GenHotkeysConstants.FactionCodes.KeywordStealth, StringComparison.OrdinalIgnoreCase) ||
-                DisplayNameDescription.Contains(GenHotkeysConstants.FactionCodes.Demo, StringComparison.OrdinalIgnoreCase))
+                DisplayNameDescription.Contains(GenHotkeysConstants.FactionCodes.KeywordDemo, StringComparison.OrdinalIgnoreCase))
             {
                 return GlaGroup;
             }
