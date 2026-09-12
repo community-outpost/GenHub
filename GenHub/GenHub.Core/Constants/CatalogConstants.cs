@@ -54,6 +54,11 @@ public static class CatalogConstants
     public const long MaxCatalogSizeBytes = 10 * 1024 * 1024;
 
     /// <summary>
+    /// Default fallback filename for downloads when parsing or sanitizing fails.
+    /// </summary>
+    public const string DefaultDownloadFilename = "download.zip";
+
+    /// <summary>
     /// Maximum number of entries allowed when extracting publisher catalog archives.
     /// </summary>
     public const int MaxZipEntryCount = 50_000;
